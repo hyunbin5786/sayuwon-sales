@@ -1,0 +1,4 @@
+# 로컬 미리보기 서버, 개인 설정, API 키는 올리지 않음
+.claude/
+api-key.txt
+data/
