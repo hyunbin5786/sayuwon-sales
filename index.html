@@ -117,6 +117,10 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .dayinfo b{color:var(--pine)}
 .dayinfo ul{margin:4px 0 0;padding-left:16px}
 .dayinfo .none{color:var(--muted)}
+.dayinfo .adm{margin-top:6px;padding-top:6px;border-top:1px dashed #bccab4}
+.dayinfo .adm .full{color:var(--red)}
+.tag.call{background:var(--red-soft);color:var(--red)}
+.list h2 .row-btns{margin-left:auto}
 .f.hot input{border-color:var(--pine);box-shadow:0 0 0 1px var(--pine) inset}
 </style>
 </head>
@@ -183,7 +187,8 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 </div>
 
 <section class="list panel">
-  <h2>단체예약 목록 <small id="storeHint"></small></h2>
+  <h2>단체예약 목록 <small id="storeHint"></small> <span class="tag call" id="callCount" hidden></span>
+    <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn" id="adminSyncBtn" style="padding:4px 10px;font-size:12px">관리자 사이트에서 지금 가져오기</button></span></h2>
   <div class="tw"><table><thead><tr><th>방문일</th><th>업체</th><th>담당자</th><th>연락처</th><th>인원</th><th>입퇴장</th><th>식사</th><th>영업 담당</th><th>접수</th><th></th></tr></thead><tbody id="listBody"></tbody></table></div>
   <div class="row-btns" style="margin-top:10px"><button class="btn" id="copyAllBtn">전체 엑셀 행 복사</button></div>
 </section>
@@ -377,6 +382,20 @@ const INFO_OF = k => GROUP_OF[k]==='사담'||GROUP_OF[k]==='몽몽마방' ? 'mea
 let curInfoKey = null;
 const numOf = v => { const s=String(v||'').trim(); return /^\d+(\s*\+\s*\d+)*\s*명?$/.test(s) ? s.match(/\d+/g).reduce((a,x)=>a+(+x),0) : 0; };   // 인원만 더함 (10:30 같은 시간은 제외)
 function sameDay(){ return cache.filter(r=>r.date===rec.date && r.id!==editingId); }
+// 관리자 사이트(admin.sayuwon.com) 사담·마방 현황: Apps Script 가 15분마다 가져와 둔 것
+const ADMIN_SLOT = { sadam1:['L1','사담 런치1부'], sadam2:['L2','사담 런치2부'], sadamD:['D','사담 디너'], mabangL:['MB','마방 사유의 밥상'] };
+function adminLine(keys){
+  const day = adminData && adminData.days && adminData.days[rec.date];
+  const ks = keys.filter(k=>ADMIN_SLOT[k]);
+  if(!ks.length) return '';
+  if(!adminData) return '<div class="adm none">관리자 사이트 현황: 아직 가져오지 않음</div>';
+  if(!day) return '<div class="adm none">관리자 사이트: 이 날짜 판매 정보 없음</div>';
+  const parts = ks.map(k=>{ const [slot,name]=ADMIN_SLOT[k]; const s=day[slot]; if(!s) return '';
+    const left = s.max!=null && s.cur!=null ? s.max-s.cur : null;
+    return `<span class="${s.close||left===0?'full':''}">${name} <b>${s.cur??'-'}/${s.max??'-'}명</b>${s.teamMax?` · ${s.team??0}/${s.teamMax}팀`:''}${s.close?' · 마감':left!=null?` · 남은 ${left}명`:''}</span>`; }).filter(Boolean);
+  return `<div class="adm">관리자 사이트 <small>(${fmtAgo(adminData.updated)})</small> · ${parts.join(' · ') || '<span class="none">해당 상품 없음</span>'}</div>`;
+}
+const fmtAgo = s => { if(!s) return ''; const m=Math.round((Date.now()-new Date(s))/60000); return m<1?'방금':m<60?`${m}분 전`:`${Math.round(m/60)}시간 전`; };
 function renderInfo(k){
   curInfoKey = k || null;
   document.querySelectorAll('#form .f.hot').forEach(w=>w.classList.remove('hot'));
@@ -389,10 +408,11 @@ function renderInfo(k){
       const hits=day.filter(r=>r[k]);
       const tot=hits.reduce((s,r)=>s+numOf(r[k]),0);
       el.innerHTML = `<b>${dateLabel(rec.date)} ${LABEL[k]}</b> · ${hits.length? `이미 ${hits.length}건${tot?`, ${tot}명`:''}` : '<span class="none">다른 예약 없음</span>'}`
-        + (hits.length? `<ul>${hits.map(r=>`<li>${esc(r.org||'(업체 미정)')} · ${esc(r[k])}${/^\d+$/.test(r[k])?'명':''}${r.owner?` · ${esc(r.owner)}`:''}</li>`).join('')}</ul>` : '');
+        + (hits.length? `<ul>${hits.map(r=>`<li>${esc(r.org||r.contact||'(업체 미정)')} · ${esc(r[k])}${/^\d+$/.test(r[k])?'명':''}${r.owner?` · ${esc(r.owner)}`:''}</li>`).join('')}</ul>` : '')
+        + adminLine([k]);
     } else {
       const parts=keys.map(key=>{ const hits=day.filter(r=>r[key]); if(!hits.length) return ''; const tot=hits.reduce((s,r)=>s+numOf(r[key]),0); return `${LABEL[key]} ${hits.length}건${tot?`(${tot}명)`:''}`; }).filter(Boolean);
-      el.innerHTML = `<b>${dateLabel(rec.date)} ${box==='meal'?'식사':'프로그램'} 예약 현황</b> · ` + (parts.length? esc(parts.join(' · ')) : '<span class="none">다른 예약 없음</span>') + ' <span class="none">(칸에 커서를 두면 업체별로 보입니다)</span>';
+      el.innerHTML = `<b>${dateLabel(rec.date)} ${box==='meal'?'식사':'프로그램'} 예약 현황</b> · ` + (parts.length? esc(parts.join(' · ')) : '<span class="none">다른 예약 없음</span>') + ' <span class="none">(칸에 커서를 두면 업체별로 보입니다)</span>' + adminLine(keys);
     }
   });
 }
@@ -535,6 +555,8 @@ const readJSON=(k,d)=>{ try{ const v=JSON.parse(localStorage.getItem(k)); return
 const writeJSON=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){} };
 let pending = readJSON(PEND_LS,[]);        // 아직 시트에 못 올린 저장·삭제 [{action:'put',item}|{action:'del',id}]
 let serverItems = readJSON(CACHE_LS,[]);   // 마지막으로 받은 시트 내용 (바로 띄우기용)
+const ADMIN_LS='sayuwon_intake_admin';
+let adminData = readJSON(ADMIN_LS,null);   // 관리자 사이트 사담·마방 현황 {updated, days:{날짜:{L1,L2,D,MB}}}
 let syncState = SHARED_URL ? 'loading' : 'off', flushing=false, retryTimer=null;
 const getKey=()=>{ try{ return localStorage.getItem(KEY_LS)||''; }catch(_){ return ''; } };
 
@@ -582,6 +604,7 @@ async function pull(inFlush){
   try{
     const j=await callApi({action:'list'});
     serverItems=j.items||[]; writeJSON(CACHE_LS,serverItems.slice(-1000));
+    if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
     syncState='ok'; $('#keyMsg').textContent=''; paintSync(); renderList();
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
@@ -616,7 +639,11 @@ const fmt=s=>s?new Date(s).toLocaleString('ko-KR',{month:'numeric',day:'numeric'
 async function renderList(){
   const all=(await store.list()).filter(r=>(r.callType||'단체예약')==='단체예약');
   const del=id=>`<button class="btn" data-del="${id}" style="padding:3px 8px;font-size:12px">삭제</button>`;
-  $('#listBody').innerHTML=all.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${esc(r.org)}</td><td>${esc(r.contact)}</td><td class="num">${esc(r.phone)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(r.meal)}</td><td>${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
+  const needCall = r => /^자동 등록/.test(r.summary||'');
+  const nCall = all.filter(needCall).length;
+  $('#callCount').hidden = !nCall; $('#callCount').textContent = `전화 필요 ${nCall}건`;
+  $('#adminHint').textContent = adminData?.updated ? `관리자 사이트 ${fmtAgo(adminData.updated)} 갱신 · ` : '';
+  $('#listBody').innerHTML=all.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td>${esc(r.contact)}</td><td class="num">${esc(r.phone)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(r.meal)}</td><td>${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
     || `<tr><td colspan="10" class="hint">저장한 단체예약이 없습니다.</td></tr>`;
   document.querySelectorAll('#listBody tr.r').forEach(tr=>tr.onclick=async e=>{
     if(e.target.dataset.del){ e.stopPropagation(); if(e.target.textContent==='삭제'){ e.target.textContent='정말 삭제'; return; } await store.del(e.target.dataset.del); renderList(); return; }
@@ -630,6 +657,20 @@ async function renderList(){
   renderInfo(curInfoKey);
 }
 $('#copyAllBtn').onclick=async()=>{ const l=(await store.list()).filter(r=>(r.callType||'단체예약')==='단체예약').sort((a,b)=>(a.date||'').localeCompare(b.date||'')); if(!l.length){ toast('저장한 단체예약이 없습니다.'); return; } copy(l.map(r=>excelRow(r).map(tsvCell).join('\t')).join('\n'),`${l.length}건을 복사했습니다.`); };
+
+// 관리자 사이트에서 지금 가져오기 (평소에는 Apps Script 가 15분마다 자동으로)
+$('#adminSyncBtn').onclick=async()=>{
+  if(!SHARED_URL){ toast('공유 저장소가 연결돼 있어야 합니다.'); return; }
+  const b=$('#adminSyncBtn'); b.disabled=true; b.textContent='가져오는 중…';
+  try{
+    const j=await callApi({action:'syncAdmin'});
+    if(j.admin) { adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
+    toast(`가져왔습니다 · 15명 이상 ${j.result.big}건 중 새로 ${j.result.added}건 등록`);
+    await pull();
+  }catch(e){
+    toast(e.code==='bad_action' ? 'Apps Script를 새 버전으로 다시 배포해야 합니다.' : '가져오지 못했습니다: '+e.message);
+  }finally{ b.disabled=false; b.textContent='관리자 사이트에서 지금 가져오기'; }
+};
 
 // ===================== 새 통화·단축키 =====================
 function newCall(withToast=true){

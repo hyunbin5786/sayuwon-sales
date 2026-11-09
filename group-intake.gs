@@ -4,7 +4,7 @@
  * 설치
  *  1. https://script.google.com 에서 '새 프로젝트'
  *  2. 기존 내용을 지우고 이 파일 내용을 통째로 붙여넣는다
- *  3. 바로 아래 PASSCODE 를 팀 공용 비밀번호로 바꾸고 저장
+ *  3. 프로젝트 설정(톱니바퀴) → 스크립트 속성에 PASSCODE(팀 공용 비밀번호)를 추가
  *     (이 코드는 공개되지 않습니다. 사이트에서 처음 한 번 이 비밀번호를 넣으면 그 브라우저에 기억됩니다)
  *  4. 위쪽 함수 목록에서 setup 을 골라 '실행' → 권한 승인 (내 드라이브에 '단체예약 접수 기록' 시트가 생김)
  *  5. 배포 → 새 배포 → 유형: 웹 앱 / 실행 사용자: 나 / 액세스 권한: 모든 사용자
@@ -13,8 +13,26 @@
  * 코드를 고친 뒤에는: 배포 → 배포 관리 → 편집(연필) → 버전: 새 버전 → 배포 (주소는 그대로)
  *
  * 저장 형식: 'calls' 시트, 통화 1건 = 1줄. 지우면 줄을 없애지 않고 '삭제' 칸에 일시를 적는다.
+ *
+ * 비밀 값은 코드가 아니라 '프로젝트 설정(톱니바퀴) → 스크립트 속성'에 넣는다 (코드를 새로 붙여넣어도 그대로 남음)
+ *   PASSCODE  : 팀 비밀번호 (사이트에서 처음 한 번 입력)
+ *   ADMIN_ID  : 관리자 사이트(admin.sayuwon.com) 아이디 — 조회 전용 계정 권장
+ *   ADMIN_PW  : 그 비밀번호
+ *
+ * 관리자 사이트 자동 가져오기 (사담 현황 + 15명 이상 예약)
+ *  1. 스크립트 속성에 ADMIN_ID · ADMIN_PW 를 넣는다
+ *  2. 함수 목록에서 testAdmin 실행 → 실행 로그에 "로그인 성공 · 사담 n일 · 15명 이상 n건" 이 나오면 정상
+ *  3. 함수 목록에서 setupAdminSync 실행 → 15분마다 자동으로 가져온다 (트리거)
  */
-var PASSCODE = "여기에_팀_비밀번호";
+var PASSCODE_FALLBACK = "여기에_팀_비밀번호";   // 예전 방식. 스크립트 속성 PASSCODE 가 있으면 그것을 쓴다
+var ADMIN_API = "https://admin-api.sayuwon.com/api/v1";
+var BIG_TEAM = 15;          // 이 인원 이상이면 목록에 자동 등록
+var LOOKAHEAD_DAYS = 180;   // 오늘부터 며칠 뒤 예약까지 가져올지
+function prop_(k) { return PropertiesService.getScriptProperties().getProperty(k) || ""; }
+function passcode_() {
+  var p = prop_("PASSCODE") || PASSCODE_FALLBACK;
+  return p === "여기에_팀_비밀번호" ? "" : p;
+}
 
 // [키, 시트 머리글] — 엑셀 메인 시트 D~V열 순서를 가운데에 그대로 둔다
 var COLS = [
@@ -39,9 +57,14 @@ function doPost(e) {
   var req;
   try { req = JSON.parse((e && e.postData && e.postData.contents) || "{}"); }
   catch (err) { return json_({ ok: false, error: "bad_json" }); }
-  if (!PASSCODE || String(req.key || "") !== PASSCODE) return json_({ ok: false, error: "bad_key" });
+  var pc = passcode_();
+  if (!pc || String(req.key || "") !== pc) return json_({ ok: false, error: "bad_key" });
 
-  if (req.action === "list") return json_({ ok: true, items: list_(Number(req.limit) || 2000) });
+  if (req.action === "list") return json_({ ok: true, items: list_(Number(req.limit) || 2000), admin: readAdmin_(), api: 2 });
+  if (req.action === "syncAdmin") {
+    try { return json_({ ok: true, result: syncAdmin(), admin: readAdmin_() }); }
+    catch (err) { return json_({ ok: false, error: "admin_sync: " + String(err && err.message || err) }); }
+  }
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -141,4 +164,113 @@ function list_(limit) {
 
 function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// =====================================================================
+// 관리자 사이트(admin.sayuwon.com) 자동 가져오기
+//  - 사담 런치1부·2부·디너, 몽몽마방 사유의 밥상: 날짜별 정원·현재 인원·팀 수 → 'admin' 시트 A1 (JSON)
+//  - BIG_TEAM 명 이상 예약 → 'calls' 시트에 "자동 등록 · 전화 필요" 로 한 줄씩 (관리자 예약번호로 한 번만)
+// =====================================================================
+function adminLogin_() {
+  var id = prop_("ADMIN_ID"), pw = prop_("ADMIN_PW");
+  if (!id || !pw) throw new Error("스크립트 속성에 ADMIN_ID · ADMIN_PW 가 없습니다");
+  var res = UrlFetchApp.fetch(ADMIN_API + "/auth/login", {
+    method: "post", contentType: "application/json",
+    payload: JSON.stringify({ user_id: id, password: pw }), muteHttpExceptions: true
+  });
+  var body = {};
+  try { body = JSON.parse(res.getContentText()); } catch (e) {}
+  if (res.getResponseCode() !== 200 || !body.access_token) throw new Error("관리자 로그인 실패 (" + res.getResponseCode() + ") " + (body.message || ""));
+  return body.access_token;
+}
+function adminGet_(token, path) {
+  var res = UrlFetchApp.fetch(ADMIN_API + path, {
+    headers: { Cookie: "admin_access_token=" + token }, muteHttpExceptions: true
+  });
+  var text = res.getContentText();
+  if (res.getResponseCode() !== 200) throw new Error("관리자 조회 실패 " + path + " (" + res.getResponseCode() + ") " + text.slice(0, 120));
+  return JSON.parse(text);
+}
+function ymd_(d) { return Utilities.formatDate(d, "Asia/Seoul", "yyyy-MM-dd"); }
+
+function slotOf_(name) {
+  name = String(name || "");
+  if (/사담\s*런치\s*1부/.test(name)) return "L1";
+  if (/사담\s*런치\s*2부/.test(name)) return "L2";
+  if (/사담\s*디너/.test(name)) return "D";
+  if (/사유의\s*밥상/.test(name) && !/단체/.test(name)) return "MB";
+  return "";
+}
+
+// 트리거·사이트 버튼·testAdmin 이 부른다
+function syncAdmin() {
+  var token = adminLogin_();
+  var now = new Date();
+
+  // 1) 사담·마방 현황: 이번 달부터 4개월
+  var days = {};
+  for (var i = 0; i < 4; i++) {
+    var m = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    var ym = Utilities.formatDate(m, "Asia/Seoul", "yyyyMM");
+    adminGet_(token, "/admin/product/sales-schedule/product/" + ym + "?search=").forEach(function (p) {
+      var slot = slotOf_(p.name);
+      if (!slot || !p.yyyymmdd) return;
+      var d = String(p.yyyymmdd).replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
+      days[d] = days[d] || {};
+      days[d][slot] = { cur: p.current_confirm != null ? p.current_confirm : p.current, max: p.max_capacity,
+        team: p.team_current, teamMax: p.team_max_capacity, close: p.close === "Y" ? 1 : 0 };
+    });
+  }
+
+  // 2) 15명 이상 예약 → calls 에 없으면 추가 (사이트 저장과 겹치지 않게 잠금)
+  var lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+  var to = new Date(now.getTime() + LOOKAHEAD_DAYS * 86400000);
+  var list = adminGet_(token, "/admin/reservation/reservations?from_date=" + ymd_(now) + "&to_date=" + ymd_(to) + "&search=&product_gubun=&reservation_status=0");
+  var big = list.filter(function (r) { return Number(r.all_cnt) >= BIG_TEAM; });
+  var s = sheet_();
+  var n = s.getLastRow(), have = {};
+  if (n > 1) s.getRange(2, 1, n - 1, 1).getValues().forEach(function (r) { have[String(r[0])] = true; });
+  var added = 0;
+  big.forEach(function (r) {
+    var id = "adm" + r.seq;
+    if (have[id]) return;
+    var cnt = String(r.all_cnt), slot = slotOf_(r.product_name);
+    var item = {
+      id: id, saved: new Date().toISOString(), takenBy: "자동", callType: "단체예약",
+      summary: "자동 등록 · 전화 필요 · " + (r.product_name || ""),
+      date: r.visit_date || "", people: cnt, contact: r.member_name || "", phone: r.phone_number || "",
+      sadam1: slot === "L1" ? cnt : "", sadam2: slot === "L2" ? cnt : "", sadamD: slot === "D" ? cnt : "", mabangL: slot === "MB" ? cnt : "",
+      note: "관리자 예약 " + (r.number || r.seq) + " · " + (r.product_name || "") + " · " + (r.visitor_cnt || cnt + "명") +
+            " · 결제 " + (r.payment_amount != null ? Number(r.payment_amount).toLocaleString() + "원" : "-") + " · " + (r.reservation_type_name || "")
+    };
+    put_(item);
+    have[id] = true; added++;
+  });
+
+  var data = { updated: new Date().toISOString(), days: days };
+  var a = adminSheet_();
+  a.getRange("A1").setValue(JSON.stringify(data));
+  a.getRange("B1").setValue(new Date());
+  return { sadamDays: Object.keys(days).length, big: big.length, added: added };
+  } finally { lock.releaseLock(); }
+}
+function adminSheet_() {
+  var ss = sheet_().getParent();
+  return ss.getSheetByName("admin") || ss.insertSheet("admin");
+}
+function readAdmin_() {
+  try { var v = adminSheet_().getRange("A1").getValue(); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+}
+
+// 한 번 실행해서 연결 확인
+function testAdmin() {
+  var r = syncAdmin();
+  Logger.log("로그인 성공 · 사담 " + r.sadamDays + "일 · 15명 이상 " + r.big + "건 (새로 등록 " + r.added + "건)");
+}
+// 한 번 실행하면 15분마다 자동으로 가져온다 (다시 실행해도 트리거는 하나만)
+function setupAdminSync() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === "syncAdmin") ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger("syncAdmin").timeBased().everyMinutes(15).create();
+  Logger.log("15분마다 관리자 사이트에서 가져옵니다");
 }
