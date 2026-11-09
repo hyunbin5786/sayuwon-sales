@@ -14,6 +14,7 @@
   --serif:"Noto Serif KR",serif; --sans:"Noto Sans KR",system-ui,sans-serif;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}   /* 숨긴 요소는 자기 display 스타일이 있어도 숨김 (비밀번호 칸·전화 필요 표시) */
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 var(--sans)}
 header{background:var(--pine);color:#f3f1ec;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 header h1{font:600 18px var(--serif);margin:0;letter-spacing:.03em}
