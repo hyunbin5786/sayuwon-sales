@@ -104,12 +104,25 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--pine-soft);color:var(--pine);font-weight:700}
 .tag.etc{background:#ece9e2;color:var(--muted)}
 .num{font-variant-numeric:tabular-nums}
+/* 담당자 여러 명 */
+.contacts{display:flex;flex-direction:column;gap:6px}
+.crow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.4fr) 28px;gap:8px;align-items:end}
+@media (max-width:560px){.crow{grid-template-columns:1fr 1fr}}
+.crow .x{border:1px solid var(--line);background:var(--card);border-radius:6px;height:31px;cursor:pointer;color:var(--muted)}
+.crow .x:hover{border-color:var(--red);color:var(--red)}
+.addc{align-self:flex-start;margin-top:2px;padding:4px 10px;font-size:12px}
+.grp-t{display:flex;justify-content:space-between;align-items:center}
+/* 그날 예약 현황 */
+.dayinfo{margin-top:8px;background:var(--pine-soft);border-radius:8px;padding:8px 10px;font-size:12.5px;min-height:36px}
+.dayinfo b{color:var(--pine)}
+.dayinfo ul{margin:4px 0 0;padding-left:16px}
+.dayinfo .none{color:var(--muted)}
+.f.hot input{border-color:var(--pine);box-shadow:0 0 0 1px var(--pine) inset}
 </style>
 </head>
 <body>
 <header>
   <h1>思惟園 예약 접수 도우미</h1>
-  <label class="who">받는 사람 <input id="ownerInput" list="owners" placeholder="이름"><datalist id="owners"><option>이상운</option><option>혜린</option></datalist></label>
   <span class="timer" id="timer"></span>
   <span class="sync" id="syncChip"></span>
   <span class="keys">Ctrl+S 저장 · Alt+N 새 통화</span>
@@ -145,16 +158,6 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <!-- 예약 칸 -->
   <section class="panel form-col">
     <h2>예약 내용 <small>노란색 = 메모에서 자동 입력 · 직접 고친 칸은 그대로 유지</small></h2>
-    <div class="ctype">
-      <span class="ctype-l">통화 구분</span>
-      <div class="seg" id="ctypeSeg">
-        <button type="button" data-t="단체예약">단체예약</button>
-        <button type="button" data-t="일반문의">일반 문의</button>
-        <button type="button" data-t="기타">기타</button>
-      </div>
-      <span class="hint" id="ctypeWhy" style="margin:0"></span>
-    </div>
-    <div id="summaryRow" class="f w4"><label for="f_summary"><span>통화 요약 (한 줄)</span></label><input id="f_summary" placeholder="예) 개인 관람 주차 문의 / 단체 35명 12월 견적 요청"></div>
     <form id="form" autocomplete="off"></form>
     <div class="excel" id="excelPreview"></div>
     <div class="row-btns" style="margin-top:10px">
@@ -180,39 +183,32 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 </div>
 
 <section class="list panel">
-  <h2>접수 목록 <small id="storeHint"></small></h2>
-  <div class="seg" id="listSeg" style="display:inline-flex;margin-bottom:8px;background:var(--bg)">
-    <button type="button" class="on" data-l="group">단체예약</button>
-    <button type="button" data-l="all">전체 통화 기록</button>
-  </div>
-  <div class="tw"><table><thead><tr id="listHead"></tr></thead><tbody id="listBody"></tbody></table></div>
-  <div class="row-btns" style="margin-top:10px"><button class="btn" id="copyAllBtn">단체예약 전체 엑셀 행 복사</button></div>
+  <h2>단체예약 목록 <small id="storeHint"></small></h2>
+  <div class="tw"><table><thead><tr><th>방문일</th><th>업체</th><th>담당자</th><th>연락처</th><th>인원</th><th>입퇴장</th><th>식사</th><th>영업 담당</th><th>접수</th><th></th></tr></thead><tbody id="listBody"></tbody></table></div>
+  <div class="row-btns" style="margin-top:10px"><button class="btn" id="copyAllBtn">전체 엑셀 행 복사</button></div>
 </section>
 
 <div class="toast" id="toast"></div>
 
 <script>
 // ===================== 필드 정의 (엑셀 메인 시트 열 기준) =====================
+// grp, key, label, 엑셀열, 너비, 물어볼 질문(필수)
 const FIELDS = [
-  // grp, key, label, 엑셀열, 너비, 물어볼 질문(필수)
   ['기본','org','업체(단체명)','D','w2','단체명(기관명)이 어떻게 되실까요?'],
-  ['기본','contact','고객 담당자','','',  '담당자분 성함이 어떻게 되세요?'],
-  ['기본','phone','연락처','','',  '연락 가능한 번호 하나 남겨주시겠어요?'],
   ['기본','date','방문일','B','',  '방문 날짜가 언제로 생각하고 계실까요?'],
   ['기본','people','관람 인원','I','',  '방문 인원은 총 몇 분이세요? (인솔자·기사님 포함 여부도)'],
-  ['기본','email','이메일','','w2', '견적서 받으실 이메일 주소 알려주시겠어요?'],
   ['방문','tin','입장','H','',  '몇 시쯤 도착 예정이세요?'],
   ['방문','tout','퇴장','H','',  '나가시는 시간은 몇 시쯤으로 보시나요?'],
   ['방문','vehicle','차량','G','',  '버스로 오세요, 승용차로 오세요? 몇 대인가요?'],
   ['방문','owner','영업 담당','E','',  null],
   ['방문','pay','결제','F','w2','결제는 사전 계좌이체와 현장 결제 중 어떻게 하실까요?'],
   ['방문','meal','식사 여부','','w2','식사는 사담이나 몽몽마방 이용하실 계획 있으세요?'],
-  ['식사','sadam1','사담 1부','J','',null],
-  ['식사','sadam2','사담 2부','K','',null],
-  ['식사','sadamD','사담 디너','L','',null],
-  ['식사','mabangL','마방 런치','M','',null],
-  ['식사','mabangD','마방 디너','N','',null],
-  ['식사','mabangMenu','마방 메뉴','','w2',null],
+  ['사담','sadam1','1부','J','',null],
+  ['사담','sadam2','2부','K','',null],
+  ['사담','sadamD','디너','L','',null],
+  ['몽몽마방','mabangL','런치','M','',null],
+  ['몽몽마방','mabangD','디너','N','',null],
+  ['몽몽마방','mabangMenu','메뉴','','w2',null],
   ['프로그램','chabang','차방','O','',null],
   ['프로그램','donghaeng','동행','P','',null],
   ['프로그램','dangdu','당두','Q','',null],
@@ -221,86 +217,139 @@ const FIELDS = [
   ['프로그램','teaMed','티하우스 명상','T','',null],
   ['프로그램','gayageum','가야금','U','',null],
   ['프로그램','cabin','유루 캐빈','V','',null],
-  ['메모','memo','비고 / 요청사항','','w4',null],
 ];
+// 담당자(여러 명): c0_name, c0_phone, c0_email, c1_name …
+const CFIELDS = [['name','담당자 성함','담당자분 성함이 어떻게 되세요?'],['phone','연락처','연락 가능한 번호 하나 남겨주시겠어요?'],['email','이메일','견적서 받으실 이메일 주소 알려주시겠어요?']];
 const KEYS = FIELDS.map(f=>f[1]);
-const REQUIRED = FIELDS.filter(f=>f[5]).map(f=>f[1]);
-const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1],f[2]]));
+const INFO_GROUPS = { '몽몽마방':'meal', '프로그램':'prog' };   // 이 묶음 아래에 그날 예약 현황
+const GROUP_OF = Object.fromEntries(FIELDS.map(f=>[f[1], f[0]]));
+const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1], ['사담','몽몽마방'].includes(f[0]) ? `${f[0]} ${f[2]}` : f[2]]));
+CFIELDS.forEach(([f,l])=>{ for(let i=0;i<10;i++) LABEL[`c${i}_${f}`]= i? `${l}(${i+1})` : l; });
 const EXCEL_COLS = ['D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V'];
 const EXCEL_HEAD = {D:'업체',E:'담당',F:'결제',G:'차량',H:'입퇴장',I:'관람',J:'사담 1부',K:'사담 2부',L:'사담 디너',M:'마방 런치',N:'마방 디너',O:'차방',P:'동행',Q:'당두',R:'요가/명상',S:'가가',T:'티 명상',U:'가야금',V:'유루 캐빈'};
 const DOW = '일월화수목금토';
 const $ = s => document.querySelector(s);
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const isCKey = k => /^c\d+_(name|phone|email)$/.test(k);
 
 // ===================== 상태 =====================
-let rec, touched, ruleOwned, ruleUnsure, aiUnsure, aiQuestions, aiType;
-let callType, callGuess, summary, summaryTouched, startedAt, editingId;
-let cache=[], listMode='group';
-const effType = () => callType || callGuess.type;
+let rec, touched, ruleOwned, ruleUnsure, startedAt, editingId, nContacts;
+let cache=[];
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
-function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=$('#ownerInput').value||savedOwner(); return o; }
-function resetState(){
-  rec=blank(); touched=new Set(); ruleOwned=new Set(); ruleUnsure=[]; aiUnsure=[]; aiQuestions=[]; aiType=null;
-  callType=''; callGuess={type:'',why:''}; summary=''; summaryTouched=false; startedAt=null; editingId=null;
+function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); return o; }
+function resetState(){ rec=blank(); touched=new Set(['owner']); ruleOwned=new Set(); ruleUnsure=[]; startedAt=null; editingId=null; nContacts=1; }
+function contactsOf(r){
+  const out=[]; for(let i=0;i<nContactsOf(r);i++){ const c={name:r[`c${i}_name`]||'',phone:r[`c${i}_phone`]||'',email:r[`c${i}_email`]||''}; if(c.name||c.phone||c.email) out.push(c); } return out;
 }
+function nContactsOf(r){ let n=0; Object.keys(r).forEach(k=>{ const m=k.match(/^c(\d+)_/); if(m && r[k]) n=Math.max(n,+m[1]+1); }); return n; }
+function joinContacts(r){ const cs=contactsOf(r); return { contact:cs.map(c=>c.name).join(' / '), phone:cs.map(c=>c.phone).join(' / '), email:cs.map(c=>c.email).join(' / ') }; }
+function splitContacts(r){   // 시트에서 읽은 "가 / 나" 를 담당자 줄로
+  const sp=v=>String(v||'').split(/\s*\/\s*/);
+  const a=sp(r.contact), b=sp(r.phone), c=sp(r.email); const n=Math.max(a.length,b.length,c.length);
+  const o={}; for(let i=0;i<n;i++){ o[`c${i}_name`]=(a[i]||'').trim(); o[`c${i}_phone`]=(b[i]||'').trim(); o[`c${i}_email`]=(c[i]||'').trim(); } return o;
+}
+const allKeys = () => { const ks=[...KEYS]; for(let i=0;i<nContacts;i++) CFIELDS.forEach(([f])=>ks.push(`c${i}_${f}`)); return ks; };
+const REQUIRED = () => [...FIELDS.filter(f=>f[5]).map(f=>[f[1],f[2],f[5]]), ...CFIELDS.map(([f,l,q])=>[`c0_${f}`,l,q])];
 
 // ===================== 칸 렌더 =====================
+function fieldHTML(k,label,col,cls,req){
+  const type = k==='date'?' type="date"':'';
+  const extra = k==='owner'?' list="owners"':'';
+  return `<div class="f ${cls}${req?' req':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span>${col?`<span class="col">${col}</span>`:''}</label><input id="f_${k}" data-k="${k}"${type}${extra}></div>`;
+}
 function buildForm(){
+  const req=new Set(REQUIRED().map(r=>r[0]));
   let html='', g='';
+  const close=()=>{ if(!g) return; html+='</div>'; if(INFO_GROUPS[g]) html+=`<div class="dayinfo" id="info_${INFO_GROUPS[g]}"></div>`; html+='</div>'; };
   FIELDS.forEach(([grp,k,label,col,cls])=>{
-    if(grp!==g){ if(g) html+='</div></div>'; html+=`<div class="grp"><div class="grp-t">${grp}</div><div class="fields">`; g=grp; }
-    const type = k==='date'?' type="date"':'';
-    html += `<div class="f ${cls}${REQUIRED.includes(k)?' req':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span>${col?`<span class="col">${col}</span>`:''}</label><input id="f_${k}" data-k="${k}"${type}></div>`;
+    if(grp!==g){
+      close();
+      const sub = grp==='사담'||grp==='몽몽마방' ? ' · 식사' : '';
+      html+=`<div class="grp" data-grp="${grp}"><div class="grp-t"><span>${grp}${sub}</span></div><div class="fields">`; g=grp;
+      if(grp==='방문') { /* 담당자 묶음은 기본 다음 */ }
+    }
+    html += fieldHTML(k,label,col,cls,req.has(k));
+    if(k==='people') html += `</div></div><div class="grp" data-grp="담당자"><div class="grp-t"><span>담당자</span><span class="hint" style="margin:0">여러 명이면 추가</span></div><div class="contacts" id="contacts"></div><button type="button" class="btn addc" id="addContact">+ 담당자 추가</button>` + `<div class="fields" hidden>`;
   });
-  $('#form').innerHTML = html+'</div></div>';
+  close();
+  $('#form').innerHTML = html + '<datalist id="owners"><option>이상운</option><option>혜린</option></datalist>';
+  // 사담 줄은 4칸 중 3칸만 쓰므로 빈 칸 하나
+  $('#addContact').onclick=()=>{ nContacts++; renderContacts(); document.getElementById(`f_c${nContacts-1}_name`).focus(); };
   $('#form').addEventListener('input', e=>{
     const k=e.target.dataset.k; if(!k) return;
     rec[k]=e.target.value; touched.add(k); ruleOwned.delete(k);
-    aiUnsure=aiUnsure.filter(u=>u.field!==k); ruleUnsure=ruleUnsure.filter(u=>u.field!==k);
-    document.getElementById('w_'+k).classList.remove('auto');
+    ruleUnsure=ruleUnsure.filter(u=>u.field!==k);
+    document.getElementById('w_'+k)?.classList.remove('auto');
+    if(k==='owner'){ try{ localStorage.setItem('sayuwon_owner', e.target.value); }catch(_){} }
+    if(k==='date') renderInfo();
     startTimer(); renderSide();
+  });
+  $('#form').addEventListener('click', e=>{
+    const x=e.target.closest('.x'); if(!x) return;
+    const i=+x.dataset.i;
+    for(let j=i;j<nContacts-1;j++) CFIELDS.forEach(([f])=>{ rec[`c${j}_${f}`]=rec[`c${j+1}_${f}`]||''; if(touched.has(`c${j+1}_${f}`)) touched.add(`c${j}_${f}`); });
+    CFIELDS.forEach(([f])=>{ delete rec[`c${nContacts-1}_${f}`]; });
+    nContacts=Math.max(1,nContacts-1); renderContacts(); renderForm();
   });
   // Enter로 다음 칸
   $('#form').addEventListener('keydown', e=>{
-    if(e.key!=='Enter' || e.isComposing) return; e.preventDefault();
+    if(e.key!=='Enter' || e.isComposing || e.target.tagName!=='INPUT') return; e.preventDefault();
     const ins=[...document.querySelectorAll('#form input')]; const i=ins.indexOf(e.target); if(ins[i+1]) ins[i+1].focus();
+  });
+  // 식사·프로그램 칸에 커서(마우스·입력)를 두면 그날 그 칸의 예약 현황
+  const hot = e=>{ const w=e.target.closest('.f'); const k=w?.querySelector('input')?.dataset.k; if(k && INFO_OF(k)) renderInfo(k); };
+  $('#form').addEventListener('mouseover', hot);
+  $('#form').addEventListener('focusin', hot);
+  $('#form').addEventListener('mouseleave', ()=>{ const a=document.activeElement?.dataset?.k; renderInfo(a && INFO_OF(a) ? a : null); });
+  renderContacts();
+}
+function renderContacts(){
+  const req=new Set(REQUIRED().map(r=>r[0]));
+  let h='';
+  for(let i=0;i<nContacts;i++){
+    h+=`<div class="crow">${CFIELDS.map(([f,l])=>fieldHTML(`c${i}_${f}`, l, '', '', req.has(`c${i}_${f}`))).join('')}${i?`<button type="button" class="x" data-i="${i}" title="이 담당자 빼기">×</button>`:'<span></span>'}</div>`;
+  }
+  $('#contacts').innerHTML=h;
+  for(let i=0;i<nContacts;i++) CFIELDS.forEach(([f])=>{ const k=`c${i}_${f}`; document.getElementById('f_'+k).value=rec[k]||''; });
+  paintFields();
+}
+function paintFields(changed=[]){
+  const req=new Set(REQUIRED().map(r=>r[0]));
+  allKeys().forEach(k=>{
+    const el=document.getElementById('f_'+k); if(!el) return;
+    const v=rec[k]||'';
+    if(el.value!==v && document.activeElement!==el) el.value=v;
+    const w=document.getElementById('w_'+k);
+    w.classList.toggle('unsure', ruleUnsure.some(u=>u.field===k));
+    w.classList.toggle('missing', req.has(k) && !v);
+    w.classList.toggle('auto', !touched.has(k) && !!v);
   });
 }
 function renderForm(changed=[]){
-  KEYS.forEach(k=>{
-    const el=document.getElementById('f_'+k);
-    if(el.value!==rec[k] && document.activeElement!==el) el.value=rec[k];
-    const w=document.getElementById('w_'+k);
-    w.classList.toggle('unsure', [...aiUnsure,...ruleUnsure].some(u=>u.field===k));
-    w.classList.toggle('missing', REQUIRED.includes(k) && !rec[k]);
-    w.classList.toggle('auto', !touched.has(k) && !!rec[k] && k!=='owner');
-  });
+  const need=Math.max(1, nContactsOf(rec));
+  if(need>nContacts){ nContacts=need; renderContacts(); }
+  paintFields(changed);
   renderSide();
 }
 function dateLabel(d){ if(!d) return ''; const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; }
 function excelRow(r){
-  const org = r.org + (r.contact?`(${r.contact})`:'');
+  const names = r.contact!=null && !nContactsOf(r) ? String(r.contact).split(' / ').filter(Boolean).join(', ') : contactsOf(r).map(c=>c.name).filter(Boolean).join(', ');
+  const org = r.org + (names?`(${names})`:'');
   const time = (r.tin||r.tout)?`${r.tin||''}~${r.tout||''}`:'';
   const map = {D:org,E:r.owner,F:r.pay,G:r.vehicle,H:time,I:r.people,J:r.sadam1,K:r.sadam2,L:r.sadamD,M:r.mabangL,N:r.mabangD,O:r.chabang,P:r.donghaeng,Q:r.dangdu,R:r.yoga,S:r.gaga,T:r.teaMed,U:r.gayageum,V:r.cabin};
   return EXCEL_COLS.map(c=>map[c]||'');
 }
 function renderSide(){
-  renderType();
   const row=excelRow(rec);
   $('#excelPreview').innerHTML = `<table><tr><th>B·C</th>${EXCEL_COLS.map(c=>`<th>${c} ${EXCEL_HEAD[c]}</th>`).join('')}</tr><tr><td>${dateLabel(rec.date)}</td>${row.map(v=>`<td>${esc(v)}</td>`).join('')}</tr></table>`;
-  const t=effType();
-  if(t && t!=='단체예약'){
-    $('#missBox').innerHTML = `<p class="hint" style="margin:0">${t} 통화라 예약 항목은 생략합니다. 한 줄 요약만 남기고 저장하세요.</p>`;
-  } else {
-    const miss = FIELDS.filter(f=>f[5] && !rec[f[1]]);
-    $('#missBox').innerHTML = miss.length ? `<ul class="chk miss">${miss.map(f=>`<li data-go="${f[1]}" title="${f[5]}"><b>${f[2]}</b></li>`).join('')}</ul>` : `<div class="done-all">필수 정보를 모두 받았습니다. 복창하고 저장하세요.</div>`;
-    document.querySelectorAll('#missBox li[data-go]').forEach(li=>li.onclick=()=>document.getElementById('f_'+li.dataset.go).focus());
-  }
-  const all = [...ruleUnsure.filter(r=>!aiUnsure.some(u=>u.field===r.field)), ...aiUnsure];
-  const items = all.map(u=>`<li><b>${LABEL[u.field]||u.field}</b> ${esc(rec[u.field]||'')}<span class="q">${esc(u.reason)}</span></li>`).concat(aiQuestions.map(q=>`<li><span class="q">${esc(q)}</span></li>`));
+  const miss = REQUIRED().filter(([k])=>!rec[k]);
+  $('#missBox').innerHTML = miss.length ? `<ul class="chk miss">${miss.map(([k,l,q])=>`<li data-go="${k}" title="${q}"><b>${l}</b></li>`).join('')}</ul>` : `<div class="done-all">필수 정보를 모두 받았습니다. 복창하고 저장하세요.</div>`;
+  document.querySelectorAll('#missBox li[data-go]').forEach(li=>li.onclick=()=>document.getElementById('f_'+li.dataset.go).focus());
+  const items = ruleUnsure.map(u=>`<li><b>${LABEL[u.field]||u.field}</b> ${esc(rec[u.field]||'')}<span class="q">${esc(u.reason)}</span></li>`);
   $('#unsureBox').innerHTML = items.length ? `<ul class="chk unsure">${items.join('')}</ul>` : `<p class="hint" style="margin:0">날짜·요일이 안 맞거나 인원이 대략이면 여기에 표시합니다.</p>`;
   $('#readback').textContent = readback(rec);
+  renderInfo(curInfoKey);
 }
 function readback(r){
   const p=[];
@@ -316,22 +365,50 @@ function readback(r){
   if(r.pay) p.push(`결제는 ${r.pay}`);
   if(!p.length) return '내용이 채워지면 고객에게 읽어줄 확인 문구가 만들어집니다.';
   let s = `확인차 말씀드리겠습니다. ${r.org?r.org+', ':''}${p.join(', ')}. 이대로 예약 도와드리면 될까요?`;
-  if(r.email) s += ` 견적서는 ${r.email}로 보내드리겠습니다.`;
-  if(r.phone) s += ` 연락처는 ${r.phone} 맞으시죠?`;
+  const cs=contactsOf(r);
+  const mails=cs.map(c=>c.email).filter(Boolean), phones=cs.map(c=>c.phone).filter(Boolean);
+  if(mails.length) s += ` 견적서는 ${mails.join(', ')}로 보내드리겠습니다.`;
+  if(phones.length) s += ` 연락처는 ${phones.join(', ')} 맞으시죠?`;
   return s;
+}
+
+// ===================== 그날 예약 현황 (식사·프로그램) =====================
+const INFO_OF = k => GROUP_OF[k]==='사담'||GROUP_OF[k]==='몽몽마방' ? 'meal' : GROUP_OF[k]==='프로그램' ? 'prog' : null;
+let curInfoKey = null;
+const numOf = v => { const s=String(v||'').trim(); return /^\d+(\s*\+\s*\d+)*\s*명?$/.test(s) ? s.match(/\d+/g).reduce((a,x)=>a+(+x),0) : 0; };   // 인원만 더함 (10:30 같은 시간은 제외)
+function sameDay(){ return cache.filter(r=>r.date===rec.date && r.id!==editingId); }
+function renderInfo(k){
+  curInfoKey = k || null;
+  document.querySelectorAll('#form .f.hot').forEach(w=>w.classList.remove('hot'));
+  if(k) document.getElementById('w_'+k)?.classList.add('hot');
+  ['meal','prog'].forEach(box=>{
+    const el=document.getElementById('info_'+box); if(!el) return;
+    if(!rec.date){ el.innerHTML='<span class="none">방문일을 넣으면 그날 예약 현황이 여기에 보입니다.</span>'; return; }
+    const day=sameDay(); const keys=FIELDS.filter(f=>INFO_OF(f[1])===box && f[1]!=='mabangMenu').map(f=>f[1]);
+    if(k && INFO_OF(k)===box && k!=='mabangMenu'){
+      const hits=day.filter(r=>r[k]);
+      const tot=hits.reduce((s,r)=>s+numOf(r[k]),0);
+      el.innerHTML = `<b>${dateLabel(rec.date)} ${LABEL[k]}</b> · ${hits.length? `이미 ${hits.length}건${tot?`, ${tot}명`:''}` : '<span class="none">다른 예약 없음</span>'}`
+        + (hits.length? `<ul>${hits.map(r=>`<li>${esc(r.org||'(업체 미정)')} · ${esc(r[k])}${/^\d+$/.test(r[k])?'명':''}${r.owner?` · ${esc(r.owner)}`:''}</li>`).join('')}</ul>` : '');
+    } else {
+      const parts=keys.map(key=>{ const hits=day.filter(r=>r[key]); if(!hits.length) return ''; const tot=hits.reduce((s,r)=>s+numOf(r[key]),0); return `${LABEL[key]} ${hits.length}건${tot?`(${tot}명)`:''}`; }).filter(Boolean);
+      el.innerHTML = `<b>${dateLabel(rec.date)} ${box==='meal'?'식사':'프로그램'} 예약 현황</b> · ` + (parts.length? esc(parts.join(' · ')) : '<span class="none">다른 예약 없음</span>') + ' <span class="none">(칸에 커서를 두면 업체별로 보입니다)</span>';
+    }
+  });
 }
 
 // 자동 결과 적용: 직접 고친 칸은 건드리지 않음
 function apply(fields, src){
   const changed=[];
-  if(src==='rule'){
-    ruleUnsure = (fields._warn||[]).filter(u=>!touched.has(u.field));
-    ruleOwned.forEach(k=>{ if(!touched.has(k) && !(k in fields) && rec[k]){ rec[k]=''; ruleOwned.delete(k); } });
-  }
-  Object.entries(fields||{}).forEach(([k,v])=>{
-    if(!KEYS.includes(k) || v==null) return; v=String(v).trim(); if(!v) return;
+  const f2={...fields};
+  (fields.contacts||[]).forEach((c,i)=>CFIELDS.forEach(([f])=>{ if(c[f]) f2[`c${i}_${f}`]=c[f]; }));
+  delete f2.contacts;
+  ruleUnsure = (fields._warn||[]).filter(u=>!touched.has(u.field));
+  ruleOwned.forEach(k=>{ if(!touched.has(k) && !(k in f2) && rec[k]){ rec[k]=''; ruleOwned.delete(k); } });
+  Object.entries(f2).forEach(([k,v])=>{
+    if(!(KEYS.includes(k)||isCKey(k)) || v==null) return; v=String(v).trim(); if(!v) return;
     if(touched.has(k)) return;
-    if(src==='rule'){ if(rec[k] && !ruleOwned.has(k)) return; ruleOwned.add(k); } else ruleOwned.delete(k);
+    if(rec[k] && !ruleOwned.has(k)) return; ruleOwned.add(k);
     if(rec[k]!==v){ rec[k]=v; changed.push(k); }
   });
   renderForm(changed);
@@ -353,17 +430,22 @@ function ruleExtract(text, today=new Date()){
     const add=/다다음/.test(m[1])?14:/다음|담주/.test(m[1])?7:0; const target=DOW.indexOf(m[2]);
     const d=new Date(t0); d.setDate(d.getDate()+((target||7)-(t0.getDay()||7))+add); o.date=ymd(d);
   }
-  // 연락처·이메일
-  if((m=t.replace(/(\d)[\s.]+(?=\d)/g,'$1').match(/01[016789]-?\d{3,4}-?\d{4}/))){ const d=m[0].replace(/-/g,''); o.phone=d.replace(/(\d{3})(\d{3,4})(\d{4})/,'$1-$2-$3'); }
-  if((m=t.match(/[\w.+-]+\s*@\s*[\w-]+(\.[\w-]+)+/))) o.email=m[0].replace(/\s/g,'').toLowerCase();
+  // 담당자·연락처·이메일 (여러 명이면 나온 순서대로 짝지음)
+  const TITLE='팀장|과장|대리|부장|선생님|선생|주임|주무관|차장|실장|교수|조교|간사|교사|매니저|사원|원장|부원장|교감|교장|이사|대표|국장|계장|센터장|회장|총무|목사|신부|수녀';
+  const names=[];
+  for(const x of t.matchAll(/담당자?\s*[:：]\s*([^\n]+)/g)) x[1].split(/[,/·]|\s{2,}/).forEach(s=>{
+    const mm=s.trim().match(new RegExp(`^([가-힣]{2,4}(?:\\s?(?:${TITLE})(?:님)?)?)(?=\\s|$)`)); if(mm) names.push(mm[1].trim());
+  });
+  if(!names.length) for(const x of t.matchAll(new RegExp(`([가-힣]{2,4})\\s?(${TITLE})(?:님)?`,'g'))) if(!/^(담당|저희|그|우리)/.test(x[1])) names.push(`${x[1]} ${x[2]}`);
+  const phones=[...new Set([...t.replace(/(\d)[\s.]+(?=\d)/g,'$1').matchAll(/01[016789]-?\d{3,4}-?\d{4}/g)].map(x=>x[0].replace(/-/g,'').replace(/(\d{3})(\d{3,4})(\d{4})/,'$1-$2-$3')))];
+  const emails=[...new Set([...t.matchAll(/[\w.+-]+\s*@\s*[\w-]+(\.[\w-]+)+/g)].map(x=>x[0].replace(/\s/g,'').toLowerCase()))];
+  const uniq=[...new Set(names)];
+  const nc=Math.max(uniq.length,phones.length,emails.length);
+  if(nc) o.contacts=Array.from({length:nc},(_,i)=>({name:uniq[i]||'',phone:phones[i]||'',email:emails[i]||''}));
   // 단체명
   const ORG = /([가-힣A-Za-z0-9·&]+(?:\s?[가-힣A-Za-z0-9·&]+){0,3}(?:대학교|고등학교|중학교|초등학교|학교|대학|구청|군청|시청|도청|교육청|교육지원청|연수원|공사|공단|협회|연합회|여행사|투어|센터|교회|성당|병원|연구원|재단|본부|위원회|은행|그룹|컨설팅|기업|주식회사|회사|학과|동호회|모임|진흥원|청|과|팀))(?=[\s,./)에은는이가의]|$)/m;
   if((m=t.match(/(?:단체명|기관명|업체명?)\s*[:：]\s*([^\n]+)/))) o.org=m[1].trim();
   else { const clean=t.replace(/(^|\s)(저는|저희는|여기는|네|예|안녕하세요)(?=\s)/g,' '); if((m=clean.match(ORG))){ const parts=m[1].trim().split(/\s+/); while(parts.length>1 && /\d|^(오전|오후|다음주|이번주|담주|내일|모레|[월화수목금토일])$/.test(parts[0])) parts.shift(); o.org=parts.join(' '); } }
-  // 담당자
-  const TITLE='팀장|과장|대리|부장|선생님|선생|주임|주무관|차장|실장|교수|매니저|사원|원장|교감|교장|이사|대표|국장|계장|센터장|회장|총무';
-  if((m=t.match(/담당자?\s*[:：]\s*([^\n,/]+)/))) o.contact=m[1].trim();
-  else if((m=t.match(new RegExp(`([가-힣]{2,4})\\s?(${TITLE})(?:님)?`))) && !/^(담당|저희|그|우리)/.test(m[1])) o.contact=`${m[1]} ${m[2]}`;
   // 인원
   if((m=t.match(/인원\s*[:：]\s*([^\n]+)/))){ const ns=[...m[1].matchAll(/(\d+)\s*(?:명|분|인)/g)].map(x=>+x[1]); if(ns.length) o.people=ns.join('+'); }
   else { const all=[...t.matchAll(/(총\s*)?(\d{1,4})\s*(?:명|분|인)(?!\s*(?:이상\s*)?주문|승)/g)].filter(x=>!/(인솔|기사|가이드)\s*$/.test(t.slice(Math.max(0,x.index-6),x.index)));
@@ -403,12 +485,7 @@ function ruleExtract(text, today=new Date()){
   if(/식사\s*(는|도)?\s*(x|X|안|따로|필요\s*없|없음|괜찮|각자)/.test(t)) o.meal='없음';
   // 프로그램
   if(/차방/.test(t)) o.chabang='O'; if(/동행/.test(t)) o.donghaeng='O'; if(/당두/.test(t)) o.dangdu='O';
-  const mm=[]; if(/도슨트|해설/.test(t) && !o.chabang && !o.donghaeng && !o.dangdu) mm.push('도슨트 해설 희망(장소 미정)');
   if(/요가|명상/.test(t) && !/티하우스/.test(t)) o.yoga=n; if(/티하우스/.test(t)) o.teaMed=n; if(/가야금/.test(t)) o.gayageum='O'; if(/바우처|가가/.test(t)) o.gaga=n; if(/캐빈|숙박/.test(t)) o.cabin='O';
-  if(/휠체어|유모차|장애/.test(t)) mm.push((t.match(/[^\n,.]*(휠체어|유모차|장애)[^\n,.]*/)||[''])[0].trim());
-  if(/견적/.test(t)) mm.push('견적서 요청');
-  if((m=t.match(/(?:기타|요청\s*사항|비고)\s*[:：]\s*([^\n]+)/))) mm.push(m[1].trim());
-  if(mm.length) o.memo=mm.join(' / ');
   // 확인 필요
   const warn=[];
   if(o.date && (m=t.match(/\d{1,2}\s*(?:일|[\/.]\s*\d{1,2})\s*\(?\s*([월화수목금토일])(?:요일|\)|\s|$)/))){
@@ -417,37 +494,11 @@ function ruleExtract(text, today=new Date()){
   }
   if(o.people && /정도|쯤|내외|안팎|미정|예상|약\s*\d/.test(t)) warn.push({field:'people', reason:'인원이 대략입니다. 확정 인원과 확정 시점을 확인하세요.'});
   if(o.tin && o.tout && o.tout<=o.tin) warn.push({field:'tout', reason:'퇴장 시간이 입장보다 빠릅니다. 오전/오후를 확인하세요.'});
+  if(/도슨트|해설/.test(t) && !o.chabang && !o.donghaeng && !o.dangdu) warn.push({field:'chabang', reason:'해설을 원하시는데 장소가 없습니다. 차방·동행·당두 중 어디인지 확인하세요.'});
   o._warn=warn;
   return o;
 }
-
-// ===================== 통화 구분 =====================
-function updateGuess(){
-  if(aiType){ callGuess=aiType; return; }
-  const text=$('#memoBox').value;
-  const n=String(rec.people||'').split('+').reduce((s,x)=>s+(parseInt(x)||0),0);
-  const kw=text.match(/단체|인솔|워크숍|연수|답사|견학|학과|임직원|직원들|회원|버스|견적/);
-  if(n>=10 || kw) callGuess={type:'단체예약', why: n>=10? `${n}명` : `'${kw[0]}'`};
-  else if(text.trim().length>15) callGuess={type:'일반문의', why:'단체 관련 내용 없음'};
-  else callGuess={type:'',why:''};
-}
-function autoSummary(){
-  const t=effType();
-  if(t==='단체예약') return ['단체', rec.org, rec.people&&`${rec.people}명`, rec.date&&dateLabel(rec.date), rec.meal&&rec.meal!=='없음'&&`식사 ${rec.meal}`].filter(Boolean).join(' · ');
-  return ($('#memoBox').value.split('\n').find(l=>l.trim().length>3)||'').trim().slice(0,60);
-}
-function renderType(){
-  updateGuess();
-  const t=effType();
-  document.querySelectorAll('#ctypeSeg button').forEach(b=>{ b.classList.toggle('on', b.dataset.t===callType); b.classList.toggle('guess', !callType && b.dataset.t===callGuess.type); });
-  $('#ctypeWhy').textContent = callType ? '직접 선택함' : callGuess.type ? `자동: ${callGuess.type} (${callGuess.why}) · 맞으면 그대로 저장` : '메모를 보고 자동으로 판단합니다.';
-  $('#form').classList.toggle('dim', !!t && t!=='단체예약');
-  $('#saveBtn').firstChild.textContent = !t ? '저장' : t==='단체예약' ? '단체예약으로 저장' : '통화 기록만 남기기';
-  if(!summaryTouched) summary=autoSummary();
-  const si=$('#f_summary'); if(document.activeElement!==si) si.value=summary;
-}
-document.querySelectorAll('#ctypeSeg button').forEach(b=>b.onclick=()=>{ callType = callType===b.dataset.t ? '' : b.dataset.t; renderSide(); });
-$('#f_summary').addEventListener('input', e=>{ summary=e.target.value; summaryTouched=true; });
+function autoSummary(){ return ['단체', rec.org, rec.people&&`${rec.people}명`, rec.date&&dateLabel(rec.date), rec.meal&&rec.meal!=='없음'&&`식사 ${rec.meal}`].filter(Boolean).join(' · '); }
 
 // ===================== 메모 입력 =====================
 let memoTimer=null;
@@ -470,7 +521,10 @@ function toast(s){ const t=$('#toast'); t.textContent=s; t.classList.add('on'); 
 async function copy(text,msg){ try{ await navigator.clipboard.writeText(text); }catch(_){ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } toast(msg); }
 const tsvCell=v=>/[\t\n"]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v;
 $('#copyRowBtn').onclick=()=>copy(excelRow(rec).map(tsvCell).join('\t'),'복사했습니다. 엑셀 D열 칸에 붙여넣으세요.');
-$('#copyTextBtn').onclick=()=>copy([summary&&`요약: ${summary}`,...FIELDS.filter(f=>rec[f[1]]).map(f=>`${f[2]}: ${rec[f[1]]}`)].filter(Boolean).join('\n'),'내용을 복사했습니다.');
+$('#copyTextBtn').onclick=()=>copy([
+  ...FIELDS.filter(f=>rec[f[1]]).map(f=>`${LABEL[f[1]]}: ${rec[f[1]]}`),
+  ...contactsOf(rec).map((c,i)=>`담당자${i?i+1:''}: ${[c.name,c.phone,c.email].filter(Boolean).join(' / ')}`)
+].join('\n'),'내용을 복사했습니다.');
 $('#copyReadBtn').onclick=()=>copy($('#readback').textContent,'복창 문구를 복사했습니다.');
 
 // ===================== 저장: 구글 시트(Apps Script) → 주소가 비어 있으면 이 브라우저 =====================
@@ -549,56 +603,46 @@ $('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#ke
 window.addEventListener('focus', ()=>{ if(pending.length) flush(); else pull(); });   // 다른 창에서 돌아오면 최신 목록
 setInterval(()=>{ if(!document.hidden){ if(pending.length) flush(); else pull(); } }, 60000);
 async function save(){
-  const t=effType();
-  if(!t){ toast('통화 구분을 먼저 골라 주세요.'); return; }
-  if(t==='단체예약' && !rec.org && !rec.date){ toast('업체나 방문일을 먼저 입력하세요.'); return; }
-  rec.owner = rec.owner || $('#ownerInput').value;
-  const item={...rec, callType:t, summary:summary||autoSummary(), note:$('#memoBox').value, takenBy:$('#ownerInput').value,
+  if(!rec.org && !rec.date){ toast('업체나 방문일을 먼저 입력하세요.'); return; }
+  const j=joinContacts(rec);
+  const item={...rec, ...j, callType:'단체예약', summary:autoSummary(), note:$('#memoBox').value, takenBy:rec.owner,
     callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:new Date().toISOString()};
-  try{ await store.put(item); editingId=item.id; await renderList(); toast(t==='단체예약'?'단체예약 목록에 저장했습니다.':'통화 기록으로 남겼습니다.'); }
+  Object.keys(item).forEach(k=>{ if(isCKey(k)) delete item[k]; });
+  try{ await store.put(item); editingId=item.id; await renderList(); toast('단체예약 목록에 저장했습니다.'); }
   catch(e){ toast('저장하지 못했습니다: '+e.message); }
 }
 $('#saveBtn').onclick=save;
 const fmt=s=>s?new Date(s).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
 async function renderList(){
-  const all=await store.list();
-  const groups=all.filter(r=>(r.callType||'단체예약')==='단체예약');
-  document.querySelectorAll('#listSeg button').forEach(b=>{ b.classList.toggle('on',b.dataset.l===listMode); b.textContent=b.dataset.l==='group'?`단체예약 ${groups.length}`:`전체 통화 기록 ${all.length}`; });
+  const all=(await store.list()).filter(r=>(r.callType||'단체예약')==='단체예약');
   const del=id=>`<button class="btn" data-del="${id}" style="padding:3px 8px;font-size:12px">삭제</button>`;
-  if(listMode==='group'){
-    $('#listHead').innerHTML='<th>방문일</th><th>업체</th><th>담당자</th><th>연락처</th><th>인원</th><th>입퇴장</th><th>식사</th><th>받은 사람</th><th>접수</th><th></th>';
-    $('#listBody').innerHTML=groups.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${esc(r.org)}</td><td>${esc(r.contact)}</td><td class="num">${esc(r.phone)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(r.meal)}</td><td>${esc(r.takenBy||r.owner)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
-      || `<tr><td colspan="10" class="hint">저장한 단체예약이 없습니다.</td></tr>`;
-  } else {
-    $('#listHead').innerHTML='<th>받은 시각</th><th>구분</th><th>요약</th><th>연락처</th><th>받은 사람</th><th></th>';
-    $('#listBody').innerHTML=all.slice().sort((a,b)=>(b.saved||'').localeCompare(a.saved||'')).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${fmt(r.callStart||r.saved)}</td><td><span class="tag ${(r.callType||'단체예약')==='단체예약'?'':'etc'}">${esc(r.callType||'단체예약')}</span></td><td style="white-space:normal">${esc(r.summary||r.org)}</td><td class="num">${esc(r.phone)}</td><td>${esc(r.takenBy||r.owner)}</td><td>${del(r.id)}</td></tr>`).join('')
-      || `<tr><td colspan="6" class="hint">남긴 통화 기록이 없습니다.</td></tr>`;
-  }
+  $('#listBody').innerHTML=all.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${esc(r.org)}</td><td>${esc(r.contact)}</td><td class="num">${esc(r.phone)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(r.meal)}</td><td>${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
+    || `<tr><td colspan="10" class="hint">저장한 단체예약이 없습니다.</td></tr>`;
   document.querySelectorAll('#listBody tr.r').forEach(tr=>tr.onclick=async e=>{
     if(e.target.dataset.del){ e.stopPropagation(); if(e.target.textContent==='삭제'){ e.target.textContent='정말 삭제'; return; } await store.del(e.target.dataset.del); renderList(); return; }
     const r=cache.find(x=>x.id===tr.dataset.id); if(!r) return;
-    newCall(false); KEYS.forEach(k=>{ rec[k]=r[k]||''; if(rec[k]) touched.add(k); });
-    editingId=r.id; callType=r.callType||'단체예약'; summary=r.summary||''; summaryTouched=!!summary; $('#memoBox').value=r.note||'';
-    renderForm(); window.scrollTo({top:0,behavior:'smooth'});
+    newCall(false);
+    KEYS.forEach(k=>{ rec[k]=r[k]||''; if(rec[k]) touched.add(k); });
+    const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
+    nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; $('#memoBox').value=r.note||'';
+    renderContacts(); renderForm(); window.scrollTo({top:0,behavior:'smooth'});
   });
+  renderInfo(curInfoKey);
 }
-document.querySelectorAll('#listSeg button').forEach(b=>b.onclick=()=>{ listMode=b.dataset.l; renderList(); });
 $('#copyAllBtn').onclick=async()=>{ const l=(await store.list()).filter(r=>(r.callType||'단체예약')==='단체예약').sort((a,b)=>(a.date||'').localeCompare(b.date||'')); if(!l.length){ toast('저장한 단체예약이 없습니다.'); return; } copy(l.map(r=>excelRow(r).map(tsvCell).join('\t')).join('\n'),`${l.length}건을 복사했습니다.`); };
 
 // ===================== 새 통화·단축키 =====================
 function newCall(withToast=true){
   resetState(); clearInterval(timerInt); tick(); $('#memoBox').value=''; status('');
-  renderForm(); if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
+  renderContacts(); renderForm(); if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
 }
 $('#newBtn').onclick=()=>newCall();
 document.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); }
   if(e.altKey && e.key.toLowerCase()==='n'){ e.preventDefault(); newCall(); }
 });
-$('#ownerInput').addEventListener('input', e=>{ try{ localStorage.setItem('sayuwon_owner', e.target.value); }catch(_){} if(!touched.has('owner')){ rec.owner=e.target.value; renderForm(); } });
 
 // ===================== 시작 =====================
-$('#ownerInput').value = savedOwner();
 resetState(); buildForm(); renderForm();
 paintSync(); renderList();
 if(SHARED_URL) flush();
