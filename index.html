@@ -22,6 +22,11 @@ header .who{display:flex;align-items:center;gap:6px;font-size:12px}
 header .who input{width:90px;border:0;border-radius:6px;padding:4px 8px;font:13px var(--sans)}
 header .timer{margin-left:auto;font-size:13px;font-variant-numeric:tabular-nums;opacity:.9}
 header .keys{font-size:11px;opacity:.75}
+.ko-toggle{width:30px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:transparent;color:#f3f1ec;font:700 13px var(--sans);cursor:pointer}
+.ko-toggle.on{background:#f3f1ec;color:var(--pine)}
+.vrow{display:flex;gap:4px}
+.vrow select{border:1px solid var(--line);border-radius:6px;padding:5px 4px;font:13px var(--sans);background:#fff;color:var(--ink)}
+.vrow input{min-width:0}
 header .sync{font-size:12px;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.14)}
 header .sync.ok{background:#cfe3c6;color:var(--pine)}
 header .sync.warn{background:#f3d9b5;color:#6b4513}
@@ -128,6 +133,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 <body>
 <header>
   <h1>思惟園 예약 접수 도우미</h1>
+  <button type="button" class="ko-toggle on" id="ko-toggle" aria-pressed="true">한</button>
   <span class="timer" id="timer"></span>
   <span class="sync" id="syncChip"></span>
   <span class="keys">Ctrl+S 저장 · Alt+N 새 통화</span>
@@ -196,6 +202,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
 <script>
 // ===================== 필드 정의 (엑셀 메인 시트 열 기준) =====================
 // grp, key, label, 엑셀열, 너비, 물어볼 질문(필수)
@@ -259,10 +266,23 @@ const allKeys = () => { const ks=[...KEYS]; for(let i=0;i<nContacts;i++) CFIELDS
 const REQUIRED = () => [...FIELDS.filter(f=>f[5]).map(f=>[f[1],f[2],f[5]]), ...CFIELDS.map(([f,l,q])=>[`c0_${f}`,l,q])];
 
 // ===================== 칸 렌더 =====================
+// 칸별 입력 방식: 한글 우선(한/영 키로 영어) · 영어 고정 · 숫자 고정
+const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner';
+const EN_ONLY  = k => /^c\d+_email$/.test(k);
+const NUM_ONLY = { people:/[^\d+]/g, vehicle:/[^\d]/g };   // 관람 인원은 42+2 처럼 + 허용
+const VTYPES = ['버스','승용','혼합'];
+function vehParts(v){ v=String(v||''); const t=VTYPES.find(x=>v.includes(x)) || (/(대형|중형|소형|미니)/.test(v)?'버스':''); const n=(v.match(/\d+/)||[''])[0]; return {t,n}; }
+function vehJoin(t,n){ return n ? `${t||'버스'} ${n}대` : (t && t!=='버스' ? t : ''); }
 function fieldHTML(k,label,col,cls,req){
-  const type = k==='date'?' type="date"':'';
-  const extra = k==='owner'?' list="owners"':'';
-  return `<div class="f ${cls}${req?' req':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span>${col?`<span class="col">${col}</span>`:''}</label><input id="f_${k}" data-k="${k}"${type}${extra}></div>`;
+  let extra = k==='date'?' type="date"':'';
+  if(k==='owner') extra+=' list="owners"';
+  if(KO_FIRST(k)) extra+=' data-ime="ko"';
+  if(EN_ONLY(k))  extra+=' data-ime="en" inputmode="email" lang="en" autocapitalize="off" spellcheck="false"';
+  if(NUM_ONLY[k]) extra+=' inputmode="numeric" data-ime="num"';
+  const input = k==='vehicle'
+    ? `<div class="vrow"><select id="f_vtype" data-k="vehicle" aria-label="차종">${VTYPES.map(t=>`<option>${t}</option>`).join('')}</select><input id="f_${k}" data-k="${k}"${extra} placeholder="대수"></div>`
+    : `<input id="f_${k}" data-k="${k}"${extra}>`;
+  return `<div class="f ${cls}${req?' req':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span>${col?`<span class="col">${col}</span>`:''}</label>${input}</div>`;
 }
 function buildForm(){
   const req=new Set(REQUIRED().map(r=>r[0]));
@@ -284,7 +304,9 @@ function buildForm(){
   $('#addContact').onclick=()=>{ nContacts++; renderContacts(); document.getElementById(`f_c${nContacts-1}_name`).focus(); };
   $('#form').addEventListener('input', e=>{
     const k=e.target.dataset.k; if(!k) return;
-    rec[k]=e.target.value; touched.add(k); ruleOwned.delete(k);
+    if(NUM_ONLY[k] && e.target.tagName==='INPUT' && !e.isComposing){ const c=e.target.value.replace(NUM_ONLY[k],''); if(c!==e.target.value){ const p=e.target.selectionStart-(e.target.value.length-c.length); e.target.value=c; try{ e.target.setSelectionRange(p,p); }catch(_){} } }
+    rec[k]= k==='vehicle' ? vehJoin($('#f_vtype').value, $('#f_vehicle').value) : e.target.value;
+    touched.add(k); ruleOwned.delete(k);
     ruleUnsure=ruleUnsure.filter(u=>u.field!==k);
     document.getElementById('w_'+k)?.classList.remove('auto');
     if(k==='owner'){ try{ localStorage.setItem('sayuwon_owner', e.target.value); }catch(_){} }
@@ -325,7 +347,8 @@ function paintFields(changed=[]){
   allKeys().forEach(k=>{
     const el=document.getElementById('f_'+k); if(!el) return;
     const v=rec[k]||'';
-    if(el.value!==v && document.activeElement!==el) el.value=v;
+    if(k==='vehicle'){ const p=vehParts(v); if(document.activeElement!==el && el.value!==p.n) el.value=p.n; if(p.t && document.activeElement!==$('#f_vtype')) $('#f_vtype').value=p.t; }
+    else if(el.value!==v && document.activeElement!==el) el.value=v;
     const w=document.getElementById('w_'+k);
     w.classList.toggle('unsure', ruleUnsure.some(u=>u.field===k));
     w.classList.toggle('missing', req.has(k) && !v);
@@ -651,6 +674,7 @@ async function renderList(){
     const r=cache.find(x=>x.id===tr.dataset.id); if(!r) return;
     newCall(false);
     KEYS.forEach(k=>{ rec[k]=r[k]||''; if(rec[k]) touched.add(k); });
+    if(!rec.owner) rec.owner=savedOwner();   // 자동 등록된 예약 등 담당이 비어 있으면 이 컴퓨터의 영업 담당
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
     nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; $('#memoBox').value=r.note||'';
     renderContacts(); renderForm(); window.scrollTo({top:0,behavior:'smooth'});
@@ -689,6 +713,81 @@ resetState(); buildForm(); renderForm();
 paintSync(); renderList();
 if(SHARED_URL) flush();
 $('#memoBox').focus();
+
+// ===================== 칸별 한글/영어 입력 (견적서 사이트 방식) =====================
+// data-ime="ko" (단체명·담당자 성함·영업 담당): 칸에 들어가면 항상 한글부터. 컴퓨터 입력기가 영문이어도 두벌식으로 조합.
+//   한/영 키 · Shift+Space · 위쪽 한/A 버튼으로 영어 ↔ 한글
+// data-ime="en" (이메일): 항상 영어. 입력기가 한글이어도 누른 자판 글자로 바꿔 넣음
+(function(){
+  let on = true;
+  const MAP = { q:"ㅂ", w:"ㅈ", e:"ㄷ", r:"ㄱ", t:"ㅅ", y:"ㅛ", u:"ㅕ", i:"ㅑ", o:"ㅐ", p:"ㅔ",
+                a:"ㅁ", s:"ㄴ", d:"ㅇ", f:"ㄹ", g:"ㅎ", h:"ㅗ", j:"ㅓ", k:"ㅏ", l:"ㅣ",
+                z:"ㅋ", x:"ㅌ", c:"ㅊ", v:"ㅍ", b:"ㅠ", n:"ㅜ", m:"ㅡ",
+                Q:"ㅃ", W:"ㅉ", E:"ㄸ", R:"ㄲ", T:"ㅆ", O:"ㅒ", P:"ㅖ" };
+  const REV = {}; Object.keys(MAP).forEach(k=>{ if(!REV[MAP[k]] || k===k.toLowerCase()) REV[MAP[k]]=k; });
+  Object.assign(REV,{ "ㅃ":"Q","ㅉ":"W","ㄸ":"E","ㄲ":"R","ㅆ":"T","ㅒ":"O","ㅖ":"P" });
+  const btn = document.getElementById('ko-toggle');
+  const mode = el => el && el.dataset ? el.dataset.ime : '';
+  function paintBtn(){ btn.textContent = on ? '한' : 'A'; btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on?'true':'false');
+    btn.title = on ? '한글 입력 중 (단체명·담당자 성함) · 한/영 키나 Shift+Space로 영어' : '영어 입력 중 · 한/영 키나 Shift+Space로 한글'; }
+  function setOn(v){ on=v; comp=null; enQ=[]; paintBtn(); }
+  btn.addEventListener('click', ()=>{ setOn(!on); const a=document.activeElement; if(mode(a)==='ko') a.focus(); });
+  paintBtn();
+  const effOn = el => mode(el)==='ko' ? on : false;   // 이메일은 늘 영어
+  function isHanYoung(e){ return e.key==='HangulMode' || e.code==='Lang1' || e.keyCode===21; }
+  function put(el,start,end,text){ const v=el.value; el.value=v.slice(0,start)+text+v.slice(end); const c=start+text.length; el.setSelectionRange(c,c); el.dispatchEvent(new Event('input',{bubbles:true})); return c; }
+  // 남은 한글을 자판 글자로 (이메일 안전장치)
+  const toKeys = s => window.Hangul ? Hangul.disassemble(s).map(j=>REV[j]||j).join('') : s;
+
+  let comp=null, enQ=[], enEl=null, enStart=null, osKo=null;
+  document.addEventListener('focusin', e=>{ comp=null; if(mode(e.target)==='ko') setOn(true); });   // 단체명·성함은 들어갈 때마다 한글부터
+  document.addEventListener('mousedown', ()=>{ comp=null; });
+  document.addEventListener('keydown', e=>{
+    const ime = e.isComposing || e.key==='Process' || e.keyCode===229;
+    const el = e.target, m = mode(el);
+    if(isHanYoung(e) || (ime && (e.code==='Lang1' || e.code==='AltRight'))){ if(m!=='en') setOn(!on); if(osKo!==null) osKo=!osKo; return; }
+    if(m!=='ko' && m!=='en') return;
+    if(m==='ko' && e.key===' ' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey){ e.preventDefault(); setOn(!on); return; }
+    if(e.ctrlKey || e.altKey || e.metaKey){ comp=null; return; }
+    if(/^Key[A-Z]$/.test(e.code)){ if(m==='ko' && osKo!==null && ime!==osKo) setOn(!on); osKo=ime; }
+    if(!effOn(el)){   // 영어인데 입력기가 한글: 누른 자판을 기억하고 조합을 바로 끝냄
+      if(ime && /^Key[A-Z]$/.test(e.code)){
+        const ch=e.code.slice(3), upper = e.shiftKey !== (e.getModifierState && e.getModifierState('CapsLock'));
+        enQ.push(upper?ch:ch.toLowerCase()); enEl=el;
+        setTimeout(()=>{ if(document.activeElement===el){ el.blur(); el.focus(); } },0);
+      }
+      return;
+    }
+    if(!window.Hangul || ime){ if(e.key!=='Shift') comp=null; return; }   // 한글 + 입력기 한글: 그대로
+    const live = comp && comp.el===el && el.selectionStart===comp.end && el.selectionEnd===comp.end;
+    if(/^[a-zA-Z]$/.test(e.key)){
+      const j=(e.shiftKey && MAP[e.key.toUpperCase()]) || MAP[e.key.toLowerCase()];
+      e.preventDefault();
+      if(!live) comp={el, start:el.selectionStart, end:el.selectionEnd, jamo:[]};
+      comp.jamo.push(j);
+      const text=Hangul.assemble(comp.jamo);
+      comp.end=put(el,comp.start,comp.end,text);
+      if(text.length>2){ const n=text.length-2; comp.start+=n; comp.jamo=Hangul.disassemble(text.slice(n)); }
+      return;
+    }
+    if(e.key==='Backspace' && live && comp.jamo.length){ e.preventDefault(); comp.jamo.pop(); comp.end=put(el,comp.start,comp.end,Hangul.assemble(comp.jamo)); if(!comp.jamo.length) comp=null; return; }
+    if(e.key!=='Shift') comp=null;
+  }, true);
+  document.addEventListener('compositionstart', e=>{ if(!effOn(e.target) && mode(e.target)) enStart=e.target.selectionStart; }, true);
+  document.addEventListener('compositionend', e=>{
+    const el=e.target; if(effOn(el) || !mode(el)) return;
+    const data=e.data||'', start=enStart;
+    if(el===enEl && enQ.length){
+      const n = window.Hangul ? Hangul.disassemble(data).length : data.length;
+      const letters = enQ.splice(0, n||enQ.length).join('');
+      setTimeout(()=>{ if(start==null || el.value.slice(start,start+data.length)!==data) return; put(el,start,start+data.length,letters); },0);
+    } else if(mode(el)==='en'){
+      setTimeout(()=>{ if(/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(el.value)){ const c=el.selectionStart; el.value=toKeys(el.value); el.setSelectionRange(c,c); el.dispatchEvent(new Event('input',{bubbles:true})); } },0);
+    }
+  }, true);
+  // 이메일: 붙여넣기 등으로 한글이 들어오면 자판 글자로
+  document.addEventListener('input', e=>{ const el=e.target; if(mode(el)==='en' && !e.isComposing && /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(el.value)){ el.value=toKeys(el.value); el.dispatchEvent(new Event('input',{bubbles:true})); } }, true);
+})();
 </script>
 </body>
 </html>
