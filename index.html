@@ -27,8 +27,10 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .keybar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--amber-soft);padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));font-size:13px}
 .keybar input{border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:13px var(--sans);width:160px}
 #keyMsg{color:var(--red)}
-.layout{display:grid;grid-template-columns:minmax(300px,1fr) minmax(420px,1.35fr) minmax(280px,.9fr);gap:14px;padding:14px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));align-items:start}
-@media (max-width:1180px){.layout{grid-template-columns:1fr 1fr}.checks{grid-column:1 / -1}}
+/* 순서: 예약 내용 · 통화 중 확인 · 통화 메모 */
+.layout{display:grid;grid-template-columns:minmax(420px,1.35fr) minmax(280px,.9fr) minmax(300px,1fr);gap:14px;padding:14px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));align-items:start}
+.form-col{order:1}.checks{order:2}.memo-col{order:3}
+@media (max-width:1180px){.layout{grid-template-columns:1fr 1fr}.memo-col{grid-column:1 / -1}}
 @media (max-width:760px){.layout{grid-template-columns:1fr}}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
 .panel h2{font:600 15px var(--serif);margin:0 0 10px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
@@ -77,7 +79,8 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 /* 확인 */
 .chk{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .chk li{border-radius:7px;padding:8px 10px;font-size:13px}
-.chk.miss li{background:var(--red-soft);cursor:pointer}
+.chk.miss{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px}
+.chk.miss li{background:var(--red-soft);cursor:pointer;padding:6px 8px;text-align:center}
 .chk.miss li:hover{outline:1px solid var(--red)}
 .chk.miss li b{color:var(--red)}
 .chk.unsure li{background:var(--amber-soft)}
@@ -120,9 +123,9 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 
 <div class="layout">
   <!-- 통화 메모 -->
-  <section class="panel">
+  <section class="panel memo-col">
     <div class="memo-wrap">
-      <h2>통화 메모 <small>들리는 대로 대충 치면 오른쪽 칸이 채워집니다</small></h2>
+      <h2>통화 메모 <small>들리는 대로 대충 치면 예약 칸이 채워집니다</small></h2>
       <textarea id="memoBox" placeholder="예)
 수성구청 문화예술과 김민정 주무관
 12/4 목 35명 정도
@@ -140,7 +143,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   </section>
 
   <!-- 예약 칸 -->
-  <section class="panel">
+  <section class="panel form-col">
     <h2>예약 내용 <small>노란색 = 메모에서 자동 입력 · 직접 고친 칸은 그대로 유지</small></h2>
     <div class="ctype">
       <span class="ctype-l">통화 구분</span>
@@ -291,7 +294,7 @@ function renderSide(){
     $('#missBox').innerHTML = `<p class="hint" style="margin:0">${t} 통화라 예약 항목은 생략합니다. 한 줄 요약만 남기고 저장하세요.</p>`;
   } else {
     const miss = FIELDS.filter(f=>f[5] && !rec[f[1]]);
-    $('#missBox').innerHTML = miss.length ? `<ul class="chk miss">${miss.map(f=>`<li data-go="${f[1]}"><b>${f[2]}</b><span class="q">${f[5]}</span></li>`).join('')}</ul>` : `<div class="done-all">필수 정보를 모두 받았습니다. 복창하고 저장하세요.</div>`;
+    $('#missBox').innerHTML = miss.length ? `<ul class="chk miss">${miss.map(f=>`<li data-go="${f[1]}" title="${f[5]}"><b>${f[2]}</b></li>`).join('')}</ul>` : `<div class="done-all">필수 정보를 모두 받았습니다. 복창하고 저장하세요.</div>`;
     document.querySelectorAll('#missBox li[data-go]').forEach(li=>li.onclick=()=>document.getElementById('f_'+li.dataset.go).focus());
   }
   const all = [...ruleUnsure.filter(r=>!aiUnsure.some(u=>u.field===r.field)), ...aiUnsure];
