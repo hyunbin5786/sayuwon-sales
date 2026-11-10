@@ -131,6 +131,8 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .list-btn{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#f3f1ec;border-radius:7px;padding:4px 12px;font:500 13px var(--sans);cursor:pointer;display:flex;gap:6px;align-items:center}
 .list-btn:hover{background:rgba(255,255,255,.2)}
 .modal{position:fixed;inset:0;z-index:20;background:rgba(30,30,25,.45);display:flex;align-items:flex-start;justify-content:center;padding:calc(40px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
+.modal .consult{margin:0;width:min(640px,100%)}
+.modal .consult textarea{width:100%;min-height:340px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:10px;font:14px/1.6 var(--sans);background:#fff;color:var(--ink);tab-size:8}
 .modal .list{margin:0;width:min(1200px,100%);max-height:calc(100vh - 80px);display:flex;flex-direction:column}
 .modal .list .tw{overflow:auto;flex:1;min-height:0}
 .modal .list h2{flex-wrap:wrap}
@@ -153,6 +155,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <h1>思惟園 예약 접수 도우미</h1>
   <button type="button" class="ko-toggle on" id="ko-toggle" aria-pressed="true">한</button>
   <span class="timer" id="timer"></span>
+  <button type="button" class="list-btn" id="consultOpenBtn">단체상담 입력</button>
   <button type="button" class="list-btn" id="listOpenBtn">단체예약 목록 <span id="listCount"></span><span class="tag call" id="callCount" hidden></span></button>
   <span class="sync" id="syncChip"></span>
   <span class="keys">Ctrl+S 저장 · Alt+N 새 통화</span>
@@ -205,6 +208,33 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   </section>
 </div>
 
+<!-- 단체상담 입력 (예약 상담 정보를 붙여넣으면 칸이 채워짐) -->
+<div class="modal" id="consultModal" hidden>
+  <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="consultTitle">
+    <h2 id="consultTitle">단체상담 입력 <small>예약 상담 정보를 통째로 붙여넣으세요</small></h2>
+    <textarea id="consultBox" placeholder="예약 상담 정보
+신청번호	604
+상품	관람
+기관명	○○여행사
+소속	대표
+성명	홍길동
+연락처	01012345678
+이메일	…
+일자	2026.11.12(목)
+인원	25
+시간	13:00 ~ 17:00
+교통수단	버스
+주차대수	1
+출발지	서울"></textarea>
+    <div class="hint" id="consultMsg"></div>
+    <div class="row-btns" style="margin-top:10px">
+      <button type="button" class="btn primary" id="consultApplyBtn">칸에 채우기</button>
+      <button type="button" class="btn" id="consultCloseBtn">닫기 (Esc)</button>
+      <label class="hint" style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="consultNew" checked> 새 통화로 시작 (지금 입력한 내용 지움)</label>
+    </div>
+  </section>
+</div>
+
 <!-- 단체예약 목록 (위쪽 버튼으로 여는 창) -->
 <div class="modal" id="listModal" hidden>
   <section class="list panel" role="dialog" aria-modal="true" aria-labelledby="listTitle">
@@ -232,6 +262,9 @@ const FIELDS = [
   ['방문','payContact','결제 연락 예정일','','',  '결제 방법은 언제쯤 알려주실 수 있을까요?'],   // 결제가 미정일 때만
   ['방문','meal','식사 여부','','w2','식사는 사담이나 몽몽마방 이용하실 계획 있으세요?'],
   ['방문','tbdDate','미정 항목 입력 기한','','',  null],   // 인원·식사 등이 아직 미정일 때 언제까지 알려주기로 했는지
+  ['상담 정보 (선택)','consultNo','상담 신청번호','','',  null],
+  ['상담 정보 (선택)','product','상품','','',  null],
+  ['상담 정보 (선택)','origin','출발지','','w2', null],
   ['사담','sadam1','1부','J','',null],
   ['사담','sadam2','2부','K','',null],
   ['사담','sadamD','디너','L','',null],
@@ -286,15 +319,22 @@ const REQUIRED = () => [...FIELDS.filter(f=>f[5] && (f[1]!=='payContact' || rec?
 const PAYS = ['세금계산서','결제링크','현장 결제','미정'];
 const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
-function packExtra(r){ const o={}; o.pay = r.pay==='미정' && r.payContact ? `미정 (연락 ${r.payContact})` : r.pay; o.memo = r.tbdDate ? `미정 항목 입력 기한 ${r.tbdDate}` : ''; return o; }
+// 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
+const MEMO_PARTS = [['tbdDate','미정 항목 입력 기한'],['consultNo','상담 신청번호'],['product','상품'],['origin','출발지']];
+function packExtra(r){
+  const o={};
+  o.pay = r.pay==='미정' && r.payContact ? `미정 (연락 ${r.payContact})` : r.pay;
+  o.memo = MEMO_PARTS.filter(([k])=>r[k]).map(([k,l])=>`${l} ${String(r[k]).replace(/\s*\/\s*/g,', ')}`).join(' / ');
+  return o;
+}
 function unpackExtra(r){ const o={}; let m;
   if((m=String(r.pay||'').match(/^미정\s*\(연락\s*(\d{4}-\d{2}-\d{2})\)/))){ o.pay='미정'; o.payContact=m[1]; }
-  if((m=String(r.memo||'').match(/미정 항목 입력 기한\s*(\d{4}-\d{2}-\d{2})/))) o.tbdDate=m[1];
+  String(r.memo||'').split(/\s*\/\s*/).forEach(part=>{ MEMO_PARTS.forEach(([k,l])=>{ if(part.startsWith(l+' ')) o[k]=part.slice(l.length+1).trim(); }); });
   return o; }
 
 // ===================== 칸 렌더 =====================
 // 칸별 입력 방식: 한글 우선(한/영 키로 영어) · 영어 고정 · 숫자 고정
-const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner';
+const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner' || k==='product' || k==='origin';
 const EN_ONLY  = k => /^c\d+_email$/.test(k);
 const NUM_ONLY = { people:/[^\d+]/g, vehicle:/[^\d]/g };   // 관람 인원은 42+2 처럼 + 허용
 // 연락처: 빈 칸을 누르면 010- 이 들어가고, 숫자를 치면 - 가 자동. 내선 번호면 010- 을 지우고 쓰면 됨
@@ -679,6 +719,63 @@ function newCall(withToast=true){
   renderContacts(); renderForm(); if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
 }
 $('#newBtn').onclick=()=>newCall();
+// ===================== 단체상담 입력: "항목<탭>값" 줄을 칸으로 =====================
+// 머리말이 달라도 알아듣도록 비슷한 이름을 같이 둔다. 모르는 항목은 통화 메모에 "항목: 값" 으로 남김
+const CONSULT_KEYS = [
+  [/^(신청\s*번호|상담\s*번호|접수\s*번호)$/, 'consultNo'],
+  [/^(상품|상품명|프로그램)$/, 'product'],
+  [/^(기관명|단체명|업체명|회사명|학교명)$/, 'org'],
+  [/^(소속|직책|직위|부서)$/, 'title'],
+  [/^(성명|이름|담당자|담당자\s*성함|신청자)$/, 'name'],
+  [/^(연락처|전화|전화번호|휴대폰|핸드폰|휴대전화)$/, 'phone'],
+  [/^(이메일|메일|e-?mail)$/i, 'email'],
+  [/^(일자|방문일|방문\s*일자|날짜|이용일)$/, 'date'],
+  [/^(인원|인원수|방문\s*인원|총\s*인원)$/, 'people'],
+  [/^(시간|방문\s*시간|이용\s*시간)$/, 'time'],
+  [/^(교통수단|차량|차종)$/, 'vtype'],
+  [/^(주차\s*대수|차량\s*대수|대수)$/, 'vcount'],
+  [/^(출발지|출발\s*지역)$/, 'origin'],
+];
+function parseConsult(text){
+  const got={}, extra=[];
+  String(text||'').split(/\r?\n/).forEach(line=>{
+    let m=null;
+    if(!/\t/.test(line)){ const s=line.match(/^\s*(\S+)\s*[:：]?\s+(.+?)\s*$/); if(s && CONSULT_KEYS.some(([re])=>re.test(s[1].replace(/[:：]$/,'')))) m=[s[0],s[1].replace(/[:：]$/,''),s[2]]; }   // 띄어쓰기로 복사된 경우 (아는 항목 먼저)
+    if(!m) m=line.match(/^\s*([^\t:：]+?)\s*(?:\t+|[:：]\s*|\s{2,})(.+?)\s*$/);
+    if(!m) return;
+    const key=m[1].trim(), val=m[2].trim(); if(!val) return;
+    const hit=CONSULT_KEYS.find(([re])=>re.test(key));
+    if(hit) got[hit[1]]=val; else extra.push(`${key}: ${val}`);
+  });
+  const o={};
+  ['consultNo','product','org','origin'].forEach(k=>{ if(got[k]) o[k]=got[k]; });
+  if(got.name) o.c0_name = got.title ? `${got.name} ${got.title}` : got.name;
+  if(got.phone) o.c0_phone = fmtPhone(got.phone);
+  if(got.email) o.c0_email = got.email.toLowerCase();
+  if(got.date){ const d=got.date.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/); if(d) o.date=`${d[1]}-${d[2].padStart(2,'0')}-${d[3].padStart(2,'0')}`; }
+  if(got.people){ const n=got.people.match(/\d+(\s*\+\s*\d+)*/); if(n) o.people=n[0].replace(/\s/g,''); }
+  if(got.time){ const t=[...got.time.matchAll(/(\d{1,2})\s*[:시]\s*(\d{2})?/g)].map(x=>`${x[1].padStart(2,'0')}:${x[2]||'00'}`); if(t[0]) o.tin=t[0]; if(t[1]) o.tout=t[1]; }
+  if(got.vtype || got.vcount){ const t=VTYPES.find(x=>(got.vtype||'').includes(x)) || (/(승용|자가|자차)/.test(got.vtype||'')?'승용':'버스'); const n=(String(got.vcount||'').match(/\d+/)||[''])[0]; o.vehicle = vehJoin(t,n) || t; }
+  return { fields:o, extra };
+}
+function openConsult(){ $('#consultModal').hidden=false; $('#consultMsg').textContent=''; $('#consultBox').focus(); }
+function closeConsult(){ $('#consultModal').hidden=true; }
+$('#consultOpenBtn').onclick=openConsult;
+$('#consultCloseBtn').onclick=closeConsult;
+$('#consultModal').addEventListener('mousedown', e=>{ if(e.target.id==='consultModal') closeConsult(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#consultModal').hidden){ e.preventDefault(); closeConsult(); } });
+$('#consultApplyBtn').onclick=()=>{
+  const {fields, extra} = parseConsult($('#consultBox').value);
+  const n=Object.keys(fields).length;
+  if(!n){ $('#consultMsg').textContent='알아볼 수 있는 항목이 없습니다. "항목 [탭] 값" 형식인지 확인해 주세요.'; return; }
+  if($('#consultNew').checked) newCall(false);
+  Object.entries(fields).forEach(([k,v])=>{ rec[k]=v; touched.add(k); });
+  if(extra.length){ const box=$('#memoBox'); box.value = (box.value ? box.value.replace(/\s*$/,'\n') : '') + extra.join('\n'); }
+  nContacts=Math.max(nContacts, nContactsOf(rec)); renderContacts(); startTimer(); renderForm();
+  closeConsult(); $('#consultBox').value='';
+  toast(`${n}개 항목을 채웠습니다${extra.length?` · 모르는 항목 ${extra.length}개는 통화 메모에`:''}`);
+};
+
 // ===================== 단체예약 목록 창 =====================
 function openList(){ $('#listModal').hidden=false; renderList(); if(pending.length) flush(); else pull(); $('#listCloseBtn').focus(); }
 function closeList(){ $('#listModal').hidden=true; }
