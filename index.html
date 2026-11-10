@@ -57,7 +57,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .btn.primary{background:var(--pine);border-color:var(--pine);color:#fff}
 .btn kbd{font:11px ui-monospace,Consolas,monospace;opacity:.7;margin-left:4px}
 .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--pine);outline-offset:1px}
-&
+.row-btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 /* 예약 내용 아래 버튼 줄: 위아래 내용과 떨어진 한 덩어리 */
 .act-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:16px -16px 0;padding:12px 16px;background:var(--bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .act-bar .btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:6px 8px;font-weight:600;white-space:nowrap}
@@ -198,7 +198,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .new-btn{border:0;background:#fff;color:var(--pine);border-radius:7px;padding:5px 14px;font:700 14px var(--sans);cursor:pointer;display:flex;gap:6px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.18)}
 .new-btn:hover{background:#f3f7ef}
 .new-btn kbd{font:500 11px var(--sans);color:var(--muted);background:var(--bg);border-radius:4px;padding:1px 5px}
-&background:rgba(255,255,255,.2)}
+.list-btn:hover{background:rgba(255,255,255,.2)}
 .modal{position:fixed;inset:0;z-index:20;background:rgba(30,30,25,.45);display:flex;align-items:flex-start;justify-content:center;padding:calc(40px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
 .modal .consult{margin:0;width:min(640px,100%)}
 .modal .consult textarea{width:100%;min-height:340px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:10px;font:14px/1.6 var(--sans);background:#fff;color:var(--ink);tab-size:8}
@@ -390,7 +390,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 <div class="modal" id="listModal" hidden>
   <section class="list panel" role="dialog" aria-modal="true" aria-labelledby="listTitle">
     <h2><span id="listTitle">단체예약 목록</span> <small id="storeHint"></small>
-      <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn" id="adminSyncBtn" style="padding:4px 10px;font-size:12px">관리자 사이트에서 지금 가져오기</button><button type="button" class="btn" id="listCloseBtn" style="padding:4px 10px;font-size:12px">닫기 (Esc)</button></span></h2>
+      <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn primary" id="xlsxBtn" style="padding:4px 10px;font-size:12px">엑셀로 내려받기</button><button type="button" class="btn" id="adminSyncBtn" style="padding:4px 10px;font-size:12px">관리자 사이트에서 지금 가져오기</button><button type="button" class="btn" id="listCloseBtn" style="padding:4px 10px;font-size:12px">닫기 (Esc)</button></span></h2>
     <div class="seg" id="stageFilter" style="display:inline-flex;margin-bottom:8px;background:var(--bg)">
       <button type="button" data-f="all">전체</button><button type="button" data-f="상담">상담</button><button type="button" data-f="가예약">가예약</button><button type="button" data-f="공식예약">공식예약</button><button type="button" data-f="noerp">전산 미등록</button>
     </div>
@@ -1041,7 +1041,7 @@ function renderTasks(){
         <span class="hint" style="margin:0">사진 · PDF, 10MB 이하 · 구글 드라이브 '사유원 단체예약 서류' 폴더에 저장</span></div>` : ''}
       <textarea data-tm="${esc(t.id)}" placeholder="메모">${esc(t.memo||'')}</textarea>
     </li>`; }).join('');
-  $('#taskHint').textContent = tasks.length ? (editingId ? '체크와 복사는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '저장하면 과업도 함께 저장됩니다.') : '가예약·공식예약이면 전산 예약, 세금계산서면 세금계산서 발행, 결제링크면 결제 확인 과업이 자동으로 생깁니다.';
+  $('#taskHint').textContent = tasks.length ? (editingId ? '체크와 복사는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '저장하면 과업도 함께 저장됩니다.') : '';
 }
 const autoSave = () => { if(editingId) save(true); };
 // 사업자등록증 올리기 → Apps Script 가 구글 드라이브에 저장하고 링크를 돌려줌 → 과업에 링크 보관
@@ -1155,6 +1155,7 @@ async function renderList(){
   $('#adminHint').textContent = adminData?.updated ? `관리자 사이트 ${fmtAgo(adminData.updated)} 갱신 · ` : '';
   document.querySelectorAll('#stageFilter button').forEach(b=>{ const s=b.dataset.f; b.classList.toggle('on', s===listStage); b.textContent = s==='all' ? `전체 ${all.length}` : s==='noerp' ? `전산 미등록 ${noErp}` : `${s} ${counts[s]}`; });
   const shown = all.filter(r=> listStage==='all' ? true : listStage==='noerp' ? (stageOf(r)!=='상담' && !erpOf(r)) : stageOf(r)===listStage);
+  listView = { shown, stageOf, erpOf };   // 엑셀로 내려받기에 씀
   const stageTag = r => { const s=stageOf(r); return `<span class="tag st-${s}">${s}</span>${s!=='상담' && !erpOf(r) ? ' <span class="tag call">전산 미등록</span>' : ''}`; };
   $('#listBody').innerHTML=shown.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td>${esc(r.contact)}</td><td class="num">${esc(r.phone)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
     || `<tr><td colspan="11" class="hint">${all.length?'이 구분에 해당하는 예약이 없습니다.':'저장한 단체예약이 없습니다.'}</td></tr>`;
@@ -1477,6 +1478,44 @@ $('#consultApplyBtn').onclick=()=>{
   closeConsult(); $('#consultBox').value='';
   toast(`${n}개 항목을 채웠습니다${extra.length?` · ${extra.length}줄은 통화 메모에`:''}`);
 };
+
+// ===================== 단체예약 현황 엑셀로 내려받기 (목록 창에서 고른 구분 그대로, 방문일 순) =====================
+let listView = null;
+function loadExcelJS(){
+  if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  return new Promise((ok,no)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'; s.onload=()=>window.ExcelJS?ok(window.ExcelJS):no(new Error('엑셀 모듈')); s.onerror=()=>no(new Error('엑셀 모듈을 불러오지 못했습니다')); document.head.appendChild(s); });
+}
+async function downloadXlsx(){
+  if(!listView || !listView.shown.length){ toast('내려받을 예약이 없습니다.'); return; }
+  const btn=$('#xlsxBtn'); btn.disabled=true; btn.textContent='만드는 중…';
+  try{
+    const ExcelJS = await loadExcelJS();
+    const rows = listView.shown.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const COLS = [['방문일',12],['단계',9],['전산',8],['업체',22],['영업 담당',9],['결제',16],['차량',10],['입장',7],['입장문',8],['퇴장',7],['관람',8],
+      ['사담 1부',8],['사담 2부',8],['사담 디너',9],['마방 런치',9],['마방 디너',9],['마방 메뉴',12],['차방',6],['동행',6],['당두',6],['요가/명상',9],['가가 바우처',10],['티하우스 명상',11],['가야금',7],['유루 캐빈',9],
+      ['담당자',14],['연락처',16],['이메일',24],['인원 변경',9],['현장 재결제',10],['미정 항목',16],['특별 할인',16],['통화 메모',40],['접수',16]];
+    const wb = new ExcelJS.Workbook(); wb.creator='사유원 단체 예약 도우미'; wb.created=new Date();
+    const ws = wb.addWorksheet('단체예약 현황', { views:[{ state:'frozen', ySplit:1 }] });
+    ws.columns = COLS.map(([h,w])=>({ header:h, width:w }));
+    rows.forEach(r=>{
+      const x={...r, ...unpackExtra(r)}, sp=(String(r.memo||'').match(/특별 할인\s+([^/]+)/)||[])[1]||'';
+      ws.addRow([r.date||'', listView.stageOf(r), listView.erpOf(r)?'등록':(listView.stageOf(r)==='상담'?'':'미등록'), r.org||'', r.owner||r.takenBy||'', r.pay||'', r.vehicle||'', r.tin||'', x.gate||'', r.tout||'', r.people||'',
+        r.sadam1||'', r.sadam2||'', r.sadamD||'', r.mabangL||'', r.mabangD||'', r.mabangMenu||'', r.chabang||'', r.donghaeng||'', r.dangdu||'', r.yoga||'', r.gaga||'', r.teaMed||'', r.gayageum||'', r.cabin||'',
+        r.contact||'', r.phone||'', r.email||'', x.pchg?'있음':'', x.onsite?'있음':'', x.tbd?(x.tbd+(x.tbdDate?` (${x.tbdDate}까지)`:'')):'', sp.trim(), r.note||'', r.saved?fmt(r.saved):'']);
+    });
+    const head = ws.getRow(1); head.font={ bold:true, color:{argb:'FFFFFFFF'} }; head.alignment={ vertical:'middle', horizontal:'center' }; head.height=22;
+    head.eachCell(c=>{ c.fill={ type:'pattern', pattern:'solid', fgColor:{argb:'FF3F5236'} }; });
+    ws.eachRow((row,i)=>{ if(i>1) row.alignment={ vertical:'top', wrapText:true }; row.eachCell(c=>{ c.border={ bottom:{ style:'thin', color:{argb:'FFDDDDDD'} } }; }); });
+    ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:COLS.length} };
+    const buf = await wb.xlsx.writeBuffer();
+    const tag = listStage==='all' ? '' : '_' + (listStage==='noerp' ? '전산미등록' : listStage);
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    a.download=`사유원_단체예약현황${tag}_${ymd(new Date()).replace(/-/g,'')}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+    toast(`${rows.length}건을 엑셀로 내려받았습니다.`);
+  }catch(e){ toast('엑셀을 만들지 못했습니다: '+e.message); }
+  btn.disabled=false; btn.textContent='엑셀로 내려받기';
+}
+$('#xlsxBtn').onclick=downloadXlsx;
 
 // ===================== 단체예약 목록 창 =====================
 function openList(){ $('#listModal').hidden=false; renderList(); if(pending.length) flush(); else pull(); $('#listCloseBtn').focus(); }
