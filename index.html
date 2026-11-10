@@ -58,6 +58,11 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .btn kbd{font:11px ui-monospace,Consolas,monospace;opacity:.7;margin-left:4px}
 .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--pine);outline-offset:1px}
 .row-btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.modal .del-box{width:min(420px,100%);margin-top:8vh}
+.del-l{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:4px 0 4px}
+.del-box select,.del-box input{width:100%;height:38px;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:14px var(--sans);background:#fff;color:var(--ink)}
+.del-box input{margin-top:8px}
+.btn.danger{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
 /* 예약 내용 아래 버튼 줄: 위아래 내용과 떨어진 한 덩어리 */
 .act-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:16px -16px 0;padding:12px 16px;background:var(--bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .act-bar .btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:6px 8px;font-weight:600;white-space:nowrap}
@@ -394,7 +399,18 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <div class="seg" id="stageFilter" style="display:inline-flex;margin-bottom:8px;background:var(--bg)">
       <button type="button" data-f="all">전체</button><button type="button" data-f="상담">상담</button><button type="button" data-f="가예약">가예약</button><button type="button" data-f="공식예약">공식예약</button><button type="button" data-f="noerp">전산 미등록</button>
     </div>
-    <div class="tw"><table><thead><tr><th>방문일</th><th>단계</th><th>업체</th><th>담당자</th><th>연락처</th><th>인원</th><th>입퇴장</th><th>식사</th><th>영업 담당</th><th>접수</th><th></th></tr></thead><tbody id="listBody"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>방문일</th><th>단계</th><th>업체</th><th>담당자</th><th>연락처</th><th>인원</th><th>입퇴장</th><th>식사</th><th>견적서</th><th>거래명세서</th><th>영업 담당</th><th>접수</th><th></th></tr></thead><tbody id="listBody"></tbody></table></div>
+  </section>
+</div>
+
+<!-- 단체예약 삭제: 사유를 고르고 삭제 (사유는 그 예약의 수정 기록에 남음) -->
+<div class="modal" id="delModal" hidden>
+  <section class="panel consult del-box" role="dialog" aria-modal="true" aria-labelledby="delTitle">
+    <h2 id="delTitle">예약 삭제 <small id="delWho"></small></h2>
+    <label class="del-l" for="delReason">삭제 사유</label>
+    <select id="delReason"></select>
+    <input id="delNote" data-ime="ko" placeholder="자세한 사유 (선택 · 기타면 필수)" autocomplete="off">
+    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="delCancel">취소</button><button class="btn danger" id="delOk">삭제</button></div>
   </section>
 </div>
 
@@ -477,6 +493,7 @@ const PAYS = ['세금계산서','결제링크','현장 결제','미정'];
 const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
+const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL','mabangD'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
 const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 입력 기한'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
@@ -581,6 +598,10 @@ function buildForm(){
     if(k==='date') renderInfo();
     startTimer(); paintFields(); renderSide();
   });
+  // 식사 칸을 누르면 비어 있을 때 방문 인원을 먼저 넣고 전체 선택 (그대로 두거나 바로 고쳐 쓰기)
+  $('#form').addEventListener('click', e=>{ const el=e.target, k=el.dataset?.k;
+    if(!MEAL_KEYS.includes(k) || el.value || !numOf(rec.people)) return;
+    el.value=String(numOf(rec.people)); el.dispatchEvent(new Event('input',{bubbles:true})); el.select(); });
   $('#form').addEventListener('click', e=>{
     const x=e.target.closest('.x'); if(!x) return;
     const i=+x.dataset.i;
@@ -871,11 +892,13 @@ async function flush(){
   if(!getKey()){ syncState='needkey'; paintSync(); return; }
   flushing=true;
   try{
+    do {   // 보내는 사이 새로 쌓인 것(예: 삭제 사유 저장 뒤 삭제)까지 이어서 보냄
     while(pending.length){
       await callApi(pending[0]);
       pending.shift(); writeJSON(PEND_LS,pending); paintSync();
     }
     await pull(true);
+    } while(pending.length);
   }catch(e){ handleErr(e); }
   finally{ flushing=false; }
 }
@@ -896,10 +919,10 @@ const store={
     if(!SHARED_URL){ const l=readJSON(LKEY,[]); const i=l.findIndex(x=>x.id===item.id); if(i>=0) l[i]=item; else l.push(item); writeJSON(LKEY,l); return; }
     pending=pending.filter(p=>!(p.action==='put'&&p.item.id===item.id)); pending.push({action:'put',item}); writeJSON(PEND_LS,pending); paintSync(); flush();
   },
-  async del(id){
+  async del(id, keepPut){   // keepPut: 바로 앞에 넣은 저장(삭제 사유 기록)을 먼저 보내고 삭제
     if(!SHARED_URL){ writeJSON(LKEY,readJSON(LKEY,[]).filter(x=>x.id!==id)); return; }
     const local=pending.some(p=>p.action==='put'&&p.item.id===id) && !serverItems.some(x=>x.id===id);
-    pending=pending.filter(p=>!(p.action==='put'&&p.item.id===id));
+    if(!(keepPut && !local)) pending=pending.filter(p=>!(p.action==='put'&&p.item.id===id));
     if(!local) pending.push({action:'del',id});
     writeJSON(PEND_LS,pending); paintSync(); flush();
   }
@@ -1157,10 +1180,10 @@ async function renderList(){
   const shown = all.filter(r=> listStage==='all' ? true : listStage==='noerp' ? (stageOf(r)!=='상담' && !erpOf(r)) : stageOf(r)===listStage);
   listView = { shown, stageOf, erpOf };   // 엑셀로 내려받기에 씀
   const stageTag = r => { const s=stageOf(r); return `<span class="tag st-${s}">${s}</span>${s!=='상담' && !erpOf(r) ? ' <span class="tag call">전산 미등록</span>' : ''}`; };
-  $('#listBody').innerHTML=shown.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td>${esc(r.contact)}</td><td class="num">${esc(r.phone)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
-    || `<tr><td colspan="11" class="hint">${all.length?'이 구분에 해당하는 예약이 없습니다.':'저장한 단체예약이 없습니다.'}</td></tr>`;
+  $('#listBody').innerHTML=shown.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td>${esc(r.contact)}</td><td class="num">${esc(r.phone)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td>${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
+    || `<tr><td colspan="13" class="hint">${all.length?'이 구분에 해당하는 예약이 없습니다.':'저장한 단체예약이 없습니다.'}</td></tr>`;
   document.querySelectorAll('#listBody tr.r').forEach(tr=>tr.onclick=async e=>{
-    if(e.target.dataset.del){ e.stopPropagation(); if(e.target.textContent==='삭제'){ e.target.textContent='정말 삭제'; return; } await store.del(e.target.dataset.del); renderList(); return; }
+    if(e.target.dataset.del){ e.stopPropagation(); openDel(e.target.dataset.del); return; }
     const r=cache.find(x=>x.id===tr.dataset.id); if(!r) return;
     openRecord(r);
   });
@@ -1493,7 +1516,7 @@ async function downloadXlsx(){
     const rows = listView.shown.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     const COLS = [['방문일',12],['단계',9],['전산',8],['업체',22],['영업 담당',9],['결제',16],['차량',10],['입장',7],['입장문',8],['퇴장',7],['관람',8],
       ['사담 1부',8],['사담 2부',8],['사담 디너',9],['마방 런치',9],['마방 디너',9],['마방 메뉴',12],['차방',6],['동행',6],['당두',6],['요가/명상',9],['가가 바우처',10],['티하우스 명상',11],['가야금',7],['유루 캐빈',9],
-      ['담당자',14],['연락처',16],['이메일',24],['인원 변경',9],['현장 재결제',10],['미정 항목',16],['특별 할인',16],['통화 메모',40],['접수',16]];
+      ['견적서',10],['거래명세서',10],['담당자',14],['연락처',16],['이메일',24],['인원 변경',9],['현장 재결제',10],['미정 항목',16],['특별 할인',16],['통화 메모',40],['접수',16]];
     const wb = new ExcelJS.Workbook(); wb.creator='사유원 단체 예약 도우미'; wb.created=new Date();
     const ws = wb.addWorksheet('단체예약 현황', { views:[{ state:'frozen', ySplit:1 }] });
     ws.columns = COLS.map(([h,w])=>({ header:h, width:w }));
@@ -1501,7 +1524,7 @@ async function downloadXlsx(){
       const x={...r, ...unpackExtra(r)}, sp=(String(r.memo||'').match(/특별 할인\s+([^/]+)/)||[])[1]||'';
       ws.addRow([r.date||'', listView.stageOf(r), listView.erpOf(r)?'등록':(listView.stageOf(r)==='상담'?'':'미등록'), r.org||'', r.owner||r.takenBy||'', r.pay||'', r.vehicle||'', r.tin||'', x.gate||'', r.tout||'', r.people||'',
         r.sadam1||'', r.sadam2||'', r.sadamD||'', r.mabangL||'', r.mabangD||'', r.mabangMenu||'', r.chabang||'', r.donghaeng||'', r.dangdu||'', r.yoga||'', r.gaga||'', r.teaMed||'', r.gayageum||'', r.cabin||'',
-        r.contact||'', r.phone||'', r.email||'', x.pchg?'있음':'', x.onsite?'있음':'', x.tbd?(x.tbd+(x.tbdDate?` (${x.tbdDate}까지)`:'')):'', sp.trim(), r.note||'', r.saved?fmt(r.saved):'']);
+        docState(r,'quote'), docState(r,'stmt'),         r.contact||'', r.phone||'', r.email||'', x.pchg?'있음':'', x.onsite?'있음':'', x.tbd?(x.tbd+(x.tbdDate?` (${x.tbdDate}까지)`:'')):'', sp.trim(), r.note||'', r.saved?fmt(r.saved):'']);
     });
     const head = ws.getRow(1); head.font={ bold:true, color:{argb:'FFFFFFFF'} }; head.alignment={ vertical:'middle', horizontal:'center' }; head.height=22;
     head.eachCell(c=>{ c.fill={ type:'pattern', pattern:'solid', fgColor:{argb:'FF3F5236'} }; });
@@ -1517,13 +1540,49 @@ async function downloadXlsx(){
 }
 $('#xlsxBtn').onclick=downloadXlsx;
 
+// 목록 · 엑셀: 견적서 / 거래명세서 발행 여부 (추후 과업 기준)
+function docState(r, id){
+  const t = parseHist(r).tasks.find(x=>x.id===id), x = unpackExtra(r);
+  const asked = id==='quote' ? x.wantQuote : x.wantStmt;
+  return t && t.done ? '발행' : (t || asked) ? '요청' : '';
+}
+const docTag = (r,id) => { const s=docState(r,id); return s==='발행' ? '<span class="tag st-공식예약">발행</span>' : s==='요청' ? '<span class="tag st-가예약">요청 · 미발행</span>' : ''; };
+
+// ===================== 예약 삭제: 사유 고르기 =====================
+// 사유 목록 (피드백 받아 고칠 것)
+const DEL_REASONS = ['고객 취소 (방문 취소)','일정 연기 · 날짜 다시 잡기로','다른 예약과 중복 등록','잘못 입력 · 테스트','인원이 줄어 단체 예약 아님 (개인 예약으로)','다른 곳으로 결정 · 견적 후 진행 안 함','연락 두절','기타 (직접 입력)'];
+let delId=null;
+function openDel(id){
+  const r=cache.find(x=>x.id===id); if(!r) return;
+  delId=id;
+  $('#delWho').textContent = [r.org||r.contact||'(업체 미정)', r.date&&dateLabel(r.date), r.people&&`${r.people}명`].filter(Boolean).join(' · ');
+  $('#delReason').innerHTML = '<option value="">사유를 고르세요</option>' + DEL_REASONS.map(x=>`<option>${esc(x)}</option>`).join('');
+  $('#delNote').value=''; $('#delModal').hidden=false; $('#delReason').focus();
+}
+const closeDel = () => { $('#delModal').hidden=true; delId=null; };
+$('#delCancel').onclick=closeDel;
+$('#delModal').addEventListener('mousedown', e=>{ if(e.target.id==='delModal') closeDel(); });
+$('#delOk').onclick=async ()=>{
+  const reason=$('#delReason').value, note=$('#delNote').value.trim();
+  if(!reason){ toast('삭제 사유를 골라 주세요.'); $('#delReason').focus(); return; }
+  if(/^기타/.test(reason) && !note){ toast('기타 사유를 적어 주세요.'); $('#delNote').focus(); return; }
+  const r=cache.find(x=>x.id===delId); if(!r){ closeDel(); return; }
+  const now=new Date().toISOString(), ph=parseHist(r), why = /^기타/.test(reason) ? note : reason + (note ? ` · ${note}` : '');
+  ph.h.push({t:now, by:savedOwner()||'', what:`[삭제] ${why}`});
+  // 사유를 수정 기록에 남긴 뒤 삭제 (시트에서는 줄을 지우지 않고 '삭제' 칸에 일시를 적으므로 사유도 남음)
+  await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks}), saved:now});
+  await store.del(r.id, true);
+  if(editingId===r.id) newCall(false);
+  closeDel(); renderList(); toast(`삭제했습니다 · ${why}`);
+};
+
 // ===================== 단체예약 목록 창 =====================
 function openList(){ $('#listModal').hidden=false; renderList(); if(pending.length) flush(); else pull(); $('#listCloseBtn').focus(); }
 function closeList(){ $('#listModal').hidden=true; }
 $('#listOpenBtn').onclick=openList;
 $('#listCloseBtn').onclick=closeList;
 $('#listModal').addEventListener('mousedown', e=>{ if(e.target.id==='listModal') closeList(); });   // 바깥 누르면 닫힘
-document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#listModal').hidden){ e.preventDefault(); closeList(); } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#delModal').hidden){ e.preventDefault(); closeDel(); return; } if(e.key==='Escape' && !$('#listModal').hidden){ e.preventDefault(); closeList(); } });
 
 document.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); }
