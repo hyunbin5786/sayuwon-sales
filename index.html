@@ -185,11 +185,9 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <form id="form" autocomplete="off"></form>
     <div class="row-btns" style="margin-top:10px">
       <button class="btn primary" id="saveBtn">저장<kbd>Ctrl+S</kbd></button>
-      <button class="btn" id="copyRowBtn">엑셀 행 복사 (D~V열)</button>
       <button class="btn" id="copyTextBtn">내용 텍스트 복사</button>
       <button class="btn" id="newBtn">새 통화<kbd>Alt+N</kbd></button>
     </div>
-    <p class="hint">엑셀 메인 시트에서 해당 날짜 행의 <b>D열(업체)</b> 칸을 선택하고 Ctrl+V 하면 V열(유루 캐빈)까지 들어갑니다.</p>
   </section>
 
   <!-- 확인 -->
@@ -211,7 +209,6 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <h2><span id="listTitle">단체예약 목록</span> <small id="storeHint"></small>
       <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn" id="adminSyncBtn" style="padding:4px 10px;font-size:12px">관리자 사이트에서 지금 가져오기</button><button type="button" class="btn" id="listCloseBtn" style="padding:4px 10px;font-size:12px">닫기 (Esc)</button></span></h2>
     <div class="tw"><table><thead><tr><th>방문일</th><th>업체</th><th>담당자</th><th>연락처</th><th>인원</th><th>입퇴장</th><th>식사</th><th>영업 담당</th><th>접수</th><th></th></tr></thead><tbody id="listBody"></tbody></table></div>
-    <div class="row-btns" style="margin-top:10px"><button class="btn" id="copyAllBtn">전체 엑셀 행 복사</button></div>
   </section>
 </div>
 
@@ -255,8 +252,6 @@ let optOpen = new Set();
 const GROUP_OF = Object.fromEntries(FIELDS.map(f=>[f[1], f[0]]));
 const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1], ['사담','몽몽마방'].includes(f[0]) ? `${f[0]} ${f[2]}` : f[2]]));
 CFIELDS.forEach(([f,l])=>{ for(let i=0;i<10;i++) LABEL[`c${i}_${f}`]= i? `${l}(${i+1})` : l; });
-const EXCEL_COLS = ['D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V'];
-const EXCEL_HEAD = {D:'업체',E:'담당',F:'결제',G:'차량',H:'입퇴장',I:'관람',J:'사담 1부',K:'사담 2부',L:'사담 디너',M:'마방 런치',N:'마방 디너',O:'차방',P:'동행',Q:'당두',R:'요가/명상',S:'가가',T:'티 명상',U:'가야금',V:'유루 캐빈'};
 const DOW = '일월화수목금토';
 const $ = s => document.querySelector(s);
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -402,13 +397,6 @@ function renderForm(changed=[]){
   renderSide();
 }
 function dateLabel(d){ if(!d) return ''; const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; }
-function excelRow(r){
-  const names = r.contact!=null && !nContactsOf(r) ? String(r.contact).split(' / ').filter(Boolean).join(', ') : contactsOf(r).map(c=>c.name).filter(Boolean).join(', ');
-  const org = r.org + (names?`(${names})`:'');
-  const time = (r.tin||r.tout)?`${r.tin||''}~${r.tout||''}`:'';
-  const map = {D:org,E:r.owner,F:r.pay,G:r.vehicle,H:time,I:r.people,J:r.sadam1,K:r.sadam2,L:r.sadamD,M:r.mabangL,N:r.mabangD,O:r.chabang,P:r.donghaeng,Q:r.dangdu,R:r.yoga,S:r.gaga,T:r.teaMed,U:r.gayageum,V:r.cabin};
-  return EXCEL_COLS.map(c=>map[c]||'');
-}
 function renderSide(){
   const req = REQUIRED(), miss = req.filter(([k])=>!rec[k]);
   // 물어볼 것: 전부 보여 주고, 받은 항목은 초록색
@@ -510,8 +498,6 @@ function tick(){ if(!startedAt){ $('#timer').textContent=''; return; } const s=M
 // ===================== 복사 =====================
 function toast(s){ const t=$('#toast'); t.textContent=s; t.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(()=>t.classList.remove('on'),1800); }
 async function copy(text,msg){ try{ await navigator.clipboard.writeText(text); }catch(_){ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } toast(msg); }
-const tsvCell=v=>/[\t\n"]/.test(v)?`"${String(v).replace(/"/g,'""')}"`:v;
-$('#copyRowBtn').onclick=()=>copy(excelRow(rec).map(tsvCell).join('\t'),'복사했습니다. 엑셀 D열 칸에 붙여넣으세요.');
 $('#copyTextBtn').onclick=()=>copy([
   ...FIELDS.filter(f=>rec[f[1]]).map(f=>`${LABEL[f[1]]}: ${rec[f[1]]}`),
   ...contactsOf(rec).map((c,i)=>`담당자${i?i+1:''}: ${[c.name,c.phone,c.email].filter(Boolean).join(' / ')}`)
@@ -628,7 +614,6 @@ async function renderList(){
   });
   renderInfo(curInfoKey);
 }
-$('#copyAllBtn').onclick=async()=>{ const l=(await store.list()).filter(r=>(r.callType||'단체예약')==='단체예약').sort((a,b)=>(a.date||'').localeCompare(b.date||'')); if(!l.length){ toast('저장한 단체예약이 없습니다.'); return; } copy(l.map(r=>excelRow(r).map(tsvCell).join('\t')).join('\n'),`${l.length}건을 복사했습니다.`); };
 
 // 관리자 사이트에서 지금 가져오기 (평소에는 Apps Script 가 15분마다 자동으로)
 $('#adminSyncBtn').onclick=async()=>{
