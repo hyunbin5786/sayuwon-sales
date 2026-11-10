@@ -331,9 +331,9 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <div id="missBox"></div>
     <div class="sub-h">다시 확인할 것</div>
     <div id="unsureBox"></div>
-    <div class="sub-h">끊기 전 복창</div>
+    <div class="sub-h">고객님께 확인</div>
     <div class="readback" id="readback"></div>
-    <div class="row-btns" style="margin-top:8px"><button class="btn" id="copyReadBtn">복창 문구 복사</button></div>
+    <div class="row-btns" style="margin-top:8px"><button class="btn" id="copyReadBtn">확인 문구 복사</button></div>
   </section>
 
   <!-- 가격표: 견적서 사이트 품목 목록 기준 (품목 관리에서 바꾼 가격은 열 때 다시 불러옴) -->
@@ -470,7 +470,7 @@ const tbdSet = r => { const names=String(r?.tbd||'').split(/\s*,\s*/); return ne
 function packExtra(r){
   const o={};
   o.pay = r.pay==='미정' && r.payContact ? `미정 (연락 ${r.payContact})` : r.pay;
-  o.memo = MEMO_PARTS.filter(([k])=>r[k]).map(([k,l])=>`${l} ${String(r[k]).replace(/\s*\/\s*/g,', ')}`).join(' / ');
+  o.memo = MEMO_PARTS.filter(([k])=>r[k] && (k!=='tbdDate' || r.tbd)).map(([k,l])=>`${l} ${String(r[k]).replace(/\s*\/\s*/g,', ')}`).join(' / ');
   if(typeof SPECIAL!=='undefined'){ const sp=specialCounts(r); if(sp.length) o.memo=[o.memo, '특별 할인 '+sp.map(s=>s.short+' '+s.n).join(', ')].filter(Boolean).join(' / '); }
   return o;
 }
@@ -546,6 +546,7 @@ function buildForm(){
   document.querySelectorAll('[data-tbd]').forEach(b=>b.onclick=()=>{
     const s=tbdSet(rec), k=b.dataset.tbd; s.has(k) ? s.delete(k) : s.add(k);
     rec.tbd = TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', ');
+    if(!s.size){ rec.tbdDate=''; tbdAuto=false; }   // 미정 항목이 없으면 입력 기한도 없음
     touched.add('tbd'); startTimer(); paintFields(); renderSide();
   });
   $('#addContact').onclick=()=>{ nContacts++; renderContacts(); document.getElementById(`f_c${nContacts-1}_name`).focus(); };
@@ -640,12 +641,23 @@ function renderForm(changed=[]){
 }
 function dateLabel(d){ if(!d) return ''; const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; }
 const mdLabel = d => { const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}월 ${t.getDate()}일`; };
+// 미정 항목 입력 기한: 미정 체크가 있을 때만 보이고, 기본값은 방문일 전주 목요일 (직접 바꾸면 그대로 둠)
+let tbdAuto=false;
+function prevWeekThu(d){ const t=new Date(d+'T00:00'); if(isNaN(t)) return ''; t.setDate(t.getDate()-((t.getDay()+6)%7)-4); return ymd(t); }
+function applyTbdDefault(){
+  const has=tbdSet(rec).size>0, w=document.getElementById('w_tbdDate');
+  if(w) w.hidden=!has;
+  if(!has || !rec.date || (rec.tbdDate && !tbdAuto)) return;
+  const v=prevWeekThu(rec.date);
+  if(v && rec.tbdDate!==v){ rec.tbdDate=v; tbdAuto=true; const el=document.getElementById('f_tbdDate'); if(el) el.value=v; }
+}
 function renderSide(){
+  applyTbdDefault();
   if(typeof renderStage==='function') renderStage();
   const ts = tbdSet(rec), req = REQUIRED(), miss = req.filter(([k])=>!rec[k] && !ts.has(k));
   // 물어볼 것: 전부 보여 주고, 받은 항목은 초록색, 미정으로 체크한 항목은 노란색
   $('#missBox').innerHTML = `<ul class="chk miss">${req.map(([k,l,q])=>`<li class="${ts.has(k)?'tbd':rec[k]?'got':''}" title="${q}"><b>${l}</b></li>`).join('')}</ul>`
-    + (miss.length ? '' : `<div class="done-all" style="margin-top:6px">필수 정보를 모두 받았습니다. 복창하고 저장하세요.</div>`);
+    + (miss.length ? '' : `<div class="done-all" style="margin-top:6px">필수 정보를 모두 받았습니다. 고객님께 확인하고 저장하세요.</div>`);
   const items = fieldWarnings(rec).map(u=>`<li><b>${LABEL[u.field]||u.field}</b> ${esc(rec[u.field]||'')}<span class="q">${esc(u.reason)}</span></li>`);
   $('#unsureBox').innerHTML = items.length ? `<ul class="chk unsure">${items.join('')}</ul>` : `<p class="hint" style="margin:0">지난 날짜, 입퇴장 시간 뒤바뀜, 사담·마방 자리 부족이면 여기에 표시합니다.</p>`;
   $('#readback').textContent = readback(rec);
@@ -671,8 +683,7 @@ function readback(r){
   const prog=[]; if(r.chabang) prog.push('차방 해설'); if(r.donghaeng) prog.push('동행 해설'); if(r.dangdu) prog.push('당두 해설'); if(r.yoga) prog.push('요가·명상'); if(r.gaga) prog.push('가가 바우처'); if(r.teaMed) prog.push('티하우스 명상'); if(r.gayageum) prog.push('가야금'); if(r.cabin) prog.push('유루 캐빈');
   if(prog.length) p.push(prog.join(', ')+' 포함');
   if(r.pay) p.push(r.pay==='미정' ? `결제 방법은 ${r.payContact?mdLabel(r.payContact)+'에 ':'나중에 '}알려주시기로` : `결제는 ${r.pay}`);
-  if(r.tbdDate) p.push(`정해지지 않은 내용은 ${mdLabel(r.tbdDate)}까지 알려주시기로`);
-  if(typeof SPECIAL!=='undefined'){ const sp=specialCounts(r); if(sp.length) p.push(sp.map(s=>`${s.short} 할인 ${s.n}명은 ${s.proof} 지참`).join(', ')); }
+  if(r.tbd && r.tbdDate){ const t=r.tbd.replace(/, /g,' · '), c=t.charCodeAt(t.length-1)-0xAC00; p.push(`아직 정해지지 않은 ${t}${c>=0&&c<11172&&c%28?'은':'는'} ${mdLabel(r.tbdDate)}까지 알려주시기로`); }
   if(!p.length) return '내용이 채워지면 고객에게 읽어줄 확인 문구가 만들어집니다.';
   let s = `확인차 말씀드리겠습니다. ${r.org?r.org+', ':''}${p.join(', ')}. 이대로 예약 도와드리면 될까요?`;
   const cs=contactsOf(r);
@@ -681,6 +692,10 @@ function readback(r){
   if(phones.length) s += ` 연락처는 ${phones.join(', ')} 맞으시죠?`;
   const guide = PAY_GUIDE[r.pay];
   if(guide) s += `\n\n[${r.pay} 안내]\n` + guide.map(g=>'· '+g).join('\n');
+  // 특별 할인: 인원 · 할인율 · 지참할 증빙
+  const sp = typeof SPECIAL!=='undefined' ? specialCounts(r) : [];
+  if(sp.length) s += `\n\n[특별 할인 안내]\n` + sp.map(x=>`· ${x.name} ${x.n}명은 ${x.rate===1?'무료':Math.round(x.rate*100)+'% 할인'}입니다. 방문 당일 꼭 지참해 주세요: ${x.proof}`).join('\n')
+    + `\n· 다른 할인과 겹치면 가장 큰 할인 하나만 적용되고, 증빙이 없으면 할인이 어렵습니다.`;
   return s;
 }
 
@@ -762,7 +777,7 @@ $('#copyTextBtn').onclick=()=>copy([
   ...FIELDS.filter(f=>rec[f[1]]).map(f=>`${LABEL[f[1]]}: ${rec[f[1]]}`),
   ...contactsOf(rec).map((c,i)=>`담당자${i?i+1:''}: ${[c.name,c.phone,c.email].filter(Boolean).join(' / ')}`)
 ].join('\n'),'내용을 복사했습니다.');
-$('#copyReadBtn').onclick=()=>copy($('#readback').textContent,'복창 문구를 복사했습니다.');
+$('#copyReadBtn').onclick=()=>copy($('#readback').textContent,'확인 문구를 복사했습니다.');
 
 // ===================== 저장: 구글 시트(Apps Script) → 주소가 비어 있으면 이 브라우저 =====================
 // SHARED_URL: group-intake.gs 를 웹 앱으로 배포한 주소 (README 참고). 비밀번호는 코드에 넣지 않고 각자 브라우저에 기억
@@ -895,7 +910,7 @@ $('#saveBtn').onclick=save;
   el.addEventListener('input', ()=>{ try{ localStorage.setItem('sayuwon_owner', el.value.trim()); }catch(_){} if(!editingId) rec.owner=el.value.trim(); paint(); renderSide(); });
 })();
 // 맨 위 예약 단계 줄의 미정 항목 입력 기한
-$('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; touched.add('tbdDate'); startTimer(); paintFields(); renderSide(); });
+$('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAuto=false; touched.add('tbdDate'); startTimer(); paintFields(); renderSide(); });
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
@@ -1085,7 +1100,7 @@ $('#adminSyncBtn').onclick=async()=>{
 // ===================== 새 통화·단축키 =====================
 function newCall(withToast=true){
   resetState(); clearInterval(timerInt); tick(); $('#memoBox').value=''; status('');
-  hist=[]; baseSnap=null; tasks=[]; renderHist();
+  hist=[]; baseSnap=null; tasks=[]; tbdAuto=false; renderHist();
   renderContacts(); renderForm(); if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
 }
 $('#newBtn').onclick=()=>newCall();
