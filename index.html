@@ -1384,9 +1384,9 @@ function blockAmount(b, price){
 }
 function renderPrice(){
   const box=$('#priceBox'); if(!box) return;
-  let day=null; if(rec.date){ const d=new Date(rec.date+'T00:00'); if(!isNaN(d)) day = (d.getDay()===0||d.getDay()===6) ? 'we' : 'wd'; }
+  let day=null; if(rec.date){ const d=new Date(rec.date+'T00:00'); if(!isNaN(d)) day = isRedDay(rec.date) ? 'we' : 'wd'; }
   const n = numOf(rec.people), g = groupRate(n), sp = specialCounts(rec);
-  $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?'주말':'평일'} 가격` : '';
+  $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?(HOLIDAYS.has(rec.date)?'공휴일(주말)':'주말'):'평일'} 가격` : '';
   $('#discGroup').innerHTML = n
     ? `${n}명 → <b>${groupLabel(n)}</b> <span class="hint" style="margin:0">(관람·사담 런치만, 다른 상품은 할인 없음)</span>` + (sp.length ? `<br>특별 할인 ${sp.map(s=>`${s.short} ${s.n}명 ${s.rate===1?'무료':Math.round(s.rate*100)+'%'}`).join(' · ')} <span class="hint" style="margin:0">(단체 할인과 비교해 큰 쪽)</span>` : '')
     : '<span class="hint" style="margin:0">관람 인원을 넣으면 할인(20명 미만 5% · 20명 초과 10%)이 계산됩니다</span>';
@@ -1442,10 +1442,20 @@ document.querySelectorAll('[data-dk]').forEach(el=>el.addEventListener('input', 
 const QUOTE_URL = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-invoice-quotation/?from=intake' : '/견적서_거래명세서/index.html?from=intake';
 // 관람권: 방문일 요일로 평일 / 주말·공휴일, 입장 시각이 13:00 이후면 13-18 관람권 (그 전이거나 모르면 9-18)
 function tinHour(t){ t=String(t||''); const m=t.match(/(\d{1,2})\s*(?::|시)/) || t.match(/^\s*(\d{1,2})\s*$/); if(!m) return null; let h=+m[1]; if(/오후|저녁|pm/i.test(t) && h<12) h+=12; return h; }
-function viewSrcOf(r){ const d=new Date(r.date+'T00:00'), we=d.getDay()===0||d.getDay()===6, h=tinHour(r.tin);
+// 공휴일 (대체공휴일 · 선거일 포함). 토·일이 아닌데 주말/공휴일 가격을 받는 날. 해마다 인사혁신처 고시를 보고 추가
+const HOLIDAYS = new Set([
+  // 2026
+  '2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-02','2026-05-01','2026-05-05','2026-05-25','2026-06-03',
+  '2026-07-17','2026-08-17','2026-09-24','2026-09-25','2026-10-05','2026-10-09','2026-12-25',
+  // 2027
+  '2027-01-01','2027-02-08','2027-02-09','2027-03-01','2027-05-03','2027-05-05','2027-05-13','2027-07-19',
+  '2027-08-16','2027-09-14','2027-09-15','2027-09-16','2027-10-04','2027-10-11','2027-12-27',
+]);
+const isRedDay = date => { const d=new Date(date+'T00:00'); return !isNaN(d) && (d.getDay()===0 || d.getDay()===6 || HOLIDAYS.has(date)); };
+function viewSrcOf(r){ const we=isRedDay(r.date), h=tinHour(r.tin);
   return `${we?'주말/공휴일':'평일'} 관람(${h!=null && h>=13 ? '13:00~18:00' : '09:00~18:00'})`; }
 function quoteBlocks(r){
-  const n = numOf(r.people), we = (()=>{ const d=new Date(r.date+'T00:00'); return d.getDay()===0||d.getDay()===6; })();
+  const n = numOf(r.people), we = isRedDay(r.date);
   const DAY = we ? '주말/공휴일' : '평일';
   const cnt = v => v ? (numOf(v) || n) : 0;   // 'O' 처럼 숫자가 없으면 전체 인원
   const mbPkg = r.mabangL && (!r.mabangMenu || /밥상/.test(r.mabangMenu));
