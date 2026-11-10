@@ -69,7 +69,6 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .f{display:flex;flex-direction:column;gap:2px;min-width:0}
 .f.w2{grid-column:span 2}.f.w4{grid-column:1 / -1}
 .f label{font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between;gap:4px}
-.f label .col{font-family:ui-monospace,Consolas,monospace;font-size:10px;color:#a9a497}
 .f input,.vrow select{height:36px;box-sizing:border-box}   /* 모든 칸을 방문일 칸 높이(36px)에 맞춤 */
 .f input{width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13.5px var(--sans);background:#fff;color:var(--ink);min-width:0}
 .f.req label::after{content:" *";color:var(--red)}
@@ -276,13 +275,24 @@ function splitContacts(r){   // 시트에서 읽은 "가 / 나" 를 담당자 �
   const o={}; for(let i=0;i<n;i++){ o[`c${i}_name`]=(a[i]||'').trim(); o[`c${i}_phone`]=(b[i]||'').trim(); o[`c${i}_email`]=(c[i]||'').trim(); } return o;
 }
 const allKeys = () => { const ks=[...KEYS]; for(let i=0;i<nContacts;i++) CFIELDS.forEach(([f])=>ks.push(`c${i}_${f}`)); return ks; };
-const REQUIRED = () => [...FIELDS.filter(f=>f[5]).map(f=>[f[1],f[2],f[5]]), ...CFIELDS.map(([f,l,q])=>[`c0_${f}`,l,q])];
+const MISS_LABEL = { phone:'연락처(010)' };   // 물어볼 것에 보이는 이름
+const REQUIRED = () => [...FIELDS.filter(f=>f[5]).map(f=>[f[1],f[2],f[5]]), ...CFIELDS.map(([f,l,q])=>[`c0_${f}`,MISS_LABEL[f]||l,q])];
 
 // ===================== 칸 렌더 =====================
 // 칸별 입력 방식: 한글 우선(한/영 키로 영어) · 영어 고정 · 숫자 고정
 const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner';
 const EN_ONLY  = k => /^c\d+_email$/.test(k);
 const NUM_ONLY = { people:/[^\d+]/g, vehicle:/[^\d]/g };   // 관람 인원은 42+2 처럼 + 허용
+// 연락처: 빈 칸을 누르면 010- 이 들어가고, 숫자를 치면 - 가 자동. 내선 번호면 010- 을 지우고 쓰면 됨
+const PHONE = k => /^c\d+_phone$/.test(k);
+function fmtPhone(v){
+  const d=String(v||'').replace(/\D/g,'').slice(0,12);
+  if(!d) return '';
+  if(/^01[016789]/.test(d)) return d.length<=3 ? d : d.length<=7 ? `${d.slice(0,3)}-${d.slice(3)}` : `${d.slice(0,3)}-${d.slice(3,d.length-4)}-${d.slice(-4)}`;
+  if(/^02/.test(d))         return d.length<=2 ? d : d.length<=5 ? `02-${d.slice(2)}` : `02-${d.slice(2,d.length-4)}-${d.slice(-4)}`;
+  if(/^0\d\d/.test(d))      return d.length<=3 ? d : d.length<=6 ? `${d.slice(0,3)}-${d.slice(3)}` : `${d.slice(0,3)}-${d.slice(3,d.length-4)}-${d.slice(-4)}`;
+  return d.length<=4 ? d : `${d.slice(0,d.length-4)}-${d.slice(-4)}`;   // 내선·대표번호 (1234, 123-4567)
+}
 const VTYPES = ['버스','승용','혼합'];
 function vehParts(v){ v=String(v||''); const t=VTYPES.find(x=>v.includes(x)) || (/(대형|중형|소형|미니)/.test(v)?'버스':''); const n=(v.match(/\d+/)||[''])[0]; return {t,n}; }
 function vehJoin(t,n){ return n ? `${t||'버스'} ${n}대` : (t && t!=='버스' ? t : ''); }
@@ -291,11 +301,12 @@ function fieldHTML(k,label,col,cls,req){
   if(k==='owner') extra+=' list="owners"';
   if(KO_FIRST(k)) extra+=' data-ime="ko"';
   if(EN_ONLY(k))  extra+=' data-ime="en" inputmode="email" lang="en" autocapitalize="off" spellcheck="false"';
+  if(PHONE(k))    extra+=' data-ime="num" inputmode="tel" placeholder="010-0000-0000"';
   if(NUM_ONLY[k]) extra+=' inputmode="numeric" data-ime="num"';
   const input = k==='vehicle'
     ? `<div class="vrow"><select id="f_vtype" data-k="vehicle" aria-label="차종">${VTYPES.map(t=>`<option>${t}</option>`).join('')}</select><input id="f_${k}" data-k="${k}"${extra} placeholder="대수"></div>`
     : `<input id="f_${k}" data-k="${k}"${extra}>`;
-  return `<div class="f ${cls}${req?' req':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span>${col?`<span class="col">${col}</span>`:''}</label>${input}</div>`;
+  return `<div class="f ${cls}${req?' req':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span></label>${input}</div>`;
 }
 function buildForm(){
   const req=new Set(REQUIRED().map(r=>r[0]));
@@ -325,6 +336,13 @@ function buildForm(){
   $('#addContact').onclick=()=>{ nContacts++; renderContacts(); document.getElementById(`f_c${nContacts-1}_name`).focus(); };
   $('#form').addEventListener('input', e=>{
     const k=e.target.dataset.k; if(!k) return;
+    if(PHONE(k) && !e.isComposing){
+      const el=e.target, atEnd=el.selectionStart===el.value.length;
+      const del = e.inputType && e.inputType.startsWith('delete');
+      let f=fmtPhone(el.value);
+      if(del && el.value.endsWith('-') && f===el.value.replace(/-$/,'')) f=el.value.replace(/-$/,'');   // 지우는 중에는 끝 - 를 다시 붙이지 않음
+      if(f!==el.value){ el.value=f; if(atEnd) el.setSelectionRange(f.length,f.length); }
+    }
     if(NUM_ONLY[k] && e.target.tagName==='INPUT' && !e.isComposing){ const c=e.target.value.replace(NUM_ONLY[k],''); if(c!==e.target.value){ const p=e.target.selectionStart-(e.target.value.length-c.length); e.target.value=c; try{ e.target.setSelectionRange(p,p); }catch(_){} } }
     rec[k]= k==='vehicle' ? vehJoin($('#f_vtype').value, $('#f_vehicle').value) : e.target.value;
     touched.add(k);
@@ -348,6 +366,9 @@ function buildForm(){
   const hot = e=>{ const w=e.target.closest('.f'); const k=w?.querySelector('input')?.dataset.k; if(k && INFO_OF(k)) renderInfo(k); };
   $('#form').addEventListener('mouseover', hot);
   $('#form').addEventListener('focusin', hot);
+  // 연락처: 빈 칸을 누르면 010- 부터. 아무것도 안 치고 나가면 다시 비움
+  $('#form').addEventListener('focusin', e=>{ const el=e.target; if(PHONE(el.dataset?.k||'') && !el.value){ el.value='010-'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} },0); } });
+  $('#form').addEventListener('focusout', e=>{ const el=e.target; if(PHONE(el.dataset?.k||'') && /^010-?$/.test(el.value) && !rec[el.dataset.k]) el.value=''; });
   $('#form').addEventListener('mouseleave', ()=>{ const a=document.activeElement?.dataset?.k; renderInfo(a && INFO_OF(a) ? a : null); });
   renderContacts();
 }
