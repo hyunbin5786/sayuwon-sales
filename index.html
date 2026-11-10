@@ -213,6 +213,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <form id="form" autocomplete="off"></form>
     <div class="row-btns" style="margin-top:10px">
       <button class="btn primary" id="saveBtn">저장<kbd>Ctrl+S</kbd></button>
+      <button class="btn" id="quoteBtn">견적서 발급</button>
       <button class="btn" id="copyTextBtn">내용 텍스트 복사</button>
       <button class="btn" id="newBtn">새 통화<kbd>Alt+N</kbd></button>
     </div>
@@ -861,6 +862,57 @@ function renderPrice(){
 document.querySelectorAll('[data-dk]').forEach(el=>el.addEventListener('input', ()=>{
   el.value=el.value.replace(/\D/g,''); rec[el.dataset.dk]=el.value; touched.add(el.dataset.dk); startTimer(); renderSide();
 }));
+
+// ===================== 견적서 발급: 견적서&거래명세서 사이트로 넘기기 =====================
+// 그 사이트의 '예약 정보 붙여넣기'가 읽는 형식(방문일자 · 상품정보 · 방문자정보 · 예약인원 · * 할인)으로 만들어
+// 같은 사이트(hyunbin5786.github.io) 저장소에 두고 연다. 그쪽이 자동 채우기를 한다.
+const QUOTE_URL = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-invoice-quotation/?from=intake' : '/견적서_거래명세서/index.html?from=intake';
+function quoteBlocks(r){
+  const n = numOf(r.people), we = (()=>{ const d=new Date(r.date+'T00:00'); return d.getDay()===0||d.getDay()===6; })();
+  const DAY = we ? '주말/공휴일' : '평일';
+  const cnt = v => v ? (numOf(v) || n) : 0;   // 'O' 처럼 숫자가 없으면 전체 인원
+  const mbPkg = r.mabangL && (!r.mabangMenu || /밥상/.test(r.mabangMenu));
+  const blocks=[], skipped=[];
+  const add=(product, qty, disc)=>{ if(qty>0) blocks.push({product, qty, disc}); };
+  const pkg = cnt(r.sadam1)+cnt(r.sadam2)+cnt(r.sadamD)+(mbPkg?cnt(r.mabangL):0);
+  add(`${DAY} 관람(09:00~18:00)`, Math.max(0, n-pkg), true);
+  add(`${DAY}(관람, 사담 런치1부)`, cnt(r.sadam1), true);
+  add(`${DAY}(관람, 사담 런치2부)`, cnt(r.sadam2), true);
+  add(`${DAY}(관람, 사담 디너)`, cnt(r.sadamD), false);
+  if(mbPkg) add(`${DAY}(관람, 몽몽마방 사유의 밥상)`, cnt(r.mabangL), false);
+  else if(r.mabangL) add('몽몽마방 단품', cnt(r.mabangL), false);
+  if(r.mabangD) skipped.push('몽몽마방 디너');
+  const docent = ['chabang','donghaeng','dangdu'].filter(k=>r[k]).length;
+  add('해설사도슨트(수정)', docent, false);
+  add('요가프로그램(단체)', cnt(r.yoga), false);
+  add('음료쿠폰(가가빈빈)', cnt(r.gaga), false);
+  if(r.teaMed) skipped.push('티하우스 명상'); if(r.gayageum) skipped.push('가야금'); if(r.cabin) skipped.push('유루 캐빈');
+  // 할인 줄: 특별 할인 인원을 할인 대상 블록에 앞에서부터 나눠 넣고, 나머지는 단체 할인
+  const g = Math.round(groupRate(n)*100), gName = n>20 ? '단체예약' : '사전예약';
+  const sp = specialCounts(r).map(s=>({...s, left:s.n}));
+  blocks.forEach(b=>{
+    b.notes=[];
+    if(!b.disc) return;
+    let left=b.qty;
+    sp.forEach(s=>{ const c=Math.min(s.left,left); if(c<=0) return; s.left-=c; left-=c;
+      const pct=Math.max(Math.round(s.rate*100), g); b.notes.push(`* ${pct===g?gName:s.short} ${c}명 ${pct}%`); });
+    if(left>0 && g) b.notes.push(`* ${gName} ${left}명 ${g}%`);
+  });
+  return {blocks, skipped};
+}
+function quoteRaw(r, blocks){
+  const d = r.date.replace(/-/g,'.');
+  return blocks.map(b=>[`방문일자(순번)\t${d} (0)`, `상품정보\t${b.product}`, `방문자정보\t${r.org||''}`, `예약인원\t${b.qty}명`, ...b.notes].join('\n')).join('\n\n');
+}
+$('#quoteBtn').onclick=()=>{
+  if(!rec.date || !numOf(rec.people)){ toast('방문일과 관람 인원을 먼저 넣어 주세요.'); return; }
+  const {blocks, skipped} = quoteBlocks(rec);
+  const c = contactsOf(rec)[0] || {};
+  const h = { at:Date.now(), raw:quoteRaw(rec, blocks), client:rec.org||'', clientMgr:c.name||'', sender:rec.owner||'' };
+  try{ localStorage.setItem('sy_intake_handoff', JSON.stringify(h)); }catch(_){ toast('이 브라우저에서는 넘길 수 없습니다.'); return; }
+  window.open(QUOTE_URL, '_blank');
+  toast(`견적서 사이트를 열었습니다 · ${blocks.length}개 상품${skipped.length?` · ${skipped.join(', ')}은(는) 견적서에서 직접 추가`:''}`);
+};
 
 // ===================== 단체상담 입력: "항목<탭>값" 줄을 칸으로 =====================
 // 머리말이 달라도 알아듣도록 비슷한 이름을 같이 둔다. 모르는 항목은 통화 메모에 "항목: 값" 으로 남김
