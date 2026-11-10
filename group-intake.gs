@@ -60,7 +60,11 @@ function doPost(e) {
   var pc = passcode_();
   if (!pc || String(req.key || "") !== pc) return json_({ ok: false, error: "bad_key" });
 
-  if (req.action === "list") return json_({ ok: true, items: list_(Number(req.limit) || 2000), admin: readAdmin_(), api: 2 });
+  if (req.action === "list") return json_({ ok: true, items: list_(Number(req.limit) || 2000), admin: readAdmin_(), api: 3 });
+  if (req.action === "upload") {
+    try { return json_({ ok: true, file: upload_(req) }); }
+    catch (err) { return json_({ ok: false, error: "upload: " + String(err && err.message || err) }); }
+  }
   if (req.action === "syncAdmin") {
     try { return json_({ ok: true, result: syncAdmin(), admin: readAdmin_() }); }
     catch (err) { return json_({ ok: false, error: "admin_sync: " + String(err && err.message || err) }); }
@@ -167,6 +171,34 @@ function list_(limit) {
   });
   return out;
 }
+
+// =====================================================================
+// 사업자등록증 등 파일 올리기 → 내 드라이브 '사유원 단체예약 서류' 폴더 (폴더는 처음 올릴 때 생김)
+// 파일은 비공개(시트 주인 드라이브). 팀원이 열어 보려면 그 폴더를 팀원에게 공유해 두면 된다.
+var UPLOAD_MAX = 10 * 1024 * 1024;   // 10MB
+var UPLOAD_TYPES = /^(image\/(jpeg|png|gif|webp|heic|heif)|application\/pdf)$/;
+function uploadFolder_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty("UPLOAD_FOLDER_ID");
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
+  var f = DriveApp.createFolder("사유원 단체예약 서류");
+  props.setProperty("UPLOAD_FOLDER_ID", f.getId());
+  return f;
+}
+function upload_(req) {
+  var mime = String(req.mime || "");
+  if (!UPLOAD_TYPES.test(mime)) throw new Error("이미지나 PDF만 올릴 수 있습니다");
+  var bytes = Utilities.base64Decode(String(req.data || ""));
+  if (!bytes.length) throw new Error("빈 파일");
+  if (bytes.length > UPLOAD_MAX) throw new Error("10MB 이하만 올릴 수 있습니다");
+  var clean = function (s) { return String(s || "").replace(/[\\/:*?"<>|\r\n]+/g, " ").trim().slice(0, 60); };
+  var ext = (String(req.name || "").match(/\.[A-Za-z0-9]{1,5}$/) || [""])[0];
+  var name = [clean(req.date), clean(req.org) || "단체", clean(req.kind) || "서류"].filter(String).join(" ") + ext;
+  var file = uploadFolder_().createFile(Utilities.newBlob(bytes, mime, name));
+  return { id: file.getId(), name: name, url: file.getUrl(), at: new Date().toISOString() };
+}
+// 처음 한 번: 함수 목록에서 setupUpload 실행 → 드라이브 권한 승인 + 폴더 생성
+function setupUpload() { Logger.log("폴더: " + uploadFolder_().getUrl()); }
 
 function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);

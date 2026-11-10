@@ -117,6 +117,11 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .task .tbtn .btn{padding:4px 10px;font-size:12px}
 .task .chg{font-size:12px;font-weight:700;color:var(--amber)}
 .task textarea{width:100%;margin-top:8px;min-height:38px;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13px/1.5 var(--sans)}
+.tfiles{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:8px}
+.tfiles a{font-size:12.5px;color:var(--pine);font-weight:600;text-decoration:none;background:var(--pine-soft);padding:4px 8px;border-radius:6px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tfiles a:hover{text-decoration:underline}
+.tfiles .up{padding:4px 10px;font-size:12px;cursor:pointer}
+.tfiles .up.busy{opacity:.6;cursor:wait}
 .task-add{display:flex;gap:6px;margin-top:10px}
 .task-add input{flex:1;height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:13px var(--sans)}
 #memoBox{min-height:120px}
@@ -845,7 +850,7 @@ function snap(){
   const o={}; allKeys().forEach(k=>{ if(k!=='owner') o[k]=rec[k]||''; });
   o.tbd=rec.tbd||''; if(typeof SPECIAL!=='undefined') SPECIAL.forEach(s=>o[s.k]=rec[s.k]||'');
   o.stage=effStage(rec); o.erp=rec.erp||''; o.note=$('#memoBox').value.trim();
-  tasks.forEach(t=>{ o['task:'+t.id]=t.done?'완료':''; o['tmemo:'+t.id]=t.memo||''; if(t.custom) o['tadd:'+t.id]=t.title; });
+  tasks.forEach(t=>{ o['task:'+t.id]=t.done?'완료':''; o['tmemo:'+t.id]=t.memo||''; o['tfile:'+t.id]=(t.files||[]).map(f=>f.name).join(', '); if(t.custom) o['tadd:'+t.id]=t.title; });
   return o;
 }
 function diffSnap(a,b){
@@ -853,9 +858,9 @@ function diffSnap(a,b){
   new Set([...Object.keys(a),...Object.keys(b)]).forEach(k=>{
     const x=a[k]||'', y=b[k]||''; if(x===y) return;
     if(k==='note'){ out.push('통화 메모 수정'); return; }
-    const tm=k.match(/^(task|tmemo|tadd):(.+)$/);
+    const tm=k.match(/^(task|tmemo|tadd|tfile):(.+)$/);
     if(tm){ const title=(tasks.find(t=>t.id===tm[2])||{}).title||x||y;
-      out.push(tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`); return; }
+      out.push(tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`); return; }
     const lab=LABEL[k]||k;
     out.push(!x ? `${lab} ${y} 입력` : !y ? `${lab} ${x} 지움` : `${lab} ${x} → ${y}`);
   });
@@ -926,7 +931,7 @@ function syncAutoTasks(){
   if(rec.pay==='세금계산서') want.push('tax');
   if(rec.pay==='결제링크') want.push('paycheck');
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo:'', at:new Date().toISOString()}); });
-  tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
+  tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
   const e=tasks.find(t=>t.id==='erp'); if(e) e.done=!!rec.erp;   // 전산 예약 = '전산 등록 완료' 체크와 같이 움직임
   tasks.sort((a,b)=>(a.custom?1:0)-(b.custom?1:0));
 }
@@ -947,12 +952,35 @@ function renderTasks(){
       <label class="task-h"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</label>
       ${sub?`<div class="sub">${sub}</div>`:''}
       ${txt?`<pre id="tpre_${esc(t.id)}">${esc(txt)}</pre><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id==='erp'?'비고 문구 복사':'문구 복사'}</button><span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
+      ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
+        <label class="btn up${upBusy?' busy':''}">${upBusy?'올리는 중…':(t.files||[]).length?'사업자등록증 추가로 올리기':'사업자등록증 올리기'}<input type="file" data-tup="${esc(t.id)}" accept="image/*,application/pdf" hidden${upBusy?' disabled':''}></label>
+        <span class="hint" style="margin:0">사진 · PDF, 10MB 이하 · 구글 드라이브 '사유원 단체예약 서류' 폴더에 저장</span></div>` : ''}
       <textarea data-tm="${esc(t.id)}" placeholder="메모">${esc(t.memo||'')}</textarea>
     </li>`; }).join('');
   $('#taskHint').textContent = tasks.length ? (editingId ? '체크와 복사는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '저장하면 과업도 함께 저장됩니다.') : '가예약·공식예약이면 전산 예약, 세금계산서면 세금계산서 발행, 결제링크면 결제 확인 과업이 자동으로 생깁니다.';
 }
 const autoSave = () => { if(editingId) save(true); };
+// 사업자등록증 올리기 → Apps Script 가 구글 드라이브에 저장하고 링크를 돌려줌 → 과업에 링크 보관
+let upBusy=false;
+async function uploadFile(t, file){
+  if(!SHARED_URL || !getKey()){ toast('공유 기록에 연결된 뒤에 올릴 수 있습니다.'); return; }
+  if(!/^(image\/|application\/pdf$)/.test(file.type)){ toast('사진이나 PDF만 올릴 수 있습니다.'); return; }
+  if(file.size > 10*1024*1024){ toast('10MB 이하 파일만 올릴 수 있습니다.'); return; }
+  upBusy=true; renderTasks();
+  try{
+    const data = await new Promise((ok,no)=>{ const fr=new FileReader(); fr.onload=()=>ok(String(fr.result).split(',')[1]); fr.onerror=()=>no(fr.error); fr.readAsDataURL(file); });
+    const j = await callApi({action:'upload', name:file.name, mime:file.type, data, org:rec.org||'', date:rec.date||'', kind:'사업자등록증'});
+    (t.files ||= []).push({name:j.file.name, url:j.file.url, at:j.file.at});
+    toast(editingId ? '올렸습니다.' : '올렸습니다. 예약을 저장하면 링크가 함께 저장됩니다.');
+    upBusy=false; renderTasks(); autoSave();
+  }catch(e){
+    upBusy=false; renderTasks();
+    toast(e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 올릴 수 있습니다.' : '올리지 못했습니다: '+e.message);
+  }
+}
 $('#taskList').addEventListener('change', e=>{
+  const up=e.target.dataset.tup;
+  if(up){ const t=tasks.find(x=>x.id===up), f=e.target.files[0]; if(t && f) uploadFile(t, f); return; }
   const id=e.target.dataset.tk; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return;
   t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
   if(id==='erp'){ rec.erp = t.done ? ymd(new Date()) : ''; touched.add('erp'); }
