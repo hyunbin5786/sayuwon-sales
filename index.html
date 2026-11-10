@@ -70,7 +70,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .del-box input{margin-top:8px}
 .btn.danger{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
 /* 예약 내용 아래 버튼 줄: 위아래 내용과 떨어진 한 덩어리 */
-.act-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:16px -16px 0;padding:12px 16px;background:var(--bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.act-bar{flex:1 1 100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding-top:8px;border-top:1px solid var(--line)}   /* 예약 단계 회색 칸 안 아래 줄 */
 .act-bar .btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:6px 8px;font-weight:600;white-space:nowrap}
 .act-bar kbd{display:none}   /* 단축키는 헤더에 안내 */
 @media (max-width:560px){.act-bar{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -323,14 +323,14 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
         <button type="button" data-s="공식예약">공식예약</button>
       </div>
       <label class="tbd-date" id="w_tbdDate" for="f_tbdDate">미정 항목 입력 기한 <input type="date" id="f_tbdDate" data-k="tbdDate"></label>
-    </div>
-    <form id="form" autocomplete="off"></form>
-    <div class="act-bar">
+      <div class="act-bar">
       <button class="btn primary" id="saveBtn">저장<kbd>Ctrl+S</kbd></button>
       <button class="btn" id="quoteBtn">견적서 발급</button>
       <button class="btn" id="stmtBtn">거래명세서 발급</button>
       <button class="btn" id="copyTextBtn">내용 텍스트 복사</button>
+      </div>
     </div>
+    <form id="form" autocomplete="off"></form>
     <div class="memo-in">
       <h2>통화 메모 <small>칸에 없는 특이사항 · 전산 비고에도 들어갑니다</small></h2>
       <textarea id="memoBox" placeholder="예)
