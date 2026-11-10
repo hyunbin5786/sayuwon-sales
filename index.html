@@ -100,7 +100,30 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .chk li .q{display:block;color:var(--ink);margin-top:2px}
 .chk li .q::before{content:"→ ";color:var(--muted)}
 .done-all{background:var(--pine-soft);color:var(--pine);border-radius:7px;padding:10px;font-size:13px}
-.readback{background:var(--bg);border-radius:8px;padding:12px;font-size:13.5px;line-height:1.7}
+.readback{background:var(--bg);border-radius:8px;padding:12px;font-size:13.5px;line-height:1.7;white-space:pre-line}
+.ckf{display:flex;align-items:center;gap:6px;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden}
+.ckf:has(input:checked){background:var(--amber-soft);border-color:var(--amber);color:var(--amber);font-weight:700}
+/* 추후 과업 */
+.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.task{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff}
+.task.done{background:var(--pine-soft);border-color:#c9d6c1}
+.task-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.task-h input{width:17px;height:17px;accent-color:var(--pine);flex:none}
+.task.done .task-h span{text-decoration:line-through;color:var(--pine)}
+.task-h .del{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
+.task .sub{font-size:12px;color:var(--muted);margin:3px 0 0 25px}
+.task pre{margin:8px 0 0;white-space:pre-wrap;font:13px/1.6 var(--sans);background:var(--bg);border-radius:6px;padding:8px 10px}
+.task .tbtn{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.task .tbtn .btn{padding:4px 10px;font-size:12px}
+.task .chg{font-size:12px;font-weight:700;color:var(--amber)}
+.task textarea{width:100%;margin-top:8px;min-height:38px;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13px/1.5 var(--sans)}
+.task-add{display:flex;gap:6px;margin-top:10px}
+.task-add input{flex:1;height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:13px var(--sans)}
+#memoBox{min-height:120px}
+.memo-in{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.pc-list{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:8px}
+.pc-list li{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;flex-wrap:wrap}
+.pc-list li .who{flex:1;min-width:160px}
 .sub-h{font:600 13px var(--sans);margin:16px 0 6px}
 .sub-h:first-child{margin-top:0}
 .status{font-size:12px;color:var(--muted);min-height:18px;margin-top:6px}
@@ -142,7 +165,14 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .chk.miss li.tbd{background:var(--amber-soft)}
 .chk.miss li.tbd b{color:var(--amber)}
 .chk.miss li.tbd b::after{content:" · 미정";font-weight:500}
-/* 업체 칸 오른쪽: 미정 체크 */
+/* 입력칸 오른쪽 끝: 미정 체크 */
+/* 입력칸과 한 덩어리로: [입력 | ☐미정] */
+.has-tbd .inbox{display:flex;min-width:0}
+.has-tbd .inbox > input,.has-tbd .inbox > .vrow{flex:1;min-width:0}
+.has-tbd .inbox > input,.has-tbd .inbox > .vrow > input{border-top-right-radius:0;border-bottom-right-radius:0}
+.tbdck{flex:none;display:flex;align-items:center;gap:3px;height:36px;box-sizing:border-box;padding:0 6px;border:1px solid var(--line);border-left:0;border-radius:0 6px 6px 0;background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none}
+.tbdck input{width:13px;height:13px;margin:0;accent-color:var(--amber)}
+.tbdck:has(input:checked){color:var(--amber);background:var(--amber-soft);border-color:var(--amber)}
 .tbd-chips{display:flex;gap:4px;flex-wrap:wrap;align-items:center;min-height:36px}
 .tbd-chips button{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:0 9px;height:36px;font:500 12px var(--sans);color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:4px}
 .tbd-chips button::before{content:"";width:12px;height:12px;border:1.5px solid currentColor;border-radius:3px;box-sizing:border-box}
@@ -241,14 +271,10 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <!-- 통화 메모 -->
   <section class="panel memo-col">
     <div class="memo-wrap">
-      <h2>통화 메모 <small>칸에 없는 특이사항을 적어 두세요</small></h2>
-      <textarea id="memoBox" placeholder="예)
-대표님 동행, 도착 전 연락 요청
-해설은 건축 위주로 부탁
-견적서 금요일까지 필요"></textarea>
-      <div class="row-btns" style="margin-top:10px">
-        <button class="btn" id="clearMemoBtn">메모 지우기</button>
-      </div>
+      <h2>추후 과업 <small>체크리스트 · 과업마다 메모</small></h2>
+      <ul class="tasks" id="taskList"></ul>
+      <form class="task-add" id="taskAdd"><input id="taskAddIn" data-ime="ko" placeholder="과업 직접 추가 (예: 버스 주차 자리 확인)" autocomplete="off"><button class="btn" type="submit">추가</button></form>
+      <p class="hint" id="taskHint"></p>
       <div class="status" id="status"></div>
     </div>
   </section>
@@ -275,7 +301,22 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
       <button class="btn" id="newBtn">새 통화<kbd>Alt+N</kbd></button>
     </div>
     <div class="hist" id="histWrap" hidden><div class="hist-t">수정 기록</div><ul id="histBox"></ul></div>
+    <div class="memo-in">
+      <h2>통화 메모 <small>칸에 없는 특이사항 · 전산 비고에도 들어갑니다</small></h2>
+      <textarea id="memoBox" placeholder="예)
+대표님 동행, 도착 전 연락 요청
+해설은 건축 위주로 부탁"></textarea>
+      <div class="row-btns" style="margin-top:8px"><button class="btn" id="clearMemoBtn">메모 지우기</button></div>
+    </div>
   </section>
+  <!-- 결제 확인 알림 (결제링크 보낸 다음날부터) -->
+  <div class="modal" id="payModal" hidden>
+    <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+      <h2 id="payTitle">결제 확인할 예약 <small>결제링크를 보낸 예약입니다. 입금됐는지 확인하세요</small></h2>
+      <ul class="pc-list" id="payList"></ul>
+      <div class="row-btns"><button class="btn" id="payLater">나중에</button></div>
+    </section>
+  </div>
 
   <!-- 확인 + 가격표 (가운데 열) -->
   <div class="checks col-stack">
@@ -346,13 +387,16 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 // grp, key, label, 엑셀열, 너비, 물어볼 질문(필수)
 const FIELDS = [
   ['기본','org','업체(단체명)','D','w2','단체명(기관명)이 어떻게 되실까요?'],
-  ['기본','date','방문일','B','',  '방문 날짜가 언제로 생각하고 계실까요?'],
+  ['기본','date','방문일','B','w2',  '방문 날짜가 언제로 생각하고 계실까요?'],
   ['기본','people','관람 인원','I','',  '방문 인원은 총 몇 분이세요? (인솔자·기사님 포함 여부도)'],
+  ['기본','pchg','인원 변경','','',  null],   // 인원이 바뀔 수 있으면 체크
   ['방문','tin','입장','H','',  '몇 시쯤 도착 예정이세요?'],
+  ['방문','gate','입장문','','',  null],   // 치허문 · 곡신문 · 미정
   ['방문','tout','퇴장 (선택)','H','',  null],
-  ['방문','vehicle','차량','G','',  '버스로 오세요, 승용차로 오세요? 몇 대인가요?'],
+  ['방문','vehicle','차량','G','w2',  '버스로 오세요, 승용차로 오세요? 몇 대인가요?'],
   ['방문','owner','영업 담당','E','',  null],
   ['방문','pay','결제','F','',  '결제는 세금계산서, 결제링크, 현장 결제 중 어떻게 하실까요?'],
+  ['방문','onsite','현장 재결제','','',  null],   // 다른 방식이어도 현장에서 카드로 다시 결제하는 경우
   ['방문','payContact','결제 연락 예정일','','',  '결제 방법은 언제쯤 알려주실 수 있을까요?'],   // 결제가 미정일 때만
   ['방문','tbdDate','미정 항목 입력 기한','','',  null],   // 인원·식사 등이 아직 미정일 때 언제까지 알려주기로 했는지
   ['사담','sadam1','1부','J','',null],
@@ -389,7 +433,7 @@ const isCKey = k => /^c\d+_(name|phone|email)$/.test(k);
 // ===================== 상태 =====================
 let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
-let hist=[], baseSnap=null;   // 수정 기록
+let hist=[], baseSnap=null, tasks=[];   // 수정 기록 · 추후 과업
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
 function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); return o; }
 function resetState(){ rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
@@ -412,7 +456,9 @@ const PAYS = ['세금계산서','결제링크','현장 결제','미정'];
 const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 입력 기한'],['erp','전산 등록']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 입력 기한'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제']];
+const GATES = ['치허문','곡신문','미정'];
+const CHECKS = { pchg:'인원 변경 가능성 있음', onsite:'현장에서 카드 재결제' };
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
 const TBD_KEYS = [['org','업체'],['date','방문일'],['people','관람 인원'],['tin','입장'],['vehicle','차량 대수']];
 const tbdSet = r => { const names=String(r?.tbd||'').split(/\s*,\s*/); return new Set(TBD_KEYS.filter(([,l])=>names.includes(l)).map(([k])=>k)); };
@@ -456,10 +502,15 @@ function fieldHTML(k,label,col,cls,req){
   if(NUM_ONLY[k]) extra+=' inputmode="numeric" data-ime="num"';
   const input = k==='vehicle'
     ? `<div class="vrow"><select id="f_vtype" data-k="vehicle" aria-label="차종">${VTYPES.map(t=>`<option>${t}</option>`).join('')}</select><input id="f_${k}" data-k="${k}"${extra} placeholder="대수"></div>`
+    : CHECKS[k]
+    ? `<label class="ckf"><input type="checkbox" id="f_${k}" data-k="${k}"> ${CHECKS[k]}</label>`
+    : k==='gate'
+    ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${GATES.map(g=>`<option>${g}</option>`).join('')}</select>`
     : k==='pay'
     ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${PAYS.map(p=>`<option>${p}</option>`).join('')}</select>`
     : `<input id="f_${k}" data-k="${k}"${extra}>`;
-  return `<div class="f ${cls}${req?' req':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span></label>${input}</div>`;
+  const tbdBox = TBD_KEYS.some(([tk])=>tk===k) ? `<label class="tbdck" title="아직 안 정해졌으면 체크"><input type="checkbox" data-tbd="${k}">미정</label>` : "";
+  return `<div class="f ${cls}${req?' req':''}${tbdBox?' has-tbd':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span></label><div class="inbox">${input}${tbdBox}</div></div>`;
 }
 function buildForm(){
   const req=new Set(REQUIRED().map(r=>r[0]));
@@ -478,8 +529,7 @@ function buildForm(){
     }
     if(k==='tbdDate' || k==='owner') return;   // 입력 기한은 예약 단계 줄, 영업 담당은 맨 위 초록 헤더
     html += fieldHTML(k,label,col,cls,req.has(k)||k==='payContact');
-    if(k==='org') html += `<div class="f w2" id="w_tbdChk"><label><span>미정 (아직 안 정해진 것 체크)</span></label><div class="tbd-chips">${TBD_KEYS.map(([tk,tl])=>`<button type="button" data-tbd="${tk}" aria-pressed="false">${tl}</button>`).join('')}</div></div>`;
-    if(k==='people') html += `</div></div><div class="grp" data-grp="담당자"><div class="grp-t"><span>담당자</span><span class="hint" style="margin:0">여러 명이면 추가</span></div><div class="contacts" id="contacts"></div><button type="button" class="btn addc" id="addContact">+ 담당자 추가</button>` + `<div class="fields" hidden>`;
+    if(k==='pchg') html += `</div></div><div class="grp" data-grp="담당자"><div class="grp-t"><span>담당자</span><span class="hint" style="margin:0">여러 명이면 추가</span></div><div class="contacts" id="contacts"></div><button type="button" class="btn addc" id="addContact">+ 담당자 추가</button>` + `<div class="fields" hidden>`;
   });
   close();
   $('#form').innerHTML = html;
@@ -504,7 +554,7 @@ function buildForm(){
       if(f!==el.value){ el.value=f; if(atEnd) el.setSelectionRange(f.length,f.length); }
     }
     if(NUM_ONLY[k] && e.target.tagName==='INPUT' && !e.isComposing){ const c=e.target.value.replace(NUM_ONLY[k],''); if(c!==e.target.value){ const p=e.target.selectionStart-(e.target.value.length-c.length); e.target.value=c; try{ e.target.setSelectionRange(p,p); }catch(_){} } }
-    rec[k]= k==='vehicle' ? vehJoin($('#f_vtype').value, $('#f_vehicle').value) : e.target.value;
+    rec[k]= e.target.type==='checkbox' ? (e.target.checked?'있음':'') : k==='vehicle' ? vehJoin($('#f_vtype').value, $('#f_vehicle').value) : e.target.value;
     touched.add(k);
     if(k==='date') renderInfo();
     startTimer(); paintFields(); renderSide();
@@ -519,7 +569,7 @@ function buildForm(){
   // Enter로 다음 칸
   $('#form').addEventListener('keydown', e=>{
     if(e.key!=='Enter' || e.isComposing || e.target.tagName!=='INPUT') return; e.preventDefault();
-    const ins=[...document.querySelectorAll('#form input')]; const i=ins.indexOf(e.target); if(ins[i+1]) ins[i+1].focus();
+    const ins=[...document.querySelectorAll('#form input:not([type=checkbox])')]; const i=ins.indexOf(e.target); if(ins[i+1]) ins[i+1].focus();
   });
   // 식사·프로그램 칸에 커서(마우스·입력)를 두면 그날 그 칸의 예약 현황
   const hot = e=>{ const w=e.target.closest('.f'); const k=w?.querySelector('input')?.dataset.k; if(k && INFO_OF(k)) renderInfo(k); };
@@ -548,6 +598,7 @@ function paintFields(changed=[]){
     const el=document.getElementById('f_'+k); if(!el) return;
     const v=rec[k]||'';
     if(k==='vehicle'){ const p=vehParts(v); if(document.activeElement!==el && el.value!==p.n) el.value=p.n; if(p.t && document.activeElement!==$('#f_vtype')) $('#f_vtype').value=p.t; }
+    else if(el.type==='checkbox') el.checked=!!v;
     else { if(el.tagName==='SELECT' && v && ![...el.options].some(o=>o.value===v)) el.add(new Option(v,v)); if(el.value!==v && document.activeElement!==el) el.value=v; }
     const w=document.getElementById('w_'+k);
     w.classList.toggle('unsure', fieldWarnings(rec).some(u=>u.field===k));
@@ -556,7 +607,7 @@ function paintFields(changed=[]){
     w.classList.toggle('missing', req.has(k) && !v && !isTbd);
     if(OPT[GROUP_OF[k]]) el.classList.toggle('has', !!v);
   });
-  const ts=tbdSet(rec); document.querySelectorAll('[data-tbd]').forEach(b=>{ const on=ts.has(b.dataset.tbd); b.classList.toggle('on',on); b.setAttribute('aria-pressed',on); });
+  const ts=tbdSet(rec); document.querySelectorAll('[data-tbd]').forEach(b=>{ const on=ts.has(b.dataset.tbd); b.checked=on; });
   const pc=document.getElementById('w_payContact'); if(pc) pc.hidden = rec.pay!=='미정';
   paintOpt();
 }
@@ -595,11 +646,18 @@ function renderSide(){
   $('#readback').textContent = readback(rec);
   renderInfo(curInfoKey);
   if(typeof renderPrice==='function' && window.__priceReady) renderPrice();
+  if(window.__tasksReady) renderTasks();
 }
+// 결제 방식별로 끊기 전에 추가로 받거나 안내할 것
+const PAY_GUIDE = {
+  '세금계산서': ['세금계산서 발행을 위해 사업자등록증을 보내주시겠어요?', '세금계산서 받으실 이메일 주소가 어떻게 되실까요?', '세금계산서 발행일은 언제로 해 드릴까요?'],
+  '결제링크':   ['결제링크 보내드리면 언제쯤 결제하실 수 있을까요?', '현장에서 법인카드로 다시 결제하실 계획도 있으실까요?'],
+  '현장 결제':  ['현장 결제로 하시면 당일 인원 변경이 어려운 점 양해 부탁드립니다.', '인원은 언제까지 확정해 주실 수 있을까요?'],
+};
 function readback(r){
   const p=[];
   if(r.date){ const d=new Date(r.date+'T00:00'); p.push(isNaN(d)?r.date:`${d.getMonth()+1}월 ${d.getDate()}일 ${DOW[d.getDay()]}요일`); }
-  if(r.tin) p.push(`${r.tin} 도착${r.tout?`, ${r.tout} 퇴장`:''}`);
+  if(r.tin) p.push(`${r.tin} ${r.gate&&r.gate!=='미정'?r.gate+'으로 ':''}도착${r.tout?`, ${r.tout} 퇴장`:''}`);
   if(r.people) p.push(`총 ${r.people}명`);
   if(r.vehicle) p.push(r.vehicle);
   const meals=[]; if(r.sadam1) meals.push(`사담 1부 ${r.sadam1}명`); if(r.sadam2) meals.push(`사담 2부 ${r.sadam2}명`); if(r.sadamD) meals.push(`사담 디너 ${r.sadamD}명`);
@@ -616,6 +674,8 @@ function readback(r){
   const mails=cs.map(c=>c.email).filter(Boolean), phones=cs.map(c=>c.phone).filter(Boolean);
   if(mails.length) s += ` 견적서는 ${mails.join(', ')}로 보내드리겠습니다.`;
   if(phones.length) s += ` 연락처는 ${phones.join(', ')} 맞으시죠?`;
+  const guide = PAY_GUIDE[r.pay];
+  if(guide) s += `\n\n[${r.pay} 안내]\n` + guide.map(g=>'· '+g).join('\n');
   return s;
 }
 
@@ -757,7 +817,7 @@ async function pull(inFlush){
     const j=await callApi({action:'list'});
     serverItems=j.items||[]; writeJSON(CACHE_LS,serverItems.slice(-1000));
     if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
-    syncState='ok'; $('#keyMsg').textContent=''; paintSync(); renderList();
+    syncState='ok'; $('#keyMsg').textContent=''; paintSync(); renderList(); if(window.__tasksReady) checkPayPopup();
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
 const store={
@@ -784,24 +844,31 @@ Object.assign(LABEL, { tbd:'미정 체크', stage:'예약 단계', erp:'전산 �
 function snap(){
   const o={}; allKeys().forEach(k=>{ if(k!=='owner') o[k]=rec[k]||''; });
   o.tbd=rec.tbd||''; if(typeof SPECIAL!=='undefined') SPECIAL.forEach(s=>o[s.k]=rec[s.k]||'');
-  o.stage=effStage(rec); o.erp=rec.erp||''; o.note=$('#memoBox').value.trim(); return o;
+  o.stage=effStage(rec); o.erp=rec.erp||''; o.note=$('#memoBox').value.trim();
+  tasks.forEach(t=>{ o['task:'+t.id]=t.done?'완료':''; o['tmemo:'+t.id]=t.memo||''; if(t.custom) o['tadd:'+t.id]=t.title; });
+  return o;
 }
 function diffSnap(a,b){
   const out=[];
   new Set([...Object.keys(a),...Object.keys(b)]).forEach(k=>{
     const x=a[k]||'', y=b[k]||''; if(x===y) return;
     if(k==='note'){ out.push('통화 메모 수정'); return; }
+    const tm=k.match(/^(task|tmemo|tadd):(.+)$/);
+    if(tm){ const title=(tasks.find(t=>t.id===tm[2])||{}).title||x||y;
+      out.push(tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`); return; }
     const lab=LABEL[k]||k;
     out.push(!x ? `${lab} ${y} 입력` : !y ? `${lab} ${x} 지움` : `${lab} ${x} → ${y}`);
   });
   return out;
 }
-const histOf = r => { try{ const h=JSON.parse(r.history||'[]'); return Array.isArray(h)?h:[]; }catch(_){ return []; } };
+// 시트 '수정 기록' 칸: {h:[수정 기록], tasks:[추후 과업]} (예전 기록은 배열만)
+function parseHist(r){ try{ const j=JSON.parse(r.history||'[]'); return Array.isArray(j) ? {h:j, tasks:[]} : {h:j.h||[], tasks:j.tasks||[]}; }catch(_){ return {h:[], tasks:[]}; } }
+const histOf = r => parseHist(r).h;
 function renderHist(){
   $('#histWrap').hidden = !hist.length;
   $('#histBox').innerHTML = hist.slice().reverse().map(h=>`<li><time>${esc(new Date(h.t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))}</time><b>${esc(h.by||'담당 미입력')}</b>${esc(h.what)}</li>`).join('');
 }
-async function save(){
+async function save(quiet){
   if(!rec.org && !rec.date){ toast('업체나 방문일을 먼저 입력하세요.'); return; }
   if(!rec.owner) rec.owner=savedOwner();
   const now=new Date().toISOString(), cur=snap();
@@ -809,10 +876,10 @@ async function save(){
   const newHist = changes.length ? [...hist, {t:now, by:savedOwner()||rec.owner||'', what:changes.join(', ')}].slice(-200) : hist;
   const j=joinContacts(rec);
   const item={...rec, ...j, ...packExtra(rec), callType:effStage(rec), summary:autoSummary(), note:$('#memoBox').value, takenBy:rec.owner,
-    callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:now, history:JSON.stringify(newHist)};
+    callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:now, history:JSON.stringify({h:newHist, tasks})};
   Object.keys(item).forEach(k=>{ if(isCKey(k)) delete item[k]; });
   delete item.tbd; delete item.stage; delete item.erp; delete item.tbdDate; delete item.payContact;
-  try{ await store.put(item); editingId=item.id; hist=newHist; baseSnap=cur; renderHist(); await renderList(); toast(`${item.callType}으로 저장했습니다.${changes.length?'':' (바뀐 내용 없음)'}${needsErp(rec)&&!rec.erp?' 전산 등록을 잊지 마세요.':''}`); }
+  try{ await store.put(item); editingId=item.id; hist=newHist; baseSnap=cur; renderHist(); await renderList(); toast(quiet ? `저장했습니다.` : `${item.callType}으로 저장했습니다.${changes.length?'':' (바뀐 내용 없음)'}${needsErp(rec)&&!rec.erp?' 전산 등록을 잊지 마세요.':''}`); }
   catch(e){ toast('저장하지 못했습니다: '+e.message); }
 }
 $('#saveBtn').onclick=save;
@@ -824,6 +891,113 @@ $('#saveBtn').onclick=save;
 })();
 // 맨 위 예약 단계 줄의 미정 항목 입력 기한
 $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; touched.add('tbdDate'); startTimer(); paintFields(); renderSide(); });
+
+// ===================== 추후 과업 =====================
+// 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
+const AUTO_TASKS = { erp:'전산 예약', tax:'세금계산서 발행', paycheck:'결제 확인' };
+// 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
+function moneySplit(r){
+  if(!quoteCat || !r.date || !numOf(r.people)) return null;
+  const d=new Date(r.date+'T00:00'), viewSrc=`${(d.getDay()===0||d.getDay()===6)?'주말/공휴일':'평일'} 관람(09:00~18:00)`, vp=priceOf(viewSrc);
+  let saw=0, shilla=0, missing=false;
+  const {blocks, skipped} = quoteBlocks(r);
+  blocks.forEach(b=>{ const a=blockAmount(b, priceOf(b.product)); if(!a){ missing=true; return; }
+    if(b.product===viewSrc) saw+=a.amount;
+    else if(/\(관람,/.test(b.product)){ const v=blockAmount(b, vp); const vv=v?Math.min(v.amount,a.amount):0; saw+=vv; shilla+=a.amount-vv; }
+    else shilla+=a.amount; });
+  return {saw, shilla, missing: missing || skipped.length>0};
+}
+const memoLines = () => $('#memoBox').value.split('\n').map(s=>s.trim()).filter(Boolean);
+// 전산 비고에 붙여넣을 문구
+function erpNote(r){
+  const p=[`입장 ${r.tin||'미정'} ${r.gate||'미정'}`, r.pchg ? '인원 변경 가능성 있음' : '인원 변경 없음'];
+  if(r.pay==='현장 결제' || r.onsite){ const m=moneySplit(r); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); }
+  return [...p, ...memoLines()].join(' / ');
+}
+// 세금계산서 발행 요청 문구
+function taxMsg(r){
+  const m=moneySplit(r), email=(contactsOf(r).find(c=>c.email)||{}).email;
+  return `[세금계산서] ${r.org||'(단체명)'}\n1. 금액\n- 사유원 : ${m?won(m.saw):'      '}원\n- 신라 : ${m?won(m.shilla):'      '}원\n2. 사업자 등록증 : 파일 첨부\n3. 이메일 : ${email||'(담당자 이메일)'}\n4. 발행일 : ${r.date?r.date.replace(/-/g,'.'):'(방문일자)'}\n감사합니다~`;
+}
+const taskText = t => t.id==='erp' ? erpNote(rec) : t.id==='tax' ? taxMsg(rec) : '';
+function syncAutoTasks(){
+  const want = [];
+  if(needsErp(rec)) want.push('erp');
+  if(rec.pay==='세금계산서') want.push('tax');
+  if(rec.pay==='결제링크') want.push('paycheck');
+  want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo:'', at:new Date().toISOString()}); });
+  tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
+  const e=tasks.find(t=>t.id==='erp'); if(e) e.done=!!rec.erp;   // 전산 예약 = '전산 등록 완료' 체크와 같이 움직임
+  tasks.sort((a,b)=>(a.custom?1:0)-(b.custom?1:0));
+}
+const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
+function renderTasks(){
+  syncAutoTasks();
+  const box=$('#taskList'), focus=box.contains(document.activeElement);
+  const changeTag = t => { const txt=taskText(t); return !t.copied ? '' : t.copied===txt ? '<span class="hint" style="margin:0">붙여넣은 내용과 같음</span>' : '<span class="chg">예약 내용이 바뀜 · 다시 복사해서 붙여넣기</span>'; };
+  if(focus){   // 메모를 쓰는 중이면 문구만 새로
+    tasks.forEach(t=>{ const pre=document.getElementById('tpre_'+t.id); if(pre) pre.textContent=taskText(t); const c=document.getElementById('tchg_'+t.id); if(c) c.innerHTML=changeTag(t); });
+    return;
+  }
+  const SUB = { erp:'전산에 예약을 등록하고, 아래 문구를 전산 비고에 붙여넣으세요.', tax:'고객 안내 후, 아래 내용으로 세금계산서 발행을 요청하세요.' };
+  box.innerHTML = tasks.map(t=>{
+    const txt=taskText(t);
+    const sub = t.id==='paycheck' ? `결제링크 보낸 다음날(${mdLabel(ymd(nextDay(t.at)))}) 아침에 이 창을 열면 확인 알림이 뜹니다.` : SUB[t.id] || '';
+    return `<li class="task${t.done?' done':''}" data-id="${esc(t.id)}">
+      <label class="task-h"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</label>
+      ${sub?`<div class="sub">${sub}</div>`:''}
+      ${txt?`<pre id="tpre_${esc(t.id)}">${esc(txt)}</pre><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id==='erp'?'비고 문구 복사':'문구 복사'}</button><span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
+      <textarea data-tm="${esc(t.id)}" placeholder="메모">${esc(t.memo||'')}</textarea>
+    </li>`; }).join('');
+  $('#taskHint').textContent = tasks.length ? (editingId ? '체크와 복사는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '저장하면 과업도 함께 저장됩니다.') : '가예약·공식예약이면 전산 예약, 세금계산서면 세금계산서 발행, 결제링크면 결제 확인 과업이 자동으로 생깁니다.';
+}
+const autoSave = () => { if(editingId) save(true); };
+$('#taskList').addEventListener('change', e=>{
+  const id=e.target.dataset.tk; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return;
+  t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
+  if(id==='erp'){ rec.erp = t.done ? ymd(new Date()) : ''; touched.add('erp'); }
+  renderSide(); autoSave();
+});
+$('#taskList').addEventListener('click', e=>{
+  const c=e.target.dataset.tcopy, d=e.target.dataset.tdel;
+  if(c){ const t=tasks.find(x=>x.id===c); const txt=taskText(t); copy(txt, '복사했습니다. 붙여넣으세요.'); t.copied=txt; renderTasks(); autoSave(); }
+  if(d){ tasks=tasks.filter(x=>x.id!==d); renderTasks(); autoSave(); }
+});
+$('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=tasks.find(x=>x.id===id); if(t) t.memo=e.target.value; });
+$('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) autoSave(); });
+$('#taskAdd').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#taskAddIn').value.trim(); if(!v) return;
+  tasks.push({id:'c'+Date.now().toString(36), title:v, custom:true, done:false, memo:'', at:new Date().toISOString()}); $('#taskAddIn').value=''; renderTasks(); autoSave(); });
+$('#memoBox').addEventListener('input', ()=>renderTasks());
+
+// 결제 확인 알림: 결제링크를 보낸 다음날부터, 이 창을 열면 아직 확인 안 한 예약을 띄움 (하루 한 번)
+function duePayChecks(){
+  const today=ymd(new Date());
+  return (cache||[]).map(r=>{ const t=parseHist(r).tasks.find(t=>t.id==='paycheck' && !t.done); return t && ymd(new Date(t.at))<today ? {r,t} : null; }).filter(Boolean);
+}
+function checkPayPopup(force){
+  const today=ymd(new Date()); let seen=''; try{ seen=sessionStorage.getItem('sayuwon_paycheck_seen')||''; }catch(_){}
+  if(!force && seen===today) return;
+  const due=duePayChecks();
+  if(!due.length){ $('#payModal').hidden=true; return; }
+  try{ sessionStorage.setItem('sayuwon_paycheck_seen', today); }catch(_){}
+  $('#payList').innerHTML = due.map(({r,t})=>`<li><span class="who"><b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date))}${r.owner?` · ${esc(r.owner)}`:''}<br><small class="hint" style="margin:0">결제링크 ${esc(mdLabel(ymd(new Date(t.at))))} 전송${t.memo?` · ${esc(t.memo)}`:''}</small></span><button class="btn primary" data-pcdone="${esc(r.id)}">입금 확인함</button><button class="btn" data-pcopen="${esc(r.id)}">열기</button></li>`).join('');
+  $('#payModal').hidden=false;
+}
+$('#payLater').onclick=()=>{ $('#payModal').hidden=true; };
+$('#payList').addEventListener('click', async e=>{
+  const done=e.target.dataset.pcdone, open=e.target.dataset.pcopen;
+  if(open){ const r=cache.find(x=>x.id===open); $('#payModal').hidden=true; if(r) openRecord(r); }
+  if(done){
+    const r=cache.find(x=>x.id===done); if(!r) return;
+    if(editingId===done){ const t=tasks.find(x=>x.id==='paycheck'); if(t){ t.done=true; t.doneAt=new Date().toISOString(); } await save(true); }
+    else {
+      const ph=parseHist(r), now=new Date().toISOString(), t=ph.tasks.find(x=>x.id==='paycheck'); if(t){ t.done=true; t.doneAt=now; }
+      ph.h.push({t:now, by:savedOwner()||'', what:'[과업] 결제 확인 완료'});
+      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks}), saved:now});
+    }
+    await store.list(); toast('결제 확인으로 표시했습니다.'); checkPayPopup(true);
+  }
+});
 const fmt=s=>s?new Date(s).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
 let listStage='all';
 document.addEventListener('click', e=>{ const b=e.target.closest('#stageFilter button'); if(b){ listStage=b.dataset.f; renderList(); } });
@@ -848,6 +1022,12 @@ async function renderList(){
   document.querySelectorAll('#listBody tr.r').forEach(tr=>tr.onclick=async e=>{
     if(e.target.dataset.del){ e.stopPropagation(); if(e.target.textContent==='삭제'){ e.target.textContent='정말 삭제'; return; } await store.del(e.target.dataset.del); renderList(); return; }
     const r=cache.find(x=>x.id===tr.dataset.id); if(!r) return;
+    openRecord(r);
+  });
+  renderInfo(curInfoKey);
+}
+// 저장된 예약 하나를 칸에 불러오기
+function openRecord(r){
     newCall(false);
     KEYS.forEach(k=>{ rec[k]=r[k]||''; if(rec[k]) touched.add(k); });
     if(!rec.owner) rec.owner=savedOwner();   // 자동 등록된 예약 등 담당이 비어 있으면 이 컴퓨터의 영업 담당
@@ -856,9 +1036,8 @@ async function renderList(){
     rec.stage = STAGES.includes(r.callType) && r.callType!==stageAuto(rec) ? r.callType : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
     nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; $('#memoBox').value=r.note||'';
-    renderContacts(); renderForm(); hist=histOf(r); baseSnap=snap(); renderHist(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
-  });
-  renderInfo(curInfoKey);
+    const ph=parseHist(r); hist=ph.h; tasks=ph.tasks;
+    renderContacts(); renderForm(); baseSnap=snap(); renderHist(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
 }
 
 // 관리자 사이트에서 지금 가져오기 (평소에는 Apps Script 가 15분마다 자동으로)
@@ -878,7 +1057,7 @@ $('#adminSyncBtn').onclick=async()=>{
 // ===================== 새 통화·단축키 =====================
 function newCall(withToast=true){
   resetState(); clearInterval(timerInt); tick(); $('#memoBox').value=''; status('');
-  hist=[]; baseSnap=null; renderHist();
+  hist=[]; baseSnap=null; tasks=[]; renderHist();
   renderContacts(); renderForm(); if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
 }
 $('#newBtn').onclick=()=>newCall();
@@ -909,7 +1088,7 @@ async function loadQuotePrices(){
     quoteCat = { ...p, edits: data.edits||{}, added: data.added||[], at: new Date().toISOString() };
     writeJSON('sayuwon_quote_cat', quoteCat); priceLoaded = true;
   }catch(_){ priceLoaded = false; }
-  renderPrice();
+  renderPrice(); if(window.__tasksReady) renderTasks();
 }
 // 견적서 사이트와 같은 방식으로 품목 목록을 만든다 (숨긴 품목 제외, 바꾼 가격 반영, 추가 품목 포함)
 function catalogItems(){
@@ -1177,7 +1356,8 @@ document.addEventListener('keydown', e=>{
 resetState(); buildForm(); renderForm();
 paintSync(); renderList();
 if(SHARED_URL) flush();
-window.__priceReady=true; renderPrice(); loadQuotePrices();   // 가격표: 바로 그리고, 품목 관리 변경분을 불러와 다시 그림
+window.__priceReady=true; renderPrice(); loadQuotePrices();
+window.__tasksReady=true; renderTasks(); checkPayPopup();   // 추후 과업 · 결제 확인 알림
 window.addEventListener('focus', ()=>{ if(priceLoaded && Date.now()-priceLoaded>10*60000) loadQuotePrices(); });
 $('#memoBox').focus();
 
