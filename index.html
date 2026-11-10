@@ -163,6 +163,15 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .ptable .tot{color:var(--ink);font-weight:500}
 .ptable tr.pick td:first-child{font-weight:700}
 .ptable tr.pick td:first-child::before{content:"● ";color:var(--pine);font-size:9px}
+/* 할인 */
+.disc-box{background:var(--bg);border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12.5px}
+.disc-line b{color:var(--pine)}
+.disc-inputs{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:6px}
+.disc-inputs label{display:flex;align-items:center;gap:4px;font-size:12px}
+.disc-inputs input{width:42px;height:28px;border:1px solid var(--line);border-radius:5px;padding:2px 6px;font:12.5px var(--sans);text-align:right;background:#fff;color:var(--ink)}
+.disc-inputs input.has{border-color:#9db394;background:#f6faf3}
+.ptable td.on s{color:#9aa48f;font-weight:400;margin-right:4px}
+.ptable .dtag{display:inline-block;font-size:10px;padding:0 5px;border-radius:4px;background:var(--pine-soft);color:var(--pine);margin-left:4px;font-weight:700}
 </style>
 </head>
 <body>
@@ -225,6 +234,16 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <!-- 가격표: 견적서 사이트 품목 목록 기준 (품목 관리에서 바꾼 가격은 열 때 다시 불러옴) -->
   <section class="panel price-panel">
     <h2>가격표 <small id="priceHint"></small></h2>
+    <div class="disc-box">
+      <div class="disc-line" id="discGroup"></div>
+      <div class="disc-inputs">
+        <span class="hint" style="margin:0">특별 할인 인원</span>
+        <label>간송 <input id="dKansong" data-dk="dKansong" inputmode="numeric"></label>
+        <label>국가유공자 <input id="dMerit" data-dk="dMerit" inputmode="numeric"></label>
+        <label>군위 주민 <input id="dGunwi" data-dk="dGunwi" inputmode="numeric"></label>
+        <label>대구대교구 <input id="dClergy" data-dk="dClergy" inputmode="numeric"></label>
+      </div>
+    </div>
     <div id="priceBox"></div>
     <p class="hint" id="priceSrc">견적서&amp;거래명세서 사이트 품목 목록 기준 · 1인 가격(부가세 포함) · 공휴일은 주말 가격</p>
   </section>
@@ -296,6 +315,7 @@ let optOpen = new Set();
 const GROUP_OF = Object.fromEntries(FIELDS.map(f=>[f[1], f[0]]));
 const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1], ['사담','몽몽마방'].includes(f[0]) ? `${f[0]} ${f[2]}` : f[2]]));
 CFIELDS.forEach(([f,l])=>{ for(let i=0;i<10;i++) LABEL[`c${i}_${f}`]= i? `${l}(${i+1})` : l; });
+const SPECIAL_LABEL = { dKansong:'간송 할인', dMerit:'국가유공자 할인', dGunwi:'군위 주민 할인', dClergy:'대구대교구' }; Object.assign(LABEL, SPECIAL_LABEL);
 const DOW = '일월화수목금토';
 const $ = s => document.querySelector(s);
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -332,11 +352,13 @@ function packExtra(r){
   const o={};
   o.pay = r.pay==='미정' && r.payContact ? `미정 (연락 ${r.payContact})` : r.pay;
   o.memo = MEMO_PARTS.filter(([k])=>r[k]).map(([k,l])=>`${l} ${String(r[k]).replace(/\s*\/\s*/g,', ')}`).join(' / ');
+  if(typeof SPECIAL!=='undefined'){ const sp=specialCounts(r); if(sp.length) o.memo=[o.memo, '특별 할인 '+sp.map(s=>s.short+' '+s.n).join(', ')].filter(Boolean).join(' / '); }
   return o;
 }
 function unpackExtra(r){ const o={}; let m;
   if((m=String(r.pay||'').match(/^미정\s*\(연락\s*(\d{4}-\d{2}-\d{2})\)/))){ o.pay='미정'; o.payContact=m[1]; }
   String(r.memo||'').split(/\s*\/\s*/).forEach(part=>{ MEMO_PARTS.forEach(([k,l])=>{ if(part.startsWith(l+' ')) o[k]=part.slice(l.length+1).trim(); }); });
+  const ms=String(r.memo||'').match(/특별 할인\s+([^/]+)/); if(ms) ms[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\d+)$/); if(!x) return; const s=SPECIAL.find(s=>s.short===x[1].trim()); if(s) o[s.k]=x[2]; });
   return o; }
 
 // ===================== 칸 렌더 =====================
@@ -508,6 +530,7 @@ function readback(r){
   if(prog.length) p.push(prog.join(', ')+' 포함');
   if(r.pay) p.push(r.pay==='미정' ? `결제 방법은 ${r.payContact?mdLabel(r.payContact)+'에 ':'나중에 '}알려주시기로` : `결제는 ${r.pay}`);
   if(r.tbdDate) p.push(`정해지지 않은 내용은 ${mdLabel(r.tbdDate)}까지 알려주시기로`);
+  if(typeof SPECIAL!=='undefined'){ const sp=specialCounts(r); if(sp.length) p.push(sp.map(s=>`${s.short} 할인 ${s.n}명은 ${s.proof} 지참`).join(', ')); }
   if(!p.length) return '내용이 채워지면 고객에게 읽어줄 확인 문구가 만들어집니다.';
   let s = `확인차 말씀드리겠습니다. ${r.org?r.org+', ':''}${p.join(', ')}. 이대로 예약 도와드리면 될까요?`;
   const cs=contactsOf(r);
@@ -563,6 +586,7 @@ function fieldWarnings(r){
   if(r.date){ const d=new Date(r.date+'T00:00'), t=new Date(); t.setHours(0,0,0,0); if(d<t) w.push({field:'date', reason:'지난 날짜입니다. 방문일을 다시 확인하세요.'}); }
   if(r.tin && r.tout && r.tout<=r.tin) w.push({field:'tout', reason:'퇴장 시간이 입장보다 빠릅니다. 오전/오후를 확인하세요.'});
   if(r.date && r.tbdDate && r.tbdDate>r.date) w.push({field:'tbdDate', reason:'미정 항목 입력 기한이 방문일보다 늦습니다.'});
+  if(typeof SPECIAL!=='undefined') specialCounts(r).forEach(s=>w.push({field:s.k, reason:`${s.n}명 ${s.name} 할인 → 방문 때 ${s.proof} 지참을 안내하세요.`}));
   if(r.date && r.pay==='미정' && r.payContact && r.payContact>r.date) w.push({field:'payContact', reason:'결제 연락 예정일이 방문일보다 늦습니다.'});
   const day = adminData && adminData.days && adminData.days[r.date];
   if(day) Object.entries(ADMIN_SLOT).forEach(([k,[slot,name]])=>{
@@ -783,11 +807,34 @@ async function loadQuotePrices(){
   }catch(_){ priceLoaded = false; }
   renderPrice();
 }
+// ---------- 할인 ----------
+// 단체 할인: 20명 미만 사전예약 5%, 20명 초과 단체예약 10% (20명은 5%로 봄) → 관람·사담 런치 상품에만
+// 특별 할인(사람마다): 그 사람은 단체 할인과 비교해 큰 쪽 하나만
+const DISC_ITEMS = new Set(['관람','관람 (학생)','사담 런치 1부','사담 런치 2부']);
+const SPECIAL = [
+  {k:'dKansong', name:'간송미술관 제휴', short:'간송', rate:.15, proof:'간송미술관 방문 티켓 (방문일 기준 6개월 이내 것)'},
+  {k:'dMerit',   name:'국가유공자',       short:'국가유공자', rate:.30, proof:'국가유공자 증서'},
+  {k:'dGunwi',   name:'군위 주민',        short:'군위 주민', rate:.50, proof:'주민등록증 또는 등본 (거주지 확인)'},
+  {k:'dClergy',  name:'대구대교구 신부·수녀·신학생', short:'대구대교구', rate:1, proof:'소속 증명서 또는 신분증'},
+];
+function groupRate(n){ return !n ? 0 : n>20 ? .10 : .05; }
+function groupLabel(n){ return !n ? '' : n>20 ? '단체예약 10%' : '사전예약 5%'; }
+function specialCounts(r){ return SPECIAL.map(s=>({...s, n: Math.max(0, parseInt(r[s.k])||0)})).filter(s=>s.n>0); }
+// 할인 대상 품목의 합계: 특별 할인 인원은 각자 큰 할인, 나머지는 단체 할인
+function discTotal(price, n, r){
+  const g=groupRate(n), sp=specialCounts(r); let left=n, sum=0;
+  sp.forEach(s=>{ const c=Math.min(s.n,left); left-=c; sum += c*price*(1-Math.max(s.rate,g)); });
+  return Math.round(sum + left*price*(1-g));
+}
 function renderPrice(){
   const box=$('#priceBox'); if(!box) return;
   let day=null; if(rec.date){ const d=new Date(rec.date+'T00:00'); if(!isNaN(d)) day = (d.getDay()===0||d.getDay()===6) ? 'we' : 'wd'; }
-  const n = numOf(rec.people);
+  const n = numOf(rec.people), g = groupRate(n), sp = specialCounts(rec);
   $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?'주말':'평일'} 가격${n?` · ${n}명 합계`:''}` : '방문일을 넣으면 평일/주말 가격과 합계가 표시됩니다';
+  $('#discGroup').innerHTML = n
+    ? `${n}명 → <b>${groupLabel(n)}</b> <span class="hint" style="margin:0">(관람·사담 런치만, 다른 상품은 할인 없음)</span>` + (sp.length ? `<br>특별 할인 ${sp.map(s=>`${s.short} ${s.n}명 ${s.rate===1?'무료':Math.round(s.rate*100)+'%'}`).join(' · ')} <span class="hint" style="margin:0">(단체 할인과 비교해 큰 쪽)</span>` : '')
+    : '<span class="hint" style="margin:0">관람 인원을 넣으면 할인(20명 미만 5% · 20명 초과 10%)이 계산됩니다</span>';
+  SPECIAL.forEach(s=>{ const el=$('#'+s.k); if(el && document.activeElement!==el) el.value = rec[s.k]||''; el?.classList.toggle('has', !!rec[s.k]); });
   let html='', sec='';
   PRICE_ROWS.forEach(([s,name,wdSrc,weSrc,per,keys])=>{
     const wd=priceOf(wdSrc), we=weSrc?priceOf(weSrc):null;
@@ -795,16 +842,25 @@ function renderPrice(){
     if(s!==sec){ if(sec) html+='</tbody></table></div>'; sec=s;
       html+=`<div class="psec"><div class="psec-t">${s}</div><table class="ptable"><thead><tr><th>항목</th><th>평일</th><th>주말</th>${n&&day?'<th>합계</th>':''}</tr></thead><tbody>`; }
     const pick = keys.some(k=>rec[k]);
-    const one = !weSrc;
-    const cls = side => one||!day ? '' : day===side ? 'on' : 'off';
+    const one = !weSrc, disc = DISC_ITEMS.has(name) && g>0;
+    const cell = (p,side) => {
+      const active = one ? !!day : day===side;
+      const cls = one||!day ? (one&&day?'on':'') : active ? 'on' : 'off';
+      const txt = active && disc ? `<s>${won(p)}</s>${won(Math.round(p*(1-g)))}` : won(p);
+      return `<td class="${cls}"${one?' colspan="2"':''}>${txt}${per?'':' (회)'}</td>`;
+    };
     const use = one ? wd : day==='we' ? we : wd;
-    const tot = n && day && per ? won(use*n) : '';
-    html += `<tr class="${pick?'pick':''}"><td>${name}</td>${one?`<td colspan="2" class="${day?'on':''}">${won(wd)}${per?'':' (회)'}</td>`:`<td class="${cls('wd')}">${won(wd)}</td><td class="${cls('we')}">${won(we)}</td>`}${n&&day?`<td class="tot">${tot}</td>`:''}</tr>`;
+    const tot = n && day && per ? won(DISC_ITEMS.has(name) ? discTotal(use,n,rec) : use*n) : '';
+    html += `<tr class="${pick?'pick':''}"><td>${name}${disc?`<span class="dtag">-${Math.round(g*100)}%</span>`:''}</td>${one?cell(wd):cell(wd,'wd')+cell(we,'we')}${n&&day?`<td class="tot">${tot}</td>`:''}</tr>`;
   });
   if(sec) html+='</tbody></table></div>';
   box.innerHTML = html;
-  $('#priceSrc').textContent = '견적서&거래명세서 사이트 품목 목록 기준 · 부가세 포함 · 공휴일은 주말 가격' + (priceLoaded===false ? ' · 품목 관리 변경 내용을 불러오지 못해 기본 가격으로 표시' : '');
+  $('#priceSrc').textContent = '견적서&거래명세서 사이트 품목 목록 기준 · 부가세 포함 · 공휴일은 주말 가격 · 합계는 할인 적용' + (priceLoaded===false ? ' · 품목 관리 변경 내용을 불러오지 못해 기본 가격으로 표시' : '');
 }
+// 특별 할인 인원 입력 (숫자만)
+document.querySelectorAll('[data-dk]').forEach(el=>el.addEventListener('input', ()=>{
+  el.value=el.value.replace(/\D/g,''); rec[el.dataset.dk]=el.value; touched.add(el.dataset.dk); startTimer(); renderSide();
+}));
 
 // ===================== 단체상담 입력: "항목<탭>값" 줄을 칸으로 =====================
 // 머리말이 달라도 알아듣도록 비슷한 이름을 같이 둔다. 모르는 항목은 통화 메모에 "항목: 값" 으로 남김
