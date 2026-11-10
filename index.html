@@ -215,10 +215,11 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .modal .list .tw{overflow:auto;flex:1;min-height:0}
 .modal .list h2{flex-wrap:wrap}
 /* 사담·마방·프로그램 접기 */
-.opt-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:12px}
-.opt-btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:9px 10px;font:500 13.5px var(--sans);color:var(--ink);cursor:pointer;text-align:left;display:flex;justify-content:space-between;gap:6px;align-items:center}
-.opt-btn small{color:var(--muted);font-weight:400;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.opt-btn::after{content:"▾";color:var(--muted)}
+.opt-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:12px}   /* 4개를 한 줄에 */
+.opt-btn{position:relative;min-width:0;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 15px 6px 7px;font:600 12px var(--sans);color:var(--ink);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:1px;align-items:stretch}
+.opt-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opt-btn small{color:var(--muted);font-weight:400;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opt-btn::after{content:"▾";color:var(--muted);position:absolute;right:6px;top:50%;transform:translateY(-50%)}
 .opt-btn[aria-expanded="true"]::after{content:"▴"}
 .opt-btn.filled{background:var(--pine);border-color:var(--pine);color:#fff}
 .opt-btn.filled small,.opt-btn.filled::after{color:#dfe8da}
@@ -486,7 +487,7 @@ function addCatalogProgs(cat){
 const CFIELDS = [['name','담당자 성함','담당자분 성함이 어떻게 되세요?'],['phone','연락처','연락 가능한 번호 하나 남겨주시겠어요?'],['email','이메일','견적서 받으실 이메일 주소 알려주시겠어요?']];
 const KEYS = FIELDS.map(f=>f[1]);
 // 처음엔 접어 두고 버튼으로 펼치는 묶음 (각 묶음 아래에 그날 예약 현황)
-const OPT = { '사담':{id:'sadam', title:'사담 식사'}, '몽몽마방':{id:'mabang', title:'몽몽마방 식사'}, '프로그램(개별)':{id:'progE', title:'프로그램(개별)'}, '프로그램(시간)':{id:'progT', title:'프로그램(시간)'} };
+const OPT = { '사담':{id:'sadam', title:'사담 식사'}, '몽몽마방':{id:'mabang', title:'몽몽마방 식사'}, '프로그램(개별)':{id:'progE', title:'프로그램(개별)', short:'개별 프로그램'}, '프로그램(시간)':{id:'progT', title:'프로그램(시간)', short:'시간 프로그램'} };
 let optOpen = new Set();
 const GROUP_OF = Object.fromEntries(FIELDS.map(f=>[f[1], f[0]]));
 const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1], ['사담','몽몽마방'].includes(f[0]) ? `${f[0]} ${f[2]}` : f[2]]));
@@ -604,7 +605,7 @@ function buildForm(){
     if(grp!==g){
       close();
       if(OPT[grp] && !Object.keys(OPT).some(x=>x===g)){   // 첫 접는 묶음 앞에 버튼 3개
-        html+=`<div class="opt-bar">${Object.values(OPT).map(o=>`<button type="button" class="opt-btn" data-opt="${o.id}" aria-expanded="false"><span>${o.title}</span><small id="optsum_${o.id}"></small></button>`).join('')}</div>`;
+        html+=`<div class="opt-bar">${Object.values(OPT).map(o=>`<button type="button" class="opt-btn" data-opt="${o.id}" aria-expanded="false"><span>${o.short||o.title}</span><small id="optsum_${o.id}"></small></button>`).join('')}</div>`;
       }
       html+= OPT[grp]
         ? `<div class="grp opt" id="opt_${OPT[grp].id}" hidden><div class="grp-t"><span>${OPT[grp].title}</span></div><div class="fields">`
@@ -1046,7 +1047,7 @@ const AUTO_TASKS = { erp:'전산 예약', erpfix:'전산 예약 수정', quote:'
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 function moneySplit(r){
   if(!quoteCat || !r.date || !numOf(r.people)) return null;
-  const d=new Date(r.date+'T00:00'), viewSrc=`${(d.getDay()===0||d.getDay()===6)?'주말/공휴일':'평일'} 관람(09:00~18:00)`, vp=priceOf(viewSrc);
+  const d=new Date(r.date+'T00:00'), viewSrc=viewSrcOf(r), vp=priceOf(viewSrc);
   let saw=0, shilla=0, missing=false;
   const {blocks, skipped} = quoteBlocks(r);
   blocks.forEach(b=>{ const a=blockAmount(b, priceOf(b.product)); if(!a){ missing=true; return; }
@@ -1401,8 +1402,10 @@ function renderPrice(){
     const rows = blocks.map(b=>{
       const p = priceOf(b.product), a = blockAmount(b, p);
       if(a) total += a.amount; else missing.push(itemLabel(b.product));
-      const unit = /도슨트/.test(b.product) ? '회' : '명';
-      return `<tr><td>${esc(itemLabel(b.product))}</td><td>${b.qty}${unit}</td><td>${p==null?'-':won(p)}</td><td>${a&&a.disc?`<span class="dtag">${esc(a.disc)}</span>`:''}</td><td class="tot">${a?won(a.amount):'가격 없음'}</td></tr>`;
+      const unit = PROG_KEYS().some(k=>rec[k] && PROG_SRC[k]===b.product && UNIT(k)==='시간') ? '시간' : '명';
+      const tm = b.product.match(/^(평일|주말\/공휴일) 관람\((\d\d):00~(\d\d):00\)$/) || [];
+      const lab = itemLabel(b.product) + (tm[2] ? ` (${+tm[2]}~${+tm[3]}시)` : '');   // 관람권 시간대 표시
+      return `<tr><td>${esc(lab)}</td><td>${b.qty}${unit}</td><td>${p==null?'-':won(p)}</td><td>${a&&a.disc?`<span class="dtag">${esc(a.disc)}</span>`:''}</td><td class="tot">${a?won(a.amount):'가격 없음'}</td></tr>`;
     }).join('');
     box.innerHTML = `<table class="ptable sel"><thead><tr><th>항목</th><th>수량</th><th>단가</th><th>할인</th><th>금액</th></tr></thead><tbody>${rows}</tbody>`
       + `<tfoot><tr><td colspan="4">예상 합계 (부가세 포함)</td><td class="tot">${won(total)}</td></tr></tfoot></table>`
@@ -1437,6 +1440,10 @@ document.querySelectorAll('[data-dk]').forEach(el=>el.addEventListener('input', 
 // 그 사이트의 '예약 정보 붙여넣기'가 읽는 형식(방문일자 · 상품정보 · 방문자정보 · 예약인원 · * 할인)으로 만들어
 // 같은 사이트(hyunbin5786.github.io) 저장소에 두고 연다. 그쪽이 자동 채우기를 한다.
 const QUOTE_URL = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-invoice-quotation/?from=intake' : '/견적서_거래명세서/index.html?from=intake';
+// 관람권: 방문일 요일로 평일 / 주말·공휴일, 입장 시각이 13:00 이후면 13-18 관람권 (그 전이거나 모르면 9-18)
+function tinHour(t){ t=String(t||''); const m=t.match(/(\d{1,2})\s*(?::|시)/) || t.match(/^\s*(\d{1,2})\s*$/); if(!m) return null; let h=+m[1]; if(/오후|저녁|pm/i.test(t) && h<12) h+=12; return h; }
+function viewSrcOf(r){ const d=new Date(r.date+'T00:00'), we=d.getDay()===0||d.getDay()===6, h=tinHour(r.tin);
+  return `${we?'주말/공휴일':'평일'} 관람(${h!=null && h>=13 ? '13:00~18:00' : '09:00~18:00'})`; }
 function quoteBlocks(r){
   const n = numOf(r.people), we = (()=>{ const d=new Date(r.date+'T00:00'); return d.getDay()===0||d.getDay()===6; })();
   const DAY = we ? '주말/공휴일' : '평일';
@@ -1445,7 +1452,7 @@ function quoteBlocks(r){
   const blocks=[], skipped=[];
   const add=(product, qty, disc)=>{ if(qty>0) blocks.push({product, qty, disc}); };
   const pkg = cnt(r.sadam1)+cnt(r.sadam2)+cnt(r.sadamD)+(mbPkg?cnt(r.mabangL):0);
-  add(`${DAY} 관람(09:00~18:00)`, Math.max(0, n-pkg), true);
+  add(viewSrcOf(r), Math.max(0, n-pkg), true);
   add(`${DAY}(관람, 사담 런치1부)`, cnt(r.sadam1), true);
   add(`${DAY}(관람, 사담 런치2부)`, cnt(r.sadam2), true);
   add(`${DAY}(관람, 사담 디너)`, cnt(r.sadamD), false);
