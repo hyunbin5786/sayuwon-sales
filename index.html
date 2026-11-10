@@ -248,9 +248,6 @@ const FIELDS = [
   ['방문','payContact','결제 연락 예정일','','',  '결제 방법은 언제쯤 알려주실 수 있을까요?'],   // 결제가 미정일 때만
   ['방문','meal','식사 여부','','w2','식사는 사담이나 몽몽마방 이용하실 계획 있으세요?'],
   ['방문','tbdDate','미정 항목 입력 기한','','',  null],   // 인원·식사 등이 아직 미정일 때 언제까지 알려주기로 했는지
-  ['상담 정보 (선택)','consultNo','상담 신청번호','','',  null],
-  ['상담 정보 (선택)','product','상품','','',  null],
-  ['상담 정보 (선택)','origin','출발지','','w2', null],
   ['사담','sadam1','1부','J','',null],
   ['사담','sadam2','2부','K','',null],
   ['사담','sadamD','디너','L','',null],
@@ -306,7 +303,7 @@ const PAYS = ['세금계산서','결제링크','현장 결제','미정'];
 const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
-const MEMO_PARTS = [['tbdDate','미정 항목 입력 기한'],['consultNo','상담 신청번호'],['product','상품'],['origin','출발지']];
+const MEMO_PARTS = [['tbdDate','미정 항목 입력 기한']];
 function packExtra(r){
   const o={};
   o.pay = r.pay==='미정' && r.payContact ? `미정 (연락 ${r.payContact})` : r.pay;
@@ -320,7 +317,7 @@ function unpackExtra(r){ const o={}; let m;
 
 // ===================== 칸 렌더 =====================
 // 칸별 입력 방식: 한글 우선(한/영 키로 영어) · 영어 고정 · 숫자 고정
-const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner' || k==='product' || k==='origin';
+const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner';
 const EN_ONLY  = k => /^c\d+_email$/.test(k);
 const NUM_ONLY = { people:/[^\d+]/g, vehicle:/[^\d]/g };   // 관람 인원은 42+2 처럼 + 허용
 // 연락처: 빈 칸을 누르면 010- 이 들어가고, 숫자를 치면 - 가 자동. 내선 번호면 010- 을 지우고 쓰면 됨
@@ -734,7 +731,8 @@ function parseConsult(text){
     if(hit) got[hit[1]]=val; else extra.push(`${key}: ${val}`);
   });
   const o={};
-  ['consultNo','product','org','origin'].forEach(k=>{ if(got[k]) o[k]=got[k]; });
+  if(got.org) o.org=got.org;   // 신청번호·상품은 쓰지 않음
+  if(got.origin) extra.unshift(`출발지: ${got.origin}`);   // 출발지는 통화 메모에
   if(got.name) o.c0_name = got.title ? `${got.name} ${got.title}` : got.name;
   if(got.phone) o.c0_phone = fmtPhone(got.phone);
   if(got.email) o.c0_email = got.email.toLowerCase();
@@ -759,7 +757,7 @@ $('#consultApplyBtn').onclick=()=>{
   if(extra.length){ const box=$('#memoBox'); box.value = (box.value ? box.value.replace(/\s*$/,'\n') : '') + extra.join('\n'); }
   nContacts=Math.max(nContacts, nContactsOf(rec)); renderContacts(); startTimer(); renderForm();
   closeConsult(); $('#consultBox').value='';
-  toast(`${n}개 항목을 채웠습니다${extra.length?` · 모르는 항목 ${extra.length}개는 통화 메모에`:''}`);
+  toast(`${n}개 항목을 채웠습니다${extra.length?` · ${extra.length}줄은 통화 메모에`:''}`);
 };
 
 // ===================== 단체예약 목록 창 =====================
