@@ -44,7 +44,7 @@ var COLS = [
   ["teaMed", "티하우스 명상"], ["gayageum", "가야금"], ["cabin", "유루 캐빈"],
   ["contact", "고객 담당자"], ["phone", "연락처"], ["email", "이메일"], ["tin", "입장"], ["tout", "퇴장"],
   ["meal", "식사 여부"], ["mabangMenu", "마방 메뉴"], ["memo", "비고"], ["note", "통화 메모"],
-  ["updated", "수정 일시"], ["deleted", "삭제"]
+  ["updated", "수정 일시"], ["deleted", "삭제"], ["history", "수정 기록"]
 ];
 var KEYS = COLS.map(function (c) { return c[0]; });
 
@@ -101,6 +101,12 @@ function sheet_() {
     s.getRange(1, 1, s.getMaxRows(), COLS.length).setNumberFormat("@");   // 날짜·전화번호가 숫자나 날짜값으로 바뀌지 않게 모두 글자로
     s.getRange(1, 1, 1, COLS.length).setValues([COLS.map(function (c) { return c[1]; })]).setFontWeight("bold");
     s.setFrozenRows(1);
+  }
+  // 열이 늘어났으면(예: 수정 기록) 시트에도 열과 머리글을 맞춘다
+  if (s.getMaxColumns() < COLS.length) s.insertColumnsAfter(s.getMaxColumns(), COLS.length - s.getMaxColumns());
+  if (!s.getRange(1, COLS.length).getValue()) {
+    s.getRange(1, 1, s.getMaxRows(), COLS.length).setNumberFormat("@");
+    s.getRange(1, 1, 1, COLS.length).setValues([COLS.map(function (c) { return c[1]; })]).setFontWeight("bold");
   }
   return s;
 }
