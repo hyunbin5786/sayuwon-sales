@@ -70,6 +70,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .f.w2{grid-column:span 2}.f.w4{grid-column:1 / -1}
 .f label{font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between;gap:4px}
 .f input,.vrow select{height:36px;box-sizing:border-box}   /* 모든 칸을 방문일 칸 높이(36px)에 맞춤 */
+.f select{width:100%;height:36px;border:1px solid var(--line);border-radius:6px;padding:5px 6px;font:13.5px var(--sans);background:#fff;color:var(--ink)}
 .f input{width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13.5px var(--sans);background:#fff;color:var(--ink);min-width:0}
 .f.req label::after{content:" *";color:var(--red)}
 .f.auto input{background:var(--fill)}
@@ -106,9 +107,10 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .num{font-variant-numeric:tabular-nums}
 /* 담당자 여러 명 */
 .contacts{display:flex;flex-direction:column;gap:6px}
-.crow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.4fr) 28px;gap:8px;align-items:end}
-@media (max-width:560px){.crow{grid-template-columns:1fr 1fr}}
-.crow .x{border:1px solid var(--line);background:var(--card);border-radius:6px;height:36px;cursor:pointer;color:var(--muted)}
+.crow{display:flex;gap:8px;align-items:flex-end}   /* 성함·연락처·이메일이 가로를 꽉 채움 */
+.crow .f{flex:1 1 0;min-width:0}.crow .f:nth-child(3){flex-grow:1.4}
+@media (max-width:560px){.crow{flex-wrap:wrap}.crow .f{flex-basis:45%}}
+.crow .x{flex:none;width:32px;border:1px solid var(--line);background:var(--card);border-radius:6px;height:36px;cursor:pointer;color:var(--muted)}
 .crow .x:hover{border-color:var(--red);color:var(--red)}
 .addc{align-self:flex-start;margin-top:2px;padding:4px 10px;font-size:12px}
 .grp-t{display:flex;justify-content:space-between;align-items:center}
@@ -223,11 +225,13 @@ const FIELDS = [
   ['기본','date','방문일','B','',  '방문 날짜가 언제로 생각하고 계실까요?'],
   ['기본','people','관람 인원','I','',  '방문 인원은 총 몇 분이세요? (인솔자·기사님 포함 여부도)'],
   ['방문','tin','입장','H','',  '몇 시쯤 도착 예정이세요?'],
-  ['방문','tout','퇴장','H','',  '나가시는 시간은 몇 시쯤으로 보시나요?'],
+  ['방문','tout','퇴장 (선택)','H','',  null],
   ['방문','vehicle','차량','G','',  '버스로 오세요, 승용차로 오세요? 몇 대인가요?'],
   ['방문','owner','영업 담당','E','',  null],
-  ['방문','pay','결제','F','w2','결제는 사전 계좌이체와 현장 결제 중 어떻게 하실까요?'],
+  ['방문','pay','결제','F','',  '결제는 세금계산서, 결제링크, 현장 결제 중 어떻게 하실까요?'],
+  ['방문','payContact','결제 연락 예정일','','',  '결제 방법은 언제쯤 알려주실 수 있을까요?'],   // 결제가 미정일 때만
   ['방문','meal','식사 여부','','w2','식사는 사담이나 몽몽마방 이용하실 계획 있으세요?'],
+  ['방문','tbdDate','미정 항목 입력 기한','','',  null],   // 인원·식사 등이 아직 미정일 때 언제까지 알려주기로 했는지
   ['사담','sadam1','1부','J','',null],
   ['사담','sadam2','2부','K','',null],
   ['사담','sadamD','디너','L','',null],
@@ -276,7 +280,17 @@ function splitContacts(r){   // 시트에서 읽은 "가 / 나" 를 담당자 �
 }
 const allKeys = () => { const ks=[...KEYS]; for(let i=0;i<nContacts;i++) CFIELDS.forEach(([f])=>ks.push(`c${i}_${f}`)); return ks; };
 const MISS_LABEL = { phone:'연락처(010)' };   // 물어볼 것에 보이는 이름
-const REQUIRED = () => [...FIELDS.filter(f=>f[5]).map(f=>[f[1],f[2],f[5]]), ...CFIELDS.map(([f,l,q])=>[`c0_${f}`,MISS_LABEL[f]||l,q])];
+MISS_LABEL.payContact='결제 연락일';
+// 결제 연락 예정일은 결제가 '미정'일 때만 필수
+const REQUIRED = () => [...FIELDS.filter(f=>f[5] && (f[1]!=='payContact' || rec?.pay==='미정')).map(f=>[f[1],MISS_LABEL[f[1]]||f[2],f[5]]), ...CFIELDS.map(([f,l,q])=>[`c0_${f}`,MISS_LABEL[f]||l,q])];
+const PAYS = ['세금계산서','결제링크','현장 결제','미정'];
+const DATE_KEYS = new Set(['date','payContact','tbdDate']);
+// 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
+function packExtra(r){ const o={}; o.pay = r.pay==='미정' && r.payContact ? `미정 (연락 ${r.payContact})` : r.pay; o.memo = r.tbdDate ? `미정 항목 입력 기한 ${r.tbdDate}` : ''; return o; }
+function unpackExtra(r){ const o={}; let m;
+  if((m=String(r.pay||'').match(/^미정\s*\(연락\s*(\d{4}-\d{2}-\d{2})\)/))){ o.pay='미정'; o.payContact=m[1]; }
+  if((m=String(r.memo||'').match(/미정 항목 입력 기한\s*(\d{4}-\d{2}-\d{2})/))) o.tbdDate=m[1];
+  return o; }
 
 // ===================== 칸 렌더 =====================
 // 칸별 입력 방식: 한글 우선(한/영 키로 영어) · 영어 고정 · 숫자 고정
@@ -297,7 +311,7 @@ const VTYPES = ['버스','승용','혼합'];
 function vehParts(v){ v=String(v||''); const t=VTYPES.find(x=>v.includes(x)) || (/(대형|중형|소형|미니)/.test(v)?'버스':''); const n=(v.match(/\d+/)||[''])[0]; return {t,n}; }
 function vehJoin(t,n){ return n ? `${t||'버스'} ${n}대` : (t && t!=='버스' ? t : ''); }
 function fieldHTML(k,label,col,cls,req){
-  let extra = k==='date'?' type="date"':'';
+  let extra = DATE_KEYS.has(k)?' type="date"':'';
   if(k==='owner') extra+=' list="owners"';
   if(KO_FIRST(k)) extra+=' data-ime="ko"';
   if(EN_ONLY(k))  extra+=' data-ime="en" inputmode="email" lang="en" autocapitalize="off" spellcheck="false"';
@@ -305,6 +319,8 @@ function fieldHTML(k,label,col,cls,req){
   if(NUM_ONLY[k]) extra+=' inputmode="numeric" data-ime="num"';
   const input = k==='vehicle'
     ? `<div class="vrow"><select id="f_vtype" data-k="vehicle" aria-label="차종">${VTYPES.map(t=>`<option>${t}</option>`).join('')}</select><input id="f_${k}" data-k="${k}"${extra} placeholder="대수"></div>`
+    : k==='pay'
+    ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${PAYS.map(p=>`<option>${p}</option>`).join('')}</select>`
     : `<input id="f_${k}" data-k="${k}"${extra}>`;
   return `<div class="f ${cls}${req?' req':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span></label>${input}</div>`;
 }
@@ -323,7 +339,7 @@ function buildForm(){
         : `<div class="grp" data-grp="${grp}"><div class="grp-t"><span>${grp}</span></div><div class="fields">`;
       g=grp;
     }
-    html += fieldHTML(k,label,col,cls,req.has(k));
+    html += fieldHTML(k,label,col,cls,req.has(k)||k==='payContact');
     if(k==='people') html += `</div></div><div class="grp" data-grp="담당자"><div class="grp-t"><span>담당자</span><span class="hint" style="margin:0">여러 명이면 추가</span></div><div class="contacts" id="contacts"></div><button type="button" class="btn addc" id="addContact">+ 담당자 추가</button>` + `<div class="fields" hidden>`;
   });
   close();
@@ -376,7 +392,7 @@ function renderContacts(){
   const req=new Set(REQUIRED().map(r=>r[0]));
   let h='';
   for(let i=0;i<nContacts;i++){
-    h+=`<div class="crow">${CFIELDS.map(([f,l])=>fieldHTML(`c${i}_${f}`, l, '', '', req.has(`c${i}_${f}`))).join('')}${i?`<button type="button" class="x" data-i="${i}" title="이 담당자 빼기">×</button>`:'<span></span>'}</div>`;
+    h+=`<div class="crow">${CFIELDS.map(([f,l])=>fieldHTML(`c${i}_${f}`, l, '', '', req.has(`c${i}_${f}`))).join('')}${i?`<button type="button" class="x" data-i="${i}" title="이 담당자 빼기">×</button>`:''}</div>`;
   }
   $('#contacts').innerHTML=h;
   for(let i=0;i<nContacts;i++) CFIELDS.forEach(([f])=>{ const k=`c${i}_${f}`; document.getElementById('f_'+k).value=rec[k]||''; });
@@ -388,12 +404,13 @@ function paintFields(changed=[]){
     const el=document.getElementById('f_'+k); if(!el) return;
     const v=rec[k]||'';
     if(k==='vehicle'){ const p=vehParts(v); if(document.activeElement!==el && el.value!==p.n) el.value=p.n; if(p.t && document.activeElement!==$('#f_vtype')) $('#f_vtype').value=p.t; }
-    else if(el.value!==v && document.activeElement!==el) el.value=v;
+    else { if(el.tagName==='SELECT' && v && ![...el.options].some(o=>o.value===v)) el.add(new Option(v,v)); if(el.value!==v && document.activeElement!==el) el.value=v; }
     const w=document.getElementById('w_'+k);
     w.classList.toggle('unsure', fieldWarnings(rec).some(u=>u.field===k));
     w.classList.toggle('missing', req.has(k) && !v);
     if(OPT[GROUP_OF[k]]) el.classList.toggle('has', !!v);
   });
+  const pc=document.getElementById('w_payContact'); if(pc) pc.hidden = rec.pay!=='미정';
   paintOpt();
 }
 // 접는 묶음: 값이 있으면 버튼·묶음을 초록으로, 버튼에 입력 내용 요약
@@ -419,6 +436,7 @@ function renderForm(changed=[]){
   renderSide();
 }
 function dateLabel(d){ if(!d) return ''; const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; }
+const mdLabel = d => { const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}월 ${t.getDate()}일`; };
 function renderSide(){
   const req = REQUIRED(), miss = req.filter(([k])=>!rec[k]);
   // 물어볼 것: 전부 보여 주고, 받은 항목은 초록색
@@ -440,7 +458,8 @@ function readback(r){
   if(meals.length) p.push('식사는 '+meals.join(', ')); else if(r.meal) p.push('식사 '+r.meal);
   const prog=[]; if(r.chabang) prog.push('차방 해설'); if(r.donghaeng) prog.push('동행 해설'); if(r.dangdu) prog.push('당두 해설'); if(r.yoga) prog.push('요가·명상'); if(r.gaga) prog.push('가가 바우처'); if(r.teaMed) prog.push('티하우스 명상'); if(r.gayageum) prog.push('가야금'); if(r.cabin) prog.push('유루 캐빈');
   if(prog.length) p.push(prog.join(', ')+' 포함');
-  if(r.pay) p.push(`결제는 ${r.pay}`);
+  if(r.pay) p.push(r.pay==='미정' ? `결제 방법은 ${r.payContact?mdLabel(r.payContact)+'에 ':'나중에 '}알려주시기로` : `결제는 ${r.pay}`);
+  if(r.tbdDate) p.push(`정해지지 않은 내용은 ${mdLabel(r.tbdDate)}까지 알려주시기로`);
   if(!p.length) return '내용이 채워지면 고객에게 읽어줄 확인 문구가 만들어집니다.';
   let s = `확인차 말씀드리겠습니다. ${r.org?r.org+', ':''}${p.join(', ')}. 이대로 예약 도와드리면 될까요?`;
   const cs=contactsOf(r);
@@ -495,6 +514,8 @@ function fieldWarnings(r){
   const w=[];
   if(r.date){ const d=new Date(r.date+'T00:00'), t=new Date(); t.setHours(0,0,0,0); if(d<t) w.push({field:'date', reason:'지난 날짜입니다. 방문일을 다시 확인하세요.'}); }
   if(r.tin && r.tout && r.tout<=r.tin) w.push({field:'tout', reason:'퇴장 시간이 입장보다 빠릅니다. 오전/오후를 확인하세요.'});
+  if(r.date && r.tbdDate && r.tbdDate>r.date) w.push({field:'tbdDate', reason:'미정 항목 입력 기한이 방문일보다 늦습니다.'});
+  if(r.date && r.pay==='미정' && r.payContact && r.payContact>r.date) w.push({field:'payContact', reason:'결제 연락 예정일이 방문일보다 늦습니다.'});
   const day = adminData && adminData.days && adminData.days[r.date];
   if(day) Object.entries(ADMIN_SLOT).forEach(([k,[slot,name]])=>{
     const s=day[slot], want=numOf(r[k]); if(!s || !want) return;
@@ -607,7 +628,7 @@ setInterval(()=>{ if(!document.hidden){ if(pending.length) flush(); else pull();
 async function save(){
   if(!rec.org && !rec.date){ toast('업체나 방문일을 먼저 입력하세요.'); return; }
   const j=joinContacts(rec);
-  const item={...rec, ...j, callType:'단체예약', summary:autoSummary(), note:$('#memoBox').value, takenBy:rec.owner,
+  const item={...rec, ...j, ...packExtra(rec), callType:'단체예약', summary:autoSummary(), note:$('#memoBox').value, takenBy:rec.owner,
     callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:new Date().toISOString()};
   Object.keys(item).forEach(k=>{ if(isCKey(k)) delete item[k]; });
   try{ await store.put(item); editingId=item.id; await renderList(); toast('단체예약 목록에 저장했습니다.'); }
@@ -630,6 +651,7 @@ async function renderList(){
     newCall(false);
     KEYS.forEach(k=>{ rec[k]=r[k]||''; if(rec[k]) touched.add(k); });
     if(!rec.owner) rec.owner=savedOwner();   // 자동 등록된 예약 등 담당이 비어 있으면 이 컴퓨터의 영업 담당
+    const ex=unpackExtra(r); Object.assign(rec,ex); Object.keys(ex).forEach(k=>touched.add(k));
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
     nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; $('#memoBox').value=r.note||'';
     renderContacts(); renderForm(); closeList(); window.scrollTo({top:0,behavior:'smooth'});
