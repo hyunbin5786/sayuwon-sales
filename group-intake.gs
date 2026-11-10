@@ -176,7 +176,7 @@ function list_(limit) {
 // 사업자등록증 등 파일 올리기 → 내 드라이브 '사유원 단체예약 서류' 폴더 (폴더는 처음 올릴 때 생김)
 // 파일은 비공개(시트 주인 드라이브). 팀원이 열어 보려면 그 폴더를 팀원에게 공유해 두면 된다.
 var UPLOAD_MAX = 10 * 1024 * 1024;   // 10MB
-var UPLOAD_TYPES = /^(image\/(jpeg|png|gif|webp|heic|heif)|application\/pdf)$/;
+var UPLOAD_TYPES = /^(image\/(jpeg|png|gif|webp|heic|heif)|application\/pdf|application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet)$/;   // 사진 · PDF · 엑셀(견적서)
 function uploadFolder_() {
   var props = PropertiesService.getScriptProperties();
   var id = props.getProperty("UPLOAD_FOLDER_ID");

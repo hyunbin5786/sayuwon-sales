@@ -294,8 +294,6 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
         <button type="button" data-s="가예약">가예약</button>
         <button type="button" data-s="공식예약">공식예약</button>
       </div>
-      <label class="erp" id="erpWrap" hidden><input type="checkbox" id="erpChk"> 전산 등록 완료</label>
-      <span class="hint" id="stageWhy" style="margin:0"></span>
       <label class="tbd-date" id="w_tbdDate" for="f_tbdDate">미정 항목 입력 기한 <input type="date" id="f_tbdDate" data-k="tbdDate"></label>
     </div>
     <form id="form" autocomplete="off"></form>
@@ -402,6 +400,8 @@ const FIELDS = [
   ['방문','owner','영업 담당','E','',  null],
   ['방문','pay','결제','F','',  '결제는 세금계산서, 결제링크, 현장 결제 중 어떻게 하실까요?'],
   ['방문','onsite','현장 재결제','','',  null],   // 다른 방식이어도 현장에서 카드로 다시 결제하는 경우
+  ['방문','wantQuote','견적서','','',  null],      // 고객이 견적서를 요청했을 때
+  ['방문','wantStmt','거래명세서','','',  null],   // 고객이 거래명세서를 요청했을 때
   ['방문','payContact','결제 연락 예정일','','',  '결제 방법은 언제쯤 알려주실 수 있을까요?'],   // 결제가 미정일 때만
   ['방문','tbdDate','미정 항목 입력 기한','','',  null],   // 인원·식사 등이 아직 미정일 때 언제까지 알려주기로 했는지
   ['사담','sadam1','1부','J','',null],
@@ -461,9 +461,9 @@ const PAYS = ['세금계산서','결제링크','현장 결제','미정'];
 const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 입력 기한'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 입력 기한'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청']];
 const GATES = ['치허문','곡신문','미정'];
-const CHECKS = { pchg:'인원 변경 가능성 있음', onsite:'현장에서 카드 재결제' };
+const CHECKS = { pchg:'인원 변경 가능성 있음', onsite:'현장에서 카드 재결제', wantQuote:'견적서 요청', wantStmt:'거래명세서 요청' };
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
 const TBD_KEYS = [['org','업체'],['date','방문일'],['people','관람 인원'],['tin','입장'],['vehicle','차량 대수']];
 const tbdSet = r => { const names=String(r?.tbd||'').split(/\s*,\s*/); return new Set(TBD_KEYS.filter(([,l])=>names.includes(l)).map(([k])=>k)); };
@@ -688,7 +688,8 @@ function readback(r){
   let s = `확인차 말씀드리겠습니다. ${r.org?r.org+', ':''}${p.join(', ')}. 이대로 예약 도와드리면 될까요?`;
   const cs=contactsOf(r);
   const mails=cs.map(c=>c.email).filter(Boolean), phones=cs.map(c=>c.phone).filter(Boolean);
-  if(mails.length) s += ` 견적서는 ${mails.join(', ')}로 보내드리겠습니다.`;
+  const docs = [r.wantQuote&&'견적서', r.wantStmt&&'거래명세서'].filter(Boolean).join('와 ');
+  if(docs) s += mails.length ? ` ${docs}는 ${mails.join(', ')}로 보내드리겠습니다.` : ` ${docs} 받으실 이메일 주소를 알려주시겠어요?`;
   if(phones.length) s += ` 연락처는 ${phones.join(', ')} 맞으시죠?`;
   const guide = PAY_GUIDE[r.pay];
   if(guide) s += `\n\n[${r.pay} 안내]\n` + guide.map(g=>'· '+g).join('\n');
@@ -837,7 +838,7 @@ async function pull(inFlush){
     const j=await callApi({action:'list'});
     serverItems=j.items||[]; writeJSON(CACHE_LS,serverItems.slice(-1000));
     if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
-    syncState='ok'; $('#keyMsg').textContent=''; paintSync(); renderList(); if(window.__tasksReady) checkPayPopup();
+    syncState='ok'; $('#keyMsg').textContent=''; paintSync(); renderList(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); }
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
 const store={
@@ -914,7 +915,7 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
-const AUTO_TASKS = { erp:'전산 예약', tax:'세금계산서 발행', paycheck:'결제 확인' };
+const AUTO_TASKS = { erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 function moneySplit(r){
   if(!quoteCat || !r.date || !numOf(r.people)) return null;
@@ -939,17 +940,30 @@ function taxMsg(r){
   const m=moneySplit(r), email=(contactsOf(r).find(c=>c.email)||{}).email;
   return `[세금계산서] ${r.org||'(단체명)'}\n1. 금액\n- 사유원 : ${m?won(m.saw):'      '}원\n- 신라 : ${m?won(m.shilla):'      '}원\n2. 사업자 등록증 : 파일 첨부\n3. 이메일 : ${email||'(담당자 이메일)'}\n4. 발행일 : ${r.date?r.date.replace(/-/g,'.'):'(방문일자)'}\n감사합니다~`;
 }
-const taskText = t => t.id==='erp' ? erpNote(rec) : t.id==='tax' ? taxMsg(rec) : '';
+const taskText = t => (t.id==='erp'||t.id==='erpfix') ? erpNote(rec) : t.id==='tax' ? taxMsg(rec) : '';
 function syncAutoTasks(){
   const want = [];
   if(needsErp(rec)) want.push('erp');
   if(rec.pay==='세금계산서') want.push('tax');
   if(rec.pay==='결제링크') want.push('paycheck');
+  if(rec.wantQuote) want.push('quote');
+  if(rec.wantStmt) want.push('stmt');
+  // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
+  const e0=tasks.find(t=>t.id==='erp');
+  if(e0){ e0.done=!!rec.erp; if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
+  const fixes = e0 && e0.base ? erpDiff(e0.base, erpSnap()) : [];
+  if(fixes.length) want.push('erpfix');
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo:'', at:new Date().toISOString()}); });
+  const fx=tasks.find(t=>t.id==='erpfix');
+  if(fx){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); } fx.changes=fixes; } else if(!fx.done) fx.changes=[]; }
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
-  const e=tasks.find(t=>t.id==='erp'); if(e) e.done=!!rec.erp;   // 전산 예약 = '전산 등록 완료' 체크와 같이 움직임
-  tasks.sort((a,b)=>(a.custom?1:0)-(b.custom?1:0));
+  const ORDER=['erp','erpfix','quote','stmt','tax','paycheck'];
+  tasks.sort((a,b)=>(a.custom?99:ORDER.indexOf(a.id))-(b.custom?99:ORDER.indexOf(b.id)));
 }
+// 전산에 들어가는 내용 (이게 바뀌면 전산 예약 수정)
+const ERP_KEYS = ['org','date','people','tin','tout','gate','pchg','pay','onsite','sadam1','sadam2','sadamD','mabangL','mabangD','mabangMenu','chabang','donghaeng','dangdu','yoga','gaga','teaMed','gayageum','cabin','c0_name','c0_phone'];
+const erpSnap = () => Object.fromEntries(ERP_KEYS.map(k=>[k, rec[k]||'']));
+const erpDiff = (a,b) => ERP_KEYS.filter(k=>(a[k]||'')!==(b[k]||'')).map(k=>{ const x=a[k]||'', y=b[k]||'', l=LABEL[k]||k; return !x?`${l} ${y} 추가`:!y?`${l} ${x} 삭제`:`${l} ${x} → ${y}`; });
 const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
 function renderTasks(){
   syncAutoTasks();
@@ -959,14 +973,20 @@ function renderTasks(){
     tasks.forEach(t=>{ const pre=document.getElementById('tpre_'+t.id); if(pre) pre.textContent=taskText(t); const c=document.getElementById('tchg_'+t.id); if(c) c.innerHTML=changeTag(t); });
     return;
   }
-  const SUB = { erp:'전산에 예약을 등록하고, 아래 문구를 전산 비고에 붙여넣으세요.', tax:'고객 안내 후, 아래 내용으로 세금계산서 발행을 요청하세요.' };
+  const SUB = { erp:'전산에 예약을 등록하고, 아래 문구를 전산 비고에 붙여넣은 뒤 체크하세요.', tax:'고객 안내 후, 아래 내용으로 세금계산서 발행을 요청하세요.',
+    quote:'버튼을 누르면 견적서 사이트에 예약 내용이 채워집니다. 출력하면 PDF · 엑셀이 드라이브에도 저장되고 여기에 링크가 붙습니다.',
+    stmt:'버튼을 누르면 거래명세서로 채워집니다. 출력하면 PDF · 엑셀이 드라이브에도 저장되고 여기에 링크가 붙습니다.' };
   box.innerHTML = tasks.map(t=>{
     const txt=taskText(t);
-    const sub = t.id==='paycheck' ? `결제링크 보낸 다음날(${mdLabel(ymd(nextDay(t.at)))}) 아침에 이 창을 열면 확인 알림이 뜹니다.` : SUB[t.id] || '';
+    const sub = t.id==='paycheck' ? `결제링크 보낸 다음날(${mdLabel(ymd(nextDay(t.at)))}) 아침에 이 창을 열면 확인 알림이 뜹니다.`
+      : t.id==='erpfix' ? ((t.changes||[]).length ? `전산 등록 후 바뀐 내용: <b>${esc(t.changes.join(' · '))}</b><br>전산 예약을 고치고 비고도 새 문구로 바꾼 뒤 체크하세요.` : '전산에 반영했습니다.')
+      : SUB[t.id] || '';
+    const docBtn = (t.id==='quote'||t.id==='stmt') ? `<div class="tbtn"><button type="button" class="btn" data-tquote="${t.id==='stmt'?'statement':'quote'}">${t.id==='stmt'?'거래명세서 만들기':'견적서 만들기'}</button></div>` : '';
+    const files = t.id!=='tax' && (t.files||[]).length ? `<div class="tfiles">${t.files.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}</div>` : '';
     return `<li class="task${t.done?' done':''}" data-id="${esc(t.id)}">
       <label class="task-h"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</label>
-      ${sub?`<div class="sub">${sub}</div>`:''}
-      ${txt?`<pre id="tpre_${esc(t.id)}">${esc(txt)}</pre><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id==='erp'?'비고 문구 복사':'문구 복사'}</button><span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
+      ${sub?`<div class="sub">${sub}</div>`:''}${docBtn}${files}
+      ${txt?`<pre id="tpre_${esc(t.id)}">${esc(txt)}</pre><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')?'비고 문구 복사':'문구 복사'}</button><span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
         <label class="btn up${upBusy?' busy':''}">${upBusy?'올리는 중…':(t.files||[]).length?'사업자등록증 추가로 올리기':'사업자등록증 올리기'}<input type="file" data-tup="${esc(t.id)}" accept="image/*,application/pdf" hidden${upBusy?' disabled':''}></label>
         <span class="hint" style="margin:0">사진 · PDF, 10MB 이하 · 구글 드라이브 '사유원 단체예약 서류' 폴더에 저장</span></div>` : ''}
@@ -999,10 +1019,12 @@ $('#taskList').addEventListener('change', e=>{
   const id=e.target.dataset.tk; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return;
   t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
   if(id==='erp'){ rec.erp = t.done ? ymd(new Date()) : ''; touched.add('erp'); }
+  if(id==='erpfix' && t.done){ const e=tasks.find(x=>x.id==='erp'); if(e) e.base=erpSnap(); t.changes=[]; }   // 전산에 고친 지금 내용을 기준으로
   renderSide(); autoSave();
 });
 $('#taskList').addEventListener('click', e=>{
-  const c=e.target.dataset.tcopy, d=e.target.dataset.tdel;
+  const c=e.target.dataset.tcopy, d=e.target.dataset.tdel, q=e.target.dataset.tquote;
+  if(q){ openQuote(q); return; }
   if(c){ const t=tasks.find(x=>x.id===c); const txt=taskText(t); copy(txt, '복사했습니다. 붙여넣으세요.'); t.copied=txt; renderTasks(); autoSave(); }
   if(d){ tasks=tasks.filter(x=>x.id!==d); renderTasks(); autoSave(); }
 });
@@ -1012,7 +1034,32 @@ $('#taskAdd').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#ta
   tasks.push({id:'c'+Date.now().toString(36), title:v, custom:true, done:false, memo:'', at:new Date().toISOString()}); $('#taskAddIn').value=''; renderTasks(); autoSave(); });
 $('#memoBox').addEventListener('input', ()=>renderTasks());
 
-// 결제 확인 알림: 결제링크를 보낸 다음날부터, 이 창을 열면 아직 확인 안 한 예약을 띄움 (하루 한 번)
+// 견적서 사이트가 출력 후 드라이브에 올린 파일 링크를 같은 사이트 저장소(sy_intake_docs)로 돌려줌 → 그 예약의 견적서/거래명세서 과업에 붙이고 완료
+const DOCS_LS='sy_intake_docs';
+let takingDocs=false;
+async function takeDocs(){
+  if(takingDocs) return; takingDocs=true;
+  try{
+    let list=[]; try{ list=JSON.parse(localStorage.getItem(DOCS_LS)||'[]'); }catch(_){}
+    if(!list.length) return;
+    const left=[];
+    for(const d of list){
+      const id = d.doc==='statement' ? 'stmt' : 'quote', title = AUTO_TASKS[id], now=new Date().toISOString();
+      const attach = ts => { let t=ts.find(x=>x.id===id); if(!t){ t={id, title, done:false, memo:'', at:now}; ts.push(t); } t.files=[...(t.files||[]), ...d.files]; t.done=true; t.doneAt=now; };
+      if(d.recId && d.recId===editingId){ attach(tasks); renderTasks(); await save(true); continue; }
+      const r=(cache||[]).find(x=>x.id===d.recId);
+      if(!r){ if(Date.now()-new Date(d.at)<7*864e5) left.push(d); continue; }   // 목록을 아직 못 받았으면 다음에
+      const ph=parseHist(r); attach(ph.tasks); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${title} 출력 · 드라이브 저장`});
+      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks}), saved:now});
+    }
+    try{ left.length ? localStorage.setItem(DOCS_LS, JSON.stringify(left)) : localStorage.removeItem(DOCS_LS); }catch(_){}
+    if(list.length>left.length){ await store.list(); toast('견적서 사이트에서 만든 파일을 과업에 붙였습니다.'); }
+  } finally { takingDocs=false; }
+}
+window.addEventListener('storage', e=>{ if(e.key===DOCS_LS && e.newValue) takeDocs(); });
+window.addEventListener('focus', ()=>{ if(window.__tasksReady) takeDocs(); });
+
+// 결제 확인 알림:결제링크를 보낸 다음날부터, 이 창을 열면 아직 확인 안 한 예약을 띄움 (하루 한 번)
 function duePayChecks(){
   const today=ymd(new Date());
   return (cache||[]).map(r=>{ const t=parseHist(r).tasks.find(t=>t.id==='paycheck' && !t.done); return t && ymd(new Date(t.at))<today ? {r,t} : null; }).filter(Boolean);
@@ -1296,15 +1343,18 @@ function quoteRaw(r, blocks){
   const d = r.date.replace(/-/g,'.');
   return blocks.map(b=>[`방문일자(순번)\t${d} (0)`, `상품정보\t${b.product}`, `방문자정보\t${r.org||''}`, `예약인원\t${b.qty}명`, ...b.notes].join('\n')).join('\n\n');
 }
-$('#quoteBtn').onclick=()=>{
+// doc: 'quote'(견적서) | 'statement'(거래명세서). 저장된 예약이면 예약 ID도 넘겨, 견적서 사이트가 출력한 파일을 드라이브에 올리고 이 예약 과업에 링크를 돌려준다
+async function openQuote(doc){
   if(!rec.date || !numOf(rec.people)){ toast('방문일과 관람 인원을 먼저 넣어 주세요.'); return; }
+  if(!editingId && (rec.org || rec.date)) await save(true);   // 파일을 이 예약에 붙이려면 저장돼 있어야 함
   const {blocks, skipped} = quoteBlocks(rec);
   const c = contactsOf(rec)[0] || {};
-  const h = { at:Date.now(), raw:quoteRaw(rec, blocks), client:rec.org||'', clientMgr:c.name||'', sender:rec.owner||'' };
+  const h = { at:Date.now(), raw:quoteRaw(rec, blocks), client:rec.org||'', clientMgr:c.name||'', sender:savedOwner()||rec.owner||'', doc: doc||'quote', recId: editingId||'', org: rec.org||'', date: rec.date||'' };
   try{ localStorage.setItem('sy_intake_handoff', JSON.stringify(h)); }catch(_){ toast('이 브라우저에서는 넘길 수 없습니다.'); return; }
   window.open(QUOTE_URL, '_blank');
-  toast(`견적서 사이트를 열었습니다 · ${blocks.length}개 상품${skipped.length?` · ${skipped.join(', ')}은(는) 견적서에서 직접 추가`:''}`);
-};
+  toast(`${doc==='statement'?'거래명세서':'견적서'} 사이트를 열었습니다 · ${blocks.length}개 상품${skipped.length?` · ${skipped.join(', ')}은(는) 직접 추가`:''} · 출력하면 드라이브에도 저장됩니다`);
+}
+$('#quoteBtn').onclick=()=>openQuote(rec.wantStmt && !rec.wantQuote ? 'statement' : 'quote');
 
 // ===================== 예약 단계: 상담 · 가예약 · 공식예약 =====================
 // 자동: 결제가 비어 있으면 상담, 결제 '미정'이면 가예약(전산 등록 필요), 결제가 정해지면 공식예약. 버튼으로 직접 바꿀 수 있음
@@ -1315,13 +1365,9 @@ const needsErp = r => effStage(r)!=='상담';
 function renderStage(){
   const s=effStage(rec), manual=STAGES.includes(rec.stage);
   document.querySelectorAll('#stageSeg button').forEach(b=>{ b.classList.toggle('on', b.dataset.s===s && manual); b.classList.toggle('guess', b.dataset.s===s && !manual); });
-  $('#erpWrap').hidden = !needsErp(rec);
-  $('#erpChk').checked = !!rec.erp;
-  $('#stageWhy').textContent = manual ? '직접 선택함' : s==='상담' ? '' : s==='가예약' ? '자동: 결제 미정 → 가예약 · 전산에 등록하세요' : '자동: 결제 방식 확정 → 공식예약';
   const lbl = $('#saveBtn').firstChild; if(lbl) lbl.textContent = `${s}으로 저장`;
 }
 document.querySelectorAll('#stageSeg button').forEach(b=>b.onclick=()=>{ rec.stage = rec.stage===b.dataset.s ? '' : b.dataset.s; touched.add('stage'); renderSide(); });
-$('#erpChk').addEventListener('change', e=>{ rec.erp = e.target.checked ? ymd(new Date()) : ''; touched.add('erp'); renderSide(); });
 LABEL.stage='예약 단계'; LABEL.erp='전산 등록';
 
 // ===================== 단체상담 입력: "항목<탭>값" 줄을 칸으로 =====================
@@ -1400,7 +1446,7 @@ resetState(); buildForm(); renderForm();
 paintSync(); renderList();
 if(SHARED_URL) flush();
 window.__priceReady=true; renderPrice(); loadQuotePrices();
-window.__tasksReady=true; renderTasks(); checkPayPopup();   // 추후 과업 · 결제 확인 알림
+window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs();   // 추후 과업 · 결제 확인 알림
 window.addEventListener('focus', ()=>{ if(priceLoaded && Date.now()-priceLoaded>10*60000) loadQuotePrices(); });
 $('#memoBox').focus();
 
