@@ -148,6 +148,21 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .grp.opt{background:var(--bg);border-radius:8px;padding:10px;margin-top:8px;border-top:0}
 .grp.opt.filled{background:var(--pine-soft);box-shadow:inset 3px 0 0 var(--pine)}
 .f input.has{border-color:#9db394;background:#f6faf3}
+/* 가운데 열: 통화 중 확인 + 가격표 */
+.col-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.price-panel .psec{margin-top:10px}
+.price-panel .psec:first-child{margin-top:0}
+.price-panel .psec-t{font-size:11px;letter-spacing:.06em;font-weight:700;color:var(--muted);margin-bottom:4px}
+.ptable{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.ptable th{font-weight:500;color:var(--muted);font-size:11px;text-align:right;padding:3px 6px;border-bottom:1px solid var(--line)}
+.ptable th:first-child{text-align:left}
+.ptable td{padding:4px 6px;border-bottom:1px solid #eeeae0;text-align:right;white-space:nowrap}
+.ptable td:first-child{text-align:left;white-space:normal}
+.ptable .on{background:var(--pine-soft);color:var(--pine);font-weight:700}
+.ptable .off{color:#b3ad9f}
+.ptable .tot{color:var(--ink);font-weight:500}
+.ptable tr.pick td:first-child{font-weight:700}
+.ptable tr.pick td:first-child::before{content:"● ";color:var(--pine);font-size:9px}
 </style>
 </head>
 <body>
@@ -194,8 +209,9 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     </div>
   </section>
 
-  <!-- 확인 -->
-  <section class="panel checks">
+  <!-- 확인 + 가격표 (가운데 열) -->
+  <div class="checks col-stack">
+  <section class="panel">
     <h2>통화 중 확인</h2>
     <div class="sub-h">물어볼 것 <small class="hint" style="margin:0">받은 항목은 초록색</small></div>
     <div id="missBox"></div>
@@ -205,6 +221,14 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <div class="readback" id="readback"></div>
     <div class="row-btns" style="margin-top:8px"><button class="btn" id="copyReadBtn">복창 문구 복사</button></div>
   </section>
+
+  <!-- 가격표: 견적서 사이트 품목 목록 기준 (품목 관리에서 바꾼 가격은 열 때 다시 불러옴) -->
+  <section class="panel price-panel">
+    <h2>가격표 <small id="priceHint"></small></h2>
+    <div id="priceBox"></div>
+    <p class="hint" id="priceSrc">견적서&amp;거래명세서 사이트 품목 목록 기준 · 1인 가격(부가세 포함) · 공휴일은 주말 가격</p>
+  </section>
+  </div>
 </div>
 
 <!-- 단체상담 입력 (예약 상담 정보를 붙여넣으면 칸이 채워짐) -->
@@ -469,6 +493,7 @@ function renderSide(){
   $('#unsureBox').innerHTML = items.length ? `<ul class="chk unsure">${items.join('')}</ul>` : `<p class="hint" style="margin:0">지난 날짜, 입퇴장 시간 뒤바뀜, 사담·마방 자리 부족이면 여기에 표시합니다.</p>`;
   $('#readback').textContent = readback(rec);
   renderInfo(curInfoKey);
+  if(typeof renderPrice==='function' && window.__priceReady) renderPrice();
 }
 function readback(r){
   const p=[];
@@ -702,6 +727,85 @@ function newCall(withToast=true){
   renderContacts(); renderForm(); if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
 }
 $('#newBtn').onclick=()=>newCall();
+// ===================== 가격표 =====================
+// 견적서&거래명세서 사이트(sayuwon-invoice-quotation)의 기본 품목 목록(CATALOG_RAW) 가격을 옮겨 둠.
+// 그 사이트 '품목 관리'에서 바꾼 가격·숨김은 공유 시트에서 다시 불러와 덮어씀 (QUOTE_SHARED_URL)
+const QUOTE_SHARED_URL = "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec";
+const BASE_PRICE = {
+  '평일 관람(09:00~18:00)':50000, '주말/공휴일 관람(09:00~18:00)':69000,
+  '평일 관람(학생)':45000, '주말/공휴일 관람(학생)':62000,
+  '평일(관람, 사담 런치1부)':130000, '주말/공휴일(관람, 사담 런치1부)':149000,
+  '평일(관람, 사담 런치2부)':130000, '주말/공휴일(관람, 사담 런치2부)':149000,
+  '평일(관람, 사담 디너)':130000, '주말/공휴일(관람, 사담 디너)':149000,
+  '평일(관람, 몽몽마방 사유의 밥상)':88000, '주말/공휴일(관람, 몽몽마방 사유의 밥상)':107000,
+  '평일(관람, 사담 윈터 스페셜 다이닝 런치)':200000, '주말/공휴일(관람, 사담 윈터 스페셜 다이닝 런치)':219000,
+  '평일(사담 다이닝 썸머 스페셜 런치)':170000, '주말/공휴일(사담 다이닝 썸머 스페셜 런치)':189000,
+  '사유의 밥상(단체)':38000, '몽몽마방 단품':17000, '몽몽마방 런치':22000, '몽몽마방(식사 등)':25000,
+  '사유의 저녁: Only Dining':100000, '쉐프특선코스요리(12만) 사담':120000, '쉐프특선코스요리(30만)사담':300000, '쉐프특선코스요리(30만)몽몽마방':300000,
+  '사운드워킹':30000, '사유의 향':35000, '요가프로그램(단체)':30000, '음료쿠폰(가가빈빈)':8000, '음료쿠폰(몽몽차방)':8000,
+  '해설사도슨트(수정)':300000, '임원도슨트(수정)':1000000, '세미나':1000000, '대관':3000000,
+};
+// [묶음, 이름, 평일 품목, 주말 품목(없으면 한 가격), 1인 가격인지, 이 칸에 값이 있으면 강조]
+const PRICE_ROWS = [
+  ['관람','관람','평일 관람(09:00~18:00)','주말/공휴일 관람(09:00~18:00)',1,[]],
+  ['관람','관람 (학생)','평일 관람(학생)','주말/공휴일 관람(학생)',1,[]],
+  ['관람 + 식사','사담 런치 1부','평일(관람, 사담 런치1부)','주말/공휴일(관람, 사담 런치1부)',1,['sadam1']],
+  ['관람 + 식사','사담 런치 2부','평일(관람, 사담 런치2부)','주말/공휴일(관람, 사담 런치2부)',1,['sadam2']],
+  ['관람 + 식사','사담 디너','평일(관람, 사담 디너)','주말/공휴일(관람, 사담 디너)',1,['sadamD']],
+  ['관람 + 식사','몽몽마방 사유의 밥상','평일(관람, 몽몽마방 사유의 밥상)','주말/공휴일(관람, 몽몽마방 사유의 밥상)',1,['mabangL','mabangD']],
+  ['관람 + 식사','사담 윈터 스페셜 다이닝','평일(관람, 사담 윈터 스페셜 다이닝 런치)','주말/공휴일(관람, 사담 윈터 스페셜 다이닝 런치)',1,[]],
+  ['식사만','사담 썸머 스페셜 다이닝','평일(사담 다이닝 썸머 스페셜 런치)','주말/공휴일(사담 다이닝 썸머 스페셜 런치)',1,[]],
+  ['식사만','사유의 밥상 (단체)','사유의 밥상(단체)','',1,[]],
+  ['식사만','몽몽마방 단품','몽몽마방 단품','',1,[]],
+  ['식사만','몽몽마방 런치','몽몽마방 런치','',1,[]],
+  ['식사만','몽몽마방 (식사 등)','몽몽마방(식사 등)','',1,[]],
+  ['식사만','사유의 저녁: Only Dining','사유의 저녁: Only Dining','',1,[]],
+  ['식사만','쉐프 특선 코스 · 사담 12만','쉐프특선코스요리(12만) 사담','',1,[]],
+  ['식사만','쉐프 특선 코스 · 사담 30만','쉐프특선코스요리(30만)사담','',1,[]],
+  ['식사만','쉐프 특선 코스 · 몽몽마방 30만','쉐프특선코스요리(30만)몽몽마방','',1,[]],
+  ['단체 프로그램 (1인)','사운드워킹','사운드워킹','',1,[]],
+  ['단체 프로그램 (1인)','사유의 향','사유의 향','',1,[]],
+  ['단체 프로그램 (1인)','요가 프로그램','요가프로그램(단체)','',1,['yoga']],
+  ['단체 프로그램 (1인)','음료 쿠폰 (가가빈빈)','음료쿠폰(가가빈빈)','',1,['gaga']],
+  ['단체 프로그램 (1인)','음료 쿠폰 (몽몽차방)','음료쿠폰(몽몽차방)','',1,[]],
+  ['단체 프로그램 (회당)','해설사 도슨트','해설사도슨트(수정)','',0,['chabang','donghaeng','dangdu']],
+  ['단체 프로그램 (회당)','임원 도슨트','임원도슨트(수정)','',0,[]],
+  ['단체 프로그램 (회당)','세미나','세미나','',0,[]],
+  ['단체 프로그램 (회당)','대관','대관','',0,[]],
+];
+let priceEdits = readJSON('sayuwon_quote_edits', {}), priceLoaded = null;
+const priceOf = src => { if(!src) return null; const e=priceEdits[src]; if(e && e.hidden) return undefined; return e && e.price!=null ? Number(e.price) : BASE_PRICE[src]; };
+const won = n => n==null ? '-' : n.toLocaleString('ko-KR');
+async function loadQuotePrices(){
+  try{
+    const j = await (await fetch(QUOTE_SHARED_URL)).json();
+    priceEdits = (j && j.data && j.data.edits) || {}; writeJSON('sayuwon_quote_edits', priceEdits); priceLoaded = new Date();
+  }catch(_){ priceLoaded = false; }
+  renderPrice();
+}
+function renderPrice(){
+  const box=$('#priceBox'); if(!box) return;
+  let day=null; if(rec.date){ const d=new Date(rec.date+'T00:00'); if(!isNaN(d)) day = (d.getDay()===0||d.getDay()===6) ? 'we' : 'wd'; }
+  const n = numOf(rec.people);
+  $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?'주말':'평일'} 가격${n?` · ${n}명 합계`:''}` : '방문일을 넣으면 평일/주말 가격과 합계가 표시됩니다';
+  let html='', sec='';
+  PRICE_ROWS.forEach(([s,name,wdSrc,weSrc,per,keys])=>{
+    const wd=priceOf(wdSrc), we=weSrc?priceOf(weSrc):null;
+    if(wd===undefined || we===undefined) return;   // 품목 관리에서 숨긴 품목
+    if(s!==sec){ if(sec) html+='</tbody></table></div>'; sec=s;
+      html+=`<div class="psec"><div class="psec-t">${s}</div><table class="ptable"><thead><tr><th>항목</th><th>평일</th><th>주말</th>${n&&day?'<th>합계</th>':''}</tr></thead><tbody>`; }
+    const pick = keys.some(k=>rec[k]);
+    const one = !weSrc;
+    const cls = side => one||!day ? '' : day===side ? 'on' : 'off';
+    const use = one ? wd : day==='we' ? we : wd;
+    const tot = n && day && per ? won(use*n) : '';
+    html += `<tr class="${pick?'pick':''}"><td>${name}</td>${one?`<td colspan="2" class="${day?'on':''}">${won(wd)}${per?'':' (회)'}</td>`:`<td class="${cls('wd')}">${won(wd)}</td><td class="${cls('we')}">${won(we)}</td>`}${n&&day?`<td class="tot">${tot}</td>`:''}</tr>`;
+  });
+  if(sec) html+='</tbody></table></div>';
+  box.innerHTML = html;
+  $('#priceSrc').textContent = '견적서&거래명세서 사이트 품목 목록 기준 · 부가세 포함 · 공휴일은 주말 가격' + (priceLoaded===false ? ' · 품목 관리 변경 내용을 불러오지 못해 기본 가격으로 표시' : '');
+}
+
 // ===================== 단체상담 입력: "항목<탭>값" 줄을 칸으로 =====================
 // 머리말이 달라도 알아듣도록 비슷한 이름을 같이 둔다. 모르는 항목은 통화 메모에 "항목: 값" 으로 남김
 const CONSULT_KEYS = [
@@ -777,6 +881,8 @@ document.addEventListener('keydown', e=>{
 resetState(); buildForm(); renderForm();
 paintSync(); renderList();
 if(SHARED_URL) flush();
+window.__priceReady=true; renderPrice(); loadQuotePrices();   // 가격표: 바로 그리고, 품목 관리 변경분을 불러와 다시 그림
+window.addEventListener('focus', ()=>{ if(priceLoaded && Date.now()-priceLoaded>10*60000) loadQuotePrices(); });
 $('#memoBox').focus();
 
 // ===================== 칸별 한글/영어 입력 (견적서 사이트 방식) =====================
