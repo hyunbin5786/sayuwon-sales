@@ -27,10 +27,10 @@ header .me input:focus{outline:none;background:rgba(255,255,255,.22);border-colo
 header .me.empty input{border-color:#f5c26b;box-shadow:0 0 0 1px #f5c26b inset}
 .hist{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
 .hist-t{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
-.hist ul{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto;font-size:12.5px}
-.hist li{padding:5px 0;border-bottom:1px dashed var(--line);line-height:1.5}
-.hist li time{font-variant-numeric:tabular-nums;color:var(--muted);margin-right:6px}
-.hist li b{color:var(--pine);margin-right:6px}
+.hist-list{list-style:none;margin:0;padding:0;max-height:420px;overflow:auto;font-size:12.5px}
+.hist-list li{padding:5px 0;border-bottom:1px dashed var(--line);line-height:1.5}
+.hist-list li time{font-variant-numeric:tabular-nums;color:var(--muted);margin-right:6px}
+.hist-list li b{color:var(--pine);margin-right:6px}
 header .timer{margin-left:auto;font-size:13px;font-variant-numeric:tabular-nums;opacity:.9}
 header .keys{font-size:11px;opacity:.75}
 .ko-toggle{width:30px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:transparent;color:#f3f1ec;font:700 13px var(--sans);cursor:pointer}
@@ -58,7 +58,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .btn kbd{font:11px ui-monospace,Consolas,monospace;opacity:.7;margin-left:4px}
 .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--pine);outline-offset:1px}
 .row-btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.memo-wrap{position:sticky;top:12px}
+.memo-wrap{}
 #memoBox{width:100%;min-height:min(58vh,520px);resize:vertical;border:1px solid var(--line);border-radius:8px;padding:12px;font:15px/1.7 var(--sans);background:#fff;color:var(--ink)}
 #memoBox:focus{border-color:var(--pine)}
 .hint{font-size:12px;color:var(--muted);margin:8px 0 0}
@@ -83,6 +83,9 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .f input,.vrow select{height:36px;box-sizing:border-box}   /* 모든 칸을 방문일 칸 높이(36px)에 맞춤 */
 .f select{width:100%;height:36px;border:1px solid var(--line);border-radius:6px;padding:5px 6px;font:13.5px var(--sans);background:#fff;color:var(--ink)}
 .f input{width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13.5px var(--sans);background:#fff;color:var(--ink);min-width:0}
+.f input[type=checkbox]{width:15px;height:15px;padding:0;margin:0;border:0;flex:none;accent-color:var(--amber);cursor:pointer}
+.f input.has[type=checkbox]{background:none}
+.ckf:has(input:disabled){opacity:.45;cursor:not-allowed;background:var(--bg)}
 .f.req label::after{content:" *";color:var(--red)}
 .f.auto input{background:var(--fill)}
 .f.unsure input{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
@@ -187,7 +190,10 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .tbd-date input{height:30px;width:auto}
 /* 목록 창 */
 .list-btn{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#f3f1ec;border-radius:7px;padding:4px 12px;font:500 13px var(--sans);cursor:pointer;display:flex;gap:6px;align-items:center}
-.list-btn:hover{background:rgba(255,255,255,.2)}
+.new-btn{border:0;background:#fff;color:var(--pine);border-radius:7px;padding:5px 14px;font:700 14px var(--sans);cursor:pointer;display:flex;gap:6px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.new-btn:hover{background:#f3f7ef}
+.new-btn kbd{font:500 11px var(--sans);color:var(--muted);background:var(--bg);border-radius:4px;padding:1px 5px}
+&background:rgba(255,255,255,.2)}
 .modal{position:fixed;inset:0;z-index:20;background:rgba(30,30,25,.45);display:flex;align-items:flex-start;justify-content:center;padding:calc(40px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
 .modal .consult{margin:0;width:min(640px,100%)}
 .modal .consult textarea{width:100%;min-height:340px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:10px;font:14px/1.6 var(--sans);background:#fff;color:var(--ink);tab-size:8}
@@ -259,6 +265,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <label class="me" for="f_owner">영업 담당 <input id="f_owner" data-k="owner" data-ime="ko" list="owners" placeholder="이름" autocomplete="off"></label>
   <datalist id="owners"><option>이상운</option><option>혜린</option></datalist>
   <span class="timer" id="timer"></span>
+  <button type="button" class="new-btn" id="newBtn">＋ 새 통화 <kbd>Alt+N</kbd></button>
   <button type="button" class="list-btn" id="consultOpenBtn">단체상담 입력</button>
   <button type="button" class="list-btn" id="listOpenBtn">단체예약 목록 <span id="listCount"></span><span class="tag call" id="callCount" hidden></span></button>
   <span class="sync" id="syncChip"></span>
@@ -273,7 +280,8 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 
 <div class="layout">
   <!-- 통화 메모 -->
-  <section class="panel memo-col">
+  <div class="memo-col col-stack">
+  <section class="panel">
     <div class="memo-wrap">
       <h2>추후 과업 <small>체크리스트 · 과업마다 메모</small></h2>
       <ul class="tasks" id="taskList"></ul>
@@ -282,6 +290,11 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
       <div class="status" id="status"></div>
     </div>
   </section>
+  <section class="panel hist-panel" id="histWrap" hidden>
+    <h2>수정 기록 <small>언제 · 누가 · 무엇을</small></h2>
+    <ul class="hist-list" id="histBox"></ul>
+  </section>
+  </div>
 
   <!-- 예약 칸 -->
   <section class="panel form-col">
@@ -300,9 +313,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
       <button class="btn primary" id="saveBtn">저장<kbd>Ctrl+S</kbd></button>
       <button class="btn" id="quoteBtn">견적서 발급</button>
       <button class="btn" id="copyTextBtn">내용 텍스트 복사</button>
-      <button class="btn" id="newBtn">새 통화<kbd>Alt+N</kbd></button>
     </div>
-    <div class="hist" id="histWrap" hidden><div class="hist-t">수정 기록</div><ul id="histBox"></ul></div>
     <div class="memo-in">
       <h2>통화 메모 <small>칸에 없는 특이사항 · 전산 비고에도 들어갑니다</small></h2>
       <textarea id="memoBox" placeholder="예)
@@ -462,7 +473,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 입력 기한'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청']];
 const GATES = ['치허문','곡신문','미정'];
-const CHECKS = { pchg:'인원 변경 가능성 있음', onsite:'현장에서 카드 재결제', wantQuote:'견적서 요청', wantStmt:'거래명세서 요청' };
+const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
 const TBD_KEYS = [['org','업체'],['date','방문일'],['people','관람 인원'],['tin','입장'],['vehicle','차량 대수']];
 const tbdSet = r => { const names=String(r?.tbd||'').split(/\s*,\s*/); return new Set(TBD_KEYS.filter(([,l])=>names.includes(l)).map(([k])=>k)); };
@@ -613,6 +624,10 @@ function paintFields(changed=[]){
     if(OPT[GROUP_OF[k]]) el.classList.toggle('has', !!v);
   });
   const ts=tbdSet(rec); document.querySelectorAll('[data-tbd]').forEach(b=>{ const on=ts.has(b.dataset.tbd); b.checked=on; });
+  // 현장 재결제는 결제링크일 때만 (현장 결제는 원래 현장에서 하므로 해당 없음)
+  const os=document.getElementById('f_onsite');
+  if(os){ const ok=rec.pay==='결제링크'; os.disabled=!ok; os.closest('.ckf').title = ok ? '' : '결제 방식이 결제링크일 때만 체크할 수 있습니다';
+    if(!ok && rec.onsite){ rec.onsite=''; os.checked=false; } }
   const pc=document.getElementById('w_payContact'); if(pc) pc.hidden = rec.pay!=='미정';
   paintOpt();
 }
@@ -747,7 +762,7 @@ function fieldWarnings(r){
   if(r.date && r.tbdDate && r.tbdDate>r.date) w.push({field:'tbdDate', reason:'미정 항목 입력 기한이 방문일보다 늦습니다.'});
   if(typeof SPECIAL!=='undefined') specialCounts(r).forEach(s=>w.push({field:s.k, reason:`${s.n}명 ${s.name} 할인 → 방문 때 ${s.proof} 지참을 안내하세요.`}));
   if(r.date && r.pay==='미정' && r.payContact && r.payContact>r.date) w.push({field:'payContact', reason:'결제 연락 예정일이 방문일보다 늦습니다.'});
-  if(typeof effStage==='function'){ const s=effStage(r); if(s!=='상담' && !r.erp) w.push({field:'stage', reason:`${s}은 사유원 전산에 등록해야 합니다. 등록한 뒤 '전산 등록 완료'를 체크하세요.`}); if(r.stage==='공식예약' && (!r.pay || r.pay==='미정')) w.push({field:'stage', reason:'결제 방식이 정해져야 공식예약입니다. 결제를 확인하세요.'}); }
+  if(typeof effStage==='function'){ const s=effStage(r); if(s!=='상담' && !r.erp) w.push({field:'stage', reason:`${s}은 사유원 전산에 등록해야 합니다. 등록한 뒤 추후 과업의 '전산 예약'을 체크하세요.`}); if(r.stage==='공식예약' && (!r.pay || r.pay==='미정')) w.push({field:'stage', reason:'결제 방식이 정해져야 공식예약입니다. 결제를 확인하세요.'}); }
   const day = adminData && adminData.days && adminData.days[r.date];
   if(day) Object.entries(ADMIN_SLOT).forEach(([k,[slot,name]])=>{
     const s=day[slot], want=numOf(r[k]); if(!s || !want) return;
@@ -773,10 +788,39 @@ function tick(){ if(!startedAt){ $('#timer').textContent=''; return; } const s=M
 // ===================== 복사 =====================
 function toast(s){ const t=$('#toast'); t.textContent=s; t.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(()=>t.classList.remove('on'),1800); }
 async function copy(text,msg){ try{ await navigator.clipboard.writeText(text); }catch(_){ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } toast(msg); }
-$('#copyTextBtn').onclick=()=>copy([
-  ...FIELDS.filter(f=>rec[f[1]]).map(f=>`${LABEL[f[1]]}: ${rec[f[1]]}`),
-  ...contactsOf(rec).map((c,i)=>`담당자${i?i+1:''}: ${[c.name,c.phone,c.email].filter(Boolean).join(' / ')}`)
-].join('\n'),'내용을 복사했습니다.');
+// 카카오톡 보고용: 기록된 예약 정보를 모두
+function reportText(r){
+  const cnt = v => /^\d+(\+\d+)*$/.test(String(v)) ? `${v}명` : v;
+  const grpLine = g => FIELDS.filter(f=>f[0]===g && r[f[1]]).map(f=>`${f[2]} ${cnt(r[f[1]])}`).join(', ');
+  const L=[`[단체예약 보고] ${r.org||'(단체명 미정)'}`, ''];
+  const add=(k,v)=>{ if(v) L.push(`- ${k}: ${v}`); };
+  const st=effStage(r), erpT=tasks.find(t=>t.id==='erp');
+  add('예약 단계', st + (st!=='상담' ? (r.erp ? ' (전산 등록 완료)' : ' (전산 미등록)') : ''));
+  add('방문일', r.date ? `${dateLabel(r.date)}` : '');
+  add('인원', [r.people && cnt(r.people), r.pchg && '인원 변경 가능성 있음'].filter(Boolean).join(' · '));
+  add('입장', [r.tin, r.gate].filter(Boolean).join(' ') + (r.tout ? ` ~ 퇴장 ${r.tout}` : ''));
+  add('차량', r.vehicle);
+  contactsOf(r).forEach((c,i)=>add(`담당자${i?i+1:''}`, [c.name,c.phone,c.email].filter(Boolean).join(' / ')));
+  add('사담 식사', grpLine('사담'));
+  add('몽몽마방 식사', grpLine('몽몽마방'));
+  add('프로그램', grpLine('프로그램'));
+  add('결제', r.pay ? r.pay + (r.pay==='미정' && r.payContact ? ` (${mdLabel(r.payContact)} 연락 예정)` : '') + (r.onsite ? ' · 현장 카드 재결제' : '') : '');
+  const sp = typeof SPECIAL!=='undefined' ? specialCounts(r) : [];
+  add('특별 할인', sp.map(s=>`${s.short} ${s.n}명(${s.rate===1?'무료':Math.round(s.rate*100)+'%'})`).join(', '));
+  const m = moneySplit(r);
+  if(m) add('예상 금액', `${won(m.saw+m.shilla)}원 (사유원 ${won(m.saw)}원 · 신라 ${won(m.shilla)}원)${m.missing?' · 견적서 품목에 없는 항목 제외':''}`);
+  add('서류 요청', [r.wantQuote&&'견적서', r.wantStmt&&'거래명세서'].filter(Boolean).join(', '));
+  add('미정 항목', r.tbd ? r.tbd + (r.tbdDate ? ` (${mdLabel(r.tbdDate)}까지)` : '') : '');
+  const ml = memoLines(); if(ml.length){ L.push('- 통화 메모:'); ml.forEach(x=>L.push(`  · ${x}`)); }
+  const open = tasks.filter(t=>!t.done).map(t=>t.title);
+  add('남은 과업', open.join(', '));
+  add('영업 담당', r.owner || savedOwner());
+  return L.join('\n');
+}
+$('#copyTextBtn').onclick=()=>{
+  if(!rec.org && !rec.date){ toast('업체나 방문일을 먼저 입력하세요.'); return; }
+  copy(reportText(rec),'보고용 내용을 복사했습니다. 카카오톡에 붙여넣으세요.');
+};
 $('#copyReadBtn').onclick=()=>copy($('#readback').textContent,'확인 문구를 복사했습니다.');
 
 // ===================== 저장: 구글 시트(Apps Script) → 주소가 비어 있으면 이 브라우저 =====================
