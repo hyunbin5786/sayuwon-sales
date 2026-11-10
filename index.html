@@ -86,8 +86,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .chk{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .chk li{border-radius:7px;padding:8px 10px;font-size:13px}
 .chk.miss{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px}
-.chk.miss li{background:var(--red-soft);cursor:pointer;padding:6px 8px;text-align:center}
-.chk.miss li:hover{outline:1px solid var(--red)}
+.chk.miss li{background:var(--red-soft);padding:6px 8px;text-align:center}
 .chk.miss li b{color:var(--red)}
 .chk.unsure li{background:var(--amber-soft)}
 .chk.unsure li b{color:var(--amber)}
@@ -128,6 +127,28 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .tag.call{background:var(--red-soft);color:var(--red)}
 .list h2 .row-btns{margin-left:auto}
 .f.hot input{border-color:var(--pine);box-shadow:0 0 0 1px var(--pine) inset}
+/* 물어볼 것: 받은 항목은 초록 */
+.chk.miss li.got{background:var(--pine-soft)}
+.chk.miss li.got b{color:var(--pine)}
+/* 목록 창 */
+.list-btn{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#f3f1ec;border-radius:7px;padding:4px 12px;font:500 13px var(--sans);cursor:pointer;display:flex;gap:6px;align-items:center}
+.list-btn:hover{background:rgba(255,255,255,.2)}
+.modal{position:fixed;inset:0;z-index:20;background:rgba(30,30,25,.45);display:flex;align-items:flex-start;justify-content:center;padding:calc(40px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
+.modal .list{margin:0;width:min(1200px,100%);max-height:calc(100vh - 80px);display:flex;flex-direction:column}
+.modal .list .tw{overflow:auto;flex:1;min-height:0}
+.modal .list h2{flex-wrap:wrap}
+/* 사담·마방·프로그램 접기 */
+.opt-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.opt-btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:9px 10px;font:500 13.5px var(--sans);color:var(--ink);cursor:pointer;text-align:left;display:flex;justify-content:space-between;gap:6px;align-items:center}
+.opt-btn small{color:var(--muted);font-weight:400;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opt-btn::after{content:"▾";color:var(--muted)}
+.opt-btn[aria-expanded="true"]::after{content:"▴"}
+.opt-btn.filled{background:var(--pine);border-color:var(--pine);color:#fff}
+.opt-btn.filled small,.opt-btn.filled::after{color:#dfe8da}
+.opt-btn[aria-expanded="true"]:not(.filled){border-color:var(--pine)}
+.grp.opt{background:var(--bg);border-radius:8px;padding:10px;margin-top:8px;border-top:0}
+.grp.opt.filled{background:var(--pine-soft);box-shadow:inset 3px 0 0 var(--pine)}
+.f input.has{border-color:#9db394;background:#f6faf3}
 </style>
 </head>
 <body>
@@ -135,6 +156,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <h1>思惟園 예약 접수 도우미</h1>
   <button type="button" class="ko-toggle on" id="ko-toggle" aria-pressed="true">한</button>
   <span class="timer" id="timer"></span>
+  <button type="button" class="list-btn" id="listOpenBtn">단체예약 목록 <span id="listCount"></span><span class="tag call" id="callCount" hidden></span></button>
   <span class="sync" id="syncChip"></span>
   <span class="keys">Ctrl+S 저장 · Alt+N 새 통화</span>
 </header>
@@ -149,16 +171,12 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <!-- 통화 메모 -->
   <section class="panel memo-col">
     <div class="memo-wrap">
-      <h2>통화 메모 <small>들리는 대로 대충 치면 예약 칸이 채워집니다</small></h2>
+      <h2>통화 메모 <small>칸에 없는 특이사항을 적어 두세요</small></h2>
       <textarea id="memoBox" placeholder="예)
-수성구청 문화예술과 김민정 주무관
-12/4 목 35명 정도
-10:30~15시 대형버스1
-마방 점심 비빔밥, 동행 해설
-010 1234 5678 / 카드 결제
-
-※ 신청란·메일 내용을 그대로 붙여넣어도 됩니다."></textarea>
-      <div class="ex">줄여 써도 됩니다: <code>12/4</code> <code>다음주 목</code> <code>35명</code> <code>10:30~15</code> <code>버스1</code> <code>사담1부</code> <code>마방 비빔밥</code> <code>차방·동행·당두</code> <code>이체/카드/현장</code></div>
+휠체어 이용 2명
+대표님 동행, 도착 전 연락 요청
+해설은 건축 위주로 부탁
+견적서 금요일까지 필요"></textarea>
       <div class="row-btns" style="margin-top:10px">
         <button class="btn" id="clearMemoBtn">메모 지우기</button>
       </div>
@@ -168,7 +186,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 
   <!-- 예약 칸 -->
   <section class="panel form-col">
-    <h2>예약 내용 <small>노란색 = 메모에서 자동 입력 · 직접 고친 칸은 그대로 유지</small></h2>
+    <h2>예약 내용</h2>
     <form id="form" autocomplete="off"></form>
     <div class="excel" id="excelPreview"></div>
     <div class="row-btns" style="margin-top:10px">
@@ -183,7 +201,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <!-- 확인 -->
   <section class="panel checks">
     <h2>통화 중 확인</h2>
-    <div class="sub-h">아직 안 물어본 것 <small class="hint" style="margin:0">누르면 해당 칸으로 이동</small></div>
+    <div class="sub-h">물어볼 것 <small class="hint" style="margin:0">받은 항목은 초록색</small></div>
     <div id="missBox"></div>
     <div class="sub-h">다시 확인할 것</div>
     <div id="unsureBox"></div>
@@ -193,12 +211,15 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   </section>
 </div>
 
-<section class="list panel">
-  <h2>단체예약 목록 <small id="storeHint"></small> <span class="tag call" id="callCount" hidden></span>
-    <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn" id="adminSyncBtn" style="padding:4px 10px;font-size:12px">관리자 사이트에서 지금 가져오기</button></span></h2>
-  <div class="tw"><table><thead><tr><th>방문일</th><th>업체</th><th>담당자</th><th>연락처</th><th>인원</th><th>입퇴장</th><th>식사</th><th>영업 담당</th><th>접수</th><th></th></tr></thead><tbody id="listBody"></tbody></table></div>
-  <div class="row-btns" style="margin-top:10px"><button class="btn" id="copyAllBtn">전체 엑셀 행 복사</button></div>
-</section>
+<!-- 단체예약 목록 (위쪽 버튼으로 여는 창) -->
+<div class="modal" id="listModal" hidden>
+  <section class="list panel" role="dialog" aria-modal="true" aria-labelledby="listTitle">
+    <h2><span id="listTitle">단체예약 목록</span> <small id="storeHint"></small>
+      <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn" id="adminSyncBtn" style="padding:4px 10px;font-size:12px">관리자 사이트에서 지금 가져오기</button><button type="button" class="btn" id="listCloseBtn" style="padding:4px 10px;font-size:12px">닫기 (Esc)</button></span></h2>
+    <div class="tw"><table><thead><tr><th>방문일</th><th>업체</th><th>담당자</th><th>연락처</th><th>인원</th><th>입퇴장</th><th>식사</th><th>영업 담당</th><th>접수</th><th></th></tr></thead><tbody id="listBody"></tbody></table></div>
+    <div class="row-btns" style="margin-top:10px"><button class="btn" id="copyAllBtn">전체 엑셀 행 복사</button></div>
+  </section>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -234,7 +255,9 @@ const FIELDS = [
 // 담당자(여러 명): c0_name, c0_phone, c0_email, c1_name …
 const CFIELDS = [['name','담당자 성함','담당자분 성함이 어떻게 되세요?'],['phone','연락처','연락 가능한 번호 하나 남겨주시겠어요?'],['email','이메일','견적서 받으실 이메일 주소 알려주시겠어요?']];
 const KEYS = FIELDS.map(f=>f[1]);
-const INFO_GROUPS = { '몽몽마방':'meal', '프로그램':'prog' };   // 이 묶음 아래에 그날 예약 현황
+// 처음엔 접어 두고 버튼으로 펼치는 묶음 (각 묶음 아래에 그날 예약 현황)
+const OPT = { '사담':{id:'sadam', title:'사담 식사'}, '몽몽마방':{id:'mabang', title:'몽몽마방 식사'}, '프로그램':{id:'prog', title:'프로그램'} };
+let optOpen = new Set();
 const GROUP_OF = Object.fromEntries(FIELDS.map(f=>[f[1], f[0]]));
 const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1], ['사담','몽몽마방'].includes(f[0]) ? `${f[0]} ${f[2]}` : f[2]]));
 CFIELDS.forEach(([f,l])=>{ for(let i=0;i<10;i++) LABEL[`c${i}_${f}`]= i? `${l}(${i+1})` : l; });
@@ -247,11 +270,11 @@ const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-$
 const isCKey = k => /^c\d+_(name|phone|email)$/.test(k);
 
 // ===================== 상태 =====================
-let rec, touched, ruleOwned, ruleUnsure, startedAt, editingId, nContacts;
+let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
 function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); return o; }
-function resetState(){ rec=blank(); touched=new Set(['owner']); ruleOwned=new Set(); ruleUnsure=[]; startedAt=null; editingId=null; nContacts=1; }
+function resetState(){ rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
 function contactsOf(r){
   const out=[]; for(let i=0;i<nContactsOf(r);i++){ const c={name:r[`c${i}_name`]||'',phone:r[`c${i}_phone`]||'',email:r[`c${i}_email`]||''}; if(c.name||c.phone||c.email) out.push(c); } return out;
 }
@@ -287,13 +310,17 @@ function fieldHTML(k,label,col,cls,req){
 function buildForm(){
   const req=new Set(REQUIRED().map(r=>r[0]));
   let html='', g='';
-  const close=()=>{ if(!g) return; html+='</div>'; if(INFO_GROUPS[g]) html+=`<div class="dayinfo" id="info_${INFO_GROUPS[g]}"></div>`; html+='</div>'; };
+  const close=()=>{ if(!g) return; html+='</div>'; if(OPT[g]) html+=`<div class="dayinfo" id="info_${OPT[g].id}"></div>`; html+='</div>'; };
   FIELDS.forEach(([grp,k,label,col,cls])=>{
     if(grp!==g){
       close();
-      const sub = grp==='사담'||grp==='몽몽마방' ? ' · 식사' : '';
-      html+=`<div class="grp" data-grp="${grp}"><div class="grp-t"><span>${grp}${sub}</span></div><div class="fields">`; g=grp;
-      if(grp==='방문') { /* 담당자 묶음은 기본 다음 */ }
+      if(OPT[grp] && !Object.keys(OPT).some(x=>x===g)){   // 첫 접는 묶음 앞에 버튼 3개
+        html+=`<div class="opt-bar">${Object.values(OPT).map(o=>`<button type="button" class="opt-btn" data-opt="${o.id}" aria-expanded="false"><span>${o.title}</span><small id="optsum_${o.id}"></small></button>`).join('')}</div>`;
+      }
+      html+= OPT[grp]
+        ? `<div class="grp opt" id="opt_${OPT[grp].id}" hidden><div class="grp-t"><span>${OPT[grp].title}</span></div><div class="fields">`
+        : `<div class="grp" data-grp="${grp}"><div class="grp-t"><span>${grp}</span></div><div class="fields">`;
+      g=grp;
     }
     html += fieldHTML(k,label,col,cls,req.has(k));
     if(k==='people') html += `</div></div><div class="grp" data-grp="담당자"><div class="grp-t"><span>담당자</span><span class="hint" style="margin:0">여러 명이면 추가</span></div><div class="contacts" id="contacts"></div><button type="button" class="btn addc" id="addContact">+ 담당자 추가</button>` + `<div class="fields" hidden>`;
@@ -301,17 +328,19 @@ function buildForm(){
   close();
   $('#form').innerHTML = html + '<datalist id="owners"><option>이상운</option><option>혜린</option></datalist>';
   // 사담 줄은 4칸 중 3칸만 쓰므로 빈 칸 하나
+  document.querySelectorAll('.opt-btn').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.opt; optOpen.has(id) ? optOpen.delete(id) : optOpen.add(id); paintOpt();
+    if(optOpen.has(id)) document.querySelector(`#opt_${id} input`)?.focus();
+  });
   $('#addContact').onclick=()=>{ nContacts++; renderContacts(); document.getElementById(`f_c${nContacts-1}_name`).focus(); };
   $('#form').addEventListener('input', e=>{
     const k=e.target.dataset.k; if(!k) return;
     if(NUM_ONLY[k] && e.target.tagName==='INPUT' && !e.isComposing){ const c=e.target.value.replace(NUM_ONLY[k],''); if(c!==e.target.value){ const p=e.target.selectionStart-(e.target.value.length-c.length); e.target.value=c; try{ e.target.setSelectionRange(p,p); }catch(_){} } }
     rec[k]= k==='vehicle' ? vehJoin($('#f_vtype').value, $('#f_vehicle').value) : e.target.value;
-    touched.add(k); ruleOwned.delete(k);
-    ruleUnsure=ruleUnsure.filter(u=>u.field!==k);
-    document.getElementById('w_'+k)?.classList.remove('auto');
+    touched.add(k);
     if(k==='owner'){ try{ localStorage.setItem('sayuwon_owner', e.target.value); }catch(_){} }
     if(k==='date') renderInfo();
-    startTimer(); renderSide();
+    startTimer(); paintFields(); renderSide();
   });
   $('#form').addEventListener('click', e=>{
     const x=e.target.closest('.x'); if(!x) return;
@@ -350,9 +379,26 @@ function paintFields(changed=[]){
     if(k==='vehicle'){ const p=vehParts(v); if(document.activeElement!==el && el.value!==p.n) el.value=p.n; if(p.t && document.activeElement!==$('#f_vtype')) $('#f_vtype').value=p.t; }
     else if(el.value!==v && document.activeElement!==el) el.value=v;
     const w=document.getElementById('w_'+k);
-    w.classList.toggle('unsure', ruleUnsure.some(u=>u.field===k));
+    w.classList.toggle('unsure', fieldWarnings(rec).some(u=>u.field===k));
     w.classList.toggle('missing', req.has(k) && !v);
-    w.classList.toggle('auto', !touched.has(k) && !!v);
+    if(OPT[GROUP_OF[k]]) el.classList.toggle('has', !!v);
+  });
+  paintOpt();
+}
+// 접는 묶음: 값이 있으면 버튼·묶음을 초록으로, 버튼에 입력 내용 요약
+function paintOpt(){
+  Object.entries(OPT).forEach(([grp,o])=>{
+    const keys=FIELDS.filter(f=>f[0]===grp).map(f=>f[1]);
+    const filled=keys.filter(k=>rec[k]);
+    const sum=filled.map(k=>{ const v=rec[k]; return `${FIELDS.find(f=>f[1]===k)[2]} ${/^\d+(\+\d+)*$/.test(v)?v+'명':v}`; }).join(' · ');
+    const b=document.querySelector(`.opt-btn[data-opt="${o.id}"]`), box=document.getElementById('opt_'+o.id);
+    if(!b||!box) return;
+    b.classList.toggle('filled', filled.length>0);
+    b.setAttribute('aria-expanded', optOpen.has(o.id)?'true':'false');
+    document.getElementById('optsum_'+o.id).textContent = sum || '없음';
+    b.title = sum || `${o.title} 입력 없음 · 누르면 펼침`;
+    box.hidden = !optOpen.has(o.id);
+    box.classList.toggle('filled', filled.length>0);
   });
 }
 function renderForm(changed=[]){
@@ -372,11 +418,12 @@ function excelRow(r){
 function renderSide(){
   const row=excelRow(rec);
   $('#excelPreview').innerHTML = `<table><tr><th>B·C</th>${EXCEL_COLS.map(c=>`<th>${c} ${EXCEL_HEAD[c]}</th>`).join('')}</tr><tr><td>${dateLabel(rec.date)}</td>${row.map(v=>`<td>${esc(v)}</td>`).join('')}</tr></table>`;
-  const miss = REQUIRED().filter(([k])=>!rec[k]);
-  $('#missBox').innerHTML = miss.length ? `<ul class="chk miss">${miss.map(([k,l,q])=>`<li data-go="${k}" title="${q}"><b>${l}</b></li>`).join('')}</ul>` : `<div class="done-all">필수 정보를 모두 받았습니다. 복창하고 저장하세요.</div>`;
-  document.querySelectorAll('#missBox li[data-go]').forEach(li=>li.onclick=()=>document.getElementById('f_'+li.dataset.go).focus());
-  const items = ruleUnsure.map(u=>`<li><b>${LABEL[u.field]||u.field}</b> ${esc(rec[u.field]||'')}<span class="q">${esc(u.reason)}</span></li>`);
-  $('#unsureBox').innerHTML = items.length ? `<ul class="chk unsure">${items.join('')}</ul>` : `<p class="hint" style="margin:0">날짜·요일이 안 맞거나 인원이 대략이면 여기에 표시합니다.</p>`;
+  const req = REQUIRED(), miss = req.filter(([k])=>!rec[k]);
+  // 물어볼 것: 전부 보여 주고, 받은 항목은 초록색
+  $('#missBox').innerHTML = `<ul class="chk miss">${req.map(([k,l,q])=>`<li class="${rec[k]?'got':''}" title="${q}"><b>${l}</b></li>`).join('')}</ul>`
+    + (miss.length ? '' : `<div class="done-all" style="margin-top:6px">필수 정보를 모두 받았습니다. 복창하고 저장하세요.</div>`);
+  const items = fieldWarnings(rec).map(u=>`<li><b>${LABEL[u.field]||u.field}</b> ${esc(rec[u.field]||'')}<span class="q">${esc(u.reason)}</span></li>`);
+  $('#unsureBox').innerHTML = items.length ? `<ul class="chk unsure">${items.join('')}</ul>` : `<p class="hint" style="margin:0">지난 날짜, 입퇴장 시간 뒤바뀜, 사담·마방 자리 부족이면 여기에 표시합니다.</p>`;
   $('#readback').textContent = readback(rec);
   renderInfo(curInfoKey);
 }
@@ -402,7 +449,7 @@ function readback(r){
 }
 
 // ===================== 그날 예약 현황 (식사·프로그램) =====================
-const INFO_OF = k => GROUP_OF[k]==='사담'||GROUP_OF[k]==='몽몽마방' ? 'meal' : GROUP_OF[k]==='프로그램' ? 'prog' : null;
+const INFO_OF = k => OPT[GROUP_OF[k]]?.id || null;   // sadam · mabang · prog
 let curInfoKey = null;
 const numOf = v => { const s=String(v||'').trim(); return /^\d+(\s*\+\s*\d+)*\s*명?$/.test(s) ? s.match(/\d+/g).reduce((a,x)=>a+(+x),0) : 0; };   // 인원만 더함 (10:30 같은 시간은 제외)
 function sameDay(){ return cache.filter(r=>r.date===rec.date && r.id!==editingId); }
@@ -424,7 +471,7 @@ function renderInfo(k){
   curInfoKey = k || null;
   document.querySelectorAll('#form .f.hot').forEach(w=>w.classList.remove('hot'));
   if(k) document.getElementById('w_'+k)?.classList.add('hot');
-  ['meal','prog'].forEach(box=>{
+  Object.values(OPT).map(o=>o.id).forEach(box=>{
     const el=document.getElementById('info_'+box); if(!el) return;
     if(!rec.date){ el.innerHTML='<span class="none">방문일을 넣으면 그날 예약 현황이 여기에 보입니다.</span>'; return; }
     const day=sameDay(); const keys=FIELDS.filter(f=>INFO_OF(f[1])===box && f[1]!=='mabangMenu').map(f=>f[1]);
@@ -436,123 +483,31 @@ function renderInfo(k){
         + adminLine([k]);
     } else {
       const parts=keys.map(key=>{ const hits=day.filter(r=>r[key]); if(!hits.length) return ''; const tot=hits.reduce((s,r)=>s+numOf(r[key]),0); return `${LABEL[key]} ${hits.length}건${tot?`(${tot}명)`:''}`; }).filter(Boolean);
-      el.innerHTML = `<b>${dateLabel(rec.date)} ${box==='meal'?'식사':'프로그램'} 예약 현황</b> · ` + (parts.length? esc(parts.join(' · ')) : '<span class="none">다른 예약 없음</span>') + ' <span class="none">(칸에 커서를 두면 업체별로 보입니다)</span>' + adminLine(keys);
+      el.innerHTML = `<b>${dateLabel(rec.date)} ${Object.values(OPT).find(o=>o.id===box).title} 예약 현황</b> · ` + (parts.length? esc(parts.join(' · ')) : '<span class="none">다른 예약 없음</span>') + ' <span class="none">(칸에 커서를 두면 업체별로 보입니다)</span>' + adminLine(keys);
     }
   });
 }
 
-// 자동 결과 적용: 직접 고친 칸은 건드리지 않음
-function apply(fields, src){
-  const changed=[];
-  const f2={...fields};
-  (fields.contacts||[]).forEach((c,i)=>CFIELDS.forEach(([f])=>{ if(c[f]) f2[`c${i}_${f}`]=c[f]; }));
-  delete f2.contacts;
-  ruleUnsure = (fields._warn||[]).filter(u=>!touched.has(u.field));
-  ruleOwned.forEach(k=>{ if(!touched.has(k) && !(k in f2) && rec[k]){ rec[k]=''; ruleOwned.delete(k); } });
-  Object.entries(f2).forEach(([k,v])=>{
-    if(!(KEYS.includes(k)||isCKey(k)) || v==null) return; v=String(v).trim(); if(!v) return;
-    if(touched.has(k)) return;
-    if(rec[k] && !ruleOwned.has(k)) return; ruleOwned.add(k);
-    if(rec[k]!==v){ rec[k]=v; changed.push(k); }
+// 다시 확인할 것: 입력된 값끼리 맞지 않거나, 관리자 사이트 기준 자리가 모자랄 때
+function fieldWarnings(r){
+  const w=[];
+  if(r.date){ const d=new Date(r.date+'T00:00'), t=new Date(); t.setHours(0,0,0,0); if(d<t) w.push({field:'date', reason:'지난 날짜입니다. 방문일을 다시 확인하세요.'}); }
+  if(r.tin && r.tout && r.tout<=r.tin) w.push({field:'tout', reason:'퇴장 시간이 입장보다 빠릅니다. 오전/오후를 확인하세요.'});
+  const day = adminData && adminData.days && adminData.days[r.date];
+  if(day) Object.entries(ADMIN_SLOT).forEach(([k,[slot,name]])=>{
+    const s=day[slot], want=numOf(r[k]); if(!s || !want) return;
+    const left = s.max!=null && s.cur!=null ? s.max-s.cur : null;
+    if(s.close) w.push({field:k, reason:`관리자 사이트에서 ${name}이(가) 마감입니다. 다른 시간을 안내하세요.`});
+    else if(left!=null && want>left) w.push({field:k, reason:`${name} 남은 자리는 ${left}명인데 ${want}명입니다.`});
   });
-  renderForm(changed);
-  return changed;
+  return w;
 }
 
-// ===================== 메모 → 칸 (규칙) =====================
-function ruleExtract(text, today=new Date()){
-  const t = text.replace(/골뱅이/g,'@').replace(/\s*닷\s*컴/g,'.com').replace(/\s*닷\s*넷/g,'.net');
-  const o = {}; let m;
-  const t0 = new Date(today.getFullYear(),today.getMonth(),today.getDate());
-  const setMD=(M,D)=>{ let d=new Date(today.getFullYear(),M-1,D); if(d<t0) d=new Date(today.getFullYear()+1,M-1,D); o.date=ymd(d); };
-  // 날짜
-  if((m=t.match(/(20\d{2})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/))) o.date=`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
-  else if((m=t.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/))) setMD(+m[1],+m[2]);
-  else if((m=t.match(/(?:^|[^\d\/.])(\d{1,2})\s*[\/.]\s*(\d{1,2})(?![\d\/.:]|\s*(?:명|분|대|시))/)) && +m[1]>=1 && +m[1]<=12 && +m[2]>=1 && +m[2]<=31) setMD(+m[1],+m[2]);
-  else if((m=t.match(/(내일|모레)/))){ const d=new Date(t0); d.setDate(d.getDate()+(m[1]==='내일'?1:2)); o.date=ymd(d); }
-  else if((m=t.match(/(다다음\s*주|다음\s*주|담주|이번\s*주)\s*([월화수목금토일])(?:요일)?/))){
-    const add=/다다음/.test(m[1])?14:/다음|담주/.test(m[1])?7:0; const target=DOW.indexOf(m[2]);
-    const d=new Date(t0); d.setDate(d.getDate()+((target||7)-(t0.getDay()||7))+add); o.date=ymd(d);
-  }
-  // 담당자·연락처·이메일 (여러 명이면 나온 순서대로 짝지음)
-  const TITLE='팀장|과장|대리|부장|선생님|선생|주임|주무관|차장|실장|교수|조교|간사|교사|매니저|사원|원장|부원장|교감|교장|이사|대표|국장|계장|센터장|회장|총무|목사|신부|수녀';
-  const names=[];
-  for(const x of t.matchAll(/담당자?\s*[:：]\s*([^\n]+)/g)) x[1].split(/[,/·]|\s{2,}/).forEach(s=>{
-    const mm=s.trim().match(new RegExp(`^([가-힣]{2,4}(?:\\s?(?:${TITLE})(?:님)?)?)(?=\\s|$)`)); if(mm) names.push(mm[1].trim());
-  });
-  if(!names.length) for(const x of t.matchAll(new RegExp(`([가-힣]{2,4})\\s?(${TITLE})(?:님)?`,'g'))) if(!/^(담당|저희|그|우리)/.test(x[1])) names.push(`${x[1]} ${x[2]}`);
-  const phones=[...new Set([...t.replace(/(\d)[\s.]+(?=\d)/g,'$1').matchAll(/01[016789]-?\d{3,4}-?\d{4}/g)].map(x=>x[0].replace(/-/g,'').replace(/(\d{3})(\d{3,4})(\d{4})/,'$1-$2-$3')))];
-  const emails=[...new Set([...t.matchAll(/[\w.+-]+\s*@\s*[\w-]+(\.[\w-]+)+/g)].map(x=>x[0].replace(/\s/g,'').toLowerCase()))];
-  const uniq=[...new Set(names)];
-  const nc=Math.max(uniq.length,phones.length,emails.length);
-  if(nc) o.contacts=Array.from({length:nc},(_,i)=>({name:uniq[i]||'',phone:phones[i]||'',email:emails[i]||''}));
-  // 단체명
-  const ORG = /([가-힣A-Za-z0-9·&]+(?:\s?[가-힣A-Za-z0-9·&]+){0,3}(?:대학교|고등학교|중학교|초등학교|학교|대학|구청|군청|시청|도청|교육청|교육지원청|연수원|공사|공단|협회|연합회|여행사|투어|센터|교회|성당|병원|연구원|재단|본부|위원회|은행|그룹|컨설팅|기업|주식회사|회사|학과|동호회|모임|진흥원|청|과|팀))(?=[\s,./)에은는이가의]|$)/m;
-  if((m=t.match(/(?:단체명|기관명|업체명?)\s*[:：]\s*([^\n]+)/))) o.org=m[1].trim();
-  else { const clean=t.replace(/(^|\s)(저는|저희는|여기는|네|예|안녕하세요)(?=\s)/g,' '); if((m=clean.match(ORG))){ const parts=m[1].trim().split(/\s+/); while(parts.length>1 && /\d|^(오전|오후|다음주|이번주|담주|내일|모레|[월화수목금토일])$/.test(parts[0])) parts.shift(); o.org=parts.join(' '); } }
-  // 인원
-  if((m=t.match(/인원\s*[:：]\s*([^\n]+)/))){ const ns=[...m[1].matchAll(/(\d+)\s*(?:명|분|인)/g)].map(x=>+x[1]); if(ns.length) o.people=ns.join('+'); }
-  else { const all=[...t.matchAll(/(총\s*)?(\d{1,4})\s*(?:명|분|인)(?!\s*(?:이상\s*)?주문|승)/g)].filter(x=>!/(인솔|기사|가이드)\s*$/.test(t.slice(Math.max(0,x.index-6),x.index)));
-    const extra=[...t.matchAll(/(?:인솔|기사|가이드)\S*\s*(\d{1,2})\s*(?:명|분)?/g)].map(x=>x[1]);
-    const tot=all.find(x=>x[1]); const base = tot? tot[2] : all[0]?.[2];
-    if(base) o.people = base + (extra.length? '+'+extra.join('+') : ''); }
-  // 시간: 범위(10:30~15, 10시반~3시) 우선
-  const toHM=(h,mi,ampm)=>{ h=+h; mi=+(mi||0); if(ampm==='오후'||ampm==='저녁') { if(h<12) h+=12; } else if(!ampm && h>=1 && h<=6) h+=12; return (h<=24&&mi<=59)?`${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}`:null; };
-  const TP='(오전|오후)?\\s*(\\d{1,2})\\s*(?::\\s*(\\d{2})|시\\s*(?:(\\d{1,2})\\s*분|(반))?)?';
-  const rng = t.match(new RegExp(TP+'\\s*[~\\-–]\\s*'+TP));
-  if(rng && (rng[3]||/시/.test(rng[0])||rng[9]||+rng[2]>=7)){
-    o.tin=toHM(rng[2], rng[3]||rng[4]||(rng[5]?30:0), rng[1]); o.tout=toHM(rng[7], rng[8]||rng[9]||(rng[10]?30:0), rng[6]);
-  } else {
-    const times=[];
-    for(const x of t.matchAll(/(오전|오후|저녁)?\s*(\d{1,2})\s*(?::\s*(\d{2})|시\s*(?:(\d{1,2})\s*분|(반))?)/g)){
-      if(!x[3] && !/시/.test(x[0])) continue;
-      const v=toHM(x[2], x[3]||x[4]||(x[5]?30:0), x[1]); if(!v) continue;
-      times.push({v, ctx:t.slice(Math.max(0,x.index-12), x.index+x[0].length+10)});
-    }
-    const tin=times.find(x=>/도착|입장|들어|방문/.test(x.ctx)); const tout=times.find(x=>/출발|퇴장|나가|나올|끝|마무리/.test(x.ctx) && x!==tin);
-    if(tin) o.tin=tin.v; else if(times[0] && !/식사|점심|밥|해설/.test(times[0].ctx)) o.tin=times[0].v;
-    if(tout) o.tout=tout.v;
-  }
-  if(!o.tin) delete o.tin; if(!o.tout) delete o.tout;
-  // 차량
-  if((m=t.match(/(\d+\s*인승\s*)?(대형|중형|소형|미니)?\s*버스\s*(\d+)\s*대?/))) o.vehicle=`${(m[2]||'')}버스 ${m[3]}대`;
-  else if((m=t.match(/(승용차?|자차|개별\s*차량|자가용)\s*(\d+)?\s*대?/))) o.vehicle=`승용 ${m[2]?m[2]+'대':''}`.trim();
-  else if(/버스/.test(t)) o.vehicle='버스';
-  // 결제
-  const pay=[]; if(/계좌\s*이체|이체|송금|입금/.test(t)) pay.push('계좌이체'); if(/카드/.test(t)) pay.push('카드'); if(/현장\s*결제|현장에서\s*결제|현장/.test(t)) pay.push('현장 결제'); if(/세금\s*계산서|계산서/.test(t)) pay.push('세금계산서');
-  if(pay.length) o.pay=pay.join(' / ');
-  // 식사
-  const n = (o.people||'').split('+')[0] || 'O';
-  if(/사담/.test(t)){ if(/2부/.test(t)) o.sadam2=n; else if(/사담\s*(디너|저녁)/.test(t)) o.sadamD=n; else o.sadam1=n; o.meal='사담'; }
-  if(/마방|비빔밥|밥상|메밀|국수|녹두전|오징어/.test(t)){ if(/마방\s*(디너|저녁)/.test(t)) o.mabangD=n; else o.mabangL=n; o.meal=(o.meal?o.meal+' + ':'')+'몽몽마방';
-    const menu=[]; [['사유의 밥상','밥상'],['더덕 비빔밥','비빔밥'],['들깨 메밀국수','국수'],['오징어볶음','오징어'],['녹두전','녹두전']].forEach(([nm,kw])=>{ if(t.includes(kw)) menu.push(nm); }); if(menu.length) o.mabangMenu=menu.join(', '); }
-  if(/식사\s*(는|도)?\s*(x|X|안|따로|필요\s*없|없음|괜찮|각자)/.test(t)) o.meal='없음';
-  // 프로그램
-  if(/차방/.test(t)) o.chabang='O'; if(/동행/.test(t)) o.donghaeng='O'; if(/당두/.test(t)) o.dangdu='O';
-  if(/요가|명상/.test(t) && !/티하우스/.test(t)) o.yoga=n; if(/티하우스/.test(t)) o.teaMed=n; if(/가야금/.test(t)) o.gayageum='O'; if(/바우처|가가/.test(t)) o.gaga=n; if(/캐빈|숙박/.test(t)) o.cabin='O';
-  // 확인 필요
-  const warn=[];
-  if(o.date && (m=t.match(/\d{1,2}\s*(?:일|[\/.]\s*\d{1,2})\s*\(?\s*([월화수목금토일])(?:요일|\)|\s|$)/))){
-    const real=DOW[new Date(o.date+'T00:00').getDay()];
-    if(real!==m[1]) warn.push({field:'date', reason:`'${m[1]}요일'이라고 적었지만 ${dateLabel(o.date)}는 ${real}요일입니다. 날짜와 요일 중 어느 쪽이 맞는지 확인하세요.`});
-  }
-  if(o.people && /정도|쯤|내외|안팎|미정|예상|약\s*\d/.test(t)) warn.push({field:'people', reason:'인원이 대략입니다. 확정 인원과 확정 시점을 확인하세요.'});
-  if(o.tin && o.tout && o.tout<=o.tin) warn.push({field:'tout', reason:'퇴장 시간이 입장보다 빠릅니다. 오전/오후를 확인하세요.'});
-  if(/도슨트|해설/.test(t) && !o.chabang && !o.donghaeng && !o.dangdu) warn.push({field:'chabang', reason:'해설을 원하시는데 장소가 없습니다. 차방·동행·당두 중 어디인지 확인하세요.'});
-  o._warn=warn;
-  return o;
-}
 function autoSummary(){ return ['단체', rec.org, rec.people&&`${rec.people}명`, rec.date&&dateLabel(rec.date), rec.meal&&rec.meal!=='없음'&&`식사 ${rec.meal}`].filter(Boolean).join(' · '); }
 
-// ===================== 메모 입력 =====================
-let memoTimer=null;
-$('#memoBox').addEventListener('input', ()=>{
-  startTimer();
-  clearTimeout(memoTimer);
-  memoTimer=setTimeout(()=>{ apply(ruleExtract($('#memoBox').value),'rule'); }, 200);
-});
-$('#memoBox').addEventListener('paste', ()=>setTimeout(()=>{ apply(ruleExtract($('#memoBox').value),'rule'); }, 50));
-$('#clearMemoBtn').onclick=()=>{ $('#memoBox').value=''; apply(ruleExtract(''),'rule'); $('#memoBox').focus(); };
+// ===================== 통화 메모 (특이사항만 적어 두는 칸 · 예약 칸을 채우지 않음) =====================
+$('#memoBox').addEventListener('input', ()=>startTimer());
+$('#clearMemoBtn').onclick=()=>{ $('#memoBox').value=''; $('#memoBox').focus(); };
 function status(s){ $('#status').textContent=s; }
 
 // 통화 시간
@@ -665,7 +620,7 @@ async function renderList(){
   const del=id=>`<button class="btn" data-del="${id}" style="padding:3px 8px;font-size:12px">삭제</button>`;
   const needCall = r => /^자동 등록/.test(r.summary||'');
   const nCall = all.filter(needCall).length;
-  $('#callCount').hidden = !nCall; $('#callCount').textContent = `전화 필요 ${nCall}건`;
+  $('#callCount').hidden = !nCall; $('#callCount').textContent = `전화 필요 ${nCall}`; $('#listCount').textContent = all.length;
   $('#adminHint').textContent = adminData?.updated ? `관리자 사이트 ${fmtAgo(adminData.updated)} 갱신 · ` : '';
   $('#listBody').innerHTML=all.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td>${esc(r.contact)}</td><td class="num">${esc(r.phone)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(r.meal)}</td><td>${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
     || `<tr><td colspan="10" class="hint">저장한 단체예약이 없습니다.</td></tr>`;
@@ -677,7 +632,7 @@ async function renderList(){
     if(!rec.owner) rec.owner=savedOwner();   // 자동 등록된 예약 등 담당이 비어 있으면 이 컴퓨터의 영업 담당
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
     nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; $('#memoBox').value=r.note||'';
-    renderContacts(); renderForm(); window.scrollTo({top:0,behavior:'smooth'});
+    renderContacts(); renderForm(); closeList(); window.scrollTo({top:0,behavior:'smooth'});
   });
   renderInfo(curInfoKey);
 }
@@ -703,6 +658,14 @@ function newCall(withToast=true){
   renderContacts(); renderForm(); if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
 }
 $('#newBtn').onclick=()=>newCall();
+// ===================== 단체예약 목록 창 =====================
+function openList(){ $('#listModal').hidden=false; renderList(); if(pending.length) flush(); else pull(); $('#listCloseBtn').focus(); }
+function closeList(){ $('#listModal').hidden=true; }
+$('#listOpenBtn').onclick=openList;
+$('#listCloseBtn').onclick=closeList;
+$('#listModal').addEventListener('mousedown', e=>{ if(e.target.id==='listModal') closeList(); });   // 바깥 누르면 닫힘
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#listModal').hidden){ e.preventDefault(); closeList(); } });
+
 document.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); }
   if(e.altKey && e.key.toLowerCase()==='n'){ e.preventDefault(); newCall(); }
