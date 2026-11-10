@@ -77,11 +77,6 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .f.missing input{border-style:dashed;border-color:#c9b9b2}
 #form.dim{opacity:.45}
 #summaryRow{margin-bottom:10px}
-.excel{margin-top:12px;background:var(--bg);border-radius:8px;padding:10px;overflow-x:auto}
-.excel table{border-collapse:collapse;font-size:12px;white-space:nowrap}
-.excel th,.excel td{border:1px solid var(--line);padding:3px 7px;text-align:center}
-.excel th{background:var(--pine-soft);color:var(--pine);font-weight:500}
-.excel td{background:#fff;min-width:28px}
 /* 확인 */
 .chk{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .chk li{border-radius:7px;padding:8px 10px;font-size:13px}
@@ -188,7 +183,6 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <section class="panel form-col">
     <h2>예약 내용</h2>
     <form id="form" autocomplete="off"></form>
-    <div class="excel" id="excelPreview"></div>
     <div class="row-btns" style="margin-top:10px">
       <button class="btn primary" id="saveBtn">저장<kbd>Ctrl+S</kbd></button>
       <button class="btn" id="copyRowBtn">엑셀 행 복사 (D~V열)</button>
@@ -416,8 +410,6 @@ function excelRow(r){
   return EXCEL_COLS.map(c=>map[c]||'');
 }
 function renderSide(){
-  const row=excelRow(rec);
-  $('#excelPreview').innerHTML = `<table><tr><th>B·C</th>${EXCEL_COLS.map(c=>`<th>${c} ${EXCEL_HEAD[c]}</th>`).join('')}</tr><tr><td>${dateLabel(rec.date)}</td>${row.map(v=>`<td>${esc(v)}</td>`).join('')}</tr></table>`;
   const req = REQUIRED(), miss = req.filter(([k])=>!rec[k]);
   // 물어볼 것: 전부 보여 주고, 받은 항목은 초록색
   $('#missBox').innerHTML = `<ul class="chk miss">${req.map(([k,l,q])=>`<li class="${rec[k]?'got':''}" title="${q}"><b>${l}</b></li>`).join('')}</ul>`
