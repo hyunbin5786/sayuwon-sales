@@ -1,3 +1,5 @@
+  const mx=String(r.memo||'').match(/추가 프로그램s+([^/]+)/); if(mx) mx[1].split(/s*,s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)s+(S+)$/); if(!x) return;
+    const f=FIELDS.find(f=>f[2]===x[1] && isXProg(f[1])); const k=f ? f[1] : 'px:'+x[1].replace(/s/g,''); if(!f) LABEL[k]=x[1]; o[k]=x[2]; });
 <!doctype html>
 <html lang="ko">
 <head>
@@ -37,7 +39,11 @@ header .keys{font-size:11px;opacity:.75}
 .ko-toggle.on{background:#f3f1ec;color:var(--pine)}
 .vrow{display:flex;gap:4px}
 .vrow select{border:1px solid var(--line);border-radius:6px;padding:5px 4px;font:13px var(--sans);background:#fff;color:var(--ink)}
-.vrow input{min-width:0}
+.vrow input{min-width:0;flex:1;width:0}
+.f .vrow select{flex:none;width:76px}
+.vmix:not([hidden]){display:flex;gap:4px;flex:1;min-width:0}
+.vrow [hidden]{display:none!important}
+.vmix i{font-style:normal;font-size:12px;color:var(--muted);align-self:center;flex:none}
 header .sync{font-size:12px;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.14)}
 header .sync.ok{background:#cfe3c6;color:var(--pine)}
 header .sync.warn{background:#f3d9b5;color:#6b4513}
@@ -211,7 +217,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .modal .list .tw{overflow:auto;flex:1;min-height:0}
 .modal .list h2{flex-wrap:wrap}
 /* 사담·마방·프로그램 접기 */
-.opt-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.opt-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:12px}
 .opt-btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:9px 10px;font:500 13.5px var(--sans);color:var(--ink);cursor:pointer;text-align:left;display:flex;justify-content:space-between;gap:6px;align-items:center}
 .opt-btn small{color:var(--muted);font-weight:400;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .opt-btn::after{content:"▾";color:var(--muted)}
@@ -442,25 +448,54 @@ const FIELDS = [
   ['몽몽마방','mabangL','런치','M','',null],
   ['몽몽마방','mabangD','디너','N','',null],
   ['몽몽마방','mabangMenu','메뉴','','w2',null],
-  ['프로그램','chabang','차방','O','',null],
-  ['프로그램','donghaeng','동행','P','',null],
-  ['프로그램','dangdu','당두','Q','',null],
-  ['프로그램','yoga','요가/명상','R','',null],
-  ['프로그램','gaga','가가 바우처','S','',null],
-  ['프로그램','teaMed','티하우스 명상','T','',null],
-  ['프로그램','gayageum','가야금','U','',null],
-  ['프로그램','cabin','유루 캐빈','V','',null],
+  // 프로그램(개별): 인원 단위 · 프로그램(시간): 1시간 단위. 견적서 품목 리스트에 단체(개별)·단체(시간) 품목이 새로 생기면 아래에 자동으로 붙음
+  ['프로그램(개별)','yoga','요가','R','',null],
+  ['프로그램(개별)','gaga','가가 바우처','S','',null],
+  ['프로그램(시간)','chabang','차방 대관','O','',null],
+  ['프로그램(시간)','dangdu','당두봉갈 대관','Q','',null],
+  ['프로그램(시간)','donghaeng','동행 도슨트','P','',null],
+  ['프로그램(시간)','seminar','세미나 도슨트','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에
 ];
+// 프로그램 품목 ↔ 견적서 품목 (견적서·금액 계산용)
+const PROG_SRC = { yoga:'요가프로그램(단체)', gaga:'음료쿠폰(가가빈빈)', chabang:'대관', dangdu:'대관', donghaeng:'해설사도슨트(수정)', seminar:'세미나' };
+// 지금 견적서 품목 리스트에 있는 단체 품목 (이것 말고 새로 추가된 것만 프로그램 칸으로 붙임)
+const PROG_KNOWN = ['대관','세미나','해설사도슨트(수정)','임원도슨트(수정)','사운드워킹','사유의 향','요가프로그램(단체)','음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)','사유의 밥상(단체)','당두봉갈 대관'];
+const PROG_GRP = { geach:'프로그램(개별)', gtime:'프로그램(시간)' };
+const UNIT = k => (FIELDS.find(f=>f[1]===k)||[])[0]==='프로그램(시간)' ? '시간' : '명';
+const PROG_KEYS = () => FIELDS.filter(f=>/^프로그램/.test(f[0])).map(f=>f[1]);
+const LEGACY_KEYS = ['teaMed','gayageum','cabin'];   // 예전 프로그램 칸 (입력 칸은 없앴지만 저장된 값은 그대로 둠)
+const SHEET_PROG = new Set(['yoga','gaga','chabang','dangdu','donghaeng']);   // 시트에 열이 있는 프로그램
+const isXProg = k => /^(프로그램)/.test(GROUP_OF[k]||'') && !SHEET_PROG.has(k);   // 비고 칸에 적는 프로그램
+// 견적서 품목에 새로 생긴 단체(개별)·단체(시간) 품목을 프로그램 칸으로 (key: px:품목)
+function addCatalogProgs(cat){
+  const out=[];
+  if(!cat || !Array.isArray(cat.raw)) return out;
+  const nm = s => String(s||'').replace(/\s/g,'');
+  const known = new Set([...PROG_KNOWN, ...Object.values(PROG_SRC)].map(nm));
+  const items = [];
+  cat.raw.forEach(line=>{ const src=line.split('|')[0], e=(cat.edits||{})[src]||{}; if(e.hidden) return;
+    const kind = e.kind || ((cat.gtime||[]).some(x=>nm(x)===nm(src)) ? 'gtime' : (cat.geach||[]).some(x=>nm(x)===nm(src)) ? 'geach' : ''); if(PROG_GRP[kind]) items.push([src,kind]); });
+  (cat.added||[]).forEach(a=>{ if(!a.hidden && PROG_GRP[a.kind]) items.push([a.src||a.name, a.kind]); });
+  items.forEach(([src,kind])=>{
+    const label=String(src).replace(/\((수정|변경|단체)\)/g,'').trim() || src, k='px:'+nm(label);
+    if(known.has(nm(src)) || FIELDS.some(f=>f[1]===k)) return;
+    const grp=PROG_GRP[kind], last=FIELDS.map(f=>f[0]).lastIndexOf(grp);
+    const f=[grp,k,label,'','',null]; FIELDS.splice(last+1,0,f); KEYS.push(k); GROUP_OF[k]=grp; LABEL[k]=label; PROG_SRC[k]=src; out.push(f);
+  });
+  return out;
+}
 // 담당자(여러 명): c0_name, c0_phone, c0_email, c1_name …
 const CFIELDS = [['name','담당자 성함','담당자분 성함이 어떻게 되세요?'],['phone','연락처','연락 가능한 번호 하나 남겨주시겠어요?'],['email','이메일','견적서 받으실 이메일 주소 알려주시겠어요?']];
 const KEYS = FIELDS.map(f=>f[1]);
 // 처음엔 접어 두고 버튼으로 펼치는 묶음 (각 묶음 아래에 그날 예약 현황)
-const OPT = { '사담':{id:'sadam', title:'사담 식사'}, '몽몽마방':{id:'mabang', title:'몽몽마방 식사'}, '프로그램':{id:'prog', title:'프로그램'} };
+const OPT = { '사담':{id:'sadam', title:'사담 식사'}, '몽몽마방':{id:'mabang', title:'몽몽마방 식사'}, '프로그램(개별)':{id:'progE', title:'프로그램(개별)'}, '프로그램(시간)':{id:'progT', title:'프로그램(시간)'} };
 let optOpen = new Set();
 const GROUP_OF = Object.fromEntries(FIELDS.map(f=>[f[1], f[0]]));
 const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1], ['사담','몽몽마방'].includes(f[0]) ? `${f[0]} ${f[2]}` : f[2]]));
 CFIELDS.forEach(([f,l])=>{ for(let i=0;i<10;i++) LABEL[`c${i}_${f}`]= i? `${l}(${i+1})` : l; });
 const SPECIAL_LABEL = { dKansong:'간송 할인', dMerit:'국가유공자 할인', dGunwi:'군위 주민 할인', dClergy:'대구대교구' }; Object.assign(LABEL, SPECIAL_LABEL);
+Object.assign(LABEL, { teaMed:'티하우스 명상', gayageum:'가야금', cabin:'유루 캐빈' });
+try{ addCatalogProgs(JSON.parse(localStorage.getItem('sayuwon_quote_cat'))); }catch(_){}   // 마지막으로 받은 견적서 품목으로 (새로 받으면 그때 다시)
 const DOW = '일월화수목금토';
 const $ = s => document.querySelector(s);
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -505,11 +540,15 @@ function packExtra(r){
   o.pay = r.pay==='미정' && r.payContact ? `미정 (연락 ${r.payContact})` : r.pay;
   o.memo = MEMO_PARTS.filter(([k])=>r[k] && (k!=='tbdDate' || r.tbd)).map(([k,l])=>`${l} ${String(r[k]).replace(/\s*\/\s*/g,', ')}`).join(' / ');
   if(typeof SPECIAL!=='undefined'){ const sp=specialCounts(r); if(sp.length) o.memo=[o.memo, '특별 할인 '+sp.map(s=>s.short+' '+s.n).join(', ')].filter(Boolean).join(' / '); }
+  const xp = Object.keys(r).filter(k=>r[k] && (isXProg(k) || /^px:/.test(k))).map(k=>`${LABEL[k]||k.slice(3)} ${String(r[k]).replace(/[,/]/g,' ').trim()}`);
+  if(xp.length) o.memo=[o.memo, '추가 프로그램 '+xp.join(', ')].filter(Boolean).join(' / ');
   return o;
 }
 function unpackExtra(r){ const o={}; let m;
   if((m=String(r.pay||'').match(/^미정\s*\(연락\s*(\d{4}-\d{2}-\d{2})\)/))){ o.pay='미정'; o.payContact=m[1]; }
   String(r.memo||'').split(/\s*\/\s*/).forEach(part=>{ MEMO_PARTS.forEach(([k,l])=>{ if(part.startsWith(l+' ')) o[k]=part.slice(l.length+1).trim(); }); });
+  const mx=String(r.memo||'').match(/추가 프로그램\s+([^/]+)/); if(mx) mx[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\S+)$/); if(!x) return;
+    const f=FIELDS.find(f=>f[2]===x[1] && isXProg(f[1])), k=f ? f[1] : 'px:'+x[1].replace(/\s/g,''); if(!f) LABEL[k]=x[1]; o[k]=x[2]; });
   const ms=String(r.memo||'').match(/특별 할인\s+([^/]+)/); if(ms) ms[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\d+)$/); if(!x) return; const s=SPECIAL.find(s=>s.short===x[1].trim()); if(s) o[s.k]=x[2]; });
   return o; }
 
@@ -528,9 +567,18 @@ function fmtPhone(v){
   if(/^0\d\d/.test(d))      return d.length<=3 ? d : d.length<=6 ? `${d.slice(0,3)}-${d.slice(3)}` : `${d.slice(0,3)}-${d.slice(3,d.length-4)}-${d.slice(-4)}`;
   return d.length<=4 ? d : `${d.slice(0,d.length-4)}-${d.slice(-4)}`;   // 내선·대표번호 (1234, 123-4567)
 }
-const VTYPES = ['버스','승용','혼합'];
-function vehParts(v){ v=String(v||''); const t=VTYPES.find(x=>v.includes(x)) || (/(대형|중형|소형|미니)/.test(v)?'버스':''); const n=(v.match(/\d+/)||[''])[0]; return {t,n}; }
-function vehJoin(t,n){ return n ? `${t||'버스'} ${n}대` : (t && t!=='버스' ? t : ''); }
+const VTYPES = ['버스','승용','혼합','미정'];
+// 차량 값: "버스 2대" · "승용 3대" · "혼합 (버스 1대 + 승용 2대)" · "미정"
+function vehParts(v){ v=String(v||'');
+  if(/^미정/.test(v)) return {t:'미정',n:'',bus:'',car:''};
+  const bus=(v.match(/버스\s*(\d+)/)||[,''])[1], car=(v.match(/승용\s*(\d+)/)||[,''])[1];
+  if(/혼합/.test(v) || (bus && car)) return {t:'혼합',n:'',bus,car};
+  const t=VTYPES.find(x=>v.includes(x)) || (/(대형|중형|소형|미니)/.test(v)?'버스':''); const n=(v.match(/\d+/)||[''])[0]; return {t,n,bus:'',car:''}; }
+function vehJoin(t,n,bus,car){
+  if(t==='미정') return '미정';
+  if(t==='혼합'){ const p=[bus&&`버스 ${bus}대`, car&&`승용 ${car}대`].filter(Boolean); return p.length ? `혼합 (${p.join(' + ')})` : '혼합'; }
+  return n ? `${t||'버스'} ${n}대` : (t && t!=='버스' ? t : ''); }
+const vehRead = () => vehJoin($('#f_vtype').value, $('#f_vehicle').value, $('#f_vbus').value, $('#f_vcar').value);
 function fieldHTML(k,label,col,cls,req){
   let extra = DATE_KEYS.has(k)?' type="date"':'';
   if(k==='owner') extra+=' list="owners"';
@@ -539,15 +587,15 @@ function fieldHTML(k,label,col,cls,req){
   if(PHONE(k))    extra+=' data-ime="num" inputmode="tel" placeholder="010-0000-0000"';
   if(NUM_ONLY[k]) extra+=' inputmode="numeric" data-ime="num"';
   const input = k==='vehicle'
-    ? `<div class="vrow"><select id="f_vtype" data-k="vehicle" aria-label="차종">${VTYPES.map(t=>`<option>${t}</option>`).join('')}</select><input id="f_${k}" data-k="${k}"${extra} placeholder="대수"></div>`
+    ? `<div class="vrow"><select id="f_vtype" data-k="vehicle" aria-label="차종">${VTYPES.map(t=>`<option>${t}</option>`).join('')}</select><input id="f_${k}" data-k="${k}"${extra} placeholder="대수"><span class="vmix" id="f_vmix" hidden><i>버스</i><input id="f_vbus" data-k="vehicle"${extra} placeholder="대" aria-label="버스 대수"><i>승용</i><input id="f_vcar" data-k="vehicle"${extra} placeholder="대" aria-label="승용 대수"></span></div>`
     : CHECKS[k]
     ? `<label class="ckf"><input type="checkbox" id="f_${k}" data-k="${k}"> ${CHECKS[k]}</label>`
     : k==='gate'
     ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${GATES.map(g=>`<option>${g}</option>`).join('')}</select>`
     : k==='pay'
     ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${PAYS.map(p=>`<option>${p}</option>`).join('')}</select>`
-    : `<input id="f_${k}" data-k="${k}"${extra}>`;
-  const tbdBox = TBD_KEYS.some(([tk])=>tk===k) ? `<label class="tbdck" title="아직 안 정해졌으면 체크"><input type="checkbox" data-tbd="${k}">미정</label>` : "";
+    : `<input id="f_${k}" data-k="${k}"${extra}${/^프로그램/.test(GROUP_OF[k]||'') ? ` placeholder="${UNIT(k)}"` : ''}>`;
+  const tbdBox = k!=='vehicle' && TBD_KEYS.some(([tk])=>tk===k) ? `<label class="tbdck" title="아직 안 정해졌으면 체크"><input type="checkbox" data-tbd="${k}">미정</label>` : "";
   return `<div class="f ${cls}${req?' req':''}${tbdBox?' has-tbd':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span></label><div class="inbox">${input}${tbdBox}</div></div>`;
 }
 function buildForm(){
@@ -593,8 +641,9 @@ function buildForm(){
       if(f!==el.value){ el.value=f; if(atEnd) el.setSelectionRange(f.length,f.length); }
     }
     if(NUM_ONLY[k] && e.target.tagName==='INPUT' && !e.isComposing){ const c=e.target.value.replace(NUM_ONLY[k],''); if(c!==e.target.value){ const p=e.target.selectionStart-(e.target.value.length-c.length); e.target.value=c; try{ e.target.setSelectionRange(p,p); }catch(_){} } }
-    rec[k]= e.target.type==='checkbox' ? (e.target.checked?'있음':'') : k==='vehicle' ? vehJoin($('#f_vtype').value, $('#f_vehicle').value) : e.target.value;
+    rec[k]= e.target.type==='checkbox' ? (e.target.checked?'있음':'') : k==='vehicle' ? vehRead() : e.target.value;
     touched.add(k);
+    if(k==='vehicle' && e.target.id==='f_vtype'){ const s=tbdSet(rec); rec.vehicle==='미정' ? s.add('vehicle') : s.delete('vehicle'); rec.tbd=TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', '); if(!s.size){ rec.tbdDate=''; tbdAuto=false; } touched.add('tbd'); }   // 차종 '미정' = 차량 미정 체크
     if(k==='date') renderInfo();
     startTimer(); paintFields(); renderSide();
   });
@@ -640,7 +689,11 @@ function paintFields(changed=[]){
     if(k==='owner') return;   // 헤더의 영업 담당은 이 컴퓨터 사용자 (기록마다 바뀌지 않음)
     const el=document.getElementById('f_'+k); if(!el) return;
     const v=rec[k]||'';
-    if(k==='vehicle'){ const p=vehParts(v); if(document.activeElement!==el && el.value!==p.n) el.value=p.n; if(p.t && document.activeElement!==$('#f_vtype')) $('#f_vtype').value=p.t; }
+    if(k==='vehicle'){ const p=vehParts(v), a=document.activeElement;
+      if(p.t && a!==$('#f_vtype')) $('#f_vtype').value=p.t;
+      if(!v && a!==$('#f_vtype')) $('#f_vtype').value = tbdSet(rec).has('vehicle') ? '미정' : '버스';   // 예전 '차량 대수 미정' 체크
+      [[el,p.n],[$('#f_vbus'),p.bus],[$('#f_vcar'),p.car]].forEach(([x,val])=>{ if(a!==x && x.value!==val) x.value=val; });
+      const t=$('#f_vtype').value; el.hidden = t==='혼합' || t==='미정'; $('#f_vmix').hidden = t!=='혼합'; }
     else if(el.type==='checkbox') el.checked=!!v;
     else { if(el.tagName==='SELECT' && v && ![...el.options].some(o=>o.value===v)) el.add(new Option(v,v)); if(el.value!==v && document.activeElement!==el) el.value=v; }
     const w=document.getElementById('w_'+k);
@@ -663,7 +716,7 @@ function paintOpt(){
   Object.entries(OPT).forEach(([grp,o])=>{
     const keys=FIELDS.filter(f=>f[0]===grp).map(f=>f[1]);
     const filled=keys.filter(k=>rec[k]);
-    const sum=filled.map(k=>{ const v=rec[k]; return `${FIELDS.find(f=>f[1]===k)[2]} ${/^\d+(\+\d+)*$/.test(v)?v+'명':v}`; }).join(' · ');
+    const sum=filled.map(k=>{ const v=rec[k]; return `${FIELDS.find(f=>f[1]===k)[2]} ${/^\d+(\+\d+)*$/.test(v)?v+UNIT(k):v}`; }).join(' · ');
     const b=document.querySelector(`.opt-btn[data-opt="${o.id}"]`), box=document.getElementById('opt_'+o.id);
     if(!b||!box) return;
     b.classList.toggle('filled', filled.length>0);
@@ -712,16 +765,18 @@ const PAY_GUIDE = {
   '결제링크':   ['결제링크 보내드리면 언제쯤 결제하실 수 있을까요?', '현장에서 법인카드로 다시 결제하실 계획도 있으실까요?'],
   '현장 결제':  ['현장 결제로 하시면 당일 인원 변경이 어려운 점 양해 부탁드립니다.', '인원은 언제까지 확정해 주실 수 있을까요?'],
 };
+// 프로그램 입력 내용: "요가 20명", "차방 대관 2시간" (grp 를 주면 그 묶음만)
+const progList = (r, grp) => FIELDS.filter(f=>(grp ? f[0]===grp : /^프로그램/.test(f[0])) && r[f[1]]).map(f=>{ const v=String(r[f[1]]); return `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? v+UNIT(f[1]) : v}`; });
 function readback(r){
   const p=[];
   if(r.date){ const d=new Date(r.date+'T00:00'); p.push(isNaN(d)?r.date:`${d.getMonth()+1}월 ${d.getDate()}일 ${DOW[d.getDay()]}요일`); }
   if(r.tin) p.push(`${r.tin} ${r.gate&&r.gate!=='미정'?r.gate+'으로 ':''}도착${r.tout?`, ${r.tout} 퇴장`:''}`);
   if(r.people) p.push(`총 ${r.people}명`);
-  if(r.vehicle) p.push(r.vehicle);
+  if(r.vehicle) p.push(r.vehicle==='미정' ? '차량은 미정' : r.vehicle.replace(/^혼합 \((.+)\)$/,'$1'));
   const meals=[]; if(r.sadam1) meals.push(`사담 1부 ${r.sadam1}명`); if(r.sadam2) meals.push(`사담 2부 ${r.sadam2}명`); if(r.sadamD) meals.push(`사담 디너 ${r.sadamD}명`);
   if(r.mabangL) meals.push(`몽몽마방 점심 ${r.mabangL}명${r.mabangMenu?`(${r.mabangMenu})`:''}`); if(r.mabangD) meals.push(`몽몽마방 저녁 ${r.mabangD}명`);
   if(meals.length) p.push('식사는 '+meals.join(', ')); else if(r.meal) p.push('식사 '+r.meal);
-  const prog=[]; if(r.chabang) prog.push('차방 해설'); if(r.donghaeng) prog.push('동행 해설'); if(r.dangdu) prog.push('당두 해설'); if(r.yoga) prog.push('요가·명상'); if(r.gaga) prog.push('가가 바우처'); if(r.teaMed) prog.push('티하우스 명상'); if(r.gayageum) prog.push('가야금'); if(r.cabin) prog.push('유루 캐빈');
+  const prog = progList(r);
   if(prog.length) p.push(prog.join(', ')+' 포함');
   if(r.pay) p.push(r.pay==='미정' ? `결제 방법은 ${r.payContact?mdLabel(r.payContact)+'에 ':'나중에 '}알려주시기로` : `결제는 ${r.pay}`);
   if(r.tbd && r.tbdDate){ const t=r.tbd.replace(/, /g,' · '), c=t.charCodeAt(t.length-1)-0xAC00; p.push(`아직 정해지지 않은 ${t}${c>=0&&c<11172&&c%28?'은':'는'} ${mdLabel(r.tbdDate)}까지 알려주시기로`); }
@@ -771,11 +826,11 @@ function renderInfo(k){
     if(k && INFO_OF(k)===box && k!=='mabangMenu'){
       const hits=day.filter(r=>r[k]);
       const tot=hits.reduce((s,r)=>s+numOf(r[k]),0);
-      el.innerHTML = `<b>${dateLabel(rec.date)} ${LABEL[k]}</b> · ${hits.length? `이미 ${hits.length}건${tot?`, ${tot}명`:''}` : '<span class="none">다른 예약 없음</span>'}`
-        + (hits.length? `<ul>${hits.map(r=>`<li>${esc(r.org||r.contact||'(업체 미정)')} · ${esc(r[k])}${/^\d+$/.test(r[k])?'명':''}${r.owner?` · ${esc(r.owner)}`:''}</li>`).join('')}</ul>` : '')
+      el.innerHTML = `<b>${dateLabel(rec.date)} ${LABEL[k]}</b> · ${hits.length? `이미 ${hits.length}건${tot?`, ${tot}${UNIT(k)}`:''}` : '<span class="none">다른 예약 없음</span>'}`
+        + (hits.length? `<ul>${hits.map(r=>`<li>${esc(r.org||r.contact||'(업체 미정)')} · ${esc(r[k])}${/^\d+$/.test(r[k])?UNIT(k):''}${r.owner?` · ${esc(r.owner)}`:''}</li>`).join('')}</ul>` : '')
         + adminLine([k]);
     } else {
-      const parts=keys.map(key=>{ const hits=day.filter(r=>r[key]); if(!hits.length) return ''; const tot=hits.reduce((s,r)=>s+numOf(r[key]),0); return `${LABEL[key]} ${hits.length}건${tot?`(${tot}명)`:''}`; }).filter(Boolean);
+      const parts=keys.map(key=>{ const hits=day.filter(r=>r[key]); if(!hits.length) return ''; const tot=hits.reduce((s,r)=>s+numOf(r[key]),0); return `${LABEL[key]} ${hits.length}건${tot?`(${tot}${UNIT(key)})`:''}`; }).filter(Boolean);
       el.innerHTML = `<b>${dateLabel(rec.date)} ${Object.values(OPT).find(o=>o.id===box).title} 예약 현황</b> · ` + (parts.length? esc(parts.join(' · ')) : '<span class="none">다른 예약 없음</span>') + ' <span class="none">(칸에 커서를 두면 업체별로 보입니다)</span>' + adminLine(keys);
     }
   });
@@ -830,7 +885,9 @@ function reportText(r){
   contactsOf(r).forEach((c,i)=>add(`담당자${i?i+1:''}`, [c.name,c.phone,c.email].filter(Boolean).join(' / ')));
   add('사담 식사', grpLine('사담'));
   add('몽몽마방 식사', grpLine('몽몽마방'));
-  add('프로그램', grpLine('프로그램'));
+  add('프로그램(개별)', progList(r,'프로그램(개별)').join(', '));
+  add('프로그램(시간)', progList(r,'프로그램(시간)').join(', '));
+  add('기타 프로그램', LEGACY_KEYS.filter(k=>r[k]).map(k=>`${LABEL[k]} ${r[k]}`).join(', '));
   add('결제', r.pay ? r.pay + (r.pay==='미정' && r.payContact ? ` (${mdLabel(r.payContact)} 연락 예정)` : '') + (r.onsite ? ' · 현장 카드 재결제' : '') : '');
   const sp = typeof SPECIAL!=='undefined' ? specialCounts(r) : [];
   add('특별 할인', sp.map(s=>`${s.short} ${s.n}명(${s.rate===1?'무료':Math.round(s.rate*100)+'%'})`).join(', '));
@@ -1033,9 +1090,10 @@ function syncAutoTasks(){
   tasks.sort((a,b)=>(a.custom?99:ORDER.indexOf(a.id))-(b.custom?99:ORDER.indexOf(b.id)));
 }
 // 전산에 들어가는 내용 (이게 바뀌면 전산 예약 수정)
-const ERP_KEYS = ['org','date','people','tin','tout','gate','pchg','pay','onsite','sadam1','sadam2','sadamD','mabangL','mabangD','mabangMenu','chabang','donghaeng','dangdu','yoga','gaga','teaMed','gayageum','cabin','c0_name','c0_phone'];
-const erpSnap = () => Object.fromEntries(ERP_KEYS.map(k=>[k, rec[k]||'']));
-const erpDiff = (a,b) => ERP_KEYS.filter(k=>(a[k]||'')!==(b[k]||'')).map(k=>{ const x=a[k]||'', y=b[k]||'', l=LABEL[k]||k; return !x?`${l} ${y} 추가`:!y?`${l} ${x} 삭제`:`${l} ${x} → ${y}`; });
+const ERP_BASE = ['org','date','people','tin','tout','gate','pchg','pay','onsite','sadam1','sadam2','sadamD','mabangL','mabangD','mabangMenu','teaMed','gayageum','cabin','c0_name','c0_phone'];
+const ERP_KEYS_ = () => [...ERP_BASE, ...PROG_KEYS()];   // 프로그램은 견적서 품목에 따라 늘어남
+const erpSnap = () => Object.fromEntries(ERP_KEYS_().map(k=>[k, rec[k]||'']));
+const erpDiff = (a,b) => [...new Set([...Object.keys(a),...Object.keys(b)])].filter(k=>(a[k]||'')!==(b[k]||'')).map(k=>{ const x=a[k]||'', y=b[k]||'', l=LABEL[k]||k; return !x?`${l} ${y} 추가`:!y?`${l} ${x} 삭제`:`${l} ${x} → ${y}`; });
 const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
 function renderTasks(){
   syncAutoTasks();
@@ -1193,6 +1251,7 @@ async function renderList(){
 function openRecord(r){
     newCall(false);
     KEYS.forEach(k=>{ rec[k]=r[k]||''; if(rec[k]) touched.add(k); });
+    LEGACY_KEYS.forEach(k=>{ if(r[k]) rec[k]=r[k]; });   // 예전 프로그램 값은 그대로 들고 있다가 다시 저장
     if(!rec.owner) rec.owner=savedOwner();   // 자동 등록된 예약 등 담당이 비어 있으면 이 컴퓨터의 영업 담당
     const ex=unpackExtra(r); Object.assign(rec,ex); Object.keys(ex).forEach(k=>touched.add(k));
     if(/^adm/.test(r.id) && !rec.erp) rec.erp='관리자 예약';   // 관리자 사이트에서 온 예약은 이미 전산에 있음
@@ -1250,6 +1309,7 @@ async function loadQuotePrices(){
     const data = (shared && shared.data) || (quoteCat && {edits:quoteCat.edits, added:quoteCat.added}) || {};
     quoteCat = { ...p, edits: data.edits||{}, added: data.added||[], at: new Date().toISOString() };
     writeJSON('sayuwon_quote_cat', quoteCat); priceLoaded = true;
+    addCatalogProgs(quoteCat).forEach(f=>{ document.querySelector('#opt_'+OPT[f[0]].id+' .fields')?.insertAdjacentHTML('beforeend', fieldHTML(f[1],f[2],'','',false)); paintFields(); });   // 견적서 품목에 새 단체 품목이 생기면 칸 추가
   }catch(_){ priceLoaded = false; }
   renderPrice(); if(window.__tasksReady) renderTasks();
 }
@@ -1394,10 +1454,9 @@ function quoteBlocks(r){
   if(mbPkg) add(`${DAY}(관람, 몽몽마방 사유의 밥상)`, cnt(r.mabangL), false);
   else if(r.mabangL) add('몽몽마방 단품', cnt(r.mabangL), false);
   if(r.mabangD) skipped.push('몽몽마방 디너');
-  const docent = ['chabang','donghaeng','dangdu'].filter(k=>r[k]).length;
-  add('해설사도슨트(수정)', docent, false);
-  add('요가프로그램(단체)', cnt(r.yoga), false);
-  add('음료쿠폰(가가빈빈)', cnt(r.gaga), false);
+  // 프로그램: 개별은 인원(숫자가 없으면 전체 인원), 시간은 시간 수(숫자가 없으면 1시간). 같은 견적서 품목이면 합침
+  PROG_KEYS().forEach(k=>{ if(!r[k]) return; const src=PROG_SRC[k]; const q = UNIT(k)==='시간' ? (numOf(r[k])||1) : cnt(r[k]);
+    if(!src){ skipped.push(LABEL[k]); return; } const b=blocks.find(b=>b.product===src); if(b) b.qty+=q; else add(src, q, false); });
   if(r.teaMed) skipped.push('티하우스 명상'); if(r.gayageum) skipped.push('가야금'); if(r.cabin) skipped.push('유루 캐빈');
   // 할인 줄: 특별 할인 인원을 할인 대상 블록에 앞에서부터 나눠 넣고, 나머지는 단체 할인
   const g = Math.round(groupRate(n)*100), gName = n>20 ? '단체예약' : '사전예약';
@@ -1515,7 +1574,7 @@ async function downloadXlsx(){
     const ExcelJS = await loadExcelJS();
     const rows = listView.shown.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     const COLS = [['방문일',12],['단계',9],['전산',8],['업체',22],['영업 담당',9],['결제',16],['차량',10],['입장',7],['입장문',8],['퇴장',7],['관람',8],
-      ['사담 1부',8],['사담 2부',8],['사담 디너',9],['마방 런치',9],['마방 디너',9],['마방 메뉴',12],['차방',6],['동행',6],['당두',6],['요가/명상',9],['가가 바우처',10],['티하우스 명상',11],['가야금',7],['유루 캐빈',9],
+      ['사담 1부',8],['사담 2부',8],['사담 디너',9],['마방 런치',9],['마방 디너',9],['마방 메뉴',12],...PROG_KEYS().map(k=>[LABEL[k]+(UNIT(k)==='시간'?' (시간)':''),11]),['기타 프로그램',14],
       ['견적서',10],['거래명세서',10],['담당자',14],['연락처',16],['이메일',24],['인원 변경',9],['현장 재결제',10],['미정 항목',16],['특별 할인',16],['통화 메모',40],['접수',16]];
     const wb = new ExcelJS.Workbook(); wb.creator='사유원 단체 예약 도우미'; wb.created=new Date();
     const ws = wb.addWorksheet('단체예약 현황', { views:[{ state:'frozen', ySplit:1 }] });
@@ -1523,7 +1582,7 @@ async function downloadXlsx(){
     rows.forEach(r=>{
       const x={...r, ...unpackExtra(r)}, sp=(String(r.memo||'').match(/특별 할인\s+([^/]+)/)||[])[1]||'';
       ws.addRow([r.date||'', listView.stageOf(r), listView.erpOf(r)?'등록':(listView.stageOf(r)==='상담'?'':'미등록'), r.org||'', r.owner||r.takenBy||'', r.pay||'', r.vehicle||'', r.tin||'', x.gate||'', r.tout||'', r.people||'',
-        r.sadam1||'', r.sadam2||'', r.sadamD||'', r.mabangL||'', r.mabangD||'', r.mabangMenu||'', r.chabang||'', r.donghaeng||'', r.dangdu||'', r.yoga||'', r.gaga||'', r.teaMed||'', r.gayageum||'', r.cabin||'',
+        r.sadam1||'', r.sadam2||'', r.sadamD||'', r.mabangL||'', r.mabangD||'', r.mabangMenu||'', ...PROG_KEYS().map(k=>x[k]||''), Object.keys(x).filter(k=>x[k] && (LEGACY_KEYS.includes(k) || (/^px:/.test(k) && !PROG_KEYS().includes(k)))).map(k=>`${LABEL[k]||k.slice(3)} ${x[k]}`).join(', '),
         docState(r,'quote'), docState(r,'stmt'),         r.contact||'', r.phone||'', r.email||'', x.pchg?'있음':'', x.onsite?'있음':'', x.tbd?(x.tbd+(x.tbdDate?` (${x.tbdDate}까지)`:'')):'', sp.trim(), r.note||'', r.saved?fmt(r.saved):'']);
     });
     const head = ws.getRow(1); head.font={ bold:true, color:{argb:'FFFFFFFF'} }; head.alignment={ vertical:'middle', horizontal:'center' }; head.height=22;
