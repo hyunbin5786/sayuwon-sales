@@ -202,6 +202,9 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .f.tbd input,.f.tbd select{border-color:var(--amber);border-style:solid;background:var(--amber-soft)}
 .tbd-date{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted);margin-left:auto}
 .tbd-date input{height:30px;width:auto}
+.form-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;min-height:30px}   /* 예약 내용 제목 + 미정 항목 입력 기한 */
+.form-head h2{margin:0}
+.tbd-date[hidden]{display:none}
 /* 목록 창 */
 .list-btn{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#f3f1ec;border-radius:7px;padding:4px 12px;font:500 13px var(--sans);cursor:pointer;display:flex;gap:6px;align-items:center}
 .new-btn{border:0;background:#fff;color:var(--pine);border-radius:7px;padding:5px 14px;font:700 14px var(--sans);cursor:pointer;display:flex;gap:6px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.18)}
@@ -313,7 +316,9 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 
   <!-- 예약 칸 -->
   <section class="panel form-col">
-    <h2>예약 내용</h2>
+    <div class="form-head"><h2>예약 내용</h2>
+      <label class="tbd-date" id="w_tbdDate" for="f_tbdDate">미정 항목 입력 기한 <input type="date" id="f_tbdDate" data-k="tbdDate"></label>
+    </div>
     <div class="stage-bar">
       <span class="stage-l">예약 단계</span>
       <div class="seg" id="stageSeg">
@@ -327,7 +332,6 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
       <button class="btn" id="stmtBtn" title="거래명세서 발급">거래명세서</button>
       <button class="btn" id="copyTextBtn" title="내용 텍스트 복사 (카카오톡 보고용)">텍스트 복사</button>
       </div>
-      <label class="tbd-date" id="w_tbdDate" for="f_tbdDate">미정 항목 입력 기한 <input type="date" id="f_tbdDate" data-k="tbdDate"></label>
     </div>
     <form id="form" autocomplete="off"></form>
     <div class="memo-in">
