@@ -1252,7 +1252,8 @@ function moneySplit(r){
 const memoLines = () => $('#memoBox').value.split('\n').map(s=>s.trim()).filter(Boolean);
 // 전산 비고에 붙여넣을 문구
 function erpNote(r){
-  const p=[`입장 ${r.tin||'미정'} ${r.gate||'미정'}`, r.pchg ? '인원 변경 가능성 있음' : '인원 변경 없음'];
+  const gate = r.gate && r.gate!=='미정' ? r.gate : '';   // 출입구가 미정이면 '출입구 미정'을 따로
+  const p=[`입장 ${r.tin||'미정'}${gate?' '+gate:''}`, ...(gate?[]:['출입구 미정']), r.pchg ? '인원 변경 가능성 있음' : '인원 변경 없음'];
   if(r.pay==='현장 결제' || r.onsite){ const m=moneySplit(r); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); }
   return [...p, ...memoLines()].join(' / ');
 }
@@ -1349,7 +1350,7 @@ $('#taskList').addEventListener('click', e=>{
   const c=e.target.dataset.tcopy, d=e.target.dataset.tdel, q=e.target.dataset.tquote;
   if(q){ openQuote(q); return; }
   if(c){ const t=tasks.find(x=>x.id===c); const txt=taskText(t); copy(txt, '복사했습니다. 붙여넣으세요.'); t.copied=txt; renderTasks(); autoSave(); }
-  if(d){ tasks=tasks.filter(x=>x.id!==d); renderTasks(); autoSave(); }
+  if(d){ e.preventDefault(); document.activeElement.blur(); tasks=tasks.filter(x=>x.id!==d); renderTasks(); autoSave(); toast('과업을 지웠습니다.'); }   // × 에 포커스가 남으면 목록이 다시 안 그려져서 blur
 });
 $('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=tasks.find(x=>x.id===id); if(t) t.memo=e.target.value; });
 $('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) autoSave(); });
