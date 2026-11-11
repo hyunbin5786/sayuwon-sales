@@ -281,7 +281,12 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .list-x{width:30px;height:30px;padding:0;font-size:18px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
 .modal .list th.owner,.modal .list td.owner{background:#eaf1f8;color:#2b5a87;font-weight:700}   /* 영업 담당 열은 다른 색 */
 .modal .list td.contacts-cell{min-width:150px;font-size:12.5px;font-variant-numeric:tabular-nums}
-.my-body{overflow:auto;flex:1;min-height:0}
+.my-body{flex:1;min-height:0;display:flex;flex-direction:column}
+.my-cols{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:12px;flex:1;min-height:0}   /* 마이페이지 3열: 방문 예정 · 연락할 미정 · 남은 과업 */
+.my-col{overflow:auto;min-height:0;max-height:calc(100vh - 170px);background:var(--bg);border-radius:8px;padding:10px}
+.my-col .pc-list li.r{cursor:pointer}
+.my-col .pc-list li.r:hover{border-color:var(--pine)}
+@media (max-width:900px){.my-body{overflow:auto}.my-cols{grid-template-columns:1fr}.my-col{max-height:none}}
 .my-h{font:700 13.5px var(--sans);margin:14px 0 6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .my-h:first-child{margin-top:0}
 .my-h small{font-weight:400;color:var(--muted);font-size:12px}
@@ -1807,23 +1812,26 @@ function renderMy(){
   $('#mySum').textContent = `담당 예약 ${mine.length}건 · 방문 예정 ${ahead.length}건 · 미정 ${tbdAll.length}건 · 남은 과업 ${open.reduce((s,o)=>s+o.left.length,0)}개`;
   const org = r => esc(r.org || r.contact || '(업체 미정)');
   const dueTxt = d => { const n=daysFrom(today,d); return n<0 ? `<b class="late">${-n}일 지남</b>` : n===0 ? '<b class="late">오늘</b>' : `${n}일 남음`; };
-  let h='';
+  // 3열: ① 방문 예정 ② 연락할 미정 항목 (+ 남이 고친 기록) ③ 남은 과업
+  const none = t => `<p class="hint">${t}</p>`;
+  let c1 = `<h3 class="my-h">${past?'전체 담당 예약':'방문 예정'} <small>${shown.length}건 · 방문일 순</small></h3>` + (shown.length
+    ? `<ul class="pc-list">${shown.map(o=>{ const st=stageOfRec(o.r), left=o.tasks.filter(t=>!t.done).length, dq=docTag(o.r,'quote'), ds=docTag(o.r,'stmt');
+        return `<li class="r" data-myopen="${esc(o.r.id)}"><span class="who"><b>${esc(dateLabel(o.r.date)||'방문일 미정')}</b> <span class="tag st-${st}">${st}</span> <b>${org(o.r)}</b>${o.r.people?` · ${esc(o.r.people)}명`:''}<br>`
+          + `<small class="hint" style="margin:0">${contactCell(o.r)||'담당자 미입력'}</small>`
+          + `${o.x.tbd?`<br><span class="tag st-가예약">미정: ${esc(o.x.tbd)}</span>${o.x.tbdDate?` <small class="hint" style="margin:0">${esc(mdLabel(o.x.tbdDate))}까지</small>`:''}`:''}`
+          + `${dq||ds||left?`<br>${dq?`견적서 ${dq} `:''}${ds?`거래명세서 ${ds} `:''}${left?`<small class="hint" style="margin:0">남은 과업 ${left}개</small>`:''}`:''}</span></li>`; }).join('')}</ul>`
+    : none(past?'담당한 예약이 없습니다.':'방문 예정인 담당 예약이 없습니다.'));
+  let c2 = '';
   const ed = othersEdits();
-  if(ed.length) h += `<h3 class="my-h">다른 사람이 수정한 내 예약 <small>확인함을 누르면 사라집니다</small> <button class="btn" id="myEditsSeen" style="padding:2px 8px;font-size:12px">모두 확인함</button></h3>`
-    + `<ul class="pc-list">${ed.map(({r,h:e})=>`<li class="edited"><span class="who"><b>${org(r)}</b> · 방문 ${esc(dateLabel(r.date))}<br><small class="hint" style="margin:0"><b>${esc(e.by)}</b> · ${esc(fmt(e.t))} · ${esc(e.what)}</small></span><button class="btn" data-myopen="${esc(r.id)}">열기</button></li>`).join('')}</ul>`;
-  h += `<h3 class="my-h">연락할 미정 항목 <small>입력 기한이 오늘이거나 지난 예약</small></h3>` + (tbdDue.length
-    ? `<ul class="pc-list">${tbdDue.map(o=>`<li><span class="who"><b>${org(o.r)}</b> · 방문 ${esc(dateLabel(o.r.date))} · 미정: ${esc(o.x.tbd)}<br><small class="hint" style="margin:0">기한 ${esc(mdLabel(o.x.tbdDate))} (${dueTxt(o.x.tbdDate)}) · ${esc(firstContact(o.r)||'담당자 연락처 없음')}</small></span><button class="btn" data-myopen="${esc(o.r.id)}">열기</button></li>`).join('')}</ul>`
-    : '<p class="hint">없습니다.</p>');
-  h += `<h3 class="my-h">남은 과업</h3>` + (open.length
-    ? `<ul class="pc-list">${open.map(o=>`<li><span class="who"><b>${org(o.r)}</b> · 방문 ${esc(dateLabel(o.r.date))}<br><small class="hint" style="margin:0">${o.left.map(t=>esc(t.title)).join(' · ')}</small></span><button class="btn" data-myopen="${esc(o.r.id)}">열기</button></li>`).join('')}</ul>`
-    : '<p class="hint">없습니다.</p>');
-  h += `<h3 class="my-h">${past?'전체 담당 예약':'방문 예정'} <small>방문일 순 · 누르면 열림</small></h3>`
-    + `<div class="tw"><table><thead><tr><th>방문일</th><th>단계</th><th>업체</th><th>담당자</th><th>인원</th><th>미정 항목</th><th>견적서</th><th>거래명세서</th><th>남은 과업</th></tr></thead><tbody>`
-    + (shown.map(o=>{ const st=stageOfRec(o.r), left=o.tasks.filter(t=>!t.done).length;
-        return `<tr class="r" data-myopen="${esc(o.r.id)}"><td class="num">${esc(dateLabel(o.r.date))}</td><td><span class="tag st-${st}">${st}</span></td><td>${org(o.r)}</td><td class="contacts-cell">${contactCell(o.r)}</td><td class="num">${esc(o.r.people)}</td><td>${o.x.tbd?`<span class="tag st-가예약">${esc(o.x.tbd)}</span>${o.x.tbdDate?` <small class="hint" style="margin:0">${esc(mdLabel(o.x.tbdDate))}까지</small>`:''}`:''}</td><td>${docTag(o.r,'quote')}</td><td>${docTag(o.r,'stmt')}</td><td class="num">${left?`${left}개`:''}</td></tr>`; }).join('')
-      || `<tr><td colspan="9" class="hint">${past?'담당한 예약이 없습니다.':'방문 예정인 담당 예약이 없습니다.'}</td></tr>`)
-    + `</tbody></table></div>`;
-  $('#myBody').innerHTML = h;
+  if(ed.length) c2 += `<h3 class="my-h">다른 사람이 수정한 내 예약 <button class="btn" id="myEditsSeen" style="padding:2px 8px;font-size:12px">모두 확인함</button></h3>`
+    + `<ul class="pc-list">${ed.map(({r,h:e})=>`<li class="edited r" data-myopen="${esc(r.id)}"><span class="who"><b>${org(r)}</b> · 방문 ${esc(dateLabel(r.date))}<br><small class="hint" style="margin:0"><b>${esc(e.by)}</b> · ${esc(fmt(e.t))} · ${esc(e.what)}</small></span></li>`).join('')}</ul>`;
+  c2 += `<h3 class="my-h">연락할 미정 항목 <small>입력 기한이 오늘이거나 지남</small></h3>` + (tbdDue.length
+    ? `<ul class="pc-list">${tbdDue.map(o=>`<li class="r" data-myopen="${esc(o.r.id)}"><span class="who"><b>${org(o.r)}</b> · 방문 ${esc(dateLabel(o.r.date))}<br>미정: ${esc(o.x.tbd)}<br><small class="hint" style="margin:0">기한 ${esc(mdLabel(o.x.tbdDate))} (${dueTxt(o.x.tbdDate)}) · ${esc(firstContact(o.r)||'담당자 연락처 없음')}</small></span></li>`).join('')}</ul>`
+    : none('없습니다.'));
+  const c3 = `<h3 class="my-h">남은 과업 <small>${open.reduce((s,o)=>s+o.left.length,0)}개</small></h3>` + (open.length
+    ? `<ul class="pc-list">${open.map(o=>`<li class="r" data-myopen="${esc(o.r.id)}"><span class="who"><b>${org(o.r)}</b> · 방문 ${esc(dateLabel(o.r.date))}<br><small class="hint" style="margin:0">${o.left.map(t=>esc(t.title)).join(' · ')}</small></span></li>`).join('')}</ul>`
+    : none('없습니다.'));
+  $('#myBody').innerHTML = `<div class="my-cols"><div class="my-col">${c1}</div><div class="my-col">${c2}</div><div class="my-col">${c3}</div></div>`;
 }
 function paintMyCount(){ const today=ymd(new Date()); const n=myRecords().filter(r=>{ const x=xOf(r); return x.tbd && x.tbdDate && x.tbdDate<=today && (!r.date || r.date>=today); }).length;
   const m=othersEdits().length;
