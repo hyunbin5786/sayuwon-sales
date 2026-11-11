@@ -63,6 +63,9 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .del-l{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:4px 0 4px}
 .del-box select,.del-box input{width:100%;height:38px;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:14px var(--sans);background:#fff;color:var(--ink)}
 .del-box input{margin-top:8px}
+.fix-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center}
+.fix-grid .del-l{margin:0}
+.row-acts{display:inline-flex;gap:4px;white-space:nowrap}
 .btn.danger{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
 /* 예약 내용 아래 버튼 줄: 위아래 내용과 떨어진 한 덩어리 */
 .act-bar{display:flex;gap:3px;margin-left:auto;flex:none}   /* 예약 단계와 같은 줄 오른쪽 */
@@ -277,11 +280,11 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 #stageSeg button.on{background:var(--pine);color:#fff}
 #stageSeg button.guess:not(.on){outline:1px dashed var(--pine);outline-offset:-2px;color:var(--pine);font-weight:700}
 .erp{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:500}
-.tag.st-상담{background:#ece9e2;color:var(--muted)}
+.tag.st-상담,.tag.st-예약상담{background:#ece9e2;color:var(--muted)}
 .tag.st-가예약{background:var(--amber-soft);color:var(--amber)}
 .tag.st-공식예약,.tag.st-예약접수{background:var(--pine);color:#fff}
 .list-x{width:30px;height:30px;padding:0;font-size:18px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
-.modal .list th.owner,.modal .list td.owner{background:#eaf1f8;color:#2b5a87;font-weight:700}   /* 영업 담당 열은 다른 색 */
+.modal .list th.owner,.modal .list td.owner{background:#e3eedc;color:#2f5a22;font-weight:700}   /* 영업 담당 열은 초록 계열로 구분 */
 .modal .list td.contacts-cell{min-width:150px;font-size:12.5px;font-variant-numeric:tabular-nums}
 .my-body{flex:1;min-height:0;display:flex;flex-direction:column}
 .my-cols{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:12px;flex:1;min-height:0}   /* 마이페이지 3열: 방문 예정 · 연락할 미정 · 남은 과업 */
@@ -384,7 +387,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <div class="stage-bar">
       <span class="stage-l">예약 단계</span>
       <div class="seg" id="stageSeg">
-        <button type="button" data-s="상담">상담</button>
+        <button type="button" data-s="예약상담">예약상담</button>
         <button type="button" data-s="예약접수">예약접수</button>
       </div>
       <div class="act-bar">
@@ -400,7 +403,6 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
       <textarea id="memoBox" placeholder="예)
 대표님 동행, 도착 전 연락 요청
 해설은 건축 위주로 부탁"></textarea>
-      <div class="row-btns" style="margin-top:8px"><button class="btn" id="clearMemoBtn">메모 지우기</button></div>
     </div>
   </section>
   <!-- 결제 확인 알림 (결제링크 보낸 다음날부터) -->
@@ -467,7 +469,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <h2><span id="listTitle">단체예약 목록</span> <small id="storeHint"></small>
       <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn primary" id="xlsxBtn" style="padding:4px 10px;font-size:12px">엑셀로 내려받기</button><button type="button" class="btn" id="adminSyncBtn" style="padding:4px 10px;font-size:12px">관리자 사이트에서 지금 가져오기</button><button type="button" class="btn list-x" id="listCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <div class="list-bar"><div class="seg" id="stageFilter" style="display:inline-flex;background:var(--bg)">
-      <button type="button" data-f="all">전체</button><button type="button" data-f="상담">상담</button><button type="button" data-f="예약접수">예약접수</button><button type="button" data-f="noerp">전산 미등록</button>
+      <button type="button" data-f="all">전체</button><button type="button" data-f="예약상담">예약상담</button><button type="button" data-f="예약접수">예약접수</button><button type="button" data-f="noerp">전산 미등록</button>
     </div>
     <div class="seg" id="sortSeg" style="display:inline-flex;background:var(--bg)" title="목록 정렬">
       <button type="button" data-o="date">방문일 순</button><button type="button" data-o="saved" title="최근에 접수(저장)한 예약부터">접수 순</button>
@@ -484,6 +486,23 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <select id="delReason"></select>
     <input id="delNote" data-ime="ko" placeholder="자세한 사유 (선택 · 기타면 필수)" autocomplete="off">
     <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="delCancel">취소</button><button class="btn danger" id="delOk">삭제</button></div>
+  </section>
+</div>
+<!-- 단체예약 목록 '수정': 목록에 보이는 상태(단계 · 전산 · 견적서 · 거래명세서)가 실제와 다를 때 사유를 받고 고침 -->
+<div class="modal" id="fixModal" hidden>
+  <section class="panel consult del-box" role="dialog" aria-modal="true" aria-labelledby="fixTitle">
+    <h2 id="fixTitle">목록 상태 수정 <small id="fixWho"></small></h2>
+    <div class="fix-grid">
+      <label class="del-l" for="fixStage">예약 단계</label><select id="fixStage"><option>예약상담</option><option>예약접수</option></select>
+      <label class="del-l" for="fixErp">전산 등록</label><select id="fixErp"><option value="1">등록</option><option value="">미등록</option></select>
+      <label class="del-l" for="fixQuote">견적서</label><select id="fixQuote"><option value="발행">발행</option><option value="요청">요청 · 미발행</option><option value="">없음</option></select>
+      <label class="del-l" for="fixStmt">거래명세서</label><select id="fixStmt"><option value="발행">발행</option><option value="요청">요청 · 미발행</option><option value="">없음</option></select>
+    </div>
+    <label class="del-l" for="fixReason" style="margin-top:10px">수정 사유</label>
+    <select id="fixReason"></select>
+    <input id="fixNote" data-ime="ko" placeholder="자세한 사유 (선택 · 기타면 필수)" autocomplete="off">
+    <p class="hint" id="fixDiff" style="margin:8px 0 0"></p>
+    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="fixCancel">취소</button><button class="btn primary" id="fixOk">수정</button></div>
   </section>
 </div>
 
@@ -968,7 +987,7 @@ function fieldWarnings(r){
   else if(r.tbd && r.date && r.tbdDate && r.tbdDate>prevWeekThu(r.date)) w.push({field:'tbdDate', reason: r.tbdLate ? `전주 목요일보다 늦음 · 사유: ${r.tbdLate}` : `입력 기한은 방문일 전주 목요일(${mdLabel(prevWeekThu(r.date))})까지입니다. 늦추려면 사유를 적어야 합니다.`});
   if(typeof SPECIAL!=='undefined') specialCounts(r).forEach(s=>w.push({field:s.k, reason:`${s.n}명 ${s.name} 할인 → 방문 때 ${s.proof} 지참을 안내하세요.`}));
   if(r.date && r.pay==='미정' && r.payContact && r.payContact>r.date) w.push({field:'payContact', reason:'결제 연락 예정일이 방문일보다 늦습니다.'});
-  if(typeof effStage==='function'){ const s=effStage(r); if(s!=='상담' && !r.erp) w.push({field:'stage', reason:`예약접수는 사유원 전산에 등록해야 합니다. 등록한 뒤 추후 과업의 '전산 예약'을 체크하세요.`}); }
+  if(typeof effStage==='function'){ const s=effStage(r); if(s!=='예약상담' && !r.erp) w.push({field:'stage', reason:`예약접수는 사유원 전산에 등록해야 합니다. 등록한 뒤 추후 과업의 '전산 예약'을 체크하세요.`}); }
   const day = adminData && adminData.days && adminData.days[r.date];
   if(day) Object.entries(ADMIN_SLOT).forEach(([k,[slot,name]])=>{
     const s=day[slot], want=numOf(r[k]); if(!s || !want) return;
@@ -983,7 +1002,6 @@ function autoSummary(){ return ['단체', rec.org, rec.people&&`${rec.people}명
 
 // ===================== 통화 메모 (특이사항만 적어 두는 칸 · 예약 칸을 채우지 않음) =====================
 $('#memoBox').addEventListener('input', ()=>startTimer());
-$('#clearMemoBtn').onclick=()=>{ $('#memoBox').value=''; $('#memoBox').focus(); };
 function status(s){ $('#status').textContent=s; }
 
 // 통화 시간
@@ -1001,7 +1019,7 @@ function reportText(r){
   const L=[`[단체예약 보고] ${r.org||'(단체명 미정)'}`, ''];
   const add=(k,v)=>{ if(v) L.push(`- ${k}: ${v}`); };
   const st=effStage(r), erpT=tasks.find(t=>t.id==='erp');
-  add('예약 단계', st + (st!=='상담' ? (r.erp ? ' (전산 등록 완료)' : ' (전산 미등록)') : ''));
+  add('예약 단계', st + (st!=='예약상담' ? (r.erp ? ' (전산 등록 완료)' : ' (전산 미등록)') : ''));
   add('방문일', r.date ? `${dateLabel(r.date)}` : '');
   add('인원', [r.people && cnt(r.people), r.pchg && '인원 변경 가능성 있음'].filter(Boolean).join(' · '));
   add('입장', [r.tin, r.gate].filter(Boolean).join(' ') + (r.tout ? ` ~ 퇴장 ${r.tout}` : ''));
@@ -1363,25 +1381,26 @@ document.addEventListener('click', e=>{ const b=e.target.closest('#stageFilter b
 async function renderList(){
   // 예전 기록의 '단체예약'도 함께 (일반 문의·기타는 제외)
   const all=(await store.list()).filter(r=>['단체예약',...STAGES,...Object.keys(OLD_STAGE)].includes(r.callType||'단체예약'));
-  const del=id=>`<button class="btn" data-del="${id}" style="padding:3px 8px;font-size:12px">삭제</button>`;
+  const del=id=>`<span class="row-acts"><button class="btn" data-fix="${id}" style="padding:3px 8px;font-size:12px" title="목록에 보이는 단계 · 전산 · 견적서 · 거래명세서 상태 고치기">수정</button><button class="btn" data-del="${id}" style="padding:3px 8px;font-size:12px">삭제</button></span>`;
   const needCall = r => /^자동 등록/.test(r.summary||'');
   const nCall = all.filter(needCall).length;
   // 단계: 시트 '통화 구분' 칸. 예전 '단체예약'은 결제로 판단. 관리자 사이트에서 온 예약은 이미 전산에 있음
   const stageOf = r => /^adm/.test(r.id) && !STAGES.includes(normStage(r.callType)) ? '예약접수' : STAGES.includes(normStage(r.callType)) ? normStage(r.callType) : stageAuto(unpackExtra(r).pay ? {...r, ...unpackExtra(r)} : r);
   const erpOf = r => /^adm/.test(r.id) || !!unpackExtra(r).erp;
   const counts = Object.fromEntries(STAGES.map(s=>[s, all.filter(r=>stageOf(r)===s).length]));
-  const noErp = all.filter(r=>stageOf(r)!=='상담' && !erpOf(r)).length;
+  const noErp = all.filter(r=>stageOf(r)!=='예약상담' && !erpOf(r)).length;
   $('#callCount').hidden = !nCall; $('#callCount').textContent = `전화 필요 ${nCall}`; $('#listCount').textContent = all.length;
   $('#adminHint').textContent = adminData?.updated ? `관리자 사이트 ${fmtAgo(adminData.updated)} 갱신 · ` : '';
   document.querySelectorAll('#stageFilter button').forEach(b=>{ const s=b.dataset.f; b.classList.toggle('on', s===listStage); b.textContent = s==='all' ? `전체 ${all.length}` : s==='noerp' ? `전산 미등록 ${noErp}` : `${s} ${counts[s]}`; });
-  const shown = all.filter(r=> listStage==='all' ? true : listStage==='noerp' ? (stageOf(r)!=='상담' && !erpOf(r)) : stageOf(r)===listStage);
+  const shown = all.filter(r=> listStage==='all' ? true : listStage==='noerp' ? (stageOf(r)!=='예약상담' && !erpOf(r)) : stageOf(r)===listStage);
   document.querySelectorAll('#sortSeg button').forEach(b=>b.classList.toggle('on', b.dataset.o===listSort));
   listView = { shown, stageOf, erpOf };   // 엑셀로 내려받기에 씀
-  const stageTag = r => { const s=stageOf(r); return `<span class="tag st-${s}">${s}</span>${s!=='상담' && !erpOf(r) ? ' <span class="tag call">전산 미등록</span>' : ''}`; };
+  const stageTag = r => { const s=stageOf(r); return `<span class="tag st-${s}">${s}</span>${s!=='예약상담' && !erpOf(r) ? ' <span class="tag call">전산 미등록</span>' : ''}`; };
   $('#listBody').innerHTML=shown.slice().sort(listOrder).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
     || `<tr><td colspan="12" class="hint">${all.length?'이 구분에 해당하는 예약이 없습니다.':'저장한 단체예약이 없습니다.'}</td></tr>`;
   document.querySelectorAll('#listBody tr.r').forEach(tr=>tr.onclick=async e=>{
     if(e.target.dataset.del){ e.stopPropagation(); openDel(e.target.dataset.del); return; }
+    if(e.target.dataset.fix){ e.stopPropagation(); openFix(e.target.dataset.fix); return; }
     const r=cache.find(x=>x.id===tr.dataset.id); if(!r) return;
     openRecord(r);
   });
@@ -1650,14 +1669,14 @@ async function openQuote(doc){
 $('#quoteBtn').onclick=()=>openQuote('quote');
 $('#stmtBtn').onclick=()=>openQuote('statement');
 
-// ===================== 예약 단계: 상담 · 예약접수 =====================
-// 자동: 결제가 비어 있으면 상담, 결제를 고르면(미정 포함) 예약접수(전산 등록 필요). 버튼으로 직접 바꿀 수 있음
-const STAGES = ['상담','예약접수'];
-const OLD_STAGE = { '가예약':'예약접수', '공식예약':'예약접수' };   // 예전에 저장한 단계는 예약접수로
+// ===================== 예약 단계: 예약상담 · 예약접수 =====================
+// 자동: 결제가 비어 있으면 예약상담, 결제를 고르면(미정 포함) 예약접수(전산 등록 필요). 버튼으로 직접 바꿀 수 있음
+const STAGES = ['예약상담','예약접수'];
+const OLD_STAGE = { '상담':'예약상담', '가예약':'예약접수', '공식예약':'예약접수' };   // 예전에 저장한 단계는 예약접수로
 const normStage = s => OLD_STAGE[s] || s;
-const stageAuto = r => r.pay ? '예약접수' : '상담';
+const stageAuto = r => r.pay ? '예약접수' : '예약상담';
 const effStage = r => (STAGES.includes(r.stage) ? r.stage : '') || stageAuto(r);
-const needsErp = r => effStage(r)!=='상담';
+const needsErp = r => effStage(r)!=='예약상담';
 function renderStage(){
   const s=effStage(rec), manual=STAGES.includes(rec.stage);
   document.querySelectorAll('#stageSeg button').forEach(b=>{ b.classList.toggle('on', b.dataset.s===s && manual); b.classList.toggle('guess', b.dataset.s===s && !manual); });
@@ -1744,7 +1763,7 @@ async function downloadXlsx(){
     ws.columns = COLS.map(([h,w])=>({ header:h, width:w }));
     rows.forEach(r=>{
       const x={...r, ...unpackExtra(r)}, sp=(String(r.memo||'').match(/특별 할인\s+([^/]+)/)||[])[1]||'';
-      ws.addRow([r.date||'', listView.stageOf(r), listView.erpOf(r)?'등록':(listView.stageOf(r)==='상담'?'':'미등록'), r.org||'', r.owner||r.takenBy||'', r.pay||'', r.vehicle||'', r.tin||'', x.gate||'', r.tout||'', r.people||'',
+      ws.addRow([r.date||'', listView.stageOf(r), listView.erpOf(r)?'등록':(listView.stageOf(r)==='예약상담'?'':'미등록'), r.org||'', r.owner||r.takenBy||'', r.pay||'', r.vehicle||'', r.tin||'', x.gate||'', r.tout||'', r.people||'',
         r.sadam1||'', r.sadam2||'', r.sadamD||'', r.mabangL||'', r.mabangD||'', r.mabangMenu||'', ...PROG_KEYS().map(k=>x[k]||''), Object.keys(x).filter(k=>x[k] && (LEGACY_KEYS.includes(k) || (/^px:/.test(k) && !PROG_KEYS().includes(k)))).map(k=>`${LABEL[k]||k.slice(3)} ${x[k]}`).join(', '),
         docState(r,'quote'), docState(r,'stmt'),         r.contact||'', r.phone||'', r.email||'', x.pchg?'있음':'', x.onsite?'있음':'', x.tbd?(x.tbd+(x.tbdDate?` (${x.tbdDate}까지)`:'')):'', sp.trim(), r.note||'', r.saved?fmt(r.saved):'']);
     });
@@ -1779,6 +1798,58 @@ const docTag = (r,id) => { const s=docState(r,id); return s==='발행' ? '<span 
 // ===================== 예약 삭제: 사유 고르기 =====================
 // 사유 목록 (피드백 받아 고칠 것)
 const DEL_REASONS = ['고객 취소 (방문 취소)','일정 연기 · 날짜 다시 잡기로','다른 예약과 중복 등록','잘못 입력 · 테스트','인원이 줄어 단체 예약 아님 (개인 예약으로)','다른 곳으로 결정 · 견적 후 진행 안 함','연락 두절','기타 (직접 입력)'];
+// ===================== 단체예약 목록 '수정': 상태가 실제와 다를 때 사유를 받고 고침 =====================
+// 사유 기본 목록 (피드백 받아 고칠 것)
+const FIX_REASONS = ['잘못 눌러 발행으로 표시됨 (실제로는 발행 안 함)','다른 경로로 이미 발행함 (메일 · 수기 등)','고객이 서류 요청을 취소함','전산 등록 상태가 실제와 다름','예약 단계가 실제와 다름 (결제 · 확정 여부 변경)','기타 (직접 입력)'];
+let fixId=null, fixBase=null;
+const DOC_LABEL = { '발행':'발행', '요청':'요청 · 미발행', '':'없음' };
+function fixStateOf(r){ return { stage: stageOfRec(r), erp: (/^adm/.test(r.id) || !!unpackExtra(r).erp) ? '1' : '', quote: docState(r,'quote'), stmt: docState(r,'stmt') }; }
+function fixDiffList(a,b){ const out=[];
+  if(a.stage!==b.stage) out.push(`예약 단계 ${a.stage} → ${b.stage}`);
+  if(a.erp!==b.erp) out.push(`전산 ${a.erp?'등록':'미등록'} → ${b.erp?'등록':'미등록'}`);
+  if(a.quote!==b.quote) out.push(`견적서 ${DOC_LABEL[a.quote]} → ${DOC_LABEL[b.quote]}`);
+  if(a.stmt!==b.stmt) out.push(`거래명세서 ${DOC_LABEL[a.stmt]} → ${DOC_LABEL[b.stmt]}`);
+  return out; }
+const fixCur = () => ({ stage:$('#fixStage').value, erp:$('#fixErp').value, quote:$('#fixQuote').value, stmt:$('#fixStmt').value });
+function paintFixDiff(){ const d=fixDiffList(fixBase, fixCur()); $('#fixDiff').textContent = d.length ? '바뀌는 것: '+d.join(', ') : '바꿀 상태를 고르세요.'; $('#fixOk').disabled=!d.length; }
+function openFix(id){
+  const r=cache.find(x=>x.id===id); if(!r) return;
+  fixId=id; fixBase=fixStateOf(r);
+  $('#fixWho').textContent = [r.org||r.contact||'(업체 미정)', r.date&&dateLabel(r.date)].filter(Boolean).join(' · ');
+  $('#fixStage').value=fixBase.stage; $('#fixErp').value=fixBase.erp; $('#fixQuote').value=fixBase.quote; $('#fixStmt').value=fixBase.stmt;
+  $('#fixReason').innerHTML = '<option value="">사유를 고르세요</option>' + FIX_REASONS.map(x=>`<option>${esc(x)}</option>`).join('');
+  $('#fixNote').value=''; paintFixDiff(); $('#fixModal').hidden=false; $('#fixStage').focus();
+}
+const closeFix = () => { $('#fixModal').hidden=true; fixId=null; };
+['#fixStage','#fixErp','#fixQuote','#fixStmt'].forEach(s=>$(s).addEventListener('change', paintFixDiff));
+$('#fixCancel').onclick=closeFix;
+$('#fixModal').addEventListener('mousedown', e=>{ if(e.target.id==='fixModal') closeFix(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#fixModal').hidden){ e.preventDefault(); closeFix(); } });
+$('#fixOk').onclick=async ()=>{
+  const cur=fixCur(), diff=fixDiffList(fixBase, cur); if(!diff.length) return;
+  const reason=$('#fixReason').value, note=$('#fixNote').value.trim();
+  if(!reason){ toast('수정 사유를 골라 주세요.'); $('#fixReason').focus(); return; }
+  if(/^기타/.test(reason) && !note){ toast('기타 사유를 적어 주세요.'); $('#fixNote').focus(); return; }
+  const r=cache.find(x=>x.id===fixId); if(!r){ closeFix(); return; }
+  if(editingId===r.id && baseSnap && diffSnap(baseSnap, snap()).length){ toast('이 예약을 지금 고치는 중입니다. 먼저 저장한 뒤 수정해 주세요.'); return; }
+  const now=new Date().toISOString(), ph=parseHist(r), x=unpackExtra(r), why = /^기타/.test(reason) ? note : reason + (note ? ` · ${note}` : '');
+  // 전산 등록
+  const ex={...r, ...x};
+  if(cur.erp!==fixBase.erp){ ex.erp = cur.erp ? (x.erp || '목록에서 수정') : ''; const t=ph.tasks.find(t=>t.id==='erp'); if(t){ t.done=!!cur.erp; t.doneAt=cur.erp?now:''; } }
+  // 견적서 · 거래명세서: 발행 = 과업 완료, 요청 = 과업 미완료, 없음 = 과업 · 요청 없앰
+  [['quote','wantQuote'],['stmt','wantStmt']].forEach(([id,wk])=>{ if(cur[id]===fixBase[id]) return;
+    let t=ph.tasks.find(t=>t.id===id);
+    if(!cur[id]){ ph.tasks=ph.tasks.filter(t=>t.id!==id); ex[wk]=''; return; }
+    if(!t){ t={id, title:AUTO_TASKS[id], done:false, memo:'', at:now}; ph.tasks.push(t); }
+    t.done = cur[id]==='발행'; t.doneAt = t.done ? now : ''; ex[wk]='있음'; });
+  ph.h.push({t:now, by:savedOwner()||'', what:`[목록 수정] ${diff.join(', ')} · 사유: ${why}`});
+  const pk=packExtra(ex);
+  const item={...r, pay:pk.pay, memo:pk.memo, callType:cur.stage, history:JSON.stringify({h:ph.h, tasks:ph.tasks}), saved:now};
+  await store.put(item); closeFix(); await renderList();
+  if(editingId===r.id){ openRecord(cache.find(x=>x.id===r.id)||item); $('#listModal').hidden=false; }   // 열어 둔 예약이면 고친 상태로 다시 불러옴
+  toast('목록 상태를 고쳤습니다. 사유는 수정 기록에 남았습니다.');
+};
+
 let delId=null;
 function openDel(id){
   const r=cache.find(x=>x.id===id); if(!r) return;
