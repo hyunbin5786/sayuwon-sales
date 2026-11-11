@@ -65,6 +65,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .del-box input{margin-top:8px}
 .fix-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center}
 .fix-grid .del-l{margin:0}
+.price-need{margin:0;padding:8px 10px;border-radius:7px;background:var(--amber-soft);color:var(--amber);font-size:13px}   /* 가격표: 방문일 · 관람 인원 중 빠진 것 안내 */
 #opt_mabang .fields{grid-template-columns:minmax(0,1.4fr) minmax(0,.8fr) minmax(0,1fr) minmax(0,.9fr)}   /* 시간 칸을 넓게 */
 .mb-menu{display:flex;flex-wrap:wrap;gap:6px}   /* 몽몽마방 메뉴 O 체크 */
 .mb-ck{display:flex;align-items:center;gap:5px;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:13px;cursor:pointer;user-select:none}
@@ -1590,14 +1591,16 @@ function renderPrice(){
   const box=$('#priceBox'); if(!box) return;
   let day=null; if(rec.date){ const d=new Date(rec.date+'T00:00'); if(!isNaN(d)) day = isRedDay(rec.date) ? 'we' : 'wd'; }
   const n = numOf(rec.people), g = groupRate(n), sp = specialCounts(rec);
-  $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?(HOLIDAYS.has(rec.date)?'공휴일(주말)':'주말'):'평일'} 가격` : (n ? '방문일 전 · 평일 가격으로 계산' : '');
+  $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?(HOLIDAYS.has(rec.date)?'공휴일(주말)':'주말'):'평일'} 가격` : '';
   $('#discGroup').innerHTML = n
     ? `${n}명 → <b>${groupLabel(n)}</b> <span class="hint" style="margin:0">(관람·사담 런치만, 다른 상품은 할인 없음)</span>` + (sp.length ? `<br>특별 할인 ${sp.map(s=>`${s.short} ${s.n}명 ${s.rate===1?'무료':Math.round(s.rate*100)+'%'}`).join(' · ')} <span class="hint" style="margin:0">(단체 할인과 비교해 큰 쪽)</span>` : '')
     : '<span class="hint" style="margin:0">관람 인원을 넣으면 할인(20명 미만 5% · 20명 초과 10%)이 계산됩니다</span>';
   SPECIAL.forEach(s=>{ const el=$('#'+s.k); if(el && document.activeElement!==el) el.value = rec[s.k]||''; el?.classList.toggle('has', !!rec[s.k]); });
   // 1) 선택한 항목
-  if(!quoteBlocks(rec).blocks.length){   // 방문일이 없으면 평일 가격으로, 관람 인원 없이 프로그램 · 식사만 있어도 보여 줌
-    box.innerHTML = '<p class="hint" style="margin:0">관람 인원이나 식사 · 프로그램 인원을 넣으면 금액이 여기에 나옵니다.</p>';
+  if(!rec.date || !n){   // 방문일 · 관람 인원이 둘 다 있어야 계산. 하나만 있으면 나머지를 넣어 달라고
+    box.innerHTML = rec.date && !n ? '<p class="price-need"><b>관람 인원</b>을 입력해 주세요. 방문일과 관람 인원이 있어야 금액이 나옵니다.</p>'
+      : n && !rec.date ? '<p class="price-need"><b>방문일</b>을 입력해 주세요. 평일 · 주말 가격이 달라 방문일이 있어야 금액이 나옵니다.</p>'
+      : '<p class="hint" style="margin:0">방문일과 관람 인원을 넣으면, 예약 칸에서 고른 관람 · 식사 · 프로그램의 금액이 여기에 나옵니다.</p>';
   } else if(!quoteCat){
     box.innerHTML = '<p class="hint" style="margin:0">견적서 사이트에서 가격을 불러오는 중입니다.</p>';
   } else {
