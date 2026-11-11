@@ -551,16 +551,25 @@ const FIELDS = [
   ['프로그램(시간)','donghaeng','동행 도슨트','P','',null],
   ['프로그램(시간)','seminar','세미나 도슨트','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에
 ];
+// 프로그램 담당 (영업 담당과 다름): 프로그램마다 'stf_키' 칸을 바로 뒤에. 차방 · 당두봉갈 대관은 담당이 없어도 됨
+const STAFF_FREE = new Set(['chabang','dangdu']);
+const isStf = k => /^stf_/.test(k);
+const needsStaff = k => !isStf(k) && !STAFF_FREE.has(k);
+const staffRow = f => [f[0], 'stf_'+f[1], f[2]+' 담당', '', '', null];
+for(let i=FIELDS.length-1;i>=0;i--){ const f=FIELDS[i]; if(/^프로그램/.test(f[0]) && needsStaff(f[1])) FIELDS.splice(i+1,0,staffRow(f)); }
 // 프로그램 품목 ↔ 견적서 품목 (견적서·금액 계산용)
 const PROG_SRC = { yoga:'요가프로그램(단체)', gaga:'음료쿠폰(가가빈빈)', chabang:'대관', dangdu:'대관', donghaeng:'해설사도슨트(수정)', seminar:'세미나', sound:'사운드워킹' };
 // 지금 견적서 품목 리스트에 있는 단체 품목 (이것 말고 새로 추가된 것만 프로그램 칸으로 붙임)
 const PROG_KNOWN = ['대관','세미나','해설사도슨트(수정)','임원도슨트(수정)','사운드워킹','사유의 향','요가프로그램(단체)','음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)','사유의 밥상(단체)','당두봉갈 대관'];
 const PROG_GRP = { geach:'프로그램(개별)', gtime:'프로그램(시간)' };
 const UNIT = k => (FIELDS.find(f=>f[1]===k)||[])[0]==='프로그램(시간)' ? '시간' : '명';
-const PROG_KEYS = () => FIELDS.filter(f=>/^프로그램/.test(f[0])).map(f=>f[1]);
+const PROG_KEYS = () => FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isStf(f[1])).map(f=>f[1]);
+const STF_KEYS = () => FIELDS.filter(f=>isStf(f[1])).map(f=>f[1]);
+// 프로그램은 들어갔는데 담당이 빈 것 (차방 · 당두봉갈 제외)
+const missingStaff = r => PROG_KEYS().filter(k=>r[k] && needsStaff(k) && !String(r['stf_'+k]||'').trim());
 const LEGACY_KEYS = ['teaMed','gayageum','cabin'];   // 예전 프로그램 칸 (입력 칸은 없앴지만 저장된 값은 그대로 둠)
 const SHEET_PROG = new Set(['yoga','gaga','chabang','dangdu','donghaeng']);   // 시트에 열이 있는 프로그램
-const isXProg = k => /^(프로그램)/.test(GROUP_OF[k]||'') && !SHEET_PROG.has(k);   // 비고 칸에 적는 프로그램
+const isXProg = k => /^(프로그램)/.test(GROUP_OF[k]||'') && !SHEET_PROG.has(k) && !isStf(k);   // 비고 칸에 적는 프로그램
 // 견적서 품목에 새로 생긴 단체(개별)·단체(시간) 품목을 프로그램 칸으로 (key: px:품목)
 function addCatalogProgs(cat){
   const out=[];
@@ -575,7 +584,7 @@ function addCatalogProgs(cat){
     const label=String(src).replace(/\((수정|변경|단체)\)/g,'').trim() || src, k='px:'+nm(label);
     if(known.has(nm(src)) || FIELDS.some(f=>f[1]===k)) return;
     const grp=PROG_GRP[kind], last=FIELDS.map(f=>f[0]).lastIndexOf(grp);
-    const f=[grp,k,label,'','',null]; FIELDS.splice(last+1,0,f); KEYS.push(k); GROUP_OF[k]=grp; LABEL[k]=label; PROG_SRC[k]=src; out.push(f);
+    const f=[grp,k,label,'','',null], s=staffRow(f); FIELDS.splice(last+1,0,f,s); KEYS.push(k,s[1]); GROUP_OF[k]=grp; GROUP_OF[s[1]]=grp; LABEL[k]=label; LABEL[s[1]]=s[2]; PROG_SRC[k]=src; out.push(f,s);
   });
   return out;
 }
@@ -637,6 +646,9 @@ function packExtra(r){
   if(typeof SPECIAL!=='undefined'){ const sp=specialCounts(r); if(sp.length) o.memo=[o.memo, '특별 할인 '+sp.map(s=>s.short+' '+s.n).join(', ')].filter(Boolean).join(' / '); }
   const xp = Object.keys(r).filter(k=>r[k] && (isXProg(k) || /^px:/.test(k))).map(k=>`${LABEL[k]||k.slice(3)} ${String(r[k]).replace(/[,/]/g,' ').trim()}`);
   if(xp.length) o.memo=[o.memo, '추가 프로그램 '+xp.join(', ')].filter(Boolean).join(' / ');
+  // 프로그램 담당: "프로그램 담당 동행 도슨트:사공유빈, 요가:김사유"
+  const st = Object.keys(r).filter(k=>isStf(k) && r[k] && r[k.slice(4)]).map(k=>`${LABEL[k.slice(4)]||k.slice(7)}:${String(r[k]).replace(/[,/:]/g,' ').trim()}`);
+  if(st.length) o.memo=[o.memo, '프로그램 담당 '+st.join(', ')].filter(Boolean).join(' / ');
   return o;
 }
 function unpackExtra(r){ const o={}; let m;
@@ -644,6 +656,8 @@ function unpackExtra(r){ const o={}; let m;
   String(r.memo||'').split(/\s*\/\s*/).forEach(part=>{ MEMO_PARTS.forEach(([k,l])=>{ if(part.startsWith(l+' ')) o[k]=part.slice(l.length+1).trim(); }); });
   const mx=String(r.memo||'').match(/추가 프로그램\s+([^/]+)/); if(mx) mx[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\S+)$/); if(!x) return;
     const f=FIELDS.find(f=>f[2]===x[1] && isXProg(f[1])), k=f ? f[1] : 'px:'+x[1].replace(/\s/g,''); if(!f) LABEL[k]=x[1]; o[k]=x[2]; });
+  const mst=String(r.memo||'').match(/프로그램 담당\s+([^/]+)/); if(mst) mst[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?):(.+)$/); if(!x) return;
+    const f=FIELDS.find(f=>f[2]===x[1].trim() && /^프로그램/.test(f[0]) && !isStf(f[1])), k=f ? f[1] : 'px:'+x[1].replace(/\s/g,''); o['stf_'+k]=x[2].trim(); });
   const ms=String(r.memo||'').match(/특별 할인\s+([^/]+)/); if(ms) ms[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\d+)$/); if(!x) return; const s=SPECIAL.find(s=>s.short===x[1].trim()); if(s) o[s.k]=x[2]; });
   return o; }
 
@@ -732,6 +746,8 @@ function fieldHTML(k,label,col,cls,req){
     ? `<select id="f_${k}" data-k="${k}">${PAYS.map(p=>`<option>${p}</option>`).join('')}</select>`
     : k==='date'   // 보이는 칸은 "2026-12-05 (토)" 글자, 달력은 밑에 숨긴 날짜 칸으로
     ? `<input id="f_date" data-k="date" class="date-text"${extra}><input type="date" id="f_datePick" class="date-pick" tabindex="-1" aria-hidden="true">`
+    : isStf(k)
+    ? `<input id="f_${k}" data-k="${k}" data-ime="ko" placeholder="담당자 이름" autocomplete="off">`
     : `<input id="f_${k}" data-k="${k}"${extra}${/^프로그램/.test(GROUP_OF[k]||'') ? ` placeholder="${UNIT(k)}"` : ''}>`;
   const tbdBox = k!=='vehicle' && TBD_KEYS.some(([tk])=>tk===k) ? `<label class="tbdck" title="아직 안 정해졌으면 체크"><input type="checkbox" data-tbd="${k}">미정</label>` : "";
   return `<div class="f ${cls}${req?' req':''}${tbdBox?' has-tbd':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span></label><div class="inbox">${input}${tbdBox}</div></div>`;
@@ -873,7 +889,8 @@ function paintFields(changed=[]){
     w.classList.toggle('unsure', fieldWarnings(rec).some(u=>u.field===k));
     const isTbd = tbdSet(rec).has(k) || (k==='pay' && v==='미정');   // 결제 미정도 노란색
     w.classList.toggle('tbd', isTbd);
-    w.classList.toggle('missing', req.has(k) && !v && !isTbd);
+    w.classList.toggle('missing', (req.has(k) && !v && !isTbd) || (isStf(k) && !v && needsStaff(k.slice(4))));
+    if(isStf(k)) w.hidden = !rec[k.slice(4)] && !v;   // 프로그램을 넣었을 때만 담당 칸
     if(OPT[GROUP_OF[k]]) el.classList.toggle('has', !!v);
   });
   const ts=tbdSet(rec); document.querySelectorAll('[data-tbd]').forEach(b=>{ const on=ts.has(b.dataset.tbd); b.checked=on; });
@@ -887,9 +904,9 @@ function paintFields(changed=[]){
 // 접는 묶음: 값이 있으면 버튼·묶음을 초록으로, 버튼에 입력 내용 요약
 function paintOpt(){
   Object.entries(OPT).forEach(([grp,o])=>{
-    const keys=FIELDS.filter(f=>f[0]===grp).map(f=>f[1]);
+    const keys=FIELDS.filter(f=>f[0]===grp && !isStf(f[1])).map(f=>f[1]);
     const filled=keys.filter(k=>rec[k]);
-    const sum = o.id==='mabang' ? mabangText(rec) : filled.map(k=>{ const v=rec[k]; return `${FIELDS.find(f=>f[1]===k)[2]} ${/^\d+(\+\d+)*$/.test(v)?v+UNIT(k):v}`; }).join(' · ');
+    const sum = o.id==='mabang' ? mabangText(rec) : /^프로그램/.test(grp) ? progList(rec, grp, true).join(' · ') : filled.map(k=>{ const v=rec[k]; return `${FIELDS.find(f=>f[1]===k)[2]} ${/^\d+(\+\d+)*$/.test(v)?v+UNIT(k):v}`; }).join(' · ');
     const b=document.querySelector(`.opt-btn[data-opt="${o.id}"]`), box=document.getElementById('opt_'+o.id);
     if(!b||!box) return;
     b.classList.toggle('filled', filled.length>0);
@@ -939,7 +956,10 @@ const PAY_GUIDE = {
   '현장 결제':  ['현장 결제로 하시면 당일 인원 변경이 어려운 점 양해 부탁드립니다.', '인원은 언제까지 확정해 주실 수 있을까요?'],
 };
 // 프로그램 입력 내용: "요가 20명", "차방 대관 2시간" (grp 를 주면 그 묶음만)
-const progList = (r, grp) => FIELDS.filter(f=>(grp ? f[0]===grp : /^프로그램/.test(f[0])) && r[f[1]]).map(f=>{ const v=String(r[f[1]]); return `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? v+UNIT(f[1]) : v}`; });
+// staff 를 주면 "동행 도슨트 2시간 (담당:사공유빈)" (차방 · 당두봉갈은 담당을 적었을 때만)
+const progList = (r, grp, staff) => FIELDS.filter(f=>(grp ? f[0]===grp : /^프로그램/.test(f[0])) && !isStf(f[1]) && r[f[1]]).map(f=>{ const v=String(r[f[1]]), who=String(r['stf_'+f[1]]||'').trim();
+  const tag = !staff ? '' : who ? ` (담당:${who})` : needsStaff(f[1]) ? ' (담당:미정)' : '';
+  return `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? v+UNIT(f[1]) : v}${tag}`; });
 // 조사: 받침에 따라 (으)로 · 은/는 · 이고/고
 const lastJong = s => { const c=String(s).trim().slice(-1).charCodeAt(0)-0xAC00; return c>=0 && c<11172 ? c%28 : (/[0-9]$/.test(s) ? ({0:1,1:8,3:1,6:1,7:8,8:8}[String(s).slice(-1)]||0) : 0); };   // 0 = 받침 없음, 8 = ㄹ
 const ro  = s => { const j=lastJong(s); return !j || j===8 ? '로' : '으로'; };
@@ -980,7 +1000,7 @@ function readback(r){
 }
 
 // ===================== 그날 예약 현황 (식사·프로그램) =====================
-const INFO_OF = k => OPT[GROUP_OF[k]]?.id || null;   // sadam · mabang · prog
+const INFO_OF = k => isStf(k) ? null : OPT[GROUP_OF[k]]?.id || null;   // sadam · mabang · prog
 let curInfoKey = null;
 const numOf = v => { const s=String(v||'').trim(); return /^\d+(\s*\+\s*\d+)*\s*명?$/.test(s) ? s.match(/\d+/g).reduce((a,x)=>a+(+x),0) : 0; };   // 인원만 더함 (10:30 같은 시간은 제외)
 function sameDay(){ return cache.filter(r=>r.date===rec.date && r.id!==editingId); }
@@ -1070,8 +1090,8 @@ function reportText(r){
   contactsOf(r).forEach((c,i)=>add(`담당자${i?i+1:''}`, [c.name,c.phone,c.email].filter(Boolean).join(' / ')));
   add('사담 식사', grpLine('사담'));
   add('몽몽마방 식사', mabangText(r));
-  add('프로그램(개별)', progList(r,'프로그램(개별)').join(', '));
-  add('프로그램(시간)', progList(r,'프로그램(시간)').join(', '));
+  add('프로그램(개별)', progList(r,'프로그램(개별)',true).join(', '));
+  add('프로그램(시간)', progList(r,'프로그램(시간)',true).join(', '));
   add('기타 프로그램', LEGACY_KEYS.filter(k=>r[k]).map(k=>`${LABEL[k]} ${r[k]}`).join(', '));
   add('결제', r.pay ? r.pay + (r.pay==='미정' && r.payContact ? ` (${mdLabel(r.payContact)} 연락 예정)` : '') + (r.onsite ? ' · 현장 카드 재결제' : '') : '');
   const sp = typeof SPECIAL!=='undefined' ? specialCounts(r) : [];
@@ -1236,7 +1256,7 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
-const AUTO_TASKS = { erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
+const AUTO_TASKS = { progstaff:'프로그램 담당 입력', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 function moneySplit(r){
   if(!quoteCat || !r.date || !numOf(r.people)) return null;
@@ -1254,6 +1274,7 @@ const memoLines = () => $('#memoBox').value.split('\n').map(s=>s.trim()).filter(
 function erpNote(r){
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';   // 출입구가 미정이면 '출입구 미정'을 따로
   const p=[`입장 ${r.tin||'미정'}${gate?' '+gate:''}`, ...(gate?[]:['출입구 미정']), r.pchg ? '인원 변경 가능성 있음' : '인원 변경 없음'];
+  const pg=progList(r, null, true); if(pg.length) p.push(pg.join(', '));   // 프로그램 (담당:이름)
   if(r.pay==='현장 결제' || r.onsite){ const m=moneySplit(r); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); }
   return [...p, ...memoLines()].join(' / ');
 }
@@ -1270,6 +1291,7 @@ function syncAutoTasks(){
   if(rec.pay==='결제링크') want.push('paycheck');
   if(rec.wantQuote) want.push('quote');
   if(rec.wantStmt) want.push('stmt');
+  const ms=missingStaff(rec); if(ms.length) want.push('progstaff');   // 프로그램 담당이 비면 입력하라고
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
   const e0=tasks.find(t=>t.id==='erp');
   if(e0){ e0.done=!!rec.erp; if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
@@ -1279,12 +1301,13 @@ function syncAutoTasks(){
   const fx=tasks.find(t=>t.id==='erpfix');
   if(fx){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); } fx.changes=fixes; } else if(!fx.done) fx.changes=[]; }
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
-  const ORDER=['erp','erpfix','quote','stmt','tax','paycheck'];
+  const ps=tasks.find(t=>t.id==='progstaff'); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
+  const ORDER=['progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
   tasks.sort((a,b)=>(a.custom?99:ORDER.indexOf(a.id))-(b.custom?99:ORDER.indexOf(b.id)));
 }
 // 전산에 들어가는 내용 (이게 바뀌면 전산 예약 수정)
 const ERP_BASE = ['org','date','people','tin','tout','gate','pchg','pay','onsite','sadam1','sadam2','sadamD','mabangTime','mabangL','mabangD','mabangMenu','teaMed','gayageum','cabin','c0_name','c0_phone'];
-const ERP_KEYS_ = () => [...ERP_BASE, ...PROG_KEYS()];   // 프로그램은 견적서 품목에 따라 늘어남
+const ERP_KEYS_ = () => [...ERP_BASE, ...PROG_KEYS(), ...STF_KEYS()];   // 프로그램은 견적서 품목에 따라 늘어남
 const erpSnap = () => Object.fromEntries(ERP_KEYS_().map(k=>[k, rec[k]||'']));
 const erpDiff = (a,b) => [...new Set([...Object.keys(a),...Object.keys(b)])].filter(k=>(a[k]||'')!==(b[k]||'')).map(k=>{ const x=a[k]||'', y=b[k]||'', l=LABEL[k]||k; return !x?`${l} ${y} 추가`:!y?`${l} ${x} 삭제`:`${l} ${x} → ${y}`; });
 const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
@@ -1303,6 +1326,7 @@ function renderTasks(){
   box.innerHTML = tasks.map(t=>{
     const txt=taskText(t);
     const sub = t.id==='paycheck' ? `결제링크 보낸 다음날(${mdLabel(ymd(nextDay(t.at)))}) 아침에 이 창을 열면 확인 알림이 뜹니다.`
+      : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 프로그램: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 칸의 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (차방 · 당두봉갈 대관은 담당 없어도 됨)` : '프로그램 담당을 모두 넣었습니다.')
       : t.id==='erpfix' ? ((t.changes||[]).length ? `전산 등록 후 바뀐 내용: <b>${esc(t.changes.join(' · '))}</b><br>전산 예약을 고치고 비고도 새 문구로 바꾼 뒤 체크하세요.` : '전산에 반영했습니다.')
       : SUB[t.id] || '';
     const docBtn = (t.id==='quote'||t.id==='stmt') ? `<div class="tbtn"><button type="button" class="btn" data-tquote="${t.id==='stmt'?'statement':'quote'}">${t.id==='stmt'?'거래명세서 만들기':'견적서 만들기'}</button></div>` : '';
