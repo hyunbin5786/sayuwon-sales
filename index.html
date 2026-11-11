@@ -273,7 +273,8 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .erp{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:500}
 .tag.st-상담{background:#ece9e2;color:var(--muted)}
 .tag.st-가예약{background:var(--amber-soft);color:var(--amber)}
-.tag.st-공식예약{background:var(--pine);color:#fff}
+.tag.st-공식예약,.tag.st-예약접수{background:var(--pine);color:#fff}
+.list-x{width:30px;height:30px;padding:0;font-size:18px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
 .modal .list th.owner,.modal .list td.owner{background:#eaf1f8;color:#2b5a87;font-weight:700}   /* 영업 담당 열은 다른 색 */
 .modal .list td.contacts-cell{min-width:150px;font-size:12.5px;font-variant-numeric:tabular-nums}
 .list-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
@@ -329,8 +330,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
       <span class="stage-l">예약 단계</span>
       <div class="seg" id="stageSeg">
         <button type="button" data-s="상담">상담</button>
-        <button type="button" data-s="가예약">가예약</button>
-        <button type="button" data-s="공식예약">공식예약</button>
+        <button type="button" data-s="예약접수">예약접수</button>
       </div>
       <div class="act-bar">
       <button class="btn primary" id="saveBtn">저장<kbd>Ctrl+S</kbd></button>
@@ -410,9 +410,9 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 <div class="modal" id="listModal" hidden>
   <section class="list panel" role="dialog" aria-modal="true" aria-labelledby="listTitle">
     <h2><span id="listTitle">단체예약 목록</span> <small id="storeHint"></small>
-      <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn primary" id="xlsxBtn" style="padding:4px 10px;font-size:12px">엑셀로 내려받기</button><button type="button" class="btn" id="adminSyncBtn" style="padding:4px 10px;font-size:12px">관리자 사이트에서 지금 가져오기</button><button type="button" class="btn" id="listCloseBtn" style="padding:4px 10px;font-size:12px">닫기 (Esc)</button></span></h2>
+      <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn primary" id="xlsxBtn" style="padding:4px 10px;font-size:12px">엑셀로 내려받기</button><button type="button" class="btn" id="adminSyncBtn" style="padding:4px 10px;font-size:12px">관리자 사이트에서 지금 가져오기</button><button type="button" class="btn list-x" id="listCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <div class="list-bar"><div class="seg" id="stageFilter" style="display:inline-flex;background:var(--bg)">
-      <button type="button" data-f="all">전체</button><button type="button" data-f="상담">상담</button><button type="button" data-f="가예약">가예약</button><button type="button" data-f="공식예약">공식예약</button><button type="button" data-f="noerp">전산 미등록</button>
+      <button type="button" data-f="all">전체</button><button type="button" data-f="상담">상담</button><button type="button" data-f="예약접수">예약접수</button><button type="button" data-f="noerp">전산 미등록</button>
     </div>
     <div class="seg" id="sortSeg" style="display:inline-flex;background:var(--bg)" title="목록 정렬">
       <button type="button" data-o="date">방문일 순</button><button type="button" data-o="saved" title="최근에 접수(저장)한 예약부터">접수 순</button>
@@ -854,7 +854,7 @@ function fieldWarnings(r){
   if(r.date && r.tbdDate && r.tbdDate>r.date) w.push({field:'tbdDate', reason:'미정 항목 입력 기한이 방문일보다 늦습니다.'});
   if(typeof SPECIAL!=='undefined') specialCounts(r).forEach(s=>w.push({field:s.k, reason:`${s.n}명 ${s.name} 할인 → 방문 때 ${s.proof} 지참을 안내하세요.`}));
   if(r.date && r.pay==='미정' && r.payContact && r.payContact>r.date) w.push({field:'payContact', reason:'결제 연락 예정일이 방문일보다 늦습니다.'});
-  if(typeof effStage==='function'){ const s=effStage(r); if(s!=='상담' && !r.erp) w.push({field:'stage', reason:`${s}은 사유원 전산에 등록해야 합니다. 등록한 뒤 추후 과업의 '전산 예약'을 체크하세요.`}); if(r.stage==='공식예약' && (!r.pay || r.pay==='미정')) w.push({field:'stage', reason:'결제 방식이 정해져야 공식예약입니다. 결제를 확인하세요.'}); }
+  if(typeof effStage==='function'){ const s=effStage(r); if(s!=='상담' && !r.erp) w.push({field:'stage', reason:`예약접수는 사유원 전산에 등록해야 합니다. 등록한 뒤 추후 과업의 '전산 예약'을 체크하세요.`}); }
   const day = adminData && adminData.days && adminData.days[r.date];
   if(day) Object.entries(ADMIN_SLOT).forEach(([k,[slot,name]])=>{
     const s=day[slot], want=numOf(r[k]); if(!s || !want) return;
@@ -1230,7 +1230,7 @@ $('#payList').addEventListener('click', async e=>{
   }
 });
 const fmt=s=>s?new Date(s).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
-let listStage='all';
+let listStage='예약접수';   // 목록은 예약접수 탭부터
 let listSort = (()=>{ try{ return localStorage.getItem('sayuwon_list_sort')||'date'; }catch(_){ return 'date'; } })();   // 기본 방문일 순
 document.addEventListener('click', e=>{ const b=e.target.closest('#sortSeg button'); if(b){ listSort=b.dataset.o; try{ localStorage.setItem('sayuwon_list_sort', listSort); }catch(_){} renderList(); } });
 // 정렬: 방문일 순(가까운 날부터, 날짜 없으면 뒤) · 접수 순(최근 접수부터)
@@ -1241,12 +1241,12 @@ function contactCell(r){ const sp=v=>String(v||'').split(/\s*\/\s*/); const n=sp
 document.addEventListener('click', e=>{ const b=e.target.closest('#stageFilter button'); if(b){ listStage=b.dataset.f; renderList(); } });
 async function renderList(){
   // 예전 기록의 '단체예약'도 함께 (일반 문의·기타는 제외)
-  const all=(await store.list()).filter(r=>['단체예약',...STAGES].includes(r.callType||'단체예약'));
+  const all=(await store.list()).filter(r=>['단체예약',...STAGES,...Object.keys(OLD_STAGE)].includes(r.callType||'단체예약'));
   const del=id=>`<button class="btn" data-del="${id}" style="padding:3px 8px;font-size:12px">삭제</button>`;
   const needCall = r => /^자동 등록/.test(r.summary||'');
   const nCall = all.filter(needCall).length;
   // 단계: 시트 '통화 구분' 칸. 예전 '단체예약'은 결제로 판단. 관리자 사이트에서 온 예약은 이미 전산에 있음
-  const stageOf = r => STAGES.includes(r.callType) ? r.callType : stageAuto(unpackExtra(r).pay ? {...r, ...unpackExtra(r)} : r);
+  const stageOf = r => /^adm/.test(r.id) && !STAGES.includes(normStage(r.callType)) ? '예약접수' : STAGES.includes(normStage(r.callType)) ? normStage(r.callType) : stageAuto(unpackExtra(r).pay ? {...r, ...unpackExtra(r)} : r);
   const erpOf = r => /^adm/.test(r.id) || !!unpackExtra(r).erp;
   const counts = Object.fromEntries(STAGES.map(s=>[s, all.filter(r=>stageOf(r)===s).length]));
   const noErp = all.filter(r=>stageOf(r)!=='상담' && !erpOf(r)).length;
@@ -1274,7 +1274,7 @@ function openRecord(r){
     if(!rec.owner) rec.owner=savedOwner();   // 자동 등록된 예약 등 담당이 비어 있으면 이 컴퓨터의 영업 담당
     const ex=unpackExtra(r); Object.assign(rec,ex); Object.keys(ex).forEach(k=>touched.add(k));
     if(/^adm/.test(r.id) && !rec.erp) rec.erp='관리자 예약';   // 관리자 사이트에서 온 예약은 이미 전산에 있음
-    rec.stage = STAGES.includes(r.callType) && r.callType!==stageAuto(rec) ? r.callType : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
+    rec.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(rec) ? normStage(r.callType) : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
     nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; $('#memoBox').value=r.note||'';
     const ph=parseHist(r); hist=ph.h; tasks=ph.tasks;
@@ -1529,10 +1529,12 @@ async function openQuote(doc){
 $('#quoteBtn').onclick=()=>openQuote('quote');
 $('#stmtBtn').onclick=()=>openQuote('statement');
 
-// ===================== 예약 단계: 상담 · 가예약 · 공식예약 =====================
-// 자동: 결제가 비어 있으면 상담, 결제 '미정'이면 가예약(전산 등록 필요), 결제가 정해지면 공식예약. 버튼으로 직접 바꿀 수 있음
-const STAGES = ['상담','가예약','공식예약'];
-const stageAuto = r => r.pay==='미정' ? '가예약' : r.pay ? '공식예약' : '상담';
+// ===================== 예약 단계: 상담 · 예약접수 =====================
+// 자동: 결제가 비어 있으면 상담, 결제를 고르면(미정 포함) 예약접수(전산 등록 필요). 버튼으로 직접 바꿀 수 있음
+const STAGES = ['상담','예약접수'];
+const OLD_STAGE = { '가예약':'예약접수', '공식예약':'예약접수' };   // 예전에 저장한 단계는 예약접수로
+const normStage = s => OLD_STAGE[s] || s;
+const stageAuto = r => r.pay ? '예약접수' : '상담';
 const effStage = r => (STAGES.includes(r.stage) ? r.stage : '') || stageAuto(r);
 const needsErp = r => effStage(r)!=='상담';
 function renderStage(){
