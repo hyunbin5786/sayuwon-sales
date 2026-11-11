@@ -92,6 +92,13 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 @media (max-width:560px){.fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .f{display:flex;flex-direction:column;gap:2px;min-width:0}
 .f.w2{grid-column:span 2}.f.w4{grid-column:1 / -1}
+.grp[data-grp="기본"] .fields{grid-template-columns:minmax(0,1.3fr) minmax(118px,.85fr) minmax(114px,.7fr) 92px;gap:8px 6px}   /* 기본 4칸을 한 줄에 (업체가 남는 폭) */
+.grp[data-grp="기본"] .f.has-tbd{position:relative}
+.grp[data-grp="기본"] .tbdck{position:absolute;top:0;right:0;height:16px;padding:0 4px;border:0;border-radius:4px;background:none;font-size:11px;gap:3px}   /* 미정은 칸 이름 줄 오른쪽에 */
+.grp[data-grp="기본"] .has-tbd .inbox > input{border-radius:6px}
+.grp[data-grp="기본"] .ckf{font-size:12px;padding:0 6px;gap:4px}
+@media (max-width:560px){.grp[data-grp="기본"] .fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.grp[data-grp="기본"] .f.w2{grid-column:auto}
 .f label{font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between;gap:4px}
 .f input,.vrow select{height:36px;box-sizing:border-box}   /* 모든 칸을 방문일 칸 높이(36px)에 맞춤 */
 .f select{width:100%;height:36px;border:1px solid var(--line);border-radius:6px;padding:5px 6px;font:13.5px var(--sans);background:#fff;color:var(--ink)}
@@ -607,6 +614,11 @@ function unpackExtra(r){ const o={}; let m;
 // 칸별 입력 방식: 한글 우선(한/영 키로 영어) · 영어 고정 · 숫자 고정
 const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner';
 const EN_ONLY  = k => /^c\d+_email$/.test(k);
+const TIME_KEYS = { tin:'12:00', tout:'18:00' };   // 입장 · 퇴장: 24시간 표시 시각 (값은 자리 표시)
+// "930" · "9:30" · "13" · "오후 2시" → "09:30" · "13:00" · "14:00". 시각이 아니면 ''
+function fmtTime(v){ v=String(v||'').trim(); let m=v.match(/^(\d{1,2}):?(\d{2})$/) || v.match(/^(\d{1,2})$/); let h, mi;
+  if(m){ h=+m[1]; mi=+(m[2]||0); } else { m=v.match(/(\d{1,2})\s*(?:시|:)\s*(\d{1,2})?/); if(!m) return ''; h=+m[1]; mi=+(m[2]||0); if(/오후|저녁|pm/i.test(v) && h<12) h+=12; }
+  return h<=23 && mi<=59 ? `${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}` : ''; }
 const NUM_ONLY = { people:/[^\d+]/g, vehicle:/[^\d]/g };   // 관람 인원은 42+2 처럼 + 허용
 // 연락처: 빈 칸을 누르면 010- 이 들어가고, 숫자를 치면 - 가 자동. 내선 번호면 010- 을 지우고 쓰면 됨
 const PHONE = k => /^c\d+_phone$/.test(k);
@@ -637,6 +649,7 @@ function fieldHTML(k,label,col,cls,req){
   if(EN_ONLY(k))  extra+=' data-ime="en" inputmode="email" lang="en" autocapitalize="off" spellcheck="false"';
   if(PHONE(k))    extra+=' data-ime="num" inputmode="tel" placeholder="010-0000-0000"';
   if(NUM_ONLY[k]) extra+=' inputmode="numeric" data-ime="num"';
+  if(TIME_KEYS[k]) extra+=` inputmode="numeric" data-ime="num" maxlength="5" placeholder="${TIME_KEYS[k]}" title="24시간 표시 (예: 13:30)"`;
   const input = k==='vehicle'
     ? `<div class="vrow"><select id="f_vtype" data-k="vehicle" aria-label="차종">${VTYPES.map(t=>`<option>${t}</option>`).join('')}</select><input id="f_${k}" data-k="${k}"${extra} placeholder="대수"><span class="vmix" id="f_vmix" hidden><i>버스</i><input id="f_vbus" data-k="vehicle"${extra} placeholder="대" aria-label="버스 대수"><i>승용</i><input id="f_vcar" data-k="vehicle"${extra} placeholder="대" aria-label="승용 대수"></span></div>`
     : CHECKS[k]
@@ -691,6 +704,11 @@ function buildForm(){
       if(del && el.value.endsWith('-') && f===el.value.replace(/-$/,'')) f=el.value.replace(/-$/,'');   // 지우는 중에는 끝 - 를 다시 붙이지 않음
       if(f!==el.value){ el.value=f; if(atEnd) el.setSelectionRange(f.length,f.length); }
     }
+    if(TIME_KEYS[k] && !e.isComposing){   // 숫자만 치면 : 자동 (1330 → 13:30)
+      const el=e.target, del=e.inputType && e.inputType.startsWith('delete');
+      const d=el.value.replace(/\D/g,'').slice(0,4), f = del ? el.value.replace(/[^\d:]/g,'') : d.length>=3 ? `${d.slice(0,d.length-2)}:${d.slice(-2)}` : d;
+      if(f!==el.value){ el.value=f; el.setSelectionRange(f.length,f.length); }
+    }
     if(NUM_ONLY[k] && e.target.tagName==='INPUT' && !e.isComposing){ const c=e.target.value.replace(NUM_ONLY[k],''); if(c!==e.target.value){ const p=e.target.selectionStart-(e.target.value.length-c.length); e.target.value=c; try{ e.target.setSelectionRange(p,p); }catch(_){} } }
     rec[k]= e.target.type==='checkbox' ? (e.target.checked?'있음':'') : k==='vehicle' ? vehRead() : e.target.value;
     touched.add(k);
@@ -721,6 +739,9 @@ function buildForm(){
   // 연락처: 빈 칸을 누르면 010- 부터. 아무것도 안 치고 나가면 다시 비움
   $('#form').addEventListener('focusin', e=>{ const el=e.target; if(PHONE(el.dataset?.k||'') && !el.value){ el.value='010-'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} },0); } });
   $('#form').addEventListener('focusout', e=>{ const el=e.target; if(PHONE(el.dataset?.k||'') && /^010-?$/.test(el.value) && !rec[el.dataset.k]) el.value=''; });
+  // 입장: 빈 칸을 누르면 기본 12:00 (선택된 상태라 바로 고쳐 쓰기). 나갈 때 24시간 HH:MM 으로 맞춤 (9:30 → 09:30, 13 → 13:00)
+  $('#form').addEventListener('focusin', e=>{ const el=e.target; if(el.dataset?.k==='tin' && !el.value){ el.value='12:00'; el.dispatchEvent(new Event('input',{bubbles:true})); setTimeout(()=>{ try{ el.select(); }catch(_){} },0); } });
+  $('#form').addEventListener('focusout', e=>{ const el=e.target, k=el.dataset?.k; if(!TIME_KEYS[k] || !el.value) return; const f=fmtTime(el.value); if(f && f!==el.value){ el.value=f; el.dispatchEvent(new Event('input',{bubbles:true})); } });
   $('#form').addEventListener('mouseleave', ()=>{ const a=document.activeElement?.dataset?.k; renderInfo(a && INFO_OF(a) ? a : null); });
   renderContacts();
 }
@@ -847,6 +868,7 @@ function readback(r){
   const docs = [r.wantQuote&&'견적서', r.wantStmt&&'거래명세서'].filter(Boolean).join('와 ');
   if(docs) s += mails.length ? ` ${docs}는 ${mails.join(', ')}로 보내드리겠습니다.` : ` ${docs} 받으실 이메일 주소를 알려주시겠어요?`;
   if(phones.length) s += ` 연락처는 ${phones.join(', ')} 맞으시죠?`;
+  s += ' 저희가 입장 전날에 전화드리면서 다시 안내드리겠습니다.';   // 마지막 멘트는 항상 이것으로
   const guide = PAY_GUIDE[r.pay];
   if(guide) s += `\n\n[${r.pay} 안내]\n` + guide.map(g=>'· '+g).join('\n');
   // 특별 할인: 인원 · 할인율 · 지참할 증빙
@@ -900,7 +922,9 @@ function renderInfo(k){
 function fieldWarnings(r){
   const w=[];
   if(r.date){ const d=new Date(r.date+'T00:00'), t=new Date(); t.setHours(0,0,0,0); if(d<t) w.push({field:'date', reason:'지난 날짜입니다. 방문일을 다시 확인하세요.'}); }
-  if(r.tin && r.tout && r.tout<=r.tin) w.push({field:'tout', reason:'퇴장 시간이 입장보다 빠릅니다. 오전/오후를 확인하세요.'});
+  if(r.tin && !fmtTime(r.tin)) w.push({field:'tin', reason:'입장 시각을 24시간으로 적어 주세요 (예: 13:30).'});
+  if(r.tout && !fmtTime(r.tout)) w.push({field:'tout', reason:'퇴장 시각을 24시간으로 적어 주세요 (예: 17:00).'});
+  if(r.tin && r.tout && fmtTime(r.tin) && fmtTime(r.tout) && fmtTime(r.tout)<=fmtTime(r.tin)) w.push({field:'tout', reason:'퇴장 시각이 입장보다 빠릅니다. 24시간 표시인지 확인하세요 (오후 3시 = 15:00).'});
   if(r.date && r.tbdDate && r.tbdDate>r.date) w.push({field:'tbdDate', reason:'미정 항목 입력 기한이 방문일보다 늦습니다.'});
   else if(r.tbd && r.date && r.tbdDate && r.tbdDate>prevWeekThu(r.date)) w.push({field:'tbdDate', reason: r.tbdLate ? `전주 목요일보다 늦음 · 사유: ${r.tbdLate}` : `입력 기한은 방문일 전주 목요일(${mdLabel(prevWeekThu(r.date))})까지입니다. 늦추려면 사유를 적어야 합니다.`});
   if(typeof SPECIAL!=='undefined') specialCounts(r).forEach(s=>w.push({field:s.k, reason:`${s.n}명 ${s.name} 할인 → 방문 때 ${s.proof} 지참을 안내하세요.`}));
