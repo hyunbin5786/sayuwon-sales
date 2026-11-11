@@ -108,7 +108,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .f input[type=checkbox]{width:15px;height:15px;padding:0;margin:0;border:0;flex:none;accent-color:var(--amber);cursor:pointer}
 .f input.has[type=checkbox]{background:none}
 .ckf:has(input:disabled){opacity:.45;cursor:not-allowed;background:var(--bg)}
-.f.req label::after{content:" *";color:var(--red)}
+.f.req > label::after{content:" *";color:var(--red)}   /* 칸 이름에만 (미정 체크 옆에는 안 붙음) */
 .f.auto input{background:var(--fill)}
 .f.unsure input{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
 .f.missing input{border-style:dashed;border-color:#c9b9b2}
