@@ -274,6 +274,10 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .tag.st-상담{background:#ece9e2;color:var(--muted)}
 .tag.st-가예약{background:var(--amber-soft);color:var(--amber)}
 .tag.st-공식예약{background:var(--pine);color:#fff}
+.modal .list th.owner,.modal .list td.owner{background:#eaf1f8;color:#2b5a87;font-weight:700}   /* 영업 담당 열은 다른 색 */
+.modal .list td.contacts-cell{min-width:150px;font-size:12.5px;font-variant-numeric:tabular-nums}
+.list-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.list-bar #sortSeg{margin-left:auto}   /* 정렬은 오른쪽 */
 #stageFilter button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font:500 13px var(--sans);color:var(--muted);cursor:pointer}
 #stageFilter button.on{background:var(--pine);color:#fff}
 </style>
@@ -407,10 +411,13 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <section class="list panel" role="dialog" aria-modal="true" aria-labelledby="listTitle">
     <h2><span id="listTitle">단체예약 목록</span> <small id="storeHint"></small>
       <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn primary" id="xlsxBtn" style="padding:4px 10px;font-size:12px">엑셀로 내려받기</button><button type="button" class="btn" id="adminSyncBtn" style="padding:4px 10px;font-size:12px">관리자 사이트에서 지금 가져오기</button><button type="button" class="btn" id="listCloseBtn" style="padding:4px 10px;font-size:12px">닫기 (Esc)</button></span></h2>
-    <div class="seg" id="stageFilter" style="display:inline-flex;margin-bottom:8px;background:var(--bg)">
+    <div class="list-bar"><div class="seg" id="stageFilter" style="display:inline-flex;background:var(--bg)">
       <button type="button" data-f="all">전체</button><button type="button" data-f="상담">상담</button><button type="button" data-f="가예약">가예약</button><button type="button" data-f="공식예약">공식예약</button><button type="button" data-f="noerp">전산 미등록</button>
     </div>
-    <div class="tw"><table><thead><tr><th>방문일</th><th>단계</th><th>업체</th><th>담당자</th><th>연락처</th><th>인원</th><th>입퇴장</th><th>식사</th><th>견적서</th><th>거래명세서</th><th>영업 담당</th><th>접수</th><th></th></tr></thead><tbody id="listBody"></tbody></table></div>
+    <div class="seg" id="sortSeg" style="display:inline-flex;background:var(--bg)" title="목록 정렬">
+      <button type="button" data-o="date">방문일 순</button><button type="button" data-o="saved" title="최근에 접수(저장)한 예약부터">접수 순</button>
+    </div></div>
+    <div class="tw"><table><thead><tr><th>방문일</th><th>단계</th><th>업체</th><th>담당자</th><th>인원</th><th>입퇴장</th><th>식사</th><th>견적서</th><th>거래명세서</th><th class="owner">영업 담당</th><th>접수</th><th></th></tr></thead><tbody id="listBody"></tbody></table></div>
   </section>
 </div>
 
@@ -1224,6 +1231,13 @@ $('#payList').addEventListener('click', async e=>{
 });
 const fmt=s=>s?new Date(s).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
 let listStage='all';
+let listSort = (()=>{ try{ return localStorage.getItem('sayuwon_list_sort')||'date'; }catch(_){ return 'date'; } })();   // 기본 방문일 순
+document.addEventListener('click', e=>{ const b=e.target.closest('#sortSeg button'); if(b){ listSort=b.dataset.o; try{ localStorage.setItem('sayuwon_list_sort', listSort); }catch(_){} renderList(); } });
+// 정렬: 방문일 순(가까운 날부터, 날짜 없으면 뒤) · 접수 순(최근 접수부터)
+const listOrder = (a,b) => listSort==='saved' ? String(b.saved||'').localeCompare(String(a.saved||'')) : ((a.date||'9999')).localeCompare(b.date||'9999') || String(a.saved||'').localeCompare(String(b.saved||''));
+// 담당자: 이름(전화번호), 여러 명이면 쉼표로
+function contactCell(r){ const sp=v=>String(v||'').split(/\s*\/\s*/); const n=sp(r.contact), p=sp(r.phone);
+  return n.map((x,i)=>[x.trim(), (p[i]||'').trim()]).filter(([x,y])=>x||y).map(([x,y])=>y ? `${esc(x)}(${esc(y)})` : esc(x)).join(', '); }
 document.addEventListener('click', e=>{ const b=e.target.closest('#stageFilter button'); if(b){ listStage=b.dataset.f; renderList(); } });
 async function renderList(){
   // 예전 기록의 '단체예약'도 함께 (일반 문의·기타는 제외)
@@ -1240,10 +1254,11 @@ async function renderList(){
   $('#adminHint').textContent = adminData?.updated ? `관리자 사이트 ${fmtAgo(adminData.updated)} 갱신 · ` : '';
   document.querySelectorAll('#stageFilter button').forEach(b=>{ const s=b.dataset.f; b.classList.toggle('on', s===listStage); b.textContent = s==='all' ? `전체 ${all.length}` : s==='noerp' ? `전산 미등록 ${noErp}` : `${s} ${counts[s]}`; });
   const shown = all.filter(r=> listStage==='all' ? true : listStage==='noerp' ? (stageOf(r)!=='상담' && !erpOf(r)) : stageOf(r)===listStage);
+  document.querySelectorAll('#sortSeg button').forEach(b=>b.classList.toggle('on', b.dataset.o===listSort));
   listView = { shown, stageOf, erpOf };   // 엑셀로 내려받기에 씀
   const stageTag = r => { const s=stageOf(r); return `<span class="tag st-${s}">${s}</span>${s!=='상담' && !erpOf(r) ? ' <span class="tag call">전산 미등록</span>' : ''}`; };
-  $('#listBody').innerHTML=shown.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td>${esc(r.contact)}</td><td class="num">${esc(r.phone)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td>${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
-    || `<tr><td colspan="13" class="hint">${all.length?'이 구분에 해당하는 예약이 없습니다.':'저장한 단체예약이 없습니다.'}</td></tr>`;
+  $('#listBody').innerHTML=shown.slice().sort(listOrder).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
+    || `<tr><td colspan="12" class="hint">${all.length?'이 구분에 해당하는 예약이 없습니다.':'저장한 단체예약이 없습니다.'}</td></tr>`;
   document.querySelectorAll('#listBody tr.r').forEach(tr=>tr.onclick=async e=>{
     if(e.target.dataset.del){ e.stopPropagation(); openDel(e.target.dataset.del); return; }
     const r=cache.find(x=>x.id===tr.dataset.id); if(!r) return;
@@ -1597,7 +1612,7 @@ async function downloadXlsx(){
   const btn=$('#xlsxBtn'); btn.disabled=true; btn.textContent='만드는 중…';
   try{
     const ExcelJS = await loadExcelJS();
-    const rows = listView.shown.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const rows = listView.shown.slice().sort(listOrder);   // 목록과 같은 정렬
     const COLS = [['방문일',12],['단계',9],['전산',8],['업체',22],['영업 담당',9],['결제',16],['차량',10],['입장',7],['입장문',8],['퇴장',7],['관람',8],
       ['사담 1부',8],['사담 2부',8],['사담 디너',9],['마방 런치',9],['마방 디너',9],['마방 메뉴',12],...PROG_KEYS().map(k=>[LABEL[k]+(UNIT(k)==='시간'?' (시간)':''),11]),['기타 프로그램',14],
       ['견적서',10],['거래명세서',10],['담당자',14],['연락처',16],['이메일',24],['인원 변경',9],['현장 재결제',10],['미정 항목',16],['특별 할인',16],['통화 메모',40],['접수',16]];
