@@ -93,9 +93,11 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .f{display:flex;flex-direction:column;gap:2px;min-width:0}
 .f.w2{grid-column:span 2}.f.w4{grid-column:1 / -1}
 .grp[data-grp="기본"] .fields{grid-template-columns:minmax(0,1.3fr) minmax(118px,.85fr) minmax(114px,.7fr) 92px;gap:8px 6px}   /* 기본 4칸을 한 줄에 (업체가 남는 폭) */
-.grp[data-grp="기본"] .f.has-tbd{position:relative}
-.grp[data-grp="기본"] .tbdck{position:absolute;top:0;right:0;height:16px;padding:0 4px;border:0;border-radius:4px;background:none;font-size:11px;gap:3px}   /* 미정은 칸 이름 줄 오른쪽에 */
-.grp[data-grp="기본"] .has-tbd .inbox > input{border-radius:6px}
+.f.has-tbd{position:relative}
+.f.has-tbd .tbdck{position:absolute;top:0;right:0;height:16px;padding:0 4px;border:0;border-radius:4px;background:none;font-size:11px;gap:3px}   /* 미정은 칸 이름 줄 오른쪽에 */
+.f.has-tbd .inbox > input{border-radius:6px}
+.date-pick{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}   /* 방문일 달력 (숨김) */
+.f input.date-text[readonly]{cursor:pointer}
 .grp[data-grp="기본"] .ckf{font-size:12px;padding:0 6px;gap:4px}
 @media (max-width:560px){.grp[data-grp="기본"] .fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .grp[data-grp="기본"] .f.w2{grid-column:auto}
@@ -624,6 +626,18 @@ const TIME_KEYS = { tin:'12:00', tout:'18:00' };   // 입장 · 퇴장: 24시간
 function fmtTime(v){ v=String(v||'').trim(); let m=v.match(/^(\d{1,2}):?(\d{2})$/) || v.match(/^(\d{1,2})$/); let h, mi;
   if(m){ h=+m[1]; mi=+(m[2]||0); } else { m=v.match(/(\d{1,2})\s*(?:시|:)\s*(\d{1,2})?/); if(!m) return ''; h=+m[1]; mi=+(m[2]||0); if(/오후|저녁|pm/i.test(v) && h<12) h+=12; }
   return h<=23 && mi<=59 ? `${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}` : ''; }
+// 방문일: 칸에는 "2026-12-05 (토)"처럼 요일까지. 직접 칠 때는 2026-12-05 · 2026.12.5 · 20261205 · 12/5 · 1205 · 12월 5일 (연도 없으면 올해, 지났으면 내년)
+const dateDisp = v => { if(!v) return ''; const t=new Date(v+'T00:00'); return isNaN(t) ? v : `${v} (${'일월화수목금토'[t.getDay()]})`; };
+function parseDateText(s){
+  s=String(s||'').replace(/\([^)]*\)\s*$/,'').trim(); if(!s) return '';
+  let y, m, d, x;
+  if((x=s.match(/^(\d{4})\s*[-./년 ]?\s*(\d{1,2})\s*[-./월 ]?\s*(\d{1,2})\s*일?$/))){ y=+x[1]; m=+x[2]; d=+x[3]; }
+  else if((x=s.match(/^(\d{1,2})\s*[-./월 ]\s*(\d{1,2})\s*일?$/)) || (x=s.match(/^(\d{2})(\d{2})$/))){
+    m=+x[1]; d=+x[2]; const now=new Date(); y=now.getFullYear(); const t=new Date(y,m-1,d); now.setHours(0,0,0,0); if(t<now) y++; }
+  else return null;
+  const t=new Date(y,m-1,d); if(t.getFullYear()!==y || t.getMonth()!==m-1 || t.getDate()!==d) return null;
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
 const NUM_ONLY = { people:/[^\d+]/g, vehicle:/[^\d]/g };   // 관람 인원은 42+2 처럼 + 허용
 // 연락처: 빈 칸을 누르면 010- 이 들어가고, 숫자를 치면 - 가 자동. 내선 번호면 010- 을 지우고 쓰면 됨
 const PHONE = k => /^c\d+_phone$/.test(k);
@@ -648,7 +662,8 @@ function vehJoin(t,n,bus,car){
   return n ? `${t||'버스'} ${n}대` : (t && t!=='버스' ? t : ''); }
 const vehRead = () => vehJoin($('#f_vtype').value, $('#f_vehicle').value, $('#f_vbus').value, $('#f_vcar').value);
 function fieldHTML(k,label,col,cls,req){
-  let extra = DATE_KEYS.has(k)?' type="date"':'';
+  let extra = DATE_KEYS.has(k) && k!=='date' ? ' type="date"' : '';
+  if(k==='date') extra+=' readonly inputmode="numeric" data-ime="num" placeholder="누르면 달력" title="누르면 달력 · 한 번 더 누르면 직접 입력 (예: 2026-12-05, 12/5)"';
   if(k==='owner') extra+=' list="owners"';
   if(KO_FIRST(k)) extra+=' data-ime="ko"';
   if(EN_ONLY(k))  extra+=' data-ime="en" inputmode="email" lang="en" autocapitalize="off" spellcheck="false"';
@@ -663,6 +678,8 @@ function fieldHTML(k,label,col,cls,req){
     ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${GATES.map(g=>`<option>${g}</option>`).join('')}</select>`
     : k==='pay'
     ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${PAYS.map(p=>`<option>${p}</option>`).join('')}</select>`
+    : k==='date'   // 보이는 칸은 "2026-12-05 (토)" 글자, 달력은 밑에 숨긴 날짜 칸으로
+    ? `<input id="f_date" data-k="date" class="date-text"${extra}><input type="date" id="f_datePick" class="date-pick" tabindex="-1" aria-hidden="true">`
     : `<input id="f_${k}" data-k="${k}"${extra}${/^프로그램/.test(GROUP_OF[k]||'') ? ` placeholder="${UNIT(k)}"` : ''}>`;
   const tbdBox = k!=='vehicle' && TBD_KEYS.some(([tk])=>tk===k) ? `<label class="tbdck" title="아직 안 정해졌으면 체크"><input type="checkbox" data-tbd="${k}">미정</label>` : "";
   return `<div class="f ${cls}${req?' req':''}${tbdBox?' has-tbd':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span></label><div class="inbox">${input}${tbdBox}</div></div>`;
@@ -715,7 +732,8 @@ function buildForm(){
       if(f!==el.value){ el.value=f; el.setSelectionRange(f.length,f.length); }
     }
     if(NUM_ONLY[k] && e.target.tagName==='INPUT' && !e.isComposing){ const c=e.target.value.replace(NUM_ONLY[k],''); if(c!==e.target.value){ const p=e.target.selectionStart-(e.target.value.length-c.length); e.target.value=c; try{ e.target.setSelectionRange(p,p); }catch(_){} } }
-    rec[k]= e.target.type==='checkbox' ? (e.target.checked?'있음':'') : k==='vehicle' ? vehRead() : e.target.value;
+    if(k==='date'){ const d=parseDateText(e.target.value); if(d===null) return; }   // 방문일을 치는 중 (날짜가 되기 전엔 그대로)
+    rec[k]= e.target.type==='checkbox' ? (e.target.checked?'있음':'') : k==='vehicle' ? vehRead() : k==='date' ? parseDateText(e.target.value) : e.target.value;
     touched.add(k);
     if(k==='vehicle' && e.target.id==='f_vtype'){ const s=tbdSet(rec); rec.vehicle==='미정' ? s.add('vehicle') : s.delete('vehicle'); rec.tbd=TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', '); if(!s.size){ rec.tbdDate=''; rec.tbdLate=''; tbdAuto=false; } touched.add('tbd'); }   // 차종 '미정' = 차량 미정 체크
     if(k==='date') renderInfo();
@@ -744,6 +762,21 @@ function buildForm(){
   // 연락처: 빈 칸을 누르면 010- 부터. 아무것도 안 치고 나가면 다시 비움
   $('#form').addEventListener('focusin', e=>{ const el=e.target; if(PHONE(el.dataset?.k||'') && !el.value){ el.value='010-'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} },0); } });
   $('#form').addEventListener('focusout', e=>{ const el=e.target; if(PHONE(el.dataset?.k||'') && /^010-?$/.test(el.value) && !rec[el.dataset.k]) el.value=''; });
+  // 방문일: 누르면 달력부터. 달력을 연 뒤 칸을 한 번 더 누르면 글자로 직접 고치기. 숫자를 치기 시작해도 직접 입력
+  { const dt=$('#f_date'), dp=$('#f_datePick');
+    const openPick=()=>{ try{ dp.showPicker(); }catch(_){ dp.focus(); } };
+    const startEdit=(blank)=>{ dt.dataset.editing='1'; dt.readOnly=false; dt.value = blank ? '' : (rec.date||''); dt.focus(); if(!blank) dt.select(); };
+    dt.addEventListener('mousedown', e=>{
+      if(dt.dataset.editing) return;
+      if(Date.now()-(+dt.dataset.pickAt||0) < 20000){ e.preventDefault(); dt.dataset.pickAt=''; startEdit(false); return; }   // 두 번째 누름
+      dt.dataset.pickAt=String(Date.now()); setTimeout(openPick,0);
+    });
+    dt.addEventListener('keydown', e=>{ if(!dt.dataset.editing && /^\d$/.test(e.key)) startEdit(true); });
+    dt.addEventListener('blur', ()=>{ if(!dt.dataset.editing) return;
+      const d=parseDateText(dt.value); if(d===null){ toast('날짜를 알아볼 수 없습니다. 예) 2026-12-05, 12/5'); }
+      delete dt.dataset.editing; dt.readOnly=true; paintFields(); });
+    dp.addEventListener('change', ()=>{ dt.value=dp.value; dt.dispatchEvent(new Event('input',{bubbles:true})); });
+  }
   // 입장: 빈 칸을 누르면 기본 12:00 (선택된 상태라 바로 고쳐 쓰기). 나갈 때 24시간 HH:MM 으로 맞춤 (9:30 → 09:30, 13 → 13:00)
   $('#form').addEventListener('focusin', e=>{ const el=e.target; if(el.dataset?.k==='tin' && !el.value){ el.value='12:00'; el.dispatchEvent(new Event('input',{bubbles:true})); setTimeout(()=>{ try{ el.select(); }catch(_){} },0); } });
   $('#form').addEventListener('focusout', e=>{ const el=e.target, k=el.dataset?.k; if(!TIME_KEYS[k] || !el.value) return; const f=fmtTime(el.value); if(f && f!==el.value){ el.value=f; el.dispatchEvent(new Event('input',{bubbles:true})); } });
@@ -772,6 +805,7 @@ function paintFields(changed=[]){
       [[el,p.n],[$('#f_vbus'),p.bus],[$('#f_vcar'),p.car]].forEach(([x,val])=>{ if(a!==x && x.value!==val) x.value=val; });
       const t=$('#f_vtype').value; el.hidden = t==='혼합' || t==='미정'; $('#f_vmix').hidden = t!=='혼합'; }
     else if(el.type==='checkbox') el.checked=!!v;
+    else if(k==='date'){ if(!el.dataset.editing){ const d=dateDisp(v); if(el.value!==d) el.value=d; } const p=$('#f_datePick'); if(p && p.value!==v) p.value=v; }
     else { if(el.tagName==='SELECT' && v && ![...el.options].some(o=>o.value===v)) el.add(new Option(v,v)); if(el.value!==v && document.activeElement!==el) el.value=v; }
     const w=document.getElementById('w_'+k);
     w.classList.toggle('unsure', fieldWarnings(rec).some(u=>u.field===k));
