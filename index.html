@@ -70,6 +70,12 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .mb-menu{display:flex;flex-wrap:wrap;gap:6px}   /* 몽몽마방 메뉴 O 체크 */
 .mb-ck{display:flex;align-items:center;gap:5px;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:13px;cursor:pointer;user-select:none}
 .mb-ck input{width:14px;height:14px;margin:0;accent-color:var(--pine)}
+.mb-ck small{font-weight:400;color:var(--muted);font-size:11.5px}
+.mb-ck.old{border-style:dashed}
+.mb-cat{border:0;background:none;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer;padding:0 4px}
+#catModal{padding:24px}
+.cat-frame{width:min(1200px,100%);height:calc(100vh - 48px);background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.cat-frame iframe{width:100%;height:100%;border:0;display:block}
 .mb-ck:has(input:checked){background:var(--pine-soft);border-color:var(--pine);color:var(--pine);font-weight:700}
 .row-acts{display:inline-flex;gap:4px;white-space:nowrap}
 .btn.danger{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
@@ -452,7 +458,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     </div>
     <div class="psec-t">선택한 항목</div>
     <div id="priceBox"></div>
-    <div class="row-btns" style="margin-top:10px"><button type="button" class="btn" id="priceAllBtn" aria-expanded="false" style="padding:5px 12px;font-size:12.5px">전체 가격표 보기</button></div>
+    <div class="row-btns" style="margin-top:10px"><button type="button" class="btn" id="priceAllBtn" aria-expanded="false" style="padding:5px 12px;font-size:12.5px">전체 가격표 보기</button><button type="button" class="btn" data-open-cat style="padding:5px 12px;font-size:12.5px">품목 관리</button></div>
     <div id="priceAll" hidden></div>
     <p class="hint" id="priceSrc">견적서&amp;거래명세서 사이트 품목 기준 · 부가세 포함 · 공휴일은 주말 가격</p>
   </section>
@@ -489,6 +495,11 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 </div>
 
 <!-- 단체예약 삭제: 사유를 고르고 삭제 (사유는 그 예약의 수정 기록에 남음) -->
+<!-- 품목 관리: 견적서&거래명세서 사이트의 품목 관리 창을 그대로 (같은 공유 품목 목록) -->
+<div class="modal" id="catModal" hidden>
+  <section class="cat-frame"><iframe id="catFrame" title="품목 관리"></iframe></section>
+</div>
+
 <div class="modal" id="delModal" hidden>
   <section class="panel consult del-box" role="dialog" aria-modal="true" aria-labelledby="delTitle">
     <h2 id="delTitle">예약 삭제 <small id="delWho"></small></h2>
@@ -542,7 +553,6 @@ const FIELDS = [
   // 몽몽마방: NAS 엑셀 '몽몽마방 예약' 탭과 같은 항목 (시간 · 인원 · 메뉴 · 단가 · 결제 · 비고)
   ['몽몽마방','mabangTime','시간','','',null],
   ['몽몽마방','mabangL','인원','M','',null],
-  ['몽몽마방','mabangPrice','단가 (원)','','',null],
   ['몽몽마방','mabangPay','결제','','',null],
   ['몽몽마방','mabangMenu','메뉴','','w4',null],
   ['몽몽마방','mabangNote','비고','','w4',null],
@@ -669,17 +679,32 @@ function unpackExtra(r){ const o={}; let m;
 // 칸별 입력 방식: 한글 우선(한/영 키로 영어) · 영어 고정 · 숫자 고정
 const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner';
 const EN_ONLY  = k => /^c\d+_email$/.test(k);
-// 몽몽마방 (NAS 엑셀 '몽몽마방 예약' 탭): 메뉴 O 표시 · 결제는 사무실 / 마방
-const MB_MENU = ['사유의 밥상','통들깨 비빔국수','더덕 비빔밥','녹두전','후식차','오징어볶음'];
+// 몽몽마방: 메뉴는 견적서 품목 리스트에서 구분이 '몽몽마방 메뉴'인 품목 (1인 고정가, 품목 관리에서 추가 · 이름 · 가격 수정) · 결제는 사무실 / 마방
 const MB_PAYS = ['사무실','마방'];
 const MB_INFO_SKIP = new Set(['mabangTime','mabangPrice','mabangPay','mabangMenu','mabangNote']);   // 그날 현황에서 인원으로 세지 않는 칸
-// 1인 단가 제안 (2026년 3월 인상안): 사유의 밥상 38,000 · 세트는 비빔밥/국수 17,000 + 녹두전 3,000 + 오징어볶음 6,000 + 후식차 2,000
-function mbSuggest(menu){ const m=String(menu||''); if(!m) return 0;
-  let p = /비빔밥|비빔국수/.test(m) ? 17000 + (/녹두전/.test(m)?3000:0) + (/오징어/.test(m)?6000:0) + (/후식차/.test(m)?2000:0) : 0;
-  if(/사유의 밥상/.test(m)) p += 38000; return p; }
+const MB_DEF = [['사유의 밥상(단체)','사유의 밥상',38000],['몽몽마방 런치','비빔밥+녹두전+매실차',22000],['몽몽마방 단품','더덕비빔밥',17000]];   // 품목을 아직 못 불러왔을 때
+function mbMenus(){
+  const items = quoteCat ? catalogItems().filter(it=>it.kind==='mabang' && it.price!=null) : [];
+  if(!items.length) return MB_DEF.map(([src,name,price])=>({src,name,price}));
+  const defName = Object.fromEntries(MB_DEF.map(([s,n])=>[s,n]));
+  return items.map(it=>({ src:it.src, name: String(it.name||'').trim() || (quoteCat.mbName||{})[it.src] || defName[it.src] || it.src, price:it.price })).sort((a,b)=>b.price-a.price);   // 비싼 것부터
+}
+// 고른 메뉴 (예전 기록의 자유 메뉴는 null → 메뉴 선택 과업)
+const mbMenuOf = r => { const v=String(r.mabangMenu||'').trim(); return v ? mbMenus().find(m=>m.name===v || normSrc(m.src)===normSrc(v)) || null : null; };
+const mbUnit = r => (mbMenuOf(r)||{}).price || Number(r.mabangPrice) || 0;   // 1인 가격 (예전 기록은 적어 둔 단가)
+const mbNeedsMenu = r => !!(r.mabangL || r.mabangTime) && !mbMenuOf(r);
 const wonTxt = n => Number(n||0).toLocaleString('ko-KR');
-// 몽몽마방 한 줄: "12:00~13:00 · 30명 · 더덕 비빔밥, 녹두전 · 22,000원 · 사무실 결제"
-const mabangText = r => [r.mabangTime, r.mabangL && `${r.mabangL}명`, r.mabangMenu, r.mabangPrice && `1인 ${wonTxt(r.mabangPrice)}원${numOf(r.mabangL)?` (금액 ${wonTxt(r.mabangPrice*numOf(r.mabangL))}원)`:''}`, r.mabangPay && `${r.mabangPay} 결제`, r.mabangNote, r.mabangD && `(예전 디너 ${r.mabangD}명)`].filter(Boolean).join(' · ');
+// 몽몽마방 한 줄: "12:00~13:00 · 30명 · 더덕비빔밥 · 1인 17,000원 (금액 510,000원) · 사무실 결제"
+const mabangText = r => { const u=mbUnit(r), n=numOf(r.mabangL);
+  return [r.mabangTime, r.mabangL && `${r.mabangL}명`, r.mabangMenu, u && `1인 ${wonTxt(u)}원${n?` (금액 ${wonTxt(u*n)}원)`:''}`, r.mabangPay && `${r.mabangPay} 결제`, r.mabangNote, r.mabangD && `(예전 디너 ${r.mabangD}명)`].filter(Boolean).join(' · '); };
+// 메뉴 고르는 칸 (하나만, 다시 누르면 해제)
+function mbMenuHTML(v){
+  const ms=mbMenus(), hit=mbMenuOf({mabangMenu:v});
+  const chip=(name,price,on)=>`<label class="mb-ck"><input type="radio" name="mbmenu" data-menu="${esc(name)}"${on?' checked':''}> ${esc(name)}${price?` <small>${wonTxt(price)}원</small>`:''}</label>`;
+  return ms.map(m=>chip(m.name, m.price, hit && hit.name===m.name)).join('')
+    + (v && !hit ? chip(v, 0, true).replace('class="mb-ck"','class="mb-ck old" title="예전 메뉴 · 위 메뉴 중에서 다시 골라 주세요"') : '')
+    + `<button type="button" class="mb-cat" data-open-cat>메뉴 · 가격 수정</button>`;
+}
 // "12001300" · "12-13" · "12:00~13:00" → "12:00~13:00"
 function fmtRange(v){ const s=String(v||'').trim(); if(!s) return ''; let a, b; const p=s.split(/\s*[~\-–]\s*/);
   if(p.length===2){ a=fmtTime(p[0]); b=fmtTime(p[1]); } else { const d=s.replace(/\D/g,''); if(d.length===8){ a=fmtTime(d.slice(0,4)); b=fmtTime(d.slice(4)); } else if(d.length===4 && !/:/.test(s)){ a=fmtTime(d.slice(0,2)); b=fmtTime(d.slice(2)); } }
@@ -737,7 +762,7 @@ function fieldHTML(k,label,col,cls,req){
   if(k==='mabangPrice') extra+=' placeholder="1인 단가"';
   if(k==='mabangNote') extra+=' data-ime="ko" placeholder="예) 20% 할인, 2인 이상 주문"';
   const input = k==='mabangMenu'
-    ? `<div class="mb-menu" id="f_mabangMenu">${MB_MENU.map(m=>`<label class="mb-ck"><input type="checkbox" data-menu="${m}"> ${m}</label>`).join('')}</div>`
+    ? `<div class="mb-menu" id="f_mabangMenu"></div>`
     : k==='mabangPay'
     ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${MB_PAYS.map(p=>`<option>${p}</option>`).join('')}</select>`
     : k==='vehicle'
@@ -854,11 +879,11 @@ function buildForm(){
   $('#form').addEventListener('focusout', e=>{ const el=e.target, k=el.dataset?.k; if(!TIME_KEYS[k] || !el.value) return; const f=fmtTime(el.value); if(f && f!==el.value){ el.value=f; el.dispatchEvent(new Event('input',{bubbles:true})); } });
   // 몽몽마방: 시간은 나갈 때 12:00~13:00 으로, 메뉴는 체크한 것을 ", " 로, 단가 칸이 비어 있을 때 누르면 메뉴로 계산한 제안 단가
   $('#form').addEventListener('focusout', e=>{ const el=e.target; if(el.dataset?.k!=='mabangTime' || !el.value) return; const f=fmtRange(el.value); if(f && f!==el.value){ el.value=f; el.dispatchEvent(new Event('input',{bubbles:true})); } });
-  $('#form').addEventListener('change', e=>{ if(e.target.dataset?.menu===undefined) return;
-    rec.mabangMenu=[...document.querySelectorAll('#f_mabangMenu [data-menu]')].filter(c=>c.checked).map(c=>c.dataset.menu).join(', ');
+  // 몽몽마방 메뉴: 하나 고르기, 고른 것을 다시 누르면 해제
+  $('#form').addEventListener('click', e=>{ const el=e.target; if(el.dataset?.menu===undefined) return;
+    const was = rec.mabangMenu===el.dataset.menu;
+    rec.mabangMenu = was ? '' : el.dataset.menu; if(was) el.checked=false;
     touched.add('mabangMenu'); startTimer(); paintFields(); renderSide(); });
-  $('#form').addEventListener('click', e=>{ const el=e.target; if(el.dataset?.k!=='mabangPrice' || el.value) return; const s=mbSuggest(rec.mabangMenu); if(!s) return;
-    el.value=String(s); el.dispatchEvent(new Event('input',{bubbles:true})); el.select(); });
   $('#form').addEventListener('mouseleave', ()=>{ const a=document.activeElement?.dataset?.k; renderInfo(a && INFO_OF(a) ? a : null); });
   renderContacts();
 }
@@ -885,9 +910,7 @@ function paintFields(changed=[]){
       const t=$('#f_vtype').value; el.hidden = t==='혼합' || t==='미정'; $('#f_vmix').hidden = t!=='혼합'; }
     else if(el.type==='checkbox') el.checked=!!v;
     else if(k==='date'){ if(!el.dataset.editing){ const d=dateDisp(v); if(el.value!==d) el.value=d; } const p=$('#f_datePick'); if(p && p.value!==v) p.value=v; }
-    else if(k==='mabangMenu'){ const on=new Set(String(v).split(/\s*,\s*/)); el.querySelectorAll('[data-menu]').forEach(c=>c.checked=on.has(c.dataset.menu)); }
-    else if(k==='mabangPrice'){ if(el.value!==v && document.activeElement!==el) el.value=v; const s=mbSuggest(rec.mabangMenu); el.placeholder = s ? `제안 ${wonTxt(s)}` : '1인 단가';
-      const w=document.getElementById('w_mabangPrice'); const n=numOf(rec.mabangL); w.title = v && n ? `금액 ${wonTxt(v*n)}원` : ''; }
+    else if(k==='mabangMenu'){ const h=mbMenuHTML(v); if(el.dataset.h!==h){ el.innerHTML=h; el.dataset.h=h; } }
     else { if(el.tagName==='SELECT' && v && ![...el.options].some(o=>o.value===v)) el.add(new Option(v,v)); if(el.value!==v && document.activeElement!==el) el.value=v; }
     const w=document.getElementById('w_'+k);
     w.classList.toggle('unsure', fieldWarnings(rec).some(u=>u.field===k));
@@ -1260,7 +1283,7 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
-const AUTO_TASKS = { progstaff:'프로그램 담당 입력', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
+const AUTO_TASKS = { mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 담당 입력', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 function moneySplit(r){
   if(!quoteCat || !r.date || !numOf(r.people)) return null;
@@ -1296,6 +1319,7 @@ function syncAutoTasks(){
   if(rec.wantQuote) want.push('quote');
   if(rec.wantStmt) want.push('stmt');
   const ms=missingStaff(rec); if(ms.length) want.push('progstaff');   // 프로그램 담당이 비면 입력하라고
+  const mbNeed=mbNeedsMenu(rec); if(mbNeed) want.push('mbmenu');   // 몽몽마방 예약인데 메뉴를 안 고름
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
   const e0=tasks.find(t=>t.id==='erp');
   if(e0){ e0.done=!!rec.erp; if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
@@ -1306,7 +1330,8 @@ function syncAutoTasks(){
   if(fx){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); } fx.changes=fixes; } else if(!fx.done) fx.changes=[]; }
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
   const ps=tasks.find(t=>t.id==='progstaff'); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
-  const ORDER=['progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
+  const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
+  const ORDER=['mbmenu','progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
   tasks.sort((a,b)=>(a.custom?99:ORDER.indexOf(a.id))-(b.custom?99:ORDER.indexOf(b.id)));
 }
 // 전산에 들어가는 내용 (이게 바뀌면 전산 예약 수정)
@@ -1330,6 +1355,7 @@ function renderTasks(){
   box.innerHTML = tasks.map(t=>{
     const txt=taskText(t);
     const sub = t.id==='paycheck' ? `결제링크 보낸 다음날(${mdLabel(ymd(nextDay(t.at)))}) 아침에 이 창을 열면 확인 알림이 뜹니다.`
+      : t.id==='mbmenu' ? (t.done ? '몽몽마방 메뉴를 골랐습니다.' : `몽몽마방 식사에서 메뉴(${esc(mbMenus().map(m=>m.name).join(' · '))}) 중 하나를 고르세요. 고르면 자동으로 완료됩니다.`)
       : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 프로그램: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 칸의 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (차방 · 당두봉갈 대관은 담당 없어도 됨)` : '프로그램 담당을 모두 넣었습니다.')
       : t.id==='erpfix' ? ((t.changes||[]).length ? `전산 등록 후 바뀐 내용: <b>${esc(t.changes.join(' · '))}</b><br>전산 예약을 고치고 비고도 새 문구로 바꾼 뒤 체크하세요.` : '전산에 반영했습니다.')
       : SUB[t.id] || '';
@@ -1530,7 +1556,8 @@ function parseQuotePage(html){
   const m = html.match(/var CATALOG_RAW = \[([\s\S]*?)\];/); if(!m) throw new Error('품목 목록을 찾지 못함');
   const raw = [...m[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]);
   const list = name => { const mm = html.match(new RegExp('\\[([^\\]]*)\\]\\.forEach\\(function\\(n\\)\\{\\s*' + name + '\\[n\\]')); return mm ? [...mm[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]) : []; };
-  return { raw, gtime:list('GROUP_TIME'), geach:list('GROUP_EACH'), goods:list('GOODS') };
+  let mbName={}; try{ mbName=JSON.parse((html.match(/var MABANG_NAME = (\{[^}]*\});/)||[])[1]||'{}'); }catch(_){}
+  return { raw, gtime:list('GROUP_TIME'), geach:list('GROUP_EACH'), goods:list('GOODS'), mabang:list('MABANG'), mbName };
 }
 async function loadQuotePrices(){
   try{
@@ -1544,20 +1571,34 @@ async function loadQuotePrices(){
     writeJSON('sayuwon_quote_cat', quoteCat); priceLoaded = true;
     addCatalogProgs(quoteCat).forEach(f=>{ document.querySelector('#opt_'+OPT[f[0]].id+' .fields')?.insertAdjacentHTML('beforeend', fieldHTML(f[1],f[2],'','',false)); paintFields(); });   // 견적서 품목에 새 단체 품목이 생기면 칸 추가
   }catch(_){ priceLoaded = false; }
-  renderPrice(); if(window.__tasksReady) renderTasks();
+  paintFields(); renderPrice(); if(window.__tasksReady) renderTasks();   // 몽몽마방 메뉴 · 가격도 새로
 }
+// 품목 관리: 견적서 사이트를 ?catalog=1 로 띄우면 품목 관리 창만 나옴. 저장 · 닫기를 알려 주면 가격 · 메뉴를 다시 불러옴
+const QUOTE_CAT_URL = /github\.io$/.test(location.hostname) ? QUOTE_PAGE + '?catalog=1' : '/견적서_거래명세서/index.html?catalog=1';
+function openCatalog(){ $('#catFrame').src = QUOTE_CAT_URL + '&t=' + Date.now(); $('#catModal').hidden = false; }
+function closeCatalogModal(){ $('#catModal').hidden = true; $('#catFrame').src = 'about:blank'; loadQuotePrices(); }
+document.addEventListener('click', e=>{ if(e.target.closest('[data-open-cat]')){ e.preventDefault(); openCatalog(); } });
+window.addEventListener('message', e=>{
+  if(!e.data || e.data.type!=='sy-catalog' || e.source!==$('#catFrame').contentWindow) return;
+  if(e.data.ev==='close') closeCatalogModal();
+  if(e.data.ev==='saved') loadQuotePrices();
+});
+// 바깥을 누르거나 Esc: 품목 관리 창에 닫기를 부탁 (저장 안 한 변경이 있으면 거기서 물음)
+const askCatClose = () => $('#catFrame').contentWindow?.postMessage({type:'sy-catalog', ev:'close-request'}, '*');
+$('#catModal').addEventListener('click', e=>{ if(e.target.id==='catModal') askCatClose(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#catModal').hidden){ e.preventDefault(); askCatClose(); } });
 // 견적서 사이트와 같은 방식으로 품목 목록을 만든다 (숨긴 품목 제외, 바꾼 가격 반영, 추가 품목 포함)
 function catalogItems(){
   if(!quoteCat) return [];
   const has = (arr, s) => (arr||[]).some(x=>normSrc(x)===normSrc(s));
-  const kindOf = src => /\(관람,/.test(src) ? 'package' : has(quoteCat.gtime,src) ? 'gtime' : has(quoteCat.geach,src) ? 'geach' : has(quoteCat.goods,src) ? 'goods'
+  const kindOf = src => /\(관람,/.test(src) ? 'package' : has(quoteCat.mabang?.length ? quoteCat.mabang : MB_DEF.map(m=>m[0]), src) ? 'mabang' : has(quoteCat.gtime,src) ? 'gtime' : has(quoteCat.geach,src) ? 'geach' : has(quoteCat.goods,src) ? 'goods'
     : (/관람/.test(src) && !/관람권|관람식사권/.test(src)) ? 'view' : 'food';
   const out=[], seen={};
   quoteCat.raw.forEach(line=>{
     const [src, price, disc] = line.split('|'); if(seen[normSrc(src)]) return; seen[normSrc(src)]=1;
     const e = (quoteCat.edits||{})[src] || {};
     if(e.hidden) return;
-    out.push({ src, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), disc: e.disc!=null ? !!e.disc : disc==='1', kind: e.kind || kindOf(src) });
+    out.push({ src, name: e.name, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), disc: e.disc!=null ? !!e.disc : disc==='1', kind: e.kind || kindOf(src) });
   });
   (quoteCat.added||[]).forEach(a=>{ if(a.hidden) return; out.push({ src: a.src || a.name, name: a.name, price: a.price!=null ? Number(a.price) : null, disc: !!a.disc, kind: a.kind || 'food' }); });
   return out;
@@ -1566,6 +1607,7 @@ const priceOf = src => { const it = catalogItems().find(x=>normSrc(x.src)===norm
 const won = n => n==null ? '-' : Number(n).toLocaleString('ko-KR');
 // 품목 이름을 보기 좋게: "주말/공휴일(관람, 사담 런치1부)" → "관람 + 사담 런치1부", "해설사도슨트(수정)" → "해설사 도슨트"
 function itemLabel(src){
+  const mb = quoteCat && mbMenus().find(m=>normSrc(m.src)===normSrc(src)); if(mb) return '몽몽마방 '+mb.name;   // 몽몽마방 메뉴는 품목 관리의 품명
   let s = String(src||'').replace(/\((수정|변경)\)/g,'').replace(/\(\d{1,2}:\d{2}~\d{1,2}:\d{2}\)/,'').replace(/^(평일|주말\/공휴일|공휴일)\s*/,'').trim();
   const pk = s.match(/^\(관람,\s*(.+)\)$/); if(pk) s = '관람 + ' + pk[1];
   s = s.replace(/^관람\(학생\)$/,'관람 (학생)').replace(/^해설사도슨트$/,'해설사 도슨트').replace(/^임원도슨트$/,'임원 도슨트').replace(/^요가프로그램\(단체\)$/,'요가 프로그램').replace(/^\(관람\)$/,'관람');
@@ -1574,11 +1616,11 @@ function itemLabel(src){
 }
 // 전체 가격표: 묶음별로, 평일·주말 짝은 한 줄로
 function priceSections(){
-  const SEC = { view:'관람', package:'관람 + 식사', food:'식사', geach:'단체 프로그램 (1인)', gtime:'단체 프로그램 (회당)' };
+  const SEC = { view:'관람', package:'관람 + 식사', mabang:'몽몽마방 메뉴 (1인)', food:'식사', geach:'단체 프로그램 (1인)', gtime:'단체 프로그램 (회당)' };
   const groups = {};
   catalogItems().forEach(it=>{
     if(!SEC[it.kind] || PRICE_EXCLUDE.test(it.src) || it.price==null) return;
-    const label = itemLabel(it.src), key = it.kind + '|' + label;
+    const label = it.kind==='mabang' ? ((mbMenus().find(m=>m.src===it.src)||{}).name || itemLabel(it.src)) : itemLabel(it.src), key = it.kind + '|' + label;
     const g = groups[key] || (groups[key] = { kind:it.kind, name:label, src:it.src, perTime: it.kind==='gtime' });
     if(/^평일/.test(it.src)){ if(g.wd==null) g.wd=it.price; }
     else if(/^(주말|공휴일)/.test(it.src)){ if(g.we==null) g.we=it.price; }
@@ -1698,7 +1740,7 @@ function quoteBlocks(r){
   const n = numOf(r.people), we = isRedDay(r.date);
   const DAY = we ? '주말/공휴일' : '평일';
   const cnt = v => v ? (numOf(v) || n) : 0;   // 'O' 처럼 숫자가 없으면 전체 인원
-  const mbPkg = r.mabangL && /사유의 밥상/.test(r.mabangMenu||'');   // 메뉴에 사유의 밥상을 체크했을 때만 관람+밥상 패키지
+  const mbM = mbMenuOf(r), mbPkg = r.mabangL && mbM && /사유의\s*밥상/.test(mbM.src+mbM.name);   // 사유의 밥상을 고르면 관람+밥상 패키지
   const blocks=[], skipped=[];
   const add=(product, qty, disc)=>{ if(qty>0) blocks.push({product, qty, disc}); };
   const pkg = cnt(r.sadam1)+cnt(r.sadam2)+cnt(r.sadamD)+(mbPkg?cnt(r.mabangL):0);
@@ -1707,7 +1749,9 @@ function quoteBlocks(r){
   add(`${DAY}(관람, 사담 런치2부)`, cnt(r.sadam2), true);
   add(`${DAY}(관람, 사담 디너)`, cnt(r.sadamD), false);
   if(mbPkg) add(`${DAY}(관람, 몽몽마방 사유의 밥상)`, cnt(r.mabangL), false);
-  else if(r.mabangL){ add('몽몽마방 단품', cnt(r.mabangL), false); if(Number(r.mabangPrice) && blocks.length) blocks[blocks.length-1].price=Number(r.mabangPrice); }   // 몽몽마방 단가를 적었으면 그 값으로
+  else if(r.mabangL && mbM) add(mbM.src, cnt(r.mabangL), false);   // 고른 메뉴 품목 (품목 리스트 가격)
+  else if(r.mabangL && Number(r.mabangPrice)){ add('몽몽마방 단품', cnt(r.mabangL), false); blocks[blocks.length-1].price=Number(r.mabangPrice); }   // 예전 기록: 적어 둔 단가
+  else if(r.mabangL) skipped.push('몽몽마방 (메뉴를 고르면 계산)');
   if(r.mabangD) skipped.push('몽몽마방 디너');
   // 프로그램: 개별은 인원(숫자가 없으면 전체 인원), 시간은 시간 수(숫자가 없으면 1시간). 같은 견적서 품목이면 합침
   PROG_KEYS().forEach(k=>{ if(!r[k]) return; const src=PROG_SRC[k]; const q = UNIT(k)==='시간' ? (numOf(r[k])||1) : cnt(r[k]);
@@ -1844,7 +1888,7 @@ async function downloadXlsx(){
     rows.forEach(r=>{
       const x={...r, ...unpackExtra(r)}, sp=(String(r.memo||'').match(/특별 할인\s+([^/]+)/)||[])[1]||'';
       ws.addRow([r.date||'', listView.stageOf(r), listView.erpOf(r)?'등록':(listView.stageOf(r)==='예약상담'?'':'미등록'), r.org||'', r.owner||r.takenBy||'', r.pay||'', r.vehicle||'', r.tin||'', x.gate||'', r.tout||'', r.people||'',
-        r.sadam1||'', r.sadam2||'', r.sadamD||'', x.mabangTime||'', (r.mabangL||'')+(r.mabangD?` (예전 디너 ${r.mabangD})`:''), r.mabangMenu||'', x.mabangPrice||'', x.mabangPay||'', x.mabangNote||'', ...PROG_KEYS().map(k=>x[k]||''), Object.keys(x).filter(k=>x[k] && (LEGACY_KEYS.includes(k) || (/^px:/.test(k) && !PROG_KEYS().includes(k)))).map(k=>`${LABEL[k]||k.slice(3)} ${x[k]}`).join(', '),
+        r.sadam1||'', r.sadam2||'', r.sadamD||'', x.mabangTime||'', (r.mabangL||'')+(r.mabangD?` (예전 디너 ${r.mabangD})`:''), r.mabangMenu||'', (mbUnit({...r,...x})||''), x.mabangPay||'', x.mabangNote||'', ...PROG_KEYS().map(k=>x[k]||''), Object.keys(x).filter(k=>x[k] && (LEGACY_KEYS.includes(k) || (/^px:/.test(k) && !PROG_KEYS().includes(k)))).map(k=>`${LABEL[k]||k.slice(3)} ${x[k]}`).join(', '),
         docState(r,'quote'), docState(r,'stmt'),         r.contact||'', r.phone||'', r.email||'', x.pchg?'있음':'', x.onsite?'있음':'', x.tbd?(x.tbd+(x.tbdDate?` (${x.tbdDate}까지)`:'')):'', sp.trim(), r.note||'', r.saved?fmt(r.saved):'']);
     });
     const head = ws.getRow(1); head.font={ bold:true, color:{argb:'FFFFFFFF'} }; head.alignment={ vertical:'middle', horizontal:'center' }; head.height=22;
