@@ -71,6 +71,8 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .mb-ck{display:flex;align-items:center;gap:5px;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:13px;cursor:pointer;user-select:none}
 .mb-ck input{width:14px;height:14px;margin:0;accent-color:var(--pine)}
 .pay-guide{margin:4px 0 0;padding-left:18px;font-size:14.5px;line-height:1.8}
+#form .mb-ck input[type=radio]{all:revert;width:14px;height:14px;margin:0;flex:0 0 auto;accent-color:var(--pine)}   /* 일반 입력칸 서식이 먹지 않게 */
+.mb-ck{white-space:nowrap;width:auto;flex:0 0 auto}
 .mb-ck small{font-weight:400;color:var(--muted);font-size:11.5px}
 .mb-ck.old{border-style:dashed}
 .mb-cat{border:0;background:none;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer;padding:0 4px}
@@ -325,12 +327,13 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <h1>思惟園 단체 예약 접수 및 관리 도우미</h1>
   <button type="button" class="ko-toggle on" id="ko-toggle" aria-pressed="true">한</button>
   <label class="me" for="f_owner">영업 담당 <input id="f_owner" data-k="owner" data-ime="ko" list="owners" placeholder="이름" autocomplete="off"></label>
+  <button type="button" class="list-btn" id="myOpenBtn" title="내가 영업 담당인 예약 모아 보기">마이페이지 <span class="tag call" id="myCount" hidden></span></button>
   <datalist id="owners"><option>이상운</option><option>혜린</option></datalist>
   <span class="timer" id="timer"></span>
   <button type="button" class="new-btn" id="newBtn">＋ 새 통화 <kbd>Alt+N</kbd></button>
   <button type="button" class="list-btn" id="consultOpenBtn">단체상담 입력</button>
   <button type="button" class="list-btn" id="listOpenBtn">단체예약 목록 <span id="listCount"></span><span class="tag call" id="callCount" hidden></span></button>
-  <button type="button" class="list-btn" id="myOpenBtn" title="내가 영업 담당인 예약 모아 보기">마이페이지 <span class="tag call" id="myCount" hidden></span></button>
+  <button type="button" class="list-btn" data-open-cat title="견적서 · 가격표 · 몽몽마방 메뉴 품목 (견적서 사이트와 같은 목록)">품목 관리</button>
   <span class="sync" id="syncChip" hidden></span>
 </header>
 <!-- 공유 기록이 끊기면(비밀번호 없음 · 틀림) 뜨는 팝업. 연결될 때까지 닫히지 않음 -->
@@ -408,6 +411,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <!-- 예약 칸 -->
   <section class="panel form-col">
     <div class="form-head"><h2>예약 내용</h2>
+      <label class="tbd-date pay-date" id="w_payContact" for="f_payContact">결제 연락 예정일 <input type="date" id="f_payContact" data-k="payContact"></label>
       <label class="tbd-date" id="w_tbdDate" for="f_tbdDate">미정 항목 입력 기한 <input type="date" id="f_tbdDate" data-k="tbdDate"></label>
     </div>
     <div class="stage-bar">
@@ -468,7 +472,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     </div>
     <div class="psec-t">선택한 항목</div>
     <div id="priceBox"></div>
-    <div class="row-btns" style="margin-top:10px"><button type="button" class="btn" id="priceAllBtn" aria-expanded="false" style="padding:5px 12px;font-size:12.5px">전체 가격표 보기</button><button type="button" class="btn" data-open-cat style="padding:5px 12px;font-size:12.5px">품목 관리</button></div>
+    <div class="row-btns" style="margin-top:10px"><button type="button" class="btn" id="priceAllBtn" aria-expanded="false" style="padding:5px 12px;font-size:12.5px">전체 가격표 보기</button></div>
     <div id="priceAll" hidden></div>
     <p class="hint" id="priceSrc">견적서&amp;거래명세서 사이트 품목 기준 · 부가세 포함 · 공휴일은 주말 가격</p>
   </section>
@@ -565,7 +569,6 @@ const FIELDS = [
   ['몽몽마방','mabangL','인원','M','',null],
   ['몽몽마방','mabangPay','결제','','',null],
   ['몽몽마방','mabangMenu','메뉴','','w4',null],
-  ['몽몽마방','mabangNote','비고','','w4',null],
   // 프로그램(개별): 인원 단위 · 프로그램(시간): 1시간 단위. 견적서 품목 리스트에 단체(개별)·단체(시간) 품목이 새로 생기면 아래에 자동으로 붙음
   ['프로그램(개별)','yoga','요가','R','',null],
   ['프로그램(개별)','gaga','가가 바우처','S','',null],
@@ -823,7 +826,7 @@ function buildForm(){
         : `<div class="grp" data-grp="${grp}"><div class="grp-t"><span>${grp}</span></div><div class="fields">`;
       g=grp;
     }
-    if(k==='tbdDate' || k==='owner') return;   // 입력 기한은 예약 단계 줄, 영업 담당은 맨 위 초록 헤더
+    if(k==='tbdDate' || k==='owner' || k==='payContact') return;   // 입력 기한 · 결제 연락 예정일은 예약 내용 제목 줄, 영업 담당은 맨 위 초록 헤더
     html += fieldHTML(k,label,col,cls,req.has(k)||k==='payContact');
     if(k==='pchg') html += `</div></div><div class="grp" data-grp="담당자"><div class="grp-t"><span>담당자</span><span class="hint" style="margin:0">여러 명이면 추가</span></div><div class="contacts" id="contacts"></div><button type="button" class="btn addc" id="addContact">+ 담당자 추가</button>` + `<div class="fields" hidden>`;
   });
@@ -1335,6 +1338,7 @@ function erpNote(r){
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';   // 출입구가 미정이면 '출입구 미정'을 따로
   const p=[`입장 ${r.tin||'미정'}${gate?' '+gate:''}`, ...(gate?[]:['출입구 미정']), r.pchg ? '인원 변경 가능성 있음' : '인원 변경 없음'];
   const pg=progList(r, null, true); if(pg.length) p.push(pg.join(', '));   // 프로그램 (담당:이름)
+  if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');   // 몽몽마방 결제를 마방으로 고르면
   if(r.pay==='현장 결제' || r.onsite){ const m=moneySplit(r); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); }
   return [...p, ...memoLines()].join(' / ');
 }
@@ -1631,7 +1635,7 @@ function catalogItems(){
     const [src, price, disc] = line.split('|'); if(seen[normSrc(src)]) return; seen[normSrc(src)]=1;
     const e = (quoteCat.edits||{})[src] || {};
     if(e.hidden) return;
-    out.push({ src, name: e.name, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), disc: e.disc!=null ? !!e.disc : disc==='1', kind: e.kind || kindOf(src) });
+    out.push({ src, name: e.name, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), disc: e.disc!=null ? !!e.disc : disc==='1', kind: (e.kind==='food' && MB_DEF.some(m=>normSrc(m[0])===normSrc(src))) ? 'mabang' : (e.kind || kindOf(src)) });   // 예전에 '식사'로 바꿔 둔 기본 몽몽마방 메뉴도 메뉴로
   });
   (quoteCat.added||[]).forEach(a=>{ if(a.hidden) return; out.push({ src: a.src || a.name, name: a.name, price: a.price!=null ? Number(a.price) : null, disc: !!a.disc, kind: a.kind || 'food' }); });
   return out;
