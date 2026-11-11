@@ -601,7 +601,7 @@ let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
 let hist=[], baseSnap=null, tasks=[];   // 수정 기록 · 추후 과업
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
-function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); return o; }
+function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; return o; }   // 결제는 기본 미정
 function resetState(){ rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
 function contactsOf(r){
   const out=[]; for(let i=0;i<nContactsOf(r);i++){ const c={name:r[`c${i}_name`]||'',phone:r[`c${i}_phone`]||'',email:r[`c${i}_email`]||''}; if(c.name||c.phone||c.email) out.push(c); } return out;
@@ -618,7 +618,7 @@ const MISS_LABEL = { phone:'연락처(010)' };   // 물어볼 것에 보이는 �
 MISS_LABEL.payContact='결제 연락일';
 // 결제 연락 예정일은 결제가 '미정'일 때만 필수
 const REQUIRED = () => [...FIELDS.filter(f=>f[5] && (f[1]!=='payContact' || rec?.pay==='미정')).map(f=>[f[1],MISS_LABEL[f[1]]||f[2],f[5]]), ...CFIELDS.map(([f,l,q])=>[`c0_${f}`,MISS_LABEL[f]||l,q])];
-const PAYS = ['세금계산서','결제링크','현장 결제','미정'];
+const PAYS = ['미정','세금계산서','결제링크','현장 결제'];   // 기본 미정 ('선택' 없음)
 const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
@@ -728,7 +728,7 @@ function fieldHTML(k,label,col,cls,req){
     : k==='gate'
     ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${GATES.map(g=>`<option>${g}</option>`).join('')}</select>`
     : k==='pay'
-    ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${PAYS.map(p=>`<option>${p}</option>`).join('')}</select>`
+    ? `<select id="f_${k}" data-k="${k}">${PAYS.map(p=>`<option>${p}</option>`).join('')}</select>`
     : k==='date'   // 보이는 칸은 "2026-12-05 (토)" 글자, 달력은 밑에 숨긴 날짜 칸으로
     ? `<input id="f_date" data-k="date" class="date-text"${extra}><input type="date" id="f_datePick" class="date-pick" tabindex="-1" aria-hidden="true">`
     : `<input id="f_${k}" data-k="${k}"${extra}${/^프로그램/.test(GROUP_OF[k]||'') ? ` placeholder="${UNIT(k)}"` : ''}>`;
@@ -870,7 +870,7 @@ function paintFields(changed=[]){
     else { if(el.tagName==='SELECT' && v && ![...el.options].some(o=>o.value===v)) el.add(new Option(v,v)); if(el.value!==v && document.activeElement!==el) el.value=v; }
     const w=document.getElementById('w_'+k);
     w.classList.toggle('unsure', fieldWarnings(rec).some(u=>u.field===k));
-    const isTbd = tbdSet(rec).has(k);
+    const isTbd = tbdSet(rec).has(k) || (k==='pay' && v==='미정');   // 결제 미정도 노란색
     w.classList.toggle('tbd', isTbd);
     w.classList.toggle('missing', req.has(k) && !v && !isTbd);
     if(OPT[GROUP_OF[k]]) el.classList.toggle('has', !!v);
@@ -922,7 +922,7 @@ function renderSide(){
   if(typeof renderStage==='function') renderStage();
   const ts = tbdSet(rec), req = REQUIRED(), miss = req.filter(([k])=>!rec[k] && !ts.has(k));
   // 물어볼 것: 전부 보여 주고, 받은 항목은 초록색, 미정으로 체크한 항목은 노란색
-  $('#missBox').innerHTML = `<ul class="chk miss">${req.map(([k,l,q])=>`<li class="${ts.has(k)?'tbd':rec[k]?'got':''}" title="${q}"><b>${l}</b></li>`).join('')}</ul>`
+  $('#missBox').innerHTML = `<ul class="chk miss">${req.map(([k,l,q])=>`<li class="${ts.has(k)||(k==='pay'&&rec.pay==='미정')?'tbd':rec[k]?'got':''}" title="${q}"><b>${l}</b></li>`).join('')}</ul>`
     + (miss.length ? '' : `<div class="done-all" style="margin-top:6px">필수 정보를 모두 받았습니다. 고객님께 확인하고 저장하세요.</div>`);
   const items = fieldWarnings(rec).map(u=>`<li><b>${LABEL[u.field]||u.field}</b> ${esc(rec[u.field]||'')}<span class="q">${esc(u.reason)}</span></li>`);
   $('#unsureBox').innerHTML = items.length ? `<ul class="chk unsure">${items.join('')}</ul>` : `<p class="hint" style="margin:0">지난 날짜, 입퇴장 시간 뒤바뀜, 사담·마방 자리 부족이면 여기에 표시합니다.</p>`;
@@ -1456,6 +1456,7 @@ function openRecord(r){
     if(r.mabangD) rec.mabangD=r.mabangD;   // 예전 '마방 디너' 값도 그대로
     if(!rec.owner) rec.owner=savedOwner();   // 자동 등록된 예약 등 담당이 비어 있으면 이 컴퓨터의 영업 담당
     const ex=unpackExtra(r); Object.assign(rec,ex); Object.keys(ex).forEach(k=>touched.add(k));
+    if(!rec.pay) rec.pay='미정';   // 결제를 안 고른 예전 기록은 미정으로
     if(/^adm/.test(r.id) && !rec.erp) rec.erp='관리자 예약';   // 관리자 사이트에서 온 예약은 이미 전산에 있음
     rec.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(rec) ? normStage(r.callType) : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
@@ -1589,14 +1590,14 @@ function renderPrice(){
   const box=$('#priceBox'); if(!box) return;
   let day=null; if(rec.date){ const d=new Date(rec.date+'T00:00'); if(!isNaN(d)) day = isRedDay(rec.date) ? 'we' : 'wd'; }
   const n = numOf(rec.people), g = groupRate(n), sp = specialCounts(rec);
-  $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?(HOLIDAYS.has(rec.date)?'공휴일(주말)':'주말'):'평일'} 가격` : '';
+  $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?(HOLIDAYS.has(rec.date)?'공휴일(주말)':'주말'):'평일'} 가격` : (n ? '방문일 전 · 평일 가격으로 계산' : '');
   $('#discGroup').innerHTML = n
     ? `${n}명 → <b>${groupLabel(n)}</b> <span class="hint" style="margin:0">(관람·사담 런치만, 다른 상품은 할인 없음)</span>` + (sp.length ? `<br>특별 할인 ${sp.map(s=>`${s.short} ${s.n}명 ${s.rate===1?'무료':Math.round(s.rate*100)+'%'}`).join(' · ')} <span class="hint" style="margin:0">(단체 할인과 비교해 큰 쪽)</span>` : '')
     : '<span class="hint" style="margin:0">관람 인원을 넣으면 할인(20명 미만 5% · 20명 초과 10%)이 계산됩니다</span>';
   SPECIAL.forEach(s=>{ const el=$('#'+s.k); if(el && document.activeElement!==el) el.value = rec[s.k]||''; el?.classList.toggle('has', !!rec[s.k]); });
   // 1) 선택한 항목
-  if(!rec.date || !n){
-    box.innerHTML = '<p class="hint" style="margin:0">방문일과 관람 인원을 넣으면, 예약 칸에서 고른 관람·식사·프로그램의 금액이 여기에 나옵니다.</p>';
+  if(!quoteBlocks(rec).blocks.length){   // 방문일이 없으면 평일 가격으로, 관람 인원 없이 프로그램 · 식사만 있어도 보여 줌
+    box.innerHTML = '<p class="hint" style="margin:0">관람 인원이나 식사 · 프로그램 인원을 넣으면 금액이 여기에 나옵니다.</p>';
   } else if(!quoteCat){
     box.innerHTML = '<p class="hint" style="margin:0">견적서 사이트에서 가격을 불러오는 중입니다.</p>';
   } else {
@@ -1717,7 +1718,7 @@ $('#stmtBtn').onclick=()=>openQuote('statement');
 const STAGES = ['예약상담','예약접수'];
 const OLD_STAGE = { '상담':'예약상담', '가예약':'예약접수', '공식예약':'예약접수' };   // 예전에 저장한 단계는 예약접수로
 const normStage = s => OLD_STAGE[s] || s;
-const stageAuto = r => r.pay ? '예약접수' : '예약상담';
+const stageAuto = r => r.pay && r.pay!=='미정' ? '예약접수' : '예약상담';   // 결제가 미정(기본)이면 예약상담, 방식을 고르면 예약접수
 const effStage = r => (STAGES.includes(r.stage) ? r.stage : '') || stageAuto(r);
 const needsErp = r => effStage(r)!=='예약상담';
 function renderStage(){
