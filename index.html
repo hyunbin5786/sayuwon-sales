@@ -367,7 +367,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 <!-- 매일 아침 9시: 미정 항목 입력 기한이 된 예약 연락 알림 -->
 <div class="modal" id="tbdModal" hidden>
   <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="tbdTitle">
-    <h2 id="tbdTitle">미정 항목 연락할 예약 <small>입력 기한이 오늘이거나 지났습니다. 고객님께 연락해 확정해 주세요</small></h2>
+    <h2 id="tbdTitle">미정 항목 연락할 예약 <small>답변일이 오늘이거나 지났습니다. 고객님께 연락해 확정해 주세요</small></h2>
     <ul class="pc-list" id="tbdList"></ul>
     <div class="row-btns"><button class="btn" id="tbdLater">나중에</button></div>
   </section>
@@ -412,10 +412,10 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 <!-- 미정 항목 입력 기한을 방문일 전주 목요일보다 늦게 잡을 때 사유 -->
 <div class="modal" id="lateModal" hidden>
   <section class="panel consult del-box" role="dialog" aria-modal="true" aria-labelledby="lateTitle">
-    <h2 id="lateTitle">입력 기한을 늦추는 사유</h2>
+    <h2 id="lateTitle">답변일을 늦추는 사유</h2>
     <p class="hint" style="margin:0 0 10px" id="lateMsg"></p>
     <input id="lateReason" data-ime="ko" placeholder="예) 고객사 내부 결재가 12/5에 끝남" autocomplete="off" style="width:100%;box-sizing:border-box;height:36px;border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:14px var(--sans)">
-    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="lateFix">전주 목요일로 되돌리기</button><button class="btn primary" id="lateOk">사유 저장</button></div>
+    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="lateFix">기본 답변일로 되돌리기</button><button class="btn primary" id="lateOk">사유 저장</button></div>
   </section>
 </div>
 
@@ -440,8 +440,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <!-- 예약 칸 -->
   <section class="panel form-col">
     <div class="form-head"><h2>예약 내용</h2>
-      <label class="tbd-date pay-date" id="w_payContact" for="f_payContact">결제 연락 예정일 <input type="date" id="f_payContact" data-k="payContact"></label>
-      <label class="tbd-date" id="w_tbdDate" for="f_tbdDate">미정 항목 입력 기한 <input type="date" id="f_tbdDate" data-k="tbdDate"></label>
+      <label class="tbd-date" id="w_tbdDate" for="f_tbdDate" title="방문일 전주 목요일 (이미 지났으면 방문일 전날)">미정 항목 답변일 <input type="date" id="f_tbdDate" data-k="tbdDate"></label>
     </div>
     <div class="stage-bar">
       <span class="stage-l">예약 단계</span>
@@ -588,8 +587,7 @@ const FIELDS = [
   ['방문','owner','영업 담당','E','',  null],
   ['방문','pay','결제','F','',  '결제는 세금계산서, 결제링크, 현장 결제 중 어떻게 하실까요?'],
   ['방문','onsite','현장 재결제','','',  null],   // 다른 방식이어도 현장에서 카드로 다시 결제하는 경우
-  ['방문','payContact','결제 연락 예정일','','',  '결제 방법은 언제쯤 알려주실 수 있을까요?'],   // 결제가 미정일 때만
-  ['방문','tbdDate','미정 항목 입력 기한','','',  null],   // 인원·식사 등이 아직 미정일 때 언제까지 알려주기로 했는지
+  ['방문','tbdDate','미정 항목 답변일','','',  null],   // 미정 항목(인원 · 결제 방법 등)을 언제까지 알려주기로 했는지
   ['사담','sadam1','1부','J','',null],
   ['사담','sadam2','2부','K','',null],
   ['사담','sadamD','디너','L','',null],
@@ -675,7 +673,7 @@ let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
 let hist=[], baseSnap=null, tasks=[];   // 수정 기록 · 추후 과업
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
-function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; o.gate='미정'; return o; }   // 결제 · 입장문은 기본 미정   // 결제는 기본 미정
+function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; o.gate='미정'; o.tbd='결제 방법'; return o; }   // 결제 · 입장문은 기본 미정   // 결제는 기본 미정
 function resetState(){ rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
 function contactsOf(r){
   const out=[]; for(let i=0;i<nContactsOf(r);i++){ const c={name:r[`c${i}_name`]||'',phone:r[`c${i}_phone`]||'',email:r[`c${i}_email`]||''}; if(c.name||c.phone||c.email) out.push(c); } return out;
@@ -697,15 +695,16 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 입력 기한'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
-const TBD_KEYS = [['org','업체'],['date','방문일'],['people','관람 인원'],['tin','입장'],['vehicle','차량 대수']];
+const TBD_KEYS = [['org','업체'],['date','방문일'],['people','관람 인원'],['tin','입장'],['vehicle','차량 대수'],['pay','결제 방법']];   // 결제 미정 = 미정 항목 '결제 방법' (입장문은 전날 전화로 안내하므로 미정 항목 아님)
 const tbdSet = r => { const names=String(r?.tbd||'').split(/\s*,\s*/); return new Set(TBD_KEYS.filter(([,l])=>names.includes(l)).map(([k])=>k)); };
+function syncPayTbd(r){ const s=tbdSet(r); r.pay==='미정' ? s.add('pay') : s.delete('pay'); r.tbd=TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', '); if(!s.size){ r.tbdDate=''; r.tbdLate=''; if(r===rec) tbdAuto=false; } }
 function packExtra(r){
   const o={};
-  o.pay = r.pay==='미정' && r.payContact ? `미정 (연락 ${r.payContact})` : r.pay;
+  o.pay = r.pay;   // 결제 미정의 답변일은 미정 항목 답변일로
   o.memo = MEMO_PARTS.filter(([k])=>r[k] && (!['tbdDate','tbdLate'].includes(k) || r.tbd)).map(([k,l])=>`${l} ${String(r[k]).replace(/\s*\/\s*/g,', ')}`).join(' / ');
   if(typeof SPECIAL!=='undefined'){ const sp=specialCounts(r); if(sp.length) o.memo=[o.memo, '특별 할인 '+sp.map(s=>s.short+' '+s.n).join(', ')].filter(Boolean).join(' / '); }
   const xp = Object.keys(r).filter(k=>r[k] && (isXProg(k) || /^px:/.test(k))).map(k=>`${LABEL[k]||k.slice(3)} ${String(r[k]).replace(/[,/]/g,' ').trim()}`);
@@ -719,7 +718,8 @@ function packExtra(r){
 }
 function unpackExtra(r){ const o={}; let m;
   if((m=String(r.pay||'').match(/^미정\s*\(연락\s*(\d{4}-\d{2}-\d{2})\)/))){ o.pay='미정'; o.payContact=m[1]; }
-  String(r.memo||'').split(/\s*\/\s*/).forEach(part=>{ MEMO_PARTS.forEach(([k,l])=>{ if(part.startsWith(l+' ')) o[k]=part.slice(l.length+1).trim(); }); });
+  String(r.memo||'').replace(/미정 항목 입력 기한 /g,'미정 항목 답변일 ').split(/\s*\/\s*/).forEach(part=>{ MEMO_PARTS.forEach(([k,l])=>{ if(part.startsWith(l+' ')) o[k]=part.slice(l.length+1).trim(); }); });   // 예전 이름 '입력 기한'도 읽음
+  if(o.payContact && !o.tbdDate) o.tbdDate=o.payContact;   // 예전 '결제 연락 예정일' → 미정 항목 답변일
   const mx=String(r.memo||'').match(/추가 프로그램\s+([^/]+)/); if(mx) mx[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\S+)$/); if(!x) return;
     const f=FIELDS.find(f=>f[2]===x[1] && isXProg(f[1])), k=f ? f[1] : 'px:'+x[1].replace(/\s/g,''); if(!f) LABEL[k]=x[1]; o[k]=x[2]; });
   Object.entries(SUB_NAME).forEach(([p,nm])=>{
@@ -837,7 +837,7 @@ function fieldHTML(k,label,col,cls,req){
     : /^crs_/.test(k)
     ? `<input id="f_${k}" data-k="${k}" data-ime="ko" placeholder="예) 정원 코스" autocomplete="off">`
     : `<input id="f_${k}" data-k="${k}"${extra}${/^프로그램/.test(GROUP_OF[k]||'') ? ` placeholder="${UNIT(k)}"` : ''}>`;
-  const tbdBox = k!=='vehicle' && TBD_KEYS.some(([tk])=>tk===k) ? `<label class="tbdck" title="아직 안 정해졌으면 체크"><input type="checkbox" data-tbd="${k}">미정</label>` : "";
+  const tbdBox = k!=='vehicle' && k!=='pay' && TBD_KEYS.some(([tk])=>tk===k) ? `<label class="tbdck" title="아직 안 정해졌으면 체크"><input type="checkbox" data-tbd="${k}">미정</label>` : "";
   return `<div class="f ${cls}${req?' req':''}${tbdBox?' has-tbd':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span></label><div class="inbox">${input}${tbdBox}</div></div>`;
 }
 function buildForm(){
@@ -891,6 +891,7 @@ function buildForm(){
     if(k==='date'){ const d=parseDateText(e.target.value); if(d===null) return; }   // 방문일을 치는 중 (날짜가 되기 전엔 그대로)
     rec[k]= e.target.type==='checkbox' ? (e.target.checked?'있음':'') : k==='vehicle' ? vehRead() : k==='date' ? parseDateText(e.target.value) : e.target.value;
     touched.add(k);
+    if(k==='pay'){ syncPayTbd(rec); touched.add('tbd'); }   // 결제 미정 ↔ 미정 항목 '결제 방법'
     if(k==='pay' && PAY_GUIDE[rec.pay]) openPayGuide(rec.pay);   // 결제 방식을 고르면 그 안내를 바로 팝업으로
     if(k==='vehicle' && e.target.id==='f_vtype'){ const s=tbdSet(rec); rec.vehicle==='미정' ? s.add('vehicle') : s.delete('vehicle'); rec.tbd=TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', '); if(!s.size){ rec.tbdDate=''; rec.tbdLate=''; tbdAuto=false; } touched.add('tbd'); }   // 차종 '미정' = 차량 미정 체크
     if(k==='date') renderInfo();
@@ -1015,11 +1016,14 @@ const mdLabel = d => { const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getM
 // 미정 항목 입력 기한: 미정 체크가 있을 때만 보이고, 기본값은 방문일 전주 목요일 (직접 바꾸면 그대로 둠)
 let tbdAuto=false;
 function prevWeekThu(d){ const t=new Date(d+'T00:00'); if(isNaN(t)) return ''; t.setDate(t.getDate()-((t.getDay()+6)%7)-4); return ymd(t); }
+// 미정 항목 답변일 기본값 · 한도: 방문일 전주 목요일. 그 목요일이 이미 지났으면 방문일 전날 (그것도 지났으면 오늘)
+function tbdLimit(d){ const thu=prevWeekThu(d), today=ymd(new Date()); if(!thu) return ''; if(thu>=today) return thu; const p=new Date(d+'T00:00'); p.setDate(p.getDate()-1); const pd=ymd(p); return pd>=today ? pd : today; }
+const tbdLimitName = d => tbdLimit(d)===prevWeekThu(d) ? '방문일 전주 목요일' : '방문일 전날';
 function applyTbdDefault(){
   const has=tbdSet(rec).size>0, w=document.getElementById('w_tbdDate');
   if(w) w.hidden=!has;
   if(!has || !rec.date || (rec.tbdDate && !tbdAuto)) return;
-  const v=prevWeekThu(rec.date);
+  const v=tbdLimit(rec.date);   // 전주 목요일, 이미 지났으면 방문일 전날
   if(v && rec.tbdDate!==v){ rec.tbdDate=v; tbdAuto=true; const el=document.getElementById('f_tbdDate'); if(el) el.value=v; }
 }
 function renderSide(){
@@ -1074,14 +1078,17 @@ function readback(r){
   if(r.people) S.push(veh ? `인원은 총 ${r.people}명이고, ${veh} 거 맞으신가요?` : `인원은 총 ${r.people}명 맞으신가요?`);
   else if(veh) S.push(`${veh} 거 맞으신가요?`);
   if(r.pay==='현장 결제') S.push('결제는 현장 결제로 진행되며, 그러기에 인원 변경 어려우신 점 이해되셨을까요?');
-  else if(r.pay==='미정') S.push(`결제 방법은 ${r.payContact?mdLabel(r.payContact)+'까지':'나중에'} 알려주시기로 하신 거 맞으신가요?`);
+  else if(r.pay==='미정') S.push(`결제 방법은 ${r.tbdDate?mdLabel(r.tbdDate)+'까지':'나중에'} 알려주시기로 하신 거 맞으신가요?`);
   else if(r.pay) S.push(`결제는 ${r.pay}${ro(r.pay)} 진행하시는 거 맞으신가요?`);
-  // 미정 항목 입력 기한: 그때까지 말씀해 주신 인원(내용)으로 고정
-  if(r.tbd && r.tbdDate){ const t=r.tbd.replace(/, /g,' · '); S.push(`아직 정해지지 않은 ${t}${eun(t)} ${mdLabel(r.tbdDate)}까지 말씀해 주시면, 말씀해 주신 ${/관람 인원/.test(r.tbd)?'인원':'내용'}으로 고정됩니다.`); }
+  // 미정 항목 답변일: 그때까지 말씀해 주신 인원(내용)으로 고정 (결제 방법은 위 줄에서)
+  const tn = String(r.tbd||'').split(/\s*,\s*/).filter(x=>x && x!=='결제 방법');
+  if(tn.length && r.tbdDate){ const t=tn.join(' · '); S.push(`아직 정해지지 않은 ${t}${eun(t)} ${mdLabel(r.tbdDate)}까지 말씀해 주시면, 말씀해 주신 ${tn.includes('관람 인원')?'인원':'내용'}으로 고정됩니다.`); }
+  // 입장문은 미정 항목이 아님: 전날 전화로 안내
+  if(!r.gate || r.gate==='미정') S.push('입장하실 문은 입장 전날 전화드리면서 안내드리겠습니다.');
   const cs=contactsOf(r), mails=cs.map(c=>c.email).filter(Boolean);
   const docs = [r.wantQuote&&'견적서', r.wantStmt&&'거래명세서'].filter(Boolean).join('와 ');
   if(docs) S.push(mails.length ? `${docs}는 ${mails.join(', ')}로 보내드리면 될까요?` : `${docs} 받으실 이메일 주소를 알려주시겠어요?`);
-  if(!S.length) return '내용이 채워지면 고객에게 읽어줄 확인 문구가 만들어집니다.';
+  if(!S.length || (!r.org && !r.date && !r.people)) return '내용이 채워지면 고객에게 읽어줄 확인 문구가 만들어집니다.';
   let s = `마지막으로 예약 확인하겠습니다.\n${S.join('\n')}\n\n저희가 입장 전날에 전화드리면서 다시 안내드리겠습니다. 감사합니다.`;   // 마지막 멘트는 항상 이것으로
   // 결제 방식 안내(PAY_GUIDE)는 결제를 고를 때 팝업 + 다시 확인할 것에
   // 특별 할인: 인원 · 할인율 · 지참할 증빙
@@ -1138,10 +1145,9 @@ function fieldWarnings(r){
   if(r.tin && !fmtTime(r.tin)) w.push({field:'tin', reason:'입장 시각을 24시간으로 적어 주세요 (예: 13:30).'});
   if(r.tout && !fmtTime(r.tout)) w.push({field:'tout', reason:'퇴장 시각을 24시간으로 적어 주세요 (예: 17:00).'});
   if(r.tin && r.tout && fmtTime(r.tin) && fmtTime(r.tout) && fmtTime(r.tout)<=fmtTime(r.tin)) w.push({field:'tout', reason:'퇴장 시각이 입장보다 빠릅니다. 24시간 표시인지 확인하세요 (오후 3시 = 15:00).'});
-  if(r.date && r.tbdDate && r.tbdDate>r.date) w.push({field:'tbdDate', reason:'미정 항목 입력 기한이 방문일보다 늦습니다.'});
-  else if(r.tbd && r.date && r.tbdDate && r.tbdDate>prevWeekThu(r.date)) w.push({field:'tbdDate', reason: r.tbdLate ? `전주 목요일보다 늦음 · 사유: ${r.tbdLate}` : `입력 기한은 방문일 전주 목요일(${mdLabel(prevWeekThu(r.date))})까지입니다. 늦추려면 사유를 적어야 합니다.`});
+  if(r.date && r.tbdDate && r.tbdDate>r.date) w.push({field:'tbdDate', reason:'미정 항목 답변일이 방문일보다 늦습니다.'});
+  else if(r.tbd && r.date && r.tbdDate && r.tbdDate>tbdLimit(r.date)) w.push({field:'tbdDate', reason: r.tbdLate ? `${tbdLimitName(r.date)}보다 늦음 · 사유: ${r.tbdLate}` : `미정 항목 답변일은 ${tbdLimitName(r.date)}(${mdLabel(tbdLimit(r.date))})까지입니다. 늦추려면 사유를 적어야 합니다.`});
   if(typeof SPECIAL!=='undefined') specialCounts(r).forEach(s=>w.push({field:s.k, reason:`${s.n}명 ${s.name} 할인 → 방문 때 ${s.proof} 지참을 안내하세요.`}));
-  if(r.date && r.pay==='미정' && r.payContact && r.payContact>r.date) w.push({field:'payContact', reason:'결제 연락 예정일이 방문일보다 늦습니다.'});
   (PAY_GUIDE[r.pay]||[]).forEach(g=>w.push({field:'pay', reason:g}));   // 결제 방식 안내 (현장 결제면 인원 변경 어려움 등)
   if(typeof effStage==='function'){ const s=effStage(r); if(s!=='예약상담' && !r.erp) w.push({field:'stage', reason:`예약접수는 사유원 전산에 등록해야 합니다. 등록한 뒤 추후 과업의 '전산 예약'을 체크하세요.`}); }
   const day = adminData && adminData.days && adminData.days[r.date];
@@ -1186,7 +1192,7 @@ function reportText(r){
   add('프로그램(개별)', progList(r,'프로그램(개별)',true).join(', '));
   add('프로그램(시간)', progList(r,'프로그램(시간)',true).join(', '));
   add('기타 프로그램', LEGACY_KEYS.filter(k=>r[k]).map(k=>`${LABEL[k]} ${r[k]}`).join(', '));
-  add('결제', r.pay ? r.pay + (r.pay==='미정' && r.payContact ? ` (${mdLabel(r.payContact)} 연락 예정)` : '') + (r.onsite ? ' · 현장 카드 재결제' : '') : '');
+  add('결제', r.pay ? r.pay + (r.pay==='미정' && r.tbdDate ? ` (${mdLabel(r.tbdDate)}까지 답변)` : '') + (r.onsite ? ' · 현장 카드 재결제' : '') : '');
   const sp = typeof SPECIAL!=='undefined' ? specialCounts(r) : [];
   add('특별 할인', sp.map(s=>`${s.short} ${s.n}명(${s.rate===1?'무료':Math.round(s.rate*100)+'%'})`).join(', '));
   const m = moneySplit(r);
@@ -1290,7 +1296,7 @@ setInterval(()=>{ if(!document.hidden){ if(pending.length) flush(); else pull();
 // ===================== 수정 기록 =====================
 // 저장할 때마다 바뀐 항목을 시각·영업 담당과 함께 남긴다 (시트 '수정 기록' 칸에 JSON)
 const mealSum = r => [r.sadam1&&`사담1부 ${r.sadam1}`, r.sadam2&&`사담2부 ${r.sadam2}`, r.sadamD&&`사담디너 ${r.sadamD}`, r.mabangL&&`마방 ${r.mabangTime?r.mabangTime+' ':''}${r.mabangL}`, r.mabangD&&`마방디너 ${r.mabangD}`].filter(Boolean).join(" · ") || r.meal || "";
-Object.assign(LABEL, { tbd:'미정 체크', tbdLate:'입력 기한 늦춘 사유', stage:'예약 단계', erp:'전산 등록', note:'통화 메모' });
+Object.assign(LABEL, { tbd:'미정 체크', tbdLate:'답변일 늦춘 사유', stage:'예약 단계', erp:'전산 등록', note:'통화 메모' });
 function snap(){
   const o={}; allKeys().forEach(k=>{ if(k!=='owner') o[k]=rec[k]||''; });
   o.tbd=rec.tbd||''; o.tbdLate=rec.tbdLate||''; if(typeof SPECIAL!=='undefined') SPECIAL.forEach(s=>o[s.k]=rec[s.k]||'');
@@ -1689,6 +1695,7 @@ function openRecord(r){
     const ex=unpackExtra(r); Object.assign(rec,ex); Object.keys(ex).forEach(k=>touched.add(k));
     if(!rec.pay) rec.pay='미정';   // 결제를 안 고른 예전 기록은 미정으로
     if(!rec.gate) rec.gate='미정';   // 입장문을 안 고른 예전 기록도 미정으로
+    syncPayTbd(rec);   // 결제가 미정이면 미정 항목 '결제 방법'
     if(/^adm/.test(r.id) && !rec.erp) rec.erp='관리자 예약';   // 관리자 사이트에서 온 예약은 이미 전산에 있음
     rec.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(rec) ? normStage(r.callType) : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
@@ -2230,7 +2237,7 @@ function renderMy(){
   const ed = othersEdits();
   if(ed.length) c2 += `<h3 class="my-h">다른 사람이 수정한 내 예약 <button class="btn" id="myEditsSeen" style="padding:2px 8px;font-size:12px">모두 확인함</button></h3>`
     + `<ul class="pc-list">${ed.map(({r,h:e})=>`<li class="edited r" data-myopen="${esc(r.id)}"><span class="who"><b>${org(r)}</b> · 방문 ${esc(dateLabel(r.date))}<br><small class="hint" style="margin:0"><b>${esc(e.by)}</b> · ${esc(fmt(e.t))} · ${esc(e.what)}</small></span></li>`).join('')}</ul>`;
-  c2 += `<h3 class="my-h">연락할 미정 항목 <small>입력 기한이 오늘이거나 지남</small></h3>` + (tbdDue.length
+  c2 += `<h3 class="my-h">연락할 미정 항목 <small>답변일이 오늘이거나 지남</small></h3>` + (tbdDue.length
     ? `<ul class="pc-list">${tbdDue.map(o=>`<li class="r" data-myopen="${esc(o.r.id)}"><span class="who"><b>${org(o.r)}</b> · 방문 ${esc(dateLabel(o.r.date))}<br>미정: ${esc(o.x.tbd)}<br><small class="hint" style="margin:0">기한 ${esc(mdLabel(o.x.tbdDate))} (${dueTxt(o.x.tbdDate)}) · ${esc(firstContact(o.r)||'담당자 연락처 없음')}</small></span></li>`).join('')}</ul>`
     : none('없습니다.'));
   const c3 = `<h3 class="my-h">남은 과업 <small>${open.reduce((s,o)=>s+o.left.length,0)}개</small></h3>` + (open.length
@@ -2290,7 +2297,7 @@ function checkTbdPopup(force){
   try{ localStorage.setItem(TBD_SEEN_LS, today); }catch(_){}
   $('#tbdList').innerHTML = due.map(({r,x})=>{ const n=daysFrom(today,x.tbdDate);
     return `<li><span class="who"><b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date))}${r.owner?` · ${esc(r.owner)}`:''}<br>`
-      + `<small class="hint" style="margin:0">미정: <b>${esc(x.tbd)}</b> · 기한 ${esc(mdLabel(x.tbdDate))} ${n<0?`(${-n}일 지남)`:'(오늘)'} · ${esc(firstContact(r)||'담당자 연락처 없음')}</small></span>`
+      + `<small class="hint" style="margin:0">미정: <b>${esc(x.tbd)}</b> · 답변일 ${esc(mdLabel(x.tbdDate))} ${n<0?`(${-n}일 지남)`:'(오늘)'} · ${esc(firstContact(r)||'담당자 연락처 없음')}</small></span>`
       + `<button class="btn primary" data-tbdcall="${esc(r.id)}">연락함</button><button class="btn" data-tbdopen="${esc(r.id)}">열기</button></li>`; }).join('');
   $('#tbdModal').hidden=false;
 }
@@ -2310,12 +2317,12 @@ setInterval(()=>{ if(window.__tasksReady) checkTbdPopup(); }, 60000);   // 창�
 
 // ===================== 미정 항목 입력 기한: 방문일 전주 목요일까지 =====================
 // 그보다 늦게 잡으면 사유를 받는다 (비고 칸 '입력 기한 늦춘 사유', 수정 기록에도 남음)
-const tbdMax = r => r.date ? prevWeekThu(r.date) : '';
+const tbdMax = r => r.date ? tbdLimit(r.date) : '';
 const tbdIsLate = r => !!(r.tbd && r.tbdDate && tbdMax(r) && r.tbdDate > tbdMax(r));
 let lateThen=null;   // 사유를 받은 뒤 이어서 할 일 (저장)
 function openLate(then){
   lateThen=then||null;
-  $('#lateMsg').textContent = `미정 항목 입력 기한은 방문일 전주 목요일(${mdLabel(tbdMax(rec))})까지입니다. ${mdLabel(rec.tbdDate)}로 늦추는 사유를 적어 주세요.`;
+  $('#lateMsg').textContent = `미정 항목 답변일은 ${tbdLimitName(rec.date)}(${mdLabel(tbdMax(rec))})까지입니다. ${mdLabel(rec.tbdDate)}로 늦추는 사유를 적어 주세요.`;
   $('#lateReason').value = rec.tbdLate||''; $('#lateModal').hidden=false; setTimeout(()=>$('#lateReason').focus(),0);
 }
 function closeLate(){ $('#lateModal').hidden=true; lateThen=null; }
