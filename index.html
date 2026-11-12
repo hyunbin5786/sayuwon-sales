@@ -200,6 +200,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .tfiles .up{padding:4px 10px;font-size:12px;cursor:pointer}
 .tfiles .up.busy{opacity:.6;cursor:wait}
 .task-add{display:flex;gap:6px;margin-top:10px}
+.task-add[hidden]{display:none}
 .task-add input{flex:1;height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:13px var(--sans)}
 #memoBox{min-height:120px}
 .memo-in{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
@@ -1561,7 +1562,7 @@ const taskDue = t => t.due || (t.at ? ymd(new Date(t.at)) : todayYmd());   // �
 const DOC_SUBS = { quote:[['make','견적서 생성'],['send','견적서 전송'],['nas','견적서 NAS에 업로드']], stmt:[['make','거래명세서 생성'],['send','거래명세서 전송'],['nas','거래명세서 NAS에 업로드']] };
 const FOLLOW_DUE = new Set(['tbdcall','onsitecall']);   // 답변일 · 방문일이 바뀌면 기한도 따라감 (직접 바꾸기 전까지)
 function syncAutoTasks(){
-  const want = [];
+  const want = [], consult = effStage(rec)==='예약상담';   // 예약상담은 기록용: 추후 과업 없음
   if(rec.tbd) want.push('tbdcall');   // 미정 항목(결제 방법 포함)이 있으면 답변일에 연락
   if(rec.pay==='현장 결제' && rec.date) want.push('onsitecall');   // 현장 결제: 전주 목요일에 인원 확인 + 인원 변경 어려움 안내
   if(needsErp(rec)) want.push('erp');
@@ -1577,6 +1578,7 @@ function syncAutoTasks(){
   if(e0){ e0.done=!!rec.erp; if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
   const fixes = e0 && e0.base ? erpDiff(e0.base, erpSnap()) : [];
   if(fixes.length) want.push('erpfix');
+  if(consult) want.length=0;   // 예약상담이면 자동 과업을 만들지 않음 (손대지 않은 것은 아래에서 빠짐)
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo:'', at:new Date().toISOString(), due:autoDue(id, rec)}); });
   tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } if(!t.due) t.due=taskDue(t); });
   const fx=tasks.find(t=>t.id==='erpfix');
@@ -1597,6 +1599,9 @@ const erpDiff = (a,b) => [...new Set([...Object.keys(a),...Object.keys(b)])].fil
 const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
 function renderTasks(){
   syncAutoTasks();
+  const consultOnly = effStage(rec)==='예약상담';   // 예약상담은 기록용: 과업 칸을 비우고 안내만
+  $('#taskAdd').hidden = consultOnly;
+  if(consultOnly){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 기록용이라 추후 과업이 없습니다. 예약접수가 되면 과업이 생깁니다.</li>'; $('#taskHint').textContent=''; return; }
   paintDocBtns();
   const box=$('#taskList'), focus=box.contains(document.activeElement);
   const changeTag = t => { const txt=taskText(t); return !t.copied ? '' : t.copied===txt ? '<span class="hint" style="margin:0">붙여넣은 내용과 같음</span>' : '<span class="chg">예약 내용이 바뀜 · 다시 복사해서 붙여넣기</span>'; };
@@ -2317,6 +2322,8 @@ const firstContact = r => { const n=String(r.contact||'').split(/\s*\/\s*/)[0]||
 function myRecords(){ const me=savedOwner(); return me ? (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me) : []; }
 // 저장된 예약의 추후 과업 (열지 않은 예약도): 저장된 과업 + 아직 저장 안 된 미정 항목 연락 · 현장 결제 인원 확인
 function tasksOf(r){
+  if(stageOfRec(r)==='예약상담' && editingId!==r.id) return [];   // 예약상담은 기록용: 과업 없음
+  if(editingId===r.id && effStage(rec)==='예약상담') return [];
   if(editingId===r.id) return tasks.map(t=>({...t, due:taskDue(t)}));   // 지금 열어 둔 예약은 화면의 과업
   const x=xOf(r), ts=parseHist(r).tasks.map(t=>({...t}));
   const has = id => ts.some(t=>t.id===id);
