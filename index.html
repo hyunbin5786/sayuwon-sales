@@ -219,6 +219,11 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .task.late .tdue{color:var(--red);font-weight:700}
 .task.late .tdue input{border-color:var(--red);color:var(--red)}
 .task.done .tdue input{color:#9a9a92;background:transparent}
+.dbox{position:relative;display:inline-flex}
+.dbox input.dtxt{height:26px;width:118px;border:1px solid var(--line);border-radius:5px;padding:0 6px;font:12px var(--sans);background:#fff;color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums}
+.dbox input.dpick{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}   /* 달력 (숨김) */
+.task.late .tdue input.dtxt{border-color:var(--red);color:var(--red);font-weight:700}
+.task.done .tdue input.dtxt{color:#9a9a92;background:transparent}
 .task.late .dow{color:var(--red)}
 .task.done .dow{color:#9a9a92}
 .task-h .del{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
@@ -322,8 +327,15 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .modal{position:fixed;inset:0;z-index:20;background:rgba(30,30,25,.45);display:flex;align-items:flex-start;justify-content:center;padding:calc(40px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));overflow:auto}
 .modal .consult{margin:0;width:min(640px,100%)}
 .modal .consult textarea{width:100%;min-height:340px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:10px;font:14px/1.6 var(--sans);background:#fff;color:var(--ink);tab-size:8}
-.modal .list{margin:0;width:min(1200px,100%);max-height:calc(100vh - 80px);display:flex;flex-direction:column}
+.modal .list{margin:0;width:min(1680px,100%);max-height:calc(100vh - 80px);display:flex;flex-direction:column}
 .modal .list .tw{overflow:auto;flex:1;min-height:0}
+.modal .list th.acts,.modal .list td.acts{position:sticky;right:0;background:var(--card);box-shadow:-6px 0 6px -6px rgba(0,0,0,.25);text-align:center;z-index:1}   /* 수정 · 삭제는 오른쪽 끝에 늘 보이게 */
+.modal .list tr.r:hover td.acts{background:#faf8f2}
+.row-acts .btn{padding:5px 14px;font-size:13px;font-weight:700}
+.row-acts .act-fix{border-color:#2f5a22;color:#2f5a22;background:#eef5e9}
+.row-acts .act-fix:hover{background:#e3eedc}
+.row-acts .act-del{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+.row-acts .act-del:hover{background:#f0cfc4}
 .modal .list h2{flex-wrap:wrap}
 /* 사담·마방·프로그램 접기 */
 .opt-bar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:12px}   /* 5개(사담 · 몽몽마방 · 개별 · 시간 프로그램 · 굿즈)를 한 줄에 */
@@ -530,7 +542,7 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
   <!-- 예약 칸 -->
   <section class="panel form-col">
     <div class="form-head"><h2>예약 내용</h2>
-      <label class="tbd-date" id="w_tbdDate" for="f_tbdDate" title="방문일 전주 목요일 (이미 지났으면 방문일 전날)">미정 항목 답변일 <input type="date" id="f_tbdDate" data-k="tbdDate"><span class="dow" id="tbdDow"></span></label>
+      <label class="tbd-date" id="w_tbdDate" title="방문일 전주 목요일 (이미 지났으면 방문일 전날)">미정 항목 답변일 <span class="dbox"><input class="dtxt" id="tbdTxt" readonly placeholder="날짜 고르기"><input type="date" class="dpick" id="f_tbdDate" data-k="tbdDate" tabindex="-1" aria-hidden="true"></span></label>
     </div>
     <div class="stage-bar">
       <span class="stage-l">예약 단계</span>
@@ -627,7 +639,7 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
     <div class="seg" id="sortSeg" style="display:inline-flex;background:var(--bg)" title="목록 정렬">
       <button type="button" data-o="date">방문일 순</button><button type="button" data-o="saved" title="최근에 접수(저장)한 예약부터">접수 순</button>
     </div></div>
-    <div class="tw"><table><thead><tr><th>방문일</th><th>단계</th><th>업체</th><th>담당자</th><th>인원</th><th>입퇴장</th><th>식사</th><th>견적서</th><th>거래명세서</th><th class="owner">영업 담당</th><th>접수</th><th></th></tr></thead><tbody id="listBody"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>방문일</th><th>단계</th><th>업체</th><th>담당자</th><th>인원</th><th>입퇴장</th><th>식사</th><th>견적서</th><th>거래명세서</th><th class="owner">영업 담당</th><th>접수</th><th class="acts">수정 · 삭제</th></tr></thead><tbody id="listBody"></tbody></table></div>
   </section>
 </div>
 
@@ -889,6 +901,12 @@ function fmtTime(v){ v=String(v||'').trim(); let m=v.match(/^(\d{1,2}):?(\d{2})$
   return h<=23 && mi<=59 ? `${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}` : ''; }
 // 방문일: 칸에는 "2026-12-05 (토)"처럼 요일까지. 직접 칠 때는 2026-12-05 · 2026.12.5 · 20261205 · 12/5 · 1205 · 12월 5일 (연도 없으면 올해, 지났으면 내년)
 const dateDisp = v => { if(!v) return ''; const t=new Date(v+'T00:00'); return isNaN(t) ? v : `${v} (${'일월화수목금토'[t.getDay()]})`; };
+// 날짜 칸 (마감일 · 미정 항목 답변일): 방문일처럼 칸 안에 "2026-11-14 (금)". 누르면 달력, 고르는 즉시 요일도 바뀜
+const dboxHTML = (attrs, v) => `<span class="dbox"><input class="dtxt" readonly value="${esc(dateDisp(v))}" placeholder="날짜 고르기"><input type="date" class="dpick" ${attrs} value="${esc(v||'')}" tabindex="-1" aria-hidden="true"></span>`;
+const dboxOpen = t => { const p=t.parentElement.querySelector('.dpick'); if(!p) return; try{ p.showPicker(); }catch(_){ p.focus(); p.click(); } };
+document.addEventListener('click', e=>{ const t=e.target.closest?.('.dtxt'); if(t){ e.preventDefault(); dboxOpen(t); } });
+document.addEventListener('keydown', e=>{ const t=e.target.closest?.('.dtxt'); if(t && (e.key==='Enter' || e.key===' ' || e.key==='ArrowDown')){ e.preventDefault(); dboxOpen(t); } });
+['input','change'].forEach(ev=>document.addEventListener(ev, e=>{ const p=e.target; if(!p.classList?.contains('dpick')) return; const t=p.parentElement.querySelector('.dtxt'); if(t) t.value=dateDisp(p.value); }, true));
 function parseDateText(s){
   s=String(s||'').replace(/\([^)]*\)\s*$/,'').trim(); if(!s) return '';
   let y, m, d, x;
@@ -1168,7 +1186,7 @@ function renderSide(){
   $('#missBox').innerHTML = `<ul class="chk miss">${req.map(([k,l,q])=>`<li class="${ts.has(k)||(k==='pay'&&rec.pay==='미정')?'tbd':rec[k]?'got':''}" title="${q}"><b>${l}</b></li>`).join('')}</ul>`
     + (miss.length ? '' : `<div class="done-all" style="margin-top:6px">필수 정보를 모두 받았습니다. 고객님께 확인하고 저장하세요.</div>`);
   if(window.__autoReady) scheduleWarn();   // 이상한 값이 새로 생기면 바로 팝업
-  $('#tbdDow').textContent = dowTag(rec.tbdDate);   // 답변일 (요일)
+  { const tt=$('#tbdTxt'); if(tt) tt.value = dateDisp(rec.tbdDate); }   // 답변일: 칸 안에 날짜 (요일)
   paintReadback();   // 고객님께 확인 멘트 (자동 · 직접 고침 · 말씀드림)
   renderInfo(curInfoKey);
   if(typeof renderPrice==='function' && window.__priceReady) renderPrice();
@@ -1762,7 +1780,7 @@ function renderTasks(){
   const shownTasks = consultOnly ? tasks.filter(consultTask) : tasks;
   if(consultOnly && !shownTasks.length){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 자동으로 생기는 과업이 없습니다. 필요한 일은 위 칸에 직접 추가해 주세요.</li>'; $('#taskHint').textContent=''; return; }
   paintDocBtns();
-  const box=$('#taskList'), ae=document.activeElement, focus=box.contains(ae) && (ae.tagName==='TEXTAREA' || (ae.tagName==='INPUT' && ae.type!=='checkbox'));   // 메모 · 글자 칸에 쓰는 중일 때만 다시 그리지 않음
+  const box=$('#taskList'), ae=document.activeElement, focus=box.contains(ae) && (ae.tagName==='TEXTAREA' || (ae.tagName==='INPUT' && ae.type!=='checkbox' && !ae.readOnly && !ae.classList.contains('dpick')));   // 메모 · 글자 칸에 쓰는 중일 때만 다시 그리지 않음
   const changeTag = t => { const txt=taskText(t); return !t.copied ? '' : t.copied===txt ? '<span class="hint" style="margin:0">붙여넣은 내용과 같음</span>' : '<span class="chg">예약 내용이 바뀜 · 다시 복사해서 붙여넣기</span>'; };
   if(focus){   // 메모를 쓰는 중이면 문구만 새로
     tasks.forEach(t=>{ const pre=document.getElementById('tpre_'+t.id); if(pre && document.activeElement!==pre) pre.value=taskText(t); const c=document.getElementById('tchg_'+t.id); if(c) c.innerHTML=changeTag(t); });
@@ -1787,7 +1805,7 @@ function renderTasks(){
     const due=taskDue(t), late=!t.done && due<todayYmd(); const fold=t.done && !openDone.has(t.id);   // 끝난 과업은 첫 줄만 (누르면 펼침)
     return `<li class="task${t.done?' done':late?' late':''}${fold?' collapsed':''}" data-id="${esc(t.id)}">
       <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<label class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span></label>${t.done?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}
-        ${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"><span class="dow">${dowTag(due)}</span></label>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</div>
+        ${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}${dboxHTML(`data-tdue="${esc(t.id)}"`, due)}</label>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</div>
       ${sub?`<div class="sub">${sub}</div>`:''}${subsHTML(t)}${docBtn}${files}
       ${txt?`<textarea class="tnote${t.noteEdit?' edited':''}" id="tpre_${esc(t.id)}" data-tnote="${esc(t.id)}" spellcheck="false" title="자동으로 만든 문구 · 직접 고칠 수 있음">${esc(txt)}</textarea><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')?'비고 문구 복사':'문구 복사'}</button>${t.noteEdit?`<button type="button" class="btn" data-tregen="${esc(t.id)}" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><span class="hint" style="margin:0">직접 고친 문구</span>`:''}<span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
@@ -1938,7 +1956,7 @@ document.addEventListener('click', e=>{ const b=e.target.closest('#stageFilter b
 async function renderList(){
   // 예전 기록의 '단체예약'도 함께 (일반 문의·기타는 제외)
   const all=(await store.list()).filter(r=>['단체예약',...STAGES,...Object.keys(OLD_STAGE)].includes(r.callType||'단체예약'));
-  const del=id=>`<span class="row-acts"><button class="btn" data-fix="${id}" style="padding:3px 8px;font-size:12px" title="목록에 보이는 단계 · 전산 · 견적서 · 거래명세서 상태 고치기">수정</button><button class="btn" data-del="${id}" style="padding:3px 8px;font-size:12px">삭제</button></span>`;
+  const del=id=>`<span class="row-acts"><button class="btn act-fix" data-fix="${id}" title="목록에 보이는 단계 · 전산 · 견적서 · 거래명세서 상태 고치기">수정</button><button class="btn act-del" data-del="${id}" title="이 예약 삭제 (사유를 고른 뒤)">삭제</button></span>`;
   const needCall = r => /^자동 등록/.test(r.summary||'');
   const nCall = all.filter(needCall).length;
   // 단계: 시트 '통화 구분' 칸. 예전 '단체예약'은 결제로 판단. 관리자 사이트에서 온 예약은 이미 전산에 있음
@@ -1953,7 +1971,7 @@ async function renderList(){
   document.querySelectorAll('#sortSeg button').forEach(b=>b.classList.toggle('on', b.dataset.o===listSort));
   listView = { shown, stageOf, erpOf };   // 엑셀로 내려받기에 씀
   const stageTag = r => { const s=stageOf(r); return `<span class="tag st-${s}">${s}</span>${s!=='예약상담' && !erpOf(r) ? ' <span class="tag call">전산 미등록</span>' : ''}`; };
-  $('#listBody').innerHTML=shown.slice().sort(listOrder).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td>${del(r.id)}</td></tr>`).join('')
+  $('#listBody').innerHTML=shown.slice().sort(listOrder).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td class="acts">${del(r.id)}</td></tr>`).join('')
     || `<tr><td colspan="12" class="hint">${all.length?'이 구분에 해당하는 예약이 없습니다.':'저장한 단체예약이 없습니다.'}</td></tr>`;
   document.querySelectorAll('#listBody tr.r').forEach(tr=>tr.onclick=async e=>{
     if(e.target.dataset.del){ e.stopPropagation(); openDel(e.target.dataset.del); return; }
