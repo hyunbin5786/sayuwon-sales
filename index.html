@@ -727,7 +727,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
@@ -1352,7 +1352,7 @@ setInterval(()=>{ if(!document.hidden){ if(pending.length) flush(); else pull();
 // ===================== 수정 기록 =====================
 // 저장할 때마다 바뀐 항목을 시각·영업 담당과 함께 남긴다 (시트 '수정 기록' 칸에 JSON)
 const mealSum = r => [r.sadam1&&`사담1부 ${r.sadam1}`, r.sadam2&&`사담2부 ${r.sadam2}`, r.sadamD&&`사담디너 ${r.sadamD}`, r.mabangL&&`마방 ${r.mabangTime?r.mabangTime+' ':''}${r.mabangL}`, r.mabangD&&`마방디너 ${r.mabangD}`].filter(Boolean).join(" · ") || r.meal || "";
-Object.assign(LABEL, { tbd:'미정 체크', tbdLate:'답변일 늦춘 사유', stage:'예약 단계', erp:'전산 등록', note:'통화 메모' });
+Object.assign(LABEL, { tour:'사전 답사', tbd:'미정 체크', tbdLate:'답변일 늦춘 사유', stage:'예약 단계', erp:'전산 등록', note:'통화 메모' });
 function snap(){
   const o={}; allKeys().forEach(k=>{ if(k!=='owner') o[k]=rec[k]||''; });
   o.tbd=rec.tbd||''; o.tbdLate=rec.tbdLate||''; if(typeof SPECIAL!=='undefined') SPECIAL.forEach(s=>o[s.k]=rec[s.k]||'');
@@ -1517,7 +1517,7 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
-const AUTO_TASKS = { tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 담당 입력', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
+const AUTO_TASKS = { tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 담당 입력', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 function moneySplit(r){
   if(!quoteCat || !r.date || !numOf(r.people)) return null;
@@ -1578,8 +1578,9 @@ function syncAutoTasks(){
   if(e0){ e0.done=!!rec.erp; if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
   const fixes = e0 && e0.base ? erpDiff(e0.base, erpSnap()) : [];
   if(fixes.length) want.push('erpfix');
-  if(consult) want.length=0;   // 예약상담이면 자동 과업을 만들지 않음 (손대지 않은 것은 아래에서 빠짐)
-  want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo:'', at:new Date().toISOString(), due:autoDue(id, rec)}); });
+  if(rec.tour) want.push('tour');   // 사전 답사가 잡히면 답사도 전산에 예약
+  if(consult){ const keep=want.filter(id=>id==='tour'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약만 (손대지 않은 것은 아래에서 빠짐)
+  want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? String(rec.tour||'').split(/\s*,\s*/).join('\n') : '', at:new Date().toISOString(), due:autoDue(id, rec)}); });   // 사전 답사 과업 메모 = 답사 정보
   tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } if(!t.due) t.due=taskDue(t); });
   const fx=tasks.find(t=>t.id==='erpfix');
   if(fx){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; } else if(!fx.done) fx.changes=[]; }
@@ -1588,7 +1589,7 @@ function syncAutoTasks(){
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)));   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
   const ps=tasks.find(t=>t.id==='progstaff'); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
-  const ORDER=['tbdcall','onsitecall','mbcall','mbmenu','progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
+  const ORDER=['tour','tbdcall','onsitecall','mbcall','mbmenu','progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
   tasks.sort((a,b)=>((a.done?1:0)-(b.done?1:0)) || ((a.custom?99:ORDER.indexOf(a.id))-(b.custom?99:ORDER.indexOf(b.id))));   // 안 끝난 과업이 위로
 }
 // 전산에 들어가는 내용 (이게 바뀌면 전산 예약 수정)
@@ -1601,7 +1602,8 @@ function renderTasks(){
   syncAutoTasks();
   const consultOnly = effStage(rec)==='예약상담';   // 예약상담은 기록용: 과업 칸을 비우고 안내만
   $('#taskAdd').hidden = consultOnly;
-  if(consultOnly){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 기록용이라 추후 과업이 없습니다. 예약접수가 되면 과업이 생깁니다.</li>'; $('#taskHint').textContent=''; return; }
+  const shownTasks = consultOnly ? tasks.filter(t=>t.id==='tour') : tasks;   // 예약상담: 사전답사 전산 예약만
+  if(consultOnly && !shownTasks.length){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 기록용이라 추후 과업이 없습니다. 예약접수가 되면 과업이 생깁니다.</li>'; $('#taskHint').textContent=''; return; }
   paintDocBtns();
   const box=$('#taskList'), focus=box.contains(document.activeElement);
   const changeTag = t => { const txt=taskText(t); return !t.copied ? '' : t.copied===txt ? '<span class="hint" style="margin:0">붙여넣은 내용과 같음</span>' : '<span class="chg">예약 내용이 바뀜 · 다시 복사해서 붙여넣기</span>'; };
@@ -1612,9 +1614,10 @@ function renderTasks(){
   const SUB = { erp:'전산에 예약을 등록하고, 아래 문구를 전산 비고에 붙여넣은 뒤 체크하세요.', tax:'고객 안내 후, 아래 내용으로 세금계산서 발행을 요청하세요.',
     quote:'아래 세 가지를 모두 체크하면 완료됩니다. 버튼을 누르면 견적서 사이트에 예약 내용이 채워집니다. 출력하면 PDF · 엑셀이 드라이브에도 저장되고 여기에 링크가 붙습니다.',
     stmt:'아래 세 가지를 모두 체크하면 완료됩니다. 버튼을 누르면 거래명세서로 채워집니다. 출력하면 PDF · 엑셀이 드라이브에도 저장되고 여기에 링크가 붙습니다.' };
-  box.innerHTML = tasks.map(t=>{
+  box.innerHTML = shownTasks.map(t=>{
     const txt=taskText(t);
     const sub = t.id==='paycheck' ? `결제링크 보낸 다음날(${mdLabel(ymd(nextDay(t.at)))}) 아침에 이 창을 열면 확인 알림이 뜹니다.`
+      : t.id==='tour' ? `사전 답사를 사유원 전산에 예약하고 체크하세요. 답사 정보는 아래 메모에 있습니다.`
       : t.id==='tbdcall' ? (rec.tbd ? `미정: <b>${esc(rec.tbd)}</b><br>답변일(${esc(mdLabel(taskDue(t)))})에 고객님께 연락해 확인하고, 정해진 내용을 칸에 채운 뒤 체크하세요.` : '미정 항목이 모두 정해졌습니다.')
       : t.id==='onsitecall' ? `현장 결제 예약입니다. 기한(${esc(mdLabel(taskDue(t)))} · 방문일 전주 목요일)에 고객님께 연락해 <b>최종 인원</b>을 확인하고, <b>당일 인원 변경이 어렵다는 점</b>을 다시 한번 안내하세요.`
       : t.id==='mbcall' ? `몽몽마방 식당에 전화해서 확인하고 체크하세요. (${esc([rec.date&&dateLabel(rec.date), rec.mabangL&&rec.mabangL+'명'].filter(Boolean).join(' · ')||'방문일 · 인원 미정')})<br>① 고객님이 말씀하신 시각 <b>${esc(rec.mabangTime||'(시간 미입력)')}</b> 가능한지<br>② 그날 예약 가능한 시간이 모두 언제인지 → 아래 메모에 적어 두기`
@@ -2139,6 +2142,9 @@ function parseConsult(text){
   if(got.people){ const n=got.people.match(/\d+(\s*\+\s*\d+)*/); if(n) o.people=n[0].replace(/\s/g,''); }
   if(got.time){ const t=[...got.time.matchAll(/(\d{1,2})\s*[:시]\s*(\d{2})?/g)].map(x=>`${x[1].padStart(2,'0')}:${x[2]||'00'}`); if(t[0]) o.tin=t[0]; if(t[1]) o.tout=t[1]; }
   if(got.vtype || got.vcount){ const t=VTYPES.find(x=>(got.vtype||'').includes(x)) || (/(승용|자가|자차)/.test(got.vtype||'')?'승용':'버스'); const n=(String(got.vcount||'').match(/\d+/)||[''])[0]; o.vehicle = vehJoin(t,n) || t; }
+  // 사전 답사 정보 → 예약에 보관 (추후 과업 '사전답사 전산 예약'과 그 메모)
+  const tour=extra.filter(x=>x.startsWith('[답사] ')).map(x=>x.slice(5).replace(/[\/]/g,' ').trim());
+  if(tour.length) o.tour=tour.join(', ');
   return { fields:o, extra };
 }
 function openConsult(){ $('#consultModal').hidden=false; $('#consultMsg').textContent=''; $('#consultBox').focus(); }
@@ -2324,8 +2330,8 @@ const firstContact = r => { const n=String(r.contact||'').split(/\s*\/\s*/)[0]||
 function myRecords(){ const me=savedOwner(); return me ? (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me) : []; }
 // 저장된 예약의 추후 과업 (열지 않은 예약도): 저장된 과업 + 아직 저장 안 된 미정 항목 연락 · 현장 결제 인원 확인
 function tasksOf(r){
-  if(stageOfRec(r)==='예약상담' && editingId!==r.id) return [];   // 예약상담은 기록용: 과업 없음
-  if(editingId===r.id && effStage(rec)==='예약상담') return [];
+  if(stageOfRec(r)==='예약상담' && editingId!==r.id){ const x=xOf(r), st=parseHist(r).tasks.find(t=>t.id==='tour'); return x.tour ? [st ? {...st, due:taskDue(st)} : {id:'tour', title:AUTO_TASKS.tour, done:false, due:ymd(new Date(r.saved||Date.now())), at:r.saved}] : []; }   // 예약상담은 기록용: 사전답사 전산 예약만
+  if(editingId===r.id && effStage(rec)==='예약상담') return tasks.filter(t=>t.id==='tour').map(t=>({...t, due:taskDue(t)}));
   if(editingId===r.id) return tasks.map(t=>({...t, due:taskDue(t)}));   // 지금 열어 둔 예약은 화면의 과업
   const x=xOf(r), ts=parseHist(r).tasks.map(t=>({...t}));
   const has = id => ts.some(t=>t.id===id);
