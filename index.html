@@ -696,7 +696,7 @@ const FIELDS = [
   ['프로그램(개별)','gaga','가가 바우처','S','',null],
   ['프로그램(개별)','sound','사운드워킹','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에
   ['프로그램(개별)','scent','사유의 향','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에
-  ['프로그램(개별)','haeorum','새벽 해오름 산책','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에 (평일 새벽)
+  ['프로그램(개별)','haeorum','새벽 해오름 산책','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에. 금 120,000 · 토/일(공휴일) 139,000, 관람료 포함(관람권 따로 없음) · 할인 없음
   ['프로그램(시간)','chabang','차방 대관','O','',null],
   ['프로그램(시간)','dangdu','당두봉갈 대관','Q','',null],
   ['프로그램(시간)','donghaeng','동행 도슨트','P','',null],
@@ -717,8 +717,10 @@ const subRows = f => [...(isDocent(f[2]) ? ['tm','crs'] : []), ...(needsStaff(f[
 for(let i=FIELDS.length-1;i>=0;i--){ const f=FIELDS[i]; if(/^프로그램/.test(f[0]) && !isSub(f[1])) FIELDS.splice(i+1,0,...subRows(f)); }
 // 프로그램 품목 ↔ 견적서 품목 (견적서·금액 계산용)
 const PROG_SRC = { yoga:'요가프로그램(단체)', gaga:'음료쿠폰(가가빈빈)', chabang:'대관', dangdu:'대관', donghaeng:'해설사도슨트(수정)', seminar:'세미나', sound:'사운드워킹', scent:'사유의 향', haeorum:'사유원 새벽 해오름 산책(평일)' };
+const HAEORUM_WE = '사유원 새벽 해오름 산책(주말)';
+const progSrc = (k, r) => k==='haeorum' && r && r.date && isRedDay(r.date) ? HAEORUM_WE : PROG_SRC[k];   // 해오름 산책: 토/일 · 공휴일은 주말 품목
 // 지금 견적서 품목 리스트에 있는 단체 품목 (이것 말고 새로 추가된 것만 프로그램 칸으로 붙임)
-const PROG_KNOWN = ['대관','세미나','해설사도슨트(수정)','임원도슨트(수정)','사운드워킹','사유의 향','요가프로그램(단체)','음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)','사유의 밥상(단체)','당두봉갈 대관'];
+const PROG_KNOWN = ['사유원 새벽 해오름 산책(주말)','대관','세미나','해설사도슨트(수정)','임원도슨트(수정)','사운드워킹','사유의 향','요가프로그램(단체)','음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)','사유의 밥상(단체)','당두봉갈 대관'];
 const PROG_GRP = { geach:'프로그램(개별)', gtime:'프로그램(시간)' };
 const UNIT = k => (FIELDS.find(f=>f[1]===k)||[])[0]==='프로그램(시간)' ? '시간' : '명';
 const PROG_KEYS = () => FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1])).map(f=>f[1]);
@@ -2141,7 +2143,7 @@ function renderPrice(){
     const rows = blocks.map(b=>{
       const p = b.price ?? priceOf(b.product), a = blockAmount(b, p);
       if(a) total += a.amount; else missing.push(itemLabel(b.product));
-      const unit = PROG_KEYS().some(k=>rec[k] && PROG_SRC[k]===b.product && UNIT(k)==='시간') ? '시간' : goodsParse(rec.goods).some(g=>normSrc(g.src)===normSrc(b.product)) ? '개' : '명';   // 굿즈는 개
+      const unit = PROG_KEYS().some(k=>rec[k] && progSrc(k, rec)===b.product && UNIT(k)==='시간') ? '시간' : goodsParse(rec.goods).some(g=>normSrc(g.src)===normSrc(b.product)) ? '개' : '명';   // 굿즈는 개
       const tm = b.product.match(/^(평일|주말\/공휴일) 관람\((\d\d):00~(\d\d):00\)$/) || [];
       const lab = itemLabel(b.product) + (tm[2] ? ` (${+tm[2]}~${+tm[3]}시)` : '');   // 관람권 시간대 표시
       return `<tr><td>${esc(lab)}</td><td>${b.qty}${unit}</td><td>${p==null?'-':won(p)}</td><td>${a&&a.disc?`<span class="dtag">${esc(a.disc)}</span>`:''}</td><td class="tot">${a?won(a.amount):'가격 없음'}</td></tr>`;
@@ -2247,6 +2249,7 @@ function erpFields(list){
     if(/\(관람,\s*사담\s*런치\s*1부\)/.test(p)) add('sadam1',n);
     else if(/\(관람,\s*사담\s*런치\s*2부\)/.test(p)) add('sadam2',n);
     else if(/\(관람,\s*사담\s*디너\)/.test(p)) add('sadamD',n);
+    else if(/해오름/.test(p)) add('haeorum',n);   // 평일 · 주말 품목 모두
     else if(/\(관람,/.test(p)) unknown.push(p);
     else if(/관람/.test(p) && !/관람권|관람식사권/.test(p)) view+=n;
     else if(progBy[ns]) add(progBy[ns], n);
@@ -2255,7 +2258,7 @@ function erpFields(list){
       else { const gi=gds.find(g=>normSrc(g.src)===ns); if(gi){ const g=goods.find(g=>g.src===gi.src); if(g) g.qty+=n; else goods.push({src:gi.src, qty:n}); } else unknown.push(p); } }
   });
   o.goods=goodsJoin(goods);
-  const pkg=numOf(o.sadam1)+numOf(o.sadam2)+numOf(o.sadamD), ppl=view+pkg || Math.max(0, ...['mabangL',...PROG_KEYS()].filter(k=>UNIT(k)!=='시간').map(k=>numOf(o[k])));
+  const pkg=numOf(o.sadam1)+numOf(o.sadam2)+numOf(o.sadamD), ppl=Math.max(view+pkg, numOf(o.haeorum)) || Math.max(0, ...['mabangL',...PROG_KEYS()].filter(k=>UNIT(k)!=='시간').map(k=>numOf(o[k])));
   if(ppl) o.people=String(ppl);
   const d=list.find(x=>x.date); if(d) o.date=d.date;
   const v=(list.find(x=>x.visitor)||{}).visitor||'', vm=v.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
@@ -2271,6 +2274,7 @@ function fillFromErp(list){
   if(phone && !rec.c0_phone) set('c0_phone', fmtPhone(phone));
   SPECIAL.forEach(s=>{ if(sp[s.k]) set(s.k, String(sp[s.k])); });
   if(etc){ set('etcDisc', String(etc)); set('etcDiscTo', etcTo||'신라'); if(!rec.etcDiscWhy) set('etcDiscWhy', '전산 기타할인'); }
+  else if(rec.etcDiscWhy==='전산 기타할인'){ set('etcDisc',''); set('etcDiscWhy',''); }   // 전산에서 읽었던 기타 할인이 이번 내역에 없으면 뺌 (직접 넣은 할인은 그대로)
   ERP_FILL_KEYS().forEach(k=>{ const g=OPT[GROUP_OF[k]]; if(g && rec[k]) optOpen.add(g.id); });   // 채워진 식사 · 프로그램 · 굿즈 묶음은 펼침
   return { n: ch.length, unknown };
 }
@@ -2324,7 +2328,7 @@ function quoteBlocks(r){
   const mbM = mbMenuOf(r);   // 몽몽마방은 단체도 관람과 따로: 관람권 + 고른 메뉴 품목 (사유의 밥상이면 사유의 밥상(단체))
   const blocks=[], skipped=[];
   const add=(product, qty, disc)=>{ if(qty>0) blocks.push({product, qty, disc}); };
-  const pkg = cnt(r.sadam1)+cnt(r.sadam2)+cnt(r.sadamD);
+  const pkg = cnt(r.sadam1)+cnt(r.sadam2)+cnt(r.sadamD)+cnt(r.haeorum);   // 해오름 산책은 관람료 포함이라 그 인원은 관람권을 따로 넣지 않음
   add(viewSrcOf(r), Math.max(0, n-pkg), true);
   add(`${DAY}(관람, 사담 런치1부)`, cnt(r.sadam1), true);
   add(`${DAY}(관람, 사담 런치2부)`, cnt(r.sadam2), true);
@@ -2335,7 +2339,7 @@ function quoteBlocks(r){
   if(r.mabangD) skipped.push('몽몽마방 디너');
   goodsParse(r.goods).forEach(g=>add(g.src, g.qty, false));   // 굿즈: 품목 리스트 가격 그대로
   // 프로그램: 개별은 인원(숫자가 없으면 전체 인원), 시간은 시간 수(숫자가 없으면 1시간). 같은 견적서 품목이면 합침
-  PROG_KEYS().forEach(k=>{ if(!r[k]) return; const src=PROG_SRC[k]; const q = UNIT(k)==='시간' ? (numOf(r[k])||1) : cnt(r[k]);
+  PROG_KEYS().forEach(k=>{ if(!r[k]) return; const src=progSrc(k, r); const q = UNIT(k)==='시간' ? (numOf(r[k])||1) : cnt(r[k]);
     if(!src){ skipped.push(LABEL[k]); return; } const b=blocks.find(b=>b.product===src); if(b) b.qty+=q; else add(src, q, false); });
   if(r.teaMed) skipped.push('티하우스 명상'); if(r.gayageum) skipped.push('가야금'); if(r.cabin) skipped.push('유루 캐빈');
   // 할인 줄: 특별 할인 인원을 할인 대상 블록에 앞에서부터 나눠 넣고, 나머지는 단체 할인
