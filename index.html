@@ -675,7 +675,7 @@ let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
 let hist=[], baseSnap=null, tasks=[];   // 수정 기록 · 추후 과업
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
-function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; return o; }   // 결제는 기본 미정
+function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; o.gate='미정'; return o; }   // 결제 · 입장문은 기본 미정   // 결제는 기본 미정
 function resetState(){ rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
 function contactsOf(r){
   const out=[]; for(let i=0;i<nContactsOf(r);i++){ const c={name:r[`c${i}_name`]||'',phone:r[`c${i}_phone`]||'',email:r[`c${i}_email`]||''}; if(c.name||c.phone||c.email) out.push(c); } return out;
@@ -825,7 +825,7 @@ function fieldHTML(k,label,col,cls,req){
     : CHECKS[k]
     ? `<label class="ckf"><input type="checkbox" id="f_${k}" data-k="${k}"> ${CHECKS[k]}</label>`
     : k==='gate'
-    ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${GATES.map(g=>`<option>${g}</option>`).join('')}</select>`
+    ? `<select id="f_${k}" data-k="${k}">${GATES.map(g=>`<option>${g}</option>`).join('')}</select>`   /* 입장문: 선택 없음, 기본 미정 */
     : k==='pay'
     ? `<select id="f_${k}" data-k="${k}">${PAYS.map(p=>`<option>${p}</option>`).join('')}</select>`
     : k==='date'   // 보이는 칸은 "2026-12-05 (토)" 글자, 달력은 밑에 숨긴 날짜 칸으로
@@ -1688,6 +1688,7 @@ function openRecord(r){
     if(!rec.owner) rec.owner=savedOwner();   // 자동 등록된 예약 등 담당이 비어 있으면 이 컴퓨터의 영업 담당
     const ex=unpackExtra(r); Object.assign(rec,ex); Object.keys(ex).forEach(k=>touched.add(k));
     if(!rec.pay) rec.pay='미정';   // 결제를 안 고른 예전 기록은 미정으로
+    if(!rec.gate) rec.gate='미정';   // 입장문을 안 고른 예전 기록도 미정으로
     if(/^adm/.test(r.id) && !rec.erp) rec.erp='관리자 예약';   // 관리자 사이트에서 온 예약은 이미 전산에 있음
     rec.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(rec) ? normStage(r.callType) : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
