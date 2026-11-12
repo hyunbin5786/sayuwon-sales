@@ -224,6 +224,9 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .task-h .del{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
 .task .sub{font-size:12px;color:var(--muted);margin:3px 0 0 25px}
 .task pre{margin:8px 0 0;white-space:pre-wrap;font:13px/1.6 var(--sans);background:var(--bg);border-radius:6px;padding:8px 10px}
+.task textarea.tnote{display:block;width:100%;margin:8px 0 0;min-height:64px;resize:vertical;white-space:pre-wrap;font:13px/1.6 var(--sans);background:var(--bg);border:1px solid transparent;border-radius:6px;padding:8px 10px;color:var(--ink);field-sizing:content}   /* 자동 문구 · 직접 고칠 수 있음 */
+.task textarea.tnote:focus{border-color:var(--pine);background:#fff;outline:none}
+.task textarea.tnote.edited{border-color:var(--amber)}
 .task .tbtn{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
 .task .tbtn .btn{padding:4px 10px;font-size:12px}
 .task .chg{font-size:12px;font-weight:700;color:var(--amber)}
@@ -1465,6 +1468,7 @@ function snap(){
   o.stage=effStage(rec); o.erp=rec.erp||''; o.note=$('#memoBox').value.trim();
   ['etcDisc','etcDiscWhy','readDone'].forEach(k=>{ if(rec[k]) o[k]=rec[k]; }); if(rec.etcDisc) o.etcDiscTo=rec.etcDiscTo||'신라'; if(erpList.length) o.erpList=erpList.map(x=>`${x.product} ${x.people}명 ${x.amount}`).join(', ');   // 기타 할인 · 전산 내역도 변경으로
   tasks.forEach(t=>{ o['task:'+t.id]=t.done?'완료':''; o['tmemo:'+t.id]=t.memo||''; o['tfile:'+t.id]=(t.files||[]).map(f=>f.name).join(', '); if(t.custom) o['tadd:'+t.id]=t.title; });
+  tasks.forEach(t=>{ if(t.noteEdit) o['tnote:'+t.id]=t.noteEdit; });   // 직접 고친 문구
   tasks.forEach(t=>{ const s=[...Object.entries(t.subs||{}).map(([k,v])=>k+(v?'✓':'')), ...(t.xsubs||[]).map(x=>x.title+(x.done?'✓':''))].join(', '); if(s) o['tsub:'+t.id]=s; });   // 하위 과업 · 세부 과제
   o.taskOrder = tasks.filter(t=>t.ordSet).sort((a,b)=>a.ord-b.ord).map(t=>t.id).join(',');   // 직접 바꾼 순서만 (새 과업이 맨 아래 붙는 것은 변경 아님)   // ▲▼로 바꾼 과업 순서
   return o;
@@ -1476,9 +1480,9 @@ function diffSnap(a,b){
     if(k==='note'){ out.push('통화 메모 수정'); return; }
     if(k==='taskOrder'){ out.push('과업 순서 바꿈'); return; }
     if(k==='readDone'){ out.push(y ? '고객님께 확인 멘트 말씀드림' : '고객님께 확인 멘트 말씀드림 취소'); return; }
-    const tm=k.match(/^(task|tmemo|tadd|tfile|tsub):(.+)$/);
+    const tm=k.match(/^(task|tmemo|tadd|tfile|tsub|tnote):(.+)$/);
     if(tm){ const title=(tasks.find(t=>t.id===tm[2])||{}).title||x||y;
-      out.push(tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tsub' ? `[과업] ${title} 세부 과제: ${y}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`); return; }
+      out.push(tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tnote' ? `[과업] ${title} 문구 직접 수정` : tm[1]==='tsub' ? `[과업] ${title} 세부 과제: ${y}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`); return; }
     const lab=LABEL[k]||k;
     out.push(!x ? `${lab} ${y} 입력` : !y ? `${lab} ${x} 지움` : `${lab} ${x} → ${y}`);
   });
@@ -1495,9 +1499,9 @@ function chText(k, c){
   if(k==='taskOrder') return '과업 순서 바꿈';
   if(k==='erpList') return '전산 내역 붙여넣음';
   if(k==='readDone') return y ? '고객님께 확인 멘트 말씀드림' : '고객님께 확인 멘트 말씀드림 취소';
-  const tm=k.match(/^(task|tmemo|tadd|tfile|tsub):(.+)$/);
+  const tm=k.match(/^(task|tmemo|tadd|tfile|tsub|tnote):(.+)$/);
   if(tm){ const title=(tasks.find(t=>t.id===tm[2])||{}).title||x||y;
-    return tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tsub' ? `[과업] ${title} 세부 과제: ${y||'없음'}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`; }
+    return tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tnote' ? `[과업] ${title} 문구 직접 수정` : tm[1]==='tsub' ? `[과업] ${title} 세부 과제: ${y||'없음'}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`; }
   const lab=LABEL[k]||k;
   if(c.length===2) return !x ? `${lab} ${y} 입력` : !y ? `${lab} ${x} 지움` : `${lab} ${x} → ${y}`;
   return `${lab} ${c.map(v=>v||'(빈칸)').join(' → ')}`;   // 여러 번 바뀐 것은 거쳐 간 값을 모두
@@ -1509,7 +1513,7 @@ function addCh(ch, a, b){   // a(마지막 저장) → b(지금) 사이 바뀐 �
   return ch;
 }
 // 되돌리기: 기록 i 를 저장한 직후의 상태 = 지금 상태에서 i 보다 뒤 기록들의 흐름을 거꾸로 첫 값으로
-const REVERT_SKIP = /^(task|tmemo|tadd|tfile|tsub):|^(taskOrder|erpList)$/;   // 과업 체크 · 메모 · 파일은 되돌리지 않음
+const REVERT_SKIP = /^(task|tmemo|tadd|tfile|tsub|tnote):|^(taskOrder|erpList)$/;   // 과업 체크 · 메모 · 파일은 되돌리지 않음
 function canRevertTo(i){ return i < hist.length-1 && hist.slice(i+1).every(h=>h.ch); }
 function stateAt(i){
   const s={...(baseSnap||snap())};   // 마지막으로 저장한 상태에서 거꾸로
@@ -1567,7 +1571,7 @@ async function save(opt){
     if(!auto) toast(quiet ? `저장했습니다.` : `${item.callType}으로 저장했습니다.${changes.length?' 수정 기록에 반영했습니다.':' (바뀐 내용 없음)'}${needsErp(rec)&&!rec.erp?' 전산 등록을 잊지 마세요.':''}`);
     // 담당이 아닌 사람이 남의 예약을 고쳤으면: 저장 버튼을 누를 때 이 세션의 변경을 담당자에게 보고하라는 팝업
     const owner=(rec.owner||'').trim(), lines = row && row.ch ? Object.entries(row.ch).map(([k,c])=>chText(k,c)) : [];
-    if(!auto && wasSaved && lines.length && me && owner && savedOwner()!==owner && typeof openReport==='function') openReport(item, owner, savedOwner(), lines);
+    if(!auto && wasSaved && lines.length && savedOwner() && owner && savedOwner()!==owner && typeof openReport==='function') openReport(item, owner, savedOwner(), lines);
     if(!auto) SID=Math.random().toString(36).slice(2);   // 저장 버튼 = 이 줄 확정, 다음 변경은 새 줄
   }
   catch(e){ toast('저장하지 못했습니다: '+e.message); }
@@ -1672,7 +1676,8 @@ function taxMsg(r){
 }
 // 현장 결제 인원 확인 연락: 전주 목요일에 읽을 문구
 const onsiteMsg = r => `안녕하세요, 사유원입니다. ${r.org?`<${r.org}> `:''}${r.date?mdLabel(r.date)+' ':''}방문 건으로 연락드렸습니다.\n최종 인원이 ${r.people?`총 ${r.people}명`:'몇 분'} 맞으신가요?\n현장 결제로 진행되기 때문에 당일에는 인원 변경이 어려운 점 다시 한번 안내드립니다.\n변경이 있으시면 지금 말씀해 주세요. 감사합니다.`;
-const taskText = t => (t.id==='erp'||t.id==='erpfix') ? erpNote(rec) : t.id==='tax' ? taxMsg(rec) : t.id==='onsitecall' ? onsiteMsg(rec) : '';
+const taskAuto = t => (t.id==='erp'||t.id==='erpfix') ? erpNote(rec) : t.id==='tax' ? taxMsg(rec) : t.id==='onsitecall' ? onsiteMsg(rec) : '';   // 자동으로 만든 문구
+const taskText = t => taskAuto(t) ? (t.noteEdit || taskAuto(t)) : '';   // 직접 고쳤으면 그 글 (전산 비고 등)
 // 과업 기한(due): 생기면 그날이 기본, 각자 바꿀 수 있음(dueSet). 미정 항목 연락 = 답변일, 현장 결제 인원 확인 = 전주 목요일(지났으면 전날), 결제 확인 = 다음날
 const todayYmd = () => ymd(new Date());
 function autoDue(id, r){
@@ -1755,7 +1760,7 @@ function renderTasks(){
   const box=$('#taskList'), ae=document.activeElement, focus=box.contains(ae) && (ae.tagName==='TEXTAREA' || (ae.tagName==='INPUT' && ae.type!=='checkbox'));   // 메모 · 글자 칸에 쓰는 중일 때만 다시 그리지 않음
   const changeTag = t => { const txt=taskText(t); return !t.copied ? '' : t.copied===txt ? '<span class="hint" style="margin:0">붙여넣은 내용과 같음</span>' : '<span class="chg">예약 내용이 바뀜 · 다시 복사해서 붙여넣기</span>'; };
   if(focus){   // 메모를 쓰는 중이면 문구만 새로
-    tasks.forEach(t=>{ const pre=document.getElementById('tpre_'+t.id); if(pre) pre.textContent=taskText(t); const c=document.getElementById('tchg_'+t.id); if(c) c.innerHTML=changeTag(t); });
+    tasks.forEach(t=>{ const pre=document.getElementById('tpre_'+t.id); if(pre && document.activeElement!==pre) pre.value=taskText(t); const c=document.getElementById('tchg_'+t.id); if(c) c.innerHTML=changeTag(t); });
     return;
   }
   const SUB = { erp:'전산에 예약을 등록하고, 아래 문구를 전산 비고에 붙여넣은 뒤 체크하세요.', tax:'고객 안내 후, 아래 내용으로 세금계산서 발행을 요청하세요.',
@@ -1779,7 +1784,7 @@ function renderTasks(){
       <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<label class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span></label>${t.done?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}
         ${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"><span class="dow">${dowTag(due)}</span></label>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</div>
       ${sub?`<div class="sub">${sub}</div>`:''}${subsHTML(t)}${docBtn}${files}
-      ${txt?`<pre id="tpre_${esc(t.id)}">${esc(txt)}</pre><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')?'비고 문구 복사':'문구 복사'}</button><span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
+      ${txt?`<textarea class="tnote${t.noteEdit?' edited':''}" id="tpre_${esc(t.id)}" data-tnote="${esc(t.id)}" spellcheck="false" title="자동으로 만든 문구 · 직접 고칠 수 있음">${esc(txt)}</textarea><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')?'비고 문구 복사':'문구 복사'}</button>${t.noteEdit?`<button type="button" class="btn" data-tregen="${esc(t.id)}" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><span class="hint" style="margin:0">직접 고친 문구</span>`:''}<span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
         <label class="btn up${upBusy?' busy':''}">${upBusy?'올리는 중…':(t.files||[]).length?'사업자등록증 추가로 올리기':'사업자등록증 올리기'}<input type="file" data-tup="${esc(t.id)}" accept="image/*,application/pdf" hidden${upBusy?' disabled':''}></label>
         <span class="hint" style="margin:0">사진 · PDF, 10MB 이하 · 구글 드라이브 '사유원 단체예약 서류' 폴더에 저장</span></div>` : ''}
@@ -1820,6 +1825,7 @@ $('#taskList').addEventListener('change', e=>{
   renderSide(); autoSave();
 });
 $('#taskList').addEventListener('click', e=>{
+  const rg=e.target.closest('[data-tregen]'); if(rg){ const t=tasks.find(x=>x.id===rg.dataset.tregen); if(t){ t.noteEdit=''; renderTasks(); renderSide(); autoSave(); toast('예약 내용으로 문구를 다시 만들었습니다.'); } return; }
   const tx=e.target.closest('[data-texp]'); if(tx){ const id=tx.dataset.texp; openDone.has(id) ? openDone.delete(id) : openDone.add(id); tx.blur(); renderTasks(); return; }   // 끝난 과업 펼치기 / 접기
   const xd=e.target.closest('[data-xdel]'); if(xd){ const [tid,xid]=xd.dataset.xdel.split('|'), t=tasks.find(x=>x.id===tid); if(t){ t.xsubs=(t.xsubs||[]).filter(s=>s.id!==xid); renderTasks(); renderSide(); autoSave(); } return; }   // 세부 과제 빼기
   const xb=e.target.closest('[data-xaddbtn]'); if(xb){ addXsub(xb.dataset.xaddbtn); return; }
@@ -1851,6 +1857,8 @@ document.addEventListener('dragover', e=>{ if(!dragId) return; const EDGE=70, H=
   window.scrollBy(0, sp); scrollParents($('#taskList')).forEach(p=>{ const r=p.getBoundingClientRect(); if(e.clientY<r.top+EDGE || e.clientY>r.bottom-EDGE) p.scrollTop+=sp; }); });
 $('#taskList').addEventListener('dragend', ()=>{ dragId=null; document.querySelectorAll('#taskList li.task').forEach(x=>{ x.draggable=false; x.classList.remove('dragging','drop-before','drop-after'); }); });
 $('#taskList').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing && e.target.dataset.xadd!==undefined){ e.preventDefault(); addXsub(e.target.dataset.xadd); } });   // 세부 과제: 적고 Enter
+$('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tnote; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return; t.noteEdit=e.target.value; e.target.classList.add('edited'); startTimer(); });   // 문구 직접 고치기
+$('#taskList').addEventListener('focusout', e=>{ const id=e.target.dataset.tnote; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return; if(e.target.value.trim()===taskAuto(t).trim()) t.noteEdit=''; setTimeout(()=>{ renderTasks(); autoSave(); },0); });   // 자동 문구와 같아지면 자동으로
 $('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=tasks.find(x=>x.id===id); if(t) t.memo=e.target.value; });
 $('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) autoSave(); });
 $('#taskAdd').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#taskAddIn').value.trim(); if(!v) return;
