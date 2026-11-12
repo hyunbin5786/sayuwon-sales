@@ -2101,7 +2101,9 @@ const CONSULT_KEYS = [
 function parseConsult(text){
   const got={}, extra=[]; let sect='';   // sect: '답사' 이면 '답사 요청 정보' 아래 줄 (예약 칸을 덮지 않고 통화 메모로)
   String(text||'').split(/\r?\n/).forEach(line=>{
-    if(/^\s*\S.*(답사|요청\s*정보|상담\s*정보)\s*$/.test(line) && !/\t/.test(line)){ sect = /답사/.test(line) ? '답사' : ''; return; }   // 구역 제목 줄
+    const bare=line.replace(/[\t:：]+\s*$/,'').trim();   // 표에서 복사하면 제목 줄 끝에 탭이 붙기도 함
+    if(/(요청\s*정보|상담\s*정보|답사\s*정보)$/.test(bare) && !/\t/.test(bare)){ sect = /답사/.test(bare) ? '답사' : ''; return; }   // 구역 제목 줄
+    if(sect==='답사' && bare && !/\t/.test(line) && !/\s{2,}|[:：]/.test(bare)){ const s=bare.match(/^(\S+)\s+(.+)$/); if(s) extra.push(`[답사] ${s[1]}: ${s[2]}`); return; }   // 답사 줄은 띄어쓰기 한 칸이어도 메모로
     let m=null;
     if(!/\t/.test(line)){ const s=line.match(/^\s*(\S+)\s*[:：]?\s+(.+?)\s*$/); if(s && CONSULT_KEYS.some(([re])=>re.test(s[1].replace(/[:：]$/,'')))) m=[s[0],s[1].replace(/[:：]$/,''),s[2]]; }   // 띄어쓰기로 복사된 경우 (아는 항목 먼저)
     if(!m) m=line.match(/^\s*([^\t:：]+?)\s*(?:\t+|[:：]\s*|\s{2,})(.+?)\s*$/);
