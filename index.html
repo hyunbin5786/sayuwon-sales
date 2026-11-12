@@ -1009,6 +1009,7 @@ function paintFields(changed=[]){
 }
 // 접는 묶음: 값이 있으면 버튼·묶음을 초록으로, 버튼에 입력 내용 요약
 function paintOpt(){
+  if(window.__autoReady) saveViewSoon();   // 펼친 묶음도 기억
   Object.entries(OPT).forEach(([grp,o])=>{
     const keys=FIELDS.filter(f=>f[0]===grp && !isSub(f[1])).map(f=>f[1]);
     const filled=keys.filter(k=>rec[k]);
@@ -1058,6 +1059,7 @@ function renderSide(){
   if(typeof renderPrice==='function' && window.__priceReady) renderPrice();
   if(window.__tasksReady) renderTasks();
   if(window.__autoReady) scheduleAuto();   // 고칠 때마다 자동 저장 타이머
+  if(window.__autoReady) saveViewSoon();   // 새로고침해도 이 화면 그대로
 }
 // 결제 방식별로 끊기 전에 추가로 받거나 안내할 것
 const PAY_GUIDE = {
@@ -1630,7 +1632,7 @@ $('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!
 $('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) autoSave(); });
 $('#taskAdd').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#taskAddIn').value.trim(); if(!v) return;
   tasks.push({id:'c'+Date.now().toString(36), title:v, custom:true, done:false, memo:'', at:new Date().toISOString(), due:todayYmd()}); $('#taskAddIn').value=''; renderTasks(); autoSave(); });   // 마감은 오늘 (바꿀 수 있음)
-$('#memoBox').addEventListener('input', ()=>{ renderTasks(); if(window.__autoReady) scheduleAuto(); });
+$('#memoBox').addEventListener('input', ()=>{ renderTasks(); if(window.__autoReady){ scheduleAuto(); saveViewSoon(); } });
 
 // 견적서 사이트가 출력 후 드라이브에 올린 파일 링크를 같은 사이트 저장소(sy_intake_docs)로 돌려줌 → 그 예약의 견적서/거래명세서 과업에 붙이고 완료
 const DOCS_LS='sy_intake_docs';
@@ -2392,7 +2394,47 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#lateModal'
 // 기한 칸을 바꿔서 늦어지면 바로 사유 팝업. 기한 안으로 돌아오면 사유는 지움
 $('#f_tbdDate').addEventListener('change', ()=>{ if(tbdIsLate(rec)){ if(!rec.tbdLate) openLate(); } else if(rec.tbdLate){ rec.tbdLate=''; renderSide(); } });
 
+// ===================== 새로고침해도 마지막으로 보던 화면 =====================
+// 열어 둔 예약 · 저장 안 한 입력 · 펼친 묶음 · 열어 둔 목록/마이페이지 · 스크롤을 이 브라우저에 기억했다가 다시 열 때 그대로
+const VIEW_LS='sayuwon_view';
+let viewT=null, restoring=false;
+function saveView(){
+  if(!window.__autoReady || restoring) return;
+  try{
+    const dirty=isDirty();
+    const v={ id:editingId||'', dirty, opt:[...optOpen], y:Math.round(window.scrollY),
+      modal: !$('#listModal').hidden ? 'list' : !$('#myModal').hidden ? 'my' : '', at:Date.now() };
+    if(dirty){ v.rec=rec; v.memo=$('#memoBox').value; v.tasks=tasks; v.nc=nContacts; v.tbdAuto=tbdAuto; }   // 저장 안 한 입력은 통째로
+    localStorage.setItem(VIEW_LS, JSON.stringify(v));
+  }catch(_){}
+}
+const saveViewSoon = () => { clearTimeout(viewT); viewT=setTimeout(saveView, 300); };
+window.addEventListener('scroll', saveViewSoon, {passive:true});
+window.addEventListener('pagehide', saveView);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveView(); });
+['listModal','myModal'].forEach(id=>new MutationObserver(saveViewSoon).observe($('#'+id), {attributes:true, attributeFilter:['hidden']}));
+async function restoreView(){
+  let v=null; try{ v=JSON.parse(localStorage.getItem(VIEW_LS)||'null'); }catch(_){}
+  if(!v) return;
+  restoring=true;
+  try{
+    await store.list();
+    const r = v.id ? cache.find(x=>x.id===v.id) : null;
+    if(r) openRecord(r);
+    if(v.dirty && v.rec && (r || !v.id)){   // 저장 안 한 입력 되살리기 (저장된 예약이면 그 위에)
+      Object.assign(rec, v.rec); Object.keys(v.rec).forEach(k=>{ if(v.rec[k]) touched.add(k); });
+      $('#memoBox').value = v.memo||''; if(Array.isArray(v.tasks)) tasks=v.tasks; tbdAuto=!!v.tbdAuto;
+      nContacts=Math.max(1, v.nc||nContactsOf(rec)); renderContacts(); renderForm(); renderTasks();
+      if(isDirty()) toast('저장하지 않았던 입력을 되살렸습니다.');
+    }
+    optOpen=new Set(v.opt||[]); paintOpt();
+    if(v.modal==='list') openList(); else if(v.modal==='my') openMy();
+    setTimeout(()=>window.scrollTo(0, v.y||0), 450);   // 예약을 열 때 맨 위로 가는 스크롤이 끝난 뒤
+  }catch(_){}
+  finally{ setTimeout(()=>{ restoring=false; saveView(); }, 600); }
+}
 emptySnap=snap(); window.__autoReady=true; paintDirty();   // 자동 저장 시작 (빈 화면 기준)
+restoreView();   // 새로고침 전에 보던 화면
 window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs(); checkTbdPopup();   // 추후 과업 · 결제 확인 알림 · 미정 항목 알림
 window.addEventListener('focus', ()=>{ if(priceLoaded && Date.now()-priceLoaded>10*60000) loadQuotePrices(); });
 $('#memoBox').focus();
