@@ -159,10 +159,24 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 /* 추후 과업 */
 .tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
 .task{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff}
-.task.done{background:var(--pine-soft);border-color:#c9d6c1}
+.task.done{background:#f1f1ee;border-color:#e2e2dc;color:#9a9a92}   /* 해결: 회색 + 취소선 */
+.task.late{background:#fdf0ee;border-color:#e0a399}   /* 기한 지남: 빨강 */
 .task-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
-.task-h input{width:17px;height:17px;accent-color:var(--pine);flex:none}
-.task.done .task-h span{text-decoration:line-through;color:var(--pine)}
+.task-c{display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer}
+.task-c input{width:17px;height:17px;accent-color:var(--pine);flex:none}
+.task.done .task-c span{text-decoration:line-through;color:#9a9a92}
+.task.late .task-c span{color:var(--red)}
+.my-task{display:inline-block;font-size:12.5px;color:var(--ink);margin-top:2px}
+.my-task small{color:var(--muted)}
+.my-task.today small{color:var(--amber);font-weight:700}
+.my-task.late,.my-task.late small{color:var(--red);font-weight:700}
+#tbdList li.late{background:#fdf0ee}
+#tbdList b.late{color:var(--red)}
+.tdue{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:400;color:var(--muted);flex:none;white-space:nowrap}
+.tdue input{height:26px;border:1px solid var(--line);border-radius:5px;padding:0 4px;font:12px var(--sans);background:#fff;color:var(--ink)}
+.task.late .tdue{color:var(--red);font-weight:700}
+.task.late .tdue input{border-color:var(--red);color:var(--red)}
+.task.done .tdue input{color:#9a9a92;background:transparent}
 .task-h .del{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
 .task .sub{font-size:12px;color:var(--muted);margin:3px 0 0 25px}
 .task pre{margin:8px 0 0;white-space:pre-wrap;font:13px/1.6 var(--sans);background:var(--bg);border-radius:6px;padding:8px 10px}
@@ -364,10 +378,10 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <div class="my-body" id="myBody"></div>
   </section>
 </div>
-<!-- 매일 아침 9시: 미정 항목 입력 기한이 된 예약 연락 알림 -->
+<!-- 마감이 된 추후 과업: 해결할 때까지 계속 (나중에 = 2시간 뒤) -->
 <div class="modal" id="tbdModal" hidden>
   <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="tbdTitle">
-    <h2 id="tbdTitle">미정 항목 연락할 예약 <small>답변일이 오늘이거나 지났습니다. 고객님께 연락해 확정해 주세요</small></h2>
+    <h2 id="tbdTitle">마감이 된 추후 과업</h2>
     <ul class="pc-list" id="tbdList"></ul>
     <div class="row-btns"><button class="btn" id="tbdLater">나중에</button></div>
   </section>
@@ -937,6 +951,10 @@ function buildForm(){
   }
   // 입장: 빈 칸을 누르면 기본 12:00 (선택된 상태라 바로 고쳐 쓰기). 나갈 때 24시간 HH:MM 으로 맞춤 (9:30 → 09:30, 13 → 13:00)
   $('#form').addEventListener('focusin', e=>{ const el=e.target; if(el.dataset?.k==='tin' && !el.value){ el.value='12:00'; el.dispatchEvent(new Event('input',{bubbles:true})); setTimeout(()=>{ try{ el.select(); }catch(_){} },0); } });
+  // 몽몽마방 시간: 빈 칸을 누르면 고객님 입장 시각부터 1시간 (예: 입장 13:00 → 13:00~14:00), 고쳐 쓰기 쉽게 선택된 상태
+  $('#form').addEventListener('focusin', e=>{ const el=e.target; if(el.dataset?.k!=='mabangTime' || el.value) return; const t=fmtTime(rec.tin); if(!t) return; const h=+t.slice(0,2)+1; el.value=`${t}~${String(Math.min(h,23)).padStart(2,'0')}${t.slice(2)}`; el.dispatchEvent(new Event('input',{bubbles:true})); setTimeout(()=>{ try{ el.select(); }catch(_){} },0); });
+  const mbDefTime = () => { const t=fmtTime(rec.tin); if(!t) return ''; const h=Math.min(+t.slice(0,2)+1,23); return `${t}~${String(h).padStart(2,'0')}${t.slice(2)}`; };
+  $('#form').addEventListener('input', e=>{ if(e.target.dataset?.k!=='mabangL' || !rec.mabangL || rec.mabangTime) return; const v=mbDefTime(); if(!v) return; rec.mabangTime=v; touched.add('mabangTime'); paintFields(); renderSide(); });   // 몽몽마방 인원을 넣으면 시간도 입장 시각으로
   $('#form').addEventListener('focusout', e=>{ const el=e.target, k=el.dataset?.k; if(!TIME_KEYS[k] || !el.value) return; const f=fmtTime(el.value); if(f && f!==el.value){ el.value=f; el.dispatchEvent(new Event('input',{bubbles:true})); } });
   // 몽몽마방: 시간은 나갈 때 12:00~13:00 으로, 메뉴는 체크한 것을 ", " 로, 단가 칸이 비어 있을 때 누르면 메뉴로 계산한 제안 단가
   $('#form').addEventListener('focusout', e=>{ const el=e.target; const kk=el.dataset?.k||''; if((kk!=='mabangTime' && !/^tm_/.test(kk)) || !el.value) return; const f=fmtRange(el.value); if(f && f!==el.value){ el.value=f; el.dispatchEvent(new Event('input',{bubbles:true})); } });   // 몽몽마방 시간 · 도슨트 시간대
@@ -1461,7 +1479,7 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
-const AUTO_TASKS = { mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 담당 입력', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
+const AUTO_TASKS = { tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 담당 입력', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 function moneySplit(r){
   if(!quoteCat || !r.date || !numOf(r.people)) return null;
@@ -1480,6 +1498,7 @@ function erpNote(r){
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';   // 출입구가 미정이면 '출입구 미정'을 따로
   const p=[`입장 ${r.tin||'미정'}${gate?' '+gate:''}`, ...(gate?[]:['출입구 미정']), r.pchg ? '인원 변경 가능성 있음' : '인원 변경 없음'];
   const pg=progList(r, null, true); if(pg.length) p.push(pg.join(', '));   // 프로그램 (담당:이름)
+  if(r.mabangL || r.mabangTime || r.mabangMenu) p.push(['몽몽마방', r.mabangTime, r.mabangMenu].filter(Boolean).join(' '));   // 몽몽마방 <시간> <메뉴>
   if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');   // 몽몽마방 결제를 마방으로 고르면
   if(r.pay==='현장 결제' || r.onsite){ const m=moneySplit(r); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); }
   return [...p, ...memoLines()].join(' / ');
@@ -1489,9 +1508,23 @@ function taxMsg(r){
   const m=moneySplit(r), email=(contactsOf(r).find(c=>c.email)||{}).email;
   return `[세금계산서] ${r.org||'(단체명)'}\n1. 금액\n- 사유원 : ${m?won(m.saw):'      '}원\n- 신라 : ${m?won(m.shilla):'      '}원\n2. 사업자 등록증 : 파일 첨부\n3. 이메일 : ${email||'(담당자 이메일)'}\n4. 발행일 : ${r.date?r.date.replace(/-/g,'.'):'(방문일자)'}\n감사합니다~`;
 }
-const taskText = t => (t.id==='erp'||t.id==='erpfix') ? erpNote(rec) : t.id==='tax' ? taxMsg(rec) : '';
+// 현장 결제 인원 확인 연락: 전주 목요일에 읽을 문구
+const onsiteMsg = r => `안녕하세요, 사유원입니다. ${r.org?`<${r.org}> `:''}${r.date?mdLabel(r.date)+' ':''}방문 건으로 연락드렸습니다.\n최종 인원이 ${r.people?`총 ${r.people}명`:'몇 분'} 맞으신가요?\n현장 결제로 진행되기 때문에 당일에는 인원 변경이 어려운 점 다시 한번 안내드립니다.\n변경이 있으시면 지금 말씀해 주세요. 감사합니다.`;
+const taskText = t => (t.id==='erp'||t.id==='erpfix') ? erpNote(rec) : t.id==='tax' ? taxMsg(rec) : t.id==='onsitecall' ? onsiteMsg(rec) : '';
+// 과업 기한(due): 생기면 그날이 기본, 각자 바꿀 수 있음(dueSet). 미정 항목 연락 = 답변일, 현장 결제 인원 확인 = 전주 목요일(지났으면 전날), 결제 확인 = 다음날
+const todayYmd = () => ymd(new Date());
+function autoDue(id, r){
+  if(id==='tbdcall') return r.tbdDate || todayYmd();
+  if(id==='onsitecall') return r.date ? tbdLimit(r.date) : todayYmd();
+  if(id==='paycheck') return ymd(nextDay(new Date().toISOString()));
+  return todayYmd();
+}
+const taskDue = t => t.due || (t.at ? ymd(new Date(t.at)) : todayYmd());   // 예전 과업은 생긴 날
+const FOLLOW_DUE = new Set(['tbdcall','onsitecall']);   // 답변일 · 방문일이 바뀌면 기한도 따라감 (직접 바꾸기 전까지)
 function syncAutoTasks(){
   const want = [];
+  if(rec.tbd) want.push('tbdcall');   // 미정 항목(결제 방법 포함)이 있으면 답변일에 연락
+  if(rec.pay==='현장 결제' && rec.date) want.push('onsitecall');   // 현장 결제: 전주 목요일에 인원 확인 + 인원 변경 어려움 안내
   if(needsErp(rec)) want.push('erp');
   if(rec.pay==='세금계산서') want.push('tax');
   if(rec.pay==='결제링크') want.push('paycheck');
@@ -1505,13 +1538,14 @@ function syncAutoTasks(){
   if(e0){ e0.done=!!rec.erp; if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
   const fixes = e0 && e0.base ? erpDiff(e0.base, erpSnap()) : [];
   if(fixes.length) want.push('erpfix');
-  want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo:'', at:new Date().toISOString()}); });
+  want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo:'', at:new Date().toISOString(), due:autoDue(id, rec)}); });
+  tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } if(!t.due) t.due=taskDue(t); });
   const fx=tasks.find(t=>t.id==='erpfix');
-  if(fx){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); } fx.changes=fixes; } else if(!fx.done) fx.changes=[]; }
+  if(fx){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; } else if(!fx.done) fx.changes=[]; }
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
   const ps=tasks.find(t=>t.id==='progstaff'); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
-  const ORDER=['mbcall','mbmenu','progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
+  const ORDER=['tbdcall','onsitecall','mbcall','mbmenu','progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
   tasks.sort((a,b)=>(a.custom?99:ORDER.indexOf(a.id))-(b.custom?99:ORDER.indexOf(b.id)));
 }
 // 전산에 들어가는 내용 (이게 바뀌면 전산 예약 수정)
@@ -1535,6 +1569,8 @@ function renderTasks(){
   box.innerHTML = tasks.map(t=>{
     const txt=taskText(t);
     const sub = t.id==='paycheck' ? `결제링크 보낸 다음날(${mdLabel(ymd(nextDay(t.at)))}) 아침에 이 창을 열면 확인 알림이 뜹니다.`
+      : t.id==='tbdcall' ? (rec.tbd ? `미정: <b>${esc(rec.tbd)}</b><br>답변일(${esc(mdLabel(taskDue(t)))})에 고객님께 연락해 확인하고, 정해진 내용을 칸에 채운 뒤 체크하세요.` : '미정 항목이 모두 정해졌습니다.')
+      : t.id==='onsitecall' ? `현장 결제 예약입니다. 기한(${esc(mdLabel(taskDue(t)))} · 방문일 전주 목요일)에 고객님께 연락해 <b>최종 인원</b>을 확인하고, <b>당일 인원 변경이 어렵다는 점</b>을 다시 한번 안내하세요.`
       : t.id==='mbcall' ? `몽몽마방 식당에 전화해서 확인하고 체크하세요. (${esc([rec.date&&dateLabel(rec.date), rec.mabangL&&rec.mabangL+'명'].filter(Boolean).join(' · ')||'방문일 · 인원 미정')})<br>① 고객님이 말씀하신 시각 <b>${esc(rec.mabangTime||'(시간 미입력)')}</b> 가능한지<br>② 그날 예약 가능한 시간이 모두 언제인지 → 아래 메모에 적어 두기`
       : t.id==='mbmenu' ? (t.done ? '몽몽마방 메뉴를 골랐습니다.' : `몽몽마방 식사에서 메뉴(${esc(mbMenus().map(m=>m.name).join(' · '))}) 중 하나를 고르세요. 고르면 자동으로 완료됩니다.`)
       : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 프로그램: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 칸의 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (차방 · 당두봉갈 대관은 담당 없어도 됨)` : '프로그램 담당을 모두 넣었습니다.')
@@ -1542,8 +1578,10 @@ function renderTasks(){
       : SUB[t.id] || '';
     const docBtn = (t.id==='quote'||t.id==='stmt') ? `<div class="tbtn"><button type="button" class="btn" data-tquote="${t.id==='stmt'?'statement':'quote'}">${t.id==='stmt'?'거래명세서 만들기':'견적서 만들기'}</button></div>` : '';
     const files = t.id!=='tax' && (t.files||[]).length ? `<div class="tfiles">${t.files.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}</div>` : '';
-    return `<li class="task${t.done?' done':''}" data-id="${esc(t.id)}">
-      <label class="task-h"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</label>
+    const due=taskDue(t), late=!t.done && due<todayYmd();
+    return `<li class="task${t.done?' done':late?' late':''}" data-id="${esc(t.id)}">
+      <div class="task-h"><label class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span></label>
+        <label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"></label>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</div>
       ${sub?`<div class="sub">${sub}</div>`:''}${docBtn}${files}
       ${txt?`<pre id="tpre_${esc(t.id)}">${esc(txt)}</pre><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')?'비고 문구 복사':'문구 복사'}</button><span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
@@ -1573,6 +1611,7 @@ async function uploadFile(t, file){
   }
 }
 $('#taskList').addEventListener('change', e=>{
+  const du=e.target.dataset.tdue; if(du){ const t=tasks.find(x=>x.id===du); if(t && e.target.value){ t.due=e.target.value; t.dueSet=1; e.target.blur(); renderTasks(); renderSide(); autoSave(); } return; }   // 마감일 바꾸기
   const up=e.target.dataset.tup;
   if(up){ const t=tasks.find(x=>x.id===up), f=e.target.files[0]; if(t && f) uploadFile(t, f); return; }
   const id=e.target.dataset.tk; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return;
@@ -1590,7 +1629,7 @@ $('#taskList').addEventListener('click', e=>{
 $('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=tasks.find(x=>x.id===id); if(t) t.memo=e.target.value; });
 $('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) autoSave(); });
 $('#taskAdd').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#taskAddIn').value.trim(); if(!v) return;
-  tasks.push({id:'c'+Date.now().toString(36), title:v, custom:true, done:false, memo:'', at:new Date().toISOString()}); $('#taskAddIn').value=''; renderTasks(); autoSave(); });
+  tasks.push({id:'c'+Date.now().toString(36), title:v, custom:true, done:false, memo:'', at:new Date().toISOString(), due:todayYmd()}); $('#taskAddIn').value=''; renderTasks(); autoSave(); });   // 마감은 오늘 (바꿀 수 있음)
 $('#memoBox').addEventListener('input', ()=>{ renderTasks(); if(window.__autoReady) scheduleAuto(); });
 
 // 견적서 사이트가 출력 후 드라이브에 올린 파일 링크를 같은 사이트 저장소(sy_intake_docs)로 돌려줌 → 그 예약의 견적서/거래명세서 과업에 붙이고 완료
@@ -2211,20 +2250,37 @@ const firstContact = r => { const n=String(r.contact||'').split(/\s*\/\s*/)[0]||
 // ===================== 마이페이지: 내가 영업 담당인 예약 =====================
 // 헤더 '영업 담당' 이름과 같은 예약만. 연락할 미정 항목 · 남은 과업 · 방문 예정 순서로
 function myRecords(){ const me=savedOwner(); return me ? (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me) : []; }
+// 저장된 예약의 추후 과업 (열지 않은 예약도): 저장된 과업 + 아직 저장 안 된 미정 항목 연락 · 현장 결제 인원 확인
+function tasksOf(r){
+  if(editingId===r.id) return tasks.map(t=>({...t, due:taskDue(t)}));   // 지금 열어 둔 예약은 화면의 과업
+  const x=xOf(r), ts=parseHist(r).tasks.map(t=>({...t}));
+  const has = id => ts.some(t=>t.id===id);
+  if(x.tbd && !has('tbdcall')) ts.push({id:'tbdcall', title:AUTO_TASKS.tbdcall, done:false, due:x.tbdDate||ymd(new Date(r.saved||Date.now()))});
+  if(x.pay==='현장 결제' && r.date && !has('onsitecall')) ts.push({id:'onsitecall', title:AUTO_TASKS.onsitecall, done:false, due:tbdLimit(r.date)});
+  return ts.filter(t=> !(t.id==='tbdcall' && !x.tbd) && !(t.id==='onsitecall' && x.pay!=='현장 결제'))   // 조건이 사라진 것은 뺌
+    .map(t=>({...t, due: t.id==='tbdcall' && !t.dueSet && !t.done && x.tbdDate ? x.tbdDate : taskDue(t)}));
+}
+const openTasksOf = r => tasksOf(r).filter(t=>!t.done).sort((a,b)=>a.due.localeCompare(b.due));
+const taskRecActive = r => !r.date || daysFrom(r.date, ymd(new Date())) <= 30;   // 방문 뒤 30일 지난 예약의 과업은 빼고
+function dueTasks(){   // 마감이 오늘이거나 지난 해결 안 된 과업 (영업 담당이 있으면 내 예약만)
+  const today=ymd(new Date()), me=savedOwner();
+  const out=[]; (cache||[]).filter(r=>isGroupRec(r) && (!me || ownerOf(r)===me) && taskRecActive(r))
+    .forEach(r=>openTasksOf(r).forEach(t=>{ if(t.due<=today) out.push({r, t}); }));
+  return out.sort((a,b)=>a.t.due.localeCompare(b.t.due));
+}
 function renderMy(){
   const me=savedOwner(), today=ymd(new Date()), past=$('#myPast').checked;
   $('#myTitle').textContent = me ? `마이페이지 · ${me}` : '마이페이지';
   if(!me){ $('#mySum').textContent=''; $('#myBody').innerHTML='<p class="hint">맨 위 초록 헤더의 <b>영업 담당</b>에 이름을 넣으면, 그 이름이 영업 담당인 예약을 모아 보여 줍니다.</p>'; return; }
-  const mine = myRecords().map(r=>({r, x:xOf(r), tasks:parseHist(r).tasks}));
+  const mine = myRecords().map(r=>({r, x:xOf(r), tasks:openTasksOf(r)}));
   const ahead = mine.filter(o=>!o.r.date || o.r.date>=today);
-  const tbdDue = ahead.filter(o=>o.x.tbd && o.x.tbdDate && o.x.tbdDate<=today);
   const tbdAll = ahead.filter(o=>o.x.tbd);
-  const open = mine.map(o=>({...o, left:o.tasks.filter(t=>!t.done)})).filter(o=>o.left.length);
+  const open = mine.filter(o=>o.tasks.length && taskRecActive(o.r)).map(o=>({...o, left:o.tasks})).sort((a,b)=>a.left[0].due.localeCompare(b.left[0].due));
   const shown = (past ? mine : ahead).slice().sort((a,b)=>(a.r.date||'9999').localeCompare(b.r.date||'9999'));
   $('#mySum').textContent = `담당 예약 ${mine.length}건 · 방문 예정 ${ahead.length}건 · 미정 ${tbdAll.length}건 · 남은 과업 ${open.reduce((s,o)=>s+o.left.length,0)}개`;
   const org = r => esc(r.org || r.contact || '(업체 미정)');
   const dueTxt = d => { const n=daysFrom(today,d); return n<0 ? `<b class="late">${-n}일 지남</b>` : n===0 ? '<b class="late">오늘</b>' : `${n}일 남음`; };
-  // 3열: ① 방문 예정 ② 연락할 미정 항목 (+ 남이 고친 기록) ③ 남은 과업
+  // 3열: ① 방문 예정 ② 추후 과업 (단체별) ③ 다른 사람이 수정한 내 예약
   const none = t => `<p class="hint">${t}</p>`;
   let c1 = `<h3 class="my-h">${past?'전체 담당 예약':'방문 예정'} <small>${shown.length}건 · 방문일 순</small></h3>` + (shown.length
     ? `<ul class="pc-list">${shown.map(o=>{ const st=stageOfRec(o.r), left=o.tasks.filter(t=>!t.done).length, dq=docTag(o.r,'quote'), ds=docTag(o.r,'stmt');
@@ -2233,21 +2289,22 @@ function renderMy(){
           + `${o.x.tbd?`<br><span class="tag st-가예약">미정: ${esc(o.x.tbd)}</span>${o.x.tbdDate?` <small class="hint" style="margin:0">${esc(mdLabel(o.x.tbdDate))}까지</small>`:''}`:''}`
           + `${dq||ds||left?`<br>${dq?`견적서 ${dq} `:''}${ds?`거래명세서 ${ds} `:''}${left?`<small class="hint" style="margin:0">남은 과업 ${left}개</small>`:''}`:''}</span></li>`; }).join('')}</ul>`
     : none(past?'담당한 예약이 없습니다.':'방문 예정인 담당 예약이 없습니다.'));
-  let c2 = '';
+  // ② 추후 과업: 해결 안 된 과업을 단체(예약)별로, 마감이 이른 단체부터. 기한 지남 = 빨강
+  const nLeft = open.reduce((s,o)=>s+o.left.length,0), nLate = open.reduce((s,o)=>s+o.left.filter(t=>t.due<today).length,0);
+  const c2 = `<h3 class="my-h">추후 과업 <small>해결 안 된 ${nLeft}개${nLate?` · <b class="late">기한 지남 ${nLate}개</b>`:''}</small></h3>` + (open.length
+    ? `<ul class="pc-list">${open.map(o=>`<li class="r my-tg" data-myopen="${esc(o.r.id)}"><span class="who"><b>${org(o.r)}</b> · 방문 ${esc(dateLabel(o.r.date)||'미정')}<br>`
+        + o.left.map(t=>`<span class="my-task${t.due<today?' late':t.due===today?' today':''}">· ${esc(t.title)} <small>마감 ${esc(mdLabel(t.due))} (${dueTxt(t.due)})</small></span>`).join('<br>')
+        + `</span></li>`).join('')}</ul>`
+    : none('해결 안 된 과업이 없습니다.'));
+  // ③ 다른 사람이 수정한 내 예약
   const ed = othersEdits();
-  if(ed.length) c2 += `<h3 class="my-h">다른 사람이 수정한 내 예약 <button class="btn" id="myEditsSeen" style="padding:2px 8px;font-size:12px">모두 확인함</button></h3>`
-    + `<ul class="pc-list">${ed.map(({r,h:e})=>`<li class="edited r" data-myopen="${esc(r.id)}"><span class="who"><b>${org(r)}</b> · 방문 ${esc(dateLabel(r.date))}<br><small class="hint" style="margin:0"><b>${esc(e.by)}</b> · ${esc(fmt(e.t))} · ${esc(e.what)}</small></span></li>`).join('')}</ul>`;
-  c2 += `<h3 class="my-h">연락할 미정 항목 <small>답변일이 오늘이거나 지남</small></h3>` + (tbdDue.length
-    ? `<ul class="pc-list">${tbdDue.map(o=>`<li class="r" data-myopen="${esc(o.r.id)}"><span class="who"><b>${org(o.r)}</b> · 방문 ${esc(dateLabel(o.r.date))}<br>미정: ${esc(o.x.tbd)}<br><small class="hint" style="margin:0">기한 ${esc(mdLabel(o.x.tbdDate))} (${dueTxt(o.x.tbdDate)}) · ${esc(firstContact(o.r)||'담당자 연락처 없음')}</small></span></li>`).join('')}</ul>`
-    : none('없습니다.'));
-  const c3 = `<h3 class="my-h">남은 과업 <small>${open.reduce((s,o)=>s+o.left.length,0)}개</small></h3>` + (open.length
-    ? `<ul class="pc-list">${open.map(o=>`<li class="r" data-myopen="${esc(o.r.id)}"><span class="who"><b>${org(o.r)}</b> · 방문 ${esc(dateLabel(o.r.date))}<br><small class="hint" style="margin:0">${o.left.map(t=>esc(t.title)).join(' · ')}</small></span></li>`).join('')}</ul>`
-    : none('없습니다.'));
+  const c3 = `<h3 class="my-h">다른 사람이 수정한 내 예약${ed.length?` <button class="btn" id="myEditsSeen" style="padding:2px 8px;font-size:12px">모두 확인함</button>`:''}</h3>`
+    + (ed.length ? `<ul class="pc-list">${ed.map(({r,h:e})=>`<li class="edited r" data-myopen="${esc(r.id)}"><span class="who"><b>${org(r)}</b> · 방문 ${esc(dateLabel(r.date))}<br><small class="hint" style="margin:0"><b>${esc(e.by)}</b> · ${esc(fmt(e.t))} · ${esc(e.what)}</small></span></li>`).join('')}</ul>` : none('없습니다.'));
   $('#myBody').innerHTML = `<div class="my-cols"><div class="my-col">${c1}</div><div class="my-col">${c2}</div><div class="my-col">${c3}</div></div>`;
 }
-function paintMyCount(){ const today=ymd(new Date()); const n=myRecords().filter(r=>{ const x=xOf(r); return x.tbd && x.tbdDate && x.tbdDate<=today && (!r.date || r.date>=today); }).length;
+function paintMyCount(){ const n=savedOwner() ? dueTasks().length : 0;   // 마감이 오늘이거나 지난 과업 수
   const m=othersEdits().length;
-  const t=[n&&`연락 ${n}`, m&&`수정 ${m}`].filter(Boolean).join(' · ');
+  const t=[n&&`과업 ${n}`, m&&`수정 ${m}`].filter(Boolean).join(' · ');
   $('#myCount').hidden=!t; $('#myCount').textContent=t; }
 function openMy(){ $('#myModal').hidden=false; renderMy(); if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
 function closeMy(){ $('#myModal').hidden=true; }
@@ -2279,41 +2336,42 @@ function othersEdits(){
 }
 function markEditsSeen(){ try{ const o=JSON.parse(localStorage.getItem(MY_SEEN_LS)||'{}')||{}; o[savedOwner()]=new Date().toISOString(); localStorage.setItem(MY_SEEN_LS, JSON.stringify(o)); }catch(_){} renderMy(); paintMyCount(); }
 
-// ===================== 매일 아침 9시: 미정 항목 입력 기한 알림 =====================
-// 입력 기한이 오늘이거나 지났는데 아직 미정인 예약(방문 전)을 팝업으로. 영업 담당이 정해져 있으면 내 예약만. 하루 한 번(9시 이후 처음 열 때, 켜 둔 창은 9시에)
-const TBD_SEEN_LS='sayuwon_tbd_seen';
-function dueTbd(){
-  const today=ymd(new Date()), me=savedOwner();
-  return (cache||[]).filter(r=>isGroupRec(r) && (!me || ownerOf(r)===me) && (!r.date || r.date>=today))
-    .map(r=>({r, x:xOf(r)})).filter(o=>o.x.tbd && o.x.tbdDate && o.x.tbdDate<=today)
-    .sort((a,b)=>a.x.tbdDate.localeCompare(b.x.tbdDate));
-}
+// ===================== 마감이 된 추후 과업 팝업 =====================
+// 마감이 오늘이거나 지난, 해결 안 된 과업(영업 담당이 있으면 내 예약만)을 해결될 때까지 계속 띄움: 열 때 · 9시 · '나중에'를 누르면 2시간 뒤 다시
+const TASK_SNOOZE_LS='sayuwon_task_snooze', SNOOZE_MS=2*3600e3;
+const SELF_DONE = new Set(['erp','progstaff','mbmenu']);   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
 function checkTbdPopup(force){
-  const now=new Date(), today=ymd(now); let seen=''; try{ seen=localStorage.getItem(TBD_SEEN_LS)||''; }catch(_){}
-  if(!force && (now.getHours()<9 || seen===today)) return;
-  if(!force && (!$('#keyModal').hidden || !$('#payModal').hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)
-  const due=dueTbd();
+  const now=Date.now(); let snooze=0; try{ snooze=+localStorage.getItem(TASK_SNOOZE_LS)||0; }catch(_){}
+  if(!force && now<snooze) return;
+  if(!force && (!$('#keyModal').hidden || !$('#payModal').hidden || !$('#leaveModal').hidden || !$('#tbdModal').hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)
+  const due=dueTasks(), today=ymd(new Date());
   if(!due.length){ $('#tbdModal').hidden=true; return; }
-  try{ localStorage.setItem(TBD_SEEN_LS, today); }catch(_){}
-  $('#tbdList').innerHTML = due.map(({r,x})=>{ const n=daysFrom(today,x.tbdDate);
-    return `<li><span class="who"><b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date))}${r.owner?` · ${esc(r.owner)}`:''}<br>`
-      + `<small class="hint" style="margin:0">미정: <b>${esc(x.tbd)}</b> · 답변일 ${esc(mdLabel(x.tbdDate))} ${n<0?`(${-n}일 지남)`:'(오늘)'} · ${esc(firstContact(r)||'담당자 연락처 없음')}</small></span>`
-      + `<button class="btn primary" data-tbdcall="${esc(r.id)}">연락함</button><button class="btn" data-tbdopen="${esc(r.id)}">열기</button></li>`; }).join('');
+  $('#tbdList').innerHTML = due.map(({r,t})=>{ const n=daysFrom(today,t.due);
+    return `<li class="${n<0?'late':''}"><span class="who"><b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date)||'미정')}${r.owner?` · ${esc(r.owner)}`:''}<br>`
+      + `<b class="${n<0?'late':''}">${esc(t.title)}</b> <small class="hint" style="margin:0">마감 ${esc(mdLabel(t.due))} ${n<0?`(${-n}일 지남)`:'(오늘)'}${t.id==='tbdcall'||t.id==='onsitecall'?` · ${esc(firstContact(r)||'담당자 연락처 없음')}`:''}</small></span>`
+      + (SELF_DONE.has(t.id) ? '' : `<button class="btn primary" data-tdone="${esc(r.id)}|${esc(t.id)}">완료</button>`) + `<button class="btn" data-tbdopen="${esc(r.id)}">열기</button></li>`; }).join('');
+  $('#tbdTitle').innerHTML = `마감이 된 추후 과업 <small>${due.length}개 · 해결할 때까지 다시 알려 드립니다 (나중에 = 2시간 뒤)</small>`;
   $('#tbdModal').hidden=false;
 }
-$('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; };
+$('#tbdLater').onclick=()=>{ try{ localStorage.setItem(TASK_SNOOZE_LS, String(Date.now()+SNOOZE_MS)); }catch(_){} $('#tbdModal').hidden=true; };
+// 과업 하나 완료 (열어 둔 예약이면 화면의 과업, 아니면 저장된 기록을 고쳐 저장)
+async function doneTask(id, tid){
+  const r=cache.find(x=>x.id===id); if(!r) return;
+  const now=new Date().toISOString(), base=tasksOf(r).find(t=>t.id===tid); if(!base) return;
+  if(editingId===id){ let t=tasks.find(x=>x.id===tid); if(!t){ t={...base}; tasks.push(t); } t.done=true; t.doneAt=now; renderTasks(); await save({auto:true}); return; }
+  const ph=parseHist(r); let t=ph.tasks.find(x=>x.id===tid); if(!t){ t={...base, memo:'', at:now}; ph.tasks.push(t); }
+  t.done=true; t.doneAt=now; ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료`});
+  const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks}), saved:now}; await store.put(item);
+  const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;   // 공유 기록에서 다시 받기 전에도 바로 반영
+}
 $('#tbdList').addEventListener('click', async e=>{
-  const call=e.target.dataset.tbdcall, open=e.target.dataset.tbdopen;
+  const dn=e.target.dataset.tdone, open=e.target.dataset.tbdopen;
   if(open){ const r=cache.find(x=>x.id===open); $('#tbdModal').hidden=true; if(r) openRecordG(r); }
-  if(call){   // 연락했다고 수정 기록에 남김 (미정 항목은 예약을 열어 채움)
-    const r=cache.find(x=>x.id===call); if(!r) return; const x=xOf(r), now=new Date().toISOString(), what=`[연락] 미정 항목(${x.tbd}) 확인 연락`;
-    if(editingId===call){ hist=[...hist, {t:now, by:savedOwner()||'', what}]; renderHist(); await save(true); }
-    else { const ph=parseHist(r); ph.h.push({t:now, by:savedOwner()||'', what}); await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks}), saved:now}); }
+  if(dn){ const [id,tid]=dn.split('|'); e.target.disabled=true; await doneTask(id, tid);
     e.target.closest('li').remove(); if(!$('#tbdList').children.length) $('#tbdModal').hidden=true;
-    toast('연락한 것으로 기록했습니다. 확정되면 예약을 열어 미정 체크를 풀어 주세요.');
-  }
+    toast('과업을 완료로 표시했습니다.'); paintMyCount(); if(!$('#myModal').hidden) renderMy(); }
 });
-setInterval(()=>{ if(window.__tasksReady) checkTbdPopup(); }, 60000);   // 창을 켜 둔 채 9시가 되면
+setInterval(()=>{ if(window.__tasksReady) checkTbdPopup(); }, 60000);   // 1분마다 확인 (나중에 = 2시간 뒤 다시)
 
 // ===================== 미정 항목 입력 기한: 방문일 전주 목요일까지 =====================
 // 그보다 늦게 잡으면 사유를 받는다 (비고 칸 '입력 기한 늦춘 사유', 수정 기록에도 남음)
