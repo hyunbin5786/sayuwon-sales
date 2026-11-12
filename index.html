@@ -159,7 +159,8 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .f input[type=checkbox]{width:15px;height:15px;padding:0;margin:0;border:0;flex:none;accent-color:var(--amber);cursor:pointer}
 .f input.has[type=checkbox]{background:none}
 .ckf:has(input:disabled){opacity:.45;cursor:not-allowed;background:var(--bg)}
-.f.req > label::after{content:" *";color:var(--red)}   /* 칸 이름에만 (미정 체크 옆에는 안 붙음) */
+.f.req > label::after{content:" *";color:var(--red);margin-right:auto}   /* 칸 이름 바로 뒤에 (미정 체크 쪽으로 밀리지 않게) */
+.f.req > label{justify-content:flex-start}
 .f.auto input{background:var(--fill)}
 .f.unsure input{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
 .f.missing input{border-style:dashed;border-color:#c9b9b2}
@@ -177,6 +178,11 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .chk li .q::before{content:"→ ";color:var(--muted)}
 .done-all{background:var(--pine-soft);color:var(--pine);border-radius:7px;padding:10px;font-size:13px}
 .readback{background:var(--bg);border-radius:8px;padding:12px;font-size:13.5px;line-height:1.7;white-space:pre-line}
+textarea.readback{display:block;width:100%;min-height:260px;resize:vertical;border:1px solid var(--line);font:13.5px/1.7 var(--sans);color:var(--ink);white-space:pre-wrap}   /* 고객님께 확인: 직접 고칠 수 있음 */
+textarea.readback:focus{border-color:var(--pine);background:#fff;outline:none}
+textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
+.read-done{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;margin-right:auto;cursor:pointer}
+.read-done input{width:16px;height:16px;accent-color:var(--pine);margin:0}
 .ckf{display:flex;align-items:center;gap:6px;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:13px;cursor:pointer;white-space:nowrap;overflow:hidden}
 .ckf:has(input:checked){background:var(--amber-soft);border-color:var(--amber);color:var(--amber);font-weight:700}
 /* 추후 과업 */
@@ -557,9 +563,9 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <h2>통화 중 확인</h2>
     <div class="sub-h">물어볼 것 <small class="hint" style="margin:0">받은 항목은 <b style="color:#2f8f3a">초록색</b>, 미정인 항목은 <b style="color:var(--amber)">노란색</b></small></div>
     <div id="missBox"></div>
-    <div class="sub-h">고객님께 확인</div>
-    <div class="readback" id="readback"></div>
-    <div class="row-btns" style="margin-top:8px"><button class="btn" id="copyReadBtn">확인 문구 복사</button></div>
+    <div class="sub-h">고객님께 확인 <small class="hint" style="margin:0" id="readState">자동으로 만든 멘트 · 직접 고칠 수 있음</small></div>
+    <textarea class="readback" id="readback" spellcheck="false"></textarea>
+    <div class="row-btns" style="margin-top:8px;align-items:center"><label class="read-done"><input type="checkbox" id="readDone"> 고객님께 말씀드림</label><button class="btn" id="readRegen" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><button class="btn" id="copyReadBtn">확인 문구 복사</button></div>
   </section>
 
   <!-- 가격표: 견적서 사이트 품목 목록 기준 (품목 관리에서 바꾼 가격은 열 때 다시 불러옴) -->
@@ -780,7 +786,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['readDone','확인 멘트 말씀드림']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
@@ -1052,6 +1058,7 @@ function buildForm(){
   $('#form').addEventListener('focusin', e=>{ const el=e.target; if(el.dataset?.k!=='mabangTime' || el.value) return; const t=fmtTime(rec.tin); if(!t) return; const h=+t.slice(0,2)+1; el.value=`${t}~${String(Math.min(h,23)).padStart(2,'0')}${t.slice(2)}`; el.dispatchEvent(new Event('input',{bubbles:true})); setTimeout(()=>{ try{ el.select(); }catch(_){} },0); });
   const mbDefTime = () => { const t=fmtTime(rec.tin); if(!t) return ''; const h=Math.min(+t.slice(0,2)+1,23); return `${t}~${String(h).padStart(2,'0')}${t.slice(2)}`; };
   $('#form').addEventListener('input', e=>{ if(e.target.dataset?.k!=='mabangL' || !rec.mabangL || rec.mabangTime) return; const v=mbDefTime(); if(!v) return; rec.mabangTime=v; touched.add('mabangTime'); paintFields(); renderSide(); });   // 몽몽마방 인원을 넣으면 시간도 입장 시각으로
+  $('#form').addEventListener('input', e=>{ if(e.target.dataset?.k!=='gaga' || !rec.gaga || rec.stf_gaga) return; const me=(rec.owner||savedOwner()||'').trim(); if(!me) return; rec.stf_gaga=me; touched.add('stf_gaga'); paintFields(); renderSide(); });   // 가가 바우처 담당 = 영업 담당 (바꿀 수 있음)
   $('#form').addEventListener('focusout', e=>{ const el=e.target, k=el.dataset?.k; if(!TIME_KEYS[k] || !el.value) return; const f=fmtTime(el.value); if(f && f!==el.value){ el.value=f; el.dispatchEvent(new Event('input',{bubbles:true})); } });
   // 몽몽마방: 시간은 나갈 때 12:00~13:00 으로, 메뉴는 체크한 것을 ", " 로, 단가 칸이 비어 있을 때 누르면 메뉴로 계산한 제안 단가
   $('#form').addEventListener('focusout', e=>{ const el=e.target; const kk=el.dataset?.k||''; if((kk!=='mabangTime' && !/^tm_/.test(kk)) || !el.value) return; const f=fmtRange(el.value); if(f && f!==el.value){ el.value=f; el.dispatchEvent(new Event('input',{bubbles:true})); } });   // 몽몽마방 시간 · 도슨트 시간대
@@ -1154,7 +1161,7 @@ function renderSide(){
     + (miss.length ? '' : `<div class="done-all" style="margin-top:6px">필수 정보를 모두 받았습니다. 고객님께 확인하고 저장하세요.</div>`);
   if(window.__autoReady) scheduleWarn();   // 이상한 값이 새로 생기면 바로 팝업
   $('#tbdDow').textContent = dowTag(rec.tbdDate);   // 답변일 (요일)
-  $('#readback').textContent = readback(rec);
+  paintReadback();   // 고객님께 확인 멘트 (자동 · 직접 고침 · 말씀드림)
   renderInfo(curInfoKey);
   if(typeof renderPrice==='function' && window.__priceReady) renderPrice();
   if(window.__tasksReady) renderTasks();
@@ -1346,7 +1353,24 @@ $('#copyTextBtn').onclick=()=>{
   if(!rec.org && !rec.date){ toast('업체나 방문일을 먼저 입력하세요.'); return; }
   copy(reportText(rec),'보고용 내용을 복사했습니다. 카카오톡에 붙여넣으세요.');
 };
-$('#copyReadBtn').onclick=()=>copy($('#readback').textContent,'확인 문구를 복사했습니다.');
+$('#copyReadBtn').onclick=()=>{ const v=$('#readback').value.trim(); if(!v){ toast('복사할 멘트가 없습니다.'); return; } copy(v,'확인 문구를 복사했습니다.'); };
+// 고객님께 확인 멘트: 예약 내용으로 자동으로 만들고(readback), 직접 고치면 그 글을 그대로(rec.readEdit). '고객님께 말씀드림'을 체크하면 멘트를 지우고 시각만 남김(rec.readDone)
+function paintReadback(){
+  const ta=$('#readback'), done=$('#readDone'), st=$('#readState'); if(!ta) return;
+  done.checked=!!rec.readDone;
+  if(rec.readDone){
+    if(ta.value) ta.value=''; ta.readOnly=true; ta.placeholder=`${dtLabel(rec.readDone)}에 고객님께 말씀드렸습니다. 체크를 풀면 멘트가 다시 나옵니다.`;
+    st.textContent='말씀드림'; ta.classList.add('said'); return;
+  }
+  ta.readOnly=false; ta.classList.remove('said');
+  const auto=readback(rec), empty=/^내용이 채워지면/.test(auto); ta.placeholder = empty ? auto : '';   // 아직 내용이 없으면 안내만
+  if(document.activeElement!==ta){ const v=rec.readEdit || (empty ? '' : auto); if(ta.value!==v) ta.value=v; }
+  st.textContent = rec.readEdit ? '직접 고친 멘트 · 다시 만들기로 되돌림' : '자동으로 만든 멘트 · 직접 고칠 수 있음';
+}
+$('#readback').addEventListener('input', e=>{ if(rec.readDone) return; rec.readEdit = e.target.value; startTimer(); $('#readState').textContent='직접 고친 멘트 · 다시 만들기로 되돌림'; });
+$('#readback').addEventListener('blur', ()=>{ if(!rec.readDone && $('#readback').value.trim()===readback(rec).trim()) rec.readEdit=''; paintReadback(); });   // 자동 멘트와 같으면 자동으로
+$('#readRegen').onclick=()=>{ rec.readEdit=''; rec.readDone=''; touched.add('readDone'); renderSide(); toast('예약 내용으로 멘트를 다시 만들었습니다.'); };
+$('#readDone').addEventListener('change', e=>{ rec.readDone = e.target.checked ? new Date().toISOString() : ''; if(e.target.checked) rec.readEdit=''; touched.add('readDone'); startTimer(); renderSide(); });
 
 // ===================== 저장: 구글 시트(Apps Script) → 주소가 비어 있으면 이 브라우저 =====================
 // SHARED_URL: group-intake.gs 를 웹 앱으로 배포한 주소 (README 참고). 비밀번호는 코드에 넣지 않고 각자 브라우저에 기억
@@ -1438,7 +1462,7 @@ function snap(){
   const o={}; allKeys().forEach(k=>{ if(k!=='owner') o[k]=rec[k]||''; });
   o.tbd=rec.tbd||''; o.tbdLate=rec.tbdLate||''; if(typeof SPECIAL!=='undefined') SPECIAL.forEach(s=>o[s.k]=rec[s.k]||'');
   o.stage=effStage(rec); o.erp=rec.erp||''; o.note=$('#memoBox').value.trim();
-  ['etcDisc','etcDiscWhy'].forEach(k=>{ if(rec[k]) o[k]=rec[k]; }); if(rec.etcDisc) o.etcDiscTo=rec.etcDiscTo||'신라'; if(erpList.length) o.erpList=erpList.map(x=>`${x.product} ${x.people}명 ${x.amount}`).join(', ');   // 기타 할인 · 전산 내역도 변경으로
+  ['etcDisc','etcDiscWhy','readDone'].forEach(k=>{ if(rec[k]) o[k]=rec[k]; }); if(rec.etcDisc) o.etcDiscTo=rec.etcDiscTo||'신라'; if(erpList.length) o.erpList=erpList.map(x=>`${x.product} ${x.people}명 ${x.amount}`).join(', ');   // 기타 할인 · 전산 내역도 변경으로
   tasks.forEach(t=>{ o['task:'+t.id]=t.done?'완료':''; o['tmemo:'+t.id]=t.memo||''; o['tfile:'+t.id]=(t.files||[]).map(f=>f.name).join(', '); if(t.custom) o['tadd:'+t.id]=t.title; });
   tasks.forEach(t=>{ const s=[...Object.entries(t.subs||{}).map(([k,v])=>k+(v?'✓':'')), ...(t.xsubs||[]).map(x=>x.title+(x.done?'✓':''))].join(', '); if(s) o['tsub:'+t.id]=s; });   // 하위 과업 · 세부 과제
   o.taskOrder = tasks.filter(t=>t.ordSet).sort((a,b)=>a.ord-b.ord).map(t=>t.id).join(',');   // 직접 바꾼 순서만 (새 과업이 맨 아래 붙는 것은 변경 아님)   // ▲▼로 바꾼 과업 순서
@@ -1450,6 +1474,7 @@ function diffSnap(a,b){
     const x=a[k]||'', y=b[k]||''; if(x===y) return;
     if(k==='note'){ out.push('통화 메모 수정'); return; }
     if(k==='taskOrder'){ out.push('과업 순서 바꿈'); return; }
+    if(k==='readDone'){ out.push(y ? '고객님께 확인 멘트 말씀드림' : '고객님께 확인 멘트 말씀드림 취소'); return; }
     const tm=k.match(/^(task|tmemo|tadd|tfile|tsub):(.+)$/);
     if(tm){ const title=(tasks.find(t=>t.id===tm[2])||{}).title||x||y;
       out.push(tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tsub' ? `[과업] ${title} 세부 과제: ${y}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`); return; }
@@ -1468,6 +1493,7 @@ function chText(k, c){
   if(k==='note') return '통화 메모 수정';
   if(k==='taskOrder') return '과업 순서 바꿈';
   if(k==='erpList') return '전산 내역 붙여넣음';
+  if(k==='readDone') return y ? '고객님께 확인 멘트 말씀드림' : '고객님께 확인 멘트 말씀드림 취소';
   const tm=k.match(/^(task|tmemo|tadd|tfile|tsub):(.+)$/);
   if(tm){ const title=(tasks.find(t=>t.id===tm[2])||{}).title||x||y;
     return tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tsub' ? `[과업] ${title} 세부 과제: ${y||'없음'}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`; }
