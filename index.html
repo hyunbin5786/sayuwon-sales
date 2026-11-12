@@ -1653,7 +1653,7 @@ async function uploadFile(t, file){
 }
 $('#taskList').addEventListener('change', e=>{
   const ts=e.target.dataset.tsub; if(ts){ const [tid,k]=ts.split('|'), t=tasks.find(x=>x.id===tid); if(t){ t.subs=t.subs||{}; t.subs[k]=e.target.checked; renderTasks(); renderSide(); autoSave(); } return; }   // 하위 과업 체크
-  const du=e.target.dataset.tdue; if(du){ const t=tasks.find(x=>x.id===du); if(t && e.target.value){ t.due=e.target.value; t.dueSet=1; e.target.blur(); renderTasks(); renderSide(); autoSave(); } return; }   // 마감일 바꾸기
+  const du=e.target.dataset.tdue; if(du){ const t=tasks.find(x=>x.id===du); if(t && e.target.value){ t.due=e.target.value; t.dueSet=1; t.dueSetAt=new Date().toISOString(); e.target.blur(); renderTasks(); renderSide(); autoSave(); } return; }   // 마감일 바꾸기
   const up=e.target.dataset.tup;
   if(up){ const t=tasks.find(x=>x.id===up), f=e.target.files[0]; if(t && f) uploadFile(t, f); return; }
   const id=e.target.dataset.tk; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return;
@@ -2384,19 +2384,26 @@ function markEditsSeen(){ try{ const o=JSON.parse(localStorage.getItem(MY_SEEN_L
 
 // ===================== 마감이 된 추후 과업 팝업 =====================
 // 마감이 오늘이거나 지난, 해결 안 된 과업(영업 담당이 있으면 내 예약만)을 해결될 때까지 계속 띄움: 열 때 · 9시 · '나중에'를 누르면 2시간 뒤 다시
-const TASK_SNOOZE_LS='sayuwon_task_snooze', SNOOZE_MS=2*3600e3;
+const TASK_SNOOZE_LS='sayuwon_task_snooze', SNOOZE_MS=2*3600e3, TASK_SLOT_LS='sayuwon_task_slot', QUIET_MS=30*60e3;
 const SELF_DONE = new Set(['erp','progstaff','mbmenu']);   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
 function checkTbdPopup(force){
-  const now=Date.now(); let snooze=0; try{ snooze=+localStorage.getItem(TASK_SNOOZE_LS)||0; }catch(_){}
-  if(!force && now<snooze) return;
-  if(!force && (!$('#keyModal').hidden || !$('#payModal').hidden || !$('#leaveModal').hidden || !$('#tbdModal').hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)
-  const due=dueTasks(), today=ymd(new Date());
-  if(!due.length){ $('#tbdModal').hidden=true; return; }
+  // 마감 지난 과업: 열 때 · 1분마다 (나중에 = 2시간 뒤). 오늘 마감 과업: 오후 1시, 아직 안 끝났으면 오후 5시에 (시간마다 한 번)
+  // 단, 입력(과업이 생기거나 마감을 바꾼 것)한 지 30분이 안 된 과업은 알리지 않음
+  const nowD=new Date(), now=+nowD, today=ymd(nowD); let snooze=0, slots=''; try{ snooze=+localStorage.getItem(TASK_SNOOZE_LS)||0; slots=localStorage.getItem(TASK_SLOT_LS)||''; }catch(_){}
+  if(!force && [...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)
+  const fresh = ({r,t}) => now - Math.max(+new Date(t.dueSetAt||0)||0, +new Date(t.at||r.saved||0)||0) < QUIET_MS;
+  const all=dueTasks().filter(o=>!fresh(o));
+  const late=all.filter(o=>o.t.due<today), todays=all.filter(o=>o.t.due===today);
+  const h=nowD.getHours(), slot = h>=17 ? '17' : h>=13 ? '13' : '', slotKey=`${today}|${slot}`;
+  const showLate = force || now>=snooze, showToday = force || (slot && !slots.split(',').includes(slotKey));
+  const due=[...(showLate?late:[]), ...(showToday?todays:[])];
+  if(!due.length) return;
+  if(showToday && slot && todays.length){ try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), slotKey].join(',')); }catch(_){} }
   $('#tbdList').innerHTML = due.map(({r,t})=>{ const n=daysFrom(today,t.due);
     return `<li class="${n<0?'late':''}"><span class="who"><b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date)||'미정')}${r.owner?` · ${esc(r.owner)}`:''}<br>`
       + `<b class="${n<0?'late':''}">${esc(t.title)}</b> <small class="hint" style="margin:0">마감 ${esc(mdLabel(t.due))} ${n<0?`(${-n}일 지남)`:'(오늘)'}${t.id==='tbdcall'||t.id==='onsitecall'?` · ${esc(firstContact(r)||'담당자 연락처 없음')}`:''}</small></span>`
       + (SELF_DONE.has(t.id) ? '' : `<button class="btn primary" data-tdone="${esc(r.id)}|${esc(t.id)}">완료</button>`) + `<button class="btn" data-tbdopen="${esc(r.id)}">열기</button></li>`; }).join('');
-  $('#tbdTitle').innerHTML = `마감이 된 추후 과업 <small>${due.length}개 · 해결할 때까지 다시 알려 드립니다 (나중에 = 2시간 뒤)</small>`;
+  $('#tbdTitle').innerHTML = `마감이 된 추후 과업 <small>${due.length}개 · 오늘 마감은 오후 1시 · 5시, 마감 지난 과업은 해결할 때까지 (나중에 = 2시간 뒤)</small>`;
   $('#tbdModal').hidden=false;
 }
 $('#tbdLater').onclick=()=>{ try{ localStorage.setItem(TASK_SNOOZE_LS, String(Date.now()+SNOOZE_MS)); }catch(_){} $('#tbdModal').hidden=true; };
