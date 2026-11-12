@@ -2094,18 +2094,36 @@ const CONSULT_KEYS = [
   [/^(출발지|출발\s*지역)$/, 'origin'],
 ];
 function parseConsult(text){
-  const got={}, extra=[];
+  const got={}, extra=[]; let sect='';   // sect: '답사' 이면 '답사 요청 정보' 아래 줄 (예약 칸을 덮지 않고 통화 메모로)
   String(text||'').split(/\r?\n/).forEach(line=>{
+    if(/^\s*\S.*(답사|요청\s*정보|상담\s*정보)\s*$/.test(line) && !/\t/.test(line)){ sect = /답사/.test(line) ? '답사' : ''; return; }   // 구역 제목 줄
     let m=null;
     if(!/\t/.test(line)){ const s=line.match(/^\s*(\S+)\s*[:：]?\s+(.+?)\s*$/); if(s && CONSULT_KEYS.some(([re])=>re.test(s[1].replace(/[:：]$/,'')))) m=[s[0],s[1].replace(/[:：]$/,''),s[2]]; }   // 띄어쓰기로 복사된 경우 (아는 항목 먼저)
     if(!m) m=line.match(/^\s*([^\t:：]+?)\s*(?:\t+|[:：]\s*|\s{2,})(.+?)\s*$/);
     if(!m) return;
     const key=m[1].trim(), val=m[2].trim(); if(!val) return;
+    if(sect==='답사'){ extra.push(`[답사] ${key}: ${val}`); return; }   // 사전 답사 일정은 메모로 (방문일 · 인원을 덮지 않음)
     const hit=CONSULT_KEYS.find(([re])=>re.test(key));
-    if(hit) got[hit[1]]=val; else extra.push(`${key}: ${val}`);
+    if(hit && !(hit[1] in got)) got[hit[1]]=val; else extra.push(`${key}: ${val}`);   // 같은 항목이 또 나오면 처음 것을 씀
   });
   const o={};
-  if(got.org) o.org=got.org;   // 신청번호·상품은 쓰지 않음
+  if(got.org) o.org=got.org;   // 신청번호는 쓰지 않음
+  // 상품: "관람+런치1부,도슨트프로그램" → 사담 1부 · 동행 도슨트 등 (인원 단위는 관람 인원, 시간 단위는 1시간)
+  if(got.product){
+    const p=got.product.replace(/\s/g,''), ppl=(String(got.people||'').match(/\d+/)||[''])[0]||'O';
+    if(/런치\s*1부|1부/.test(p)) o.sadam1=ppl;
+    if(/런치\s*2부|2부/.test(p)) o.sadam2=ppl;
+    if(/디너/.test(p) && !/몽몽마방/.test(p)) o.sadamD=ppl;
+    if(/몽몽마방|마방|사유의밥상/.test(p)){ o.mabangL=ppl; if(/사유의밥상/.test(p)) o.mabangMenu='사유의 밥상'; }
+    if(/도슨트/.test(p)) o.donghaeng='1';
+    if(/세미나/.test(p)) o.seminar='1';
+    if(/차방/.test(p)) o.chabang='1';
+    if(/당두|봉갈/.test(p)) o.dangdu='1';
+    if(/요가/.test(p)) o.yoga=ppl;
+    if(/사운드/.test(p)) o.sound=ppl;
+    if(/사유의향/.test(p)) o.scent=ppl;
+    extra.unshift(`상품: ${got.product}`);   // 원래 상품명도 메모에
+  }
   if(got.origin) extra.unshift(`출발지: ${got.origin}`);   // 출발지는 통화 메모에
   if(got.name) o.c0_name = got.title ? `${got.name} ${got.title}` : got.name;
   if(got.phone) o.c0_phone = fmtPhone(got.phone);
@@ -2128,6 +2146,7 @@ $('#consultApplyBtn').onclick=()=>{
   if(!n){ $('#consultMsg').textContent='알아볼 수 있는 항목이 없습니다. "항목 [탭] 값" 형식인지 확인해 주세요.'; return; }
   if($('#consultNew').checked) newCall(false);
   Object.entries(fields).forEach(([k,v])=>{ rec[k]=v; touched.add(k); });
+  Object.keys(fields).forEach(k=>{ const g=OPT[GROUP_OF[k]]; if(g) optOpen.add(g.id); });   // 식사 · 프로그램이 채워졌으면 그 묶음을 펼침
   if(extra.length){ const box=$('#memoBox'); box.value = (box.value ? box.value.replace(/\s*$/,'\n') : '') + extra.join('\n'); }
   nContacts=Math.max(nContacts, nContactsOf(rec)); renderContacts(); startTimer(); renderForm();
   closeConsult(); $('#consultBox').value='';
