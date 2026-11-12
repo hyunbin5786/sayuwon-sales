@@ -85,6 +85,15 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .mb-ck{white-space:nowrap;width:auto;flex:0 0 auto}
 .mb-ck small{font-weight:400;color:var(--muted);font-size:11.5px}
 .mb-ck.old{border-style:dashed}
+.goods-box{display:flex;flex-direction:column;gap:6px}
+.g-row{display:flex;align-items:center;gap:8px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.g-name{flex:1;min-width:0;font-size:13px;font-weight:600}
+.g-row small{color:var(--muted);font-size:12px;white-space:nowrap}
+#form .g-row input[type=number]{width:64px;height:30px;text-align:right;flex:none}
+.g-unit{font-size:12px;color:var(--muted)}
+.g-del{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
+.g-del:hover{color:var(--red)}
+#form select.g-add{height:34px;max-width:420px}
 .mb-cat{border:0;background:none;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer;padding:0 4px}
 #catModal{padding:24px}
 .cat-frame{width:min(1200px,100%);height:calc(100vh - 48px);background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
@@ -180,6 +189,9 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .my-task.late,.my-task.late small{color:var(--red);font-weight:700}
 #tbdList li.late{background:#fdf0ee}
 #tbdList b.late{color:var(--red)}
+.tmove{display:flex;flex:none;gap:2px}
+.tmove button{width:22px;height:22px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--muted);font-size:9px;cursor:pointer;padding:0}
+.tmove button:hover{border-color:var(--pine);color:var(--pine)}
 .tdue{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:400;color:var(--muted);flex:none;white-space:nowrap}
 .tdue input{height:26px;border:1px solid var(--line);border-radius:5px;padding:0 4px;font:12px var(--sans);background:#fff;color:var(--ink)}
 .task.late .tdue{color:var(--red);font-weight:700}
@@ -229,6 +241,8 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 @media (max-width:560px){.crow{flex-wrap:wrap}.crow .f{flex-basis:45%}}
 .crow .x{flex:none;width:32px;border:1px solid var(--line);background:var(--card);border-radius:6px;height:36px;cursor:pointer;color:var(--muted)}
 .crow .x:hover{border-color:var(--red);color:var(--red)}
+.crow .up{flex:none;width:32px;border:1px solid var(--line);background:var(--card);border-radius:6px;height:36px;cursor:pointer;color:var(--muted);font-size:11px}
+.crow .up:hover{border-color:var(--pine);color:var(--pine)}
 .addc{align-self:flex-start;margin-top:4px;padding:4px 10px;font-size:12px}
 .grp-t{display:flex;justify-content:space-between;align-items:center}
 /* 그날 예약 현황 */
@@ -280,7 +294,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .modal .list .tw{overflow:auto;flex:1;min-height:0}
 .modal .list h2{flex-wrap:wrap}
 /* 사담·마방·프로그램 접기 */
-.opt-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:12px}   /* 4개를 한 줄에 */
+.opt-bar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:12px}   /* 5개(사담 · 몽몽마방 · 개별 · 시간 프로그램 · 굿즈)를 한 줄에 */
 .opt-btn{position:relative;min-width:0;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 15px 6px 7px;font:600 12px var(--sans);color:var(--ink);cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:1px;align-items:stretch}
 .opt-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .opt-btn small{color:var(--muted);font-weight:400;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -637,6 +651,7 @@ const FIELDS = [
   ['프로그램(시간)','dangdu','당두봉갈 대관','Q','',null],
   ['프로그램(시간)','donghaeng','동행 도슨트','P','',null],
   ['프로그램(시간)','seminar','세미나 도슨트','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에
+  ['굿즈','goods','굿즈 품목','','w4',null],   // 굿즈 구매: 견적서 품목 리스트의 굿즈 품목에서 골라 수량 (값: "고추장 x2 · 모과청(new) x1")
 ];
 // 프로그램 담당 (영업 담당과 다름): 프로그램마다 'stf_키' 칸을 바로 뒤에. 차방 · 당두봉갈 대관은 담당이 없어도 됨
 const STAFF_FREE = new Set(['chabang','dangdu']);
@@ -686,7 +701,7 @@ function addCatalogProgs(cat){
 const CFIELDS = [['name','담당자 성함','담당자분 성함이 어떻게 되세요?'],['phone','연락처','연락 가능한 번호 하나 남겨주시겠어요?'],['email','이메일','견적서 받으실 이메일 주소 알려주시겠어요?']];
 const KEYS = FIELDS.map(f=>f[1]);
 // 처음엔 접어 두고 버튼으로 펼치는 묶음 (각 묶음 아래에 그날 예약 현황)
-const OPT = { '사담':{id:'sadam', title:'사담 식사'}, '몽몽마방':{id:'mabang', title:'몽몽마방 식사'}, '프로그램(개별)':{id:'progE', title:'프로그램(개별)', short:'개별 프로그램'}, '프로그램(시간)':{id:'progT', title:'프로그램(시간)', short:'시간 프로그램'} };
+const OPT = { '사담':{id:'sadam', title:'사담 식사'}, '몽몽마방':{id:'mabang', title:'몽몽마방 식사', short:'몽몽마방'}, '프로그램(개별)':{id:'progE', title:'프로그램(개별)', short:'개별 프로그램'}, '프로그램(시간)':{id:'progT', title:'프로그램(시간)', short:'시간 프로그램'}, '굿즈':{id:'goods', title:'굿즈 구매', short:'굿즈'} };
 let optOpen = new Set();
 const GROUP_OF = Object.fromEntries(FIELDS.map(f=>[f[1], f[0]]));
 const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1], ['사담','몽몽마방'].includes(f[0]) ? `${f[0]} ${f[2]}` : f[2]]));
@@ -727,7 +742,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
@@ -767,7 +782,7 @@ const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner';
 const EN_ONLY  = k => /^c\d+_email$/.test(k);
 // 몽몽마방: 메뉴는 견적서 품목 리스트에서 구분이 '몽몽마방 메뉴'인 품목 (1인 고정가, 품목 관리에서 추가 · 이름 · 가격 수정) · 결제는 사무실 / 마방
 const MB_PAYS = ['사무실','마방'];
-const MB_INFO_SKIP = new Set(['mabangTime','mabangPrice','mabangPay','mabangMenu','mabangNote']);   // 그날 현황에서 인원으로 세지 않는 칸
+const MB_INFO_SKIP = new Set(['goods','mabangTime','mabangPrice','mabangPay','mabangMenu','mabangNote']);   // 그날 현황에서 인원으로 세지 않는 칸
 const MB_DEF = [['사유의 밥상(단체)','사유의 밥상',38000],['몽몽마방 런치','비빔밥+녹두전+매실차',22000],['몽몽마방 단품','더덕비빔밥',17000]];   // 품목을 아직 못 불러왔을 때
 function mbMenus(){
   const items = quoteCat ? catalogItems().filter(it=>it.kind==='mabang' && it.price!=null) : [];
@@ -780,6 +795,26 @@ const mbMenuOf = r => { const v=String(r.mabangMenu||'').trim(); return v ? mbMe
 const mbUnit = r => (mbMenuOf(r)||{}).price || Number(r.mabangPrice) || 0;   // 1인 가격 (예전 기록은 적어 둔 단가)
 const mbNeedsMenu = r => !!(r.mabangL || r.mabangTime) && !mbMenuOf(r);
 const wonTxt = n => Number(n||0).toLocaleString('ko-KR');
+// 굿즈 구매: 견적서 품목 리스트에서 구분이 '굿즈'인 품목. 값은 "고추장 x2 · 모과청(new) x1" (예약 상품명 기준)
+const goodsItems = () => { try{ return quoteCat ? catalogItems().filter(it=>it.kind==='goods' && it.price!=null).sort((a,b)=>String(a.src).localeCompare(String(b.src),'ko')) : []; }catch(_){ return []; } };
+const goodsParse = v => String(v||'').split(/\s*·\s*/).map(s=>s.match(/^(.+) x(\d+)$/)).filter(Boolean).map(m=>({src:m[1].trim(), qty:+m[2]}));
+const goodsJoin = arr => arr.filter(g=>g.qty>0).map(g=>`${g.src} x${g.qty}`).join(' · ');
+const goodsName = src => { const it=goodsItems().find(x=>normSrc(x.src)===normSrc(src)); return (it && String(it.name||'').trim()) || src; };
+const goodsText = r => goodsParse(r.goods).map(g=>`${goodsName(g.src)} ${g.qty}개`).join(', ');
+function goodsHTML(v){
+  const list=goodsParse(v), items=goodsItems();
+  const rows=list.map((g,i)=>{ const p=priceOf(g.src); return `<div class="g-row"><span class="g-name">${esc(goodsName(g.src))}</span><small>${p!=null?wonTxt(p)+'원':'가격 없음'}</small>`
+    + `<input type="number" min="1" step="1" data-gq="${i}" value="${g.qty}" aria-label="수량"><span class="g-unit">개</span><button type="button" class="g-del" data-gdel="${i}" title="빼기">×</button></div>`; }).join('');
+  const opts=items.filter(it=>!list.some(g=>normSrc(g.src)===normSrc(it.src))).map(it=>`<option value="${esc(it.src)}">${esc(String(it.name||'').trim()||it.src)} · ${wonTxt(it.price)}원</option>`).join('');
+  return rows + `<select class="g-add" data-gadd><option value="">＋ 굿즈 추가${items.length?'':' (품목을 불러오는 중)'}</option>${opts}</select>`;
+}
+function setGoods(list){ rec.goods=goodsJoin(list); touched.add('goods'); startTimer(); const el=$('#f_goods'); if(el){ el.dataset.h=''; el.innerHTML=goodsHTML(rec.goods); el.dataset.h=el.innerHTML; } paintFields(); renderSide(); }
+$('#form').addEventListener('change', e=>{
+  const el=e.target;
+  if(el.dataset.gadd!==undefined){ if(!el.value) return; const list=goodsParse(rec.goods); list.push({src:el.value, qty:1}); setGoods(list); $('#f_goods [data-gq]:last-of-type')?.focus(); return; }   // 고르면 1개로 추가
+  if(el.dataset.gq!==undefined){ const list=goodsParse(rec.goods), i=+el.dataset.gq, q=Math.max(0, parseInt(el.value)||0); if(list[i]){ list[i].qty=q; setGoods(list); } }   // 0 이면 빠짐
+});
+$('#form').addEventListener('click', e=>{ const b=e.target.closest('[data-gdel]'); if(!b) return; const list=goodsParse(rec.goods); list.splice(+b.dataset.gdel,1); setGoods(list); });
 // 몽몽마방 한 줄: "12:00~13:00 · 30명 · 더덕비빔밥 · 1인 17,000원 (금액 510,000원) · 사무실 결제"
 const mabangText = r => { const u=mbUnit(r), n=numOf(r.mabangL);
   return [r.mabangTime, r.mabangL && `${r.mabangL}명`, r.mabangMenu, u && `1인 ${wonTxt(u)}원${n?` (금액 ${wonTxt(u*n)}원)`:''}`, r.mabangPay && `${r.mabangPay} 결제`, r.mabangNote, r.mabangD && `(예전 디너 ${r.mabangD}명)`].filter(Boolean).join(' · '); };
@@ -848,7 +883,9 @@ function fieldHTML(k,label,col,cls,req){
   if(k==='mabangTime') extra+=' placeholder="12:00~13:00" title="24시간 · 숫자만 쳐도 됨 (12001300)"';
   if(k==='mabangPrice') extra+=' placeholder="1인 단가"';
   if(k==='mabangNote') extra+=' data-ime="ko" placeholder="예) 20% 할인, 2인 이상 주문"';
-  const input = k==='mabangMenu'
+  const input = k==='goods'
+    ? `<div class="goods-box" id="f_goods"></div>`   /* 굿즈 구매: 품목 + 수량 */
+    : k==='mabangMenu'
     ? `<div class="mb-menu" id="f_mabangMenu"></div>`
     : k==='mabangPay'
     ? `<select id="f_${k}" data-k="${k}"><option value="">선택</option>${MB_PAYS.map(p=>`<option>${p}</option>`).join('')}</select>`
@@ -875,7 +912,7 @@ function fieldHTML(k,label,col,cls,req){
 function buildForm(){
   const req=new Set(REQUIRED().map(r=>r[0]));
   let html='', g='';
-  const close=()=>{ if(!g) return; html+='</div>'; if(OPT[g]) html+=`<div class="dayinfo" id="info_${OPT[g].id}"></div>`; html+='</div>'; };
+  const close=()=>{ if(!g) return; html+='</div>'; if(OPT[g] && OPT[g].id!=='goods') html+=`<div class="dayinfo" id="info_${OPT[g].id}"></div>`; html+='</div>'; };
   FIELDS.forEach(([grp,k,label,col,cls])=>{
     if(grp!==g){
       close();
@@ -933,6 +970,10 @@ function buildForm(){
   $('#form').addEventListener('click', e=>{ const el=e.target, k=el.dataset?.k;
     if(!MEAL_KEYS.includes(k) || el.value || !numOf(rec.people)) return;
     el.value=String(numOf(rec.people)); el.dispatchEvent(new Event('input',{bubbles:true})); el.select(); });
+  // 담당자 순서: ▲ 를 누르면 바로 위 담당자와 자리를 바꿈 (맨 위가 견적서 수신 · 연락처 · 목록에 쓰이는 대표 담당자)
+  $('#form').addEventListener('click', e=>{ const u=e.target.closest('.up'); if(!u) return; const i=+u.dataset.up; if(i<1) return;
+    CFIELDS.forEach(([f])=>{ const a=`c${i-1}_${f}`, b=`c${i}_${f}`, t=rec[a]||''; rec[a]=rec[b]||''; rec[b]=t; touched.add(a); touched.add(b); });
+    startTimer(); renderContacts(); renderForm(); toast('담당자 순서를 바꿨습니다.'); });
   $('#form').addEventListener('click', e=>{
     const x=e.target.closest('.x'); if(!x) return;
     const i=+x.dataset.i;
@@ -988,7 +1029,7 @@ function renderContacts(){
   const req=new Set(REQUIRED().map(r=>r[0]));
   let h='';
   for(let i=0;i<nContacts;i++){
-    h+=`<div class="crow">${CFIELDS.map(([f,l])=>fieldHTML(`c${i}_${f}`, l, '', '', req.has(`c${i}_${f}`))).join('')}${i?`<button type="button" class="x" data-i="${i}" title="이 담당자 빼기">×</button>`:''}</div>`;
+    h+=`<div class="crow">${CFIELDS.map(([f,l])=>fieldHTML(`c${i}_${f}`, l, '', '', req.has(`c${i}_${f}`))).join('')}${i?`<button type="button" class="up" data-up="${i}" title="위로 올리기 (맨 위 = 주로 연락하는 대표 담당자)">▲</button><button type="button" class="x" data-i="${i}" title="이 담당자 빼기">×</button>`:''}</div>`;
   }
   $('#contacts').innerHTML=h;
   for(let i=0;i<nContacts;i++) CFIELDS.forEach(([f])=>{ const k=`c${i}_${f}`; document.getElementById('f_'+k).value=rec[k]||''; });
@@ -1008,6 +1049,7 @@ function paintFields(changed=[]){
     else if(el.type==='checkbox') el.checked=!!v;
     else if(k==='date'){ if(!el.dataset.editing){ const d=dateDisp(v); if(el.value!==d) el.value=d; } const p=$('#f_datePick'); if(p && p.value!==v) p.value=v; }
     else if(k==='mabangMenu'){ const h=mbMenuHTML(v); if(el.dataset.h!==h){ el.innerHTML=h; el.dataset.h=h; } }
+    else if(k==='goods'){ const h=goodsHTML(v); if(el.dataset.h!==h && !el.contains(document.activeElement)){ el.innerHTML=h; el.dataset.h=h; } }
     else { if(el.tagName==='SELECT' && v && ![...el.options].some(o=>o.value===v)) el.add(new Option(v,v)); if(el.value!==v && document.activeElement!==el) el.value=v; }
     const w=document.getElementById('w_'+k);
     w.classList.toggle('unsure', fieldWarnings(rec).some(u=>u.field===k));
@@ -1031,7 +1073,7 @@ function paintOpt(){
   Object.entries(OPT).forEach(([grp,o])=>{
     const keys=FIELDS.filter(f=>f[0]===grp && !isSub(f[1])).map(f=>f[1]);
     const filled=keys.filter(k=>rec[k]);
-    const sum = o.id==='mabang' ? mabangText(rec) : /^프로그램/.test(grp) ? progList(rec, grp, true).join(' · ') : filled.map(k=>{ const v=rec[k]; return `${FIELDS.find(f=>f[1]===k)[2]} ${/^\d+(\+\d+)*$/.test(v)?v+UNIT(k):v}`; }).join(' · ');
+    const sum = o.id==='goods' ? goodsText(rec) : o.id==='mabang' ? mabangText(rec) : /^프로그램/.test(grp) ? progList(rec, grp, true).join(' · ') : filled.map(k=>{ const v=rec[k]; return `${FIELDS.find(f=>f[1]===k)[2]} ${/^\d+(\+\d+)*$/.test(v)?v+UNIT(k):v}`; }).join(' · ');
     const b=document.querySelector(`.opt-btn[data-opt="${o.id}"]`), box=document.getElementById('opt_'+o.id);
     if(!b||!box) return;
     b.classList.toggle('filled', filled.length>0);
@@ -1245,6 +1287,7 @@ function reportText(r){
   contactsOf(r).forEach((c,i)=>add(`담당자${i?i+1:''}`, [c.name,c.phone,c.email].filter(Boolean).join(' / ')));
   add('사담 식사', grpLine('사담'));
   add('몽몽마방 식사', mabangText(r));
+  add('굿즈 구매', goodsText(r));
   add('프로그램(개별)', progList(r,'프로그램(개별)',true).join(', '));
   add('프로그램(시간)', progList(r,'프로그램(시간)',true).join(', '));
   add('기타 프로그램', LEGACY_KEYS.filter(k=>r[k]).map(k=>`${LABEL[k]} ${r[k]}`).join(', '));
@@ -1358,6 +1401,7 @@ function snap(){
   o.tbd=rec.tbd||''; o.tbdLate=rec.tbdLate||''; if(typeof SPECIAL!=='undefined') SPECIAL.forEach(s=>o[s.k]=rec[s.k]||'');
   o.stage=effStage(rec); o.erp=rec.erp||''; o.note=$('#memoBox').value.trim();
   tasks.forEach(t=>{ o['task:'+t.id]=t.done?'완료':''; o['tmemo:'+t.id]=t.memo||''; o['tfile:'+t.id]=(t.files||[]).map(f=>f.name).join(', '); if(t.custom) o['tadd:'+t.id]=t.title; });
+  o.taskOrder = tasks.filter(t=>t.ord!=null).sort((a,b)=>a.ord-b.ord).map(t=>t.id).join(',');   // ▲▼로 바꾼 과업 순서
   return o;
 }
 function diffSnap(a,b){
@@ -1365,6 +1409,7 @@ function diffSnap(a,b){
   new Set([...Object.keys(a),...Object.keys(b)]).forEach(k=>{
     const x=a[k]||'', y=b[k]||''; if(x===y) return;
     if(k==='note'){ out.push('통화 메모 수정'); return; }
+    if(k==='taskOrder'){ out.push('과업 순서 바꿈'); return; }
     const tm=k.match(/^(task|tmemo|tadd|tfile):(.+)$/);
     if(tm){ const title=(tasks.find(t=>t.id===tm[2])||{}).title||x||y;
       out.push(tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`); return; }
@@ -1381,6 +1426,7 @@ const fmtTime_ = t => dtLabel(t);
 function chText(k, c){
   const x=c[0]||'', y=c[c.length-1]||'';
   if(k==='note') return '통화 메모 수정';
+  if(k==='taskOrder') return '과업 순서 바꿈';
   const tm=k.match(/^(task|tmemo|tadd|tfile):(.+)$/);
   if(tm){ const title=(tasks.find(t=>t.id===tm[2])||{}).title||x||y;
     return tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`; }
@@ -1395,7 +1441,7 @@ function addCh(ch, a, b){   // a(마지막 저장) → b(지금) 사이 바뀐 �
   return ch;
 }
 // 되돌리기: 기록 i 를 저장한 직후의 상태 = 지금 상태에서 i 보다 뒤 기록들의 흐름을 거꾸로 첫 값으로
-const REVERT_SKIP = /^(task|tmemo|tadd|tfile):/;   // 과업 체크 · 메모 · 파일은 되돌리지 않음
+const REVERT_SKIP = /^(task|tmemo|tadd|tfile):|^taskOrder$/;   // 과업 체크 · 메모 · 파일은 되돌리지 않음
 function canRevertTo(i){ return i < hist.length-1 && hist.slice(i+1).every(h=>h.ch); }
 function stateAt(i){
   const s={...(baseSnap||snap())};   // 마지막으로 저장한 상태에서 거꾸로
@@ -1537,7 +1583,8 @@ function erpNote(r){
   const p=[`입장 ${r.tin||'미정'}${gate?' '+gate:''}`, ...(gate?[]:['출입구 미정']), ...(r.pchg ? ['인원 변경 가능성 있음'] : [])];   // 인원 변경은 가능성이 있을 때만
   const pg=progList(r, null, true); if(pg.length) p.push(pg.join(', '));   // 프로그램 (담당:이름)
   if(r.mabangL || r.mabangTime || r.mabangMenu) p.push(['몽몽마방', r.mabangTime, r.mabangMenu].filter(Boolean).join(' '));   // 몽몽마방 <시간> <메뉴>
-  if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');   // 몽몽마방 결제를 마방으로 고르면
+  if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');
+  if(r.goods) p.push('굿즈 '+goodsText(r));   // 굿즈 구매   // 몽몽마방 결제를 마방으로 고르면
   if(r.pay==='현장 결제' || r.onsite){ const m=moneySplit(r); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); }
   const who=(r.owner||savedOwner()||'').trim();   // 끝에 항상 (영업 담당 이름)
   return [...p, ...memoLines()].join(' / ') + (who ? ` (${who})` : '');
@@ -1590,10 +1637,11 @@ function syncAutoTasks(){
   const ps=tasks.find(t=>t.id==='progstaff'); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
   const ORDER=['tour','tbdcall','onsitecall','mbcall','mbmenu','progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
-  tasks.sort((a,b)=>((a.done?1:0)-(b.done?1:0)) || ((a.custom?99:ORDER.indexOf(a.id))-(b.custom?99:ORDER.indexOf(b.id))));   // 안 끝난 과업이 위로
+  const okey = t => t.ord!=null ? t.ord : 1000+(t.custom?99:ORDER.indexOf(t.id));   // ▲▼로 직접 바꾼 순서(ord)가 먼저, 새 과업은 그 뒤
+  tasks.sort((a,b)=>((a.done?1:0)-(b.done?1:0)) || (okey(a)-okey(b)));   // 안 끝난 과업이 위로
 }
 // 전산에 들어가는 내용 (이게 바뀌면 전산 예약 수정)
-const ERP_BASE = ['org','date','people','tin','tout','gate','pchg','pay','onsite','sadam1','sadam2','sadamD','mabangTime','mabangL','mabangD','mabangMenu','teaMed','gayageum','cabin','c0_name','c0_phone'];
+const ERP_BASE = ['goods','org','date','people','tin','tout','gate','pchg','pay','onsite','sadam1','sadam2','sadamD','mabangTime','mabangL','mabangD','mabangMenu','teaMed','gayageum','cabin','c0_name','c0_phone'];
 const ERP_KEYS_ = () => [...ERP_BASE, ...PROG_KEYS(), ...STF_KEYS()];   // 프로그램은 견적서 품목에 따라 늘어남
 const erpSnap = () => Object.fromEntries(ERP_KEYS_().map(k=>[k, rec[k]||'']));
 const erpDiff = (a,b) => [...new Set([...Object.keys(a),...Object.keys(b)])].filter(k=>(a[k]||'')!==(b[k]||'')).map(k=>{ const x=a[k]||'', y=b[k]||'', l=LABEL[k]||k; return !x?`${l} ${y} 추가`:!y?`${l} ${x} 삭제`:`${l} ${x} → ${y}`; });
@@ -1630,7 +1678,7 @@ function renderTasks(){
     const due=taskDue(t), late=!t.done && due<todayYmd();
     return `<li class="task${t.done?' done':late?' late':''}" data-id="${esc(t.id)}">
       <div class="task-h"><label class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span></label>
-        <label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"><span class="dow">${dowTag(due)}</span></label>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</div>
+        ${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"><span class="dow">${dowTag(due)}</span></label>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</div>
       ${sub?`<div class="sub">${sub}</div>`:''}${DOC_SUBS[t.id] ? `<div class="tsubs">${DOC_SUBS[t.id].map(([k,l])=>`<label class="tsub${t.subs&&t.subs[k]?' on':''}"><input type="checkbox" data-tsub="${esc(t.id)}|${k}"${t.subs&&t.subs[k]?' checked':''}> ${l}</label>`).join('')}</div>` : ''}${docBtn}${files}
       ${txt?`<pre id="tpre_${esc(t.id)}">${esc(txt)}</pre><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')?'비고 문구 복사':'문구 복사'}</button><span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
@@ -1672,6 +1720,10 @@ $('#taskList').addEventListener('change', e=>{
   renderSide(); autoSave();
 });
 $('#taskList').addEventListener('click', e=>{
+  const mv=e.target.closest('[data-tmv]'); if(mv){ const [id,dir]=mv.dataset.tmv.split('|'), consult=effStage(rec)==='예약상담';   // 과업 순서 바꾸기 (안 끝난 과업끼리)
+    const open=tasks.filter(t=>!t.done && (!consult || t.id==='tour')), i=open.findIndex(t=>t.id===id), j=i+(+dir);
+    if(i<0 || j<0 || j>=open.length) return; [open[i],open[j]]=[open[j],open[i]]; open.forEach((t,k)=>t.ord=k*10);
+    renderTasks(); autoSave(); return; }
   const c=e.target.dataset.tcopy, d=e.target.dataset.tdel, q=e.target.dataset.tquote;
   if(q){ openQuote(q); return; }
   if(c){ const t=tasks.find(x=>x.id===c); const txt=taskText(t); copy(txt, '복사했습니다. 붙여넣으세요.'); t.copied=txt; renderTasks(); autoSave(); }
@@ -1955,7 +2007,7 @@ function renderPrice(){
     const rows = blocks.map(b=>{
       const p = b.price ?? priceOf(b.product), a = blockAmount(b, p);
       if(a) total += a.amount; else missing.push(itemLabel(b.product));
-      const unit = PROG_KEYS().some(k=>rec[k] && PROG_SRC[k]===b.product && UNIT(k)==='시간') ? '시간' : '명';
+      const unit = PROG_KEYS().some(k=>rec[k] && PROG_SRC[k]===b.product && UNIT(k)==='시간') ? '시간' : goodsParse(rec.goods).some(g=>normSrc(g.src)===normSrc(b.product)) ? '개' : '명';   // 굿즈는 개
       const tm = b.product.match(/^(평일|주말\/공휴일) 관람\((\d\d):00~(\d\d):00\)$/) || [];
       const lab = itemLabel(b.product) + (tm[2] ? ` (${+tm[2]}~${+tm[3]}시)` : '');   // 관람권 시간대 표시
       return `<tr><td>${esc(lab)}</td><td>${b.qty}${unit}</td><td>${p==null?'-':won(p)}</td><td>${a&&a.disc?`<span class="dtag">${esc(a.disc)}</span>`:''}</td><td class="tot">${a?won(a.amount):'가격 없음'}</td></tr>`;
@@ -2027,6 +2079,7 @@ function quoteBlocks(r){
   else if(r.mabangL && Number(r.mabangPrice)){ add('몽몽마방 단품', cnt(r.mabangL), false); blocks[blocks.length-1].price=Number(r.mabangPrice); }   // 예전 기록: 적어 둔 단가
   else if(r.mabangL) skipped.push('몽몽마방 (메뉴를 고르면 계산)');
   if(r.mabangD) skipped.push('몽몽마방 디너');
+  goodsParse(r.goods).forEach(g=>add(g.src, g.qty, false));   // 굿즈: 품목 리스트 가격 그대로
   // 프로그램: 개별은 인원(숫자가 없으면 전체 인원), 시간은 시간 수(숫자가 없으면 1시간). 같은 견적서 품목이면 합침
   PROG_KEYS().forEach(k=>{ if(!r[k]) return; const src=PROG_SRC[k]; const q = UNIT(k)==='시간' ? (numOf(r[k])||1) : cnt(r[k]);
     if(!src){ skipped.push(LABEL[k]); return; } const b=blocks.find(b=>b.product===src); if(b) b.qty+=q; else add(src, q, false); });
