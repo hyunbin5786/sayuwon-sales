@@ -70,6 +70,16 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .mb-menu{display:flex;flex-wrap:wrap;gap:6px}   /* 몽몽마방 메뉴 O 체크 */
 .mb-ck{display:flex;align-items:center;gap:5px;height:32px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:13px;cursor:pointer;user-select:none}
 .mb-ck input{width:14px;height:14px;margin:0;accent-color:var(--pine)}
+#saveBtn.dirty::after{content:"●";color:#ffd27a;font-size:9px;margin-left:4px}   /* 저장 안 한 변경 있음 */
+.auto-st{font-weight:400;color:var(--muted)}
+.hist-open{display:inline-block;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--amber-soft);color:var(--amber);font-size:11px}
+.hist-now{display:inline-block;margin-left:4px;padding:0 6px;border-radius:999px;background:var(--pine-soft);color:var(--pine);font-size:11px}
+.hist-rev{margin-left:4px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:0 8px;font-size:11px;color:var(--muted);cursor:pointer}
+.hist-rev:hover{border-color:var(--pine);color:var(--pine)}
+.rev-tw{max-height:50vh;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.rev-table{width:100%;border-collapse:collapse;font-size:13px}
+.rev-table th,.rev-table td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.rev-table th{background:var(--bg);font-size:12px;color:var(--muted);position:sticky;top:0}
 .pay-guide{margin:4px 0 0;padding-left:18px;font-size:14.5px;line-height:1.8}
 #form .mb-ck input[type=radio]{all:revert;width:14px;height:14px;margin:0;flex:0 0 auto;accent-color:var(--pine)}   /* 일반 입력칸 서식이 먹지 않게 */
 .mb-ck{white-space:nowrap;width:auto;flex:0 0 auto}
@@ -372,12 +382,31 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   </section>
 </div>
 <!-- 결제 방식을 고르면 그 방식의 안내 -->
-<div class="modal" id="payModal" hidden>
-  <section class="panel consult del-box" role="dialog" aria-modal="true" aria-labelledby="payTitle">
-    <h2 id="payTitle">결제 안내</h2>
-    <ul class="pay-guide" id="payBody"></ul>
+<div class="modal" id="pgModal" hidden>
+  <section class="panel consult del-box" role="dialog" aria-modal="true" aria-labelledby="pgTitle">
+    <h2 id="pgTitle">결제 안내</h2>
+    <ul class="pay-guide" id="pgBody"></ul>
     <p class="hint" style="margin:8px 0 0">이 안내는 오른쪽 <b>다시 확인할 것</b>에도 남아 있습니다.</p>
-    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" id="payOk">확인</button></div>
+    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" id="pgOk">확인</button></div>
+  </section>
+</div>
+<!-- 저장하지 않은 변경이 있는데 새 통화 · 다른 예약으로 넘어갈 때 -->
+<div class="modal" id="leaveModal" hidden>
+  <section class="panel consult del-box" role="dialog" aria-modal="true" aria-labelledby="leaveTitle">
+    <h2 id="leaveTitle">저장하지 않은 내용이 있습니다</h2>
+    <p class="hint" style="margin:0 0 6px" id="leaveMsg">저장하지 않고 나가시겠어요?</p>
+    <ul class="pay-guide" id="leaveList" style="font-size:13px"></ul>
+    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="leaveCancel">취소</button><button class="btn" id="leaveDiscard">저장하지 않고 나가기</button><button class="btn primary" id="leaveSave">저장하고 나가기</button></div>
+  </section>
+</div>
+<!-- 수정 기록: 이 버전으로 돌아가기 (미리보기 후 선택) -->
+<div class="modal" id="revModal" hidden>
+  <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="revTitle">
+    <h2 id="revTitle">이 버전으로 돌아가기</h2>
+    <p class="hint" style="margin:0 0 8px" id="revMsg"></p>
+    <div class="rev-tw"><table class="rev-table"><thead><tr><th>항목</th><th>지금</th><th>돌아갈 버전</th></tr></thead><tbody id="revBody"></tbody></table></div>
+    <p class="hint" style="margin:8px 0 0">과업 체크 · 메모 · 올린 파일은 그대로 둡니다. 돌아간 뒤에도 수정 기록에 남아, 다시 지금 버전으로 돌아올 수 있습니다.</p>
+    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="revCancel">돌아가지 않기</button><button class="btn primary" id="revOk">이 버전으로 돌아가기</button></div>
   </section>
 </div>
 <!-- 미정 항목 입력 기한을 방문일 전주 목요일보다 늦게 잡을 때 사유 -->
@@ -403,7 +432,7 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     </div>
   </section>
   <section class="panel hist-panel" id="histWrap" hidden>
-    <h2>수정 기록 <small>언제 · 누가 · 무엇을</small></h2>
+    <h2>수정 기록 <small>언제 · 누가 · 무엇을</small> <small class="auto-st" id="autoSt"></small></h2>
     <ul class="hist-list" id="histBox"></ul>
   </section>
   </div>
@@ -1006,6 +1035,7 @@ function renderSide(){
   renderInfo(curInfoKey);
   if(typeof renderPrice==='function' && window.__priceReady) renderPrice();
   if(window.__tasksReady) renderTasks();
+  if(window.__autoReady) scheduleAuto();   // 고칠 때마다 자동 저장 타이머
 }
 // 결제 방식별로 끊기 전에 추가로 받거나 안내할 것
 const PAY_GUIDE = {
@@ -1014,13 +1044,13 @@ const PAY_GUIDE = {
   '현장 결제':  ['현장 결제로 하시면 당일 인원 변경이 어려운 점 양해 부탁드립니다.', '인원은 언제까지 확정해 주실 수 있을까요?'],
 };
 function openPayGuide(pay){
-  $('#payTitle').textContent = `[${pay} 안내] 고객님께 말씀드리세요`;
-  $('#payBody').innerHTML = PAY_GUIDE[pay].map(g=>`<li>${esc(g)}</li>`).join('');
-  $('#payModal').hidden = false; setTimeout(()=>$('#payOk').focus(), 0);
+  $('#pgTitle').textContent = `[${pay} 안내] 고객님께 말씀드리세요`;
+  $('#pgBody').innerHTML = PAY_GUIDE[pay].map(g=>`<li>${esc(g)}</li>`).join('');
+  $('#pgModal').hidden = false; setTimeout(()=>$('#pgOk').focus(), 0);
 }
-$('#payOk').onclick = () => { $('#payModal').hidden = true; };
-$('#payModal').addEventListener('click', e=>{ if(e.target.id==='payModal') $('#payModal').hidden = true; });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#payModal').hidden){ e.preventDefault(); $('#payModal').hidden = true; } });
+$('#pgOk').onclick = () => { $('#pgModal').hidden = true; };
+$('#pgModal').addEventListener('click', e=>{ if(e.target.id==='pgModal') $('#pgModal').hidden = true; });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#pgModal').hidden){ e.preventDefault(); $('#pgModal').hidden = true; } });
 // 프로그램 입력 내용: "요가 20명", "차방 대관 2시간" (grp 를 주면 그 묶음만)
 // staff 를 주면 "동행 도슨트 2시간 (담당:사공유빈)" (차방 · 당두봉갈은 담당을 적었을 때만)
 // staff 이면 도슨트 시간대 · 코스도: "동행 도슨트 2시간 13:00~15:00 (코스:정원 코스) (담당:사공유빈)"
@@ -1284,30 +1314,136 @@ function diffSnap(a,b){
 // 시트 '수정 기록' 칸: {h:[수정 기록], tasks:[추후 과업]} (예전 기록은 배열만)
 function parseHist(r){ try{ const j=JSON.parse(r.history||'[]'); return Array.isArray(j) ? {h:j, tasks:[]} : {h:j.h||[], tasks:j.tasks||[]}; }catch(_){ return {h:[], tasks:[]}; } }
 const histOf = r => parseHist(r).h;
+// ---- 바뀐 값의 흐름 (ch): {칸: [처음 값, 다음 값, …]} → "관람 인원 20 → 22 → 25". 자동 저장이 여러 번이어도 한 줄에 모든 변경이 남고, 되돌리기에도 씀
+const fmtTime_ = t => new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+function chText(k, c){
+  const x=c[0]||'', y=c[c.length-1]||'';
+  if(k==='note') return '통화 메모 수정';
+  const tm=k.match(/^(task|tmemo|tadd|tfile):(.+)$/);
+  if(tm){ const title=(tasks.find(t=>t.id===tm[2])||{}).title||x||y;
+    return tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`; }
+  const lab=LABEL[k]||k;
+  if(c.length===2) return !x ? `${lab} ${y} 입력` : !y ? `${lab} ${x} 지움` : `${lab} ${x} → ${y}`;
+  return `${lab} ${c.map(v=>v||'(빈칸)').join(' → ')}`;   // 여러 번 바뀐 것은 거쳐 간 값을 모두
+}
+const chWhat = ch => Object.entries(ch).map(([k,c])=>chText(k,c)).join(', ');
+function addCh(ch, a, b){   // a(마지막 저장) → b(지금) 사이 바뀐 칸을 흐름에 이어 붙임
+  new Set([...Object.keys(a),...Object.keys(b)]).forEach(k=>{ const x=a[k]||'', y=b[k]||''; if(x===y) return;
+    if(!ch[k]) ch[k]=[x]; if(ch[k][ch[k].length-1]!==y) ch[k].push(y); if(ch[k].length>20) ch[k].splice(1, ch[k].length-20); });
+  return ch;
+}
+// 되돌리기: 기록 i 를 저장한 직후의 상태 = 지금 상태에서 i 보다 뒤 기록들의 흐름을 거꾸로 첫 값으로
+const REVERT_SKIP = /^(task|tmemo|tadd|tfile):/;   // 과업 체크 · 메모 · 파일은 되돌리지 않음
+function canRevertTo(i){ return i < hist.length-1 && hist.slice(i+1).every(h=>h.ch); }
+function stateAt(i){
+  const s={...(baseSnap||snap())};   // 마지막으로 저장한 상태에서 거꾸로
+  for(let j=hist.length-1;j>i;j--) Object.entries(hist[j].ch||{}).forEach(([k,c])=>{ if(!REVERT_SKIP.test(k)) s[k]=c[0]||''; });
+  return s;
+}
 function renderHist(){
   $('#histWrap').hidden = !hist.length;
-  $('#histBox').innerHTML = hist.slice().reverse().map(h=>`<li><time>${esc(new Date(h.t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))}</time><b>${esc(h.by||'담당 미입력')}</b>${esc(h.what)}</li>`).join('');
+  const n=hist.length;
+  $('#histBox').innerHTML = hist.map((h,i)=>({h,i})).reverse().map(({h,i})=>`<li><time>${esc(fmtTime_(h.t))}</time><b>${esc(h.by||'담당 미입력')}</b>${esc(h.what)}`
+    + (h.o && h.s===SID ? ' <span class="hist-open">자동 저장 중 · 저장 버튼을 누르면 확정</span>' : '')
+    + (i===n-1 ? ' <span class="hist-now">지금 버전</span>' : canRevertTo(i) ? ` <button type="button" class="hist-rev" data-rev="${i}">이 버전으로 돌아가기</button>` : '')
+    + `</li>`).join('');
+  $('#autoSt').textContent = lastAuto ? `자동 저장 ${new Date(lastAuto).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}` : '';
 }
-async function save(quiet){
-  if(!rec.org && !rec.date){ toast('업체나 방문일을 먼저 입력하세요.'); return; }
-  if(typeof tbdIsLate==='function' && tbdIsLate(rec) && !rec.tbdLate){ openLate(()=>save(quiet)); return; }   // 입력 기한을 전주 목요일보다 늦게 잡았으면 사유부터
+// ---- 자동 저장: 마지막으로 고친 뒤 AUTO_SAVE_MS 가 지나면 저장. 한 번 열어 고치는 동안(세션)의 변경은 수정 기록 한 줄에 모임
+// 저장 버튼을 누르면 그 줄을 확정하고, 다음 변경은 새 줄로
+const AUTO_SAVE_MS = 30000;
+let autoT=null, lastAuto=null, saving=false, emptySnap=null, SID=Math.random().toString(36).slice(2);
+const canSave = () => !!(rec.org || rec.date);
+const refSnap = () => baseSnap || emptySnap || {};
+const isDirty = () => diffSnap(refSnap(), snap()).length>0;
+function paintDirty(){ $('#saveBtn').classList.toggle('dirty', isDirty()); }
+function scheduleAuto(){
+  paintDirty(); clearTimeout(autoT);
+  if(isDirty() && canSave()) autoT=setTimeout(()=>save({auto:true}), AUTO_SAVE_MS);
+}
+async function save(opt){
+  const auto = !!(opt && opt.auto), quiet = opt===true || auto;
+  if(saving){ if(auto){ clearTimeout(autoT); autoT=setTimeout(()=>save(opt), 3000); } return; }
+  if(!canSave()){ if(!auto) toast('업체나 방문일을 먼저 입력하세요.'); return; }
+  if(typeof tbdIsLate==='function' && tbdIsLate(rec) && !rec.tbdLate){ if(!auto) openLate(()=>save(opt)); return; }   // 입력 기한을 전주 목요일보다 늦게 잡았으면 사유부터 (자동 저장은 기다림)
+  if(auto && !isDirty()) return;
+  clearTimeout(autoT);
   if(!rec.owner) rec.owner=savedOwner();
-  const wasSaved=!!editingId, now=new Date().toISOString(), cur=snap();
-  const changes = baseSnap ? diffSnap(baseSnap, cur) : ['처음 저장'];
-  const newHist = changes.length ? [...hist, {t:now, by:savedOwner()||rec.owner||'', what:changes.join(', ')}].slice(-200) : hist;
+  const wasSaved=!!editingId, now=new Date().toISOString(), cur=snap(), me=savedOwner()||rec.owner||'';
+  // 이 세션의 줄(열려 있는 줄)에 이어 적기
+  const last=hist[hist.length-1], open = last && last.o && last.s===SID ? last : null;
+  let row = open ? {...open, ch:{...(open.ch||{})}} : null;
+  if(!baseSnap){ row = row || {t:now, by:me, what:'처음 저장', s:SID, first:1}; }   // 새 예약: 첫 줄은 '처음 저장'
+  else { const ch=addCh(row?row.ch:{}, baseSnap, cur); if(Object.keys(ch).length){ row = {...(row||{s:SID}), t:now, by:me, ch, what:(row&&row.first?'처음 저장 · ':'')+chWhat(ch)}; } }
+  if(row){ row.t=now; if(auto) row.o=1; else delete row.o; }
+  if(row && opt && opt.revert) row.what = `[되돌리기] ${opt.revert} 버전으로 · ${row.what}`;
+  const changes = row && row.ch ? Object.keys(row.ch) : row ? ['처음 저장'] : [];
+  const newHist = row ? [...(open ? hist.slice(0,-1) : hist), row].slice(-200) : hist;
   const j=joinContacts(rec);
   const item={...rec, ...j, ...packExtra(rec), callType:effStage(rec), summary:autoSummary(), note:$('#memoBox').value, takenBy:rec.owner,
     callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:now, history:JSON.stringify({h:newHist, tasks})};
   Object.keys(item).forEach(k=>{ if(isCKey(k)) delete item[k]; });
   delete item.tbd; delete item.stage; delete item.erp; delete item.tbdDate; delete item.tbdLate; delete item.payContact;
-  try{ await store.put(item); editingId=item.id; hist=newHist; baseSnap=cur; renderHist(); await renderList(); toast(quiet ? `저장했습니다.` : `${item.callType}으로 저장했습니다.${changes.length?'':' (바뀐 내용 없음)'}${needsErp(rec)&&!rec.erp?' 전산 등록을 잊지 마세요.':''}`);
-    // 담당이 아닌 사람이 남의 예약을 고쳤으면: 담당자에게 보고하라는 팝업
-    const me=savedOwner(), owner=(rec.owner||'').trim();
-    if(wasSaved && changes.length && me && owner && me!==owner && typeof openReport==='function') openReport(item, owner, me, changes);
+  saving=true;
+  try{ await store.put(item); editingId=item.id; hist=newHist; baseSnap=cur;
+    if(auto) lastAuto=now; renderHist(); paintDirty(); await renderList();
+    if(!auto) toast(quiet ? `저장했습니다.` : `${item.callType}으로 저장했습니다.${changes.length?' 수정 기록에 반영했습니다.':' (바뀐 내용 없음)'}${needsErp(rec)&&!rec.erp?' 전산 등록을 잊지 마세요.':''}`);
+    // 담당이 아닌 사람이 남의 예약을 고쳤으면: 저장 버튼을 누를 때 이 세션의 변경을 담당자에게 보고하라는 팝업
+    const owner=(rec.owner||'').trim(), lines = row && row.ch ? Object.entries(row.ch).map(([k,c])=>chText(k,c)) : [];
+    if(!auto && wasSaved && lines.length && me && owner && savedOwner()!==owner && typeof openReport==='function') openReport(item, owner, savedOwner(), lines);
+    if(!auto) SID=Math.random().toString(36).slice(2);   // 저장 버튼 = 이 줄 확정, 다음 변경은 새 줄
   }
   catch(e){ toast('저장하지 못했습니다: '+e.message); }
+  finally{ saving=false; }
 }
-$('#saveBtn').onclick=save;
+$('#saveBtn').onclick=()=>save();
+// ---- 저장하지 않은 변경이 있으면: 창을 닫을 때 브라우저가 묻고, 새 통화 · 다른 예약으로 넘어갈 때 팝업
+window.addEventListener('beforeunload', e=>{ if(isDirty()){ e.preventDefault(); e.returnValue=''; } });
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && isDirty() && canSave()) save({auto:true}); });   // 다른 창으로 가면 바로 자동 저장
+let leaveNext=null;
+function guardLeave(fn){
+  if(!isDirty()){ fn(); return; }
+  leaveNext=fn;
+  $('#leaveList').innerHTML = diffSnap(refSnap(), snap()).slice(0,12).map(s=>`<li>${esc(s)}</li>`).join('');
+  $('#leaveMsg').textContent = canSave() ? '아래 내용을 아직 저장하지 않았습니다. 저장하지 않고 나가시겠어요?' : '업체나 방문일이 없어 저장할 수 없습니다. 저장하지 않고 나가면 입력한 내용이 사라집니다.';
+  $('#leaveSave').hidden = !canSave();
+  $('#leaveModal').hidden=false; setTimeout(()=>($('#leaveSave').hidden?$('#leaveCancel'):$('#leaveSave')).focus(),0);
+}
+const closeLeave = () => { $('#leaveModal').hidden=true; };
+$('#leaveCancel').onclick=()=>{ leaveNext=null; closeLeave(); };
+$('#leaveDiscard').onclick=()=>{ const f=leaveNext; leaveNext=null; closeLeave(); clearTimeout(autoT); baseSnap=snap(); emptySnap=baseSnap; f&&f(); };   // 버리고 이동
+$('#leaveSave').onclick=async()=>{ const f=leaveNext; leaveNext=null; closeLeave(); await save(); if(!isDirty()) f&&f(); };
+$('#leaveModal').addEventListener('click', e=>{ if(e.target.id==='leaveModal') $('#leaveCancel').click(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#leaveModal').hidden){ e.preventDefault(); $('#leaveCancel').click(); } });
+const openRecordG = r => guardLeave(()=>openRecord(r));
+// ---- 수정 기록: 이 버전으로 돌아가기 → 미리보기(지금 / 돌아갈 버전) → 선택
+let revTarget=null;
+const revVal = (k,v) => k==='note' ? (v ? (v.length>40 ? v.slice(0,40)+'…' : v) : '') : v;
+$('#histBox').addEventListener('click', e=>{
+  const b=e.target.closest('[data-rev]'); if(!b) return;
+  const i=+b.dataset.rev; if(!canRevertTo(i)) return;
+  const target=stateAt(i), cur=snap();
+  const keys=[...new Set([...Object.keys(target),...Object.keys(cur)])].filter(k=>!REVERT_SKIP.test(k) && (target[k]||'')!==(cur[k]||''));
+  revTarget={i, target, label:fmtTime_(hist[i].t)};
+  $('#revMsg').textContent = `${fmtTime_(hist[i].t)} 버전 (${hist[i].by||'담당 미입력'}) · 지금과 다른 항목 ${keys.length}개`;
+  $('#revBody').innerHTML = keys.length ? keys.map(k=>`<tr><td>${esc(LABEL[k]||k)}</td><td>${esc(revVal(k,cur[k]||''))||'<span class="hint" style="margin:0">(빈칸)</span>'}</td><td><b>${esc(revVal(k,target[k]||''))||'<span class="hint" style="margin:0">(빈칸)</span>'}</b></td></tr>`).join('')
+    : '<tr><td colspan="3" class="hint">지금과 같은 내용입니다.</td></tr>';
+  $('#revOk').disabled = !keys.length;
+  $('#revModal').hidden=false;
+});
+const closeRev = () => { $('#revModal').hidden=true; revTarget=null; };
+$('#revCancel').onclick=closeRev;
+$('#revModal').addEventListener('click', e=>{ if(e.target.id==='revModal') closeRev(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#revModal').hidden){ e.preventDefault(); closeRev(); } });
+$('#revOk').onclick=async()=>{
+  if(!revTarget) return; const {target, label}=revTarget; closeRev();
+  const lr=hist[hist.length-1]; if(isDirty() || (lr && lr.o && lr.s===SID)) await save();   // 지금까지 고친 것은 먼저 한 줄로 확정
+  Object.entries(target).forEach(([k,v])=>{ if(REVERT_SKIP.test(k) || k==='stage') return;
+    if(k==='note'){ $('#memoBox').value=v; return; } rec[k]=v; if(v) touched.add(k); });
+  rec.stage = target.stage && target.stage!==stageAuto(rec) ? target.stage : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 단계
+  nContacts=Math.max(1,nContactsOf(rec)); renderContacts(); renderForm();
+  await save({revert:label});
+};
 // 헤더의 영업 담당: 이 컴퓨터에 기억, 새 예약의 담당이 됨, 수정 기록에 이 이름이 남음
 (()=>{ const el=$('#f_owner'), wrap=el.closest('.me');
   const paint=()=>wrap.classList.toggle('empty', !el.value.trim());
@@ -1409,7 +1545,7 @@ function renderTasks(){
     </li>`; }).join('');
   $('#taskHint').textContent = tasks.length ? (editingId ? '체크와 복사는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '저장하면 과업도 함께 저장됩니다.') : '';
 }
-const autoSave = () => { if(editingId) save(true); };
+const autoSave = () => { if(editingId) save({auto:true}); };   // 과업 체크 · 메모 등은 바로 자동 저장 (수정 기록은 이 세션 줄에 모임)
 // 사업자등록증 올리기 → Apps Script 가 구글 드라이브에 저장하고 링크를 돌려줌 → 과업에 링크 보관
 let upBusy=false;
 async function uploadFile(t, file){
@@ -1447,7 +1583,7 @@ $('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!
 $('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) autoSave(); });
 $('#taskAdd').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#taskAddIn').value.trim(); if(!v) return;
   tasks.push({id:'c'+Date.now().toString(36), title:v, custom:true, done:false, memo:'', at:new Date().toISOString()}); $('#taskAddIn').value=''; renderTasks(); autoSave(); });
-$('#memoBox').addEventListener('input', ()=>renderTasks());
+$('#memoBox').addEventListener('input', ()=>{ renderTasks(); if(window.__autoReady) scheduleAuto(); });
 
 // 견적서 사이트가 출력 후 드라이브에 올린 파일 링크를 같은 사이트 저장소(sy_intake_docs)로 돌려줌 → 그 예약의 견적서/거래명세서 과업에 붙이고 완료
 const DOCS_LS='sy_intake_docs';
@@ -1491,7 +1627,7 @@ function checkPayPopup(force){
 $('#payLater').onclick=()=>{ $('#payModal').hidden=true; };
 $('#payList').addEventListener('click', async e=>{
   const done=e.target.dataset.pcdone, open=e.target.dataset.pcopen;
-  if(open){ const r=cache.find(x=>x.id===open); $('#payModal').hidden=true; if(r) openRecord(r); }
+  if(open){ const r=cache.find(x=>x.id===open); $('#payModal').hidden=true; if(r) openRecordG(r); }
   if(done){
     const r=cache.find(x=>x.id===done); if(!r) return;
     if(editingId===done){ const t=tasks.find(x=>x.id==='paycheck'); if(t){ t.done=true; t.doneAt=new Date().toISOString(); } await save(true); }
@@ -1537,7 +1673,7 @@ async function renderList(){
     if(e.target.dataset.del){ e.stopPropagation(); openDel(e.target.dataset.del); return; }
     if(e.target.dataset.fix){ e.stopPropagation(); openFix(e.target.dataset.fix); return; }
     const r=cache.find(x=>x.id===tr.dataset.id); if(!r) return;
-    openRecord(r);
+    openRecordG(r);
   });
   renderInfo(curInfoKey);
 }
@@ -1555,7 +1691,7 @@ function openRecord(r){
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
     nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; $('#memoBox').value=r.note||'';
     const ph=parseHist(r); hist=ph.h; tasks=ph.tasks;
-    renderContacts(); renderForm(); baseSnap=snap(); renderHist(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
+    renderContacts(); renderForm(); baseSnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
 }
 
 // 관리자 사이트에서 지금 가져오기 (평소에는 Apps Script 가 15분마다 자동으로)
@@ -1576,9 +1712,10 @@ $('#adminSyncBtn').onclick=async()=>{
 function newCall(withToast=true){
   resetState(); clearInterval(timerInt); tick(); $('#memoBox').value=''; status('');
   hist=[]; baseSnap=null; tasks=[]; tbdAuto=false; renderHist();
-  renderContacts(); renderForm(); if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
+  renderContacts(); renderForm(); emptySnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty();
+  if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
 }
-$('#newBtn').onclick=()=>newCall();
+$('#newBtn').onclick=()=>guardLeave(()=>newCall());
 // ===================== 가격표 =====================
 // 가격은 견적서&거래명세서 사이트에서 그때그때 읽어 온다 → 그 사이트의 품목·가격이 바뀌면 여기도 바뀜
 //  · 기본 품목: 그 사이트 페이지의 CATALOG_RAW (품목 | 가격 | 할인 대상)와 굿즈·단체 프로그램 목록
@@ -2046,7 +2183,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#delModal')
 
 document.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); }
-  if(e.altKey && e.key.toLowerCase()==='n'){ e.preventDefault(); newCall(); }
+  if(e.altKey && e.key.toLowerCase()==='n'){ e.preventDefault(); guardLeave(()=>newCall()); }
 });
 
 // ===================== 시작 =====================
@@ -2109,7 +2246,7 @@ $('#myOpenBtn').onclick=openMy;
 $('#myCloseBtn').onclick=closeMy;
 $('#myPast').onchange=renderMy;
 $('#myModal').addEventListener('mousedown', e=>{ if(e.target.id==='myModal') closeMy(); });
-$('#myBody').addEventListener('click', e=>{ if(e.target.id==='myEditsSeen'){ markEditsSeen(); return; } const el=e.target.closest('[data-myopen]'); if(!el) return; const r=cache.find(x=>x.id===el.dataset.myopen); if(r){ closeMy(); openRecord(r); } });
+$('#myBody').addEventListener('click', e=>{ if(e.target.id==='myEditsSeen'){ markEditsSeen(); return; } const el=e.target.closest('[data-myopen]'); if(!el) return; const r=cache.find(x=>x.id===el.dataset.myopen); if(r){ closeMy(); openRecordG(r); } });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#myModal').hidden){ e.preventDefault(); closeMy(); } });
 
 // ===================== 남의 예약을 고쳤을 때: 담당자에게 보고 =====================
@@ -2158,7 +2295,7 @@ function checkTbdPopup(force){
 $('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; };
 $('#tbdList').addEventListener('click', async e=>{
   const call=e.target.dataset.tbdcall, open=e.target.dataset.tbdopen;
-  if(open){ const r=cache.find(x=>x.id===open); $('#tbdModal').hidden=true; if(r) openRecord(r); }
+  if(open){ const r=cache.find(x=>x.id===open); $('#tbdModal').hidden=true; if(r) openRecordG(r); }
   if(call){   // 연락했다고 수정 기록에 남김 (미정 항목은 예약을 열어 채움)
     const r=cache.find(x=>x.id===call); if(!r) return; const x=xOf(r), now=new Date().toISOString(), what=`[연락] 미정 항목(${x.tbd}) 확인 연락`;
     if(editingId===call){ hist=[...hist, {t:now, by:savedOwner()||'', what}]; renderHist(); await save(true); }
@@ -2188,6 +2325,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#lateModal'
 // 기한 칸을 바꿔서 늦어지면 바로 사유 팝업. 기한 안으로 돌아오면 사유는 지움
 $('#f_tbdDate').addEventListener('change', ()=>{ if(tbdIsLate(rec)){ if(!rec.tbdLate) openLate(); } else if(rec.tbdLate){ rec.tbdLate=''; renderSide(); } });
 
+emptySnap=snap(); window.__autoReady=true; paintDirty();   // 자동 저장 시작 (빈 화면 기준)
 window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs(); checkTbdPopup();   // 추후 과업 · 결제 확인 알림 · 미정 항목 알림
 window.addEventListener('focus', ()=>{ if(priceLoaded && Date.now()-priceLoaded>10*60000) loadQuotePrices(); });
 $('#memoBox').focus();
