@@ -195,6 +195,11 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .my-task.late,.my-task.late small{color:var(--red);font-weight:700}
 #tbdList li.late{background:#fdf0ee}
 #tbdList b.late{color:var(--red)}
+.tdrag{flex:none;cursor:grab;color:var(--muted);font-size:14px;line-height:1;padding:2px 2px 2px 0;user-select:none}
+.tdrag:hover{color:var(--pine)}
+.task.dragging{opacity:.45}
+.task.drop-before{box-shadow:0 -3px 0 var(--pine)}
+.task.drop-after{box-shadow:0 3px 0 var(--pine)}
 .tmove{display:flex;flex:none;gap:2px}
 .tmove button{width:22px;height:22px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--muted);font-size:9px;cursor:pointer;padding:0}
 .tmove button:hover{border-color:var(--pine);color:var(--pine)}
@@ -1703,7 +1708,7 @@ function renderTasks(){
     const files = t.id!=='tax' && (t.files||[]).length ? `<div class="tfiles">${t.files.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}</div>` : '';
     const due=taskDue(t), late=!t.done && due<todayYmd();
     return `<li class="task${t.done?' done':late?' late':''}" data-id="${esc(t.id)}">
-      <div class="task-h"><label class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span></label>
+      <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<label class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span></label>
         ${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"><span class="dow">${dowTag(due)}</span></label>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</div>
       ${sub?`<div class="sub">${sub}</div>`:''}${subsHTML(t)}${docBtn}${files}
       ${txt?`<pre id="tpre_${esc(t.id)}">${esc(txt)}</pre><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')?'비고 문구 복사':'문구 복사'}</button><span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
@@ -1758,6 +1763,20 @@ $('#taskList').addEventListener('click', e=>{
   if(c){ const t=tasks.find(x=>x.id===c); const txt=taskText(t); copy(txt, '복사했습니다. 붙여넣으세요.'); t.copied=txt; renderTasks(); autoSave(); }
   if(d){ e.preventDefault(); document.activeElement.blur(); tasks=tasks.filter(x=>x.id!==d); renderTasks(); autoSave(); toast('과업을 지웠습니다.'); }   // × 에 포커스가 남으면 목록이 다시 안 그려져서 blur
 });
+// 과업 순서: 왼쪽 ⠿ 를 잡고 끌어서 놓기 (안 끝난 과업끼리, ▲▼ 와 같은 순서 값)
+let dragId=null;
+const dragOpen = () => { const consult=effStage(rec)==='예약상담'; return tasks.filter(t=>!t.done && (!consult || t.id==='tour')); };
+$('#taskList').addEventListener('mousedown', e=>{ const h=e.target.closest('.tdrag'); if(h) h.closest('li.task').draggable=true; });
+$('#taskList').addEventListener('dragstart', e=>{ const li=e.target.closest('li.task'); if(!li || !li.draggable) return; dragId=li.dataset.id; li.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', dragId); }catch(_){} });
+$('#taskList').addEventListener('dragover', e=>{ if(!dragId) return; const li=e.target.closest('li.task'); if(!li || li.classList.contains('done')) return; e.preventDefault();
+  document.querySelectorAll('#taskList li.task').forEach(x=>x.classList.remove('drop-before','drop-after'));
+  if(li.dataset.id!==dragId){ const r=li.getBoundingClientRect(); li.classList.add(e.clientY < r.top+r.height/2 ? 'drop-before' : 'drop-after'); } });
+$('#taskList').addEventListener('drop', e=>{ if(!dragId) return; e.preventDefault(); const li=e.target.closest('li.task'); if(!li || li.dataset.id===dragId) return;
+  const before=li.classList.contains('drop-before'), open=dragOpen(), from=open.findIndex(t=>t.id===dragId); if(from<0) return;
+  const [moved]=open.splice(from,1); let to=open.findIndex(t=>t.id===li.dataset.id); if(to<0) return; if(!before) to++;
+  open.splice(to,0,moved); open.forEach((t,k)=>t.ord=k*10); dragId=null; renderTasks(); autoSave(); });
+document.addEventListener('mouseup', ()=>{ if(!dragId) document.querySelectorAll('#taskList li.task[draggable="true"]').forEach(x=>x.draggable=false); });   // 끌지 않고 놓으면 원래대로 (메모 글자 선택 등)
+$('#taskList').addEventListener('dragend', ()=>{ dragId=null; document.querySelectorAll('#taskList li.task').forEach(x=>{ x.draggable=false; x.classList.remove('dragging','drop-before','drop-after'); }); });
 $('#taskList').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing && e.target.dataset.xadd!==undefined){ e.preventDefault(); addXsub(e.target.dataset.xadd); } });   // 세부 과제: 적고 Enter
 $('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=tasks.find(x=>x.id===id); if(t) t.memo=e.target.value; });
 $('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) autoSave(); });
