@@ -113,6 +113,12 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .tsub{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
 .tsub input{width:15px;height:15px;margin:0;accent-color:var(--pine)}
 .tsub.on{color:#9a9a92;text-decoration:line-through}
+.tsub-row{display:flex;align-items:center;gap:4px}
+.tsub-del{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px}
+.tsub-del:hover{color:var(--red)}
+.tsub-add{display:flex;gap:4px;margin-top:2px}
+.tsub-add input{flex:1;height:28px;border:1px dashed var(--line);border-radius:5px;padding:0 8px;font:12.5px var(--sans);background:#fff}
+.tsub-add .btn{padding:2px 8px;font-size:12px}
 .act-bar .btn.issued{position:relative;background:var(--pine-soft);border-color:var(--pine);color:var(--pine)}   /* 발급한 서류: 초록 + 모서리 ✓ */
 .act-bar .btn.issued::after{content:"✓";position:absolute;top:-6px;right:-5px;width:14px;height:14px;border-radius:50%;background:var(--pine);color:#fff;font-size:9px;line-height:14px;text-align:center}
 @media (max-width:560px){.act-bar{margin-left:0;flex-wrap:wrap}}
@@ -1401,6 +1407,7 @@ function snap(){
   o.tbd=rec.tbd||''; o.tbdLate=rec.tbdLate||''; if(typeof SPECIAL!=='undefined') SPECIAL.forEach(s=>o[s.k]=rec[s.k]||'');
   o.stage=effStage(rec); o.erp=rec.erp||''; o.note=$('#memoBox').value.trim();
   tasks.forEach(t=>{ o['task:'+t.id]=t.done?'완료':''; o['tmemo:'+t.id]=t.memo||''; o['tfile:'+t.id]=(t.files||[]).map(f=>f.name).join(', '); if(t.custom) o['tadd:'+t.id]=t.title; });
+  tasks.forEach(t=>{ const s=[...Object.entries(t.subs||{}).map(([k,v])=>k+(v?'✓':'')), ...(t.xsubs||[]).map(x=>x.title+(x.done?'✓':''))].join(', '); if(s) o['tsub:'+t.id]=s; });   // 하위 과업 · 세부 과제
   o.taskOrder = tasks.filter(t=>t.ord!=null).sort((a,b)=>a.ord-b.ord).map(t=>t.id).join(',');   // ▲▼로 바꾼 과업 순서
   return o;
 }
@@ -1410,9 +1417,9 @@ function diffSnap(a,b){
     const x=a[k]||'', y=b[k]||''; if(x===y) return;
     if(k==='note'){ out.push('통화 메모 수정'); return; }
     if(k==='taskOrder'){ out.push('과업 순서 바꿈'); return; }
-    const tm=k.match(/^(task|tmemo|tadd|tfile):(.+)$/);
+    const tm=k.match(/^(task|tmemo|tadd|tfile|tsub):(.+)$/);
     if(tm){ const title=(tasks.find(t=>t.id===tm[2])||{}).title||x||y;
-      out.push(tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`); return; }
+      out.push(tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tsub' ? `[과업] ${title} 세부 과제: ${y}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`); return; }
     const lab=LABEL[k]||k;
     out.push(!x ? `${lab} ${y} 입력` : !y ? `${lab} ${x} 지움` : `${lab} ${x} → ${y}`);
   });
@@ -1427,9 +1434,9 @@ function chText(k, c){
   const x=c[0]||'', y=c[c.length-1]||'';
   if(k==='note') return '통화 메모 수정';
   if(k==='taskOrder') return '과업 순서 바꿈';
-  const tm=k.match(/^(task|tmemo|tadd|tfile):(.+)$/);
+  const tm=k.match(/^(task|tmemo|tadd|tfile|tsub):(.+)$/);
   if(tm){ const title=(tasks.find(t=>t.id===tm[2])||{}).title||x||y;
-    return tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`; }
+    return tm[1]==='task' ? `[과업] ${title} ${y?'완료':'완료 취소'}` : tm[1]==='tsub' ? `[과업] ${title} 세부 과제: ${y||'없음'}` : tm[1]==='tfile' ? `[과업] ${title} 파일 올림` : tm[1]==='tadd' ? (y?`[과업] ${title} 추가`:`[과업] ${x} 삭제`) : `[과업] ${title} 메모 수정`; }
   const lab=LABEL[k]||k;
   if(c.length===2) return !x ? `${lab} ${y} 입력` : !y ? `${lab} ${x} 지움` : `${lab} ${x} → ${y}`;
   return `${lab} ${c.map(v=>v||'(빈칸)').join(' → ')}`;   // 여러 번 바뀐 것은 거쳐 간 값을 모두
@@ -1441,7 +1448,7 @@ function addCh(ch, a, b){   // a(마지막 저장) → b(지금) 사이 바뀐 �
   return ch;
 }
 // 되돌리기: 기록 i 를 저장한 직후의 상태 = 지금 상태에서 i 보다 뒤 기록들의 흐름을 거꾸로 첫 값으로
-const REVERT_SKIP = /^(task|tmemo|tadd|tfile):|^taskOrder$/;   // 과업 체크 · 메모 · 파일은 되돌리지 않음
+const REVERT_SKIP = /^(task|tmemo|tadd|tfile|tsub):|^taskOrder$/;   // 과업 체크 · 메모 · 파일은 되돌리지 않음
 function canRevertTo(i){ return i < hist.length-1 && hist.slice(i+1).every(h=>h.ch); }
 function stateAt(i){
   const s={...(baseSnap||snap())};   // 마지막으로 저장한 상태에서 거꾸로
@@ -1471,7 +1478,8 @@ function scheduleAuto(){
 }
 async function save(opt){
   const auto = !!(opt && opt.auto), quiet = opt===true || auto;
-  if(saving){ if(auto){ clearTimeout(autoT); autoT=setTimeout(()=>save(opt), 3000); } return; }
+  if(saving){ if(auto){ clearTimeout(autoT); autoT=setTimeout(()=>save(opt), 3000); return; }   // 자동 저장 중이면: 자동은 잠시 뒤, 저장 버튼은 끝나기를 기다렸다가
+    await new Promise(ok=>{ const iv=setInterval(()=>{ if(!saving){ clearInterval(iv); ok(); } }, 50); }); return save(opt); }
   if(!canSave()){ if(!auto) toast('업체나 방문일을 먼저 입력하세요.'); return; }
   if(typeof tbdIsLate==='function' && tbdIsLate(rec) && !rec.tbdLate){ if(!auto) openLate(()=>save(opt)); return; }   // 입력 기한을 전주 목요일보다 늦게 잡았으면 사유부터 (자동 저장은 기다림)
   if(auto && !isDirty()) return;
@@ -1631,9 +1639,13 @@ function syncAutoTasks(){
   tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } if(!t.due) t.due=taskDue(t); });
   const fx=tasks.find(t=>t.id==='erpfix');
   if(fx){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; } else if(!fx.done) fx.changes=[]; }
-  // 견적서 · 거래명세서 발급: 하위 과업(생성 · 전송 · NAS 업로드)이 모두 체크되면 완료
-  tasks.forEach(t=>{ const ds=DOC_SUBS[t.id]; if(!ds) return; if(!t.subs) t.subs=Object.fromEntries(ds.map(([k])=>[k, !!t.done])); const all=ds.every(([k])=>t.subs[k]); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); } if(!all && t.done){ t.done=false; t.doneAt=''; } });
-  tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)));   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
+  // 하위 과업: 견적서 · 거래명세서는 기본 3개(생성 · 전송 · NAS 업로드) + 누구나 직접 추가한 세부 과제(xsubs). 하위 과업이 있으면 모두 체크될 때 완료
+  // (전산 예약 · 프로그램 담당 · 몽몽마방 메뉴처럼 칸을 채우면 끝나는 과업은 하위 과업과 상관없이 그 조건으로)
+  tasks.forEach(t=>{ const ds=DOC_SUBS[t.id]; if(ds && !t.subs) t.subs=Object.fromEntries(ds.map(([k])=>[k, !!t.done]));
+    if(['erp','progstaff','mbmenu'].includes(t.id)) return;
+    const st=[...(ds ? ds.map(([k])=>!!t.subs[k]) : []), ...(t.xsubs||[]).map(x=>!!x.done)]; if(!st.length) return;
+    const all=st.every(Boolean); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); } if(!all && t.done){ t.done=false; t.doneAt=''; } });
+  tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)) || (t.xsubs||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
   const ps=tasks.find(t=>t.id==='progstaff'); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
   const ORDER=['tour','tbdcall','onsitecall','mbcall','mbmenu','progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
@@ -1646,6 +1658,20 @@ const ERP_KEYS_ = () => [...ERP_BASE, ...PROG_KEYS(), ...STF_KEYS()];   // 프�
 const erpSnap = () => Object.fromEntries(ERP_KEYS_().map(k=>[k, rec[k]||'']));
 const erpDiff = (a,b) => [...new Set([...Object.keys(a),...Object.keys(b)])].filter(k=>(a[k]||'')!==(b[k]||'')).map(k=>{ const x=a[k]||'', y=b[k]||'', l=LABEL[k]||k; return !x?`${l} ${y} 추가`:!y?`${l} ${x} 삭제`:`${l} ${x} → ${y}`; });
 const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
+// 하위 과업 칸: 기본 하위 과업(견적서 · 거래명세서) + 직접 추가한 세부 과제(× 로 빼기) + 추가 입력칸
+function subsHTML(t){
+  const ds=DOC_SUBS[t.id]||[];
+  const rows=[...ds.map(([k,l])=>`<label class="tsub${t.subs&&t.subs[k]?' on':''}"><input type="checkbox" data-tsub="${esc(t.id)}|${k}"${t.subs&&t.subs[k]?' checked':''}> ${l}</label>`),
+    ...(t.xsubs||[]).map(x=>`<div class="tsub-row"><label class="tsub${x.done?' on':''}"><input type="checkbox" data-xsub="${esc(t.id)}|${esc(x.id)}"${x.done?' checked':''}> ${esc(x.title)}</label><button type="button" class="tsub-del" data-xdel="${esc(t.id)}|${esc(x.id)}" title="세부 과제 빼기">×</button></div>`)];
+  return `<div class="tsubs">${rows.join('')}<div class="tsub-add"><input data-ime="ko" data-xadd="${esc(t.id)}" placeholder="+ 세부 과제 추가 (적고 Enter)" autocomplete="off"><button type="button" class="btn" data-xaddbtn="${esc(t.id)}">추가</button></div></div>`;
+}
+function addXsub(tid){
+  const inp=document.querySelector(`#taskList [data-xadd="${CSS.escape(tid)}"]`), v=inp ? inp.value.trim() : ''; const t=tasks.find(x=>x.id===tid);
+  if(!v || !t) return;
+  (t.xsubs ||= []).push({id:'x'+Date.now().toString(36), title:v, done:false});
+  inp.blur(); renderTasks(); renderSide(); autoSave();
+  document.querySelector(`#taskList [data-xadd="${CSS.escape(tid)}"]`)?.focus();   // 이어서 또 적을 수 있게
+}
 function renderTasks(){
   syncAutoTasks();
   const consultOnly = effStage(rec)==='예약상담';   // 예약상담은 기록용: 과업 칸을 비우고 안내만
@@ -1653,7 +1679,7 @@ function renderTasks(){
   const shownTasks = consultOnly ? tasks.filter(t=>t.id==='tour') : tasks;   // 예약상담: 사전답사 전산 예약만
   if(consultOnly && !shownTasks.length){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 기록용이라 추후 과업이 없습니다. 예약접수가 되면 과업이 생깁니다.</li>'; $('#taskHint').textContent=''; return; }
   paintDocBtns();
-  const box=$('#taskList'), focus=box.contains(document.activeElement);
+  const box=$('#taskList'), ae=document.activeElement, focus=box.contains(ae) && (ae.tagName==='TEXTAREA' || (ae.tagName==='INPUT' && ae.type!=='checkbox'));   // 메모 · 글자 칸에 쓰는 중일 때만 다시 그리지 않음
   const changeTag = t => { const txt=taskText(t); return !t.copied ? '' : t.copied===txt ? '<span class="hint" style="margin:0">붙여넣은 내용과 같음</span>' : '<span class="chg">예약 내용이 바뀜 · 다시 복사해서 붙여넣기</span>'; };
   if(focus){   // 메모를 쓰는 중이면 문구만 새로
     tasks.forEach(t=>{ const pre=document.getElementById('tpre_'+t.id); if(pre) pre.textContent=taskText(t); const c=document.getElementById('tchg_'+t.id); if(c) c.innerHTML=changeTag(t); });
@@ -1679,7 +1705,7 @@ function renderTasks(){
     return `<li class="task${t.done?' done':late?' late':''}" data-id="${esc(t.id)}">
       <div class="task-h"><label class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span></label>
         ${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"><span class="dow">${dowTag(due)}</span></label>${t.custom?`<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`:''}</div>
-      ${sub?`<div class="sub">${sub}</div>`:''}${DOC_SUBS[t.id] ? `<div class="tsubs">${DOC_SUBS[t.id].map(([k,l])=>`<label class="tsub${t.subs&&t.subs[k]?' on':''}"><input type="checkbox" data-tsub="${esc(t.id)}|${k}"${t.subs&&t.subs[k]?' checked':''}> ${l}</label>`).join('')}</div>` : ''}${docBtn}${files}
+      ${sub?`<div class="sub">${sub}</div>`:''}${subsHTML(t)}${docBtn}${files}
       ${txt?`<pre id="tpre_${esc(t.id)}">${esc(txt)}</pre><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')?'비고 문구 복사':'문구 복사'}</button><span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
         <label class="btn up${upBusy?' busy':''}">${upBusy?'올리는 중…':(t.files||[]).length?'사업자등록증 추가로 올리기':'사업자등록증 올리기'}<input type="file" data-tup="${esc(t.id)}" accept="image/*,application/pdf" hidden${upBusy?' disabled':''}></label>
@@ -1708,18 +1734,21 @@ async function uploadFile(t, file){
   }
 }
 $('#taskList').addEventListener('change', e=>{
+  const xs=e.target.dataset.xsub; if(xs){ const [tid,xid]=xs.split('|'), t=tasks.find(x=>x.id===tid), x=t && (t.xsubs||[]).find(s=>s.id===xid); if(x){ x.done=e.target.checked; renderTasks(); renderSide(); autoSave(); } return; }   // 직접 추가한 세부 과제 체크
   const ts=e.target.dataset.tsub; if(ts){ const [tid,k]=ts.split('|'), t=tasks.find(x=>x.id===tid); if(t){ t.subs=t.subs||{}; t.subs[k]=e.target.checked; renderTasks(); renderSide(); autoSave(); } return; }   // 하위 과업 체크
   const du=e.target.dataset.tdue; if(du){ const t=tasks.find(x=>x.id===du); if(t && e.target.value){ t.due=e.target.value; t.dueSet=1; t.dueSetAt=new Date().toISOString(); e.target.blur(); renderTasks(); renderSide(); autoSave(); } return; }   // 마감일 바꾸기
   const up=e.target.dataset.tup;
   if(up){ const t=tasks.find(x=>x.id===up), f=e.target.files[0]; if(t && f) uploadFile(t, f); return; }
   const id=e.target.dataset.tk; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return;
   t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
-  if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=t.done);   // 위 체크 = 하위 과업 모두 해결 (끄면 모두 해제)
+  if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=t.done); (t.xsubs||[]).forEach(x=>x.done=t.done);   // 위 체크 = 하위 과업 모두 해결 (끄면 모두 해제)
   if(id==='erp'){ rec.erp = t.done ? ymd(new Date()) : ''; touched.add('erp'); }
   if(id==='erpfix' && t.done){ const e=tasks.find(x=>x.id==='erp'); if(e) e.base=erpSnap(); t.changes=[]; }   // 전산에 고친 지금 내용을 기준으로
   renderSide(); autoSave();
 });
 $('#taskList').addEventListener('click', e=>{
+  const xd=e.target.closest('[data-xdel]'); if(xd){ const [tid,xid]=xd.dataset.xdel.split('|'), t=tasks.find(x=>x.id===tid); if(t){ t.xsubs=(t.xsubs||[]).filter(s=>s.id!==xid); renderTasks(); renderSide(); autoSave(); } return; }   // 세부 과제 빼기
+  const xb=e.target.closest('[data-xaddbtn]'); if(xb){ addXsub(xb.dataset.xaddbtn); return; }
   const mv=e.target.closest('[data-tmv]'); if(mv){ const [id,dir]=mv.dataset.tmv.split('|'), consult=effStage(rec)==='예약상담';   // 과업 순서 바꾸기 (안 끝난 과업끼리)
     const open=tasks.filter(t=>!t.done && (!consult || t.id==='tour')), i=open.findIndex(t=>t.id===id), j=i+(+dir);
     if(i<0 || j<0 || j>=open.length) return; [open[i],open[j]]=[open[j],open[i]]; open.forEach((t,k)=>t.ord=k*10);
@@ -1729,6 +1758,7 @@ $('#taskList').addEventListener('click', e=>{
   if(c){ const t=tasks.find(x=>x.id===c); const txt=taskText(t); copy(txt, '복사했습니다. 붙여넣으세요.'); t.copied=txt; renderTasks(); autoSave(); }
   if(d){ e.preventDefault(); document.activeElement.blur(); tasks=tasks.filter(x=>x.id!==d); renderTasks(); autoSave(); toast('과업을 지웠습니다.'); }   // × 에 포커스가 남으면 목록이 다시 안 그려져서 blur
 });
+$('#taskList').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing && e.target.dataset.xadd!==undefined){ e.preventDefault(); addXsub(e.target.dataset.xadd); } });   // 세부 과제: 적고 Enter
 $('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=tasks.find(x=>x.id===id); if(t) t.memo=e.target.value; });
 $('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) autoSave(); });
 $('#taskAdd').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#taskAddIn').value.trim(); if(!v) return;
@@ -2498,9 +2528,9 @@ $('#tbdLater').onclick=()=>{ try{ localStorage.setItem(TASK_SNOOZE_LS, String(Da
 async function doneTask(id, tid){
   const r=cache.find(x=>x.id===id); if(!r) return;
   const now=new Date().toISOString(), base=tasksOf(r).find(t=>t.id===tid); if(!base) return;
-  if(editingId===id){ let t=tasks.find(x=>x.id===tid); if(!t){ t={...base}; tasks.push(t); } t.done=true; t.doneAt=now; if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=true); renderTasks(); await save({auto:true}); return; }
+  if(editingId===id){ let t=tasks.find(x=>x.id===tid); if(!t){ t={...base}; tasks.push(t); } t.done=true; t.doneAt=now; if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=true); (t.xsubs||[]).forEach(x=>x.done=true); renderTasks(); await save({auto:true}); return; }
   const ph=parseHist(r); let t=ph.tasks.find(x=>x.id===tid); if(!t){ t={...base, memo:'', at:now}; ph.tasks.push(t); }
-  t.done=true; t.doneAt=now; if(DOC_SUBS[t.id]) t.subs=Object.fromEntries(DOC_SUBS[t.id].map(([k])=>[k,true])); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료`});
+  t.done=true; t.doneAt=now; if(DOC_SUBS[t.id]) t.subs=Object.fromEntries(DOC_SUBS[t.id].map(([k])=>[k,true])); (t.xsubs||[]).forEach(x=>x.done=true); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료`});
   const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks}), saved:now}; await store.put(item);
   const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;   // 공유 기록에서 다시 받기 전에도 바로 반영
 }
