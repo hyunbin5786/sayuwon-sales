@@ -411,8 +411,16 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
   <section class="panel consult del-box" role="dialog" aria-modal="true" aria-labelledby="pgTitle">
     <h2 id="pgTitle">결제 안내</h2>
     <ul class="pay-guide" id="pgBody"></ul>
-    <p class="hint" style="margin:8px 0 0">이 안내는 오른쪽 <b>다시 확인할 것</b>에도 남아 있습니다.</p>
+    <p class="hint" style="margin:8px 0 0">결제 방식을 다시 고르면 이 안내가 다시 뜹니다.</p>
     <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" id="pgOk">확인</button></div>
+  </section>
+</div>
+<!-- 이상한 값이 생기면 바로: 지난 날짜 · 시각 형식 · 퇴장이 입장보다 빠름 · 답변일 늦음 · 사담 · 마방 자리 부족 · 특별 할인 증빙 -->
+<div class="modal" id="warnModal" hidden>
+  <section class="panel consult del-box" role="dialog" aria-modal="true" aria-labelledby="warnTitle">
+    <h2 id="warnTitle">확인해 주세요</h2>
+    <ul class="pay-guide warn-list" id="warnList"></ul>
+    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" id="warnOk">확인</button></div>
   </section>
 </div>
 <!-- 저장하지 않은 변경이 있는데 새 통화 · 다른 예약으로 넘어갈 때 -->
@@ -503,8 +511,6 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
     <h2>통화 중 확인</h2>
     <div class="sub-h">물어볼 것 <small class="hint" style="margin:0">받은 항목은 <b style="color:#2f8f3a">초록색</b>, 미정인 항목은 <b style="color:var(--amber)">노란색</b></small></div>
     <div id="missBox"></div>
-    <div class="sub-h">다시 확인할 것</div>
-    <div id="unsureBox"></div>
     <div class="sub-h">고객님께 확인</div>
     <div class="readback" id="readback"></div>
     <div class="row-btns" style="margin-top:8px"><button class="btn" id="copyReadBtn">확인 문구 복사</button></div>
@@ -1065,8 +1071,7 @@ function renderSide(){
   // 물어볼 것: 전부 보여 주고, 받은 항목은 초록색, 미정으로 체크한 항목은 노란색
   $('#missBox').innerHTML = `<ul class="chk miss">${req.map(([k,l,q])=>`<li class="${ts.has(k)||(k==='pay'&&rec.pay==='미정')?'tbd':rec[k]?'got':''}" title="${q}"><b>${l}</b></li>`).join('')}</ul>`
     + (miss.length ? '' : `<div class="done-all" style="margin-top:6px">필수 정보를 모두 받았습니다. 고객님께 확인하고 저장하세요.</div>`);
-  const items = fieldWarnings(rec).map(u=>`<li><b>${LABEL[u.field]||u.field}</b> ${esc(rec[u.field]||'')}<span class="q">${esc(u.reason)}</span></li>`);
-  $('#unsureBox').innerHTML = items.length ? `<ul class="chk unsure">${items.join('')}</ul>` : `<p class="hint" style="margin:0">지난 날짜, 입퇴장 시간 뒤바뀜, 사담·마방 자리 부족이면 여기에 표시합니다.</p>`;
+  if(window.__autoReady) scheduleWarn();   // 이상한 값이 새로 생기면 바로 팝업
   $('#tbdDow').textContent = dowTag(rec.tbdDate);   // 답변일 (요일)
   $('#readback').textContent = readback(rec);
   renderInfo(curInfoKey);
@@ -1124,7 +1129,7 @@ function readback(r){
   if(docs) S.push(mails.length ? `${docs}는 ${mails.join(', ')}로 보내드리면 될까요?` : `${docs} 받으실 이메일 주소를 알려주시겠어요?`);
   if(!S.length || (!r.org && !r.date && !r.people)) return '내용이 채워지면 고객에게 읽어줄 확인 문구가 만들어집니다.';
   let s = `마지막으로 예약 확인하겠습니다.\n${S.join('\n')}\n\n저희가 입장 전날에 전화드리면서 다시 안내드리겠습니다. 감사합니다.`;   // 마지막 멘트는 항상 이것으로
-  // 결제 방식 안내(PAY_GUIDE)는 결제를 고를 때 팝업 + 다시 확인할 것에
+  // 결제 방식 안내(PAY_GUIDE)는 결제를 고를 때 팝업
   // 특별 할인: 인원 · 할인율 · 지참할 증빙
   const sp = typeof SPECIAL!=='undefined' ? specialCounts(r) : [];
   if(sp.length) s += `\n\n[특별 할인 안내]\n` + sp.map(x=>`· ${x.name} ${x.n}명은 ${x.rate===1?'무료':Math.round(x.rate*100)+'% 할인'}입니다. 방문 당일 꼭 지참해 주세요: ${x.proof}`).join('\n')
@@ -1172,7 +1177,7 @@ function renderInfo(k){
   });
 }
 
-// 다시 확인할 것: 입력된 값끼리 맞지 않거나, 관리자 사이트 기준 자리가 모자랄 때
+// 확인할 것(팝업): 입력된 값끼리 맞지 않거나, 관리자 사이트 기준 자리가 모자랄 때
 function fieldWarnings(r){
   const w=[];
   if(r.date){ const d=new Date(r.date+'T00:00'), t=new Date(); t.setHours(0,0,0,0); if(d<t) w.push({field:'date', reason:'지난 날짜입니다. 방문일을 다시 확인하세요.'}); }
@@ -1182,8 +1187,6 @@ function fieldWarnings(r){
   if(r.date && r.tbdDate && r.tbdDate>r.date) w.push({field:'tbdDate', reason:'미정 항목 답변일이 방문일보다 늦습니다.'});
   else if(r.tbd && r.date && r.tbdDate && r.tbdDate>tbdLimit(r.date)) w.push({field:'tbdDate', reason: r.tbdLate ? `${tbdLimitName(r.date)}보다 늦음 · 사유: ${r.tbdLate}` : `미정 항목 답변일은 ${tbdLimitName(r.date)}(${mdLabel(tbdLimit(r.date))})까지입니다. 늦추려면 사유를 적어야 합니다.`});
   if(typeof SPECIAL!=='undefined') specialCounts(r).forEach(s=>w.push({field:s.k, reason:`${s.n}명 ${s.name} 할인 → 방문 때 ${s.proof} 지참을 안내하세요.`}));
-  (PAY_GUIDE[r.pay]||[]).forEach(g=>w.push({field:'pay', reason:g}));   // 결제 방식 안내 (현장 결제면 인원 변경 어려움 등)
-  if(typeof effStage==='function'){ const s=effStage(r); if(s!=='예약상담' && !r.erp) w.push({field:'stage', reason:`예약접수는 사유원 전산에 등록해야 합니다. 등록한 뒤 추후 과업의 '전산 예약'을 체크하세요.`}); }
   const day = adminData && adminData.days && adminData.days[r.date];
   if(day) Object.entries(ADMIN_SLOT).forEach(([k,[slot,name]])=>{
     const s=day[slot], want=numOf(r[k]); if(!s || !want) return;
@@ -1193,6 +1196,24 @@ function fieldWarnings(r){
   });
   return w;
 }
+
+// 이상한 값이 새로 생기면 (입력을 멈추고 1.2초 뒤) 바로 팝업. 한 번 보여 준 것은 이 예약을 여는 동안 다시 띄우지 않음
+let warnSeen=new Set(), warnT=null;
+const warnKey = w => w.field+'|'+w.reason;
+function scheduleWarn(){ clearTimeout(warnT); warnT=setTimeout(checkWarn, 1200); }
+function checkWarn(){
+  if(!window.__autoReady || restoring) return;
+  const fresh=fieldWarnings(rec).filter(w=>!warnSeen.has(warnKey(w)));
+  if(!fresh.length) return;
+  if([...document.querySelectorAll('.modal')].some(m=>!m.hidden)){ scheduleWarn(); return; }   // 다른 팝업이 떠 있으면 닫힌 뒤에
+  fresh.forEach(w=>warnSeen.add(warnKey(w)));
+  $('#warnList').innerHTML = fresh.map(w=>`<li><b>${esc(LABEL[w.field]||w.field)}</b>${rec[w.field]?` ${esc(rec[w.field])}`:''} · ${esc(w.reason)}</li>`).join('');
+  $('#warnModal').hidden=false; setTimeout(()=>$('#warnOk').focus(),0);
+}
+const resetWarn = (seed) => { warnSeen=new Set(seed ? fieldWarnings(rec).map(warnKey) : []); clearTimeout(warnT); };   // 저장된 예약을 열 때는 원래 있던 것은 띄우지 않음
+$('#warnOk').onclick=()=>{ $('#warnModal').hidden=true; };
+$('#warnModal').addEventListener('click', e=>{ if(e.target.id==='warnModal') $('#warnModal').hidden=true; });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#warnModal').hidden){ e.preventDefault(); $('#warnModal').hidden=true; } });
 
 function autoSummary(){ return ['단체', rec.org, rec.people&&`${rec.people}명`, rec.date&&dateLabel(rec.date), rec.meal&&rec.meal!=='없음'&&`식사 ${rec.meal}`].filter(Boolean).join(' · '); }
 
@@ -1763,7 +1784,7 @@ function openRecord(r){
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
     nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; $('#memoBox').value=r.note||'';
     const ph=parseHist(r); hist=ph.h; tasks=ph.tasks;
-    renderContacts(); renderForm(); baseSnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
+    renderContacts(); renderForm(); resetWarn(true); baseSnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
 }
 
 // 관리자 사이트에서 지금 가져오기 (평소에는 Apps Script 가 15분마다 자동으로)
@@ -1784,7 +1805,7 @@ $('#adminSyncBtn').onclick=async()=>{
 function newCall(withToast=true){
   resetState(); clearInterval(timerInt); tick(); $('#memoBox').value=''; status('');
   hist=[]; baseSnap=null; tasks=[]; tbdAuto=false; renderHist();
-  renderContacts(); renderForm(); emptySnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty();
+  renderContacts(); renderForm(); resetWarn(false); emptySnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty();
   if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
 }
 $('#newBtn').onclick=()=>guardLeave(()=>newCall());
