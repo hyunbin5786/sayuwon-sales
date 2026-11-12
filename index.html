@@ -1503,7 +1503,8 @@ function erpNote(r){
   if(r.mabangL || r.mabangTime || r.mabangMenu) p.push(['몽몽마방', r.mabangTime, r.mabangMenu].filter(Boolean).join(' '));   // 몽몽마방 <시간> <메뉴>
   if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');   // 몽몽마방 결제를 마방으로 고르면
   if(r.pay==='현장 결제' || r.onsite){ const m=moneySplit(r); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); }
-  return [...p, ...memoLines()].join(' / ');
+  const who=(r.owner||savedOwner()||'').trim();   // 끝에 항상 (영업 담당 이름)
+  return [...p, ...memoLines()].join(' / ') + (who ? ` (${who})` : '');
 }
 // 세금계산서 발행 요청 문구
 function taxMsg(r){
