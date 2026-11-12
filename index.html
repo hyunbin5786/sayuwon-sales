@@ -1498,7 +1498,7 @@ const memoLines = () => $('#memoBox').value.split('\n').map(s=>s.trim()).filter(
 // 전산 비고에 붙여넣을 문구
 function erpNote(r){
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';   // 출입구가 미정이면 '출입구 미정'을 따로
-  const p=[`입장 ${r.tin||'미정'}${gate?' '+gate:''}`, ...(gate?[]:['출입구 미정']), r.pchg ? '인원 변경 가능성 있음' : '인원 변경 없음'];
+  const p=[`입장 ${r.tin||'미정'}${gate?' '+gate:''}`, ...(gate?[]:['출입구 미정']), ...(r.pchg ? ['인원 변경 가능성 있음'] : [])];   // 인원 변경은 가능성이 있을 때만
   const pg=progList(r, null, true); if(pg.length) p.push(pg.join(', '));   // 프로그램 (담당:이름)
   if(r.mabangL || r.mabangTime || r.mabangMenu) p.push(['몽몽마방', r.mabangTime, r.mabangMenu].filter(Boolean).join(' '));   // 몽몽마방 <시간> <메뉴>
   if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');   // 몽몽마방 결제를 마방으로 고르면
