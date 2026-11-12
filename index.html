@@ -1455,7 +1455,7 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
-const AUTO_TASKS = { mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 담당 입력', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
+const AUTO_TASKS = { mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 담당 입력', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 function moneySplit(r){
   if(!quoteCat || !r.date || !numOf(r.people)) return null;
@@ -1493,6 +1493,7 @@ function syncAutoTasks(){
   if(rec.wantStmt) want.push('stmt');
   const ms=missingStaff(rec); if(ms.length) want.push('progstaff');   // 프로그램 담당이 비면 입력하라고
   const mbNeed=mbNeedsMenu(rec); if(mbNeed) want.push('mbmenu');   // 몽몽마방 예약인데 메뉴를 안 고름
+  if(rec.mabangL || rec.mabangTime) want.push('mbcall');   // 몽몽마방이 들어가면 식당에 전화로 시간 확인 (직접 체크)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
   const e0=tasks.find(t=>t.id==='erp');
   if(e0){ e0.done=!!rec.erp; if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
@@ -1504,7 +1505,7 @@ function syncAutoTasks(){
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
   const ps=tasks.find(t=>t.id==='progstaff'); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
-  const ORDER=['mbmenu','progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
+  const ORDER=['mbcall','mbmenu','progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
   tasks.sort((a,b)=>(a.custom?99:ORDER.indexOf(a.id))-(b.custom?99:ORDER.indexOf(b.id)));
 }
 // 전산에 들어가는 내용 (이게 바뀌면 전산 예약 수정)
@@ -1528,6 +1529,7 @@ function renderTasks(){
   box.innerHTML = tasks.map(t=>{
     const txt=taskText(t);
     const sub = t.id==='paycheck' ? `결제링크 보낸 다음날(${mdLabel(ymd(nextDay(t.at)))}) 아침에 이 창을 열면 확인 알림이 뜹니다.`
+      : t.id==='mbcall' ? `몽몽마방 식당에 전화해서 확인하고 체크하세요. (${esc([rec.date&&dateLabel(rec.date), rec.mabangL&&rec.mabangL+'명'].filter(Boolean).join(' · ')||'방문일 · 인원 미정')})<br>① 고객님이 말씀하신 시각 <b>${esc(rec.mabangTime||'(시간 미입력)')}</b> 가능한지<br>② 그날 예약 가능한 시간이 모두 언제인지 → 아래 메모에 적어 두기`
       : t.id==='mbmenu' ? (t.done ? '몽몽마방 메뉴를 골랐습니다.' : `몽몽마방 식사에서 메뉴(${esc(mbMenus().map(m=>m.name).join(' · '))}) 중 하나를 고르세요. 고르면 자동으로 완료됩니다.`)
       : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 프로그램: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 칸의 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (차방 · 당두봉갈 대관은 담당 없어도 됨)` : '프로그램 담당을 모두 넣었습니다.')
       : t.id==='erpfix' ? ((t.changes||[]).length ? `전산 등록 후 바뀐 내용: <b>${esc(t.changes.join(' · '))}</b><br>전산 예약을 고치고 비고도 새 문구로 바꾼 뒤 체크하세요.` : '전산에 반영했습니다.')
@@ -1914,16 +1916,15 @@ function quoteBlocks(r){
   const n = numOf(r.people), we = isRedDay(r.date);
   const DAY = we ? '주말/공휴일' : '평일';
   const cnt = v => v ? (numOf(v) || n) : 0;   // 'O' 처럼 숫자가 없으면 전체 인원
-  const mbM = mbMenuOf(r), mbPkg = r.mabangL && mbM && /사유의\s*밥상/.test(mbM.src+mbM.name);   // 사유의 밥상을 고르면 관람+밥상 패키지
+  const mbM = mbMenuOf(r);   // 몽몽마방은 단체도 관람과 따로: 관람권 + 고른 메뉴 품목 (사유의 밥상이면 사유의 밥상(단체))
   const blocks=[], skipped=[];
   const add=(product, qty, disc)=>{ if(qty>0) blocks.push({product, qty, disc}); };
-  const pkg = cnt(r.sadam1)+cnt(r.sadam2)+cnt(r.sadamD)+(mbPkg?cnt(r.mabangL):0);
+  const pkg = cnt(r.sadam1)+cnt(r.sadam2)+cnt(r.sadamD);
   add(viewSrcOf(r), Math.max(0, n-pkg), true);
   add(`${DAY}(관람, 사담 런치1부)`, cnt(r.sadam1), true);
   add(`${DAY}(관람, 사담 런치2부)`, cnt(r.sadam2), true);
   add(`${DAY}(관람, 사담 디너)`, cnt(r.sadamD), false);
-  if(mbPkg) add(`${DAY}(관람, 몽몽마방 사유의 밥상)`, cnt(r.mabangL), false);
-  else if(r.mabangL && mbM) add(mbM.src, cnt(r.mabangL), false);   // 고른 메뉴 품목 (품목 리스트 가격)
+  if(r.mabangL && mbM) add(mbM.src, cnt(r.mabangL), false);   // 고른 메뉴 품목 (품목 리스트 가격)
   else if(r.mabangL && Number(r.mabangPrice)){ add('몽몽마방 단품', cnt(r.mabangL), false); blocks[blocks.length-1].price=Number(r.mabangPrice); }   // 예전 기록: 적어 둔 단가
   else if(r.mabangL) skipped.push('몽몽마방 (메뉴를 고르면 계산)');
   if(r.mabangD) skipped.push('몽몽마방 디너');
