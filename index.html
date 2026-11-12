@@ -1716,14 +1716,13 @@ function syncAutoTasks(){
   const ps=tasks.find(t=>t.id==='progstaff'); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
   const ORDER=['tour','tbdcall','onsitecall','mbcall','mbmenu','progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
-  // 순서: 처음에는 마감일 순, 그 뒤 새로 생긴 과업은 맨 아래. 끌기 · ▲▼로 바꾼 순서는 그대로 유지 (ord)
-  const noOrd=tasks.filter(t=>t.ord==null);
-  if(noOrd.length){
-    const byDue=(a,b)=>taskDue(a).localeCompare(taskDue(b)) || String(a.at||'').localeCompare(String(b.at||'')) || ((a.custom?99:ORDER.indexOf(a.id))-(b.custom?99:ORDER.indexOf(b.id)));
-    let max = tasks.some(t=>t.ord!=null) ? Math.max(...tasks.filter(t=>t.ord!=null).map(t=>t.ord)) : -10;
-    noOrd.sort(byDue).forEach(t=>{ max+=10; t.ord=max; });   // 처음이면 전부 마감일 순, 아니면 새 과업만 맨 아래로
-  }
-  tasks.sort((a,b)=>((a.done?1:0)-(b.done?1:0)) || (a.ord-b.ord));   // 안 끝난 과업이 위로
+  // 순서: 마감일이 빠른 순, 마감일이 같으면 최근에 추가된 것이 위. 직접 옮긴 과업(ordSet)은 그 순서 그대로 두고,
+  // 옮기지 않은 과업은 그 사이에 마감일에 맞게 끼워 넣음 (같은 마감일이면 직접 옮긴 것보다 위). 끝난 과업은 맨 아래
+  const byNew=(a,b)=>taskDue(a).localeCompare(taskDue(b)) || String(b.at||'').localeCompare(String(a.at||''));
+  const openT=tasks.filter(t=>!t.done), doneT=tasks.filter(t=>t.done).sort(byNew);
+  const list=openT.filter(t=>t.ordSet).sort((a,b)=>a.ord-b.ord);
+  openT.filter(t=>!t.ordSet).sort(byNew).forEach(t=>{ const d=taskDue(t); let i=list.findIndex(x=>x.ordSet && taskDue(x)>=d); if(i<0) i=list.length; list.splice(i,0,t); });
+  tasks=[...list, ...doneT];
 }
 // 전산에 들어가는 내용 (이게 바뀌면 전산 예약 수정)
 const ERP_BASE = ['goods','org','date','people','tin','tout','gate','pchg','pay','onsite','sadam1','sadam2','sadamD','mabangTime','mabangL','mabangD','mabangMenu','teaMed','gayageum','cabin','c0_name','c0_phone'];
