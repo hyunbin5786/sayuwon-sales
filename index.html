@@ -1750,12 +1750,13 @@ function addXsub(tid){
   inp.blur(); renderTasks(); renderSide(); autoSave();
   document.querySelector(`#taskList [data-xadd="${CSS.escape(tid)}"]`)?.focus();   // 이어서 또 적을 수 있게
 }
+const consultTask = t => t.id==='tour' || t.custom;   // 예약상담에서 보이는 과업: 사전답사 전산 예약 + 직접 추가한 과업
 function renderTasks(){
   syncAutoTasks();
-  const consultOnly = effStage(rec)==='예약상담';   // 예약상담은 기록용: 과업 칸을 비우고 안내만
-  $('#taskAdd').hidden = consultOnly;
-  const shownTasks = consultOnly ? tasks.filter(t=>t.id==='tour') : tasks;   // 예약상담: 사전답사 전산 예약만
-  if(consultOnly && !shownTasks.length){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 기록용이라 추후 과업이 없습니다. 예약접수가 되면 과업이 생깁니다.</li>'; $('#taskHint').textContent=''; return; }
+  const consultOnly = effStage(rec)==='예약상담';   // 예약상담: 자동 과업은 없고(사전답사 전산 예약만) 직접 추가한 과업은 그대로
+  $('#taskAdd').hidden = false;
+  const shownTasks = consultOnly ? tasks.filter(consultTask) : tasks;
+  if(consultOnly && !shownTasks.length){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 자동으로 생기는 과업이 없습니다. 필요한 일은 위 칸에 직접 추가해 주세요.</li>'; $('#taskHint').textContent=''; return; }
   paintDocBtns();
   const box=$('#taskList'), ae=document.activeElement, focus=box.contains(ae) && (ae.tagName==='TEXTAREA' || (ae.tagName==='INPUT' && ae.type!=='checkbox'));   // 메모 · 글자 칸에 쓰는 중일 때만 다시 그리지 않음
   const changeTag = t => { const txt=taskText(t); return !t.copied ? '' : t.copied===txt ? '<span class="hint" style="margin:0">붙여넣은 내용과 같음</span>' : '<span class="chg">예약 내용이 바뀜 · 다시 복사해서 붙여넣기</span>'; };
@@ -1830,7 +1831,7 @@ $('#taskList').addEventListener('click', e=>{
   const xd=e.target.closest('[data-xdel]'); if(xd){ const [tid,xid]=xd.dataset.xdel.split('|'), t=tasks.find(x=>x.id===tid); if(t){ t.xsubs=(t.xsubs||[]).filter(s=>s.id!==xid); renderTasks(); renderSide(); autoSave(); } return; }   // 세부 과제 빼기
   const xb=e.target.closest('[data-xaddbtn]'); if(xb){ addXsub(xb.dataset.xaddbtn); return; }
   const mv=e.target.closest('[data-tmv]'); if(mv){ const [id,dir]=mv.dataset.tmv.split('|'), consult=effStage(rec)==='예약상담';   // 과업 순서 바꾸기 (안 끝난 과업끼리)
-    const open=tasks.filter(t=>!t.done && (!consult || t.id==='tour')), i=open.findIndex(t=>t.id===id), j=i+(+dir);
+    const open=tasks.filter(t=>!t.done && (!consult || consultTask(t))), i=open.findIndex(t=>t.id===id), j=i+(+dir);
     if(i<0 || j<0 || j>=open.length) return; [open[i],open[j]]=[open[j],open[i]]; open.forEach((t,k)=>{ t.ord=k*10; t.ordSet=1; });
     renderTasks(); autoSave(); return; }
   const c=e.target.dataset.tcopy, d=e.target.dataset.tdel, q=e.target.dataset.tquote;
@@ -1840,7 +1841,7 @@ $('#taskList').addEventListener('click', e=>{
 });
 // 과업 순서: 왼쪽 ⠿ 를 잡고 끌어서 놓기 (안 끝난 과업끼리, ▲▼ 와 같은 순서 값)
 let dragId=null;
-const dragOpen = () => { const consult=effStage(rec)==='예약상담'; return tasks.filter(t=>!t.done && (!consult || t.id==='tour')); };
+const dragOpen = () => { const consult=effStage(rec)==='예약상담'; return tasks.filter(t=>!t.done && (!consult || consultTask(t))); };
 $('#taskList').addEventListener('mousedown', e=>{ const h=e.target.closest('.tdrag'); if(h) h.closest('li.task').draggable=true; });
 $('#taskList').addEventListener('dragstart', e=>{ const li=e.target.closest('li.task'); if(!li || !li.draggable) return; dragId=li.dataset.id; li.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', dragId); }catch(_){} });
 $('#taskList').addEventListener('dragover', e=>{ if(!dragId) return; const li=e.target.closest('li.task'); if(!li || li.classList.contains('done')) return; e.preventDefault();
@@ -2577,8 +2578,8 @@ const firstContact = r => { const n=String(r.contact||'').split(/\s*\/\s*/)[0]||
 function myRecords(){ const me=savedOwner(); return me ? (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me) : []; }
 // 저장된 예약의 추후 과업 (열지 않은 예약도): 저장된 과업 + 아직 저장 안 된 미정 항목 연락 · 현장 결제 인원 확인
 function tasksOf(r){
-  if(stageOfRec(r)==='예약상담' && editingId!==r.id){ const x=xOf(r), st=parseHist(r).tasks.find(t=>t.id==='tour'); return x.tour ? [st ? {...st, due:taskDue(st)} : {id:'tour', title:AUTO_TASKS.tour, done:false, due:ymd(new Date(r.saved||Date.now())), at:r.saved}] : []; }   // 예약상담은 기록용: 사전답사 전산 예약만
-  if(editingId===r.id && effStage(rec)==='예약상담') return tasks.filter(t=>t.id==='tour').map(t=>({...t, due:taskDue(t)}));
+  if(stageOfRec(r)==='예약상담' && editingId!==r.id){ const x=xOf(r), all=parseHist(r).tasks, st=all.find(t=>t.id==='tour'), own=all.filter(t=>t.custom).map(t=>({...t, due:taskDue(t)})); return [...(x.tour ? [st ? {...st, due:taskDue(st)} : {id:'tour', title:AUTO_TASKS.tour, done:false, due:ymd(new Date(r.saved||Date.now())), at:r.saved}] : []), ...own]; }   // 예약상담: 사전답사 전산 예약 + 직접 추가한 과업
+  if(editingId===r.id && effStage(rec)==='예약상담') return tasks.filter(consultTask).map(t=>({...t, due:taskDue(t)}));
   if(editingId===r.id) return tasks.map(t=>({...t, due:taskDue(t)}));   // 지금 열어 둔 예약은 화면의 과업
   const x=xOf(r), ts=parseHist(r).tasks.map(t=>({...t}));
   const has = id => ts.some(t=>t.id===id);
