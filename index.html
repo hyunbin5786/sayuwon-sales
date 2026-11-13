@@ -44,6 +44,7 @@ header .timer{margin-left:auto;font-size:13px;font-variant-numeric:tabular-nums;
 header .sync{font-size:12px;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.14)}
 header .sync.ok{background:#cfe3c6;color:var(--pine)}
 header .sync.warn{background:#f3d9b5;color:#6b4513}
+header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7efe1}   /* 구글 시트(Apps Script)에 마지막으로 저장된 시각 */
 #keyMsg{color:var(--red)}
 /* 순서: 예약 내용 · 통화 중 확인 · 통화 메모 */
 .layout{display:grid;grid-template-columns:minmax(420px,1.35fr) minmax(280px,.9fr) minmax(300px,1fr);gap:14px;padding:14px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));align-items:start}
@@ -85,12 +86,14 @@ header .sync.warn{background:#f3d9b5;color:#6b4513}
 .mb-ck{white-space:nowrap;width:auto;flex:0 0 auto}
 .mb-ck small{font-weight:400;color:var(--muted);font-size:11.5px}
 .mb-ck.old{border-style:dashed}
-.goods-box{display:flex;flex-direction:column;gap:6px}
 #w_goods > label{display:none}   /* 굿즈 묶음 안의 "굿즈 품목" 칸 이름은 숨김 */
-.g-row{display:flex;align-items:center;gap:8px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff}
-.g-name{flex:1;min-width:0;font-size:13px;font-weight:600}
-.g-row small{color:var(--muted);font-size:12px;white-space:nowrap}
-#form .g-row input[type=number]{width:64px;height:30px;text-align:right;flex:none}
+.goods-box{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px}   /* 굿즈: 한 줄에 여러 개 */
+.goods-box > select.g-add{grid-column:1/-1}
+.g-row{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;min-width:0}
+.g-name{flex:1;min-width:0;font-size:13px;font-weight:600;display:flex;flex-direction:column;line-height:1.25;overflow:hidden}
+.g-name small{color:var(--muted);font-size:11.5px;font-weight:400;white-space:nowrap}
+.g-name b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#form .g-row input[type=number]{width:52px;height:28px;text-align:right;flex:none;padding:0 4px}
 .g-unit{font-size:12px;color:var(--muted)}
 .g-del{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
 .g-del:hover{color:var(--red)}
@@ -440,6 +443,7 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
   <button type="button" class="list-btn" id="listOpenBtn">단체예약 목록 <span id="listCount"></span><span class="tag call" id="callCount" hidden></span></button>
   <button type="button" class="list-btn" data-open-cat title="견적서 · 가격표 · 몽몽마방 메뉴 품목 (견적서 사이트와 같은 목록)">품목 관리</button>
   <span class="sync" id="syncChip" hidden></span>
+  <span class="sync db-time" id="dbTime" hidden></span>
 </header>
 <!-- 공유 기록이 끊기면(비밀번호 없음 · 틀림) 뜨는 팝업. 연결될 때까지 닫히지 않음 -->
 <div class="modal" id="keyModal" hidden>
@@ -882,7 +886,7 @@ const goodsName = src => { const it=goodsItems().find(x=>normSrc(x.src)===normSr
 const goodsText = r => goodsParse(r.goods).map(g=>`${goodsName(g.src)} ${g.qty}개`).join(', ');
 function goodsHTML(v){
   const list=goodsParse(v), items=goodsItems();
-  const rows=list.map((g,i)=>{ const p=priceOf(g.src); return `<div class="g-row"><span class="g-name">${esc(goodsName(g.src))}</span><small>${p!=null?wonTxt(p)+'원':'가격 없음'}</small>`
+  const rows=list.map((g,i)=>{ const p=priceOf(g.src); return `<div class="g-row"><span class="g-name" title="${esc(goodsName(g.src))}"><b>${esc(goodsName(g.src))}</b><small>${p!=null?wonTxt(p)+'원':'가격 없음'}</small></span>`
     + `<input type="number" min="1" step="1" data-gq="${i}" value="${g.qty}" aria-label="수량"><span class="g-unit">개</span><button type="button" class="g-del" data-gdel="${i}" title="빼기">×</button></div>`; }).join('');
   const opts=items.filter(it=>!list.some(g=>normSrc(g.src)===normSrc(it.src))).map(it=>`<option value="${esc(it.src)}">${esc(String(it.name||'').trim()||it.src)} · ${wonTxt(it.price)}원</option>`).join('');
   return rows + `<select class="g-add" data-gadd><option value="">＋ 굿즈 추가${items.length?'':' (품목을 불러오는 중)'}</option>${opts}</select>`;
@@ -1445,7 +1449,20 @@ function paintSync(){
   chip.textContent=txt; chip.hidden=!txt; chip.className='sync '+(syncState==='error'||syncState==='off'?'warn':'');
   const km=$('#keyModal'), wasHidden=km.hidden; km.hidden = syncState!=='needkey';
   if(!km.hidden && wasHidden) setTimeout(()=>$('#keyInput').focus(), 0);
+  paintDbTime();
   $('#storeHint').textContent = !SHARED_URL ? '이 브라우저에만 저장됩니다 (공유 주소 연결 전)' : syncState==='ok' ? '구글 시트에 저장 · 모두가 같은 목록을 봅니다' : syncState==='needkey' ? '팀 비밀번호를 넣으면 공유 목록이 보입니다' : syncState==='error' ? '연결이 안 돼 이 브라우저에 모아 두었다가 다시 올립니다' : '불러오는 중…';
+}
+// 구글 시트(Apps Script) DB에 마지막으로 저장된 시각 (이 브라우저에서 올린 것) · 마지막으로 받아 온 시각
+var DBT_LS = 'sayuwon_db_time';   // var: paintSync가 먼저 불려도 되게
+var dbTime = readJSON(DBT_LS, {});
+const markDb = k => { dbTime[k]=new Date().toISOString(); writeJSON(DBT_LS, dbTime); paintDbTime(); };
+function paintDbTime(){
+  const el=$('#dbTime'); if(!el || !dbTime) return;
+  if(!SHARED_URL){ el.hidden=true; return; }
+  const n=pending.length, t=dbTime.saved || dbTime.pulled;
+  el.hidden = !t && !n;
+  el.textContent = (dbTime.saved ? `DB 저장 ${dtLabel(dbTime.saved)}` : t ? `DB 동기화 ${dtLabel(t)}` : '') + (n ? ` · 저장 대기 ${n}건` : '');
+  el.title = `구글 시트(Apps Script) DB\n· 이 브라우저에서 마지막으로 저장: ${dbTime.saved?dtLabel(dbTime.saved):'아직 없음'}\n· 마지막으로 목록을 받아 옴: ${dbTime.pulled?dtLabel(dbTime.pulled):'아직 없음'}`;
 }
 function handleErr(e){
   if(e.code==='bad_key'){ syncState='needkey'; if(getKey()) $('#keyMsg').textContent='비밀번호가 맞지 않습니다.'; }
@@ -1460,7 +1477,7 @@ async function flush(){
     do {   // 보내는 사이 새로 쌓인 것(예: 삭제 사유 저장 뒤 삭제)까지 이어서 보냄
     while(pending.length){
       await callApi(pending[0]);
-      pending.shift(); writeJSON(PEND_LS,pending); paintSync();
+      pending.shift(); writeJSON(PEND_LS,pending); dbTime.saved=new Date().toISOString(); writeJSON(DBT_LS, dbTime); paintSync();
     }
     await pull(true);
     } while(pending.length);
@@ -1475,6 +1492,7 @@ async function pull(inFlush){
     const j=await callApi({action:'list'});
     serverItems=j.items||[]; writeJSON(CACHE_LS,serverItems.slice(-1000));
     if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
+    dbTime.pulled=new Date().toISOString(); writeJSON(DBT_LS, dbTime);
     syncState='ok'; $('#keyMsg').textContent=''; paintSync(); renderList(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); if(!$("#myModal").hidden) renderMy(); }
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
