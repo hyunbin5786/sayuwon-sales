@@ -1713,6 +1713,8 @@ function moneySplit(r){
   let saw=0, shilla=0, missing=false;
   const {blocks, skipped} = quoteBlocks(r);
   blocks.forEach(b=>{ const a=blockAmount(b, b.price ?? priceOf(b.product)); if(!a){ missing=true; return; }
+    const tx=b.price==null && taxOf(b.product);   // 품목 관리의 과세 · 비과세 비율로 나눔 (할인도 같은 비율)
+    if(tx){ const s=Math.round(a.amount*tx.tf/(tx.tx+tx.tf)); saw+=s; shilla+=a.amount-s; return; }
     if(b.product===viewSrc) saw+=a.amount;
     else if(/\(관람,/.test(b.product)){ const v=blockAmount(b, vp); const vv=v?Math.min(v.amount,a.amount):0; saw+=vv; shilla+=a.amount-vv; }
     else shilla+=a.amount; });
@@ -2097,7 +2099,8 @@ function parseQuotePage(html){
   const raw = [...m[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]);
   const list = name => { const mm = html.match(new RegExp('\\[([^\\]]*)\\]\\.forEach\\(function\\(n\\)\\{\\s*' + name + '\\[n\\]')); return mm ? [...mm[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]) : []; };
   let mbName={}; try{ mbName=JSON.parse((html.match(/var MABANG_NAME = (\{[^}]*\});/)||[])[1]||'{}'); }catch(_){}
-  return { raw, gtime:list('GROUP_TIME'), geach:list('GROUP_EACH'), goods:list('GOODS'), mabang:list('MABANG'), mbName };
+  let tax={}; try{ tax=JSON.parse((html.match(/var TAX_SPLIT = (\{[\s\S]*?\});/)||[])[1]||'{}'); }catch(_){}   // 기본 과세 · 비과세 [과세, 비과세]
+  return { raw, gtime:list('GROUP_TIME'), geach:list('GROUP_EACH'), goods:list('GOODS'), mabang:list('MABANG'), mbName, tax };
 }
 async function loadQuotePrices(){
   try{
@@ -2138,11 +2141,14 @@ function catalogItems(){
     const [src, price, disc] = line.split('|'); if(seen[normSrc(src)]) return; seen[normSrc(src)]=1;
     const e = (quoteCat.edits||{})[src] || {};
     if(e.hidden) return;
-    out.push({ src, name: e.name, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), disc: e.disc!=null ? !!e.disc : disc==='1', kind: (e.kind==='food' && MB_DEF.some(m=>normSrc(m[0])===normSrc(src))) ? 'mabang' : (e.kind || kindOf(src)) });   // 예전에 '식사'로 바꿔 둔 기본 몽몽마방 메뉴도 메뉴로
+    out.push({ src, name: e.name, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), disc: e.disc!=null ? !!e.disc : disc==='1', kind: (e.kind==='food' && MB_DEF.some(m=>normSrc(m[0])===normSrc(src))) ? 'mabang' : (e.kind || kindOf(src)),
+      taxable: e.taxable!=null ? Number(e.taxable) : ((quoteCat.tax||{})[src]||[])[0], taxfree: e.taxfree!=null ? Number(e.taxfree) : ((quoteCat.tax||{})[src]||[])[1] });   // 과세 · 비과세 (품목 관리 값 우선)   // 예전에 '식사'로 바꿔 둔 기본 몽몽마방 메뉴도 메뉴로
   });
-  (quoteCat.added||[]).forEach(a=>{ if(a.hidden) return; out.push({ src: a.src || a.name, name: a.name, price: a.price!=null ? Number(a.price) : null, disc: !!a.disc, kind: a.kind || 'food' }); });
+  (quoteCat.added||[]).forEach(a=>{ if(a.hidden) return; out.push({ src: a.src || a.name, name: a.name, price: a.price!=null ? Number(a.price) : null, disc: !!a.disc, kind: a.kind || 'food', taxable: a.taxable!=null ? Number(a.taxable) : undefined, taxfree: a.taxfree!=null ? Number(a.taxfree) : undefined }); });
   return out;
 }
+// 과세 · 비과세 1인 금액 (품목 관리): 비과세 = 사유원(입장료), 과세 = 신라. 둘 다 없으면 null
+const taxOf = src => { const it = catalogItems().find(x=>normSrc(x.src)===normSrc(src)); if(!it) return null; const tx=Number(it.taxable)||0, tf=Number(it.taxfree)||0; return (it.taxable==null && it.taxfree==null) || tx+tf<=0 ? null : {tx, tf}; };
 const priceOf = src => { const it = catalogItems().find(x=>normSrc(x.src)===normSrc(src)); return it ? it.price : null; };
 const won = n => n==null ? '-' : Number(n).toLocaleString('ko-KR');
 // 품목 이름을 보기 좋게: "주말/공휴일(관람, 사담 런치1부)" → "관람 + 사담 런치1부", "해설사도슨트(수정)" → "해설사 도슨트"
@@ -2237,7 +2243,7 @@ function renderPrice(){
     const ms=moneySplit(rec);
     box.innerHTML = `<table class="ptable sel"><thead><tr><th>항목</th><th>수량</th><th>단가</th><th>할인</th><th>금액</th></tr></thead><tbody>${rows}${etcRow}</tbody>`
       + `<tfoot><tr><td colspan="4">예상 합계 (부가세 포함)</td><td class="tot">${won(total)}</td></tr>`
-      + (ms ? `<tr class="split-row"><td colspan="4">└ 사유원 (관람)</td><td class="tot">${won(ms.saw)}</td></tr><tr class="split-row"><td colspan="4">└ 신라 (관람 외)</td><td class="tot">${won(ms.shilla)}</td></tr>` : '')
+      + (ms ? `<tr class="split-row"><td colspan="4">└ 사유원 (비과세 · 입장료)</td><td class="tot">${won(ms.saw)}</td></tr><tr class="split-row"><td colspan="4">└ 신라 (과세)</td><td class="tot">${won(ms.shilla)}</td></tr>` : '')
       + `</tfoot></table>`
       + (skipped.length||missing.length ? `<p class="hint">${[...skipped,...missing].join(', ')}은(는) 견적서 품목에 없어 합계에서 빠졌습니다.</p>` : '');
   }
@@ -2296,6 +2302,9 @@ function parseErp(text){
 }
 // 사유원 / 신라 나누기: 관람 = 사유원, 관람+식사 패키지 = 관람료만큼 사유원 나머지 신라, 그 밖 = 신라
 function erpSplit(x){
+  const t=taxOf(x.product);   // 품목 관리의 과세 · 비과세가 있으면 그것으로 (할인 괄호 = 신라 몫이면 그대로 반영)
+  if(t){ let saw = x.discShilla!=null && x.people ? t.tf*x.people - Math.max(0, x.disc-x.discShilla) : Math.round(x.amount*t.tf/(t.tx+t.tf));
+    saw=Math.max(0, Math.min(x.amount, saw)); return {saw, shilla:x.amount-saw}; }
   const isView = /관람/.test(x.product) && !/\(관람,/.test(x.product) && !/관람권|관람식사권/.test(x.product);
   if(isView) return {saw:x.amount, shilla:0};
   if(/\(관람,/.test(x.product) && x.people){
@@ -2319,7 +2328,7 @@ function renderErp(){
   box.hidden=false;
   box.innerHTML = `<div class="psec-t">전산 예약 내역 <button type="button" class="btn" id="erpClear" style="padding:1px 8px;font-size:11.5px;margin-left:6px" title="전산 내역을 지우면 예약 칸으로 계산한 가격표로 돌아갑니다">지우기</button></div>`
     + `<table class="ptable sel"><thead><tr><th>상품</th><th>인원</th><th>상품금액</th><th>할인</th><th>금액</th></tr></thead><tbody>${rows}</tbody>`
-    + `<tfoot><tr><td colspan="4">전산 합계</td><td class="tot">${won(tot)}</td></tr><tr class="split-row"><td colspan="4">└ 사유원 (관람${pi&&pi.free!=null?' · 전산 면세금액':''})</td><td class="tot">${won(saw)}</td></tr><tr class="split-row"><td colspan="4">└ 신라 (관람 외${pi&&pi.taxable!=null?' · 전산 과세금액':''})</td><td class="tot">${won(shilla)}</td></tr>${pi&&pi.total?`<tr class="split-row"><td colspan="4">결제 ${esc([pi.state, pi.method].filter(Boolean).join(' · '))}</td><td class="tot">${won(pi.total)}</td></tr>`:''}</tfoot></table>`;
+    + `<tfoot><tr><td colspan="4">전산 합계</td><td class="tot">${won(tot)}</td></tr><tr class="split-row"><td colspan="4">└ 사유원 (비과세${pi&&pi.free!=null?' · 전산 면세금액':''})</td><td class="tot">${won(saw)}</td></tr><tr class="split-row"><td colspan="4">└ 신라 (과세${pi&&pi.taxable!=null?' · 전산 과세금액':''})</td><td class="tot">${won(shilla)}</td></tr>${pi&&pi.total?`<tr class="split-row"><td colspan="4">결제 ${esc([pi.state, pi.method].filter(Boolean).join(' · '))}</td><td class="tot">${won(pi.total)}</td></tr>`:''}</tfoot></table>`;
 }
 // 전산 내역 → 예약 내용 칸: 관람 · 관람+사담 · 몽몽마방 메뉴 · 프로그램 · 굿즈 · 방문일 · 인원 · 기타 할인 · 특별 할인
 function erpFields(list){
