@@ -171,7 +171,12 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 /* 식사 · 프로그램 · 굿즈: 항목 줄 [드롭다운 · 수량 · 담당 · ×]. 예전 묶음 버튼 · 칸은 숨김 (값은 같은 칸에 저장) */
 #form .opt-bar, #form .grp.opt{display:none!important}
 .items-box{display:flex;flex-direction:column;gap:6px}
-.it-head,.it-row{display:grid;grid-template-columns:minmax(0,1fr) 104px minmax(0,190px) 32px;gap:6px;align-items:center}
+.it-head,.it-row{display:grid;grid-template-columns:minmax(0,1fr) 96px minmax(0,150px) 116px 32px;gap:6px;align-items:center}
+.it-p{text-align:right;line-height:1.25;font-variant-numeric:tabular-nums;min-width:0}
+.it-p b{display:block;font-size:14px}
+.it-p small{display:block;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.price-wrap{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
+.day-panel #itemsInfo .dayinfo:first-child{margin-top:0}
 .it-head{font-size:11.5px;color:var(--muted);padding:0 2px}
 .it-row{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px}
 .it-row.it-new{border-style:dashed}
@@ -195,7 +200,7 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 .it-foot .mb-cat{margin-left:auto}
 #itemsInfo .dayinfo{margin-top:6px}
 .items-box{container-type:inline-size}
-@container (max-width:560px){.it-head{display:none}.it-row{grid-template-columns:100px minmax(0,1fr) 32px}.it-row > .it-sel{grid-column:1/-1}}   /* 좁으면 항목 드롭다운은 한 줄 전체, 아래에 수량 · 담당 · × */
+@container (max-width:560px){.it-head{display:none}.it-row{grid-template-columns:92px minmax(0,1fr) 104px 32px}.it-row > .it-sel{grid-column:1/-1}}   /* 좁으면 항목 드롭다운은 한 줄 전체, 아래에 수량 · 담당 · × */
 /* 프로그램 · 굿즈 담당: 넣은 프로그램은 줄 맨 앞, 바로 옆에 눈에 띄는 '담당 *' */
 .f.pbase.on{grid-column:1}
 .f.pbase.on > label span{font-weight:700;color:var(--ink)}
@@ -643,7 +648,7 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
   </section>
 
   <!-- 가격표: 견적서 사이트 품목 목록 기준 (품목 관리에서 바꾼 가격은 열 때 다시 불러옴) -->
-  <section class="panel price-panel">
+  <section class="panel price-panel day-panel" id="dayPanel">
     <h2>가격표 <small id="priceHint"></small></h2>
     <div class="disc-box">
       <div class="disc-line" id="discGroup"></div>
@@ -772,6 +777,7 @@ const FIELDS = [
   ['프로그램(시간)','seminar','세미나 도슨트','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에
   ['굿즈','goods','굿즈 품목','','w4',null],   // 굿즈 구매: 견적서 품목 리스트의 굿즈 품목에서 골라 수량 (값: "고추장 x2 · 모과청(new) x1")
   ['굿즈','stf_goods','굿즈 담당','','',null],   // 굿즈도 담당 필수 (기본 = 영업 담당)
+  ['굿즈','viewSrc','관람 종류','','',null],   // 예약 내역 관람 줄에서 고른 관람 품목 (평일 · 주말은 방문일에 맞춰 바뀜, 비면 입장 시각으로)
   ['굿즈','inotes','항목 비고','','',null],   // 예약 내역 줄마다 비고 "sadam1=창가 자리; g:모과청(new)=선물 포장" (시트 비고 칸 '항목 비고')
 ];
 // 프로그램 · 굿즈 담당: 프로그램마다 'stf_키' 칸을 바로 뒤에. 모두 필수, 기본은 영업 담당 (바꿀 수 있음)
@@ -878,7 +884,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['viewSrc','관람 종류']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
@@ -1020,16 +1026,17 @@ function itemSelectHTML(k, rows){
 function itemRowHTML(k, rows){
   const t=itemKind(k), stf=itemHasStaff(k), sv=stf ? String(rec[itemStfKey(k)]||'') : '';
   const note = t==='new' ? '' : `<input class="it-x it-note" data-inote="${esc(k)}" data-ime="ko" placeholder="비고 (예: ${t==='view'?'인솔자 2명 포함':t==='goods'?'선물 포장':t==='sadam'||t==='mb'?'창가 자리 · 알레르기':'준비물 · 장소'})" value="${esc(itemNote(k))}">`;
-  if(t==='view'){ const vs=rec.date ? viewSrcOf(rec) : '', vp=vs ? priceOf(vs) : null;
-    return `<div class="it-row it-view" data-irow="view"><select class="it-sel" disabled aria-label="항목"><option>관람${vp!=null?` · ${wonTxt(vp)}원`:''} (관람 인원)</option></select>`
+  if(t==='view'){ const vs=viewSrcOf(rec), vi=viewItems(rec);
+    const opts = vi.length ? vi.map(it=>`<option value="${esc(it.src)}"${normSrc(it.src)===normSrc(vs)?' selected':''}>${esc(viewLabel(it.src))} · ${wonTxt(it.price)}원</option>`).join('') : `<option>관람 (관람 인원)</option>`;
+    return `<div class="it-row it-view" data-irow="view"><select class="it-sel" data-iview aria-label="관람 품목" title="관람 품목 (관람 인원 = 수량)">${opts}</select>`
       + `<span class="it-q"><input data-iq="view" inputmode="numeric" data-ime="num" placeholder="인원" value="${esc(itemQty('view'))}" title="관람 인원 칸과 같은 값"><i>명</i></span>`
-      + `<span class="it-s none"><input disabled placeholder="담당 없음"></span><span></span><div class="it-extra">${note}</div></div>`; }
+      + `<span class="it-s none"><input disabled placeholder="담당 없음"></span><span class="it-p" data-ip="view"></span><span></span><div class="it-extra">${note}</div></div>`; }
   const extra = note + (t==='mb' ? `<input class="it-x" data-ix="mabangTime" inputmode="numeric" data-ime="num" placeholder="시간 12:00~13:00" title="몽몽마방 시간 (24시간)" value="${esc(rec.mabangTime||'')}"><select class="it-x" data-ix="mabangPay" title="몽몽마방 결제"><option value="">결제 (선택)</option>${MB_PAYS.map(x=>`<option${rec.mabangPay===x?' selected':''}>${x}</option>`).join('')}</select>`
     : t==='prog' && FIELDS.some(f=>f[1]==='tm_'+k) ? `<input class="it-x" data-ix="tm_${esc(k)}" inputmode="numeric" data-ime="num" placeholder="시간대 13:00~15:00" value="${esc(rec['tm_'+k]||'')}"><input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="코스 (예: 정원 코스)" value="${esc(rec['crs_'+k]||'')}">` : '');
   return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}`
     + `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`
     + (stf ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="${t==='goods'?'굿즈 담당 (굿즈 전체 한 명)':'프로그램 담당'}"></span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
-    + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
+    + `<span class="it-p" data-ip="${esc(k)}"></span><button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
     + (extra ? `<div class="it-extra">${extra}</div>` : '') + `</div>`;
 }
 function renderItems(force){
@@ -1042,21 +1049,56 @@ function renderItems(force){
   if(!force && box.dataset.sig===sig && box.contains(document.activeElement)){   // 쓰는 중: 줄은 그대로 두고 값만 맞춤
     box.querySelectorAll('[data-iq],[data-is],[data-ix],[data-inote]').forEach(el=>{ if(el===document.activeElement) return;
       const v = el.dataset.iq!=null ? itemQty(el.dataset.iq) : el.dataset.is!=null ? String(rec[itemStfKey(el.dataset.is)]||'') : el.dataset.inote!=null ? itemNote(el.dataset.inote) : String(rec[el.dataset.ix]||''); if(el.value!==v) el.value=v; });
-    paintItemState(); return;
+    paintItemState(); paintItemPrices(); return;
   }
   box.dataset.sig=sig;
-  box.innerHTML = (itemRows.length ? `<div class="it-head"><span>항목 (관람 · 사담 식사 · 몽몽마방 · 개별 · 시간 프로그램 · 굿즈)</span><span>수량</span><span>담당</span><span></span></div>` : '')
+  box.innerHTML = (itemRows.length ? `<div class="it-head"><span>항목 (관람 · 사담 식사 · 몽몽마방 · 개별 · 시간 프로그램 · 굿즈)</span><span>수량</span><span>담당</span><span style="text-align:right">금액</span><span></span></div>` : '')
     + itemRows.map(k=>itemRowHTML(k, itemRows)).join('')
     + `<div class="it-foot"><button type="button" class="btn it-add" data-iadd>＋ 항목 추가</button><span class="hint" style="margin:0">${itemRows.length?'':'사담 식사 · 몽몽마방 · 개별 프로그램 · 시간 프로그램 · 굿즈 중에서 고르세요'}</span><button type="button" class="mb-cat" data-open-cat>품목 · 가격 수정</button></div>`;
-  paintItemState();
+  paintItemState(); paintItemPrices();
+}
+// 가격표를 예약 내역 아래로 합치고(할인 · 합계 · 전산 내역), 두 번째 열의 가격표 자리는 '그날 예약 현황'으로
+function mergePriceLayout(){
+  const dp=$('#dayPanel'), box=$('#itemsBox'); if(!dp || !box || $('#priceWrap')) return;
+  const w=document.createElement('div'); w.id='priceWrap'; w.className='price-panel price-wrap';
+  ['.disc-box','#selTitle','#priceBox','#erpBox','#priceAll','#priceSrc'].forEach(s=>{ const el=dp.querySelector(s); if(el) w.appendChild(el); });
+  const btns=$('#priceAllBtn')?.parentElement; if(btns) w.insertBefore(btns, $('#erpBox'));
+  box.after(w);
+  $('#selTitle').textContent='할인 · 합계';
+  const ph=$('#priceHint'); if(ph) box.closest('.grp')?.querySelector('.grp-t')?.appendChild(ph);   // "11/27(금) → 평일 가격"
+  dp.querySelector('h2').innerHTML='그날 예약 현황 <small>방문일의 다른 예약 · 관리자 사이트 사담 · 마방</small>';
+  const info=$('#itemsInfo'); if(info) dp.appendChild(info);
+  dp.insertAdjacentHTML('beforeend','<p class="hint" id="dayNone" style="margin:0">방문일과 예약 내역(사담 · 몽몽마방 · 프로그램)을 넣으면 그날 다른 예약 현황이 여기에 보입니다. 예약 내역의 수량 칸에 커서를 두면 업체별로 보입니다.</p>');
+}
+// 줄마다 금액 (가격표 계산과 같은 것): 금액 굵게, 아래에 단가 · 할인
+let priceInfo = null;   // { 품목: {qty, p, a} } (renderPrice가 채움, 전산 내역이 있으면 null)
+function itemSrc(k){ const t=itemKind(k), DAY=rec.date && isRedDay(rec.date) ? '주말/공휴일' : '평일';
+  if(t==='view') return viewSrcOf(rec);
+  if(t==='sadam') return `${DAY}(관람, ${{sadam1:'사담 런치1부', sadam2:'사담 런치2부', sadamD:'사담 디너'}[k]})`;
+  if(t==='mb') return (mbMenuOf(rec)||{}).src || (Number(rec.mabangPrice) ? '몽몽마방 단품' : '');
+  if(t==='prog') return progSrc(k, rec) || '';
+  if(t==='goods') return k.slice(2);
+  return ''; }
+function paintItemPrices(){
+  const seen=new Set();
+  document.querySelectorAll('#itemsBox [data-ip]').forEach(el=>{ const k=el.dataset.ip, src=itemSrc(k), x=priceInfo && src ? priceInfo[normSrc(src)] : null; let h='';
+    if(erpList.length) h='<small>전산 내역 기준</small>';
+    else if(!priceInfo) h='';
+    else if(k==='view' && !x) h=`<small>${numOf(rec.people)?'관람 포함 상품으로':'인원 입력'}</small>`;   // 관람 인원이 모두 사담 등 관람 포함 상품
+    else if(!x) h='<small>가격 없음</small>';
+    else if(seen.has(src)) h='<small>위 줄과 합산</small>';   // 같은 견적서 품목(예: 대관)은 한 줄로 계산
+    else { seen.add(src); h=`<b>${x.a?won(x.a.amount):'가격 없음'}</b><small>${won(x.p)}${k==='view' && x.qty!==numOf(rec.people)?` × 관람권 ${x.qty}명`:` × ${x.qty}`}${x.a&&x.a.disc?` · ${esc(x.a.disc)}`:''}</small>`; }
+    el.innerHTML=h; });
 }
 function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은 넣은 묶음만
   document.querySelectorAll('#itemsBox [data-is]').forEach(el=>el.closest('.it-s').classList.toggle('missing', !el.value.trim()));
   const kinds=new Set(itemRows.map(k=>{ const t=itemKind(k); return t==='sadam'?'sadam':t==='mb'?'mabang':t==='prog'?(OPT[GROUP_OF[k]]||{}).id:''; }));
   document.querySelectorAll('#itemsInfo .dayinfo').forEach(el=>{ el.hidden = !kinds.has(el.id.replace('info_','')); });
+  const dn=$('#dayNone'); if(dn) dn.hidden = [...document.querySelectorAll('#itemsInfo .dayinfo')].some(el=>!el.hidden);
 }
 function itemChanged(structural, keepStaff){ if(!keepStaff) staffDefaults(); startTimer();   // 담당을 직접 지울 때는 다시 채우지 않음
   paintFields(); renderSide(); if(structural) renderItems(true); }
+document.addEventListener('change', e=>{ const v=e.target.closest?.('#itemsBox [data-iview]'); if(!v) return; rec.viewSrc=v.value; touched.add('viewSrc'); itemChanged(false, true); });   // 관람 품목 고르기
 document.addEventListener('change', e=>{
   const s=e.target.closest?.('#itemsBox [data-isel]'); if(!s) return;
   const old=s.dataset.isel, val=s.value; if(!val) return;
@@ -2385,9 +2427,10 @@ function renderPrice(){
   ['etcDisc','etcDiscTo','etcDiscWhy'].forEach(k=>{ const el=$('#'+k); if(el && document.activeElement!==el) el.value = k==='etcDiscTo' ? (rec[k]||'신라') : (rec[k]||''); });   // 기타 할인 칸
   // 전산 내역을 붙여넣었으면 예약 칸으로 계산한 예상 금액 · 할인 칸은 숨기고 전산 내역이 가격표
   const useErp = erpList.length>0;
-  $('.price-panel .disc-box').style.display = useErp ? 'none' : '';
+  $('.disc-box').style.display = useErp ? 'none' : '';
   $('#selTitle').hidden = useErp; box.hidden = useErp;
   $('#erpPasteBtn').textContent = useErp ? '전산 내역 다시 붙여넣기' : '전산 내역 붙여넣기';
+  priceInfo = null;
   if(useErp){ box.innerHTML=''; $('#priceHint').textContent = '전산 내역 기준'; }
   // 1) 선택한 항목
   else if(!rec.date || !n){   // 방문일 · 관람 인원이 둘 다 있어야 계산. 하나만 있으면 나머지를 넣어 달라고
@@ -2398,9 +2441,10 @@ function renderPrice(){
     box.innerHTML = '<p class="hint" style="margin:0">견적서 사이트에서 가격을 불러오는 중입니다.</p>';
   } else {
     const {blocks, skipped} = quoteBlocks(rec);
-    let total=0; const missing=[];
+    let total=0; const missing=[]; priceInfo={};
     const rows = blocks.map(b=>{
       const p = b.price ?? priceOf(b.product), a = blockAmount(b, p);
+      priceInfo[normSrc(b.product)] = {qty:b.qty, p, a};   // 예약 내역 줄마다 금액
       if(a) total += a.amount; else missing.push(itemLabel(b.product));
       const unit = PROG_KEYS().some(k=>rec[k] && progSrc(k, rec)===b.product && UNIT(k)==='시간') ? '시간' : goodsParse(rec.goods).some(g=>normSrc(g.src)===normSrc(b.product)) ? '개' : '명';   // 굿즈는 개
       const tm = b.product.match(/^(평일|주말\/공휴일) 관람\((\d\d):00~(\d\d):00\)$/) || [];
@@ -2410,7 +2454,8 @@ function renderPrice(){
     const etc=etcAmt(rec); total=Math.max(0,total-etc);   // 기타 할인
     const etcRow = etc ? `<tr class="etc-row"><td>기타 할인${rec.etcDiscWhy?` (${esc(rec.etcDiscWhy)})`:''}</td><td></td><td></td><td><span class="dtag">${esc(rec.etcDiscTo||'신라')}</span></td><td class="tot">-${won(etc)}</td></tr>` : '';
     const ms=moneySplit(rec);
-    box.innerHTML = `<table class="ptable sel"><thead><tr><th>항목</th><th>수량</th><th>단가</th><th>할인</th><th>금액</th></tr></thead><tbody>${rows}${etcRow}</tbody>`
+    void rows;   // 품목별 금액은 예약 내역 줄에 (가격표와 예약 내역을 합침)
+    box.innerHTML = `<table class="ptable sel"><tbody>${etcRow}</tbody>`
       + `<tfoot><tr><td colspan="4">예상 합계 (부가세 포함)</td><td class="tot">${won(total)}</td></tr>`
       + (ms ? `<tr class="split-row"><td colspan="4">└ 사유원 (비과세 · 입장료)</td><td class="tot">${won(ms.saw)}</td></tr><tr class="split-row"><td colspan="4">└ 신라 (과세)</td><td class="tot">${won(ms.shilla)}</td></tr>` : '')
       + `</tfoot></table>`
@@ -2419,6 +2464,7 @@ function renderPrice(){
   // 2) 전체 가격표 (버튼으로 펼침)
   const all=$('#priceAll'); if(all && !all.hidden) all.innerHTML = fullPriceHTML(day, g);
   renderErp();   // 붙여넣은 전산 내역
+  paintItemPrices();   // 예약 내역 줄마다 금액
   $('#priceSrc').textContent = '견적서&거래명세서 사이트 품목 기준' + (quoteCat&&quoteCat.at ? ` (${fmtAgo(quoteCat.at)} 불러옴)` : '') + ' · 부가세 포함 · 공휴일은 주말 가격' + (priceLoaded===false ? ' · 견적서 사이트를 불러오지 못해 마지막으로 받은 가격으로 표시' : '');
 }
 function fullPriceHTML(day, g){
@@ -2601,7 +2647,7 @@ $('#erpCancel').onclick=cancelErpIn;
 $('#erpModal').addEventListener('mousedown', e=>{ if(e.target.id==='erpModal') cancelErpIn(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#erpModal').hidden){ e.preventDefault(); cancelErpIn(); } });
 $('#erpOk').onclick=()=>{ if(!parseErp($('#erpIn').value).length){ $('#erpMsg').textContent='"방문일자(순번)"으로 시작하는 전산 상품 정보를 찾지 못했습니다.'; return; } $('#erpModal').hidden=true; takeErpText($('#erpIn').value); };   // 예약 내용과 다르면 어떻게 맞출지 묻는 창
-$('#priceBox').parentElement.addEventListener('click', e=>{ if(e.target.id==='erpClear'){ erpList=[]; touched.add('erpList'); renderSide(); toast('전산 내역을 지웠습니다.'); } });
+document.addEventListener('click', e=>{ if(e.target.id==='erpClear'){ erpList=[]; touched.add('erpList'); renderSide(); toast('전산 내역을 지웠습니다.'); } });
 // 특별 할인 인원 입력 (숫자만)
 document.querySelectorAll('[data-dk]').forEach(el=>{
   const take=()=>{ const c=el.value.replace(/\D/g,''); if(c!==el.value) el.value=c; rec[el.dataset.dk]=el.value; touched.add(el.dataset.dk); startTimer(); renderSide(); };
@@ -2627,8 +2673,12 @@ const HOLIDAYS = new Set([
   '2027-08-16','2027-09-14','2027-09-15','2027-09-16','2027-10-04','2027-10-11','2027-12-27',
 ]);
 const isRedDay = date => { const d=new Date(date+'T00:00'); return !isNaN(d) && (d.getDay()===0 || d.getDay()===6 || HOLIDAYS.has(date)); };
-function viewSrcOf(r){ const we=isRedDay(r.date), h=tinHour(r.tin);
-  return `${we?'주말/공휴일':'평일'} 관람(${h!=null && h>=13 ? '13:00~18:00' : '09:00~18:00'})`; }
+function viewSrcOf(r){ const we=isRedDay(r.date), h=tinHour(r.tin), day=we?'주말/공휴일':'평일';
+  if(r.viewSrc){ const s=String(r.viewSrc).replace(/^(평일|주말\/공휴일)/, day); if(priceOf(s)!=null) return s; }   // 예약 내역에서 고른 관람 품목 (방문일의 평일 · 주말에 맞춤)
+  return `${day} 관람(${h!=null && h>=13 ? '13:00~18:00' : '09:00~18:00'})`; }
+const viewLabel = src => { const m=String(src).match(/\((\d\d):00~(\d\d):00\)/); return itemLabel(src) + (m ? ` (${+m[1]}~${+m[2]}시)` : ''); };   // "관람 (9~18시)" · "관람 (학생)"
+// 예약 내역 관람 줄 드롭다운: 품목 관리의 관람 품목 중 방문일(평일 · 주말)에 맞는 것 (네이버 제외)
+const viewItems = r => { const day=r.date && isRedDay(r.date) ? '주말/공휴일' : '평일'; return catalogItems().filter(it=>it.kind==='view' && !/네이버/.test(it.src) && String(it.src).startsWith(day) && it.price!=null); };
 function quoteBlocks(r){
   const n = numOf(r.people), we = isRedDay(r.date);
   const DAY = we ? '주말/공휴일' : '평일';
@@ -2935,7 +2985,7 @@ document.addEventListener('keydown', e=>{
 });
 
 // ===================== 시작 =====================
-resetState(); buildForm(); renderForm();
+resetState(); buildForm(); mergePriceLayout(); renderForm();
 paintSync(); renderList();
 if(SHARED_URL) flush();
 window.__priceReady=true; renderPrice(); loadQuotePrices();
