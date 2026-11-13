@@ -168,6 +168,30 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 .f.auto input{background:var(--fill)}
 .f.unsure input{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
 .f.missing input{border-style:dashed;border-color:#c9b9b2}
+/* 식사 · 프로그램 · 굿즈: 항목 줄 [드롭다운 · 수량 · 담당 · ×]. 예전 묶음 버튼 · 칸은 숨김 (값은 같은 칸에 저장) */
+#form .opt-bar, #form .grp.opt{display:none!important}
+.items-box{display:flex;flex-direction:column;gap:6px}
+.it-head,.it-row{display:grid;grid-template-columns:minmax(0,1fr) 104px minmax(0,190px) 32px;gap:6px;align-items:center}
+.it-head{font-size:11.5px;color:var(--muted);padding:0 2px}
+.it-row{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px}
+.it-row.it-new{border-style:dashed}
+.it-sel{height:34px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:600 13px var(--sans);background:#fff;color:var(--ink);min-width:0;width:100%}
+.it-q{display:flex;align-items:center;gap:4px}
+.it-q input{width:100%;height:34px;border:1px solid var(--line);border-radius:6px;padding:0 6px;text-align:right;font:600 14px var(--sans);font-variant-numeric:tabular-nums}
+.it-q i{font-style:normal;font-size:12px;color:var(--muted);flex:none;min-width:24px}
+.it-s input{width:100%;height:34px;border:1.5px solid #8fb07f;border-radius:6px;padding:0 8px;background:#eef5e9;color:var(--pine);font:600 13px var(--sans)}
+.it-s.missing input{border:1.5px dashed var(--red);background:var(--red-soft);color:var(--red)}
+.it-s.missing input::placeholder{color:var(--red)}
+.it-s.none input{border:1px dashed var(--line);background:transparent}
+.it-del{height:34px;border:1px solid var(--line);background:var(--card);border-radius:6px;cursor:pointer;color:var(--muted);font-size:16px}
+.it-del:hover{border-color:var(--red);color:var(--red)}
+.it-extra{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
+.it-extra .it-x{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:12.5px var(--sans);background:#fff;color:var(--ink);min-width:150px}
+.it-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.it-add{padding:6px 14px;font-weight:600}
+.it-foot .mb-cat{margin-left:auto}
+#itemsInfo .dayinfo{margin-top:6px}
+@media (max-width:560px){.it-head{display:none}.it-row{grid-template-columns:1fr 92px 32px}.it-s{grid-column:1/-1;grid-row:2}}
 /* 프로그램 · 굿즈 담당: 넣은 프로그램은 줄 맨 앞, 바로 옆에 눈에 띄는 '담당 *' */
 .f.pbase.on{grid-column:1}
 .f.pbase.on > label span{font-weight:700;color:var(--ink)}
@@ -814,7 +838,7 @@ let cache=[];
 let hist=[], baseSnap=null, tasks=[], erpList=[], openDone=new Set();   // openDone: 펼쳐 본 끝난 과업   // erpList: 붙여넣은 전산 예약 내역   // 수정 기록 · 추후 과업
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
 function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; o.gate='미정'; o.tbd='결제 방법'; return o; }   // 결제 · 입장문은 기본 미정   // 결제는 기본 미정
-function resetState(){ rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
+function resetState(){ itemRows=[]; itemPend=new Set(); rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
 function contactsOf(r){
   const out=[]; for(let i=0;i<nContactsOf(r);i++){ const c={name:r[`c${i}_name`]||'',phone:r[`c${i}_phone`]||'',email:r[`c${i}_email`]||''}; if(c.name||c.phone||c.email) out.push(c); } return out;
 }
@@ -919,6 +943,111 @@ function mbMenuHTML(v){
     + (v && !hit ? chip(v, 0, true).replace('class="mb-ck"','class="mb-ck old" title="예전 메뉴 · 위 메뉴 중에서 다시 골라 주세요"') : '')
     + `<button type="button" class="mb-cat" data-open-cat>메뉴 · 가격 수정</button>`;
 }
+// ===================== 예약 항목 줄: [항목 드롭다운] [수량] [담당] [×] =====================
+// 사담 식사 · 몽몽마방 · 개별 프로그램 · 시간 프로그램 · 굿즈를 한 줄씩. 값은 예전 칸(sadam1 · mabangL/mabangMenu · 프로그램 키 · stf_ · goods)에 그대로 저장
+// 줄 key: 'sadam1' 'sadam2' 'sadamD' · 'mb'(몽몽마방, 하나) · 프로그램 키 · 'g:품목'(굿즈) · 'new:…'(아직 안 고른 줄)
+let itemRows = [], itemPend = new Set();   // itemPend: 수량을 아직 안 넣은 줄 (값이 없어도 보이게)
+const SADAM_ITEMS = [['sadam1','사담 런치 1부'],['sadam2','사담 런치 2부'],['sadamD','사담 디너']];
+const itemKind = k => /^sadam/.test(k) ? 'sadam' : k==='mb' ? 'mb' : /^g:/.test(k) ? 'goods' : /^new:/.test(k) ? 'new' : 'prog';
+const itemUnit = k => itemKind(k)==='goods' ? '개' : itemKind(k)==='prog' ? UNIT(k) : '명';
+const itemHasStaff = k => ['prog','goods'].includes(itemKind(k));
+const itemStfKey = k => itemKind(k)==='goods' ? 'stf_goods' : 'stf_'+k;   // 굿즈 담당은 굿즈 전체 하나
+function itemKeysFromRec(){
+  return [...SADAM_ITEMS.map(x=>x[0]).filter(k=>rec[k]), ...(rec.mabangL||rec.mabangMenu||rec.mabangTime ? ['mb'] : []),
+    ...PROG_KEYS().filter(k=>rec[k]), ...goodsParse(rec.goods).map(g=>'g:'+g.src)];
+}
+function itemQty(k){ const t=itemKind(k);
+  if(t==='mb') return rec.mabangL||'';
+  if(t==='goods'){ const g=goodsParse(rec.goods).find(x=>x.src===k.slice(2)); return g ? String(g.qty) : ''; }
+  return t==='new' ? '' : (rec[k]||''); }
+function setItemQty(k, v){ const t=itemKind(k); v=String(v||'').trim();
+  if(t==='mb'){ rec.mabangL=v; touched.add('mabangL');
+    if(v && !rec.mabangTime){ const tt=fmtTime(rec.tin); if(tt){ rec.mabangTime=`${tt}~${String(Math.min(+tt.slice(0,2)+1,23)).padStart(2,'0')}${tt.slice(2)}`; touched.add('mabangTime'); } } }   // 몽몽마방 시간 기본 = 입장부터 1시간
+  else if(t==='goods'){ const list=goodsParse(rec.goods), src=k.slice(2), q=Math.max(0, parseInt(v)||0), g=list.find(x=>x.src===src); if(g) g.qty=q; else if(q) list.push({src, qty:q}); rec.goods=goodsJoin(list); touched.add('goods'); }
+  else if(t!=='new'){ rec[k]=v; touched.add(k); }
+  if(v && v!=='0') itemPend.delete(k); else itemPend.add(k);
+}
+function clearItem(k){ const t=itemKind(k);
+  if(t==='mb'){ ['mabangL','mabangMenu','mabangTime','mabangPay'].forEach(x=>{ if(rec[x]){ rec[x]=''; touched.add(x); } }); }
+  else if(t==='goods'){ rec.goods=goodsJoin(goodsParse(rec.goods).filter(x=>x.src!==k.slice(2))); touched.add('goods'); if(!rec.goods && rec.stf_goods){ rec.stf_goods=''; touched.add('stf_goods'); } }
+  else if(t!=='new'){ [k, 'stf_'+k, 'tm_'+k, 'crs_'+k].forEach(x=>{ if(rec[x]){ rec[x]=''; touched.add(x); } }); }
+  itemPend.delete(k);
+}
+// 드롭다운: 묶음(optgroup)별 항목. 다른 줄에서 이미 고른 항목은 못 고름
+function itemSelectHTML(k, rows){
+  const used=new Set(rows.filter(x=>x!==k)), mbUsed=used.has('mb');
+  const opt=(v,l,dis,sel)=>`<option value="${esc(v)}"${dis?' disabled':''}${sel?' selected':''}>${esc(l)}</option>`;
+  const pr=src=>{ const v=src ? priceOf(src) : null; return v!=null ? ` · ${wonTxt(v)}원` : ''; };
+  const cur=mbMenuOf(rec);
+  let h=`<option value="">항목 고르기</option>`;
+  h+=`<optgroup label="사담 식사">${SADAM_ITEMS.map(([v,l])=>opt(v,l,used.has(v),k===v)).join('')}</optgroup>`;
+  h+=`<optgroup label="몽몽마방">${mbMenus().map(m=>opt('mb:'+m.name, `몽몽마방 ${m.name} · ${wonTxt(m.price)}원`, mbUsed, k==='mb' && cur && cur.name===m.name)).join('')}${k==='mb' && !cur ? opt('mb:', rec.mabangMenu ? `몽몽마방 ${rec.mabangMenu} (예전 메뉴 · 다시 고르기)` : '몽몽마방 (메뉴 고르기)', false, true) : ''}</optgroup>`;
+  [['프로그램(개별)','개별 프로그램'],['프로그램(시간)','시간 프로그램']].forEach(([g,l])=>{
+    h+=`<optgroup label="${l}">${FIELDS.filter(f=>f[0]===g && !isSub(f[1])).map(f=>opt(f[1], f[2]+pr(progSrc(f[1], rec))+(UNIT(f[1])==='시간'?' (회당)':''), used.has(f[1]), k===f[1])).join('')}</optgroup>`; });
+  const gi=goodsItems();
+  h+=`<optgroup label="굿즈">${gi.map(it=>opt('g:'+it.src, (String(it.name||'').trim()||it.src)+` · ${wonTxt(it.price)}원`, used.has('g:'+it.src), k==='g:'+it.src)).join('')}${itemKind(k)==='goods' && !gi.some(it=>'g:'+it.src===k) ? opt(k, k.slice(2), false, true) : ''}</optgroup>`;
+  return `<select class="it-sel" data-isel="${esc(k)}" aria-label="항목">${h}</select>`;
+}
+function itemRowHTML(k, rows){
+  const t=itemKind(k), stf=itemHasStaff(k), sv=stf ? String(rec[itemStfKey(k)]||'') : '';
+  const extra = t==='mb' ? `<input class="it-x" data-ix="mabangTime" inputmode="numeric" data-ime="num" placeholder="시간 12:00~13:00" title="몽몽마방 시간 (24시간)" value="${esc(rec.mabangTime||'')}"><select class="it-x" data-ix="mabangPay" title="몽몽마방 결제"><option value="">결제 (선택)</option>${MB_PAYS.map(x=>`<option${rec.mabangPay===x?' selected':''}>${x}</option>`).join('')}</select>`
+    : t==='prog' && FIELDS.some(f=>f[1]==='tm_'+k) ? `<input class="it-x" data-ix="tm_${esc(k)}" inputmode="numeric" data-ime="num" placeholder="시간대 13:00~15:00" value="${esc(rec['tm_'+k]||'')}"><input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="코스 (예: 정원 코스)" value="${esc(rec['crs_'+k]||'')}">` : '';
+  return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}`
+    + `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`
+    + (stf ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="${t==='goods'?'굿즈 담당 (굿즈 전체 한 명)':'프로그램 담당'}"></span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
+    + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
+    + (extra ? `<div class="it-extra">${extra}</div>` : '') + `</div>`;
+}
+function renderItems(force){
+  const box=$('#itemsBox'); if(!box) return;
+  const recKeys=itemKeysFromRec();
+  itemRows = itemRows.filter(k=>recKeys.includes(k) || itemPend.has(k));
+  recKeys.forEach(k=>{ if(!itemRows.includes(k)) itemRows.push(k); });
+  const sig=itemRows.join('|');
+  if(!force && box.dataset.sig===sig && box.contains(document.activeElement)){   // 쓰는 중: 줄은 그대로 두고 값만 맞춤
+    box.querySelectorAll('[data-iq],[data-is],[data-ix]').forEach(el=>{ if(el===document.activeElement) return;
+      const v = el.dataset.iq!=null ? itemQty(el.dataset.iq) : el.dataset.is!=null ? String(rec[itemStfKey(el.dataset.is)]||'') : String(rec[el.dataset.ix]||''); if(el.value!==v) el.value=v; });
+    paintItemState(); return;
+  }
+  box.dataset.sig=sig;
+  box.innerHTML = (itemRows.length ? `<div class="it-head"><span>항목 (사담 식사 · 몽몽마방 · 개별 · 시간 프로그램 · 굿즈)</span><span>수량</span><span>담당</span><span></span></div>` : '')
+    + itemRows.map(k=>itemRowHTML(k, itemRows)).join('')
+    + `<div class="it-foot"><button type="button" class="btn it-add" data-iadd>＋ 항목 추가</button><span class="hint" style="margin:0">${itemRows.length?'':'사담 식사 · 몽몽마방 · 개별 프로그램 · 시간 프로그램 · 굿즈 중에서 고르세요'}</span><button type="button" class="mb-cat" data-open-cat>품목 · 가격 수정</button></div>`;
+  paintItemState();
+}
+function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은 넣은 묶음만
+  document.querySelectorAll('#itemsBox [data-is]').forEach(el=>el.closest('.it-s').classList.toggle('missing', !el.value.trim()));
+  const kinds=new Set(itemRows.map(k=>{ const t=itemKind(k); return t==='sadam'?'sadam':t==='mb'?'mabang':t==='prog'?(OPT[GROUP_OF[k]]||{}).id:''; }));
+  document.querySelectorAll('#itemsInfo .dayinfo').forEach(el=>{ el.hidden = !kinds.has(el.id.replace('info_','')); });
+}
+function itemChanged(structural, keepStaff){ if(!keepStaff) staffDefaults(); startTimer();   // 담당을 직접 지울 때는 다시 채우지 않음
+  paintFields(); renderSide(); if(structural) renderItems(true); }
+document.addEventListener('change', e=>{
+  const s=e.target.closest?.('#itemsBox [data-isel]'); if(!s) return;
+  const old=s.dataset.isel, val=s.value; if(!val) return;
+  const nk = val.startsWith('mb:') ? 'mb' : val;
+  const q=itemQty(old), st=itemHasStaff(old) ? String(rec[itemStfKey(old)]||'') : '';
+  if(nk!==old) clearItem(old);
+  if(val.startsWith('mb:') && val.length>3){ rec.mabangMenu=val.slice(3); touched.add('mabangMenu'); }
+  const i=itemRows.indexOf(old); if(i>=0) itemRows[i]=nk; else itemRows.push(nk);
+  if(nk!==old){ setItemQty(nk, q || (itemKind(nk)==='goods' ? '1' : '')); if(itemHasStaff(nk) && st && !String(rec[itemStfKey(nk)]||'').trim()){ rec[itemStfKey(nk)]=st; touched.add(itemStfKey(nk)); } }
+  itemChanged(true);
+  const qi=document.querySelector(`#itemsBox [data-iq="${CSS.escape(nk)}"]`); if(qi && !qi.value) qi.focus();
+});
+document.addEventListener('input', e=>{
+  const el=e.target; if(!el.closest?.('#itemsBox')) return;
+  if(el.dataset.iq!=null){ const k=el.dataset.iq, c=el.value.replace(/[^\d+]/g,''), was=itemQty(k); if(c!==el.value) el.value=c; setItemQty(k, el.value); itemChanged(false, !!was); }   // 담당 기본값은 수량을 처음 넣을 때만
+  else if(el.dataset.is!=null){ const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); itemChanged(false, true); }
+  else if(el.dataset.ix!=null && el.tagName==='INPUT'){ rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix); itemChanged(false, true); }
+});
+document.addEventListener('change', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.ix==null || el.tagName!=='SELECT') return; rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix); itemChanged(false); });
+document.addEventListener('focusout', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.ix==null || el.tagName!=='INPUT' || !el.value) return;
+  if(/^(mabangTime|tm_)/.test(el.dataset.ix)){ const f=fmtRange(el.value); if(f && f!==el.value){ el.value=f; rec[el.dataset.ix]=f; touched.add(el.dataset.ix); itemChanged(false); } } });   // 12001300 → 12:00~13:00
+document.addEventListener('focusin', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.iq==null) return; const k=el.dataset.iq, t=itemKind(k); renderInfo(t==='mb' ? 'mabangL' : ['sadam','prog'].includes(t) ? k : null); });   // 그날 같은 항목 예약 현황
+document.addEventListener('click', e=>{
+  if(e.target.closest?.('#itemsBox [data-iadd]')){ const k='new:'+Date.now().toString(36); itemRows.push(k); itemPend.add(k); renderItems(true); document.querySelector(`#itemsBox [data-isel="${k}"]`)?.focus(); return; }
+  const d=e.target.closest?.('#itemsBox [data-idel]'); if(d){ const k=d.dataset.idel; clearItem(k); itemRows=itemRows.filter(x=>x!==k); itemChanged(true); }
+});
 // "12001300" · "12-13" · "12:00~13:00" → "12:00~13:00"
 function fmtRange(v){ const s=String(v||'').trim(); if(!s) return ''; let a, b; const p=s.split(/\s*[~\-–]\s*/);
   if(p.length===2){ a=fmtTime(p[0]); b=fmtTime(p[1]); } else { const d=s.replace(/\D/g,''); if(d.length===8){ a=fmtTime(d.slice(0,4)); b=fmtTime(d.slice(4)); } else if(d.length===4 && !/:/.test(s)){ a=fmtTime(d.slice(0,2)); b=fmtTime(d.slice(2)); } }
@@ -1016,6 +1145,7 @@ function buildForm(){
     if(grp!==g){
       close();
       if(OPT[grp] && !Object.keys(OPT).some(x=>x===g)){   // 첫 접는 묶음 앞에 버튼 3개
+        html+=`<div class="grp items-grp"><div class="grp-t"><span>식사 · 프로그램 · 굿즈</span><span class="hint" style="margin:0">항목을 고르고 수량 · 담당을 넣으세요</span></div><div class="items-box" id="itemsBox"></div><div id="itemsInfo"></div></div>`;
         html+=`<div class="opt-bar">${Object.values(OPT).map(o=>`<button type="button" class="opt-btn" data-opt="${o.id}" aria-expanded="false"><span>${o.short||o.title}</span><small id="optsum_${o.id}"></small></button>`).join('')}</div>`;
       }
       html+= OPT[grp]
@@ -1030,6 +1160,7 @@ function buildForm(){
   });
   close();
   $('#form').innerHTML = html;
+  document.querySelectorAll('#form .dayinfo').forEach(el=>$('#itemsInfo')?.appendChild(el));   // 그날 예약 현황은 항목 줄 아래로
   // 사담 줄은 4칸 중 3칸만 쓰므로 빈 칸 하나
   document.querySelectorAll('.opt-btn').forEach(b=>b.onclick=()=>{
     const id=b.dataset.opt; optOpen.has(id) ? optOpen.delete(id) : optOpen.add(id); paintOpt();
@@ -1161,7 +1292,7 @@ function paintFields(changed=[]){
     if(w.classList.contains('pbase')) w.classList.toggle('on', !!v);
     if(OPT[GROUP_OF[k]]) el.classList.toggle('has', !!v);
   });
-  layoutProg();
+  layoutProg(); renderItems();
   const ts=tbdSet(rec); document.querySelectorAll('[data-tbd]').forEach(b=>{ const on=ts.has(b.dataset.tbd); b.checked=on; });
   // 현장 재결제는 결제링크일 때만 (현장 결제는 원래 현장에서 하므로 해당 없음)
   const os=document.getElementById('f_onsite');
