@@ -168,6 +168,13 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 .f.auto input{background:var(--fill)}
 .f.unsure input{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
 .f.missing input{border-style:dashed;border-color:#c9b9b2}
+/* 프로그램 · 굿즈 담당: 넣은 프로그램은 줄 맨 앞, 바로 옆에 눈에 띄는 '담당 *' */
+.f.pbase.on{grid-column:1}
+.f.pbase.on > label span{font-weight:700;color:var(--ink)}
+.f.sub-stf > label span{color:var(--pine);font-weight:700}
+.f.sub-stf input{border:1.5px solid #8fb07f;background:#eef5e9;font-weight:600;color:var(--pine)}
+.f.sub-stf.missing input{border:1.5px dashed var(--red);background:var(--red-soft);color:var(--red)}
+.f.sub-stf.missing > label span{color:var(--red)}
 #form.dim{opacity:.45}
 #summaryRow{margin-bottom:10px}
 /* 확인 */
@@ -722,9 +729,10 @@ const FIELDS = [
   ['프로그램(시간)','donghaeng','동행 도슨트','P','',null],
   ['프로그램(시간)','seminar','세미나 도슨트','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에
   ['굿즈','goods','굿즈 품목','','w4',null],   // 굿즈 구매: 견적서 품목 리스트의 굿즈 품목에서 골라 수량 (값: "고추장 x2 · 모과청(new) x1")
+  ['굿즈','stf_goods','굿즈 담당','','',null],   // 굿즈도 담당 필수 (기본 = 영업 담당)
 ];
-// 프로그램 담당 (영업 담당과 다름): 프로그램마다 'stf_키' 칸을 바로 뒤에. 차방 · 당두봉갈 대관은 담당이 없어도 됨
-const STAFF_FREE = new Set(['chabang','dangdu']);
+// 프로그램 · 굿즈 담당: 프로그램마다 'stf_키' 칸을 바로 뒤에. 모두 필수, 기본은 영업 담당 (바꿀 수 있음)
+const STAFF_FREE = new Set();   // 예전엔 차방 · 당두봉갈 대관 제외 → 이제 모두 담당 필수
 // 프로그램에 딸린 칸: 담당(stf_) · 도슨트는 시간대(tm_) · 코스(crs_)도. 프로그램을 넣었을 때만 보임
 const SUB_NAME = { stf:'담당', tm:'시간대', crs:'코스' };
 const isSub = k => /^(stf|tm|crs)_/.test(k);
@@ -746,7 +754,20 @@ const UNIT = k => (FIELDS.find(f=>f[1]===k)||[])[0]==='프로그램(시간)' ? '
 const PROG_KEYS = () => FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1])).map(f=>f[1]);
 const STF_KEYS = () => FIELDS.filter(f=>isSub(f[1])).map(f=>f[1]);   // 담당 · 시간대 · 코스
 // 프로그램은 들어갔는데 담당이 빈 것 (차방 · 당두봉갈 제외)
-const missingStaff = r => PROG_KEYS().filter(k=>r[k] && needsStaff(k) && !String(r['stf_'+k]||'').trim());
+const STAFF_BASES = () => [...PROG_KEYS(), 'goods'];   // 담당이 있어야 하는 칸 (개별 · 시간 프로그램 · 굿즈)
+// 프로그램 칸 배치: 넣은 프로그램은 위로, 한 줄에 [프로그램 · 담당 · 시간대 · 코스]. 안 넣은 프로그램은 그 아래 4칸씩
+function layoutProg(){
+  FIELDS.forEach((f,i)=>{ const k=f[1]; if(!/^프로그램/.test(f[0])) return; const w=document.getElementById('w_'+k); if(!w) return;
+    if(isSub(k)){ const bi=FIELDS.findIndex(x=>x[1]===baseOf(k)); w.style.order = String(bi*10 + (isStf(k)?1:/^tm_/.test(k)?2:3)); }
+    else w.style.order = String(rec[k] ? i*10 : 100000+i); });
+}
+// 들어간 프로그램 · 굿즈의 담당이 비어 있으면 영업 담당 이름으로 (바뀐 게 있으면 true)
+function staffDefaults(){
+  const me=(rec.owner||savedOwner()||'').trim(); if(!me) return false;
+  let ch=false; STAFF_BASES().forEach(k=>{ const s='stf_'+k; if(rec[k] && needsStaff(k) && !String(rec[s]||'').trim()){ rec[s]=me; touched.add(s); ch=true; } });
+  return ch;
+}
+const missingStaff = r =>STAFF_BASES().filter(k=>r[k] && needsStaff(k) && !String(r['stf_'+k]||'').trim());
 const LEGACY_KEYS = ['teaMed','gayageum','cabin'];   // 예전 프로그램 칸 (입력 칸은 없앴지만 저장된 값은 그대로 둠)
 const SHEET_PROG = new Set(['yoga','gaga','chabang','dangdu','donghaeng']);   // 시트에 열이 있는 프로그램
 const isXProg = k => /^(프로그램)/.test(GROUP_OF[k]||'') && !SHEET_PROG.has(k) && !isSub(k);   // 비고 칸에 적는 프로그램
@@ -880,7 +901,7 @@ function goodsHTML(v){
   const opts=items.filter(it=>!list.some(g=>normSrc(g.src)===normSrc(it.src))).map(it=>`<option value="${esc(it.src)}">${esc(String(it.name||'').trim()||it.src)} · ${wonTxt(it.price)}원</option>`).join('');
   return rows + `<select class="g-add" data-gadd><option value="">＋ 굿즈 추가${items.length?'':' (품목을 불러오는 중)'}</option>${opts}</select>`;
 }
-function setGoods(list){ rec.goods=goodsJoin(list); touched.add('goods'); startTimer(); const el=$('#f_goods'); if(el){ el.dataset.h=''; el.innerHTML=goodsHTML(rec.goods); el.dataset.h=el.innerHTML; } paintFields(); renderSide(); }
+function setGoods(list){ rec.goods=goodsJoin(list); touched.add('goods'); staffDefaults(); startTimer(); const el=$('#f_goods'); if(el){ el.dataset.h=''; el.innerHTML=goodsHTML(rec.goods); el.dataset.h=el.innerHTML; } paintFields(); renderSide(); }
 $('#form').addEventListener('change', e=>{
   const el=e.target;
   if(el.dataset.gadd!==undefined){ if(!el.value) return; const list=goodsParse(rec.goods); list.push({src:el.value, qty:1}); setGoods(list); $('#f_goods [data-gq]:last-of-type')?.focus(); return; }   // 고르면 1개로 추가
@@ -978,7 +999,7 @@ function fieldHTML(k,label,col,cls,req){
     : k==='date'   // 보이는 칸은 "2026-12-05 (토)" 글자, 달력은 밑에 숨긴 날짜 칸으로
     ? `<input id="f_date" data-k="date" class="date-text"${extra}><input type="date" id="f_datePick" class="date-pick" tabindex="-1" aria-hidden="true">`
     : isStf(k)
-    ? `<input id="f_${k}" data-k="${k}" data-ime="ko" placeholder="담당자 이름" autocomplete="off">`
+    ? `<input id="f_${k}" data-k="${k}" data-ime="ko" placeholder="담당자 이름 (필수)" autocomplete="off">`
     : /^tm_/.test(k)
     ? `<input id="f_${k}" data-k="${k}" inputmode="numeric" data-ime="num" placeholder="13:00~15:00" title="24시간 · 숫자만 쳐도 됨 (13001500)" autocomplete="off">`
     : /^crs_/.test(k)
@@ -1003,7 +1024,8 @@ function buildForm(){
       g=grp;
     }
     if(k==='tbdDate' || k==='owner' || k==='payContact') return;   // 입력 기한 · 결제 연락 예정일은 예약 내용 제목 줄, 영업 담당은 맨 위 초록 헤더
-    html += fieldHTML(k,label,col,cls,req.has(k)||k==='payContact');
+    if(isSub(k)) html += fieldHTML(k, isStf(k) ? '담당' : SUB_NAME[k.split('_')[0]], col, 'sub'+(isStf(k)?' sub-stf':''), isStf(k));   // 프로그램 · 굿즈 바로 옆 '담당 *' (필수)
+    else html += fieldHTML(k,label,col,(cls||'')+(STAFF_BASES().includes(k) && k!=='goods' ? ' pbase' : ''),req.has(k)||k==='payContact');
     if(k==='pchg') html += `</div></div><div class="grp" data-grp="담당자"><div class="grp-t"><span>담당자</span><span class="hint" style="margin:0">여러 명이면 추가</span></div><div class="contacts" id="contacts"></div><button type="button" class="btn addc" id="addContact">+ 담당자 추가</button>` + `<div class="fields" hidden>`;
   });
   close();
@@ -1092,7 +1114,7 @@ function buildForm(){
   $('#form').addEventListener('focusin', e=>{ const el=e.target; if(el.dataset?.k!=='mabangTime' || el.value) return; const t=fmtTime(rec.tin); if(!t) return; const h=+t.slice(0,2)+1; el.value=`${t}~${String(Math.min(h,23)).padStart(2,'0')}${t.slice(2)}`; el.dispatchEvent(new Event('input',{bubbles:true})); setTimeout(()=>{ try{ el.select(); }catch(_){} },0); });
   const mbDefTime = () => { const t=fmtTime(rec.tin); if(!t) return ''; const h=Math.min(+t.slice(0,2)+1,23); return `${t}~${String(h).padStart(2,'0')}${t.slice(2)}`; };
   $('#form').addEventListener('input', e=>{ if(e.target.dataset?.k!=='mabangL' || !rec.mabangL || rec.mabangTime) return; const v=mbDefTime(); if(!v) return; rec.mabangTime=v; touched.add('mabangTime'); paintFields(); renderSide(); });   // 몽몽마방 인원을 넣으면 시간도 입장 시각으로
-  $('#form').addEventListener('input', e=>{ if(e.target.dataset?.k!=='gaga' || !rec.gaga || rec.stf_gaga) return; const me=(rec.owner||savedOwner()||'').trim(); if(!me) return; rec.stf_gaga=me; touched.add('stf_gaga'); paintFields(); renderSide(); });   // 가가 바우처 담당 = 영업 담당 (바꿀 수 있음)
+  $('#form').addEventListener('input', e=>{ const k=e.target.dataset?.k; if(k && STAFF_BASES().includes(k) && staffDefaults()) { paintFields(); renderSide(); } });   // 프로그램을 넣으면 담당 = 영업 담당 (바꿀 수 있음)
   $('#form').addEventListener('focusout', e=>{ const el=e.target, k=el.dataset?.k; if(!TIME_KEYS[k] || !el.value) return; const f=fmtTime(el.value); if(f && f!==el.value){ el.value=f; el.dispatchEvent(new Event('input',{bubbles:true})); } });
   // 몽몽마방: 시간은 나갈 때 12:00~13:00 으로, 메뉴는 체크한 것을 ", " 로, 단가 칸이 비어 있을 때 누르면 메뉴로 계산한 제안 단가
   $('#form').addEventListener('focusout', e=>{ const el=e.target; const kk=el.dataset?.k||''; if((kk!=='mabangTime' && !/^tm_/.test(kk)) || !el.value) return; const f=fmtRange(el.value); if(f && f!==el.value){ el.value=f; el.dispatchEvent(new Event('input',{bubbles:true})); } });   // 몽몽마방 시간 · 도슨트 시간대
@@ -1136,8 +1158,10 @@ function paintFields(changed=[]){
     w.classList.toggle('tbd', isTbd);
     w.classList.toggle('missing', (req.has(k) && !v && !isTbd) || (isStf(k) && !v && needsStaff(k.slice(4))));
     if(isSub(k)) w.hidden = !rec[baseOf(k)] && !v;   // 프로그램을 넣었을 때만 담당 · 시간대 · 코스 칸
+    if(w.classList.contains('pbase')) w.classList.toggle('on', !!v);
     if(OPT[GROUP_OF[k]]) el.classList.toggle('has', !!v);
   });
+  layoutProg();
   const ts=tbdSet(rec); document.querySelectorAll('[data-tbd]').forEach(b=>{ const on=ts.has(b.dataset.tbd); b.checked=on; });
   // 현장 재결제는 결제링크일 때만 (현장 결제는 원래 현장에서 하므로 해당 없음)
   const os=document.getElementById('f_onsite');
@@ -1680,7 +1704,7 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
-const AUTO_TASKS = { tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 담당 입력', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
+const AUTO_TASKS = { tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 function moneySplit(r){
   if(r===rec && erpList.length){ const t=erpTotals(); return {saw:t.saw, shilla:t.shilla, etc:0, missing:false, erp:true}; }   // 전산 내역이 있으면 전산 금액 (세금계산서 문구 등)
@@ -1709,7 +1733,7 @@ function erpNote(r){
   const pg=progList(r, null, true); if(pg.length) p.push(pg.join(', '));   // 프로그램 (담당:이름)
   if(r.mabangL || r.mabangTime || r.mabangMenu) p.push(['몽몽마방', r.mabangTime, r.mabangMenu].filter(Boolean).join(' '));   // 몽몽마방 <시간> <메뉴>
   if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');
-  if(r.goods) p.push('굿즈 '+goodsText(r));   // 굿즈 구매   // 몽몽마방 결제를 마방으로 고르면
+  if(r.goods) p.push('굿즈 '+goodsText(r)+(String(r.stf_goods||'').trim() ? ` (담당:${String(r.stf_goods).trim()})` : ' (담당:미정)'));   // 굿즈 구매   // 몽몽마방 결제를 마방으로 고르면
   if(r.pay==='현장 결제' || r.onsite){ const m=moneySplit(r); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); }
   const who=(r.owner||savedOwner()||'').trim();   // 끝에 항상 (영업 담당 이름)
   return [...p, ...memoLines()].join(' / ') + (who ? ` (${who})` : '');
@@ -1721,7 +1745,17 @@ function taxMsg(r){
 }
 // 현장 결제 인원 확인 연락: 전주 목요일에 읽을 문구
 const onsiteMsg = r => `안녕하세요, 사유원입니다. ${r.org?`<${r.org}> `:''}${r.date?mdLabel(r.date)+' ':''}방문 건으로 연락드렸습니다.\n최종 인원이 ${r.people?`총 ${r.people}명`:'몇 분'} 맞으신가요?\n현장 결제로 진행되기 때문에 당일에는 인원 변경이 어려운 점 다시 한번 안내드립니다.\n변경이 있으시면 지금 말씀해 주세요. 감사합니다.`;
-const taskAuto = t => (t.id==='erp'||t.id==='erpfix') ? erpNote(rec) : t.id==='tax' ? taxMsg(rec) : t.id==='onsitecall' ? onsiteMsg(rec) : '';   // 자동으로 만든 문구
+// 담당자에게 일정 전달 (방문 전날): 담당자별로 맡은 프로그램 · 굿즈
+function staffMsg(r){
+  const by={}, add=(who,s)=>{ who=String(who||'').trim()||'(담당 미정)'; (by[who] ||= []).push(s); };
+  FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]]).forEach(f=>{ const k=f[1], v=String(r[k]), sub=p=>String(r[`${p}_${k}`]||'').trim();
+    add(sub('stf'), `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? v+UNIT(k) : v}${sub('tm')?' '+sub('tm'):''}${sub('crs')?` (코스:${sub('crs')})`:''}`); });
+  if(r.goods) add(r.stf_goods, '굿즈 '+goodsText(r));
+  const head=[r.org&&`<${r.org}>`, r.date&&dateLabel(r.date), r.people&&`${r.people}명`, r.tin&&`입장 ${r.tin}${r.gate&&r.gate!=='미정'?' '+r.gate:''}`].filter(Boolean).join(' · ');
+  const c=contactsOf(r)[0]||{};
+  return `[단체 일정 전달] ${head}\n` + Object.entries(by).map(([w,l])=>`- ${w}: ${l.join(', ')}`).join('\n') + (c.name||c.phone ? `\n고객 담당: ${[c.name,c.phone].filter(Boolean).join(' ')}` : '') + `\n영업 담당: ${(r.owner||savedOwner()||'').trim()||'-'}`;
+}
+const taskAuto = t =>(t.id==='erp'||t.id==='erpfix') ? erpNote(rec) : t.id==='staffbrief' ? staffMsg(rec) : t.id==='tax' ? taxMsg(rec) : t.id==='onsitecall' ? onsiteMsg(rec) : '';   // 자동으로 만든 문구
 const taskText = t => taskAuto(t) ? (t.noteEdit || taskAuto(t)) : '';   // 직접 고쳤으면 그 글 (전산 비고 등)
 // 과업 기한(due): 생기면 그날이 기본, 각자 바꿀 수 있음(dueSet). 미정 항목 연락 = 답변일, 현장 결제 인원 확인 = 전주 목요일(지났으면 전날), 결제 확인 = 다음날
 const todayYmd = () => ymd(new Date());
@@ -1729,11 +1763,12 @@ function autoDue(id, r){
   if(id==='tbdcall') return r.tbdDate || todayYmd();
   if(id==='onsitecall') return r.date ? tbdLimit(r.date) : todayYmd();
   if(id==='paycheck') return ymd(nextDay(new Date().toISOString()));
+  if(id==='staffbrief'){ if(!r.date) return todayYmd(); const d=new Date(r.date+'T00:00'); d.setDate(d.getDate()-1); return ymd(d); }   // 방문 전날
   return todayYmd();
 }
 const taskDue = t => t.due || (t.at ? ymd(new Date(t.at)) : todayYmd());   // 예전 과업은 생긴 날
 const DOC_SUBS = { quote:[['make','견적서 생성'],['send','견적서 전송'],['nas','견적서 NAS에 업로드']], stmt:[['make','거래명세서 생성'],['send','거래명세서 전송'],['nas','거래명세서 NAS에 업로드']] };
-const FOLLOW_DUE = new Set(['tbdcall','onsitecall']);   // 답변일 · 방문일이 바뀌면 기한도 따라감 (직접 바꾸기 전까지)
+const FOLLOW_DUE = new Set(['tbdcall','onsitecall','staffbrief']);   // 답변일 · 방문일이 바뀌면 기한도 따라감 (직접 바꾸기 전까지)
 function syncAutoTasks(){
   const want = [], consult = effStage(rec)==='예약상담';   // 예약상담은 기록용: 추후 과업 없음
   if(rec.tbd) want.push('tbdcall');   // 미정 항목(결제 방법 포함)이 있으면 답변일에 연락
@@ -1745,6 +1780,7 @@ function syncAutoTasks(){
   if(rec.wantStmt) want.push('stmt');
   const ms=missingStaff(rec); if(ms.length) want.push('progstaff');   // 프로그램 담당이 비면 입력하라고
   const mbNeed=mbNeedsMenu(rec); if(mbNeed) want.push('mbmenu');   // 몽몽마방 예약인데 메뉴를 안 고름
+  if(rec.date && STAFF_BASES().some(k=>rec[k])) want.push('staffbrief');   // 프로그램 · 굿즈가 있으면 방문 전날 담당자에게 일정 전달 (영업 담당이 직접 체크)
   if(rec.mabangL || rec.mabangTime) want.push('mbcall');   // 몽몽마방이 들어가면 식당에 전화로 시간 확인 (직접 체크)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
   const e0=tasks.find(t=>t.id==='erp');
@@ -1766,7 +1802,7 @@ function syncAutoTasks(){
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)) || (t.xsubs||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
   const ps=tasks.find(t=>t.id==='progstaff'); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
-  const ORDER=['tour','tbdcall','onsitecall','mbcall','mbmenu','progstaff','erp','erpfix','quote','stmt','tax','paycheck'];
+  const ORDER=['tour','tbdcall','onsitecall','mbcall','mbmenu','progstaff','staffbrief','erp','erpfix','quote','stmt','tax','paycheck'];
   // 순서: 마감일이 빠른 순, 마감일이 같으면 최근에 추가된 것이 위. 직접 옮긴 과업(ordSet)은 그 순서 그대로 두고,
   // 옮기지 않은 과업은 그 사이에 마감일에 맞게 끼워 넣음 (같은 마감일이면 직접 옮긴 것보다 위). 끝난 과업은 맨 아래
   const byNew=(a,b)=>taskDue(a).localeCompare(taskDue(b)) || String(b.at||'').localeCompare(String(a.at||''));
@@ -1820,7 +1856,8 @@ function renderTasks(){
       : t.id==='onsitecall' ? `현장 결제 예약입니다. 기한(${esc(mdLabel(taskDue(t)))} · 방문일 전주 목요일)에 고객님께 연락해 <b>최종 인원</b>을 확인하고, <b>당일 인원 변경이 어렵다는 점</b>을 다시 한번 안내하세요.`
       : t.id==='mbcall' ? `몽몽마방 식당에 전화해서 확인하고 체크하세요. (${esc([rec.date&&dateLabel(rec.date), rec.mabangL&&rec.mabangL+'명'].filter(Boolean).join(' · ')||'방문일 · 인원 미정')})<br>① 고객님이 말씀하신 시각 <b>${esc(rec.mabangTime||'(시간 미입력)')}</b> 가능한지<br>② 그날 예약 가능한 시간이 모두 언제인지 → 아래 메모에 적어 두기`
       : t.id==='mbmenu' ? (t.done ? '몽몽마방 메뉴를 골랐습니다.' : `몽몽마방 식사에서 메뉴(${esc(mbMenus().map(m=>m.name).join(' · '))}) 중 하나를 고르세요. 고르면 자동으로 완료됩니다.`)
-      : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 프로그램: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 칸의 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (차방 · 당두봉갈 대관은 담당 없어도 됨)` : '프로그램 담당을 모두 넣었습니다.')
+      : t.id==='staffbrief' ? `방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')}) 각 담당자에게 아래 일정을 전달하고 체크하세요. 영업 담당이 이 예약의 프로그램 · 굿즈를 모두 챙깁니다.`
+      : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 칸: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 · 굿즈 옆 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (개별 · 시간 프로그램 · 굿즈 모두 담당 필수)` : '프로그램 · 굿즈 담당을 모두 넣었습니다.')
       : t.id==='erpfix' ? ((t.changes||[]).length ? `전산 등록 후 바뀐 내용: <b>${esc(t.changes.join(' · '))}</b><br>전산 예약을 고치고 비고도 새 문구로 바꾼 뒤 체크하세요.` : '전산에 반영했습니다.')
       : SUB[t.id] || '';
     const docBtn = (t.id==='quote'||t.id==='stmt') ? `<div class="tbtn"><button type="button" class="btn" data-tquote="${t.id==='stmt'?'statement':'quote'}">${t.id==='stmt'?'거래명세서 만들기':'견적서 만들기'}</button></div>` : '';
@@ -2072,7 +2109,7 @@ async function loadQuotePrices(){
     const data = (shared && shared.data) || (quoteCat && {edits:quoteCat.edits, added:quoteCat.added}) || {};
     quoteCat = { ...p, edits: data.edits||{}, added: data.added||[], at: new Date().toISOString() };
     writeJSON('sayuwon_quote_cat', quoteCat); priceLoaded = true;
-    addCatalogProgs(quoteCat).forEach(f=>{ document.querySelector('#opt_'+OPT[f[0]].id+' .fields')?.insertAdjacentHTML('beforeend', fieldHTML(f[1],f[2],'','',false)); paintFields(); });   // 견적서 품목에 새 단체 품목이 생기면 칸 추가
+    addCatalogProgs(quoteCat).forEach(f=>{ document.querySelector('#opt_'+OPT[f[0]].id+' .fields')?.insertAdjacentHTML('beforeend', isSub(f[1]) ? fieldHTML(f[1], isStf(f[1]) ? '담당' : SUB_NAME[f[1].split('_')[0]], '', 'sub'+(isStf(f[1])?' sub-stf':''), isStf(f[1])) : fieldHTML(f[1],f[2],'','pbase',false)); paintFields(); });   // 견적서 품목에 새 단체 품목이 생기면 칸 추가
   }catch(_){ priceLoaded = false; }
   paintFields(); renderPrice(); if(window.__tasksReady) renderTasks();   // 몽몽마방 메뉴 · 가격도 새로
 }
@@ -2325,7 +2362,8 @@ function fillFromErp(list){
   SPECIAL.forEach(s=>{ if(sp[s.k]) set(s.k, String(sp[s.k])); });
   if(etc){ set('etcDisc', String(etc)); set('etcDiscTo', etcTo||'신라'); if(!rec.etcDiscWhy) set('etcDiscWhy', '전산 기타할인'); }
   else if(rec.etcDiscWhy==='전산 기타할인'){ set('etcDisc',''); set('etcDiscWhy',''); }   // 전산에서 읽었던 기타 할인이 이번 내역에 없으면 뺌 (직접 넣은 할인은 그대로)
-  ERP_FILL_KEYS().forEach(k=>{ const g=OPT[GROUP_OF[k]]; if(g && rec[k]) optOpen.add(g.id); });   // 채워진 식사 · 프로그램 · 굿즈 묶음은 펼침
+  ERP_FILL_KEYS().forEach(k=>{ const g=OPT[GROUP_OF[k]]; if(g && rec[k]) optOpen.add(g.id); });
+  staffDefaults();   // 채운 프로그램 · 굿즈 담당 = 영업 담당   // 채워진 식사 · 프로그램 · 굿즈 묶음은 펼침
   return { n: ch.length, unknown };
 }
 function takeErpText(text, fill=true){
@@ -2522,6 +2560,7 @@ $('#consultApplyBtn').onclick=()=>{
   if(!n){ $('#consultMsg').textContent='알아볼 수 있는 항목이 없습니다. "항목 [탭] 값" 형식인지 확인해 주세요.'; return; }
   if($('#consultNew').checked) newCall(false);
   Object.entries(fields).forEach(([k,v])=>{ rec[k]=v; touched.add(k); });
+  staffDefaults();   // 단체상담 상품으로 채운 프로그램 담당 = 영업 담당
   Object.keys(fields).forEach(k=>{ const g=OPT[GROUP_OF[k]]; if(g) optOpen.add(g.id); });   // 식사 · 프로그램이 채워졌으면 그 묶음을 펼침
   if(extra.length){ const box=$('#memoBox'); box.value = (box.value ? box.value.replace(/\s*$/,'\n') : '') + extra.join('\n'); }
   nContacts=Math.max(nContacts, nContactsOf(rec)); renderContacts(); startTimer(); renderForm();
