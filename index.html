@@ -279,6 +279,7 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .crow{display:flex;gap:8px;align-items:flex-end}   /* 성함·연락처·이메일이 가로를 꽉 채움 */
 .crow .f{flex:1 1 0;min-width:0}.crow .f:nth-child(3){flex-grow:1.4}
 @media (max-width:560px){.crow{flex-wrap:wrap}.crow .f{flex-basis:45%}}
+.crow .cacts{flex:none;width:72px;display:flex;gap:8px}   /* 담당자 줄마다 같은 폭 → 성함 · 연락처 · 이메일 열이 맞음 */
 .crow .x{flex:none;width:32px;border:1px solid var(--line);background:var(--card);border-radius:6px;height:36px;cursor:pointer;color:var(--muted)}
 .crow .x:hover{border-color:var(--red);color:var(--red)}
 .crow .up{flex:none;width:32px;border:1px solid var(--line);background:var(--card);border-radius:6px;height:36px;cursor:pointer;color:var(--muted);font-size:11px}
@@ -369,17 +370,6 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .ptable tr.pick td:first-child{font-weight:700}
 .ptable tr.pick td:first-child::before{content:"● ";color:var(--pine);font-size:9px}
 /* 할인 */
-.erp-form{margin:12px 0 4px;border:1px solid #cfdcc6;background:#f4f8f0;border-radius:8px;padding:10px 12px;font-size:13px}
-.erp-h{font-weight:600;margin-bottom:6px;display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
-.erp-items{list-style:none;margin:0;padding:0}
-.erp-items li{display:grid;grid-template-columns:48px 1fr auto 92px;gap:2px 8px;align-items:baseline;padding:4px 0;border-top:1px dashed #d6e2cd}
-.erp-items li:first-child{border-top:0}
-.erp-seq{color:var(--muted);font-size:11.5px;min-width:44px;font-variant-numeric:tabular-nums}
-.erp-p{min-width:0}
-.erp-n{font-weight:600;font-variant-numeric:tabular-nums}
-.erp-d{grid-column:2/-1;grid-row:2;justify-self:start;font-size:11.5px;color:var(--red);background:var(--red-soft);border-radius:4px;padding:0 5px}
-.erp-a{text-align:right;font-variant-numeric:tabular-nums;grid-column:4;grid-row:1}
-.erp-mm{margin-top:8px}
 .disc-box{background:var(--bg);border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12.5px}
 .disc-line b{color:var(--pine)}
 .disc-line:empty{display:none}
@@ -573,7 +563,6 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
       </div>
     </div>
     <form id="form" autocomplete="off"></form>
-    <div id="erpForm" class="erp-form" hidden></div><!-- 전산 등록 상품 (순번마다) · 예약 칸과 다른 점 -->
 
     <div class="memo-in">
       <h2>통화 메모 <small>칸에 없는 특이사항 · 전산 비고에도 들어갑니다</small></h2>
@@ -1119,7 +1108,7 @@ function renderContacts(){
   const req=new Set(REQUIRED().map(r=>r[0]));
   let h='';
   for(let i=0;i<nContacts;i++){
-    h+=`<div class="crow">${CFIELDS.map(([f,l])=>fieldHTML(`c${i}_${f}`, l, '', '', req.has(`c${i}_${f}`))).join('')}${i?`<button type="button" class="up" data-up="${i}" title="위로 올리기 (맨 위 = 주로 연락하는 대표 담당자)">▲</button><button type="button" class="x" data-i="${i}" title="이 담당자 빼기">×</button>`:''}</div>`;
+    h+=`<div class="crow">${CFIELDS.map(([f,l])=>fieldHTML(`c${i}_${f}`, l, '', '', req.has(`c${i}_${f}`))).join('')}<span class="cacts">${i?`<button type="button" class="up" data-up="${i}" title="위로 올리기 (맨 위 = 주로 연락하는 대표 담당자)">▲</button><button type="button" class="x" data-i="${i}" title="이 담당자 빼기">×</button>`:''}</span></div>`;   // 버튼 자리는 모든 줄에 같은 폭 (첫 줄은 비움) → 칸 열이 맞음
   }
   $('#contacts').innerHTML=h;
   for(let i=0;i<nContacts;i++) CFIELDS.forEach(([f])=>{ const k=`c${i}_${f}`; document.getElementById('f_'+k).value=rec[k]||''; });
@@ -2285,31 +2274,16 @@ function erpTotals(list=erpList){
   const pi=(list[0]||{}).payInfo; if(pi && pi.free!=null && pi.taxable!=null){ saw=pi.free; shilla=pi.taxable; }
   return {tot, saw, shilla, pi};
 }
-// 예약 칸 ↔ 전산 내역 다른 점 (전산 내역대로 맞추는 칸 + 방문일 · 관람 인원)
-function erpMismatch(){
-  if(!erpList.length) return [];
-  const {o}=erpFields(erpList), show=(k,v)=>!v?'없음':k==='goods'?goodsText({goods:v}):k==='date'?dateLabel(v):v;
-  return [...ERP_FILL_KEYS(),'people','date'].filter(k=>String(o[k]||'')!==String(rec[k]||'') && !((k==='people'||k==='date') && !o[k]))
-    .map(k=>`${LABEL[k]||k} ${show(k,rec[k])} (전산 ${show(k,o[k])})`);
-}
 function renderErp(){
-  const box=$('#erpBox'), fm=$('#erpForm'); if(!box) return;
-  if(!erpList.length){ box.hidden=true; box.innerHTML=''; if(fm){ fm.hidden=true; fm.innerHTML=''; } return; }
+  const box=$('#erpBox'); if(!box) return;
+  if(!erpList.length){ box.hidden=true; box.innerHTML=''; return; }
   const {tot, saw, shilla, pi}=erpTotals();
   const rows=erpList.map(x=>`<tr><td>${esc(x.product)}${x.date?`<br><small class="hint" style="margin:0">${esc(dateLabel(x.date))}${x.seq?` · 순번 ${esc(x.seq)}`:''}</small>`:''}</td><td>${x.people}${erpUnit(x)}</td><td>${won(x.base)}</td><td>${x.disc?`<span class="dtag">-${won(x.disc)}</span>`:''}${x.notes.length?`<br><small class="hint" style="margin:0">${esc(x.notes.join(' · '))}</small>`:''}</td><td class="tot">${won(x.amount)}</td></tr>`).join('');
   box.hidden=false;
   box.innerHTML = `<div class="psec-t">전산 예약 내역 <button type="button" class="btn" id="erpClear" style="padding:1px 8px;font-size:11.5px;margin-left:6px" title="전산 내역을 지우면 예약 칸으로 계산한 가격표로 돌아갑니다">지우기</button></div>`
     + `<table class="ptable sel"><thead><tr><th>상품</th><th>인원</th><th>상품금액</th><th>할인</th><th>금액</th></tr></thead><tbody>${rows}</tbody>`
     + `<tfoot><tr><td colspan="4">전산 합계</td><td class="tot">${won(tot)}</td></tr><tr class="split-row"><td colspan="4">└ 사유원 (관람${pi&&pi.free!=null?' · 전산 면세금액':''})</td><td class="tot">${won(saw)}</td></tr><tr class="split-row"><td colspan="4">└ 신라 (관람 외${pi&&pi.taxable!=null?' · 전산 과세금액':''})</td><td class="tot">${won(shilla)}</td></tr>${pi&&pi.total?`<tr class="split-row"><td colspan="4">결제 ${esc([pi.state, pi.method].filter(Boolean).join(' · '))}</td><td class="tot">${won(pi.total)}</td></tr>`:''}</tfoot></table>`;
-  // 예약 내용 아래: 전산에 등록된 상품 (순번마다) + 예약 칸과 다른 점
-  if(!fm) return;
-  const mm=erpMismatch();
-  fm.hidden=false;
-  fm.innerHTML = `<div class="erp-h">전산 등록 상품 <b>${erpList.length}건</b> <small class="hint" style="margin:0">위 칸은 이 내역대로 채웠고, 가격표도 전산 기준입니다</small></div>`
-    + `<ul class="erp-items">${erpList.map(x=>`<li><span class="erp-seq">${x.seq?'순번 '+esc(x.seq):''}</span><span class="erp-p">${esc(itemLabel(x.product))}</span><span class="erp-n">${x.people}${erpUnit(x)}</span>${x.notes.length?`<span class="erp-d">${esc(x.notes.map(n=>n.replace(/\s*-\s*[\d,]+\(.*$/,'').replace(/\s*-\s*([\d,]+)$/,' $1원')).join(' · '))}</span>`:''}<span class="erp-a">${won(x.amount)}원</span></li>`).join('')}</ul>`
-    + (mm.length ? `<div class="price-need erp-mm">예약 칸이 전산과 다릅니다: ${esc(mm.join(' · '))}<br><button type="button" class="btn" data-erp-refill style="margin-top:6px;padding:4px 10px;font-size:12px">전산 내역대로 칸 맞추기</button> <small class="hint" style="margin:0">전산을 고쳤다면 새 내역을 다시 붙여넣으세요</small></div>` : '');
 }
-document.addEventListener('click', e=>{ if(!e.target.closest('[data-erp-refill]')) return; const f=fillFromErp(erpList); nContacts=Math.max(nContacts, nContactsOf(rec)); renderContacts(); renderForm(); startTimer(); renderSide(); toast(`예약 칸 ${f.n}개를 전산 내역대로 맞췄습니다.`); });
 // 전산 내역 → 예약 내용 칸: 관람 · 관람+사담 · 몽몽마방 메뉴 · 프로그램 · 굿즈 · 방문일 · 인원 · 기타 할인 · 특별 할인
 function erpFields(list){
   const o={}, goods=[], unknown=[], sp={}; let view=0, etc=0, etcTo='';
