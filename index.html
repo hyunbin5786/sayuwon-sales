@@ -76,9 +76,9 @@ main{max-width:980px;margin:0 auto;padding:40px 16px}
   <section id="menuView" hidden>
     <h2 class="hello" id="hello"></h2>
     <div class="menu">
-      <button type="button" class="card soon" data-go="personal" title="준비 중입니다">
-        <div class="num">1</div><div><b>개인고객 전화응대 <em class="tag">준비 중</em></b><span>개인 고객 문의 · 예약 전화를 받으며 기록합니다.</span></div>
-      </button>
+      <a class="card" data-go="personal" href="personal.html">
+        <div class="num">1</div><div><b>개인고객 전화응대</b><span>개인 고객 문의 · 예약 전화를 기록하고, 다시 연락할 통화 · 가격 · 사담 남은 자리를 봅니다.</span></div>
+      </a>
       <a class="card" data-go="group" href="group.html">
         <div class="num">2</div><div><b>단체고객 전화응대</b><span>단체 예약 접수 · 예약 내역 · 추후 과업 · 단체예약 목록 · 마이페이지</span></div>
       </a>
@@ -135,7 +135,6 @@ $('#logoutBtn').onclick=()=>{
 // 메뉴
 document.addEventListener('click', e=>{
   const c=e.target.closest('[data-go]'); if(!c) return;
-  if(c.dataset.go==='personal'){ e.preventDefault(); alert('개인고객 전화응대는 준비 중입니다.'); }
   if(c.dataset.go==='catalog'){ e.preventDefault(); openCatalog(); }
 });
 // 품목관리: 견적서 사이트 ?catalog=1 을 이 화면 위에 띄우고, 닫기를 누르면(저장이 끝난 뒤) 메뉴로

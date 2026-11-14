@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개인고객 전화응대 · 사유원 예약 관리 시스템</title>
+<script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 개인고객 전화응대: 왼쪽 통화 기록 · 오른쪽 다시 연락할 통화 · 최근 통화 · 가격 · 사담 현황
+   저장은 단체 화면과 같은 공유 기록(구글 시트 calls 시트, 통화 구분 '개인고객'). 단체 목록에는 나오지 않음 */
+:root{
+  --bg:#f3f1ec; --card:#fffefb; --ink:#262620; --muted:#77736a; --line:#dfdace;
+  --pine:#3f5236; --pine-soft:#e4eadf; --amber:#b0742a; --amber-soft:#f8ecd9; --red:#a4442c; --red-soft:#f6e1da;
+  --serif:"Noto Serif KR",serif; --sans:"Noto Sans KR",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
+header{background:var(--pine);color:#f3f1ec;padding:10px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+header h1{margin:0;font:600 17px var(--serif)}
+header .hb{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#f3f1ec;border-radius:7px;padding:4px 12px;font:700 13px var(--sans);cursor:pointer;text-decoration:none}
+header .hb:hover{background:rgba(255,255,255,.2)}
+header .me{margin-left:auto;font-size:13px}
+header .sync{font-size:12px;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.14)}
+header .sync.warn{background:#f3d9b5;color:#6b4513}
+header .sync[hidden]{display:none}
+main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;padding:16px max(16px,env(safe-area-inset-left,0px));max-width:1500px;margin:0 auto}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.panel h2{margin:0 0 10px;font:600 16px var(--serif);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.panel h2 small{font:400 12px var(--sans);color:var(--muted)}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 10px}
+@media (max-width:560px){.row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.f{display:flex;flex-direction:column;gap:3px;min-width:0}
+.f.w2{grid-column:span 2}.f.w4{grid-column:1/-1}
+.f label{font-size:12px;color:var(--muted)}
+.f input,.f select,.f textarea{width:100%;height:36px;border:1px solid var(--line);border-radius:7px;padding:0 9px;font:14px var(--sans);background:#fff;color:var(--ink)}
+.f textarea{height:150px;padding:8px 10px;resize:vertical;line-height:1.6}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--pine)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:4px 12px;font:500 13px var(--sans);cursor:pointer}
+.chips button.on{background:var(--pine);border-color:var(--pine);color:#fff}
+.sub-h{font-size:12px;color:var(--muted);margin:12px 0 5px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:8px 14px;font:500 13px var(--sans);cursor:pointer;text-decoration:none}
+.btn.primary{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:700}
+.btn.danger{color:var(--red);border-color:var(--red)}
+.btn:disabled{opacity:.5;cursor:default}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.state{font-size:12.5px;color:var(--muted)}
+.editing{background:var(--amber-soft);border-radius:7px;padding:6px 10px;font-size:12.5px;margin-bottom:10px}
+.editing[hidden]{display:none}
+.group-tip{background:var(--pine-soft);border-radius:7px;padding:8px 10px;font-size:12.5px;margin-top:8px}
+.group-tip[hidden]{display:none}
+/* 목록 */
+.list{list-style:none;margin:0;padding:0}
+.list li{border-top:1px solid var(--line);padding:8px 2px;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px}
+.list li:first-child{border-top:0}
+.list li:hover{background:#faf8f2}
+.list li b{font-size:13.5px}
+.list li .meta{font-size:12px;color:var(--muted)}
+.list li .r{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
+.list li .txt{grid-column:1/-1;font-size:12.5px;color:#55524a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{display:inline-block;font-size:11px;padding:0 7px;border-radius:999px;background:#ece9e2;color:var(--muted);margin-right:4px}
+.tag.cb{background:var(--amber-soft);color:var(--amber);font-weight:700}
+.tag.late{background:var(--red-soft);color:var(--red);font-weight:700}
+.tag.done{background:var(--pine-soft);color:var(--pine)}
+.search{width:100%;height:34px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:13px var(--sans);margin-bottom:6px}
+.empty{color:var(--muted);font-size:12.5px;padding:6px 2px}
+/* 가격 · 현황 */
+table.pt{width:100%;border-collapse:collapse;font-size:12.5px}
+table.pt th,table.pt td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left}
+table.pt td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
+.seat{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.seat span{border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:12.5px;background:#fff}
+.seat span.full{color:var(--red);border-color:var(--red)}
+/* 팀 비밀번호 */
+.modal{position:fixed;inset:0;z-index:30;background:rgba(30,30,25,.45);display:flex;align-items:flex-start;justify-content:center;padding:80px 16px}
+.modal[hidden]{display:none}
+.modal .panel{width:min(420px,100%)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2f2f29;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;z-index:40;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <a class="hb" href="./" title="사유원 예약 관리 시스템 메뉴로">☰ 메뉴</a>
+  <h1>개인고객 전화응대</h1>
+  <span class="sync warn" id="syncChip" hidden></span>
+  <span class="me" id="me"></span>
+</header>
+
+<main>
+  <!-- 왼쪽: 통화 기록 -->
+  <div class="col">
+    <form class="panel" id="callForm" autocomplete="off">
+      <h2>통화 기록 <small id="startedAt"></small></h2>
+      <div class="editing" id="editing" hidden></div>
+      <div class="sub-h" style="margin-top:0">문의 유형 (여러 개 고를 수 있음)</div>
+      <div class="chips" id="typeChips"></div>
+      <div class="group-tip" id="groupTip" hidden>단체(15명 이상 등) 문의면 <a href="group.html">단체고객 전화응대</a>에서 받아 주세요.</div>
+      <div class="sub-h">고객 · 방문</div>
+      <div class="row">
+        <div class="f"><label for="fName">고객 이름</label><input id="fName" lang="ko" placeholder="예) 홍길동"></div>
+        <div class="f"><label for="fPhone">연락처</label><input id="fPhone" inputmode="tel" placeholder="010-0000-0000"></div>
+        <div class="f"><label for="fDate">방문 희망일</label><input id="fDate" type="date"></div>
+        <div class="f"><label for="fPeople">인원</label><input id="fPeople" inputmode="numeric" placeholder="명"></div>
+      </div>
+      <div class="sub-h">문의 내용</div>
+      <div class="f w4"><textarea id="fNote" lang="ko" placeholder="예) 11/27 금요일 2명 사담 런치 1부 가능한지 · 주차 문의"></textarea></div>
+      <div class="sub-h">처리 결과</div>
+      <div class="row">
+        <div class="f w2"><label for="fResult">결과</label>
+          <select id="fResult">
+            <option>안내 완료</option><option>예약 완료 (전산 등록)</option><option>고객이 직접 예약하기로</option>
+            <option>다시 연락 필요</option><option>다른 담당자에게 전달</option><option>기타</option>
+          </select></div>
+        <div class="f w2" id="wCallback" hidden><label for="fCallback">다시 연락할 때</label><input id="fCallback" type="datetime-local"></div>
+        <div class="f w2" id="wTo" hidden><label for="fTo">전달 받는 사람</label><input id="fTo" lang="ko" placeholder="이름 · 부서"></div>
+      </div>
+      <div class="btns">
+        <button class="btn primary" type="submit" id="saveBtn">저장 (Ctrl+S)</button>
+        <button class="btn" type="button" id="newBtn">＋ 새 통화</button>
+        <button class="btn danger" type="button" id="delBtn" hidden>삭제</button>
+        <span class="state" id="state"></span>
+      </div>
+      <p class="hint" style="margin-top:10px">저장하면 팀 공유 기록(구글 시트)에 '개인고객'으로 남고, 오른쪽 목록에서 누구나 다시 열 수 있습니다.</p>
+    </form>
+  </div>
+
+  <!-- 오른쪽: 다시 연락 · 최근 통화 · 안내 -->
+  <div class="col">
+    <section class="panel">
+      <h2>다시 연락할 통화 <small id="cbCount"></small></h2>
+      <ul class="list" id="cbList"></ul>
+    </section>
+    <section class="panel">
+      <h2>최근 개인고객 통화 <small id="listCount"></small></h2>
+      <input class="search" id="search" type="search" lang="ko" placeholder="검색: 이름 · 연락처 · 문의 내용 · 받은 사람">
+      <ul class="list" id="recentList"></ul>
+    </section>
+    <section class="panel">
+      <h2>안내용 가격 · 현황 <small id="priceDay"></small></h2>
+      <div id="seatBox"></div>
+      <div id="priceBox"><p class="empty">가격을 불러오는 중입니다.</p></div>
+    </section>
+  </div>
+</main>
+
+<!-- 팀 비밀번호 (공유 기록 연결) -->
+<div class="modal" id="keyModal" hidden>
+  <form class="panel" id="keyForm">
+    <h2>공유 기록 연결</h2>
+    <p class="hint">팀 비밀번호를 넣어 주세요. 이 브라우저에 기억됩니다 (단체 화면과 같은 비밀번호).</p>
+    <div class="f" style="margin-top:10px"><input id="keyInput" type="password" placeholder="팀 비밀번호" autocomplete="off"></div>
+    <p class="hint" id="keyMsg" style="color:var(--red);min-height:18px"></p>
+    <div class="btns" style="justify-content:flex-end;margin-top:6px"><button class="btn primary" type="submit">연결</button></div>
+  </form>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const readJSON=(k,d)=>{ try{ const v=JSON.parse(localStorage.getItem(k)); return v==null?d:v; }catch(_){ return d; } };
+const writeJSON=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){} };
+const DOW='일월화수목금토';
+const dLabel = d => { const t=new Date(String(d).slice(0,10)+'T00:00'); return isNaN(t)?'':`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; };
+const dtLabel = s => { const t=new Date(s); return isNaN(t)?'':`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]}) ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`; };
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+let toastT; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), 2600); }
+const user = readJSON('sy_user', {}) || {};
+$('#me').textContent = user.name ? `${user.name} · 사번 ${user.emp}` : '';
+
+// ===================== 공유 기록 (단체 화면과 같은 Apps Script · 같은 팀 비밀번호) =====================
+const SHARED_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";
+const KEY_LS='sayuwon_intake_key', PEND_LS='sayuwon_personal_pending', CACHE_LS='sayuwon_personal_cache';
+const CALL_TYPE='개인고객';
+const getKey=()=>{ try{ return localStorage.getItem(KEY_LS)||''; }catch(_){ return ''; } };
+let pending = readJSON(PEND_LS, []), items = readJSON(CACHE_LS, []), flushing=false, retryT=null;
+async function callApi(body){
+  const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})});   // Content-Type 없이 (Apps Script 사전 확인 요청 없이)
+  const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j;
+}
+function paintSync(state){
+  const c=$('#syncChip'), n=pending.length;
+  const txt = state==='error' ? `연결 끊김 · ${n}건 대기 · 다시 시도 중` : n ? `올리는 중 ${n}건` : '';
+  c.textContent=txt; c.hidden=!txt;
+  $('#keyModal').hidden = state!=='needkey'; if(state==='needkey') setTimeout(()=>$('#keyInput').focus(),0);
+}
+function handleErr(e){ if(e.code==='bad_key'){ if(getKey()) $('#keyMsg').textContent='비밀번호가 맞지 않습니다.'; paintSync('needkey'); } else { paintSync('error'); clearTimeout(retryT); retryT=setTimeout(flush, 15000); } }
+async function flush(){
+  if(flushing) return; if(!getKey()){ paintSync('needkey'); return; }
+  flushing=true;
+  try{
+    while(pending.length){ await callApi(pending[0]); pending.shift(); writeJSON(PEND_LS,pending); paintSync(); }
+    await pull(true);
+  }catch(e){ handleErr(e); } finally{ flushing=false; }
+}
+async function pull(inFlush){
+  if(!getKey()){ paintSync('needkey'); return; }
+  if(flushing && !inFlush) return;
+  try{
+    const j=await callApi({action:'list'});
+    items=(j.items||[]).filter(r=>r.callType===CALL_TYPE); writeJSON(CACHE_LS, items.slice(-500));
+    $('#keyMsg').textContent=''; paintSync(); renderLists();
+    if(j.admin){ writeJSON('sayuwon_intake_admin', j.admin); paintSeats(); }   // 사담 · 마방 현황 (단체 화면과 같이 씀)
+  }catch(e){ if(inFlush) throw e; handleErr(e); }
+}
+function put(item){
+  pending = pending.filter(p=>!(p.action==='put' && p.item.id===item.id)); pending.push({action:'put', item}); writeJSON(PEND_LS,pending);
+  const i=items.findIndex(x=>x.id===item.id); if(i>=0) items[i]=item; else items.push(item);
+  renderLists(); paintSync(); flush();
+}
+$('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#keyInput').value.trim(); if(!v) return; try{ localStorage.setItem(KEY_LS, v); }catch(_){} $('#keyInput').value=''; flush(); });
+
+// ===================== 통화 기록 =====================
+const TYPES=['관람 예약','사담 예약','몽몽마방','프로그램','예약 변경','취소 · 환불','길 안내 · 주차','단체 문의','기타'];
+const MEMO_KEYS=[['types','문의 유형'],['result','처리 결과'],['callback','다시 연락'],['cbDone','연락 완료'],['to','전달 대상']];
+let cur=null, startedAt=null;   // cur: 지금 열어 둔 기록 (새 통화면 null)
+function blankForm(){ return {types:[], name:'', phone:'', date:'', people:'', note:'', result:'안내 완료', callback:'', to:'', cbDone:''}; }
+let form=blankForm(), saved=JSON.stringify(form);
+$('#typeChips').innerHTML = TYPES.map(t=>`<button type="button" data-t="${esc(t)}">${esc(t)}</button>`).join('');
+function paintForm(force){
+  document.querySelectorAll('#typeChips button').forEach(b=>b.classList.toggle('on', form.types.includes(b.dataset.t)));
+  $('#groupTip').hidden = !form.types.includes('단체 문의');
+  [['fName','name'],['fPhone','phone'],['fDate','date'],['fPeople','people'],['fNote','note'],['fResult','result'],['fCallback','callback'],['fTo','to']].forEach(([id,k])=>{ const el=$('#'+id); if((force || document.activeElement!==el) && el.value!==form[k]) el.value=form[k]; });
+  $('#wCallback').hidden = form.result!=='다시 연락 필요'; $('#wTo').hidden = form.result!=='다른 담당자에게 전달';
+  $('#delBtn').hidden = !cur;
+  $('#editing').hidden = !cur; if(cur) $('#editing').textContent = `${dtLabel(cur.saved)} ${cur.takenBy||''}님이 받은 통화를 고치는 중 · 저장하면 그대로 덮어씁니다`;
+  $('#startedAt').textContent = startedAt ? `통화 시작 ${dtLabel(startedAt.toISOString())}` : '';
+  $('#state').textContent = isDirty() ? '저장하지 않은 내용이 있습니다' : (cur ? '저장됨' : '');
+  paintPrices();
+}
+const isDirty = () => JSON.stringify(form)!==saved;
+const fmtPhone = v => { const d=String(v||'').replace(/\D/g,''); if(/^01\d{8,9}$/.test(d)) return d.length===10?`${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`:`${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`; if(/^0\d{8,10}$/.test(d)) return d.replace(/^(02|0\d{2})(\d{3,4})(\d{4})$/,'$1-$2-$3'); return v; };
+document.addEventListener('click', e=>{ const b=e.target.closest('#typeChips [data-t]'); if(!b) return; const t=b.dataset.t; form.types = form.types.includes(t) ? form.types.filter(x=>x!==t) : [...form.types, t]; touch(); });
+[['fName','name'],['fPhone','phone'],['fDate','date'],['fPeople','people'],['fNote','note'],['fResult','result'],['fCallback','callback'],['fTo','to']].forEach(([id,k])=>{
+  $('#'+id).addEventListener(id==='fResult'?'change':'input', e=>{ let v=e.target.value; if(k==='people'){ v=v.replace(/[^\d+]/g,''); e.target.value=v; } form[k]=v; touch(); });
+});
+$('#fPhone').addEventListener('blur', e=>{ const v=fmtPhone(e.target.value); if(v!==form.phone){ form.phone=v; e.target.value=v; touch(); } });
+function touch(){ if(!startedAt && !cur) startedAt=new Date(); paintForm(); }
+function toItem(){
+  const id = cur ? cur.id : (Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+  const memo = MEMO_KEYS.map(([k,l])=>{ const v = k==='types' ? form.types.join(', ') : form[k]; return v ? `${l} ${String(v).replace(/\s*\/\s*/g,', ')}` : ''; }).filter(Boolean).join(' / ');
+  const first = String(form.note||'').split(/\n/)[0].slice(0,60);
+  return { ...(cur||{}), id, saved: cur ? cur.saved : new Date().toISOString(), callStart: cur ? cur.callStart : (startedAt||new Date()).toISOString(),
+    takenBy: cur ? (cur.takenBy || user.name || '') : (user.name || ''), owner: user.name || '', callType: CALL_TYPE,
+    summary: [form.types.join(' · '), form.result, first].filter(Boolean).join(' · '), date: form.date, people: form.people,
+    contact: form.name, phone: form.phone, note: form.note, memo };
+}
+function fromItem(r){
+  const m={}; String(r.memo||'').split(/\s*\/\s*/).forEach(p=>{ MEMO_KEYS.forEach(([k,l])=>{ if(p.startsWith(l+' ')) m[k]=p.slice(l.length+1).trim(); }); });
+  return { types: m.types ? m.types.split(/\s*,\s*/).filter(Boolean) : [], name:r.contact||'', phone:r.phone||'', date:String(r.date||'').slice(0,10), people:r.people||'', note:r.note||'',
+    result: m.result||'안내 완료', callback: m.callback||'', to: m.to||'', cbDone: m.cbDone||'' };
+}
+function save(){
+  if(!form.types.length && !form.note.trim() && !form.name.trim() && !form.phone.trim()){ toast('문의 유형이나 내용을 넣어 주세요.'); return; }
+  if(form.result==='다시 연락 필요' && !form.callback){ toast('다시 연락할 때를 넣어 주세요.'); $('#fCallback').focus(); return; }
+  if(form.result!=='다시 연락 필요') form.callback='';
+  const item=toItem(); put(item); cur=item; saved=JSON.stringify(form); startedAt=null; paintForm(); toast('저장했습니다.');
+}
+$('#callForm').addEventListener('submit', e=>{ e.preventDefault(); save(); });
+document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); } });
+function newCall(){ if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 새 통화를 시작할까요?')) return false; cur=null; form=blankForm(); saved=JSON.stringify(form); startedAt=null; paintForm(true); $('#fName').focus(); return true; }
+$('#newBtn').onclick=newCall;
+$('#delBtn').onclick=()=>{ if(!cur || !confirm('이 통화 기록을 삭제할까요? (시트에는 삭제 표시로 남습니다)')) return;
+  pending.push({action:'del', id:cur.id}); writeJSON(PEND_LS,pending); items=items.filter(x=>x.id!==cur.id); cur=null; form=blankForm(); saved=JSON.stringify(form); paintForm(); renderLists(); flush(); toast('삭제했습니다.'); };
+window.addEventListener('beforeunload', e=>{ if(isDirty()){ e.preventDefault(); e.returnValue=''; } });
+function openItem(id){ const r=items.find(x=>x.id===id); if(!r) return; if(cur && cur.id===id) return; if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 이 기록을 열까요?')) return; cur=r; form=fromItem(r); saved=JSON.stringify(form); startedAt=null; paintForm(true); window.scrollTo({top:0, behavior:'smooth'}); }
+
+// ===================== 목록: 다시 연락할 통화 · 최근 통화 =====================
+const shown = () => { const m=new Map(items.map(x=>[x.id,x])); pending.forEach(p=>{ if(p.action==='put') m.set(p.item.id,p.item); else m.delete(p.id); }); return [...m.values()]; };
+function rowHTML(r, cb){
+  const f=fromItem(r), late = cb && f.callback && new Date(f.callback) < new Date();
+  const tags = (cb ? `<span class="tag ${late?'late':'cb'}">${late?'지남 ':''}${esc(dtLabel(f.callback))}</span>` : '') + f.types.map(t=>`<span class="tag">${esc(t)}</span>`).join('')
+    + (!cb && f.result==='다시 연락 필요' ? (f.cbDone ? '<span class="tag done">연락 완료</span>' : '<span class="tag cb">다시 연락</span>') : '');
+  return `<li data-id="${esc(r.id)}"><div><b>${esc(f.name||'(이름 없음)')}</b> <span class="meta">${esc(f.phone)}${f.date?` · 방문 ${esc(dLabel(f.date))}`:''}${f.people?` · ${esc(f.people)}명`:''}</span></div>`
+    + `<div class="r">${esc(dtLabel(r.saved))}<br>${esc(r.takenBy||'')}</div>`
+    + `<div class="txt">${tags}${esc(f.result)}${f.note?` · ${esc(f.note.split(/\n/)[0])}`:''}</div>`
+    + (cb ? `<div class="txt" style="text-align:right"><button type="button" class="btn" data-cbdone="${esc(r.id)}" style="padding:2px 10px;font-size:12px">연락 완료</button></div>` : '') + `</li>`;
+}
+function renderLists(){
+  const all=shown().sort((a,b)=>String(b.saved).localeCompare(String(a.saved)));
+  const cbs=all.filter(r=>{ const f=fromItem(r); return f.result==='다시 연락 필요' && f.callback && !f.cbDone; }).sort((a,b)=>fromItem(a).callback.localeCompare(fromItem(b).callback));
+  $('#cbCount').textContent = cbs.length ? `${cbs.length}건` : '';
+  $('#cbList').innerHTML = cbs.map(r=>rowHTML(r,true)).join('') || '<li class="empty" style="cursor:default">다시 연락할 통화가 없습니다.</li>';
+  const q=$('#search').value.trim().replace(/\s/g,'').toLowerCase(), qd=q.replace(/\D/g,'');
+  const hit = r => !q || [r.contact, r.note, r.summary, r.takenBy, r.memo].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd));
+  const list=all.filter(hit);
+  $('#listCount').textContent = `${all.length}건${q?` · 찾은 ${list.length}건`:''}`;
+  $('#recentList').innerHTML = list.slice(0,60).map(r=>rowHTML(r,false)).join('') || `<li class="empty" style="cursor:default">${q?'찾은 통화가 없습니다.':'아직 저장한 개인고객 통화가 없습니다.'}</li>`;
+}
+document.addEventListener('click', e=>{
+  const d=e.target.closest('[data-cbdone]'); if(d){ e.stopPropagation(); const r=shown().find(x=>x.id===d.dataset.cbdone); if(!r) return;
+    const f=fromItem(r); const nw=new Date(); f.cbDone=`${ymd(nw)} ${String(nw.getHours()).padStart(2,'0')}:${String(nw.getMinutes()).padStart(2,'0')} ${user.name||''}`.trim();   // '/' 없이 (비고 칸 구분자)
+    const keep={cur, form, saved}; cur=r; form=f; const item=toItem(); ({cur, form, saved}=keep);
+    put(item); if(cur && cur.id===item.id){ cur=item; form=fromItem(item); saved=JSON.stringify(form); paintForm(); } toast('연락 완료로 표시했습니다.'); return; }
+  const li=e.target.closest('.list li[data-id]'); if(li) openItem(li.dataset.id);
+});
+$('#search').addEventListener('input', renderLists);
+
+// ===================== 안내용 가격 · 사담 현황 =====================
+// 가격: 견적서 사이트 품목 목록(품목 관리 값 반영). 단체 화면이 받아 둔 것을 먼저 쓰고, 없으면 직접 불러옴
+const HOLI = new Set(['2026-12-25','2027-01-01','2027-02-06','2027-02-07','2027-02-08','2027-02-09','2027-03-01','2027-05-05','2027-05-13','2027-06-06','2027-08-15','2027-08-16','2027-09-14','2027-09-15','2027-09-16','2027-10-03','2027-10-04','2027-10-09','2027-10-11','2027-12-25']);
+const isRed = d => { const t=new Date(d+'T00:00'); return !isNaN(t) && (t.getDay()===0 || t.getDay()===6 || HOLI.has(d)); };
+let cat = readJSON('sayuwon_quote_cat', null);
+const QUOTE_PAGE = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-invoice-quotation/' : 'http://localhost:8766/index.html';
+const QUOTE_SHARED = "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec";
+async function loadCat(){
+  try{
+    const [html, shared] = await Promise.all([fetch(QUOTE_PAGE+'?t='+Date.now()).then(r=>r.text()), fetch(QUOTE_SHARED).then(r=>r.json()).catch(()=>null)]);
+    const m=html.match(/var CATALOG_RAW = \[([\s\S]*?)\];/); if(!m) throw 0;
+    const raw=[...m[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]); const d=(shared&&shared.data)||{};
+    cat = {...(cat||{}), raw, edits:d.edits||{}, added:d.added||[], at:new Date().toISOString()};
+  }catch(_){}
+  paintPrices();
+}
+function catItems(){
+  if(!cat || !cat.raw) return [];
+  const out=[], seen={};
+  cat.raw.forEach(line=>{ const [src,price]=line.split('|'); if(seen[src]) return; seen[src]=1; const e=(cat.edits||{})[src]||{}; if(e.hidden) return;
+    out.push({src, name:String(e.name||'').trim(), price: e.price!=null ? Number(e.price) : (price?Number(price):null), kind: e.kind || (/\(관람,/.test(src)?'package':/관람/.test(src)&&!/관람권|관람식사권/.test(src)?'view':'') }); });
+  (cat.added||[]).forEach(a=>{ if(!a.hidden) out.push({src:a.src||a.name, name:a.name, price:a.price!=null?Number(a.price):null, kind:a.kind||''}); });
+  return out;
+}
+function paintPrices(){
+  const day = form.date || ymd(new Date()), we=isRed(day), pre=we?'주말/공휴일':'평일';
+  $('#priceDay').textContent = `${dLabel(day)} → ${we?'주말 · 공휴일':'평일'} 가격${form.date?'':' (방문 희망일을 넣으면 그날 기준)'}`;
+  const its=catItems().filter(it=>it.price!=null && String(it.src).startsWith(pre) && !/네이버/.test(it.src) && (it.kind==='view' || it.kind==='package'));
+  const label = it => { let s=String(it.src).replace(/^(평일|주말\/공휴일)\s*/,''); const p=s.match(/^\(관람,\s*(.+)\)$/); if(p) return '관람 + '+p[1]; const t=s.match(/\((\d\d):00~(\d\d):00\)/); return s.replace(/\(\d\d:00~\d\d:00\)/,'').replace(/^관람\(학생\)/,'관람 (학생)').trim()+(t?` (${+t[1]}~${+t[2]}시)`:''); };
+  const per = n => { const k=Number(String(form.people).replace(/\D/g,''))||0; return k>1 ? `<td class="n">${(n*k).toLocaleString('ko-KR')}</td>` : ''; };
+  const k=Number(String(form.people).replace(/\D/g,''))||0;
+  $('#priceBox').innerHTML = its.length ? `<table class="pt"><thead><tr><th>상품</th><th style="text-align:right">1인</th>${k>1?`<th style="text-align:right">${k}명</th>`:''}</tr></thead><tbody>${its.map(it=>`<tr><td>${esc(label(it))}</td><td class="n">${it.price.toLocaleString('ko-KR')}</td>${per(it.price)}</tr>`).join('')}</tbody></table><p class="hint" style="margin-top:6px">품목 관리 기준 정상가 · 개인 예약 할인은 반영하지 않음</p>` : '<p class="empty">가격을 불러오지 못했습니다.</p>';
+  paintSeats();
+}
+// 사담 · 마방 남은 자리: 관리자 사이트 현황 (단체 화면과 같은 자료, 15분마다 갱신)
+function paintSeats(){
+  const ad=readJSON('sayuwon_intake_admin', null), day=form.date, d=ad && ad.days && day && ad.days[day];
+  const NAMES={L1:'사담 런치 1부', L2:'사담 런치 2부', D:'사담 디너', MB:'마방 사유의 밥상'};
+  if(!day){ $('#seatBox').innerHTML=''; return; }
+  if(!d){ $('#seatBox').innerHTML=`<p class="hint" style="margin-bottom:8px">${esc(dLabel(day))} 사담 · 마방 현황: ${ad?'자료 없음':'관리자 사이트 현황을 아직 받지 않음'}</p>`; return; }
+  $('#seatBox').innerHTML = `<div class="sub-h" style="margin-top:0">${esc(dLabel(day))} 남은 자리 (관리자 사이트 ${ad.updated?esc(dtLabel(ad.updated)):''} 기준)</div><div class="seat" style="margin-bottom:10px">`
+    + Object.entries(NAMES).map(([s,n])=>{ const x=d[s]; if(!x) return ''; const left = x.max!=null && x.cur!=null ? x.max-x.cur : null; return `<span class="${x.close||left===0?'full':''}">${n} ${x.close?'마감':left!=null?`${left}자리`:'-'}</span>`; }).join('') + `</div>`;
+}
+
+paintForm(); renderLists(); paintSync(); flush(); loadCat();
+</script>
+</body>
+</html>
