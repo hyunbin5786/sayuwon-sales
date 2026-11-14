@@ -110,6 +110,7 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
   <h1>개인고객 전화응대</h1>
   <span class="sync warn" id="syncChip" hidden></span>
   <span class="me" id="me"></span>
+  <a class="hb" href="group.html#my" title="단체 예약 · 개인고객 통화의 추후 과업을 한눈에">마이페이지</a>
 </header>
 
 <main>
@@ -206,7 +207,7 @@ async function pull(inFlush){
   try{
     const j=await callApi({action:'list'});
     items=(j.items||[]).filter(r=>r.callType===CALL_TYPE); writeJSON(CACHE_LS, items.slice(-500));
-    $('#keyMsg').textContent=''; paintSync(); renderLists();
+    $('#keyMsg').textContent=''; paintSync(); renderLists(); tryOpen();
     if(j.admin){ writeJSON('sayuwon_intake_admin', j.admin); paintSeats(); }   // 사담 · 마방 현황 (단체 화면과 같이 씀)
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
@@ -362,7 +363,10 @@ function paintSeats(){ if(!$('#seatBox')) return;
 const MANUAL_URL = 'https://happyyy-monkeyyy.notion.site/3d645f859824807090f1df4f0815a7bd?source=copy_link';   // 새 창으로 열기
 const MANUAL_EMBED = 'https://happyyy-monkeyyy.notion.site/ebd/3d645f859824807090f1df4f0815a7bd';   // 화면 안에 띄우기 (노션의 웹 게시 · 임베드 주소)
 $('#manualOpen').href = MANUAL_URL; $('#manualFrame').src = MANUAL_EMBED;
-paintForm(); renderLists(); paintSync(); flush();
+// 마이페이지에서 개인고객 과업을 누르면 personal.html?open=통화ID → 그 통화를 엶 (목록을 받은 뒤)
+let openId = new URLSearchParams(location.search).get('open');
+function tryOpen(){ if(!openId) return; if(shown().some(x=>x.id===openId)){ const id=openId; openId=null; history.replaceState(null,'',location.pathname); openItem(id); } }
+paintForm(); renderLists(); paintSync(); tryOpen(); flush();
 </script>
 </body>
 </html>

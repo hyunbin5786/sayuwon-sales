@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>단체고객 전화응대 · 사유원 예약 관리 시스템</title>
-<script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
+<script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); else localStorage.setItem("sayuwon_owner", u.name); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <style>
 /* 왼쪽: 통화 메모(대충 쳐도 됨) · 가운데: 엑셀 형식 칸 · 오른쪽: 물어볼 것/복창 */
@@ -475,9 +475,8 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
   <a class="list-btn menu-link" href="./" title="사유원 예약 관리 시스템 메뉴로">☰ 메뉴</a>
   <h1>단체고객 전화응대</h1>
   <button type="button" class="ko-toggle on" id="ko-toggle" aria-pressed="true">한</button>
-  <label class="me" for="f_owner">영업 담당 <input id="f_owner" data-k="owner" data-ime="ko" list="owners" placeholder="이름" autocomplete="off"></label>
-  <button type="button" class="list-btn" id="myOpenBtn" title="내가 영업 담당인 예약 모아 보기">마이페이지 <span class="tag call" id="myCount" hidden></span></button>
-  <datalist id="owners"><option>이상운</option><option>혜린</option></datalist>
+  <span class="me" title="로그인한 사람이 영업 담당 (새 예약의 담당 · 수정 기록의 이름)">👤 <b id="meName"></b><input id="f_owner" data-k="owner" type="hidden"></span>
+  <button type="button" class="list-btn" id="myOpenBtn" title="내 단체 예약 · 개인고객 통화의 추후 과업을 한눈에">마이페이지 <span class="tag call" id="myCount" hidden></span></button>
   <span class="timer" id="timer"></span>
   <button type="button" class="new-btn" id="newBtn">＋ 새 통화 <kbd>Alt+N</kbd></button>
   <button type="button" class="list-btn" id="consultOpenBtn">단체상담 입력</button>
@@ -1973,7 +1972,7 @@ $('#revOk').onclick=async()=>{
 // 헤더의 영업 담당: 이 컴퓨터에 기억, 새 예약의 담당이 됨, 수정 기록에 이 이름이 남음
 (()=>{ const el=$('#f_owner'), wrap=el.closest('.me');
   const paint=()=>wrap.classList.toggle('empty', !el.value.trim());
-  el.value=savedOwner(); paint();
+  el.value=savedOwner(); paint(); const mn=$('#meName'); if(mn) mn.textContent=savedOwner()||'(로그인 필요)';   // 영업 담당 = 로그인한 이름 (첫 화면에서 로그인)
   el.addEventListener('input', ()=>{ try{ localStorage.setItem('sayuwon_owner', el.value.trim()); }catch(_){} if(!editingId) rec.owner=el.value.trim(); paint(); renderSide(); });
 })();
 // 맨 위 예약 단계 줄의 미정 항목 입력 기한
@@ -3106,6 +3105,14 @@ function dueTasks(){   // 마감이 오늘이거나 지난 해결 안 된 과업
     .forEach(r=>openTasksOf(r).forEach(t=>{ if(t.due<=today) out.push({r, t}); }));
   return out.sort((a,b)=>a.t.due.localeCompare(b.t.due));
 }
+// 개인고객 통화 (personal.html, 통화 구분 '개인고객')의 추후 과업: 내가 받은(저장한) 통화의 안 끝난 과업
+const isPersonalRec = r => r && r.callType==='개인고객';
+function myPersonalOpen(){
+  const me=savedOwner(); if(!me) return [];
+  return (cache||[]).filter(r=>isPersonalRec(r) && (r.owner||r.takenBy)===me).map(r=>{ let ts=[]; try{ ts=(JSON.parse(r.history||'{}').tasks)||[]; }catch(_){}
+    return {r, left: ts.filter(t=>!t.done).map(t=>({...t, due: t.due || ymd(new Date(r.saved||Date.now()))})).sort((a,b)=>a.due.localeCompare(b.due))}; }).filter(o=>o.left.length);
+}
+const personalDueCount = () => { const today=ymd(new Date()); return myPersonalOpen().reduce((s,o)=>s+o.left.filter(t=>t.due<=today).length, 0); };
 function renderMy(){
   const me=savedOwner(), today=ymd(new Date()), past=$('#myPast').checked;
   $('#myTitle').textContent = me ? `마이페이지 · ${me}` : '마이페이지';
@@ -3115,7 +3122,7 @@ function renderMy(){
   const tbdAll = ahead.filter(o=>o.x.tbd);
   const open = mine.filter(o=>o.tasks.length && taskRecActive(o.r)).map(o=>({...o, left:o.tasks})).sort((a,b)=>a.left[0].due.localeCompare(b.left[0].due));
   const shown = (past ? mine : ahead).slice().sort((a,b)=>(a.r.date||'9999').localeCompare(b.r.date||'9999'));
-  $('#mySum').textContent = `담당 예약 ${mine.length}건 · 방문 예정 ${ahead.length}건 · 미정 ${tbdAll.length}건 · 남은 과업 ${open.reduce((s,o)=>s+o.left.length,0)}개`;
+  $('#mySum').textContent = `담당 단체 예약 ${mine.length}건 · 방문 예정 ${ahead.length}건 · 미정 ${tbdAll.length}건 · 남은 과업 단체 ${open.reduce((s,o)=>s+o.left.length,0)}개 · 개인 ${myPersonalOpen().reduce((s,o)=>s+o.left.length,0)}개`;
   const org = r => esc(r.org || r.contact || '(업체 미정)');
   const dueTxt = d => { const n=daysFrom(today,d); return n<0 ? `<b class="late">${-n}일 지남</b>` : n===0 ? '<b class="late">오늘</b>' : `${n}일 남음`; };
   // 3열: ① 방문 예정 ② 추후 과업 (단체별) ③ 다른 사람이 수정한 내 예약
@@ -3127,10 +3134,14 @@ function renderMy(){
           + `${o.x.tbd?`<br><span class="tag st-가예약">미정: ${esc(o.x.tbd)}</span>${o.x.tbdDate?` <small class="hint" style="margin:0">${esc(mdLabel(o.x.tbdDate))}까지</small>`:''}`:''}`
           + `${dq||ds||left?`<br>${dq?`견적서 ${dq} `:''}${ds?`거래명세서 ${ds} `:''}${left?`<small class="hint" style="margin:0">남은 과업 ${left}개</small>`:''}`:''}</span></li>`; }).join('')}</ul>`
     : none(past?'담당한 예약이 없습니다.':'방문 예정인 담당 예약이 없습니다.'));
-  // ② 추후 과업: 해결 안 된 과업을 단체(예약)별로, 마감이 이른 단체부터. 기한 지남 = 빨강
-  const nLeft = open.reduce((s,o)=>s+o.left.length,0), nLate = open.reduce((s,o)=>s+o.left.filter(t=>t.due<today).length,0);
-  const c2 = `<h3 class="my-h">추후 과업 <small>해결 안 된 ${nLeft}개${nLate?` · <b class="late">기한 지남 ${nLate}개</b>`:''}</small></h3>` + (open.length
-    ? `<ul class="pc-list">${open.map(o=>`<li class="r my-tg" data-myopen="${esc(o.r.id)}"><span class="who"><b>${org(o.r)}</b> · 방문 ${esc(dateLabel(o.r.date)||'미정')}<br>`
+  // ② 추후 과업: 단체 예약 + 개인고객 통화의 해결 안 된 과업을 한 목록으로, 마감이 이른 것부터. 기한 지남 = 빨강
+  const pers = myPersonalOpen().map(o=>({...o, personal:true}));
+  const all2 = [...open, ...pers].sort((a,b)=>a.left[0].due.localeCompare(b.left[0].due));
+  const nLeft = all2.reduce((s,o)=>s+o.left.length,0), nLate = all2.reduce((s,o)=>s+o.left.filter(t=>t.due<today).length,0);
+  const c2 = `<h3 class="my-h">추후 과업 <small>단체 ${open.reduce((s,o)=>s+o.left.length,0)} · 개인 ${pers.reduce((s,o)=>s+o.left.length,0)} · 해결 안 된 ${nLeft}개${nLate?` · <b class="late">기한 지남 ${nLate}개</b>`:''}</small></h3>` + (all2.length
+    ? `<ul class="pc-list">${all2.map(o=>`<li class="r my-tg" ${o.personal?`data-popen="${esc(o.r.id)}"`:`data-myopen="${esc(o.r.id)}"`}><span class="who">`
+        + (o.personal ? `<span class="tag">개인</span> <b>${esc(o.r.contact||'(이름 없음)')}</b>${o.r.phone?` · ${esc(o.r.phone)}`:''}${o.r.date?` · ${esc(dateLabel(String(o.r.date).slice(0,10)))}`:''}<br>`
+                      : `<span class="tag st-${stageOfRec(o.r)}">단체</span> <b>${org(o.r)}</b> · 방문 ${esc(dateLabel(o.r.date)||'미정')}<br>`)
         + o.left.map(t=>`<span class="my-task${t.due<today?' late':t.due===today?' today':''}">· ${esc(t.title)} <small>마감 ${esc(mdLabel(t.due))} (${dueTxt(t.due)})</small></span>`).join('<br>')
         + `</span></li>`).join('')}</ul>`
     : none('해결 안 된 과업이 없습니다.'));
@@ -3140,17 +3151,18 @@ function renderMy(){
     + (ed.length ? `<ul class="pc-list">${ed.map(({r,h:e})=>`<li class="edited r" data-myopen="${esc(r.id)}"><span class="who"><b>${org(r)}</b> · 방문 ${esc(dateLabel(r.date))}<br><small class="hint" style="margin:0"><b>${esc(e.by)}</b> · ${esc(fmt(e.t))} · ${esc(e.what)}</small></span></li>`).join('')}</ul>` : none('없습니다.'));
   $('#myBody').innerHTML = `<div class="my-cols"><div class="my-col">${c1}</div><div class="my-col">${c2}</div><div class="my-col">${c3}</div></div>`;
 }
-function paintMyCount(){ const n=savedOwner() ? dueTasks().length : 0;   // 마감이 오늘이거나 지난 과업 수
+function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
   const m=othersEdits().length;
   const t=[n&&`과업 ${n}`, m&&`수정 ${m}`].filter(Boolean).join(' · ');
   $('#myCount').hidden=!t; $('#myCount').textContent=t; }
 function openMy(){ $('#myModal').hidden=false; renderMy(); if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
-function closeMy(){ $('#myModal').hidden=true; }
+function closeMy(){ $('#myModal').hidden=true; if(location.hash==='#my') history.replaceState(null,'',location.pathname+location.search); }
 $('#myOpenBtn').onclick=openMy;
+if(location.hash==='#my') setTimeout(openMy, 300);   // 첫 화면 · 개인고객 화면의 「마이페이지」 (group.html#my)
 $('#myCloseBtn').onclick=closeMy;
 $('#myPast').onchange=renderMy;
 $('#myModal').addEventListener('mousedown', e=>{ if(e.target.id==='myModal') closeMy(); });
-$('#myBody').addEventListener('click', e=>{ if(e.target.id==='myEditsSeen'){ markEditsSeen(); return; } const el=e.target.closest('[data-myopen]'); if(!el) return; const r=cache.find(x=>x.id===el.dataset.myopen); if(r){ closeMy(); openRecordG(r); } });
+$('#myBody').addEventListener('click', e=>{ if(e.target.id==='myEditsSeen'){ markEditsSeen(); return; } const pe=e.target.closest('[data-popen]'); if(pe){ guardLeave(()=>{ location.href='personal.html?open='+encodeURIComponent(pe.dataset.popen); }); return; } const el=e.target.closest('[data-myopen]'); if(!el) return; const r=cache.find(x=>x.id===el.dataset.myopen); if(r){ closeMy(); openRecordG(r); } });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#myModal').hidden){ e.preventDefault(); closeMy(); } });
 
 // ===================== 남의 예약을 고쳤을 때: 담당자에게 보고 =====================
