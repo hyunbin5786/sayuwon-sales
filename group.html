@@ -177,14 +177,20 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 /* 식사 · 프로그램 · 굿즈: 항목 줄 [드롭다운 · 수량 · 담당 · ×]. 예전 묶음 버튼 · 칸은 숨김 (값은 같은 칸에 저장) */
 #form .opt-bar, #form .grp.opt{display:none!important}
 .items-box{display:flex;flex-direction:column;gap:6px}
-.it-head,.it-row{display:grid;grid-template-columns:minmax(0,1fr) 96px minmax(0,170px) 32px;gap:6px;align-items:center}
+.it-head,.it-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 96px minmax(0,150px) 32px;gap:6px;align-items:center}   /* 품목 · 가격 · 인원 · 담당 · × */
+.it-p{display:flex;flex-direction:column;gap:0;font-size:12.5px;font-variant-numeric:tabular-nums;line-height:1.35;padding:0 2px}
+.it-p i,.it-amt i{font-style:normal;font-size:11px;color:var(--muted);margin-right:4px}
+.it-amt{margin-left:auto;align-self:center;font-size:13.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.it-amt:empty{display:none}
+.it-amt .im i{font-style:normal;font-size:11px;color:var(--muted);margin-right:4px}
+.it-amt .warn{color:var(--red)}
 .it-money{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;font-size:12.5px;font-variant-numeric:tabular-nums;padding:2px 2px 0}
 .it-money:empty{display:none}
 .it-money .im i{font-style:normal;font-size:11px;color:var(--muted);margin-right:4px}
 .it-money .im small{color:var(--muted);font-size:11px}
 .it-money .im.amt{margin-left:auto;font-size:14px}
 .it-money .im.warn, .it-money .bad{color:var(--red)}
-.it-money .im.dsel{flex-basis:100%;display:flex;gap:4px;align-items:center}   /* 할인 버튼: 할인 없음 · 사전예약 5% · 단체예약 10% */
+.it-money .im.dsel{display:flex;gap:4px;align-items:center}   /* 할인 버튼: 할인 없음 · 사전예약 5% · 단체예약 10% */
 .it-money .dbtn{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:12px;padding:1px 9px;font:11.5px var(--sans);cursor:pointer}
 .it-money .dbtn:hover{border-color:var(--pine);color:var(--pine)}
 .it-money .dbtn.on{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:700}
@@ -218,7 +224,7 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 .it-foot .mb-cat{margin-left:auto}
 #itemsInfo .dayinfo{margin-top:6px}
 .items-box{container-type:inline-size}
-@container (max-width:560px){.it-head{display:none}.it-row{grid-template-columns:92px minmax(0,1fr) 32px}.it-row > .it-sel{grid-column:1/-1}}   /* 좁으면 항목 드롭다운은 한 줄 전체, 아래에 수량 · 담당 · × */
+@container (max-width:560px){.it-head{display:none}.it-row{grid-template-columns:92px minmax(0,1fr) 32px}.it-row > .it-sel,.it-row > .it-p{grid-column:1/-1}.it-p{flex-direction:row;gap:10px}}   /* 좁으면 항목 드롭다운은 한 줄 전체, 아래에 수량 · 담당 · × */
 /* 프로그램 · 굿즈 담당: 넣은 프로그램은 줄 맨 앞, 바로 옆에 눈에 띄는 '담당 *' */
 .f.pbase.on{grid-column:1}
 .f.pbase.on > label span{font-weight:700;color:var(--ink)}
@@ -1157,7 +1163,7 @@ function clearItem(k){ const t=itemKind(k);
 function itemSelectHTML(k, rows){
   const used=new Set(rows.filter(x=>x!==k)), mbUsed=used.has('mb');
   const opt=(v,l,dis,sel)=>`<option value="${esc(v)}"${dis?' disabled':''}${sel?' selected':''}>${esc(l)}</option>`;
-  const pr=src=>{ const v=src ? priceOf(src) : null; return v!=null ? ` · ${wonTxt(v)}원` : ''; };
+  const pr=()=>'';   // 드롭다운에는 품목 이름만 (가격은 옆 칸에)
   const cur=mbMenuOf(rec);
   let h=`<option value="">항목 고르기</option>`;
   // 관람 · 관람+식사: 관람권(기본 관람 줄과 다른 것) · 관람 포함 패키지 전부 · 새벽 해오름 산책. 사담 1부 · 2부 · 디너는 예전 칸(sadam1 · 2 · D)
@@ -1165,31 +1171,31 @@ function itemSelectHTML(k, rows){
   const SADAM_OF = {'사담런치1부':'sadam1','사담런치2부':'sadam2','사담디너':'sadamD'};
   const area = catalogItems().filter(it=>(it.kind==='view' || it.kind==='package') && !/네이버/.test(it.src) && String(it.src).startsWith(day) && it.price!=null);   // 관람권(9~18 · 13~18 · 학생 등)도 모두 여기서 고름
   h+=`<optgroup label="관람 · 관람+식사">${area.map(it=>{ const pm=String(it.src).match(/\(관람,\s*(.+)\)$/), sk=pm ? SADAM_OF[normSrc(pm[1])] : null, v=sk || 'v:'+it.src;
-      return opt(v, (pm ? '관람 + '+pm[1] : viewLabel(it.src))+` · ${wonTxt(it.price)}원`, used.has(v), k===v || (itemKind(k)==='varea' && normSrc(daySrc(k.slice(2), rec))===normSrc(it.src))); }).join('')}`
+      return opt(v, (pm ? '관람 + '+pm[1] : viewLabel(it.src)), used.has(v), k===v || (itemKind(k)==='varea' && normSrc(daySrc(k.slice(2), rec))===normSrc(it.src))); }).join('')}`
     + `${FIELDS.some(f=>f[1]==='haeorum') ? opt('haeorum', '새벽 해오름 산책 (관람료 포함)'+pr(progSrc('haeorum', rec)), used.has('haeorum'), k==='haeorum') : ''}</optgroup>`;
-  h+=`<optgroup label="몽몽마방">${mbMenus().map(m=>opt('mb:'+m.name, `몽몽마방 ${m.name} · ${wonTxt(m.price)}원`, mbUsed, k==='mb' && cur && cur.name===m.name)).join('')}${k==='mb' && !cur ? opt('mb:', rec.mabangMenu ? `몽몽마방 ${rec.mabangMenu} (예전 메뉴 · 다시 고르기)` : '몽몽마방 (메뉴 고르기)', false, true) : ''}</optgroup>`;
+  h+=`<optgroup label="몽몽마방">${mbMenus().map(m=>opt('mb:'+m.name, `몽몽마방 ${m.name}`, mbUsed, k==='mb' && cur && cur.name===m.name)).join('')}${k==='mb' && !cur ? opt('mb:', rec.mabangMenu ? `몽몽마방 ${rec.mabangMenu} (예전 메뉴 · 다시 고르기)` : '몽몽마방 (메뉴 고르기)', false, true) : ''}</optgroup>`;
   [['프로그램(개별)','개별 프로그램'],['프로그램(시간)','시간 프로그램']].forEach(([g,l])=>{
-    h+=`<optgroup label="${l}">${FIELDS.filter(f=>f[0]===g && !isSub(f[1]) && f[1]!=='haeorum').map(f=>opt(f[1], f[2]+pr(progSrc(f[1], rec))+(UNIT(f[1])==='시간'?' (회당)':''), used.has(f[1]), k===f[1])).join('')}</optgroup>`; });
+    h+=`<optgroup label="${l}">${FIELDS.filter(f=>f[0]===g && !isSub(f[1]) && f[1]!=='haeorum').map(f=>opt(f[1], f[2]+pr(progSrc(f[1], rec)), used.has(f[1]), k===f[1])).join('')}</optgroup>`; });
   const gi=goodsItems();
-  h+=`<optgroup label="굿즈">${gi.map(it=>opt('g:'+it.src, (String(it.name||'').trim()||it.src)+` · ${wonTxt(it.price)}원`, used.has('g:'+it.src), k==='g:'+it.src)).join('')}${itemKind(k)==='goods' && !gi.some(it=>'g:'+it.src===k) ? opt(k, k.slice(2), false, true) : ''}</optgroup>`;
+  h+=`<optgroup label="굿즈">${gi.map(it=>opt('g:'+it.src, (String(it.name||'').trim()||it.src), used.has('g:'+it.src), k==='g:'+it.src)).join('')}${itemKind(k)==='goods' && !gi.some(it=>'g:'+it.src===k) ? opt(k, k.slice(2), false, true) : ''}</optgroup>`;
   return `<select class="it-sel" data-isel="${esc(k)}" aria-label="항목">${h}</select>`;
 }
 function itemRowHTML(k, rows){
   const t=itemKind(k), stf=itemHasStaff(k), sv=stf ? String(rec[itemStfKey(k)]||'') : '';
   const note = t==='new' ? '' : `<input class="it-x it-note" data-inote="${esc(k)}" data-ime="ko" placeholder="비고 (예: ${t==='view'?'인솔자 2명 포함':t==='goods'?'선물 포장':t==='sadam'||t==='mb'?'창가 자리 · 알레르기':'준비물 · 장소'})" value="${esc(itemNote(k))}">`;
   if(t==='view'){ const vs=viewSrcOf(rec), vi=viewItems(rec).filter(it=>!/\(\d\d:00~18:00\)/.test(it.src) || normSrc(it.src)===normSrc(vs));   // 시간대 관람권은 입장 시각으로 정해진 것만
-    const opts = vi.length ? vi.map(it=>`<option value="${esc(it.src)}"${normSrc(it.src)===normSrc(vs)?' selected':''}>${esc(viewLabel(it.src))} · ${wonTxt(it.price)}원</option>`).join('') : `<option>관람 (관람 인원)</option>`;
-    return `<div class="it-row it-view" data-irow="view"><select class="it-sel" data-iview aria-label="관람 품목" title="관람 품목 (관람 인원 = 수량)">${opts}</select>`
+    const opts = vi.length ? vi.map(it=>`<option value="${esc(it.src)}"${normSrc(it.src)===normSrc(vs)?' selected':''}>${esc(viewLabel(it.src))}</option>`).join('') : `<option>관람 (관람 인원)</option>`;
+    return `<div class="it-row it-view" data-irow="view"><select class="it-sel" data-iview aria-label="관람 품목" title="관람 품목 (관람 인원 = 수량)">${opts}</select><span class="it-p" data-iup="view"></span>`
       + `<span class="it-q"><input data-iq="view" inputmode="numeric" data-ime="num" placeholder="인원" value="${esc(itemQty('view'))}" title="관람 인원 − 다른 관람 품목(관람+식사 · 해오름 등). 직접 줄이면 그 수로 (관람하지 않는 인원)"><i>명</i></span>`
-      + `<span class="it-s none"><input disabled placeholder="담당 없음"></span><span></span><div class="it-money" data-ip="view"></div><div class="it-extra">${note}</div></div>`; }
+      + `<span class="it-s none"><input disabled placeholder="담당 없음"></span><span></span><div class="it-money" data-ip="view"></div><div class="it-extra">${note}<span class="it-amt" data-iamt="view"></span></div></div>`; }
   const extra = note + (t==='mb' ? `<input class="it-x" data-ix="mabangTime" inputmode="numeric" data-ime="num" placeholder="시간 12:00~13:00" title="몽몽마방 시간 (24시간)" value="${esc(rec.mabangTime||'')}"><select class="it-x" data-ix="mabangPay" title="몽몽마방 결제"><option value="">결제 (선택)</option>${MB_PAYS.map(x=>`<option${rec.mabangPay===x?' selected':''}>${x}</option>`).join('')}</select>`
     : t==='prog' && FIELDS.some(f=>f[1]==='tm_'+k) ? `<input class="it-x" data-ix="tm_${esc(k)}" inputmode="numeric" data-ime="num" placeholder="시간대 13:00~15:00" value="${esc(rec['tm_'+k]||'')}"><input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="코스 (예: 정원 코스)" value="${esc(rec['crs_'+k]||'')}">` : '');
-  return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}`
+  return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}<span class="it-p" data-iup="${esc(k)}"></span>`
     + `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`
     + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" readonly placeholder="헤더에 영업 담당 이름을 넣으세요" value="${esc(sv)}" title="굿즈 담당 = 영업 담당 (헤더의 영업 담당 이름을 따라감)"></span>`
       : stf ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="프로그램 담당"></span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
     + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
-    + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div>`) + (extra ? `<div class="it-extra">${extra}</div>` : '') + `</div>`;
+    + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div><div class="it-extra">${extra}<span class="it-amt" data-iamt="${esc(k)}"></span></div>`) + `</div>`;   // 둘째 줄: 할인(할인 대상만) · 셋째 줄: 비고 (할인이 없으면 바로 비고, 금액은 그 줄 끝)
 }
 function renderItems(force){
   const box=$('#itemsBox'); if(!box) return;
@@ -1204,7 +1210,7 @@ function renderItems(force){
     paintItemState(); paintItemPrices(); return;
   }
   box.dataset.sig=sig;
-  box.innerHTML = (itemRows.length ? `<div class="it-head"><span>항목 (관람 · 사담 식사 · 몽몽마방 · 개별 · 시간 프로그램 · 굿즈)</span><span>인원 · 수량</span><span>담당</span><span></span></div>` : '')
+  box.innerHTML = (itemRows.length ? `<div class="it-head"><span>품목</span><span>가격 (1인 · 회당)</span><span>인원 · 수량</span><span>담당</span><span></span></div>` : '')
     + itemRows.map(k=>itemRowHTML(k, itemRows)).join('') + `<div id="erpExtra"></div>`
     + `<div class="it-foot"><button type="button" class="btn it-add" data-iadd>＋ 항목 추가</button><span class="hint" style="margin:0">${itemRows.length?'':'사담 식사 · 몽몽마방 · 개별 프로그램 · 시간 프로그램 · 굿즈 중에서 고르세요'}</span><button type="button" class="mb-cat" data-open-cat>품목 · 가격 수정</button></div>`;
   paintItemState(); paintItemPrices();
@@ -1265,26 +1271,31 @@ document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [d
   setItemDisc(b.dataset.idisc, b.dataset.dv, b.dataset.da); startTimer(); renderSide(); });   // 할인 버튼
 // 줄마다 [단가 · 할인 · 금액] (전산 내역이 있으면 인원 · 상품금액 · 할인 · 금액, 인원이 다르면 빨갛게)
 function paintItemPrices(){
+  // 줄 구성 (2026-11-14): ① [품목 · 가격(관람+식사는 관람 · 식사 따로) · 인원 · 담당 · ×] ② 할인(할인 대상 품목만: 버튼 · 할인 금액 · 할인 단가 · 금액) ③ 비고 (할인 줄이 없으면 금액은 비고 줄 끝)
   const seen=new Set(), E = erpList.length ? erpByKey() : null;
   const cell=(l,v,cls='')=>`<span class="im ${cls}"><i>${l}</i>${v}</span>`;
-  document.querySelectorAll('#itemsBox [data-ip]').forEach(el=>{ const k=el.dataset.ip; let h='';
+  const upHTML = src => { const sp=pkgSplit(src); if(sp) return `<span><i>관람</i>${won(sp.v)}</span><span><i>식사</i>${won(sp.m)}</span>`; const p=src?priceOf(src):null; return p==null ? '' : `<span><i>${/대관|도슨트|세미나/.test(src)?'회당':'1인'}</i>${won(p)}</span>`; };
+  document.querySelectorAll('#itemsBox [data-ip]').forEach(el=>{ const k=el.dataset.ip, src=itemSrc(k), up=document.querySelector(`#itemsBox [data-iup="${CSS.escape(k)}"]`), am=document.querySelector(`#itemsBox [data-iamt="${CSS.escape(k)}"]`);
+    let h='', amt='';
+    if(up) up.innerHTML = quoteCat ? upHTML(src) : '';
     if(E){ const x=E.m[k];
       if(!x) h = k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', '<b class="bad">전산 내역에 없음</b>', 'warn');
-      else { const q=numOf(itemQty(k)), diff = q!==x.people, sp=pkgSplit(itemSrc(k)), r = x.base ? x.amount/x.base : 1;
-        h = cell('인원', `${x.people}${itemUnit(k)}${diff?` <b class="bad">(예약 ${q})</b>`:''}`, diff?'warn':'')
-          + (sp ? unitCells(sp, r) : '')
+      else { const q=numOf(itemQty(k)), diff = q!==x.people;
+        h = cell('전산 인원', `${x.people}${itemUnit(k)}${diff?` <b class="bad">(예약 ${q})</b>`:''}`, diff?'warn':'')
           + cell('상품금액', won(x.base)) + cell('할인', x.disc ? `-${won(x.disc)}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}` : '없음') + cell('금액', `<b>${won(x.amount)}</b>`, 'amt'); } }
     else if(!priceInfo) h='';
-    else { const src=itemSrc(k), x=src ? priceInfo[normSrc(src)] : null;
+    else { const x=src ? priceInfo[normSrc(src)] : null;
       if(k==='view' && !x) h=cell('관람권', numOf(rec.people)?'0명 (모두 관람 포함 품목으로 계산)':'인원 입력');
-      else if(!x) h=cell('금액', '가격 없음', 'warn');
-      else if(seen.has(src)) h=cell('금액', '위 줄과 합산');   // 같은 견적서 품목(예: 대관)은 한 줄로 계산
+      else if(!x) amt=cell('금액', '가격 없음', 'warn');
+      else if(seen.has(src)) amt=cell('금액', '위 줄과 합산');   // 같은 견적서 품목(예: 대관)은 한 줄로 계산
       else { seen.add(src); const full=x.p!=null ? x.p*x.qty : null, dc = x.a && full!=null ? full-x.a.amount : 0, r = x.a && full ? x.a.amount/full : 1, sp=pkgSplit(src);
-        // 관람+식사 패키지는 관람 · 식사 단가를 나눠서, 할인이 있으면 할인된 단가도 (→)
-        h = (sp ? unitCells(sp, r) : cell('단가', x.p==null ? '-' : won(x.p) + (r<1 ? ` → <b>${won(Math.round(x.p*r))}</b>` : ''))) + cell(k==='view'?'관람권':'수량', `${x.qty}${k==='view'?'명':itemUnit(k)}`)
-          + cell('할인', dc>0 ? `-${won(dc)} <small>${esc(x.a.disc)}</small>` : '없음') + cell('금액', `<b>${x.a?won(x.a.amount):'가격 없음'}</b>`, 'amt')
-          + (x.b && x.p!=null ? `<span class="im dsel" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}</button>`).join('')}${x.b.dsel!==x.b.dauto?'<small class="dman">직접 바꿈</small>':''}</span>` : ''); } }
-    el.innerHTML=h; });
+        const money = cell('금액', `<b>${x.a?won(x.a.amount):'가격 없음'}</b>`, 'amt');
+        const discRow = x.b && x.p!=null && (x.b.disc || x.b.dsel!=='none');   // 할인 대상 품목(또는 직접 할인을 넣은 줄)만 할인 줄
+        if(discRow) h = `<span class="im dsel" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}</button>`).join('')}${x.b.dsel!==x.b.dauto?'<small class="dman">직접 바꿈</small>':''}</span>`
+            + cell('할인', dc>0 ? `-${won(dc)} <small>${esc(x.a.disc)}</small>` : '없음')
+            + (r<1 ? (sp ? cell('할인 단가', `관람 ${won(Math.round(sp.v*r))} · 식사 ${won(Math.round(sp.m*r))}`) : cell('할인 단가', won(Math.round(x.p*r)))) : '') + money;
+        else amt = money; } }
+    el.innerHTML=h; if(am) am.innerHTML=amt; });
   // 전산에만 있는 상품 (예약 내역 줄로 못 옮긴 것)
   if(E) erpList.forEach(x=>{ const k=erpKeyOf(x.product); if(k && !itemRows.includes(k) && !E.other.includes(x)) E.other.push(x); });   // 품목은 알지만 예약 내역에 줄이 없는 것도
   const ex=$('#erpExtra'); if(ex){ ex.innerHTML = E && E.other.length ? `<div class="it-row it-erponly"><b>전산에만 있는 상품</b>${E.other.map(x=>`<div class="it-money">${`<span class="im"><i>상품</i>${esc(x.product)}</span><span class="im"><i>인원</i>${x.people}</span><span class="im"><i>할인</i>${x.disc?'-'+won(x.disc):'없음'}</span><span class="im amt"><i>금액</i><b>${won(x.amount)}</b></span>`}${erpKeyOf(x.product) ? `<button type="button" class="btn it-erpadd" data-erpadd="${erpList.indexOf(x)}" title="이 상품을 예약 내역 줄로 추가 (인원 · 수량은 전산 그대로)">＋ 항목으로 추가</button>` : `<span class="im warn">품목 관리에 없는 상품 · 품목을 먼저 추가</span>`}</div>`).join('')}</div>` : ''; }
