@@ -76,8 +76,7 @@ function layoutProg(){
 // 들어간 프로그램 · 굿즈의 담당이 비어 있으면 영업 담당 이름으로 (바뀐 게 있으면 true)
 function staffDefaults(){
   const me=(rec.owner||savedOwner()||'').trim(); if(!me) return false;
-  let ch=syncGoodsStaff(); STAFF_BASES().forEach(k=>{ const s='stf_'+k; if(rec[k] && needsStaff(k) && !String(rec[s]||'').trim()){ rec[s]=me; touched.add(s); ch=true; } });
-  return ch;
+  return syncGoodsStaff();   // 2026-11-14: 프로그램 담당은 자동으로 넣지 않음 (직접 입력 · 비면 과업 「프로그램 · 굿즈 담당 입력」). 굿즈 담당만 늘 영업 담당
 }
 // 굿즈 담당은 항상 영업 담당 (헤더의 영업 담당 이름을 따라감)
 function syncGoodsStaff(){
