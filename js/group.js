@@ -41,6 +41,7 @@ const FIELDS = [
   ['굿즈','viewN','관람권 인원','','',null],   // 기본 관람 줄 인원을 직접 줄였을 때만 (비면 = 관람 인원 − 다른 관람 영역 인원)   // 예약 내역 관람 줄에서 고른 관람 품목 (평일 · 주말은 방문일에 맞춰 바뀜, 비면 입장 시각으로)
   ['굿즈','inotes','항목 비고','','',null],   // 예약 내역 줄마다 비고 "sadam1=창가 자리; g:모과청(new)=선물 포장" (시트 비고 칸 '항목 비고')
   ['굿즈','idisc','항목 할인','','',null],   // 예약 내역 줄마다 할인 버튼 "sadam1=grp; v:(관람, …)=none" (시트 비고 칸 '항목 할인')
+  ['굿즈','idamt','항목 할인액','','',null],   // 할인액을 직접 고친 줄 "sadam1=200000:125000" (과세(신라):비과세(사유원), 시트 비고 칸 '항목 할인액')
 ];
 // 프로그램 · 굿즈 담당: 프로그램마다 'stf_키' 칸을 바로 뒤에. 모두 필수, 기본은 영업 담당 (바꿀 수 있음)
 const STAFF_FREE = new Set();   // 예전엔 차방 · 당두봉갈 대관 제외 → 이제 모두 담당 필수
@@ -155,7 +156,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['idisc','항목 할인'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['idisc','항목 할인'],['idamt','항목 할인액'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
@@ -254,7 +255,10 @@ const DISC_OPTS = [['none','할인 없음'],['pre','사전예약 5%'],['grp','�
 const DISC_OF = p => p===10 ? 'grp' : p===5 ? 'pre' : 'none';
 const dkey = k => /^v:/.test(k) ? 'v:'+k.slice(2).replace(/^(평일|주말\/공휴일)/,'').replace(/\//g,'·') : String(k);
 const idiscMap = r => Object.fromEntries(String((r&&r.idisc)||'').split(/\s*;\s*/).map(s=>{ const i=s.lastIndexOf('='); return i>0 ? [s.slice(0,i).trim(), s.slice(i+1).trim()] : null; }).filter(Boolean));
-function setItemDisc(k, v, auto){ const m=idiscMap(rec), kk=dkey(k); if(v===auto) delete m[kk]; else m[kk]=v; rec.idisc=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); touched.add('idisc'); }
+function setItemDisc(k, v, auto){ const m=idiscMap(rec), kk=dkey(k); if(v===auto) delete m[kk]; else m[kk]=v; rec.idisc=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); touched.add('idisc'); setItemDamt(k, null); }   // 할인 버튼을 바꾸면 직접 고친 할인액은 지움
+// 할인액 직접 고치기: rec.idamt = "sadam1=200000:125000" (줄마다 과세(신라) 할인액:비과세(사유원) 할인액). 없으면 할인 버튼(%)으로 계산한 값
+const idamtMap = r => Object.fromEntries(String((r&&r.idamt)||'').split(/\s*;\s*/).map(s=>{ const i=s.lastIndexOf('='); if(i<=0) return null; const [tx,tf]=s.slice(i+1).split(':').map(v=>Math.max(0,parseInt(v)||0)); return [s.slice(0,i).trim(), {tx, tf}]; }).filter(Boolean));
+function setItemDamt(k, val){ const m=idamtMap(rec), kk=dkey(k); if(!val && !m[kk]) return; if(val) m[kk]=val; else delete m[kk]; rec.idamt=Object.entries(m).map(([a,b])=>`${a}=${b.tx}:${b.tf}`).join('; '); touched.add('idamt'); }
 function setItemNote(k, v){ const m=inotesMap(); v=String(v||'').replace(/[;=]/g,',').trim(); if(v) m[k]=v; else delete m[k]; rec.inotes=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); touched.add('inotes'); }
 const itemName = k => k==='view' ? '관람' : /^v:/.test(k) ? itemLabel(daySrc(k.slice(2), rec)) : k==='mb' ? '몽몽마방 '+(rec.mabangMenu||'') : /^g:/.test(k) ? goodsName(k.slice(2)) : (SADAM_ITEMS.find(x=>x[0]===k)||[])[1] || LABEL[k] || k;
 const itemNotesText = () => Object.entries(inotesMap()).filter(([k])=>itemKeysFromRec().includes(k)).map(([k,v])=>`${itemName(k)}: ${v}`);   // 비고가 있는 항목만
@@ -402,6 +406,14 @@ function pkgSplit(src){
 }
 document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-idisc]'); if(!b) return;
   setItemDisc(b.dataset.idisc, b.dataset.dv, b.dataset.da); startTimer(); renderSide(); });   // 할인 버튼
+// 할인액 칸: 고치면 그 줄만 직접 고친 할인액으로 (할인 버튼 계산과 같으면 다시 자동), ↺ = 자동으로
+document.addEventListener('change', e=>{ const el=e.target.closest?.('#itemsBox [data-idamt]'); if(!el) return;
+  const k=el.dataset.idamt, x=priceInfo && priceInfo[normSrc(itemSrc(k))], m=x && x.m; if(!m) return;
+  const get = side => { const i=document.querySelector(`#itemsBox [data-idamt="${CSS.escape(k)}"][data-side="${side}"]`); return i ? Math.max(0, parseInt(String(i.value).replace(/\D/g,''))||0) : (side==='tx'?m.dTx:m.dTf); };
+  const tx=Math.min(get('tx'), m.fTx), tf=Math.min(get('tf'), m.fTf);
+  setItemDamt(k, tx===m.aTx && tf===m.aTf ? null : {tx, tf}); startTimer(); renderSide(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.closest?.('#itemsBox [data-idamt]')){ e.preventDefault(); e.target.blur(); } });
+document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-idamtreset]'); if(!b) return; setItemDamt(b.dataset.idamtreset, null); startTimer(); renderSide(); });
 // 줄마다 [단가 · 할인 · 금액] (전산 내역이 있으면 인원 · 상품금액 · 할인 · 금액, 인원이 다르면 빨갛게)
 function paintItemPrices(){
   // 줄 구성 (2026-11-14): ① [품목 · 가격(관람+식사는 관람 · 식사 따로) · 인원 · 담당 · ×] ② 할인(할인 대상 품목만: 버튼 · 할인 금액 · 할인 단가 · 금액) ③ 비고 (할인 줄이 없으면 금액은 비고 줄 끝)
@@ -410,7 +422,9 @@ function paintItemPrices(){
   const upHTML = src => { const sp=pkgSplit(src); if(sp) return `<span><i>과세(신라)</i>${won(sp.m)}원</span><span><i>비과세(사유원)</i>${won(sp.v)}원</span>`; const p=src?priceOf(src):null; return p==null ? '' : `<span><i>${/대관|도슨트|세미나/.test(src)?'회당':'1인'}</i>${won(p)}</span>`; };
   document.querySelectorAll('#itemsBox [data-ip]').forEach(el=>{ const k=el.dataset.ip, src=itemSrc(k), up=document.querySelector(`#itemsBox [data-iup="${CSS.escape(k)}"]`), am=document.querySelector(`#itemsBox [data-iamt="${CSS.escape(k)}"]`);
     let h='', amt='';
-    if(up) up.innerHTML = quoteCat ? upHTML(src) : '';
+    // 가격 칸: 할인까지 빼고 실제로 결제하는 금액을 과세(신라) · 비과세(사유원)로 (전산 내역 모드 · 금액을 모르면 1인 가격)
+    const pm = !E && priceInfo && src ? (priceInfo[normSrc(src)]||{}).m : null;
+    if(up) up.innerHTML = !quoteCat ? '' : pm && !seen.has(src) ? [pm.fTx>0 && `<span title="정상가 ${won(pm.fTx)}원 − 할인 ${won(pm.dTx)}원"><i>과세(신라)</i>${won(pm.tx)}원</span>`, pm.fTf>0 && `<span title="정상가 ${won(pm.fTf)}원 − 할인 ${won(pm.dTf)}원"><i>비과세(사유원)</i>${won(pm.tf)}원</span>`].filter(Boolean).join('') : upHTML(src);
     if(E){ const x=E.m[k];
       if(!x) h = k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', '<b class="bad">전산 내역에 없음</b>', 'warn');
       else { const q=numOf(itemQty(k)), diff = q!==x.people;
@@ -421,12 +435,14 @@ function paintItemPrices(){
       if(k==='view' && !x) h=cell('관람권', numOf(rec.people)?'0명 (모두 관람 포함 품목으로 계산)':'인원 입력');
       else if(!x) amt=cell('금액', '가격 없음', 'warn');
       else if(seen.has(src)) amt=cell('금액', '위 줄과 합산');   // 같은 견적서 품목(예: 대관)은 한 줄로 계산
-      else { seen.add(src); const full=x.p!=null ? x.p*x.qty : null, dc = x.a && full!=null ? full-x.a.amount : 0, r = x.a && full ? x.a.amount/full : 1, sp=pkgSplit(src);
-        const money = cell('금액', `<b>${x.a?won(x.a.amount):'가격 없음'}</b>`, 'amt');
-        const discRow = x.b && x.p!=null && (x.b.disc || x.b.dsel!=='none');   // 할인 대상 품목(또는 직접 할인을 넣은 줄)만 할인 줄
+      else { seen.add(src); const m=x.m;
+        const money = cell('금액', `<b>${m?won(m.amount):'가격 없음'}</b>`, 'amt');
+        const discRow = m && x.b && (x.b.disc || x.b.dsel!=='none' || m.ov);   // 할인 대상 품목(또는 직접 할인을 넣은 줄)만 할인 줄
+        // 할인액: 과세(신라) · 비과세(사유원) 따로, 칸에서 바로 고칠 수 있음 (고치면 「직접 고침」, ↺ = 할인 버튼 계산으로 되돌리기)
+        const dIn = (side, v, max) => `<label class="dam"><i>${side==='tx'?'과세(신라)':'비과세(사유원)'}</i>-<input data-idamt="${esc(k)}" data-side="${side}" inputmode="numeric" data-ime="num" value="${won(v)}" title="할인액 (최대 ${won(max)}원)">원</label>`;
         if(discRow) h = `<span class="im dsel" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}</button>`).join('')}${x.b.dsel!==x.b.dauto?'<small class="dman">직접 바꿈</small>':''}</span>`
-            + cell('할인', dc>0 ? `-${won(dc)} <small>${esc(x.a.disc)}</small>` : '없음')
-            + (r<1 ? (sp ? cell('할인 단가', `과세(신라) ${won(Math.round(sp.m*r))}원 · 비과세(사유원) ${won(Math.round(sp.v*r))}원`) : cell('할인 단가', won(Math.round(x.p*r)))) : '') + money;
+            + `<span class="im dams"><i>할인</i>${m.fTx>0?dIn('tx', m.dTx, m.fTx):''}${m.fTf>0?dIn('tf', m.dTf, m.fTf):''}${m.ov?`<small class="dman">직접 고침</small><button type="button" class="dreset" data-idamtreset="${esc(k)}" title="할인 버튼(%)으로 계산한 할인액으로 되돌리기">↺</button>`:(m.disc?` <small>${esc(m.disc)}</small>`:'')}</span>`
+            + money;
         else amt = money; } }
     el.innerHTML=h; if(am) am.innerHTML=amt; });
   // 전산에만 있는 상품 (예약 내역 줄로 못 옮긴 것)
@@ -1437,12 +1453,8 @@ function moneySplit(r){
   const d=new Date(r.date+'T00:00'), viewSrc=viewSrcOf(r), vp=priceOf(viewSrc);
   let saw=0, shilla=0, missing=false;
   const {blocks, skipped} = quoteBlocks(r);
-  blocks.forEach(b=>{ const a=blockAmount(b, b.price ?? priceOf(b.product)); if(!a){ missing=true; return; }
-    const tx=b.price==null && taxOf(b.product);   // 품목 관리의 과세 · 비과세 비율로 나눔 (할인도 같은 비율)
-    if(tx){ const s=Math.round(a.amount*tx.tf/(tx.tx+tx.tf)); saw+=s; shilla+=a.amount-s; return; }
-    if(b.product===viewSrc) saw+=a.amount;
-    else if(/\(관람,/.test(b.product)){ const v=blockAmount(b, vp); const vv=v?Math.min(v.amount,a.amount):0; saw+=vv; shilla+=a.amount-vv; }
-    else shilla+=a.amount; });
+  blocks.forEach(b=>{ const m=blockMoney(b, r); if(!m){ missing=true; return; } saw+=m.tf; shilla+=m.tx; });   // 줄마다 비과세 = 사유원, 과세 = 신라 (할인 · 직접 고친 할인액 반영)
+  void d; void viewSrc; void vp;
   const etc=etcAmt(r); if(etc){ if(r.etcDiscTo==='사유원') saw=Math.max(0,saw-etc); else shilla=Math.max(0,shilla-etc); }   // 기타 할인은 고른 쪽에서
   return {saw, shilla, etc, missing: missing || skipped.length>0};
 }
@@ -1946,6 +1958,22 @@ function blockAmount(b, price){
   sum+=left*price;
   return { amount: Math.round(sum), disc: parts.join(' · ') };
 }
+// 1인 가격을 과세(신라) · 비과세(사유원)로: 품목 관리의 과세 · 비과세(비율) → 관람+식사는 그날 관람권 가격만큼 비과세 → 관람권은 모두 비과세 → 그 밖은 모두 과세
+function splitOf(src, price, r){
+  const tax=taxOf(src); if(tax){ const tf=Math.round(price*tax.tf/(tax.tx+tax.tf)); return {tx:price-tf, tf}; }
+  if(/\(관람,/.test(src)){ const vp=priceOf(viewSrcOf(r||rec)); if(vp!=null && vp<price) return {tx:price-vp, tf:vp}; }
+  const it=catalogItems().find(x=>normSrc(x.src)===normSrc(src)); if(it && it.kind==='view') return {tx:0, tf:price};
+  return {tx:price, tf:0};
+}
+// 줄 금액 (실제 결제 금액): 정상가 · 할인(과세 · 비과세 따로, 할인액을 직접 고쳤으면 그 값) · 결제 금액(과세 · 비과세)
+function blockMoney(b, r){
+  const p = b.price ?? priceOf(b.product), a = blockAmount(b, p); if(!a) return null;
+  const u = b.price!=null ? {tx:p, tf:0} : splitOf(b.product, p, r), full=p*b.qty, fTx=u.tx*b.qty, fTf=u.tf*b.qty;
+  const d=full-a.amount, aTf = full ? Math.round(d*fTf/full) : 0, aTx=d-aTf;   // 할인 버튼(%)으로 계산한 할인을 과세 · 비과세 비율로
+  const ov=idamtMap(r||rec)[dkey(b.key||'')];
+  const dTx = ov ? Math.min(ov.tx, fTx) : aTx, dTf = ov ? Math.min(ov.tf, fTf) : aTf;
+  return { p, full, fTx, fTf, aTx, aTf, dTx, dTf, ov:!!ov, tx:fTx-dTx, tf:fTf-dTf, amount:full-dTx-dTf, disc:a.disc };
+}
 function renderPrice(){
   const box=$('#priceBox'); if(!box) return;
   let day=null; if(rec.date){ const d=new Date(rec.date+'T00:00'); if(!isNaN(d)) day = isRedDay(rec.date) ? 'we' : 'wd'; }
@@ -1974,9 +2002,9 @@ function renderPrice(){
     const {blocks, skipped} = quoteBlocks(rec);
     let total=0; const missing=[]; priceInfo={};
     const rows = blocks.map(b=>{
-      const p = b.price ?? priceOf(b.product), a = blockAmount(b, p);
-      priceInfo[normSrc(b.product)] = {qty:b.qty, p, a, b};   // 예약 내역 줄마다 금액 (b: 할인 버튼)
-      if(a) total += a.amount; else missing.push(itemLabel(b.product));
+      const p = b.price ?? priceOf(b.product), a = blockAmount(b, p), m = blockMoney(b, rec);
+      priceInfo[normSrc(b.product)] = {qty:b.qty, p, a, b, m};   // 예약 내역 줄마다 금액 (b: 할인 버튼, m: 과세 · 비과세 · 할인액)
+      if(m) total += m.amount; else missing.push(itemLabel(b.product));
       const unit = PROG_KEYS().some(k=>rec[k] && progSrc(k, rec)===b.product && UNIT(k)==='시간') ? '시간' : goodsParse(rec.goods).some(g=>normSrc(g.src)===normSrc(b.product)) ? '개' : '명';   // 굿즈는 개
       const tm = b.product.match(/^(평일|주말\/공휴일) 관람\((\d\d):00~(\d\d):00\)$/) || [];
       const lab = itemLabel(b.product) + (tm[2] ? ` (${+tm[2]}~${+tm[3]}시)` : '');   // 관람권 시간대 표시
