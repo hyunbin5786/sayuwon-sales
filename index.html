@@ -1746,10 +1746,10 @@ const markDb = k => { dbTime[k]=new Date().toISOString(); writeJSON(DBT_LS, dbTi
 function paintDbTime(){
   const el=$('#dbTime'); if(!el || !dbTime) return;
   if(!SHARED_URL){ el.hidden=true; return; }
-  const n=pending.length, t=dbTime.saved || dbTime.pulled;
+  const n=pending.length, last=[dbTime.saved, dbTime.cat].filter(Boolean).sort().pop(), t=last || dbTime.pulled;   // 예약 저장 · 품목 관리 저장 중 최근 것
   el.hidden = !t && !n;
-  el.textContent = (dbTime.saved ? `DB 저장 ${dtLabel(dbTime.saved)}` : t ? `DB 동기화 ${dtLabel(t)}` : '') + (n ? ` · 저장 대기 ${n}건` : '');
-  el.title = `구글 시트(Apps Script) DB\n· 이 브라우저에서 마지막으로 저장: ${dbTime.saved?dtLabel(dbTime.saved):'아직 없음'}\n· 마지막으로 목록을 받아 옴: ${dbTime.pulled?dtLabel(dbTime.pulled):'아직 없음'}`;
+  el.textContent = (last ? `DB 저장 ${dtLabel(last)}` : t ? `DB 동기화 ${dtLabel(t)}` : '') + (n ? ` · 저장 대기 ${n}건` : '');
+  el.title = `구글 시트(Apps Script) DB · 이 브라우저 기준\n· 예약 마지막 저장: ${dbTime.saved?dtLabel(dbTime.saved):'아직 없음'} (고치고 30초 뒤 자동 저장)\n· 품목 관리 마지막 저장: ${dbTime.cat?dtLabel(dbTime.cat):'아직 없음'} (고치고 2초 뒤 자동 저장)\n· 마지막으로 목록을 받아 옴: ${dbTime.pulled?dtLabel(dbTime.pulled):'아직 없음'}`;
 }
 function handleErr(e){
   if(e.code==='bad_key'){ syncState='needkey'; if(getKey()) $('#keyMsg').textContent='비밀번호가 맞지 않습니다.'; }
@@ -2411,7 +2411,7 @@ document.addEventListener('click', e=>{ if(e.target.closest('[data-open-cat]')){
 window.addEventListener('message', e=>{
   if(!e.data || e.data.type!=='sy-catalog' || e.source!==$('#catFrame').contentWindow) return;
   if(e.data.ev==='close') closeCatalogModal();
-  if(e.data.ev==='saved') loadQuotePrices();
+  if(e.data.ev==='saved'){ loadQuotePrices(); markDb('cat'); }   // 품목 관리 저장도 DB 저장 시각에
 });
 // 바깥을 누르거나 Esc: 품목 관리 창에 닫기를 부탁 (저장 안 한 변경이 있으면 거기서 물음)
 const askCatClose = () => $('#catFrame').contentWindow?.postMessage({type:'sy-catalog', ev:'close-request'}, '*');
