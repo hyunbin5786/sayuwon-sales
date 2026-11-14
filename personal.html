@@ -359,8 +359,8 @@ function paintSeats(){ if(!$('#seatBox')) return;
 }
 
 // 문의 매뉴얼 (노션): 「웹에 게시」한 주소를 안에 띄우고, 새 창 열기는 원래 링크
-const MANUAL_URL = 'https://app.notion.com/p/happyyy-monkeyyy/3d645f859824807090f1df4f0815a7bd?source=copy_link';
-const MANUAL_EMBED = 'https://happyyy-monkeyyy.notion.site/3d645f859824807090f1df4f0815a7bd';
+const MANUAL_URL = 'https://happyyy-monkeyyy.notion.site/3d645f859824807090f1df4f0815a7bd?source=copy_link';   // 새 창으로 열기
+const MANUAL_EMBED = 'https://happyyy-monkeyyy.notion.site/ebd/3d645f859824807090f1df4f0815a7bd';   // 화면 안에 띄우기 (노션의 웹 게시 · 임베드 주소)
 $('#manualOpen').href = MANUAL_URL; $('#manualFrame').src = MANUAL_EMBED;
 paintForm(); renderLists(); paintSync(); flush();
 </script>
