@@ -1,0 +1,78 @@
+/* ===== 첫 화면 (index.html) ===== */
+/* 사유원 예약 관리 시스템: 첫 화면(이름 + 사번 로그인) → 메뉴 4개
+   로그인은 이 브라우저에만 기억하는 '누가 쓰는지' 표시입니다 (보안 인증 아님 · 공유 기록은 팀 비밀번호로 지킴) */
+:root{
+  --bg:#f3f1ec; --card:#fffefb; --ink:#262620; --muted:#77736a; --line:#dfdace;
+  --pine:#3f5236; --pine-soft:#e4eadf; --red:#a4442c;
+  --serif:"Noto Serif KR",serif; --sans:"Noto Sans KR",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
+header{background:var(--pine);color:#f3f1ec;padding:12px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{margin:0;font:600 18px var(--serif);letter-spacing:.02em}
+header .sys-brand{color:#f3f1ec;text-decoration:none;font:600 18px var(--serif);letter-spacing:.02em;white-space:nowrap}
+header .sys-brand:hover{text-decoration:underline;text-underline-offset:4px}
+header .sys-crumb{font:600 15px var(--sans);color:#f3f1ec;white-space:nowrap}
+header .sys-crumb::before{content:"›";margin:0 10px 0 2px;opacity:.55;font-weight:400}
+header .sys-crumb[hidden]{display:none}   /* 공통 헤더: 시스템 이름(누르면 메뉴) › 화면 이름 */
+header .who{margin-left:auto;font-size:13px;display:flex;align-items:center;gap:10px}
+header .who[hidden]{display:none}
+header button{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#f3f1ec;border-radius:7px;padding:4px 12px;font:500 13px var(--sans);cursor:pointer}
+header button:hover{background:rgba(255,255,255,.2)}
+main{max-width:980px;margin:0 auto;padding:40px 16px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px}
+/* 로그인 */
+.login{max-width:380px;margin:40px auto}
+.login h2{margin:0 0 4px;font:600 20px var(--serif)}
+.login p{margin:0 0 18px;color:var(--muted);font-size:13px}
+.login label{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 4px}
+.login input{width:100%;height:42px;border:1px solid var(--line);border-radius:8px;padding:0 12px;font:15px var(--sans);background:#fff;color:var(--ink)}
+.login input:focus{outline:none;border-color:var(--pine)}
+.login .err{color:var(--red);font-size:12.5px;min-height:18px;margin:8px 0 0}
+.btn-main{width:100%;height:44px;margin-top:14px;border:0;border-radius:8px;background:var(--pine);color:#fff;font:700 15px var(--sans);cursor:pointer}
+.btn-main:hover{filter:brightness(1.08)}
+/* 메뉴 */
+.hello{margin:0 0 18px;font:600 20px var(--serif)}
+.hello small{display:block;font:400 13px var(--sans);color:var(--muted);margin-top:2px}
+.menu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:640px){.menu{grid-template-columns:1fr}}
+.card{display:flex;gap:14px;align-items:flex-start;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;cursor:pointer;font:inherit;color:inherit;text-decoration:none;transition:border-color .15s,box-shadow .15s}
+.card:hover{border-color:var(--pine);box-shadow:0 2px 10px rgba(63,82,54,.12)}
+.card .num{flex:none;width:36px;height:36px;border-radius:50%;background:var(--pine-soft);color:var(--pine);display:flex;align-items:center;justify-content:center;font:700 15px var(--sans)}
+.card b{display:block;font-size:16px;margin-bottom:2px}
+.card span{font-size:12.5px;color:var(--muted)}
+.card.soon{cursor:default;opacity:.65}
+.card.soon:hover{border-color:var(--line);box-shadow:none}
+.card .tag{display:inline-block;margin-left:6px;font-size:11px;padding:1px 7px;border-radius:999px;background:#ece9e2;color:var(--muted);vertical-align:middle}
+.note{margin-top:18px;font-size:12px;color:var(--muted)}
+/* 멤버관리 */
+.mhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.mhead h2{margin:0;font:600 20px var(--serif)}
+.back{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 12px;font:500 13px var(--sans);cursor:pointer;color:var(--ink)}
+.hint{font-size:12.5px;color:var(--muted)}
+.inline{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.inline input{height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font:14px var(--sans);background:#fff;color:var(--ink);min-width:0;flex:1 1 140px}
+.inline input:focus,.bulk textarea:focus{outline:none;border-color:var(--pine)}
+.btn-sm{height:38px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:0 16px;font:700 13px var(--sans);cursor:pointer;color:var(--ink)}
+.btn-sm.primary{background:var(--pine);border-color:var(--pine);color:#fff}
+.btn-sm.del{height:28px;padding:0 10px;color:var(--red);border-color:var(--red);font-weight:500}
+.keybox p{margin:0 0 8px;font-size:13px}
+.bulk{margin:12px 0}
+.bulk summary{cursor:pointer;font-size:13px;color:var(--pine);font-weight:700}
+.bulk textarea{width:100%;min-height:110px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px/1.6 var(--sans);margin:6px 0}
+.mtable{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+.mtable th,.mtable td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left}
+.mtable th{font-size:12px;color:var(--muted);font-weight:500}
+.mtable td.r{text-align:right}
+.mtable tr.me td:first-child::after{content:" (나)";color:var(--muted);font-size:12px}
+.err{color:var(--red);font-size:12.5px;min-height:18px;margin:6px 0 0}
+.warnbar{background:#f8ecd9;color:#7a4f14;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:14px}
+.warnbar[hidden]{display:none}
+/* 품목 관리: 이 화면 안에서 띄움 */
+/* 품목관리 (#catalog): 메뉴에서 열면 이 화면의 한 페이지로 (헤더 아래 꽉 차게). 단체 · 견적서 화면 안에서 부르면 그쪽이 팝업으로 띄움 */
+.catwrap{display:flex;flex-direction:column;height:calc(100vh - 48px)}   /* 메뉴의 품목관리 = 한 페이지 (테두리 · 여백 없이 헤더 아래 꽉 차게) */
+.catwrap[hidden]{display:none}
+.catwrap iframe{flex:1;border:0;background:var(--bg);width:100%;min-height:0;display:block}
+.catbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.catbar h2{margin:0;font:600 18px var(--serif)}

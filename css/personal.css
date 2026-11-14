@@ -1,0 +1,169 @@
+/* ===== 개인고객 전화응대 (personal.html) ===== */
+/* 개인고객 전화응대: 왼쪽 통화 기록 · 오른쪽 다시 연락할 통화 · 최근 통화 · 가격 · 사담 현황
+   저장은 단체 화면과 같은 공유 기록(구글 시트 calls 시트, 통화 구분 '개인고객'). 단체 목록에는 나오지 않음 */
+:root{
+  --bg:#f3f1ec; --card:#fffefb; --ink:#262620; --muted:#77736a; --line:#dfdace;
+  --pine:#3f5236; --pine-soft:#e4eadf; --amber:#b0742a; --amber-soft:#f8ecd9; --red:#a4442c; --red-soft:#f6e1da;
+  --serif:"Noto Serif KR",serif; --sans:"Noto Sans KR",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
+header{background:var(--pine);color:#f3f1ec;padding:10px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+header h1{margin:0;font:600 17px var(--serif)}
+header .sys-brand{color:#f3f1ec;text-decoration:none;font:600 18px var(--serif);letter-spacing:.02em;white-space:nowrap}
+.ko-toggle{width:30px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:transparent;color:#f3f1ec;font:700 13px var(--sans);cursor:pointer}
+.ko-toggle.on{background:#f3f1ec;color:var(--pine)}
+header .sys-brand:hover{text-decoration:underline;text-underline-offset:4px}
+header .sys-crumb{font:600 15px var(--sans);color:#f3f1ec;white-space:nowrap}
+header .sys-crumb::before{content:"›";margin:0 10px 0 2px;opacity:.55;font-weight:400}
+header .sys-crumb[hidden]{display:none}   /* 공통 헤더: 시스템 이름(누르면 메뉴) › 화면 이름 */
+header .hb{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#f3f1ec;border-radius:7px;padding:4px 12px;font:700 13px var(--sans);cursor:pointer;text-decoration:none}
+header .hb:hover{background:rgba(255,255,255,.2)}
+header .me{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600}
+header .hd-gap{margin-left:auto}
+.list-btn{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#f3f1ec;border-radius:7px;padding:4px 12px;font:500 13px var(--sans);cursor:pointer;display:flex;gap:6px;align-items:center}
+.list-btn:hover{background:rgba(255,255,255,.2)}
+.tag.call{background:var(--red-soft);color:var(--red);font-weight:700;margin:0}   /* 마이페이지 버튼 옆 과업 수 (단체 화면과 같음) */
+header .sync{font-size:12px;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.14)}
+header .sync.warn{background:#f3d9b5;color:#6b4513}
+header .sync[hidden]{display:none}
+main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;padding:16px max(16px,env(safe-area-inset-left,0px));max-width:1500px;margin:0 auto}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.panel h2{margin:0 0 10px;font:600 16px var(--serif);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.panel h2 small{font:400 12px var(--sans);color:var(--muted)}
+.panel h2 .h-btns{margin-left:auto;display:flex;gap:6px}   /* 제목 줄 오른쪽 위: 저장 · 새 통화 */
+.panel h2 .h-btns .btn{font:700 13px var(--sans);padding:6px 12px}
+.panel h2 .h-btns .btn:not(.primary){font-weight:500}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 10px}
+@media (max-width:560px){.row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.f{display:flex;flex-direction:column;gap:3px;min-width:0}
+.f.w2{grid-column:span 2}.f.w4{grid-column:1/-1}
+.f label{font-size:12px;color:var(--muted)}
+.f input,.f select,.f textarea{width:100%;height:36px;border:1px solid var(--line);border-radius:7px;padding:0 9px;font:14px var(--sans);background:#fff;color:var(--ink)}
+.f textarea{height:150px;padding:8px 10px;resize:vertical;line-height:1.6}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--pine)}
+.sub-h{font-size:12px;color:var(--muted);margin:12px 0 5px}
+.chips{display:flex;flex-wrap:wrap;gap:5px;min-height:36px;align-items:center}   /* 구분 · 예약 여부: 하나 고르기 (다시 누르면 해제) */
+.chips button{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:5px 12px;font:13px var(--sans);cursor:pointer}
+.chips button:hover{border-color:var(--pine);color:var(--pine)}
+.chips button.on{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:700}
+.chips button.add{border-style:dashed;color:var(--muted);padding:5px 10px}
+.chips button .x{margin-left:6px;color:var(--muted);font-weight:700;border-radius:50%;padding:0 4px}   /* 구분 삭제 */
+.chips button .x:hover{background:var(--red);color:#fff}
+.chips button.on .x{color:#d7e5cf}
+.chips button.gone{border-style:dashed}
+.btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:8px 14px;font:500 13px var(--sans);cursor:pointer;text-decoration:none}
+.btn.primary{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:700}
+.btn.danger{color:var(--red);border-color:var(--red)}
+.btn:disabled{opacity:.5;cursor:default}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.state{font-size:12.5px;color:var(--muted)}
+.editing{background:var(--amber-soft);border-radius:7px;padding:6px 10px;font-size:12.5px;margin-bottom:10px}
+.editing[hidden]{display:none}
+.group-tip{background:var(--pine-soft);border-radius:7px;padding:8px 10px;font-size:12.5px;margin-top:8px}
+.group-tip[hidden]{display:none}
+/* 문의 매뉴얼 (노션) */
+.manual{position:sticky;top:64px;display:flex;flex-direction:column;height:calc(100vh - 80px);min-height:420px}
+.manual iframe{flex:1;width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;min-height:0}
+@media (max-width:900px){.manual{position:static;height:70vh}}
+/* 날짜 칸: 단체 방문일과 같은 방식 (칸 안에 날짜 (요일) · 누르면 달력) */.dbox{position:relative;display:block;min-width:0}.dbox .dtxt{width:100%;height:36px;border:1px solid var(--line);border-radius:7px;padding:0 9px;font:14px var(--sans);background:#fff;color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums}.dbox .dtxt:not([readonly]){cursor:text}.dbox .dtxt:focus{outline:none;border-color:var(--pine)}.dbox input.dpick{position:absolute;left:0;bottom:0;width:1px!important;height:1px!important;opacity:0;pointer-events:none;border:0;padding:0}.tadd .dbox{flex:0 0 150px}.tasks li .dbox{flex:0 0 140px}.tasks li .dbox .dtxt{height:28px;font-size:12.5px;padding:0 6px}
+/* 추후 과업: 단체 화면과 같은 모양 · 동작 (체크 · 끌어서 순서 · ▲▼ · 마감일 · 세부 과제 · 메모 · 끝난 과업은 한 줄로) */
+.task-add{display:flex;gap:6px;margin:0 0 10px;position:sticky;top:56px;z-index:3;background:var(--card);padding:6px 0;box-shadow:0 6px 6px -6px rgba(0,0,0,.08)}
+.task-add input{flex:1;height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:13px var(--sans)}
+.task-add input:focus{outline:none;border-color:var(--pine)}
+.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.task{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff}
+.task.done{background:#f1f1ee;border-color:#e2e2dc;color:#9a9a92}
+.task.collapsed{padding:6px 12px}
+.task.collapsed > :not(.task-h){display:none}
+.task.late{background:#fdf0ee;border-color:#e0a399}
+.task-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.task-c{display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer}
+.task-c input{width:17px;height:17px;accent-color:var(--pine);flex:none}
+.task.done .task-c span{text-decoration:line-through;color:#9a9a92}
+.task.late .task-c span{color:var(--red)}
+.texp{border:0;background:none;color:var(--muted);font-size:11.5px;cursor:pointer;padding:0 4px;white-space:nowrap}
+.texp:hover{color:var(--pine)}
+.tdrag{flex:none;cursor:grab;color:var(--muted);font-size:14px;line-height:1;padding:2px 2px 2px 0;user-select:none}
+.tdrag:hover{color:var(--pine)}
+.task.dragging{opacity:.45}
+.task.drop-before{box-shadow:0 -3px 0 var(--pine)}
+.task.drop-after{box-shadow:0 3px 0 var(--pine)}
+.tmove{display:flex;flex:none;gap:2px}
+.tmove button{width:22px;height:22px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--muted);font-size:9px;cursor:pointer;padding:0}
+.tmove button:hover{border-color:var(--pine);color:var(--pine)}
+.tdue{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:400;color:var(--muted);flex:none;white-space:nowrap}
+.tdue .dbox{flex:0 0 128px}
+.tdue .dbox .dtxt{height:26px;font-size:12px;padding:0 5px;border-radius:5px}
+.task.late .tdue{color:var(--red);font-weight:700}
+.task.late .tdue .dtxt{border-color:var(--red);color:var(--red);font-weight:700}
+.task.done .tdue .dtxt{color:#9a9a92;background:transparent}
+.task-h .del{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
+.task-h .del:hover{color:var(--red)}
+.task textarea{width:100%;margin-top:8px;min-height:38px;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13px/1.5 var(--sans)}
+.task textarea:focus{outline:none;border-color:var(--pine)}
+.tsubs{display:flex;flex-direction:column;gap:3px;margin:6px 0 0 25px}
+.tsub{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;cursor:pointer}
+.tsub input{width:15px;height:15px;margin:0;accent-color:var(--pine)}
+.tsub.on{color:#9a9a92;text-decoration:line-through}
+.tsub-row{display:flex;align-items:center;gap:4px}
+.tsub-del{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px}
+.tsub-del:hover{color:var(--red)}
+.tsub-add{display:flex;gap:4px;margin-top:2px}
+.tsub-add input{flex:1;height:28px;border:1px dashed var(--line);border-radius:5px;padding:0 8px;font:12.5px var(--sans);background:#fff}
+.tsub-add .btn{padding:2px 8px;font-size:12px}
+.tasks .empty{list-style:none;color:var(--muted);font-size:12.5px}
+/* 목록 */
+.list{list-style:none;margin:0;padding:0}
+.list li{border-top:1px solid var(--line);padding:8px 2px;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px}
+.list li:first-child{border-top:0}
+.list li:hover{background:#faf8f2}
+.list li b{font-size:13.5px}
+.list li .meta{font-size:12px;color:var(--muted)}
+.list li .r{text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
+.list li .txt{grid-column:1/-1;font-size:12.5px;color:#55524a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{display:inline-block;font-size:11px;padding:0 7px;border-radius:999px;background:#ece9e2;color:var(--muted);margin-right:4px}
+.tag.cb{background:var(--amber-soft);color:var(--amber);font-weight:700}
+.tag.late{background:var(--red-soft);color:var(--red);font-weight:700}
+.tag.done{background:var(--pine-soft);color:var(--pine)}
+.search{width:100%;height:34px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:13px var(--sans);margin-bottom:6px}
+.empty{color:var(--muted);font-size:12.5px;padding:6px 2px}
+/* 가격 · 현황 */
+table.pt{width:100%;border-collapse:collapse;font-size:12.5px}
+table.pt th,table.pt td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left}
+table.pt td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
+.seat{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.seat span{border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:12.5px;background:#fff}
+.seat span.full{color:var(--red);border-color:var(--red)}
+/* 팀 비밀번호 */
+.modal .panel.wide{width:min(1200px,100%);max-height:calc(100vh - 120px);display:flex;flex-direction:column}
+.all-tw{overflow:auto;min-height:0;flex:1;margin-top:4px}
+.all-t{width:100%;border-collapse:collapse;font-size:13px}
+.all-t th,.all-t td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.all-t th{font-size:12px;color:var(--muted);font-weight:500;position:sticky;top:0;background:var(--card)}
+.all-t td{white-space:nowrap}
+.all-t td.note{white-space:normal;min-width:220px;color:#55524a}
+.all-t tbody tr{cursor:pointer}
+.all-t tbody tr.trash{cursor:default}
+.all-t tbody tr:hover td{background:#faf8f2}
+.all-t th.owner,.all-t td.owner{background:#e3eedc;color:#2f5a22;font-weight:700}   /* 받은 사람: 단체예약 목록의 영업 담당처럼 초록 띠 */
+.all-t tbody tr:hover td.owner{background:#d8e7cf}
+.all-t td.acts{padding:3px 6px}
+.all-t .pdel{padding:2px 10px;font-size:12px}
+.del-box{width:min(420px,100%);margin-top:8vh}
+.del-box input,.del-box select{width:100%;box-sizing:border-box;height:36px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:14px var(--sans);margin-top:6px}
+.due-list{list-style:none;margin:0;padding:0;overflow:auto}
+.due-list li{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:8px 2px}
+.due-list li .who{flex:1;min-width:0;font-size:13px}
+.due-list li.late b.t{color:var(--red)}
+.due-list .btn{padding:4px 10px;font-size:12px}
+.modal{position:fixed;inset:0;z-index:30;background:rgba(30,30,25,.45);display:flex;align-items:flex-start;justify-content:center;padding:80px 16px}
+.modal[hidden]{display:none}
+.modal .panel{width:min(420px,100%)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2f2f29;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;z-index:40;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+.toast.on{opacity:1}
