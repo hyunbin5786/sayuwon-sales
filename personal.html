@@ -59,6 +59,10 @@ main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;
 .chips button:hover{border-color:var(--pine);color:var(--pine)}
 .chips button.on{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:700}
 .chips button.add{border-style:dashed;color:var(--muted);padding:5px 10px}
+.chips button .x{margin-left:6px;color:var(--muted);font-weight:700;border-radius:50%;padding:0 4px}   /* 구분 삭제 */
+.chips button .x:hover{background:var(--red);color:#fff}
+.chips button.on .x{color:#d7e5cf}
+.chips button.gone{border-style:dashed}
 .btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px}
 .btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:8px 14px;font:500 13px var(--sans);cursor:pointer;text-decoration:none}
 .btn.primary{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:700}
@@ -471,25 +475,30 @@ function toItem(f=form, base=cur){
 }
 function fromItem(r){ let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} return { cat:h.cat||'', reportTo:h.reportTo||'', reserved:h.reserved||'', name:r.contact||'', phone:r.phone||'', date:String(r.date||'').slice(0,10), people:r.people||'', note:r.note||'', tasks:tasksOfItem(r).map(t=>({...t})) }; }
 // ===================== 구분 · 예약 여부 (하나 고르기, 다시 누르면 해제) =====================
-// 구분: 기본(예약취소 · 결제링크 · 기타문의) + ＋로 추가한 것. 추가한 구분은 공유 기록 한 줄(id pcats, 통화 구분 '개인구분')에 저장 → 모든 사람 화면에 보임
+// 구분: 처음엔 기본(예약취소 · 결제링크 · 기타문의). ＋로 추가 · 칩의 ×로 삭제(기본도 삭제 가능) → 공유 기록 한 줄(id pcats, 통화 구분 '개인구분')에 전체 목록으로 저장 → 모든 사람 화면에 같게
+//  (예전 저장 모양 {cats:[추가한 것]} 은 기본 + 추가로 읽음, 새 모양은 {cats:[전체], full:true})
 const PCATS_ID='pcats', PCATS_TYPE='개인구분', PCAT_DEF=['예약취소','결제링크','기타문의'], RES_OPTS=['예약함','예약 안 함'], PCATS_LS='sayuwon_pcats';
 let pcatRec = readJSON(PCATS_LS, null);
-const pcatAdded = r => { try{ const l=JSON.parse((r&&r.history)||'{}').cats; return Array.isArray(l) ? l : []; }catch(_){ return []; } };
-function pcats(){ const p=pending.filter(x=>x.action==='put' && x.item.id===PCATS_ID).pop(); return [...new Set([...PCAT_DEF, ...pcatAdded(p ? p.item : pcatRec)])]; }
-function addPcat(name){
-  const list=[...new Set([...pcatAdded(pcatRec), name])], now=new Date().toISOString();
-  const item={...(pcatRec||{}), id:PCATS_ID, callType:PCATS_TYPE, saved:now, takenBy:user.name||'', summary:`개인고객 구분 추가 ${list.join(', ')}`, history:JSON.stringify({cats:list, at:now, by:user.name||''})};
+const pcatList = r => { let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} const l=Array.isArray(j.cats) ? j.cats : []; return j.full ? [...new Set(l)] : [...new Set([...PCAT_DEF, ...l])]; };
+function pcats(){ const p=pending.filter(x=>x.action==='put' && x.item.id===PCATS_ID).pop(); return pcatList(p ? p.item : pcatRec); }
+function savePcats(list, what){
+  const now=new Date().toISOString();
+  const item={...(pcatRec||{}), id:PCATS_ID, callType:PCATS_TYPE, saved:now, takenBy:user.name||'', summary:`개인고객 구분 ${list.join(', ')} (${what})`, history:JSON.stringify({cats:list, full:true, at:now, by:user.name||''})};
   pending=pending.filter(p=>!(p.action==='put' && p.item.id===PCATS_ID)); pending.push({action:'put', item}); writeJSON(PEND_LS,pending);
   pcatRec=item; writeJSON(PCATS_LS, item); flush();
 }
 function paintChips(){
-  const cats=pcats(); if(form.cat && !cats.includes(form.cat)) cats.push(form.cat);   // 예전에 고른 구분도 보이게
-  $('#catChips').innerHTML = cats.map(c=>`<button type="button" data-cat="${esc(c)}" class="${form.cat===c?'on':''}" aria-pressed="${form.cat===c}">${esc(c)}</button>`).join('') + `<button type="button" class="add" data-catadd title="구분 추가 (모든 사람에게 보임)">＋</button>`;
+  const list=pcats(), cats=[...list]; if(form.cat && !cats.includes(form.cat)) cats.push(form.cat);   // 삭제된 구분이어도 이 통화에 고른 것은 보이게
+  $('#catChips').innerHTML = cats.map(c=>`<button type="button" data-cat="${esc(c)}" class="${form.cat===c?'on':''}${list.includes(c)?'':' gone'}" aria-pressed="${form.cat===c}">${esc(c)}${list.includes(c)?`<span class="x" data-catdel="${esc(c)}" title="'${esc(c)}' 구분 삭제 (모든 사람에게서)">×</span>`:''}</button>`).join('') + `<button type="button" class="add" data-catadd title="구분 추가 (모든 사람에게 보임)">＋</button>`;
   $('#resChips').innerHTML = RES_OPTS.map(c=>`<button type="button" data-res="${esc(c)}" class="${form.reserved===c?'on':''}" aria-pressed="${form.reserved===c}">${esc(c)}</button>`).join('');
 }
-$('#catChips').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
+$('#catChips').addEventListener('click', e=>{
+  const x=e.target.closest('[data-catdel]');
+  if(x){ e.stopPropagation(); const c=x.dataset.catdel; if(!confirm(`'${c}' 구분을 삭제할까요?\n모든 사람의 구분 목록에서 빠집니다. (이미 저장된 통화의 구분은 그대로 남습니다)`)) return;
+    savePcats(pcats().filter(v=>v!==c), `'${c}' 삭제`); paintChips(); toast(`구분 '${c}'을(를) 삭제했습니다.`); return; }
+  const b=e.target.closest('button'); if(!b) return;
   if(b.dataset.catadd!==undefined){ const v=(prompt('추가할 구분 이름 (예: 단체 문의). 추가하면 모든 사람에게 보입니다.')||'').trim().replace(/\s+/g,' ').slice(0,20); if(!v) return;
-    if(!pcats().includes(v)){ addPcat(v); toast(`구분 '${v}'을(를) 추가했습니다. 모든 사람에게 보입니다.`); } form.cat=v; touch(); return; }
+    if(!pcats().includes(v)){ savePcats([...pcats(), v], `'${v}' 추가`); toast(`구분 '${v}'을(를) 추가했습니다. 모든 사람에게 보입니다.`); } form.cat=v; touch(); return; }
   form.cat = form.cat===b.dataset.cat ? '' : b.dataset.cat; touch(); });
 $('#resChips').addEventListener('click', e=>{ const b=e.target.closest('button[data-res]'); if(!b) return; form.reserved = form.reserved===b.dataset.res ? '' : b.dataset.res; touch(); });
 // ===================== 카카오톡 보고용 글자 복사 =====================
