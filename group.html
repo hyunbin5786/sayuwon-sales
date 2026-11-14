@@ -497,7 +497,7 @@ html.my-embed #myModal{padding:12px 16px}
 html.my-embed #myCloseBtn{display:inline-flex}
 html.my-only.my-embed .my-col{max-height:calc(100vh - 100px)}
 html.my-only .my-col{max-height:calc(100vh - 150px)}
-.my-cols{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:12px;flex:1;min-height:0}   /* 마이페이지 3열: 방문 예정 · 연락할 미정 · 남은 과업 */
+.my-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:0}   /* 마이페이지 3열: 방문 예정 · 연락할 미정 · 남은 과업 */
 .my-col{overflow:auto;min-height:0;max-height:calc(100vh - 170px);background:var(--bg);border-radius:8px;padding:10px}
 .my-col .pc-list li.r{cursor:pointer}
 .my-col .pc-list li.r:hover{border-color:var(--pine)}
@@ -3291,11 +3291,12 @@ function renderMy(){
   const ahead = mine.filter(o=>!o.r.date || o.r.date>=today);
   const tbdAll = ahead.filter(o=>o.x.tbd);
   const open = mine.filter(o=>o.tasks.length && taskRecActive(o.r)).map(o=>({...o, left:o.tasks})).sort((a,b)=>a.left[0].due.localeCompare(b.left[0].due));
-  const shown = (past ? mine : ahead).slice().sort((a,b)=>(a.r.date||'9999').localeCompare(b.r.date||'9999'));
+  const booked = o => stageOfRec(o.r)==='예약접수';   // 방문 예정은 예약접수만 (예약상담은 뺌)
+  const shown = (past ? mine : ahead).filter(booked).slice().sort((a,b)=>(a.r.date||'9999').localeCompare(b.r.date||'9999'));
   $('#mySum').textContent = `담당 단체 예약 ${mine.length}건 · 방문 예정 ${ahead.length}건 · 미정 ${tbdAll.length}건 · 남은 과업 단체 ${open.reduce((s,o)=>s+o.left.length,0)}개 · 개인 ${myPersonalOpen().reduce((s,o)=>s+o.left.length,0)}개`;
   const org = r => esc(r.org || r.contact || '(업체 미정)');
   const dueTxt = d => { const n=daysFrom(today,d); return n<0 ? `<b class="late">${-n}일 지남</b>` : n===0 ? '<b class="late">오늘</b>' : `${n}일 남음`; };
-  // 3열: ① 방문 예정 ② 추후 과업 (단체별) ③ 다른 사람이 수정한 내 예약
+  // 단체 탭 2열: ① 방문 예정 (예약접수만) ② 단체 추후 과업
   const none = t => `<p class="hint">${t}</p>`;
   let c1 = `<h3 class="my-h">${past?'전체 담당 예약':'방문 예정'} <small>${shown.length}건 · 방문일 순</small></h3>` + (shown.length
     ? `<ul class="pc-list">${shown.map(o=>{ const st=stageOfRec(o.r), left=o.tasks.filter(t=>!t.done).length, dq=docTag(o.r,'quote'), ds=docTag(o.r,'stmt');
@@ -3315,10 +3316,6 @@ function renderMy(){
         + o.left.map(t=>`<span class="my-task${t.due<today?' late':t.due===today?' today':''}">· ${esc(t.title)} <small>마감 ${esc(mdLabel(t.due))} (${dueTxt(t.due)})</small></span>`).join('<br>')
         + `</span></li>`).join('')}</ul>`
     : none('해결 안 된 과업이 없습니다.'));
-  // ③ 다른 사람이 수정한 내 예약
-  const ed = othersEdits();
-  const c3 = `<h3 class="my-h">다른 사람이 수정한 내 예약${ed.length?` <button class="btn" id="myEditsSeen" style="padding:2px 8px;font-size:12px">모두 확인함</button>`:''}</h3>`
-    + (ed.length ? `<ul class="pc-list">${ed.map(({r,h:e})=>`<li class="edited r" data-myopen="${esc(r.id)}"><span class="who"><b>${org(r)}</b> · 방문 ${esc(dateLabel(r.date))}<br><small class="hint" style="margin:0"><b>${esc(e.by)}</b> · ${esc(fmt(e.t))} · ${esc(e.what)}</small></span></li>`).join('')}</ul>` : none('없습니다.'));
   // 탭: 전체(단체 + 개인) · 개인 · 단체
   document.querySelectorAll('#myTabs [data-mt]').forEach(b=>b.classList.toggle('on', b.dataset.mt===myTab));
   $('#myPast').closest('label').hidden = myTab==='personal';
@@ -3339,18 +3336,18 @@ function renderMy(){
     $('#myBody').innerHTML = `<div class="my-cols two"><div class="my-col">${p1}</div><div class="my-col">${p2}</div></div>`; return;
   }
   if(myTab==='group'){
-    $('#mySum').textContent = `담당 단체 예약 ${mine.length}건 · 방문 예정 ${ahead.length}건 · 미정 ${tbdAll.length}건 · 남은 과업 ${nG}개`;
+    $('#mySum').textContent = `담당 단체 예약 ${mine.length}건 · 방문 예정(예약접수) ${ahead.filter(booked).length}건 · 미정 ${tbdAll.length}건 · 남은 과업 ${nG}개`;
     const g2 = `<h3 class="my-h">추후 과업 (단체) <small>${nG}개${lateOf(open)?` · <b class="late">기한 지남 ${lateOf(open)}개</b>`:''}</small></h3>` + taskList(open, '해결 안 된 단체 과업이 없습니다.');
-    $('#myBody').innerHTML = `<div class="my-cols"><div class="my-col">${c1}</div><div class="my-col">${g2}</div><div class="my-col">${c3}</div></div>`; return;
+    $('#myBody').innerHTML = `<div class="my-cols two"><div class="my-col">${c1}</div><div class="my-col">${g2}</div></div>`; return;
   }
-  // 전체: ① 개인 추후 과업 ② 단체 추후 과업 ③ 다른 사람이 수정한 내 예약
+  // 전체: ① 개인 추후 과업 ② 단체 추후 과업 (다른 사람이 수정한 내 예약 칸은 2026-11-14에 없앰)
   const a1 = `<h3 class="my-h">추후 과업 (개인) <small>${nP}개${lateOf(persAll)?` · <b class="late">기한 지남 ${lateOf(persAll)}개</b>`:''}</small></h3>` + taskList(persAll.map(o=>({...o, personal:true})), '해결 안 된 개인고객 과업이 없습니다.');
   const a2 = `<h3 class="my-h">추후 과업 (단체) <small>${nG}개${lateOf(open)?` · <b class="late">기한 지남 ${lateOf(open)}개</b>`:''}</small></h3>` + taskList(open, '해결 안 된 단체 과업이 없습니다.');
-  $('#myBody').innerHTML = `<div class="my-cols"><div class="my-col">${a1}</div><div class="my-col">${a2}</div><div class="my-col">${c3}</div></div>`;
+  $('#myBody').innerHTML = `<div class="my-cols two"><div class="my-col">${a1}</div><div class="my-col">${a2}</div></div>`;
 }
 function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
   const m=othersEdits().length;
-  const t=[n&&`과업 ${n}`, m&&`수정 ${m}`].filter(Boolean).join(' · ');
+  const t=n ? `과업 ${n}` : ''; void m;   // 수정 표시는 없앰 (마이페이지에서 다른 사람이 수정한 내 예약 칸을 뺌)
   $('#myCount').hidden=!t; $('#myCount').textContent=t; }
 function openMy(){ $('#myModal').hidden=false; renderMy(); if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
 // group.html?open=예약ID → 그 예약을 엶 (팝업 마이페이지에서 단체 줄을 누른 경우 · 목록을 받은 뒤)
