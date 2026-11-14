@@ -3390,7 +3390,7 @@ function dueTasks(){   // 마감이 오늘이거나 지난 해결 안 된 과업
 }
 // 개인고객 통화 (personal.html, 통화 구분 '개인고객')의 추후 과업: 내가 받은(저장한) 통화의 안 끝난 과업
 const isPersonalRec = r => r && r.callType==='개인고객';
-let myTab = (()=>{ try{ return localStorage.getItem('sayuwon_my_tab')||'all'; }catch(_){ return 'all'; } })();   // 마이페이지 탭: all · personal · group
+let myTab = (()=>{ const q=new URLSearchParams(location.search).get('tab'); if(['all','personal','group'].includes(q)) return q; try{ return localStorage.getItem('sayuwon_my_tab')||'all'; }catch(_){ return 'all'; } })();   // 마이페이지 탭: all · personal · group (개인고객 화면에서 열면 ?tab=personal → 개인부터)
 const MY_ONLY = new URLSearchParams(location.search).get('my')==='1';   // 마이페이지 단독 페이지 (mypage.html → group.html?my=1)
 function myPersonalOpen(){
   const me=savedOwner(); if(!me) return [];
@@ -3464,7 +3464,8 @@ function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueC
   const m=othersEdits().length;
   const mm=myNewMemos().length, t=[n&&`과업 ${n}`, mm&&`메모 ${mm}`].filter(Boolean).join(' · '); void m;   // 수정 표시는 없앰 · 내 예약에 확인 안 한 메모 수
   $('#myCount').hidden=!t; $('#myCount').textContent=t; }
-function openMy(){ $('#myModal').hidden=false; renderMy(); if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
+function openMy(fromGroup){ if(fromGroup===true) myTab='group'; $('#myModal').hidden=false; renderMy();   // 단체 화면의 마이페이지 버튼 = '단체' 탭부터
+  if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
 // group.html?open=예약ID → 그 예약을 엶 (팝업 마이페이지에서 단체 줄을 누른 경우 · 목록을 받은 뒤)
 let openGId = new URLSearchParams(location.search).get('open');
 async function tryOpenG(){ if(!openGId) return; const list = await store.list(); const r=(list||[]).find(x=>x.id===openGId); if(!r) return; openGId=null; history.replaceState(null,'','group.html'); openRecordG(r); }
@@ -3472,7 +3473,7 @@ setTimeout(tryOpenG, 400);
 const MY_EMBED = MY_ONLY && window.parent!==window;   // 다른 화면이 팝업으로 띄운 마이페이지
 function closeMy(){ if(MY_EMBED){ window.parent.postMessage({type:'sy-my', ev:'close'}, '*'); return; } if(MY_ONLY && document.documentElement.classList.contains('my-only')){ location.href='./'; return; } $('#myModal').hidden=true; }   // 팝업 = 바깥 화면이 닫음, 단독 페이지 = 메뉴로
 // 단체 화면의 「마이페이지」 = 이 화면 위 팝업 (메뉴 6번은 한 페이지)
-$('#myOpenBtn').onclick=openMy;
+$('#myOpenBtn').onclick=()=>openMy(true);
 if(location.hash==='#my' && !MY_ONLY) setTimeout(openMy, 300);   // 예전 주소 group.html#my
 if(MY_ONLY){ document.title='마이페이지 · 사유원 예약 관리 시스템'; $('#crumb').textContent='마이페이지'; setTimeout(openMy, 50); }
 document.addEventListener('click', e=>{ const b=e.target.closest('#myTabs [data-mt]'); if(!b) return; myTab=b.dataset.mt; try{ localStorage.setItem('sayuwon_my_tab', myTab); }catch(_){} renderMy(); });
