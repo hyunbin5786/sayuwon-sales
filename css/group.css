@@ -559,7 +559,6 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 #stageFilter button.dim{opacity:.45}   /* 검색 중에는 탭 대신 전체에서 찾음 */
 .list-search{flex:1 1 260px;max-width:380px;height:32px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:13px var(--sans);background:#fff;color:var(--ink)}
 .list-search:focus{outline:none;border-color:var(--pine)}
-.form-col .hist-panel{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}   /* 수정 기록: 2열 예약 내용 아래 */
 .it-amt .dopen{margin-left:8px;border:1px dashed var(--line);background:#fff;border-radius:12px;padding:1px 9px;font:11.5px var(--sans);color:var(--muted);cursor:pointer}   /* 할인 대상이 아닌 품목: 할인 넣기 */
 .it-amt .dopen:hover{border-color:var(--pine);color:var(--pine)}
 .it-money .im.dsel.off{display:none}   /* 할인 대상이 아닌 품목: % 버튼 없이 할인액 칸만 */
