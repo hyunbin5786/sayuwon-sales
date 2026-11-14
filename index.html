@@ -85,7 +85,7 @@ main{max-width:980px;margin:0 auto;padding:40px 16px}
 <body>
 <header>
   <h1>사유원 예약 관리 시스템</h1>
-  <div class="who" id="who" hidden><span id="whoName"></span><button type="button" onclick="location.href='group.html#my'" title="단체 예약 · 개인고객 통화의 추후 과업을 한눈에">마이페이지</button><button type="button" id="logoutBtn">로그아웃</button></div>
+  <div class="who" id="who" hidden><span id="whoName"></span><button type="button" onclick="location.href='mypage.html'" title="단체 예약 · 개인고객 통화의 추후 과업을 한눈에">마이페이지</button><button type="button" id="logoutBtn">로그아웃</button></div>
 </header>
 <main>
   <!-- 1) 로그인: 이름 + 사번 -->
@@ -120,6 +120,9 @@ main{max-width:980px;margin:0 auto;padding:40px 16px}
       <button type="button" class="card" data-go="members">
         <div class="num">5</div><div><b>멤버관리</b><span>로그인할 수 있는 직원(이름 · 사번)을 추가하거나 뺍니다.</span></div>
       </button>
+      <a class="card" data-go="my" href="mypage.html">
+        <div class="num">6</div><div><b>마이페이지 · 나의 할 일</b><span>내 개인고객 통화 · 단체 예약의 추후 과업을 한눈에 (전체 · 개인 · 단체)</span></div>
+      </a>
     </div>
     <p class="note" id="menuNote">로그인한 이름은 예약 기록 · 영업 담당 · 견적서 담당에 들어갑니다. 공유 기록은 지금처럼 팀 비밀번호로 보호됩니다.</p>
   </section>
