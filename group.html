@@ -356,6 +356,12 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .day-all .da-h{display:inline-block;min-width:58px;font-weight:700;color:var(--pine);margin-right:6px}
 .day-all .mb-cat{margin-left:6px}
 .modal .mbdb{width:min(860px,100%)}
+.modal .book{width:min(1000px,100%)}
+.mbdb-t th{position:sticky;top:0;background:var(--card);font-size:12px;color:var(--muted);font-weight:500}
+.mbdb-t tr.r{cursor:pointer}
+.mbdb-t tr.r:hover td{background:#faf8f2}
+.mbdb-t td.note{white-space:normal;min-width:160px;color:#55524a}
+#itemsInfo .dayinfo,#dayNone{display:none!important}   /* 묶음별 그날 현황은 위 예약 현황(몽몽마방 · 대관 · 도슨트 · 프로그램)으로 합침 */
 .mbdb-t{width:100%;border-collapse:collapse;font-size:13px}
 .mbdb-t th,.mbdb-t td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap}
 .mbdb-t td.num{text-align:right}
@@ -560,6 +566,15 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
       <div id="mbPrev" class="mb-prev"></div>
       <div class="row-btns" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn primary" id="mbSave" disabled>저장</button></div>
     </div>
+  </section>
+</div>
+<!-- 대관 · 도슨트 · 프로그램 예약 목록 (예약접수된 단체 예약에서 자동) -->
+<div class="modal" id="bookModal" hidden>
+  <section class="list panel mbdb book" role="dialog" aria-modal="true" aria-labelledby="bookTitle">
+    <h2><span id="bookTitle">예약 목록</span> <span class="seg my-tabs" id="bookTabs"><button type="button" data-bt="rent">대관</button><button type="button" data-bt="docent">도슨트</button><button type="button" data-bt="prog">프로그램</button></span> <small id="bookSum"></small>
+      <span class="row-btns"><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bookPast"> 지난 예약도 보기</label><button type="button" class="btn list-x" id="bookClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+    <div class="tw"><table class="mbdb-t"><thead id="bookHead"></thead><tbody id="bookBody"></tbody></table></div>
+    <p class="hint" style="margin:8px 0 0">단체 예약이 <b>예약접수</b>가 되면 예약 내역의 대관(차방 = 몽몽차방 · 당두봉갈) · 도슨트(동행 도슨트 = 동행 · 세미나 도슨트 = PPT) · 프로그램이 자동으로 들어갑니다. 줄을 누르면 그 예약이 열립니다.</p>
   </section>
 </div>
 <!-- 마감이 된 추후 과업: 해결할 때까지 계속 (나중에 = 2시간 뒤) -->
@@ -1694,18 +1709,60 @@ function renderInfo(k){
 var MBDB_ID='mabangdb', MBDB_TYPE='몽몽마방예약';   // var: sameDay가 먼저 불려도 되게
 function mbDb(){ const r=cache.find(x=>x.id===MBDB_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return { rows:Array.isArray(j.rows)?j.rows:[], at:j.at||'', by:j.by||'' }; }
 const mbDbOn = d => mbDb().rows.filter(x=>x.d===d).sort((a,b)=>String(a.t).localeCompare(String(b.t)));
+// 대관 · 도슨트 · 프로그램 현황: 예약접수가 된 단체 예약에서 자동으로 (저장된 예약 + 지금 화면의 예약)
+//  대관 = 차방 대관(몽몽차방) · 당두봉갈 대관 / 도슨트 = 동행 도슨트(동행) · 세미나 도슨트(PPT) · 이름에 도슨트가 들어간 추가 프로그램 / 프로그램 = 그 밖의 개별 · 시간 프로그램
+const RENT_PLACE = { chabang:'몽몽차방', dangdu:'당두봉갈' }, DOCENT_KIND = { donghaeng:'동행', seminar:'PPT' };
+const bookCat = k => RENT_PLACE[k] ? 'rent' : (DOCENT_KIND[k] || isDocent(LABEL[k])) ? 'docent' : 'prog';
+const BOOK_CATS = { rent:'대관', docent:'도슨트', prog:'프로그램' };
+function bookRows(){ try{ return bookRows0(); }catch(_){ return []; } }   // 초기화 중(아래 정의 전)에 불려도 되게
+function bookRows0(){
+  const out=[], live = effStage(rec)==='예약접수' && rec.date && (rec.org||rec.contact);
+  const recs = (cache||[]).filter(r=>isGroupRec(r) && r.id!==editingId && r.date && stageOfRec(r)==='예약접수').map(r=>({r, x:xOf(r)}));
+  if(live) recs.push({r:{id:editingId||'', org:rec.org}, x:rec, me:true});
+  recs.forEach(({r,x,me})=>{
+    const notes = Object.fromEntries(String(x.inotes||'').split(/\s*;\s*/).map(s=>{ const i=s.indexOf('='); return i>0 ? [s.slice(0,i).trim(), s.slice(i+1).trim()] : null; }).filter(Boolean));
+    PROG_KEYS().forEach(k=>{ const v=x[k]; if(!v) return; const cat=bookCat(k), unit=UNIT(k);
+      out.push({ cat, id:r.id, me:!!me, d:x.date, org:x.org||x.contact||'(업체 미정)',
+        ppl: cat==='prog' && unit!=='시간' ? (numOf(v)||numOf(x.people)) : numOf(x.people),
+        hrs: unit==='시간' ? (numOf(v)||1) : 0, place:RENT_PLACE[k]||'', kind:DOCENT_KIND[k]||(cat==='docent'?LABEL[k]:''), item:LABEL[k]||k,
+        tm:x['tm_'+k]||'', staff:String(x['stf_'+k]||'').trim()||x.owner||'', note:[notes[k], x['crs_'+k]&&`코스 ${x['crs_'+k]}`].filter(Boolean).join(' · ') }); });
+  });
+  return out.sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99')));
+}
+const bookLine = x => (x.cat==='rent' ? `<b>${esc(x.place)}</b>${x.hrs?` ${x.hrs}시간`:''}` : x.cat==='docent' ? `${x.tm?esc(x.tm)+' · ':''}<b>${esc(x.kind)}</b>` : `<b>${esc(x.item)}</b>`)
+  + ` · ${esc(x.org)}${x.me?' <small>(이 예약)</small>':''}${x.ppl?` · ${x.ppl}명`:''}${x.staff?` · 담당 ${esc(x.staff)}`:''}${x.note?` · <small>${esc(x.note)}</small>`:''}`;
 function renderDayAll(){
   const el=$('#dayAll'); if(!el) return;
-  if(!rec.date){ el.innerHTML='<span class="none">방문일을 넣으면 그날 단체 · 몽몽마방 예약 현황이 여기에 보입니다.</span>'; return; }
-  const day=sameDay().filter(r=>!/^adm/.test(r.id) || r.org), db=mbDb(), mb=mbDbOn(rec.date);
-  const gPpl=day.reduce((s,r)=>s+numOf(r.people),0), mPpl=mb.reduce((s,x)=>s+(+x.p||0),0);
-  const gList = day.length ? `<ul>${day.sort((a,b)=>String(fmtTime(a.tin)||'99').localeCompare(String(fmtTime(b.tin)||'99'))).map(r=>`<li>${fmtTime(r.tin)?esc(fmtTime(r.tin))+' · ':''}<b>${esc(r.org||r.contact||'(업체 미정)')}</b>${r.people?` · ${esc(r.people)}${/^\d+$/.test(r.people)?'명':''}`:''}${r.owner?` · ${esc(r.owner)}`:''}</li>`).join('')}</ul>` : '';
+  const btn = c => c==='mb' ? `<button type="button" class="mb-cat" data-mbdb>전체 목록</button>` : `<button type="button" class="mb-cat" data-book="${c}">전체 목록</button>`;
+  if(!rec.date){ el.innerHTML='<span class="none">방문일을 넣으면 그날 몽몽마방 · 대관 · 도슨트 · 프로그램 예약 현황이 여기에 보입니다.</span>'
+    + `<div class="da"><span class="da-h">몽몽마방</span>${btn('mb')}</div>` + Object.entries(BOOK_CATS).map(([c,t])=>`<div class="da"><span class="da-h">${t}</span>${btn(c)}</div>`).join(''); return; }
+  const db=mbDb(), mb=mbDbOn(rec.date), mPpl=mb.reduce((s,x)=>s+(+x.p||0),0), rows=bookRows().filter(x=>x.d===rec.date);
   const mList = mb.length ? `<ul>${mb.map(x=>`<li>${esc(x.t||'시간 미정')} · <b>${esc(x.n||'')}</b> · ${esc(x.p)}명${x.m?` · ${esc(x.m)}`:''}</li>`).join('')}</ul>` : '';
-  el.innerHTML = `<b>${dateLabel(rec.date)} 예약 현황</b>`
-    + `<div class="da"><span class="da-h">단체</span>${day.length?`다른 단체 ${day.length}건${gPpl?` · ${gPpl}명`:''}`:'<span class="none">다른 단체 예약 없음</span>'}${gList}</div>`
-    + `<div class="da"><span class="da-h">몽몽마방</span>${db.rows.length ? (mb.length?`${mb.length}팀 · ${mPpl}명`:'<span class="none">예약 없음</span>') : '<span class="none">몽몽마방 예약 목록이 아직 없습니다</span>'} <button type="button" class="mb-cat" data-mbdb>몽몽마방 예약 목록${db.at?` · ${esc(fmtAgo(db.at))} 저장`:''}</button>${mList}</div>`
-    + `<div class="da"><span class="da-h">사담</span>사담 예약 현황은 <b>예약 전산</b>에서 확인하세요.</div>`;
+  el.innerHTML = `<b>${dateLabel(rec.date)} 예약 현황</b> <small class="none">(대관 · 도슨트 · 프로그램 = 예약접수된 단체 예약)</small>`
+    + `<div class="da"><span class="da-h">몽몽마방</span>${db.rows.length ? (mb.length?`${mb.length}팀 · ${mPpl}명`:'<span class="none">예약 없음</span>') : '<span class="none">몽몽마방 예약 목록이 아직 없습니다</span>'} ${btn('mb')}${db.at?` <small class="none">${esc(fmtAgo(db.at))} 저장</small>`:''}${mList}</div>`
+    + Object.entries(BOOK_CATS).map(([c,t])=>{ const l=rows.filter(x=>x.cat===c);
+        return `<div class="da"><span class="da-h">${t}</span>${l.length?`${l.length}건`:'<span class="none">예약 없음</span>'} ${btn(c)}${l.length?`<ul>${l.map(x=>`<li>${bookLine(x)}</li>`).join('')}</ul>`:''}</div>`; }).join('')
+    + `<div class="da none">사담 예약 현황은 <b>예약 전산</b>에서 확인하세요.</div>`;
 }
+// 대관 · 도슨트 · 프로그램 전체 목록 (앞으로 있을 것, 지난 것도 보기)
+let bookCatNow='rent';
+const BOOK_COLS = { rent:[['일자'],['업체'],['인원'],['장소'],['담당자 이름'],['비고사항']], docent:[['일자'],['업체'],['인원'],['시간'],['종류'],['담당자 이름'],['비고사항']], prog:[['일자'],['업체'],['인원'],['프로그램 항목'],['담당자 이름'],['비고사항']] };
+function paintBook(){
+  const c=bookCatNow, today=todayYmd(), past=$('#bookPast').checked, all=bookRows().filter(x=>x.cat===c), list=all.filter(x=>past || x.d>=today);
+  $('#bookTitle').textContent = `${BOOK_CATS[c]} 예약 목록`; $('#bookSum').textContent = `${list.length}건 · 예약접수된 단체 예약에서 자동`;
+  document.querySelectorAll('#bookTabs [data-bt]').forEach(b=>b.classList.toggle('on', b.dataset.bt===c));
+  $('#bookHead').innerHTML = `<tr>${BOOK_COLS[c].map(([h])=>`<th>${h}</th>`).join('')}</tr>`;
+  const cell = x => c==='rent' ? [x.place+(x.hrs?` (${x.hrs}시간)`:'')] : c==='docent' ? [x.tm||'(미정)', x.kind+(x.hrs?` · ${x.hrs}시간`:'')] : [x.item];
+  $('#bookBody').innerHTML = list.map(x=>`<tr class="r${x.d<today?' past':''}" data-bopen="${esc(x.id)}"><td>${esc(dateLabel(x.d))}</td><td><b>${esc(x.org)}</b>${x.me?' <small>(이 예약)</small>':''}</td><td class="num">${x.ppl?x.ppl+'명':''}</td>${cell(x).map(v=>`<td>${esc(v)}</td>`).join('')}<td>${esc(x.staff)}</td><td class="note">${esc(x.note)}</td></tr>`).join('')
+    || `<tr><td colspan="${BOOK_COLS[c].length}" class="empty">${all.length?'앞으로 있을 예약이 없습니다.':'예약접수된 단체 예약 중 '+BOOK_CATS[c]+' 예약이 없습니다.'}</td></tr>`;
+}
+function openBook(c){ bookCatNow=c; $('#bookModal').hidden=false; paintBook(); }
+document.addEventListener('click', e=>{ const b=e.target.closest?.('[data-book]'); if(b) openBook(b.dataset.book); const t=e.target.closest?.('#bookTabs [data-bt]'); if(t){ bookCatNow=t.dataset.bt; paintBook(); } });
+$('#bookClose').onclick=()=>{ $('#bookModal').hidden=true; };
+$('#bookPast').onchange=paintBook;
+$('#bookModal').addEventListener('mousedown', e=>{ if(e.target.id==='bookModal') $('#bookModal').hidden=true; });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#bookModal').hidden){ e.preventDefault(); $('#bookModal').hidden=true; } });
+$('#bookBody').addEventListener('click', e=>{ const tr=e.target.closest('tr[data-bopen]'); if(!tr || !tr.dataset.bopen) return; const r=cache.find(x=>x.id===tr.dataset.bopen); if(!r) return; $('#bookModal').hidden=true; openRecordG(r); });
 
 // 몽몽마방 예약 목록: 엑셀에서 줄을 복사해 붙여 넣기 (탭으로 나뉜 칸) 또는 "11/19(목) 12:30-13:30 조미화 29 사유의 밥상" 처럼 한 줄씩
 const MB_DATE_RE=/(?:(\d{4})\s*[-.\/년]\s*)?(\d{1,2})\s*[\/.\-월]\s*(\d{1,2})\s*일?(?:\s*\(\s*[월화수목금토일]\s*\))?/, MB_TIME_RE=/(\d{1,2})\s*:\s*(\d{2})(?:\s*[-~]\s*(\d{1,2})\s*:\s*(\d{2}))?/;
