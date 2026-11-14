@@ -19,6 +19,10 @@
  *   ADMIN_ID  : 관리자 사이트(admin.sayuwon.com) 아이디 — 조회 전용 계정 권장
  *   ADMIN_PW  : 그 비밀번호
  *
+ * 멤버 (사유원 예약 관리 시스템 로그인 · 2026-11-14)
+ *  - 이름 + 사번 목록은 이 스프레드시트의 'members' 시트에 둔다 (코드 · GitHub에는 두지 않음)
+ *  - 새 버전으로 배포한 뒤, 사이트 첫 화면 → 멤버관리에서 추가 (멤버가 한 명도 없을 때만 아무 이름으로나 로그인 가능)
+ *
  * 관리자 사이트 자동 가져오기 (사담 현황 + 15명 이상 예약)
  *  1. 스크립트 속성에 ADMIN_ID · ADMIN_PW 를 넣는다
  *  2. 함수 목록에서 testAdmin 실행 → 실행 로그에 "로그인 성공 · 사담 n일 · 15명 이상 n건" 이 나오면 정상
@@ -57,8 +61,21 @@ function doPost(e) {
   var req;
   try { req = JSON.parse((e && e.postData && e.postData.contents) || "{}"); }
   catch (err) { return json_({ ok: false, error: "bad_json" }); }
+  // 로그인 확인 (팀 비밀번호 없이): 이름 + 사번이 멤버 목록에 있는지만 알려 준다 (목록은 돌려주지 않음)
+  if (req.action === "login") return json_(memberLogin_(req.name, req.emp));
   var pc = passcode_();
   if (!pc || String(req.key || "") !== pc) return json_({ ok: false, error: "bad_key" });
+
+  // 멤버관리 (팀 비밀번호 필요)
+  if (req.action === "members") return json_({ ok: true, members: readMembers_() });
+  if (req.action === "memberAdd" || req.action === "memberDel") {
+    var ml = LockService.getScriptLock(); ml.waitLock(20000);
+    try {
+      if (req.action === "memberAdd") return json_({ ok: true, added: addMembers_(req.list || [], req.by), members: readMembers_() });
+      return json_({ ok: true, removed: delMember_(req.emp, req.by), members: readMembers_() });
+    } catch (err) { return json_({ ok: false, error: String(err) }); }
+    finally { ml.releaseLock(); }
+  }
 
   if (req.action === "list") return json_({ ok: true, items: list_(Number(req.limit) || 2000), admin: readAdmin_(), api: 3 });
   if (req.action === "upload") {
@@ -81,6 +98,58 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// =====================================================================
+// 멤버 (사유원 예약 관리 시스템 로그인): 'members' 시트 [이름, 사번, 추가 일시, 추가한 사람, 삭제]
+//  - 이름 · 사번은 공개 저장소(코드)에 두지 않고 이 시트에만 둔다
+//  - 멤버가 한 명도 없으면 아무 이름 · 사번으로나 로그인 가능 (처음 설정용) → 멤버관리에서 추가하면 그때부터 확인
+// =====================================================================
+var MEMBER_COLS = ["이름", "사번", "추가 일시", "추가한 사람", "삭제"];
+function membersSheet_() {
+  var ss = sheet_().getParent(), s = ss.getSheetByName("members");
+  if (!s) {
+    s = ss.insertSheet("members");
+    s.getRange(1, 1, s.getMaxRows(), MEMBER_COLS.length).setNumberFormat("@");   // 사번 앞자리 0이 사라지지 않게 글자로
+    s.appendRow(MEMBER_COLS); s.setFrozenRows(1);
+  }
+  return s;
+}
+function normName_(v) { return String(v || "").replace(/\s+/g, ""); }
+function normEmp_(v) { return String(v || "").replace(/\s+/g, "").toUpperCase(); }
+function memberRows_() {
+  var s = membersSheet_(), n = s.getLastRow();
+  return n < 2 ? [] : s.getRange(2, 1, n - 1, MEMBER_COLS.length).getDisplayValues();
+}
+function readMembers_() {
+  return memberRows_().filter(function (r) { return r[0] && r[1] && !r[4]; })
+    .map(function (r) { return { name: r[0], emp: r[1], added: r[2], by: r[3] }; });
+}
+function memberLogin_(name, emp) {
+  var list = readMembers_();
+  if (!list.length) return { ok: true, member: true, empty: true };   // 처음 설정: 멤버를 추가하기 전
+  var n = normName_(name), e = normEmp_(emp);
+  var hit = list.some(function (m) { return normName_(m.name) === n && normEmp_(m.emp) === e; });
+  return { ok: true, member: hit };
+}
+function addMembers_(list, by) {
+  var have = {}, s = membersSheet_(), added = 0;
+  readMembers_().forEach(function (m) { have[normEmp_(m.emp)] = true; });
+  (list || []).forEach(function (m) {
+    var name = String((m && m.name) || "").trim(), emp = String((m && m.emp) || "").trim();
+    if (!name || !/^[0-9A-Za-z-]{2,20}$/.test(emp) || have[normEmp_(emp)]) return;   // 같은 사번은 한 번만
+    var row = s.getLastRow() + 1;   // 글자 형식으로 써서 사번 앞자리 0 · 날짜가 바뀌지 않게
+    s.getRange(row, 1, 1, MEMBER_COLS.length).setNumberFormat("@").setValues([[name, emp, Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm"), String(by || ""), ""]]);
+    have[normEmp_(emp)] = true; added++;
+  });
+  return added;
+}
+function delMember_(emp, by) {
+  var s = membersSheet_(), rows = memberRows_(), e = normEmp_(emp), done = 0;
+  rows.forEach(function (r, i) {
+    if (normEmp_(r[1]) === e && !r[4]) { s.getRange(i + 2, 5).setNumberFormat("@").setValue(Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm") + " " + String(by || "")); done++; }
+  });
+  return done;
 }
 
 // 배포 전에 한 번 실행해서 권한을 승인하고 시트를 만든다

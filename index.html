@@ -48,6 +48,29 @@ main{max-width:980px;margin:0 auto;padding:40px 16px}
 .card.soon:hover{border-color:var(--line);box-shadow:none}
 .card .tag{display:inline-block;margin-left:6px;font-size:11px;padding:1px 7px;border-radius:999px;background:#ece9e2;color:var(--muted);vertical-align:middle}
 .note{margin-top:18px;font-size:12px;color:var(--muted)}
+/* 멤버관리 */
+.mhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.mhead h2{margin:0;font:600 20px var(--serif)}
+.back{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 12px;font:500 13px var(--sans);cursor:pointer;color:var(--ink)}
+.hint{font-size:12.5px;color:var(--muted)}
+.inline{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.inline input{height:38px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font:14px var(--sans);background:#fff;color:var(--ink);min-width:0;flex:1 1 140px}
+.inline input:focus,.bulk textarea:focus{outline:none;border-color:var(--pine)}
+.btn-sm{height:38px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:0 16px;font:700 13px var(--sans);cursor:pointer;color:var(--ink)}
+.btn-sm.primary{background:var(--pine);border-color:var(--pine);color:#fff}
+.btn-sm.del{height:28px;padding:0 10px;color:var(--red);border-color:var(--red);font-weight:500}
+.keybox p{margin:0 0 8px;font-size:13px}
+.bulk{margin:12px 0}
+.bulk summary{cursor:pointer;font-size:13px;color:var(--pine);font-weight:700}
+.bulk textarea{width:100%;min-height:110px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px/1.6 var(--sans);margin:6px 0}
+.mtable{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+.mtable th,.mtable td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left}
+.mtable th{font-size:12px;color:var(--muted);font-weight:500}
+.mtable td.r{text-align:right}
+.mtable tr.me td:first-child::after{content:" (나)";color:var(--muted);font-size:12px}
+.err{color:var(--red);font-size:12.5px;min-height:18px;margin:6px 0 0}
+.warnbar{background:#f8ecd9;color:#7a4f14;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:14px}
+.warnbar[hidden]{display:none}
 /* 품목 관리: 이 화면 안에서 띄움 */
 .catwrap{position:fixed;inset:0;z-index:20;background:rgba(30,30,25,.45);display:flex;padding:24px max(16px,env(safe-area-inset-left,0px))}
 .catwrap[hidden]{display:none}
@@ -75,6 +98,7 @@ main{max-width:980px;margin:0 auto;padding:40px 16px}
   <!-- 2) 메뉴 -->
   <section id="menuView" hidden>
     <h2 class="hello" id="hello"></h2>
+    <div class="warnbar" id="setupBar" hidden></div>
     <div class="menu">
       <a class="card" data-go="personal" href="personal.html">
         <div class="num">1</div><div><b>개인고객 전화응대</b><span>개인 고객 문의 · 예약 전화를 기록하고, 다시 연락할 통화 · 가격 · 사담 남은 자리를 봅니다.</span></div>
@@ -88,8 +112,34 @@ main{max-width:980px;margin:0 auto;padding:40px 16px}
       <button type="button" class="card" data-go="catalog">
         <div class="num">4</div><div><b>품목관리</b><span>예약 상품 · 가격 · 과세/비과세 · 할인 대상 · 구분(관람 · 관람+식사 · 굿즈 등)</span></div>
       </button>
+      <button type="button" class="card" data-go="members">
+        <div class="num">5</div><div><b>멤버관리</b><span>로그인할 수 있는 직원(이름 · 사번)을 추가하거나 뺍니다.</span></div>
+      </button>
     </div>
-    <p class="note">로그인은 이 브라우저에서 누가 쓰는지 표시하는 용도입니다. 공유 기록은 지금처럼 팀 비밀번호로 보호됩니다.</p>
+    <p class="note" id="menuNote">로그인한 이름은 예약 기록 · 영업 담당 · 견적서 담당에 들어갑니다. 공유 기록은 지금처럼 팀 비밀번호로 보호됩니다.</p>
+  </section>
+
+  <!-- 3) 멤버관리 -->
+  <section id="memberView" class="panel" hidden>
+    <div class="mhead"><button type="button" class="back" id="memberBack">← 메뉴</button><h2>멤버관리</h2><span class="hint" id="memberHint"></span></div>
+    <div id="memberKey" class="keybox" hidden>
+      <p>멤버 목록을 보려면 팀 비밀번호가 필요합니다 (단체 화면과 같은 비밀번호, 이 브라우저에 기억).</p>
+      <form id="memberKeyForm" class="inline"><input id="memberKeyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn-sm primary" type="submit">연결</button></form>
+      <p class="err" id="memberKeyErr"></p>
+    </div>
+    <div id="memberBody" hidden>
+      <form id="memberAdd" class="inline add" autocomplete="off">
+        <input id="mName" lang="ko" placeholder="이름" maxlength="20"><input id="mEmp" inputmode="numeric" placeholder="사번" maxlength="20">
+        <button class="btn-sm primary" type="submit">추가</button>
+      </form>
+      <details class="bulk"><summary>여러 명 한꺼번에 추가</summary>
+        <p class="hint">한 줄에 한 명씩 "이름 사번" (띄어쓰기 · 탭 · 쉼표 어느 것이든). 이미 있는 사번은 건너뜁니다.</p>
+        <textarea id="mBulk" lang="ko" placeholder="홍길동 240001&#10;김사유 250002"></textarea>
+        <button class="btn-sm primary" type="button" id="mBulkBtn">모두 추가</button>
+      </details>
+      <p class="err" id="memberErr"></p>
+      <table class="mtable"><thead><tr><th>이름</th><th>사번</th><th>추가</th><th></th></tr></thead><tbody id="memberList"></tbody></table>
+    </div>
   </section>
 </main>
 
@@ -105,38 +155,106 @@ const QUOTE = ONLINE ? 'https://hyunbin5786.github.io/sayuwon-invoice-quotation/
 const getUser = () => { try{ const u=JSON.parse(localStorage.getItem(USER_KEY)||'null'); return u && u.name && u.emp ? u : null; }catch(_){ return null; } };
 const setLS = (k,v) => { try{ v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(_){} };
 
+let view = location.hash==='#members' ? 'members' : 'menu';
 function paint(){
   const u=getUser();
-  $('#loginForm').hidden = !!u; $('#menuView').hidden = !u; $('#who').hidden = !u;
+  $('#loginForm').hidden = !!u; $('#who').hidden = !u;
+  $('#menuView').hidden = !u || view!=='menu'; $('#memberView').hidden = !u || view!=='members';
   if(u){
     $('#whoName').textContent = `${u.name} · 사번 ${u.emp}`;
     $('#hello').innerHTML = `${esc(u.name)}님, 무엇을 할까요?<small>메뉴를 고르세요. 각 화면 위쪽 「☰ 메뉴」로 이 화면에 돌아옵니다.</small>`;
     $('#quoteLink').href = QUOTE;
+    $('#setupBar').hidden = !u.setup;
+    $('#setupBar').textContent = u.setup==='empty' ? '아직 등록된 멤버가 없어 누구나 로그인할 수 있습니다. 5번 멤버관리에서 직원(본인 포함)을 추가하면 그때부터 이름 · 사번을 확인합니다.'
+      : u.setup==='old' ? '공유 저장소(Apps Script)가 아직 예전 버전이라 이름 · 사번을 확인하지 못했습니다. 새 버전으로 배포하면 확인합니다.' : '';
     if(location.hash==='#catalog') openCatalog();
+    if(view==='members') loadMembers();
   } else setTimeout(()=>$('#inName').focus(), 0);
 }
 const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-$('#loginForm').addEventListener('submit', e=>{
+// ===================== 공유 저장소 (단체 화면과 같은 Apps Script) =====================
+const SHARED_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";
+const KEY_LS = 'sayuwon_intake_key';   // 팀 비밀번호 (단체 화면 · 개인고객 화면과 같이 씀)
+const getKey = () => { try{ return localStorage.getItem(KEY_LS)||''; }catch(_){ return ''; } };
+async function callApi(body){
+  const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})});   // Content-Type 없이 (Apps Script 사전 확인 요청 없이)
+  return r.json();
+}
+
+// ===================== 로그인: 멤버 목록(이름 + 사번)과 맞아야 =====================
+$('#loginForm').addEventListener('submit', async e=>{
   e.preventDefault();
-  const name=$('#inName').value.trim(), emp=$('#inEmp').value.trim();
-  if(!name || !emp){ $('#loginErr').textContent='이름과 사번을 모두 넣어 주세요.'; return; }
-  if(!/^[0-9A-Za-z-]{2,20}$/.test(emp)){ $('#loginErr').textContent='사번은 숫자 · 영문으로 넣어 주세요.'; return; }
-  setLS(USER_KEY, JSON.stringify({name, emp, at:new Date().toISOString()}));
+  const name=$('#inName').value.trim(), emp=$('#inEmp').value.trim(), err=$('#loginErr'), btn=e.submitter||$('#loginForm button');
+  if(!name || !emp){ err.textContent='이름과 사번을 모두 넣어 주세요.'; return; }
+  if(!/^[0-9A-Za-z-]{2,20}$/.test(emp)){ err.textContent='사번은 숫자 · 영문으로 넣어 주세요.'; return; }
+  err.textContent='확인하는 중…'; btn.disabled=true;
+  let j=null; try{ j=await callApi({action:'login', name, emp}); }catch(_){ j=null; }
+  btn.disabled=false;
+  if(!j){ err.textContent='확인하지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요.'; return; }
+  let setup='';
+  if(j.ok && j.member) setup = j.empty ? 'empty' : '';
+  else if(j.ok){ err.textContent='이름과 사번이 맞지 않습니다. 다시 확인해 주세요.'; $('#inEmp').select(); return; }
+  else if(j.error==='bad_key' || j.error==='bad_action') setup='old';   // Apps Script 가 아직 예전 버전 (로그인 확인 기능 없음) → 막지 않음
+  else { err.textContent='확인하지 못했습니다: '+(j.error||''); return; }
+  setLS(USER_KEY, JSON.stringify({name, emp, at:new Date().toISOString(), setup}));
   setLS('sayuwon_owner', name);   // 단체 화면의 영업 담당
   setLS('sy_sender', name);       // 견적서 담당
-  $('#loginErr').textContent=''; paint();
+  err.textContent=''; view='menu'; paint();
 });
 $('#logoutBtn').onclick=()=>{
   if(!confirm('로그아웃할까요? 다음 사람이 이름과 사번으로 다시 로그인합니다.')) return;
   [USER_KEY,'sayuwon_owner','sy_sender'].forEach(k=>setLS(k,null));
-  $('#inName').value=''; $('#inEmp').value=''; paint();
+  $('#inName').value=''; $('#inEmp').value=''; view='menu'; history.replaceState(null,'',location.pathname); paint();
 };
 // 메뉴
 document.addEventListener('click', e=>{
   const c=e.target.closest('[data-go]'); if(!c) return;
   if(c.dataset.go==='catalog'){ e.preventDefault(); openCatalog(); }
+  if(c.dataset.go==='members'){ e.preventDefault(); view='members'; history.replaceState(null,'','#members'); paint(); }
 });
+$('#memberBack').onclick=()=>{ view='menu'; history.replaceState(null,'',location.pathname); paint(); };
+
+// ===================== 멤버관리 (팀 비밀번호 필요) =====================
+let members=[];
+function paintMembers(){
+  const u=getUser()||{};
+  $('#memberHint').textContent = members.length ? `${members.length}명` : '';
+  $('#memberList').innerHTML = members.map(m=>`<tr class="${m.emp===u.emp?'me':''}"><td>${esc(m.name)}</td><td>${esc(m.emp)}</td><td class="hint">${esc(m.added||'')}${m.by?` · ${esc(m.by)}`:''}</td><td class="r"><button type="button" class="btn-sm del" data-mdel="${esc(m.emp)}" data-mname="${esc(m.name)}">빼기</button></td></tr>`).join('')
+    || '<tr><td colspan="4" class="hint">아직 멤버가 없습니다. 위에서 추가하면 그때부터 로그인할 때 이름 · 사번을 확인합니다.</td></tr>';
+}
+async function memberCall(body){
+  $('#memberErr').textContent='';
+  let j=null; try{ j=await callApi(body); }catch(_){}
+  if(!j){ $('#memberErr').textContent='연결하지 못했습니다. 잠시 뒤 다시 해 주세요.'; return null; }
+  if(j.error==='bad_key'){ $('#memberBody').hidden=true; $('#memberKey').hidden=false; $('#memberKeyErr').textContent = getKey() ? '비밀번호가 맞지 않습니다.' : ''; setTimeout(()=>$('#memberKeyIn').focus(),0); return null; }
+  if(j.error==='bad_action' || (j.ok && !j.members)){ $('#memberErr').textContent='공유 저장소(Apps Script)를 새 버전으로 배포해야 멤버관리를 쓸 수 있습니다.'; $('#memberBody').hidden=false; $('#memberKey').hidden=true; return null; }
+  if(!j.ok){ $('#memberErr').textContent='실패했습니다: '+(j.error||''); return null; }
+  $('#memberKey').hidden=true; $('#memberBody').hidden=false;
+  members=j.members||[]; paintMembers(); return j;
+}
+const loadMembers = () => { if(!getKey()){ $('#memberKey').hidden=false; $('#memberBody').hidden=true; return; } memberCall({action:'members'}); };
+$('#memberKeyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#memberKeyIn').value.trim(); if(!v) return; setLS(KEY_LS, v); $('#memberKeyIn').value=''; loadMembers(); });
+// "이름 사번" 줄들 → [{name, emp}]
+const parseLines = t => String(t||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{ const m=l.match(/^(.+?)[\s,\t]+([0-9A-Za-z-]{2,20})$/); return m ? {name:m[1].replace(/[,\t]/g,'').trim(), emp:m[2]} : {bad:l}; });
+async function addList(list){
+  const bad=list.filter(x=>x.bad), ok=list.filter(x=>!x.bad);
+  if(!ok.length){ $('#memberErr').textContent = bad.length ? `읽지 못한 줄: ${bad.map(b=>b.bad).join(' / ')}` : '이름과 사번을 넣어 주세요.'; return false; }
+  const before=members.length, j=await memberCall({action:'memberAdd', list:ok, by:(getUser()||{}).name||''}); if(!j) return false;
+  const skipped=ok.length-j.added;
+  $('#memberErr').textContent = [`${j.added}명 추가했습니다.`, skipped?`${skipped}명은 이미 있는 사번이라 건너뜀`:'', bad.length?`읽지 못한 줄: ${bad.map(b=>b.bad).join(' / ')}`:''].filter(Boolean).join(' · ');
+  $('#memberErr').style.color = 'var(--pine)'; setTimeout(()=>$('#memberErr').style.color='', 4000);
+  if(before===0 && j.added){ const u=getUser(); if(u && u.setup==='empty'){ u.setup=''; setLS(USER_KEY, JSON.stringify(u)); $('#setupBar').hidden=true; } }
+  return true;
+}
+$('#memberAdd').addEventListener('submit', async e=>{ e.preventDefault(); const name=$('#mName').value.trim(), emp=$('#mEmp').value.trim();
+  if(!name || !/^[0-9A-Za-z-]{2,20}$/.test(emp)){ $('#memberErr').textContent='이름과 사번(숫자 · 영문)을 넣어 주세요.'; return; }
+  if(await addList([{name, emp}])){ $('#mName').value=''; $('#mEmp').value=''; $('#mName').focus(); } });
+$('#mBulkBtn').onclick=async()=>{ if(await addList(parseLines($('#mBulk').value))) $('#mBulk').value=''; };
+document.addEventListener('click', async e=>{ const b=e.target.closest('[data-mdel]'); if(!b) return;
+  const u=getUser()||{}, self=b.dataset.mdel===u.emp;
+  if(!confirm(`${b.dataset.mname}(${b.dataset.mdel}) 님을 멤버에서 뺄까요?${self?'\n본인입니다. 빼면 다음 로그인부터 들어올 수 없습니다.':''}`)) return;
+  memberCall({action:'memberDel', emp:b.dataset.mdel, by:u.name||''}); });
 // 품목관리: 견적서 사이트 ?catalog=1 을 이 화면 위에 띄우고, 닫기를 누르면(저장이 끝난 뒤) 메뉴로
 function openCatalog(){ $('#catFrame').src = QUOTE + (QUOTE.includes('?')?'&':'?') + 'catalog=1&t=' + Date.now(); $('#catWrap').hidden=false; if(location.hash!=='#catalog') history.replaceState(null,'','#catalog'); }
 function closeCatalog(){ $('#catWrap').hidden=true; $('#catFrame').src='about:blank'; history.replaceState(null,'',location.pathname); }
@@ -145,6 +263,11 @@ const askClose = () => $('#catFrame').contentWindow?.postMessage({type:'sy-catal
 $('#catWrap').addEventListener('click', e=>{ if(e.target.id==='catWrap') askClose(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#catWrap').hidden){ e.preventDefault(); askClose(); } });
 paint();
+// 이미 로그인한 브라우저도 첫 화면을 열 때 다시 확인: 멤버에서 빠졌거나 이름 · 사번이 다르면 로그아웃
+(async()=>{ const u=getUser(); if(!u) return; let j=null; try{ j=await callApi({action:'login', name:u.name, emp:u.emp}); }catch(_){ return; }
+  if(!j || !j.ok) return;   // 연결 안 됨 · 예전 버전이면 그대로 둠
+  if(!j.member){ [USER_KEY,'sayuwon_owner','sy_sender'].forEach(k=>setLS(k,null)); view='menu'; paint(); $('#loginErr').textContent='등록된 멤버가 아니어서 로그아웃했습니다. 이름과 사번을 다시 확인해 주세요.'; return; }
+  const setup = j.empty ? 'empty' : ''; if((u.setup||'')!==setup){ u.setup=setup; setLS(USER_KEY, JSON.stringify(u)); paint(); } })();
 </script>
 </body>
 </html>
