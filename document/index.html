@@ -195,6 +195,8 @@ header.top{display:flex; align-items:flex-end; justify-content:space-between; ga
 .warn{font-size:12px; color:var(--danger); margin-top:6px}
 .modal{position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; padding:16px}
 .modalbox{background:var(--surface); color:var(--ink); border-radius:12px; width:min(1100px,100%); max-height:calc(100vh - 32px); display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.syscat-box{width:min(1200px,100%); height:calc(100vh - 48px); background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.syscat-box iframe{width:100%; height:100%; border:0; display:block}
 .modalhead{display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:14px 16px; border-bottom:1px solid var(--line)}
 .modalhead h2{margin:0; font-size:16px; flex:1; min-width:140px}
 .modalhead input{padding:7px 10px; border:1px solid var(--line-strong); border-radius:6px; background:var(--surface); min-width:180px}
@@ -612,6 +614,8 @@ html.cat-only #catalog-modal .modalbox{width:100%; max-height:100vh; height:100v
   </div>
 </div>
 
+<!-- 시스템 품목관리 팝업 (단체 화면과 같은 크기 1200px) -->
+<div class="modal" id="syscat-modal" hidden><div class="syscat-box"><iframe id="syscat-frame" title="품목관리"></iframe></div></div>
 <div class="modal" id="catalog-modal" hidden>
   <div class="modalbox" role="dialog" aria-modal="true" aria-labelledby="cat-title">
     <div class="modalhead">
@@ -2664,6 +2668,7 @@ html.cat-only #catalog-modal .modalbox{width:100%; max-height:100vh; height:100v
   document.getElementById("cat-save").addEventListener("click", flushOps);
   window.addEventListener("beforeunload", function(e){ if(catDirty()){ e.preventDefault(); e.returnValue = ""; } });
   document.getElementById("open-catalog").addEventListener("click", function(){
+    if(!CAT_ONLY){ openSysCatalog(); return; }   // 이 화면의 품목 관리 = 시스템의 #catalog 를 팝업으로 (단체 화면과 같은 크기)
     document.getElementById("cat-search").value = "";
     picked = {}; renderCatalog(); elCat.hidden = false;
     paintUpload(); setSync(catDirty() ? "dirty" : ""); pullShared();   // 열 때마다 최신 공유 목록으로 (저장 안 한 변경이 있으면 그대로)
@@ -2677,6 +2682,18 @@ html.cat-only #catalog-modal .modalbox{width:100%; max-height:100vh; height:100v
       if(e.data && e.data.type === "sy-catalog" && e.data.ev === "close-request") closeCatalog();
     });
   }
+  // 시스템 품목관리 팝업 (../#catalog → 품목 관리 창). 닫히면(저장이 끝난 뒤) 공유 품목 목록을 다시 받아 단가 · 품명에 반영
+  var elSys = document.getElementById("syscat-modal"), sysFrame = document.getElementById("syscat-frame");
+  function openSysCatalog(){ sysFrame.src = "../?t=" + Date.now() + "#catalog"; elSys.hidden = false; }
+  function closeSysCatalog(){ elSys.hidden = true; sysFrame.src = "about:blank"; pullShared(); }
+  function askSysClose(){ try { sysFrame.contentWindow.postMessage({ type:"sy-catalog", ev:"close-request" }, "*"); } catch(e){ closeSysCatalog(); } }
+  window.addEventListener("message", function(e){
+    if(!e.data || e.data.type !== "sy-catalog" || e.source !== sysFrame.contentWindow) return;
+    if(e.data.ev === "close") closeSysCatalog();
+    if(e.data.ev === "saved") pullShared();
+  });
+  elSys.addEventListener("click", function(e){ if(e.target === elSys) askSysClose(); });
+  document.addEventListener("keydown", function(e){ if(e.key === "Escape" && !elSys.hidden){ e.preventDefault(); askSysClose(); } });
   elCat.addEventListener("click", function(e){ if(e.target === elCat) closeCatalog(); });
   document.addEventListener("keydown", function(e){ if(e.key === "Escape" && !elCat.hidden) closeCatalog(); });
 

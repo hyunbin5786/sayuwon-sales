@@ -2407,8 +2407,8 @@ async function loadQuotePrices(){
   paintFields(); renderPrice(); if(window.__tasksReady) renderTasks();   // 몽몽마방 메뉴 · 가격도 새로
 }
 // 품목 관리: 견적서 사이트를 ?catalog=1 로 띄우면 품목 관리 창만 나옴. 저장 · 닫기를 알려 주면 가격 · 메뉴를 다시 불러옴
-const QUOTE_CAT_URL = QUOTE_PAGE + '?catalog=1';
-function openCatalog(){ $('#catFrame').src = QUOTE_CAT_URL + '&t=' + Date.now(); $('#catModal').hidden = false; }
+const QUOTE_CAT_URL = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/#catalog' : './#catalog';   // 품목관리 = 시스템의 #catalog (팝업 안에서는 품목 관리 창으로 바뀜)
+function openCatalog(){ const [u,h]=QUOTE_CAT_URL.split('#'); $('#catFrame').src = u + '?t=' + Date.now() + '#' + h; $('#catModal').hidden = false; }
 function closeCatalogModal(){ $('#catModal').hidden = true; $('#catFrame').src = 'about:blank'; loadQuotePrices(); }
 document.addEventListener('click', e=>{ if(e.target.closest('[data-open-cat]')){ e.preventDefault(); openCatalog(); } });
 window.addEventListener('message', e=>{
