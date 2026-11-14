@@ -562,3 +562,9 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 .it-amt .dopen{margin-left:8px;border:1px dashed var(--line);background:#fff;border-radius:12px;padding:1px 9px;font:11.5px var(--sans);color:var(--muted);cursor:pointer}   /* 할인 대상이 아닌 품목: 할인 넣기 */
 .it-amt .dopen:hover{border-color:var(--pine);color:var(--pine)}
 .it-money .im.dsel.off{display:none}   /* 할인 대상이 아닌 품목: % 버튼 없이 할인액 칸만 */
+#histDet > summary{list-style:none;cursor:pointer}   /* 수정 기록: 접어 두고 눌러서 펼침 */
+#histDet > summary::-webkit-details-marker{display:none}
+#histDet > summary h2{margin:0}
+#histDet > summary h2::before{content:"▸";color:var(--muted);font-size:12px;margin-right:2px}
+#histDet[open] > summary h2::before{content:"▾"}
+#histDet[open] > summary h2{margin-bottom:10px}

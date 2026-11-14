@@ -408,9 +408,21 @@ document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [d
   setItemDisc(b.dataset.idisc, b.dataset.dv, b.dataset.da); startTimer(); renderSide(); });   // 할인 버튼
 let openDisc=new Set();   // 할인 대상이 아닌 품목에서 「할인 넣기」를 눌러 연 할인 줄
 document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('#itemsBox [data-dopen]'); if(!b) return; openDisc.add(b.dataset.dopen); paintItemPrices(); const i=document.querySelector(`#itemsBox [data-idamt="${CSS.escape(b.dataset.dopen)}"]`); if(i){ i.focus(); i.select(); } });
+// 할인액 칸 (예약 칸 계산 · 전산 내역 공통)
+const damIn = (k, side, v, max) => `<label class="dam"><i>${side==='tx'?'과세(신라)':'비과세(사유원)'}</i>-<input data-idamt="${esc(k)}" data-side="${side}" inputmode="numeric" data-ime="num" value="${won(v)}" title="할인액 (최대 ${won(max)}원)">원</label>`;
+// 전산 내역 줄 금액: 전산 상품금액 · 할인을 과세(신라) · 비과세(사유원)로 (자동 = 전산 사유원/신라 나누기와 같은 계산), 할인액을 고쳤으면 그 값
+function erpRowMoney(k, x){
+  const src=itemSrc(k), p=src ? priceOf(src) : null, u = p ? splitOf(src, p, rec) : {tx:1, tf:0}, rt=(u.tx+u.tf) ? u.tf/(u.tx+u.tf) : 0;
+  const fTf=Math.round(x.base*rt), fTx=x.base-fTf;
+  const lines=erpList.filter(y=>erpKeyOf(y.product)===k), autoSaw=lines.reduce((s,y)=>s+erpSplit(y).saw,0);
+  const aTf=Math.max(0, Math.min(x.disc, fTf-autoSaw)), aTx=x.disc-aTf;
+  const ov=idamtMap(rec)[dkey(k)], dTx = ov ? Math.min(ov.tx, fTx) : aTx, dTf = ov ? Math.min(ov.tf, fTf) : aTf;
+  return { fTx, fTf, aTx, aTf, dTx, dTf, ov:!!ov, tx:fTx-dTx, tf:fTf-dTf, amount:x.base-dTx-dTf };
+}
+function rowMoneyOf(k){ if(erpList.length){ const E=erpByKey(); return E.m[k] ? erpRowMoney(k, E.m[k]) : null; } const x=priceInfo && priceInfo[normSrc(itemSrc(k))]; return x && x.m; }
 // 할인액 칸: 고치면 그 줄만 직접 고친 할인액으로 (할인 버튼 계산과 같으면 다시 자동), ↺ = 자동으로
 document.addEventListener('change', e=>{ const el=e.target.closest?.('#itemsBox [data-idamt]'); if(!el) return;
-  const k=el.dataset.idamt, x=priceInfo && priceInfo[normSrc(itemSrc(k))], m=x && x.m; if(!m) return;
+  const k=el.dataset.idamt, m=rowMoneyOf(k); if(!m) return;
   const get = side => { const i=document.querySelector(`#itemsBox [data-idamt="${CSS.escape(k)}"][data-side="${side}"]`); return i ? Math.max(0, parseInt(String(i.value).replace(/\D/g,''))||0) : (side==='tx'?m.dTx:m.dTf); };
   const tx=Math.min(get('tx'), m.fTx), tf=Math.min(get('tf'), m.fTf);
   setItemDamt(k, tx===m.aTx && tf===m.aTf ? null : {tx, tf}); startTimer(); renderSide(); });
@@ -426,13 +438,13 @@ function paintItemPrices(){
     let h='', amt='';
     // 가격 칸: 할인까지 빼고 실제로 결제하는 금액을 과세(신라) · 비과세(사유원)로 (전산 내역 모드 · 금액을 모르면 1인 가격)
     // 전산 내역이 있으면 전산 금액 · 할인을 그 품목의 과세 · 비과세 비율로 나눔
-    const ex = E && E.m[k] ? (()=>{ const x=E.m[k], p=src ? priceOf(src) : null, u = p ? splitOf(src, p, rec) : {tx:1, tf:0}, rt = (u.tx+u.tf) ? u.tf/(u.tx+u.tf) : 0, aTf=Math.round(x.amount*rt), dTf=Math.round(x.disc*rt);
-      return { fTx:Math.round(x.base*(1-rt)), fTf:Math.round(x.base*rt), tx:x.amount-aTf, tf:aTf, dTx:x.disc-dTf, dTf }; })() : null;
+    const ex = E && E.m[k] ? erpRowMoney(k, E.m[k]) : null;
     const pm = ex || (!E && priceInfo && src ? (priceInfo[normSrc(src)]||{}).m : null);
     if(up) up.innerHTML = !quoteCat && !ex ? '' : pm && !seen.has(src) ? [pm.fTx>0 && `<span title="정상가 ${won(pm.fTx)}원 − 할인 ${won(pm.dTx)}원"><i>과세(신라)</i>${won(pm.tx)}원</span>`, pm.fTf>0 && `<span title="정상가 ${won(pm.fTf)}원 − 할인 ${won(pm.dTf)}원"><i>비과세(사유원)</i>${won(pm.tf)}원</span>`].filter(Boolean).join('') : upHTML(src);
     if(E){ const x=E.m[k];
       if(!x) h = k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', '<b class="bad">전산 내역에 없음</b>', 'warn');
-      else if(x.disc) h = `<span class="im"><i>할인</i>${[ex.dTx>0 && `과세(신라) -${won(ex.dTx)}원`, ex.dTf>0 && `비과세(사유원) -${won(ex.dTf)}원`].filter(Boolean).join(' · ')}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}</span>`; }   // 전산 내역 줄: 할인만 (인원 · 상품금액 · 금액은 없앰, 결제 금액은 위 금액 칸)
+      else if(x.disc || ex.ov || openDisc.has(k)) h = `<span class="im dams"><i>할인</i>${ex.fTx>0?damIn(k,'tx', ex.dTx, ex.fTx):''}${ex.fTf>0?damIn(k,'tf', ex.dTf, ex.fTf):''}${ex.ov?`<small class="dman">직접 고침</small><button type="button" class="dreset" data-idamtreset="${esc(k)}" title="전산 할인으로 되돌리기">↺</button>`:''}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}</span>`;   // 전산 내역 줄: 할인만 (과세 · 비과세 할인액은 고칠 수 있음)
+      else amt = `<button type="button" class="dopen" data-dopen="${esc(k)}" title="이 품목에 할인 넣기 (과세 · 비과세 할인액)">할인 넣기</button>`; }
     else if(!priceInfo) h='';
     else { const x=src ? priceInfo[normSrc(src)] : null;
       if(k==='view' && !x) h=cell('관람권', numOf(rec.people)?'0명 (모두 관람 포함 품목으로 계산)':'인원 입력');
@@ -1336,7 +1348,7 @@ function stateAt(i){
   return s;
 }
 function renderHist(){
-  $('#histWrap').hidden = !hist.length;
+  $('#histWrap').hidden = !hist.length; $('#histCount').textContent = hist.length ? hist.length+'건' : '';
   const n=hist.length;
   $('#histBox').innerHTML = hist.map((h,i)=>({h,i})).reverse().map(({h,i})=>`<li><time>${esc(fmtTime_(h.t))}</time><b>${esc(h.by||'담당 미입력')}</b>${esc(h.what)}`
     + (h.o && h.s===SID ? ' <span class="hist-open">자동 저장 중 · 저장 버튼을 누르면 확정</span>' : '')
@@ -1840,7 +1852,8 @@ $('#adminSyncBtn').onclick=async()=>{
 // ===================== 새 통화·단축키 =====================
 function newCall(withToast=true){
   resetState(); clearInterval(timerInt); tick(); $('#memoBox').value=''; status('');
-  hist=[]; baseSnap=null; tasks=[]; erpList=[]; tbdAuto=false; memos=[]; lockOwner=''; renderHist(); if(typeof paintLock==='function') paintLock();
+  hist=[]; baseSnap=null; tasks=[]; erpList=[]; tbdAuto=false; memos=[]; lockOwner=''; { const hd=document.getElementById('histDet'); if(hd) hd.open=false; }   // 수정 기록은 예약을 열 때마다 접어 둠
+  renderHist(); if(typeof paintLock==='function') paintLock();
   renderContacts(); renderForm(); resetWarn(false); emptySnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty();
   if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
 }
@@ -2101,7 +2114,14 @@ function erpSplit(x){
 const erpUnit = x => goodsItems().some(g=>normSrc(g.src)===normSrc(x.product)) ? '개' : '명';   // 굿즈는 개
 function erpTotals(list=erpList){
   let tot=0, saw=0, shilla=0; list.forEach(x=>{ const s=erpSplit(x); tot+=x.amount; saw+=s.saw; shilla+=s.shilla; });
-  const pi=(list[0]||{}).payInfo; if(pi && pi.free!=null && pi.taxable!=null){ saw=pi.free; shilla=pi.taxable; }
+  const pi=(list[0]||{}).payInfo;
+  // 예약 내역 줄에서 할인액을 직접 고친 상품이 있으면: 그 줄은 고친 금액으로 다시 더함 (전산 결제 정보보다 우선)
+  const ov=idamtMap(rec), E = list===erpList && Object.keys(ov).length ? erpByKey() : null, keys = E ? Object.keys(E.m).filter(k=>ov[dkey(k)]) : [];
+  if(keys.length){ tot=0; saw=0; shilla=0;
+    list.forEach(x=>{ const k=erpKeyOf(x.product); if(k && keys.includes(k)) return; const s=erpSplit(x); tot+=x.amount; saw+=s.saw; shilla+=s.shilla; });
+    keys.forEach(k=>{ const m=erpRowMoney(k, E.m[k]); tot+=m.amount; saw+=m.tf; shilla+=m.tx; });
+    return {tot, saw, shilla, pi:null}; }
+  if(pi && pi.free!=null && pi.taxable!=null){ saw=pi.free; shilla=pi.taxable; }
   return {tot, saw, shilla, pi};
 }
 function renderErp(){
@@ -2733,7 +2753,7 @@ document.addEventListener('click', async e=>{
   if(e.target.id==='omSeen'){ const me=savedOwner(), now=new Date().toISOString(); await saveMemos(editingId, ms=>ms.map(m=>m.by!==me && !m.seen ? {...m, seen:true, seenAt:now} : m)); paintLock(); paintMemoCount(); }
 });
 // 잠긴 예약: 화면의 칸 · 버튼을 누르거나 쳐도 아무 일이 없게 (위쪽 메모 · 예약 현황 목록 · 텍스트 복사는 됨)
-const lockBlocked = t => !!lockOwner && t && t.closest && t.closest('.layout') && !t.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn');
+const lockBlocked = t => !!lockOwner && t && t.closest && t.closest('.layout') && !t.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn, #histDet > summary');
 let lockNudgeT=0;
 ['mousedown','click','dblclick','beforeinput','paste','drop','dragstart','change','input'].forEach(ev=>document.addEventListener(ev, e=>{
   if(!lockBlocked(e.target)) return; e.preventDefault(); e.stopImmediatePropagation();
