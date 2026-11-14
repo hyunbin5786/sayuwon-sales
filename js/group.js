@@ -406,6 +406,8 @@ function pkgSplit(src){
 }
 document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-idisc]'); if(!b) return;
   setItemDisc(b.dataset.idisc, b.dataset.dv, b.dataset.da); startTimer(); renderSide(); });   // 할인 버튼
+let openDisc=new Set();   // 할인 대상이 아닌 품목에서 「할인 넣기」를 눌러 연 할인 줄
+document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('#itemsBox [data-dopen]'); if(!b) return; openDisc.add(b.dataset.dopen); paintItemPrices(); const i=document.querySelector(`#itemsBox [data-idamt="${CSS.escape(b.dataset.dopen)}"]`); if(i){ i.focus(); i.select(); } });
 // 할인액 칸: 고치면 그 줄만 직접 고친 할인액으로 (할인 버튼 계산과 같으면 다시 자동), ↺ = 자동으로
 document.addEventListener('change', e=>{ const el=e.target.closest?.('#itemsBox [data-idamt]'); if(!el) return;
   const k=el.dataset.idamt, x=priceInfo && priceInfo[normSrc(itemSrc(k))], m=x && x.m; if(!m) return;
@@ -438,13 +440,14 @@ function paintItemPrices(){
       else if(seen.has(src)) amt=cell('금액', '위 줄과 합산');   // 같은 견적서 품목(예: 대관)은 한 줄로 계산
       else { seen.add(src); const m=x.m;
         const money = cell('금액', `<b>${m?won(m.amount):'가격 없음'}</b>`, 'amt');
-        const discRow = m && x.b && (x.b.disc || x.b.dsel!=='none' || m.ov);   // 할인 대상 품목(또는 직접 할인을 넣은 줄)만 할인 줄
+        const eligible = x.b && (x.b.disc || x.b.dsel!=='none');   // 할인 대상 품목 (할인 버튼)
+        const discRow = m && x.b && (eligible || m.ov || openDisc.has(k));   // 할인 대상이 아니어도 「할인 넣기」를 눌렀거나 할인액을 넣은 줄은 할인 줄
         // 할인액: 과세(신라) · 비과세(사유원) 따로, 칸에서 바로 고칠 수 있음 (고치면 「직접 고침」, ↺ = 할인 버튼 계산으로 되돌리기)
         const dIn = (side, v, max) => `<label class="dam"><i>${side==='tx'?'과세(신라)':'비과세(사유원)'}</i>-<input data-idamt="${esc(k)}" data-side="${side}" inputmode="numeric" data-ime="num" value="${won(v)}" title="할인액 (최대 ${won(max)}원)">원</label>`;
-        if(discRow) h = `<span class="im dsel" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}</button>`).join('')}${x.b.dsel!==x.b.dauto?'<small class="dman">직접 바꿈</small>':''}</span>`
+        if(discRow) h = `<span class="im dsel${eligible?'':' off'}" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}</button>`).join('')}${x.b.dsel!==x.b.dauto?'<small class="dman">직접 바꿈</small>':''}</span>`
             + `<span class="im dams"><i>할인</i>${m.fTx>0?dIn('tx', m.dTx, m.fTx):''}${m.fTf>0?dIn('tf', m.dTf, m.fTf):''}${m.ov?`<small class="dman">직접 고침</small><button type="button" class="dreset" data-idamtreset="${esc(k)}" title="할인 버튼(%)으로 계산한 할인액으로 되돌리기">↺</button>`:(m.disc?` <small>${esc(m.disc)}</small>`:'')}</span>`
             + money;
-        else amt = money; } }
+        else amt = money + (m && x.b ? `<button type="button" class="dopen" data-dopen="${esc(k)}" title="이 품목에 할인 넣기 (과세 · 비과세 할인액)">할인 넣기</button>` : ''); } }
     el.innerHTML=h; if(am) am.innerHTML=amt; });
   // 전산에만 있는 상품 (예약 내역 줄로 못 옮긴 것)
   if(E) erpList.forEach(x=>{ const k=erpKeyOf(x.product); if(k && !itemRows.includes(k) && !E.other.includes(x)) E.other.push(x); });   // 품목은 알지만 예약 내역에 줄이 없는 것도
