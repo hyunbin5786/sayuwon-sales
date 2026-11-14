@@ -54,6 +54,10 @@ main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;
 .editing[hidden]{display:none}
 .group-tip{background:var(--pine-soft);border-radius:7px;padding:8px 10px;font-size:12.5px;margin-top:8px}
 .group-tip[hidden]{display:none}
+/* 문의 매뉴얼 (노션) */
+.manual{position:sticky;top:64px;display:flex;flex-direction:column;height:calc(100vh - 80px);min-height:420px}
+.manual iframe{flex:1;width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;min-height:0}
+@media (max-width:900px){.manual{position:static;height:70vh}}
 /* 추후 과업 (통화마다) */
 .tadd{display:flex;gap:6px;flex-wrap:wrap}
 .tadd #taskIn{flex:1 1 220px;height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:14px var(--sans)}
@@ -132,25 +136,16 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
         <button class="btn danger" type="button" id="delBtn" hidden>삭제</button>
         <span class="state" id="state"></span>
       </div>
-      <p class="hint" style="margin-top:10px">저장하면 팀 공유 기록(구글 시트)에 '개인고객'으로 남고, 오른쪽 목록에서 누구나 다시 열 수 있습니다.</p>
+      <p class="hint" style="margin-top:10px">저장하면 팀 공유 기록(구글 시트)에 '개인고객'으로 남습니다.</p>
     </form>
   </div>
 
-  <!-- 오른쪽: 다시 연락 · 최근 통화 · 안내 -->
+  <!-- 오른쪽: 문의 매뉴얼 (노션). 노션에서 「웹에 게시」를 켜야 이 안에 보임 (안 켜면 노션이 다른 사이트 안에 띄우는 것을 막음) -->
   <div class="col">
-    <section class="panel">
-      <h2>추후 과업 <small id="cbCount"></small></h2>
-      <ul class="list" id="cbList"></ul>
-    </section>
-    <section class="panel">
-      <h2>최근 개인고객 통화 <small id="listCount"></small></h2>
-      <input class="search" id="search" type="search" lang="ko" placeholder="검색: 이름 · 연락처 · 문의 내용 · 받은 사람">
-      <ul class="list" id="recentList"></ul>
-    </section>
-    <section class="panel">
-      <h2>안내용 가격 · 현황 <small id="priceDay"></small></h2>
-      <div id="seatBox"></div>
-      <div id="priceBox"><p class="empty">가격을 불러오는 중입니다.</p></div>
+    <section class="panel manual">
+      <h2>문의 매뉴얼 <a class="btn" id="manualOpen" target="_blank" rel="noopener" style="margin-left:auto;padding:4px 12px;font-size:12.5px">노션에서 열기 ↗</a></h2>
+      <iframe id="manualFrame" title="문의 매뉴얼" loading="lazy"></iframe>
+      <p class="hint" style="margin-top:6px">안에 안 보이면 노션 페이지에서 「공유 → 웹에 게시」를 켜 주세요. 그 전에는 「노션에서 열기」로 새 창에서 보세요.</p>
     </section>
   </div>
 </main>
@@ -293,7 +288,7 @@ function rowHTML(r){
     + `<div class="r">${esc(dtLabel(r.saved))}<br>${esc(r.takenBy||'')}</div>`
     + `<div class="txt">${open?`<span class="tag cb">추후 과업 ${open}</span>`:''}${esc(f.note.split(/\n/)[0]||'')}</div></li>`;
 }
-function renderLists(){
+function renderLists(){ if(!$('#cbList')) return;   // 오른쪽 목록은 없앰 (2026-11-14) · 문의 매뉴얼로
   const all=shown().sort((a,b)=>String(b.saved).localeCompare(String(a.saved))), today=todayYmd();
   // 추후 과업: 안 끝난 과업을 마감일 순으로 (지난 것 빨강 · 오늘 노랑), 체크하면 그 통화 기록에 완료로 저장
   const open=[]; all.forEach(r=>tasksOfItem(r).forEach(t=>{ if(!t.done) open.push({r, t}); }));
@@ -318,14 +313,13 @@ document.addEventListener('click', e=>{
     toast('과업을 완료로 표시했습니다.'); return; }
   const li=e.target.closest('.list li[data-id]'); if(li) openItem(li.dataset.id);
 });
-$('#search').addEventListener('input', renderLists);
 
 // ===================== 안내용 가격 · 사담 현황 =====================
 // 가격: 견적서 사이트 품목 목록(품목 관리 값 반영). 단체 화면이 받아 둔 것을 먼저 쓰고, 없으면 직접 불러옴
 const HOLI = new Set(['2026-12-25','2027-01-01','2027-02-06','2027-02-07','2027-02-08','2027-02-09','2027-03-01','2027-05-05','2027-05-13','2027-06-06','2027-08-15','2027-08-16','2027-09-14','2027-09-15','2027-09-16','2027-10-03','2027-10-04','2027-10-09','2027-10-11','2027-12-25']);
 const isRed = d => { const t=new Date(d+'T00:00'); return !isNaN(t) && (t.getDay()===0 || t.getDay()===6 || HOLI.has(d)); };
 let cat = readJSON('sayuwon_quote_cat', null);
-const QUOTE_PAGE = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-invoice-quotation/' : 'http://localhost:8766/index.html';
+const QUOTE_PAGE = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/index.html';
 const QUOTE_SHARED = "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec";
 async function loadCat(){
   try{
@@ -344,7 +338,7 @@ function catItems(){
   (cat.added||[]).forEach(a=>{ if(!a.hidden) out.push({src:a.src||a.name, name:a.name, price:a.price!=null?Number(a.price):null, kind:a.kind||''}); });
   return out;
 }
-function paintPrices(){
+function paintPrices(){ if(!$('#priceBox')) return;   // 안내용 가격은 없앰 (2026-11-14)
   const day = form.date || ymd(new Date()), we=isRed(day), pre=we?'주말/공휴일':'평일';
   $('#priceDay').textContent = `${dLabel(day)} → ${we?'주말 · 공휴일':'평일'} 가격${form.date?'':' (방문 희망일을 넣으면 그날 기준)'}`;
   const its=catItems().filter(it=>it.price!=null && String(it.src).startsWith(pre) && !/네이버/.test(it.src) && (it.kind==='view' || it.kind==='package'));
@@ -355,7 +349,7 @@ function paintPrices(){
   paintSeats();
 }
 // 사담 · 마방 남은 자리: 관리자 사이트 현황 (단체 화면과 같은 자료, 15분마다 갱신)
-function paintSeats(){
+function paintSeats(){ if(!$('#seatBox')) return;
   const ad=readJSON('sayuwon_intake_admin', null), day=form.date, d=ad && ad.days && day && ad.days[day];
   const NAMES={L1:'사담 런치 1부', L2:'사담 런치 2부', D:'사담 디너', MB:'마방 사유의 밥상'};
   if(!day){ $('#seatBox').innerHTML=''; return; }
@@ -364,7 +358,11 @@ function paintSeats(){
     + Object.entries(NAMES).map(([s,n])=>{ const x=d[s]; if(!x) return ''; const left = x.max!=null && x.cur!=null ? x.max-x.cur : null; return `<span class="${x.close||left===0?'full':''}">${n} ${x.close?'마감':left!=null?`${left}자리`:'-'}</span>`; }).join('') + `</div>`;
 }
 
-paintForm(); renderLists(); paintSync(); flush(); loadCat();
+// 문의 매뉴얼 (노션): 「웹에 게시」한 주소를 안에 띄우고, 새 창 열기는 원래 링크
+const MANUAL_URL = 'https://app.notion.com/p/happyyy-monkeyyy/3d645f859824807090f1df4f0815a7bd?source=copy_link';
+const MANUAL_EMBED = 'https://happyyy-monkeyyy.notion.site/3d645f859824807090f1df4f0815a7bd';
+$('#manualOpen').href = MANUAL_URL; $('#manualFrame').src = MANUAL_EMBED;
+paintForm(); renderLists(); paintSync(); flush();
 </script>
 </body>
 </html>

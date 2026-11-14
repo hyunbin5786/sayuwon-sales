@@ -2379,7 +2379,7 @@ $('#newBtn').onclick=()=>guardLeave(()=>newCall());
 //  · 기본 품목: 그 사이트 페이지의 CATALOG_RAW (품목 | 가격 | 할인 대상)와 굿즈·단체 프로그램 목록
 //  · 품목 관리에서 바꾼 것: 공유 시트(QUOTE_SHARED_URL)의 가격·숨김·추가 품목
 // 불러오기 전이나 실패하면 마지막으로 받은 것을 쓴다
-const QUOTE_PAGE = 'https://hyunbin5786.github.io/sayuwon-invoice-quotation/';
+const QUOTE_PAGE = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/index.html';   // 견적서 사이트 (이 사이트 안 document/ · 예전 주소 sayuwon-invoice-quotation 도 그대로)
 const QUOTE_SHARED_URL = "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec";
 const PRICE_EXCLUDE = /쉐프\s*특선|^음료쿠폰\(몽몽차방\)$|^네이버/;   // 가격표에서 뺀 품목
 let quoteCat = readJSON('sayuwon_quote_cat', null), priceLoaded = null;
@@ -2407,7 +2407,7 @@ async function loadQuotePrices(){
   paintFields(); renderPrice(); if(window.__tasksReady) renderTasks();   // 몽몽마방 메뉴 · 가격도 새로
 }
 // 품목 관리: 견적서 사이트를 ?catalog=1 로 띄우면 품목 관리 창만 나옴. 저장 · 닫기를 알려 주면 가격 · 메뉴를 다시 불러옴
-const QUOTE_CAT_URL = /github\.io$/.test(location.hostname) ? QUOTE_PAGE + '?catalog=1' : '/견적서_거래명세서/index.html?catalog=1';
+const QUOTE_CAT_URL = QUOTE_PAGE + '?catalog=1';
 function openCatalog(){ $('#catFrame').src = QUOTE_CAT_URL + '&t=' + Date.now(); $('#catModal').hidden = false; }
 function closeCatalogModal(){ $('#catModal').hidden = true; $('#catFrame').src = 'about:blank'; loadQuotePrices(); }
 document.addEventListener('click', e=>{ if(e.target.closest('[data-open-cat]')){ e.preventDefault(); openCatalog(); } });
@@ -2740,7 +2740,7 @@ document.querySelectorAll('[data-dk]').forEach(el=>{
 // ===================== 견적서 발급: 견적서&거래명세서 사이트로 넘기기 =====================
 // 그 사이트의 '예약 정보 붙여넣기'가 읽는 형식(방문일자 · 상품정보 · 방문자정보 · 예약인원 · * 할인)으로 만들어
 // 같은 사이트(hyunbin5786.github.io) 저장소에 두고 연다. 그쪽이 자동 채우기를 한다.
-const QUOTE_URL = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-invoice-quotation/?from=intake' : '/견적서_거래명세서/index.html?from=intake';
+const QUOTE_URL = QUOTE_PAGE + '?from=intake';
 // 관람권: 방문일 요일로 평일 / 주말·공휴일, 입장 시각이 13:00 이후면 13-18 관람권 (그 전이거나 모르면 9-18)
 function tinHour(t){ t=String(t||''); const m=t.match(/(\d{1,2})\s*(?::|시)/) || t.match(/^\s*(\d{1,2})\s*$/); if(!m) return null; let h=+m[1]; if(/오후|저녁|pm/i.test(t) && h<12) h+=12; return h; }
 // 공휴일 (대체공휴일 · 선거일 포함). 토·일이 아닌데 주말/공휴일 가격을 받는 날. 해마다 인사혁신처 고시를 보고 추가
