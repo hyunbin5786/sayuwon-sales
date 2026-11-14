@@ -1461,7 +1461,7 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
-const AUTO_TASKS = { tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
+const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 function moneySplit(r){
   if(r===rec && erpList.length){ const t=erpTotals(); return {saw:t.saw, shilla:t.shilla, etc:0, missing:false, erp:true}; }   // 전산 내역이 있으면 전산 금액 (세금계산서 문구 등)
@@ -1487,6 +1487,19 @@ document.querySelectorAll('[data-etc]').forEach(el=>{
   el.addEventListener(el.tagName==='SELECT'?'change':'input', take);
 });
 const memoLines = () => $('#memoBox').value.split('\n').map(s=>s.trim()).filter(Boolean);
+// 전산 내역 대조: 예약 내용으로 계산한 총 금액 · 할인 합계 = 전산 내역의 금액 · 할인 합계인지 (할인 버튼 % + 기타 할인 기준, 줄에서 고친 할인액은 넣지 않음)
+function erpCheck(){
+  if(!erpList.length) return {ok:false, pasted:false};
+  const eTot=erpList.reduce((s,x)=>s+(+x.amount||0),0), eDisc=erpList.reduce((s,x)=>s+(+x.disc||0),0);
+  if(!quoteCat || !rec.date) return {ok:false, pasted:true, eTot, eDisc, why:'방문일 · 품목 가격이 있어야 대조할 수 있습니다'};
+  const plain={...rec, idamt:''}, {blocks, skipped}=quoteBlocks(rec); let tot=0, disc=0, missing=[...skipped];
+  blocks.forEach(b=>{ const m=blockMoney(b, plain); if(!m){ missing.push(itemLabel(b.product)); return; } tot+=m.amount; disc+=m.full-m.amount; });
+  const etc=etcAmt(rec); tot-=etc; disc+=etc;
+  const okTot=Math.abs(tot-eTot)<1, okDisc=Math.abs(disc-eDisc)<1;
+  return {ok: okTot && okDisc && !missing.length, pasted:true, tot, disc, eTot, eDisc, okTot, okDisc, missing};
+}
+const erpCheckHTML = c => !c.pasted ? '' : c.why ? `<span class="ck bad">대조 못 함: ${esc(c.why)}</span>`
+  : `<span class="ck ${c.okDisc?'ok':'bad'}">${c.okDisc?'✓':'✗'} 할인 합계 · 예약 ${won(c.disc)}원 / 전산 ${won(c.eDisc)}원</span><span class="ck ${c.okTot?'ok':'bad'}">${c.okTot?'✓':'✗'} 총 금액 · 예약 ${won(c.tot)}원 / 전산 ${won(c.eTot)}원</span>${c.missing&&c.missing.length?`<span class="ck bad">가격 없는 품목: ${esc(c.missing.join(', '))}</span>`:''}`;
 // 전산 비고에 붙여넣을 문구
 function erpNote(r){
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';   // 출입구가 미정이면 '출입구 미정'을 따로
@@ -1496,7 +1509,13 @@ function erpNote(r){
   if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');
   if(r===rec){ const nt=itemNotesText(); if(nt.length) p.push('항목 비고 '+nt.join(', ')); }   // 예약 내역 줄마다 적은 비고
   if(r.goods) p.push('굿즈 '+goodsText(r)+(String(r.stf_goods||'').trim() ? ` (담당:${String(r.stf_goods).trim()})` : ' (담당:미정)'));   // 굿즈 구매   // 몽몽마방 결제를 마방으로 고르면
-  if(r.pay==='현장 결제' || r.onsite){ const m=moneySplit(r); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); }
+  // 금액: 지금 적용된 사유원 · 신라 금액 (할인 · 기타 할인 · 줄에서 고친 할인액 · 전산 내역 반영)
+  { const m=moneySplit(r), onsite = r.pay==='현장 결제' || r.onsite;
+    if(m) p.push(`${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라)${onsite ? ' 현장결제 필요' : r.pay && r.pay!=='미정' ? ' '+r.pay : ''}`);
+    else if(onsite) p.push('현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); }
+  // 할인 조정: 기타 할인(과세 = 신라 · 비과세 = 사유원) · 예약 내역 줄에서 직접 고친 할인액
+  { const es=etcSplit(r); if((es.tx||es.tf) && r.etcDiscWhy!=='전산 기타할인') p.push(`기타할인 ${[es.tf&&`사유원 ${won(es.tf)}원`, es.tx&&`신라 ${won(es.tx)}원`].filter(Boolean).join(' · ')}${r.etcDiscWhy?` (${r.etcDiscWhy})`:''}`); }
+  if(r===rec) Object.entries(idamtMap(rec)).forEach(([k,v])=>{ const nm=itemRows.find(x=>dkey(x)===k); p.push(`${nm?itemName(nm):k} 할인 ${[v.tf&&`사유원 ${won(v.tf)}원`, v.tx&&`신라 ${won(v.tx)}원`].filter(Boolean).join(' · ')||'없음'}`); });
   const who=(r.owner||savedOwner()||'').trim();   // 끝에 항상 (영업 담당 이름)
   return [...p, ...memoLines()].join(' / ') + (who ? ` (${who})` : '');
 }
@@ -1535,7 +1554,7 @@ function syncAutoTasks(){
   const want = [], consult = effStage(rec)==='예약상담';   // 예약상담은 기록용: 추후 과업 없음
   if(rec.tbd) want.push('tbdcall');   // 미정 항목(결제 방법 포함)이 있으면 답변일에 연락
   if(rec.pay==='현장 결제' && rec.date) want.push('onsitecall');   // 현장 결제: 전주 목요일에 인원 확인 + 인원 변경 어려움 안내
-  if(needsErp(rec)) want.push('erp');
+  if(needsErp(rec)) want.push('erp', 'erpcheck');   // 전산 예약 + 전산 내역을 붙여 넣어 예약 내용과 총 금액 · 할인이 같은지 대조 (같으면 자동 완료)
   if(rec.pay==='세금계산서') want.push('tax');
   if(rec.pay==='결제링크') want.push('paycheck');
   if(rec.wantQuote) want.push('quote');
@@ -1559,13 +1578,14 @@ function syncAutoTasks(){
   // 하위 과업: 견적서 · 거래명세서는 기본 3개(생성 · 전송 · NAS 업로드) + 누구나 직접 추가한 세부 과제(xsubs). 하위 과업이 있으면 모두 체크될 때 완료
   // (전산 예약 · 프로그램 담당 · 몽몽마방 메뉴처럼 칸을 채우면 끝나는 과업은 하위 과업과 상관없이 그 조건으로)
   tasks.forEach(t=>{ const ds=DOC_SUBS[t.id]; if(ds && !t.subs) t.subs=Object.fromEntries(ds.map(([k])=>[k, !!t.done]));
-    if(['erp','progstaff','mbmenu'].includes(t.id)) return;
+    if(['erp','erpcheck','progstaff','mbmenu'].includes(t.id)) return;
     const st=[...(ds ? ds.map(([k])=>!!t.subs[k]) : []), ...(t.xsubs||[]).map(x=>!!x.done)]; if(!st.length) return;
     const all=st.every(Boolean); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); } if(!all && t.done){ t.done=false; t.doneAt=''; } });
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)) || (t.xsubs||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
   const ps=tasks.find(t=>t.id==='progstaff'); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
-  const ORDER=['tour','tbdcall','onsitecall','mbcall','mbmenu','progstaff','staffbrief','goodsprep','erp','erpfix','quote','stmt','tax','paycheck'];
+  const ec=tasks.find(t=>t.id==='erpcheck'); if(ec){ const c=erpCheck(); const was=ec.done; ec.done=c.ok; ec.check=c; if(c.ok && !was) ec.doneAt=new Date().toISOString(); if(!c.ok) ec.doneAt=''; }   // 전산 내역 대조: 맞으면 자동 완료, 다르면 다시 열림
+  const ORDER=['tour','tbdcall','onsitecall','mbcall','mbmenu','progstaff','staffbrief','goodsprep','erp','erpcheck','erpfix','quote','stmt','tax','paycheck'];
   // 순서: 마감일이 빠른 순, 마감일이 같으면 최근에 추가된 것이 위. 직접 옮긴 과업(ordSet)은 그 순서 그대로 두고,
   // 옮기지 않은 과업은 그 사이에 마감일에 맞게 끼워 넣음 (같은 마감일이면 직접 옮긴 것보다 위). 끝난 과업은 맨 아래
   const byNew=(a,b)=>taskDue(a).localeCompare(taskDue(b)) || String(b.at||'').localeCompare(String(a.at||''));
@@ -1622,6 +1642,8 @@ function renderTasks(){
       : t.id==='goodsprep' ? `굿즈: <b>${esc(goodsText(rec)||'없음')}</b>${goodsParse(rec.goods).map(g=>itemNote('g:'+g.src)?` · ${esc(goodsName(g.src))} 비고: ${esc(itemNote('g:'+g.src))}`:'').join('')}<br>방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 그날 13시 · 17시에 알림이 뜹니다.`
       : t.id==='staffbrief' ? `방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')}) 각 담당자에게 아래 일정을 전달하고 체크하세요. 영업 담당이 이 예약의 프로그램 · 굿즈를 모두 챙깁니다.`
       : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 칸: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 · 굿즈 옆 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (개별 · 시간 프로그램 · 굿즈 모두 담당 필수)` : '프로그램 · 굿즈 담당을 모두 넣었습니다.')
+      : t.id==='erpcheck' ? (!erpList.length ? '전산에 예약을 넣은 뒤 <b>전산 내역을 붙여 넣어</b> 실제 예약이 이 예약 내용과 같은지 확인하세요. <b>할인 합계</b>와 <b>총 금액</b>이 같으면 저절로 완료됩니다.'
+          : `<span class="erp-ck">${erpCheckHTML(erpCheck())}</span><br>${t.done ? '전산 내역과 예약 내용이 같습니다.' : '다른 곳을 전산이나 예약 내용에서 고친 뒤 전산 내역을 다시 붙여 넣으세요 (예약 내역 줄의 할인 · 기타 할인 · 인원 확인).'}`)
       : t.id==='erpfix' ? ((t.changes||[]).length ? `전산 등록 후 바뀐 내용: <b>${esc(t.changes.join(' · '))}</b><br>전산 예약을 고치고 비고도 새 문구로 바꾼 뒤 체크하세요.` : '전산에 반영했습니다.')
       : SUB[t.id] || '';
     const docBtn = (t.id==='quote'||t.id==='stmt') ? `<div class="tbtn"><button type="button" class="btn" data-tquote="${t.id==='stmt'?'statement':'quote'}">${t.id==='stmt'?'거래명세서 만들기':'견적서 만들기'}</button></div>` : '';
@@ -1665,6 +1687,7 @@ $('#taskList').addEventListener('change', e=>{
   const up=e.target.dataset.tup;
   if(up){ const t=tasks.find(x=>x.id===up), f=e.target.files[0]; if(t && f) uploadFile(t, f); return; }
   const id=e.target.dataset.tk; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return;
+  if(id==='erpcheck'){ e.target.checked=!!t.done; toast('전산 내역을 붙여 넣어 예약 내용과 총 금액 · 할인이 같으면 저절로 완료됩니다.'); if(!erpList.length) $('#erpPasteBtn')?.click(); return; }   // 직접 체크하지 않음
   if((id==='erp'||id==='erpfix') && e.target.checked){ e.target.checked=false; askErpForTask(id); return; }   // 전산 예약 완료 = 전산 내역을 붙여넣어 예약 내용과 맞는지 확인한 뒤
   t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
   if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=t.done); (t.xsubs||[]).forEach(x=>x.done=t.done);   // 위 체크 = 하위 과업 모두 해결 (끄면 모두 해제)
@@ -2132,6 +2155,7 @@ function renderErp(){
   box.innerHTML = `<div class="psec-t">전산 내역 합계 (${erpList.length}건 · 상품별은 위 예약 내역 줄에) <button type="button" class="btn" id="erpClear" style="padding:1px 8px;font-size:11.5px;margin-left:6px" title="전산 내역을 지우면 예약 칸으로 계산한 금액으로 돌아갑니다">지우기</button></div>`
     + `<table class="ptable sel">`
     + `<tfoot><tr><td colspan="4">전산 합계</td><td class="tot">${won(tot)}</td></tr><tr class="split-row"><td colspan="4">└ 사유원 (비과세${pi&&pi.free!=null?' · 전산 면세금액':''})</td><td class="tot">${won(saw)}</td></tr><tr class="split-row"><td colspan="4">└ 신라 (과세${pi&&pi.taxable!=null?' · 전산 과세금액':''})</td><td class="tot">${won(shilla)}</td></tr>${pi&&pi.total?`<tr class="split-row"><td colspan="4">결제 ${esc([pi.state, pi.method].filter(Boolean).join(' · '))}</td><td class="tot">${won(pi.total)}</td></tr>`:''}</tfoot></table>`;
+  box.insertAdjacentHTML('beforeend', `<div class="erp-ck" title="예약 내용(할인 버튼 % · 기타 할인)으로 계산한 값과 전산 내역 비교">${erpCheckHTML(erpCheck())}</div>`);   // 대조: 할인 합계 · 총 금액
 }
 // 전산 내역 → 예약 내용 칸: 관람 · 관람+사담 · 몽몽마방 메뉴 · 프로그램 · 굿즈 · 방문일 · 인원 · 기타 할인 · 특별 할인
 function erpFields(list){
@@ -2785,7 +2809,7 @@ setInterval(()=>{ if(window.__tasksReady) checkMemoPopup(); }, 60000);
 // 마감이 오늘이거나 지난, 해결 안 된 과업(영업 담당이 있으면 내 예약만)을 해결될 때까지 계속 띄움: 열 때 · 9시 · '나중에'를 누르면 2시간 뒤 다시
 const TASK_SNOOZE_LS='sayuwon_task_snooze', SNOOZE_MS=2*3600e3, TASK_SLOT_LS='sayuwon_task_slot', QUIET_MS=30*60e3;
 const ALERT_HOURS=[8,11,13,17];   // 추후 과업 마감 알림 시각 (개인고객 화면과 같음)
-const SELF_DONE = new Set(['erp','erpfix','progstaff','mbmenu']);   // erp · erpfix: 전산 내역을 붙여넣어야 완료   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
+const SELF_DONE = new Set(['erp','erpcheck','erpfix','progstaff','mbmenu']);   // erp · erpfix: 전산 내역을 붙여넣어야 완료   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
 function checkTbdPopup(force){
   // 마감 지난 과업: 열 때 · 1분마다 (나중에 = 2시간 뒤). 오늘 마감 과업: 오후 1시, 아직 안 끝났으면 오후 5시에 (시간마다 한 번)
   // 단, 입력(과업이 생기거나 마감을 바꾼 것)한 지 30분이 안 된 과업은 알리지 않음

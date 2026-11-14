@@ -568,3 +568,6 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 #histDet > summary h2::before{content:"▸";color:var(--muted);font-size:12px;margin-right:2px}
 #histDet[open] > summary h2::before{content:"▾"}
 #histDet[open] > summary h2{margin-bottom:10px}
+.erp-ck{display:flex;flex-direction:column;gap:2px;margin-top:6px;font-size:12.5px}   /* 전산 내역 대조: 할인 합계 · 총 금액 */
+.erp-ck .ck.ok{color:var(--pine);font-weight:600}
+.erp-ck .ck.bad{color:var(--red);font-weight:700}
