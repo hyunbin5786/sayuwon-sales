@@ -1513,9 +1513,7 @@ function erpNote(r){
   { const m=moneySplit(r), onsite = r.pay==='현장 결제' || r.onsite;
     if(m) p.push(`${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라)${onsite ? ' 현장결제 필요' : r.pay && r.pay!=='미정' ? ' '+r.pay : ''}`);
     else if(onsite) p.push('현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); }
-  // 할인 조정: 기타 할인(과세 = 신라 · 비과세 = 사유원) · 예약 내역 줄에서 직접 고친 할인액
-  { const es=etcSplit(r); if((es.tx||es.tf) && r.etcDiscWhy!=='전산 기타할인') p.push(`기타할인 ${[es.tf&&`사유원 ${won(es.tf)}원`, es.tx&&`신라 ${won(es.tx)}원`].filter(Boolean).join(' · ')}${r.etcDiscWhy?` (${r.etcDiscWhy})`:''}`); }
-  if(r===rec) Object.entries(idamtMap(rec)).forEach(([k,v])=>{ const nm=itemRows.find(x=>dkey(x)===k); p.push(`${nm?itemName(nm):k} 할인 ${[v.tf&&`사유원 ${won(v.tf)}원`, v.tx&&`신라 ${won(v.tx)}원`].filter(Boolean).join(' · ')||'없음'}`); });
+  // 할인 사항(기타 할인 · 줄에서 고친 할인액)은 전산 비고에 넣지 않음 (2026-11-14) — 금액만 위 사유원 · 신라에 반영
   const who=(r.owner||savedOwner()||'').trim();   // 끝에 항상 (영업 담당 이름)
   return [...p, ...memoLines()].join(' / ') + (who ? ` (${who})` : '');
 }
