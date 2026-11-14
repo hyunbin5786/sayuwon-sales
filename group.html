@@ -186,6 +186,8 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 .it-money .im.warn, .it-money .bad{color:var(--red)}
 .it-row.it-erponly{display:block;border-color:var(--red);border-style:dashed}
 .it-row.it-erponly > b{font-size:12px;color:var(--red)}
+.it-erponly .it-money{align-items:center}
+.it-erpadd{padding:3px 10px;font-size:12px;font-weight:700;color:var(--pine);border-color:var(--pine);background:#fff;flex:none}
 .price-wrap{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
 .day-panel #itemsInfo .dayinfo:first-child{margin-top:0}
 .it-head{font-size:11.5px;color:var(--muted);padding:0 2px}
@@ -1027,7 +1029,7 @@ const itemUnit = k => itemKind(k)==='goods' ? '개' : itemKind(k)==='prog' ? UNI
 const itemHasStaff = k => ['prog','goods'].includes(itemKind(k));
 const itemStfKey = k => itemKind(k)==='goods' ? 'stf_goods' : 'stf_'+k;   // 굿즈 담당은 굿즈 전체 하나
 function itemKeysFromRec(){
-  return [...(rec.people || String(rec.viewN||'').trim() ? ['view'] : []), ...viewsParse(rec.views).map(v=>'v:'+v.src), ...SADAM_ITEMS.map(x=>x[0]).filter(k=>rec[k]), ...(rec.mabangL||rec.mabangMenu||rec.mabangTime ? ['mb'] : []),
+  return [   /* 관람 자동 줄 없음: 관람권도 「항목 추가」로 직접 */ ...viewsParse(rec.views).map(v=>'v:'+v.src), ...SADAM_ITEMS.map(x=>x[0]).filter(k=>rec[k]), ...(rec.mabangL||rec.mabangMenu||rec.mabangTime ? ['mb'] : []),
     ...PROG_KEYS().filter(k=>rec[k]), ...goodsParse(rec.goods).map(g=>'g:'+g.src)];
 }
 function itemQty(k){ const t=itemKind(k);
@@ -1066,7 +1068,7 @@ function itemSelectHTML(k, rows){
   // 관람 · 관람+식사: 관람권(기본 관람 줄과 다른 것) · 관람 포함 패키지 전부 · 새벽 해오름 산책. 사담 1부 · 2부 · 디너는 예전 칸(sadam1 · 2 · D)
   const day=rec.date && isRedDay(rec.date) ? '주말/공휴일' : '평일', base=normSrc(viewSrcOf(rec));
   const SADAM_OF = {'사담런치1부':'sadam1','사담런치2부':'sadam2','사담디너':'sadamD'};
-  const area = catalogItems().filter(it=>(it.kind==='view' || it.kind==='package') && !/네이버/.test(it.src) && String(it.src).startsWith(day) && it.price!=null && normSrc(it.src)!==base);
+  const area = catalogItems().filter(it=>(it.kind==='view' || it.kind==='package') && !/네이버/.test(it.src) && String(it.src).startsWith(day) && it.price!=null);   // 관람권(9~18 · 13~18 · 학생 등)도 모두 여기서 고름
   h+=`<optgroup label="관람 · 관람+식사">${area.map(it=>{ const pm=String(it.src).match(/\(관람,\s*(.+)\)$/), sk=pm ? SADAM_OF[normSrc(pm[1])] : null, v=sk || 'v:'+it.src;
       return opt(v, (pm ? '관람 + '+pm[1] : viewLabel(it.src))+` · ${wonTxt(it.price)}원`, used.has(v), k===v || (itemKind(k)==='varea' && normSrc(daySrc(k.slice(2), rec))===normSrc(it.src))); }).join('')}`
     + `${FIELDS.some(f=>f[1]==='haeorum') ? opt('haeorum', '새벽 해오름 산책 (관람료 포함)'+pr(progSrc('haeorum', rec)), used.has('haeorum'), k==='haeorum') : ''}</optgroup>`;
@@ -1143,7 +1145,7 @@ function erpKeyOf(p){ const ns=normSrc(p);
   if(/해오름/.test(p)) return 'haeorum';
   const vrow = viewsParse(rec.views).find(v=>normSrc(daySrc(v.src, rec))===ns || normSrc(v.src)===ns); if(vrow) return 'v:'+vrow.src;   // 관람 영역의 다른 품목 줄
   if(/\(관람,/.test(p)) return 'v:'+p;
-  if(/관람/.test(p) && !/관람권|관람식사권/.test(p)) return ns===normSrc(viewSrcOf(rec)) ? 'view' : 'v:'+p;
+  if(/관람/.test(p) && !/관람권|관람식사권/.test(p)) return 'v:'+p;
   const pk=PROG_KEYS().find(k=>normSrc(PROG_SRC[k]||'')===ns || normSrc(progSrc(k, rec)||'')===ns); if(pk) return /당두봉갈/.test(p) ? 'dangdu' : pk;
   if(mbMenus().some(m=>normSrc(m.src)===ns)) return 'mb';
   if(goodsItems().some(g=>normSrc(g.src)===ns)) return 'g:'+goodsItems().find(g=>normSrc(g.src)===ns).src;
@@ -1176,8 +1178,15 @@ function paintItemPrices(){
     el.innerHTML=h; });
   // 전산에만 있는 상품 (예약 내역 줄로 못 옮긴 것)
   if(E) erpList.forEach(x=>{ const k=erpKeyOf(x.product); if(k && !itemRows.includes(k) && !E.other.includes(x)) E.other.push(x); });   // 품목은 알지만 예약 내역에 줄이 없는 것도
-  const ex=$('#erpExtra'); if(ex){ ex.innerHTML = E && E.other.length ? `<div class="it-row it-erponly"><b>전산에만 있는 상품</b>${E.other.map(x=>`<div class="it-money">${`<span class="im"><i>순번 ${esc(x.seq||'-')}</i>${esc(x.product)}</span><span class="im"><i>인원</i>${x.people}</span><span class="im"><i>할인</i>${x.disc?'-'+won(x.disc):'없음'}</span><span class="im amt"><i>금액</i><b>${won(x.amount)}</b></span>`}</div>`).join('')}</div>` : ''; }
+  const ex=$('#erpExtra'); if(ex){ ex.innerHTML = E && E.other.length ? `<div class="it-row it-erponly"><b>전산에만 있는 상품</b>${E.other.map(x=>`<div class="it-money">${`<span class="im"><i>순번 ${esc(x.seq||'-')}</i>${esc(x.product)}</span><span class="im"><i>인원</i>${x.people}</span><span class="im"><i>할인</i>${x.disc?'-'+won(x.disc):'없음'}</span><span class="im amt"><i>금액</i><b>${won(x.amount)}</b></span>`}${erpKeyOf(x.product) ? `<button type="button" class="btn it-erpadd" data-erpadd="${erpList.indexOf(x)}" title="이 상품을 예약 내역 줄로 추가 (인원 · 수량은 전산 그대로)">＋ 항목으로 추가</button>` : `<span class="im warn">품목 관리에 없는 상품 · 품목을 먼저 추가</span>`}</div>`).join('')}</div>` : ''; }
 }
+// 전산에만 있는 상품 → 예약 내역 줄로 (인원 · 수량은 전산 그대로)
+document.addEventListener('click', e=>{ const b=e.target.closest('#itemsBox [data-erpadd]'); if(!b) return; const x=erpList[+b.dataset.erpadd]; if(!x) return;
+  const k=erpKeyOf(x.product); if(!k){ toast('품목 관리에 없는 상품이라 줄로 넣을 수 없습니다.'); return; }
+  if(k==='mb'){ const m=mbMenus().find(m=>normSrc(m.src)===normSrc(x.product)); if(m){ rec.mabangMenu=m.name; touched.add('mabangMenu'); } }   // 몽몽마방은 그 메뉴로
+  setItemQty(k, String(numOf(itemQty(k)) + (x.people||0))); if(!itemRows.includes(k)) itemRows.push(k);
+  itemChanged(true); toast(`${itemLabel(x.product)} ${x.people}${erpUnit(x)}을(를) 예약 내역에 추가했습니다. 담당 · 비고를 확인하세요.`);
+});
 function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은 넣은 묶음만
   document.querySelectorAll('#itemsBox [data-is]').forEach(el=>el.closest('.it-s').classList.toggle('missing', !el.value.trim()));
   const kinds=new Set(itemRows.map(k=>{ const t=itemKind(k); return t==='sadam'?'sadam':t==='mb'?'mabang':t==='prog'?(OPT[GROUP_OF[k]]||{}).id:''; }));
@@ -1311,7 +1320,7 @@ function buildForm(){
     if(grp!==g){
       close();
       if(OPT[grp] && !Object.keys(OPT).some(x=>x===g)){   // 첫 접는 묶음 앞에 버튼 3개
-        html+=`<div class="grp items-grp"><div class="grp-t"><span>예약 내역</span><span class="hint" style="margin:0">관람 인원이 첫 줄 · 항목을 고르고 수량 · 담당 · 비고를 넣으세요</span></div><div class="items-box" id="itemsBox"></div><div id="itemsInfo"></div></div>`;
+        html+=`<div class="grp items-grp"><div class="grp-t"><span>예약 내역</span><span class="hint" style="margin:0">「＋ 항목 추가」로 관람 · 관람+식사 · 몽몽마방 · 프로그램 · 굿즈를 모두 직접 넣으세요 (수량 · 담당 · 비고)</span></div><div class="items-box" id="itemsBox"></div><div id="itemsInfo"></div></div>`;
         html+=`<div class="opt-bar">${Object.values(OPT).map(o=>`<button type="button" class="opt-btn" data-opt="${o.id}" aria-expanded="false"><span>${o.short||o.title}</span><small id="optsum_${o.id}"></small></button>`).join('')}</div>`;
       }
       html+= OPT[grp]
@@ -2661,7 +2670,7 @@ function erpFields(list){
     else if(/\(관람,\s*사담\s*디너\)/.test(p)) add('sadamD',n);
     else if(/해오름/.test(p)) add('haeorum',n);   // 평일 · 주말 품목 모두
     else if(/\(관람,/.test(p) || (/관람/.test(p) && !/관람권|관람식사권/.test(p))){   // 관람권 · 관람+식사 패키지
-      const isBase = !/\(관람,/.test(p) && ns===normSrc(viewSrcOf({date:x.date||rec.date, tin:rec.tin, viewSrc:rec.viewSrc}));
+      const isBase = false;   // 관람 자동 줄 없음: 전산의 관람권도 모두 항목 줄(관람 · 관람+식사)로
       if(isBase) view+=n; else { const v=views.find(y=>normSrc(y.src)===ns); if(v) v.qty+=n; else views.push({src:p, qty:n}); } }
     else if(progBy[ns]) add(progBy[ns], n);
     else { const mb=mbs.find(m=>normSrc(m.src)===ns);
@@ -2671,7 +2680,7 @@ function erpFields(list){
   o.goods=goodsJoin(goods); o.views=goodsJoin(views);
   const vsum=views.reduce((s,y)=>s+y.qty,0), pkg=numOf(o.sadam1)+numOf(o.sadam2)+numOf(o.sadamD)+vsum, ppl=Math.max(view+pkg, numOf(o.haeorum)) || Math.max(0, ...['mabangL',...PROG_KEYS()].filter(k=>UNIT(k)!=='시간').map(k=>numOf(o[k])));
   if(ppl) o.people=String(ppl);
-  const auto=Math.max(0, ppl - (pkg + numOf(o.haeorum))); o.viewN = view===auto ? '' : String(view);   // 기본 관람권 수가 남은 인원과 다를 때만
+  o.viewN = '';   // 관람 자동 줄을 없애 기본 관람권 인원은 쓰지 않음
   const d=list.find(x=>x.date); if(d) o.date=d.date;
   const v=(list.find(x=>x.visitor)||{}).visitor||'', vm=v.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
   return { o, sp, etc, etcTo, unknown, org:(vm?vm[1]:v).trim(), phone: vm && /\d{2,}/.test(vm[2]) ? vm[2] : '' };
@@ -2793,7 +2802,7 @@ function quoteBlocks(r){
   const mbM = mbMenuOf(r);   // 몽몽마방은 단체도 관람과 따로: 관람권 + 고른 메뉴 품목 (사유의 밥상이면 사유의 밥상(단체))
   const blocks=[], skipped=[];
   const add=(product, qty, disc)=>{ if(qty>0) blocks.push({product, qty, disc}); };
-  add(viewSrcOf(r), effViewN(r), true);   // 기본 관람권 = 관람 인원 − 관람 포함 품목(사담 · 해오름 · 다른 관람권 등), 직접 줄였으면 그 수
+  // 관람 자동 줄 없음 (2026-11-14): 관람권도 예약 내역에서 직접 고른 것만 계산
   add(`${DAY}(관람, 사담 런치1부)`, cnt(r.sadam1), true);
   add(`${DAY}(관람, 사담 런치2부)`, cnt(r.sadam2), true);
   add(`${DAY}(관람, 사담 디너)`, cnt(r.sadamD), false);
@@ -3197,7 +3206,10 @@ function renderMy(){
     const g2 = `<h3 class="my-h">추후 과업 (단체) <small>${nG}개${lateOf(open)?` · <b class="late">기한 지남 ${lateOf(open)}개</b>`:''}</small></h3>` + taskList(open, '해결 안 된 단체 과업이 없습니다.');
     $('#myBody').innerHTML = `<div class="my-cols"><div class="my-col">${c1}</div><div class="my-col">${g2}</div><div class="my-col">${c3}</div></div>`; return;
   }
-  $('#myBody').innerHTML = `<div class="my-cols"><div class="my-col">${c1}</div><div class="my-col">${c2}</div><div class="my-col">${c3}</div></div>`;
+  // 전체: ① 개인 추후 과업 ② 단체 추후 과업 ③ 다른 사람이 수정한 내 예약
+  const a1 = `<h3 class="my-h">추후 과업 (개인) <small>${nP}개${lateOf(persAll)?` · <b class="late">기한 지남 ${lateOf(persAll)}개</b>`:''}</small></h3>` + taskList(persAll.map(o=>({...o, personal:true})), '해결 안 된 개인고객 과업이 없습니다.');
+  const a2 = `<h3 class="my-h">추후 과업 (단체) <small>${nG}개${lateOf(open)?` · <b class="late">기한 지남 ${lateOf(open)}개</b>`:''}</small></h3>` + taskList(open, '해결 안 된 단체 과업이 없습니다.');
+  $('#myBody').innerHTML = `<div class="my-cols"><div class="my-col">${a1}</div><div class="my-col">${a2}</div><div class="my-col">${c3}</div></div>`;
 }
 function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
   const m=othersEdits().length;
