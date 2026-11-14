@@ -20,6 +20,8 @@ body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
 header{background:var(--pine);color:#f3f1ec;padding:10px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
 header h1{margin:0;font:600 17px var(--serif)}
 header .sys-brand{color:#f3f1ec;text-decoration:none;font:600 18px var(--serif);letter-spacing:.02em;white-space:nowrap}
+.ko-toggle{width:30px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:transparent;color:#f3f1ec;font:700 13px var(--sans);cursor:pointer}
+.ko-toggle.on{background:#f3f1ec;color:var(--pine)}
 header .sys-brand:hover{text-decoration:underline;text-underline-offset:4px}
 header .sys-crumb{font:600 15px var(--sans);color:#f3f1ec;white-space:nowrap}
 header .sys-crumb::before{content:"›";margin:0 10px 0 2px;opacity:.55;font-weight:400}
@@ -145,6 +147,7 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
 .all-t td{white-space:nowrap}
 .all-t td.note{white-space:normal;min-width:220px;color:#55524a}
 .all-t tbody tr{cursor:pointer}
+.all-t tbody tr.trash{cursor:default}
 .all-t tbody tr:hover td{background:#faf8f2}
 .all-t th.owner,.all-t td.owner{background:#e3eedc;color:#2f5a22;font-weight:700}   /* 받은 사람: 단체예약 목록의 영업 담당처럼 초록 띠 */
 .all-t tbody tr:hover td.owner{background:#d8e7cf}
@@ -168,6 +171,7 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
 <header>
   <a class="sys-brand" href="./" title="메뉴로">사유원 예약 관리 시스템</a><span class="sys-crumb">개인고객 전화응대</span>
   <span class="sync warn" id="syncChip" hidden></span>
+  <button type="button" class="ko-toggle on" id="ko-toggle" aria-pressed="true">한</button>
   <span class="me" id="me"></span>
   <a class="hb" id="manualOpen" href="#" target="_blank" rel="noopener" title="노션 전화문의 응대 매뉴얼 (새 창)">전화문의 응대 매뉴얼 ↗</a>
   <button type="button" class="hb" id="allCallsBtn" title="저장된 개인고객 통화 기록 전체 (검색 · 열기)">통화 기록 전체</button>
@@ -182,7 +186,7 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
       <div class="editing" id="editing" hidden></div>
       <div class="sub-h" style="margin-top:0">고객 · 방문</div>
       <div class="row">
-        <div class="f"><label for="fName">고객 이름</label><input id="fName" lang="ko" placeholder="예) 홍길동"></div>
+        <div class="f"><label for="fName">고객 이름</label><input id="fName" lang="ko" data-ime="ko" autocomplete="off" placeholder="예) 홍길동"></div>
         <div class="f"><label for="fPhone">연락처</label><input id="fPhone" inputmode="tel" placeholder="010-0000-0000"></div>
         <div class="f"><label for="fDate">방문 희망일 / 예약일</label><input id="fDate" type="date"></div>
         <div class="f"><label for="fPeople">인원</label><input id="fPeople" inputmode="numeric" placeholder="명"></div>
@@ -190,7 +194,6 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
       <div class="sub-h">문의 내용</div>
       <div class="f w4"><textarea id="fNote" lang="ko" placeholder="예) 11/27 금요일 2명 사담 런치 1부 가능한지 · 주차 문의"></textarea></div>
       <div class="btns">
-        <button class="btn danger" type="button" id="delBtn" hidden>삭제</button>
         <span class="state" id="state"></span>
       </div>
       <p class="hint" style="margin-top:10px">저장하면 팀 공유 기록(구글 시트)에 '개인고객'으로 남습니다.</p>
@@ -201,7 +204,7 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
   <div class="col">
     <section class="panel">
       <h2>추후 과업 <small>체크리스트 · 과업마다 메모</small></h2>
-      <form class="task-add" id="taskAdd"><input id="taskAddIn" lang="ko" placeholder="과업 직접 추가 (예: 사담 자리 확인 후 연락)" autocomplete="off"><button class="btn" type="submit">추가</button></form>
+      <form class="task-add" id="taskAdd"><input id="taskAddIn" lang="ko" data-ime="ko" placeholder="과업 직접 추가 (예: 사담 자리 확인 후 연락)" autocomplete="off"><button class="btn" type="submit">추가</button></form>
       <ul class="tasks" id="taskList"></ul>
       <p class="hint" id="taskHint" style="margin-top:8px"></p>
     </section>
@@ -221,9 +224,9 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
 <!-- 개인고객 통화 기록 전체 (모든 직원이 받은 통화 · 검색 · 누르면 열기) -->
 <div class="modal" id="allModal" hidden>
   <section class="panel wide" role="dialog" aria-modal="true" aria-labelledby="allTitle">
-    <h2 id="allTitle">개인고객 통화 기록 전체 <small id="allCount"></small><button type="button" class="btn" id="allClose" style="margin-left:auto;padding:4px 12px">닫기</button></h2>
+    <h2 id="allTitle"><span id="allName">개인고객 통화 기록 전체</span> <small id="allCount"></small><button type="button" class="btn" id="allTrash" style="margin-left:auto;padding:4px 12px" title="삭제한 개인고객 통화 (삭제 일시 · 삭제한 사람 · 사유)">삭제된 통화</button><button type="button" class="btn" id="allClose" style="padding:4px 12px">닫기</button></h2>
     <input class="search" id="allSearch" type="search" lang="ko" placeholder="검색: 이름 · 연락처 · 문의 내용 · 받은 사람 · 과업">
-    <div class="all-tw"><table class="all-t"><thead><tr><th>저장</th><th>고객</th><th>연락처</th><th>방문 희망일 / 예약일</th><th>인원</th><th>문의 내용</th><th>남은 과업</th><th></th><th class="owner">받은 사람</th></tr></thead><tbody id="allBody"></tbody></table></div>
+    <div class="all-tw"><table class="all-t"><thead id="allHead"><tr><th>저장</th><th>고객</th><th>연락처</th><th>방문 희망일 / 예약일</th><th>인원</th><th>문의 내용</th><th>남은 과업</th><th></th><th class="owner">받은 사람</th></tr></thead><tbody id="allBody"></tbody></table></div>
   </section>
 </div>
 <!-- 통화 기록 삭제 (사유 필수) -->
@@ -350,7 +353,6 @@ const FIELDS=[['fName','name'],['fPhone','phone'],['fDate','date'],['fPeople','p
 function paintForm(force){
   FIELDS.forEach(([id,k])=>{ const el=$('#'+id); if((force || document.activeElement!==el) && el.value!==form[k]) el.value=form[k]; });
   paintTasks();
-  $('#delBtn').hidden = !cur;
   $('#editing').hidden = !cur; if(cur) $('#editing').textContent = `${dtLabel(cur.saved)} ${cur.takenBy||''}님이 받은 통화를 고치는 중 · 저장하면 그대로 덮어씁니다`;
   $('#startedAt').textContent = startedAt ? `통화 시작 ${dtLabel(startedAt.toISOString())}` : '';
   $('#state').textContent = isDirty() ? '저장하지 않은 내용이 있습니다' : (cur ? '저장됨' : '');
@@ -384,7 +386,7 @@ function sortedTasks(){
 }
 function subsHTML(t){
   const rows=(t.xsubs||[]).map(x=>`<div class="tsub-row"><label class="tsub${x.done?' on':''}"><input type="checkbox" data-xsub="${esc(t.id)}|${esc(x.id)}"${x.done?' checked':''}> ${esc(x.title)}</label><button type="button" class="tsub-del" data-xdel="${esc(t.id)}|${esc(x.id)}" title="세부 과제 빼기">×</button></div>`);
-  return `<div class="tsubs">${rows.join('')}<div class="tsub-add"><input data-xadd="${esc(t.id)}" lang="ko" placeholder="+ 세부 과제 추가 (적고 Enter)" autocomplete="off"><button type="button" class="btn" data-xaddbtn="${esc(t.id)}">추가</button></div></div>`;
+  return `<div class="tsubs">${rows.join('')}<div class="tsub-add"><input data-xadd="${esc(t.id)}" lang="ko" data-ime="ko" placeholder="+ 세부 과제 추가 (적고 Enter)" autocomplete="off"><button type="button" class="btn" data-xaddbtn="${esc(t.id)}">추가</button></div></div>`;
 }
 function paintTasks(){
   const box=$('#taskList'), ae=document.activeElement;
@@ -397,7 +399,7 @@ function paintTasks(){
       + `${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}`
       + `<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"></label>`
       + `<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button></div>`
-      + subsHTML(t) + `<textarea data-tm="${esc(t.id)}" lang="ko" placeholder="메모">${esc(t.memo||'')}</textarea></li>`; }).join('')
+      + subsHTML(t) + `<textarea data-tm="${esc(t.id)}" lang="ko" data-ime="ko" placeholder="메모">${esc(t.memo||'')}</textarea></li>`; }).join('')
     || '<li class="empty">추후 과업이 없습니다. 이 통화 뒤에 할 일이 있으면 위에 적어 주세요.</li>';
   enhanceDates(box);   // 마감일 = 방문일 방식 날짜 칸
   $('#taskHint').textContent = form.tasks.length ? (cur ? '체크 · 순서 · 마감일 · 세부 과제는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '통화 기록을 저장하면 과업도 함께 저장됩니다.') : '';
@@ -462,7 +464,6 @@ $('#callForm').addEventListener('submit', e=>{ e.preventDefault(); save(); });
 document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); } });
 function newCall(){ if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 새 통화를 시작할까요?')) return false; cur=null; form=blankForm(); saved=JSON.stringify(form); startedAt=null; paintForm(true); $('#fName').focus(); return true; }
 $('#newBtn').onclick=newCall;
-$('#delBtn').onclick=()=>{ if(cur) openPdel(cur.id); };   // 아래 삭제 버튼도 사유를 받고 삭제
 window.addEventListener('beforeunload', e=>{ if(isDirty()){ e.preventDefault(); e.returnValue=''; } });
 function openItem(id){ const r=shown().find(x=>x.id===id); if(!r) return; if(cur && cur.id===id) return; if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 이 기록을 열까요?')) return; cur=r; form=fromItem(r); saved=JSON.stringify(form); startedAt=null; paintForm(true); window.scrollTo({top:0, behavior:'smooth'}); }
 
@@ -548,8 +549,32 @@ function paintSeats(){ if(!$('#seatBox')) return;
 const MANUAL_URL = 'https://happyyy-monkeyyy.notion.site/3d645f859824807090f1df4f0815a7bd?source=copy_link';   // 새 창으로 열기
 $('#manualOpen').href = MANUAL_URL;   // 문의 매뉴얼은 헤더의 링크로만 (새 창)
 // ===================== 통화 기록 전체 (모든 직원이 받은 개인고객 통화) =====================
+// 삭제된 통화 (Apps Script 'deleted', 보기 전용): 같은 창에서 「삭제된 통화」 ↔ 「← 통화 기록 전체」
+const ALL_HEAD = '<tr><th>저장</th><th>고객</th><th>연락처</th><th>방문 희망일 / 예약일</th><th>인원</th><th>문의 내용</th><th>남은 과업</th><th></th><th class="owner">받은 사람</th></tr>';
+const TRASH_HEAD = '<tr><th>삭제 일시</th><th>삭제한 사람</th><th>사유</th><th>고객</th><th>연락처</th><th>방문 희망일 / 예약일</th><th>문의 내용</th><th class="owner">받은 사람</th></tr>';
+let allTrash=false, trashItems=null, trashErr='';
+function renderTrash(q, qd){
+  if(trashItems==null){ $('#allCount').textContent=''; $('#allBody').innerHTML=`<tr><td colspan="8" class="empty">${trashErr?esc(trashErr):'불러오는 중…'}</td></tr>`; return; }
+  const info = r => { let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const e=[...(Array.isArray(h.h)?h.h:[])].reverse().find(x=>/^\[삭제\]/.test(x.what||'')); return { by:e?e.by:'', why:e?String(e.what).replace(/^\[삭제\]\s*/,''):'(사유 기록 없음)' }; };
+  const all=trashItems.filter(r=>r.callType===CALL_TYPE).map(r=>({r, ...info(r)})).sort((a,b)=>String(b.r.deleted).localeCompare(String(a.r.deleted)));
+  const list=all.filter(o=>!q || [o.r.contact, o.r.note, o.r.takenBy, o.why, o.by].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && String(o.r.phone||'').replace(/\D/g,'').includes(qd)));
+  $('#allCount').textContent = `${all.length}건${q?` · 찾은 ${list.length}건`:''}`;
+  $('#allBody').innerHTML = list.map(o=>{ const d=String(o.r.date||'').slice(0,10);
+    return `<tr class="trash"><td>${esc(dtLabel(o.r.deleted))}</td><td>${esc(o.by)}</td><td class="note">${esc(o.why)}</td><td><b>${esc(o.r.contact||'(이름 없음)')}</b></td><td>${esc(o.r.phone||'')}</td><td>${d?esc(dLabel(d)):''}</td><td class="note">${esc(String(o.r.note||'').split(/\n/)[0].slice(0,80))}</td><td class="owner">${esc(o.r.takenBy||o.r.owner||'')}</td></tr>`; }).join('')
+    || `<tr><td colspan="8" class="empty">${q?'찾은 통화가 없습니다.':'삭제된 개인고객 통화가 없습니다.'}</td></tr>`;
+}
+async function setAllTrash(on){
+  allTrash=on; $('#allName').textContent = on ? '삭제된 개인고객 통화' : '개인고객 통화 기록 전체'; $('#allTrash').textContent = on ? '← 통화 기록 전체' : '삭제된 통화';
+  $('#allHead').innerHTML = on ? TRASH_HEAD : ALL_HEAD; $('#allSearch').value=''; renderAll();
+  if(on){ trashItems=null; trashErr=''; renderAll();
+    try{ const j=await callApi({action:'deleted'}); trashItems=j.items||[]; }
+    catch(e){ trashErr = e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 삭제된 통화가 보입니다 (group-intake.gs 의 deleted).' : '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
+    if(allTrash) renderAll(); }
+}
+$('#allTrash').onclick=()=>setAllTrash(!allTrash);
 function renderAll(){
   const q=$('#allSearch').value.trim().replace(/\s/g,'').toLowerCase(), qd=q.replace(/\D/g,'');
+  if(allTrash) return renderTrash(q, qd);
   const all=shown().sort((a,b)=>String(b.saved).localeCompare(String(a.saved)));
   const hit = r => !q || [r.contact, r.note, r.takenBy, r.history].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd));
   const list=all.filter(hit);
@@ -582,7 +607,7 @@ $('#pdelOk').onclick=()=>{
   if(cur && cur.id===r.id){ cur=null; form=blankForm(); saved=JSON.stringify(form); paintForm(true); }
   closePdel(); renderLists(); if(!$('#allModal').hidden) renderAll(); flush(); toast(`삭제했습니다 · ${why}`);
 };
-const openAll = () => { $('#allModal').hidden=false; $('#allSearch').value=''; renderAll(); $('#allSearch').focus(); flush(); };
+const openAll = () => { $('#allModal').hidden=false; $('#allSearch').value=''; if(allTrash) setAllTrash(false); renderAll(); $('#allSearch').focus(); flush(); };
 $('#allCallsBtn').onclick=openAll;
 $('#allClose').onclick=()=>{ $('#allModal').hidden=true; };
 $('#allModal').addEventListener('mousedown', e=>{ if(e.target.id==='allModal') $('#allModal').hidden=true; });
@@ -646,6 +671,83 @@ paintForm(); renderLists(); paintSync(); tryOpen(); flush();
   pop.addEventListener('click', e=>{ if(e.target===pop) close(); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !pop.hidden){ e.preventDefault(); close(); } });
   document.addEventListener('click', e=>{ const b=e.target.closest('[data-mypop]'); if(b){ e.preventDefault(); window.openMyPop(); } });
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
+<script>
+// ===================== 칸별 한글/영어 입력 (견적서 사이트 방식) =====================
+// data-ime="ko" (단체명·담당자 성함·영업 담당): 칸에 들어가면 항상 한글부터. 컴퓨터 입력기가 영문이어도 두벌식으로 조합.
+//   한/영 키 · Shift+Space · 위쪽 한/A 버튼으로 영어 ↔ 한글
+// data-ime="en" (이메일): 항상 영어. 입력기가 한글이어도 누른 자판 글자로 바꿔 넣음
+(function(){
+  let on = true;
+  const MAP = { q:"ㅂ", w:"ㅈ", e:"ㄷ", r:"ㄱ", t:"ㅅ", y:"ㅛ", u:"ㅕ", i:"ㅑ", o:"ㅐ", p:"ㅔ",
+                a:"ㅁ", s:"ㄴ", d:"ㅇ", f:"ㄹ", g:"ㅎ", h:"ㅗ", j:"ㅓ", k:"ㅏ", l:"ㅣ",
+                z:"ㅋ", x:"ㅌ", c:"ㅊ", v:"ㅍ", b:"ㅠ", n:"ㅜ", m:"ㅡ",
+                Q:"ㅃ", W:"ㅉ", E:"ㄸ", R:"ㄲ", T:"ㅆ", O:"ㅒ", P:"ㅖ" };
+  const REV = {}; Object.keys(MAP).forEach(k=>{ if(!REV[MAP[k]] || k===k.toLowerCase()) REV[MAP[k]]=k; });
+  Object.assign(REV,{ "ㅃ":"Q","ㅉ":"W","ㄸ":"E","ㄲ":"R","ㅆ":"T","ㅒ":"O","ㅖ":"P" });
+  const btn = document.getElementById('ko-toggle');
+  const mode = el => el && el.dataset ? el.dataset.ime : '';
+  function paintBtn(){ btn.textContent = on ? '한' : 'A'; btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on?'true':'false');
+    btn.title = on ? '한글 입력 중 (단체명·담당자 성함) · 한/영 키나 Shift+Space로 영어' : '영어 입력 중 · 한/영 키나 Shift+Space로 한글'; }
+  function setOn(v){ on=v; comp=null; enQ=[]; paintBtn(); }
+  btn.addEventListener('click', ()=>{ setOn(!on); const a=document.activeElement; if(mode(a)==='ko') a.focus(); });
+  paintBtn();
+  const effOn = el => mode(el)==='ko' ? on : false;   // 이메일은 늘 영어
+  function isHanYoung(e){ return e.key==='HangulMode' || e.code==='Lang1' || e.keyCode===21; }
+  function put(el,start,end,text){ const v=el.value; el.value=v.slice(0,start)+text+v.slice(end); const c=start+text.length; el.setSelectionRange(c,c); el.dispatchEvent(new Event('input',{bubbles:true})); return c; }
+  // 남은 한글을 자판 글자로 (이메일 안전장치)
+  const toKeys = s => window.Hangul ? Hangul.disassemble(s).map(j=>REV[j]||j).join('') : s;
+
+  let comp=null, enQ=[], enEl=null, enStart=null, osKo=null;
+  document.addEventListener('focusin', e=>{ comp=null; if(mode(e.target)==='ko') setOn(true); });   // 단체명·성함은 들어갈 때마다 한글부터
+  document.addEventListener('mousedown', ()=>{ comp=null; });
+  document.addEventListener('keydown', e=>{
+    const ime = e.isComposing || e.key==='Process' || e.keyCode===229;
+    const el = e.target, m = mode(el);
+    if(isHanYoung(e) || (ime && (e.code==='Lang1' || e.code==='AltRight'))){ if(m!=='en') setOn(!on); if(osKo!==null) osKo=!osKo; return; }
+    if(m!=='ko' && m!=='en') return;
+    if(m==='ko' && e.key===' ' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey){ e.preventDefault(); setOn(!on); return; }
+    if(e.ctrlKey || e.altKey || e.metaKey){ comp=null; return; }
+    if(/^Key[A-Z]$/.test(e.code)){ if(m==='ko' && osKo!==null && ime!==osKo) setOn(!on); osKo=ime; }
+    if(!effOn(el)){   // 영어인데 입력기가 한글: 누른 자판을 기억하고 조합을 바로 끝냄
+      if(ime && /^Key[A-Z]$/.test(e.code)){
+        const ch=e.code.slice(3), upper = e.shiftKey !== (e.getModifierState && e.getModifierState('CapsLock'));
+        enQ.push(upper?ch:ch.toLowerCase()); enEl=el;
+        setTimeout(()=>{ if(document.activeElement===el){ el.blur(); el.focus(); } },0);
+      }
+      return;
+    }
+    if(!window.Hangul || ime){ if(e.key!=='Shift') comp=null; return; }   // 한글 + 입력기 한글: 그대로
+    const live = comp && comp.el===el && el.selectionStart===comp.end && el.selectionEnd===comp.end;
+    if(/^[a-zA-Z]$/.test(e.key)){
+      const j=(e.shiftKey && MAP[e.key.toUpperCase()]) || MAP[e.key.toLowerCase()];
+      e.preventDefault();
+      if(!live) comp={el, start:el.selectionStart, end:el.selectionEnd, jamo:[]};
+      comp.jamo.push(j);
+      const text=Hangul.assemble(comp.jamo);
+      comp.end=put(el,comp.start,comp.end,text);
+      if(text.length>2){ const n=text.length-2; comp.start+=n; comp.jamo=Hangul.disassemble(text.slice(n)); }
+      return;
+    }
+    if(e.key==='Backspace' && live && comp.jamo.length){ e.preventDefault(); comp.jamo.pop(); comp.end=put(el,comp.start,comp.end,Hangul.assemble(comp.jamo)); if(!comp.jamo.length) comp=null; return; }
+    if(e.key!=='Shift') comp=null;
+  }, true);
+  document.addEventListener('compositionstart', e=>{ if(!effOn(e.target) && mode(e.target)) enStart=e.target.selectionStart; }, true);
+  document.addEventListener('compositionend', e=>{
+    const el=e.target; if(effOn(el) || !mode(el)) return;
+    const data=e.data||'', start=enStart;
+    if(el===enEl && enQ.length){
+      const n = window.Hangul ? Hangul.disassemble(data).length : data.length;
+      const letters = enQ.splice(0, n||enQ.length).join('');
+      setTimeout(()=>{ if(start==null || el.value.slice(start,start+data.length)!==data) return; put(el,start,start+data.length,letters); },0);
+    } else if(mode(el)==='en'){
+      setTimeout(()=>{ if(/[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(el.value)){ const c=el.selectionStart; el.value=toKeys(el.value); el.setSelectionRange(c,c); el.dispatchEvent(new Event('input',{bubbles:true})); } },0);
+    }
+  }, true);
+  // 이메일: 붙여넣기 등으로 한글이 들어오면 자판 글자로
+  document.addEventListener('input', e=>{ const el=e.target; if(mode(el)==='en' && !e.isComposing && /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(el.value)){ el.value=toKeys(el.value); el.dispatchEvent(new Event('input',{bubbles:true})); } }, true);
 })();
 </script>
 </body>

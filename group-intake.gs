@@ -78,6 +78,8 @@ function doPost(e) {
   }
 
   if (req.action === "list") return json_({ ok: true, items: list_(Number(req.limit) || 2000), admin: readAdmin_(), api: 3 });
+  // 삭제된 기록 (단체예약 · 개인고객 통화): 시트에서는 줄을 지우지 않고 '삭제' 칸에 일시만 적으므로 그 줄들을 돌려줌 (보기 전용)
+  if (req.action === "deleted") return json_({ ok: true, items: listDeleted_(Number(req.limit) || 1000), api: 4 });
   if (req.action === "upload") {
     try { return json_({ ok: true, file: upload_(req) }); }
     catch (err) { return json_({ ok: false, error: "upload: " + String(err && err.message || err) }); }
@@ -226,6 +228,20 @@ function del_(id) {
   return id;
 }
 
+// 삭제 표시가 된 줄 (최근 limit개)
+function listDeleted_(limit) {
+  var s = sheet_();
+  var n = s.getLastRow();
+  if (n < 2) return [];
+  var rows = s.getRange(2, 1, n - 1, COLS.length).getDisplayValues();
+  var out = [];
+  rows.forEach(function (r) {
+    var o = {};
+    KEYS.forEach(function (k, i) { o[k] = r[i]; });
+    if (o.deleted && o.id) out.push(o);
+  });
+  return out.slice(-limit);
+}
 function list_(limit) {
   var s = sheet_();
   var n = s.getLastRow();

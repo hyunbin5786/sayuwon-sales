@@ -357,6 +357,19 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .day-all .mb-cat{margin-left:6px}
 .modal .mbdb{width:min(860px,100%)}
 .modal .book{width:min(1000px,100%)}
+#trashModal{z-index:25}   /* 단체예약 목록 위에 뜸 */
+/* 남이 담당인 예약: 잠금 (메모만) */
+.owner-memo{border:1px solid #e0c48a;background:#fff8e6;border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:13px}
+.owner-memo.mine{border-color:#bccab4;background:var(--pine-soft)}
+.owner-memo .om-h{font-weight:700;margin-bottom:6px}
+.owner-memo ul{list-style:none;margin:6px 0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow:auto}
+.owner-memo li{background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+.owner-memo li.new{border-color:var(--red)}
+.owner-memo li small{color:var(--muted)}
+.owner-memo .om-add{display:flex;gap:6px;margin-top:6px}
+.owner-memo textarea{flex:1;min-height:48px;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13px/1.5 var(--sans)}
+body.locked .memo-col,body.locked .form-col > :not(.owner-memo),body.locked .checks > section:not(.day-panel),body.locked #priceWrap{opacity:.6;cursor:not-allowed}
+body.locked #saveBtn{display:none}
 .mbdb-t th{position:sticky;top:0;background:var(--card);font-size:12px;color:var(--muted);font-weight:500}
 .mbdb-t tr.r{cursor:pointer}
 .mbdb-t tr.r:hover td{background:#faf8f2}
@@ -568,6 +581,24 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
     </div>
   </section>
 </div>
+<!-- 내 예약에 다른 사람이 남긴 메모: 확인할 때까지 -->
+<div class="modal" id="memoModal" hidden>
+  <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="memoTitle">
+    <h2 id="memoTitle">메모를 확인하세요</h2>
+    <ul class="pc-list" id="memoList"></ul>
+    <div class="row-btns"><button class="btn" id="memoLater" title="다음에 화면을 열 때 다시">나중에</button></div>
+  </section>
+</div>
+<!-- 삭제된 단체 예약 (시트에만 남아 있던 것을 보기 전용으로) -->
+<div class="modal" id="trashModal" hidden>
+  <section class="list panel mbdb book" role="dialog" aria-modal="true" aria-labelledby="trashTitle">
+    <h2><span id="trashTitle">삭제된 단체 예약</span> <small id="trashSum"></small>
+      <span class="row-btns"><button type="button" class="btn list-x" id="trashClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+    <input id="trashSearch" class="list-search" type="search" data-ime="ko" placeholder="검색: 업체명 · 담당자 · 사유 · 삭제한 사람" autocomplete="off" style="margin:0 0 8px">
+    <div class="tw"><table class="mbdb-t"><thead><tr><th>삭제 일시</th><th>삭제한 사람</th><th>사유</th><th>방문일</th><th>업체</th><th>담당자</th><th>인원</th><th class="owner">영업 담당</th></tr></thead><tbody id="trashBody"></tbody></table></div>
+    <p class="hint" style="margin:8px 0 0">삭제된 예약은 구글 시트에 그대로 남아 있고(‘삭제’ 칸에 일시), 여기서는 보기만 합니다.</p>
+  </section>
+</div>
 <!-- 대관 · 도슨트 · 프로그램 예약 목록 (예약접수된 단체 예약에서 자동) -->
 <div class="modal" id="bookModal" hidden>
   <section class="list panel mbdb book" role="dialog" aria-modal="true" aria-labelledby="bookTitle">
@@ -684,6 +715,7 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 
   <!-- 예약 칸 -->
   <section class="panel form-col">
+    <div class="owner-memo lock-ok" id="ownerMemo" hidden></div>
     <div class="form-head"><h2>예약 내용</h2>
       <label class="tbd-date" id="w_tbdDate" title="방문일 전주 목요일 (이미 지났으면 방문일 전날)">미정 항목 답변일 <span class="dbox"><input class="dtxt" id="tbdTxt" readonly placeholder="날짜 고르기"><input type="date" class="dpick" id="f_tbdDate" data-k="tbdDate" tabindex="-1" aria-hidden="true"></span></label>
     </div>
@@ -785,7 +817,7 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
     <input id="listSearch" class="list-search" type="search" data-ime="ko" placeholder="검색: 업체명 · 담당자 · 전화번호 (전체에서)" autocomplete="off">
     <div class="seg" id="sortSeg" style="display:inline-flex;background:var(--bg)" title="목록 정렬">
       <button type="button" data-o="date">방문일 순</button><button type="button" data-o="saved" title="최근에 접수(저장)한 예약부터">접수 순</button>
-    </div></div>
+    </div><button type="button" class="btn" id="trashBtn" style="padding:4px 10px;font-size:12px" title="삭제한 단체 예약 (삭제 일시 · 삭제한 사람 · 사유)">삭제된 예약</button></div>
     <div class="tw"><table><thead><tr><th>방문일</th><th>단계</th><th>업체</th><th>담당자</th><th>인원</th><th>입퇴장</th><th>식사</th><th>견적서</th><th>거래명세서</th><th class="owner">영업 담당</th><th>접수</th><th class="acts">수정 · 삭제</th></tr></thead><tbody id="listBody"></tbody></table></div>
   </section>
 </div>
@@ -956,7 +988,8 @@ const isCKey = k => /^c\d+_(name|phone|email)$/.test(k);
 // ===================== 상태 =====================
 let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
-let hist=[], baseSnap=null, tasks=[], erpList=[], openDone=new Set();   // openDone: 펼쳐 본 끝난 과업   // erpList: 붙여넣은 전산 예약 내역   // 수정 기록 · 추후 과업
+let hist=[], baseSnap=null, tasks=[], erpList=[], openDone=new Set(), memos=[], lockOwner='';   // memos: 이 예약에 남긴 메모 · lockOwner: 남이 담당인 예약을 열었을 때 그 담당 이름 (잠금)
+   // openDone: 펼쳐 본 끝난 과업   // erpList: 붙여넣은 전산 예약 내역   // 수정 기록 · 추후 과업
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
 function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; o.gate='미정'; o.tbd='결제 방법'; return o; }   // 결제 · 입장문은 기본 미정   // 결제는 기본 미정
 function resetState(){ itemRows=[]; itemPend=new Set(); rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
@@ -1744,6 +1777,27 @@ function renderDayAll(){
         return `<div class="da"><span class="da-h">${t}</span>${l.length?`${l.length}건`:'<span class="none">예약 없음</span>'} ${btn(c)}${l.length?`<ul>${l.map(x=>`<li>${bookLine(x)}</li>`).join('')}</ul>`:''}</div>`; }).join('')
     + `<div class="da none">사담 예약 현황은 <b>예약 전산</b>에서 확인하세요.</div>`;
 }
+// ===================== 삭제된 단체 예약 (Apps Script 'deleted', 보기 전용) =====================
+let trashItems=null, trashErr='';
+const delInfo = r => { const h=parseHist(r).h, e=[...h].reverse().find(x=>/^\[삭제\]/.test(x.what||'')); return { by:e?e.by:'', why:e?String(e.what).replace(/^\[삭제\]\s*/,''):'(사유 기록 없음)' }; };
+function paintTrash(){
+  const q=$('#trashSearch').value.trim().replace(/\s/g,'').toLowerCase(), qd=q.replace(/\D/g,'');
+  if(trashItems==null){ $('#trashBody').innerHTML=`<tr><td colspan="8" class="empty">${trashErr ? esc(trashErr) : '불러오는 중…'}</td></tr>`; $('#trashSum').textContent=''; return; }
+  const all=trashItems.filter(r=>isGroupRec(r) && r.id!==MBDB_ID).map(r=>({r, ...delInfo(r)})).sort((a,b)=>String(b.r.deleted).localeCompare(String(a.r.deleted)));
+  const list=all.filter(o=>!q || [o.r.org, contactCell(o.r).replace(/<[^>]+>/g,''), o.why, o.by, ownerOf(o.r)].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && JSON.stringify(o.r).replace(/\D/g,'').includes(qd)));
+  $('#trashSum').textContent = `${all.length}건${q?` · 찾은 ${list.length}건`:''}`;
+  $('#trashBody').innerHTML = list.map(o=>`<tr><td>${esc(fmt(o.r.deleted))}</td><td>${esc(o.by)}</td><td class="note">${esc(o.why)}</td><td>${esc(dateLabel(o.r.date)||'')}</td><td><b>${esc(o.r.org||'(업체 미정)')}</b></td><td>${contactCell(o.r)}</td><td class="num">${esc(o.r.people||'')}</td><td class="owner">${esc(ownerOf(o.r)||'')}</td></tr>`).join('')
+    || `<tr><td colspan="8" class="empty">${q?'찾은 예약이 없습니다.':'삭제된 단체 예약이 없습니다.'}</td></tr>`;
+}
+async function openTrash(){ $('#trashModal').hidden=false; $('#trashSearch').value=''; trashItems=null; trashErr=''; paintTrash();
+  try{ const j=await callApi({action:'deleted'}); trashItems=j.items||[]; }
+  catch(e){ trashErr = e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 삭제된 예약이 보입니다 (group-intake.gs 의 deleted).' : '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
+  paintTrash(); }
+$('#trashBtn').onclick=openTrash;
+$('#trashClose').onclick=()=>{ $('#trashModal').hidden=true; };
+$('#trashSearch').addEventListener('input', paintTrash);
+$('#trashModal').addEventListener('mousedown', e=>{ if(e.target.id==='trashModal') $('#trashModal').hidden=true; });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#trashModal').hidden){ e.preventDefault(); e.stopImmediatePropagation(); $('#trashModal').hidden=true; } }, true);
 // 대관 · 도슨트 · 프로그램 전체 목록 (앞으로 있을 것, 지난 것도 보기)
 let bookCatNow='rent';
 const BOOK_COLS = { rent:[['일자'],['업체'],['인원'],['장소'],['담당자 이름'],['비고사항']], docent:[['일자'],['업체'],['인원'],['시간'],['종류'],['담당자 이름'],['비고사항']], prog:[['일자'],['업체'],['인원'],['프로그램 항목'],['담당자 이름'],['비고사항']] };
@@ -2004,7 +2058,7 @@ async function pull(inFlush){
     serverItems=j.items||[]; writeJSON(CACHE_LS,serverItems.slice(-1000));
     if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
     dbTime.pulled=new Date().toISOString(); writeJSON(DBT_LS, dbTime);
-    syncState='ok'; $('#keyMsg').textContent=''; paintSync(); renderList(); tryOpenG(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); if(!$("#myModal").hidden) renderMy(); }
+    syncState='ok'; $('#keyMsg').textContent=''; paintSync(); renderList(); tryOpenG(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); checkMemoPopup(); if(editingId){ const cr=cache.find(x=>x.id===editingId); if(cr){ memos=mergeMemos(memos, parseHist(cr).memos); paintLock(); } } if(!$("#myModal").hidden) renderMy(); }
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
 const store={
@@ -2055,7 +2109,7 @@ function diffSnap(a,b){
   return out;
 }
 // 시트 '수정 기록' 칸: {h:[수정 기록], tasks:[추후 과업]} (예전 기록은 배열만)
-function parseHist(r){ try{ const j=JSON.parse(r.history||'[]'); return Array.isArray(j) ? {h:j, tasks:[], erp:[]} : {h:j.h||[], tasks:j.tasks||[], erp:j.erp||[]}; }catch(_){ return {h:[], tasks:[], erp:[]}; } }
+function parseHist(r){ try{ const j=JSON.parse(r.history||'[]'); return Array.isArray(j) ? {h:j, tasks:[], erp:[], memos:[]} : {h:j.h||[], tasks:j.tasks||[], erp:j.erp||[], memos:j.memos||[]}; }catch(_){ return {h:[], tasks:[], erp:[], memos:[]}; } }   // memos: 담당이 아닌 사람이 남긴 메모 [{id,t,by,text,seen,seenAt}]
 const histOf = r => parseHist(r).h;
 // ---- 바뀐 값의 흐름 (ch): {칸: [처음 값, 다음 값, …]} → "관람 인원 20 → 22 → 25". 자동 저장이 여러 번이어도 한 줄에 모든 변경이 남고, 되돌리기에도 씀
 const fmtTime_ = t => dtLabel(t);
@@ -2111,6 +2165,7 @@ async function save(opt){
   const auto = !!(opt && opt.auto), quiet = opt===true || auto;
   if(saving){ if(auto){ clearTimeout(autoT); autoT=setTimeout(()=>save(opt), 3000); return; }   // 자동 저장 중이면: 자동은 잠시 뒤, 저장 버튼은 끝나기를 기다렸다가
     await new Promise(ok=>{ const iv=setInterval(()=>{ if(!saving){ clearInterval(iv); ok(); } }, 50); }); return save(opt); }
+  if(lockOwner){ if(!auto) toast(`${lockOwner}님 담당 예약이라 고칠 수 없습니다. 바꿀 내용은 위쪽 메모로 남겨 주세요.`); return; }   // 남이 담당인 예약은 저장 안 함 (메모만)
   if(!canSave()){ if(!auto) toast('업체나 방문일을 먼저 입력하세요.'); return; }
   if(typeof tbdIsLate==='function' && tbdIsLate(rec) && !rec.tbdLate){ if(!auto) openLate(()=>save(opt)); return; }   // 입력 기한을 전주 목요일보다 늦게 잡았으면 사유부터 (자동 저장은 기다림)
   if(auto && !isDirty()) return;
@@ -2128,7 +2183,7 @@ async function save(opt){
   const newHist = row ? [...(open ? hist.slice(0,-1) : hist), row].slice(-200) : hist;
   const j=joinContacts(rec);
   const item={...rec, ...j, ...packExtra(rec), callType:effStage(rec), summary:autoSummary(), note:$('#memoBox').value, takenBy:rec.owner,
-    callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:now, history:JSON.stringify({h:newHist, tasks, erp:erpList})};
+    callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:now, history:JSON.stringify({h:newHist, tasks, erp:erpList, memos:mergeMemos(memos, parseHist(cache.find(x=>x.id===editingId)||{}).memos)})};   // 메모: 그사이 남이 남긴 것까지 합침
   Object.keys(item).forEach(k=>{ if(isCKey(k)) delete item[k]; });
   delete item.tbd; delete item.stage; delete item.erp; delete item.tbdDate; delete item.tbdLate; delete item.payContact;
   saving=true;
@@ -2469,7 +2524,7 @@ async function takeDocs(){
       const r=(cache||[]).find(x=>x.id===d.recId);
       if(!r){ if(Date.now()-new Date(d.at)<7*864e5) left.push(d); continue; }   // 목록을 아직 못 받았으면 다음에
       const ph=parseHist(r); attach(ph.tasks); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${title} 출력 · 드라이브 저장`});
-      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp}), saved:now});
+      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now});
     }
     try{ left.length ? localStorage.setItem(DOCS_LS, JSON.stringify(left)) : localStorage.removeItem(DOCS_LS); }catch(_){}
     if(list.length>left.length){ await store.list(); toast('견적서 사이트에서 만든 파일을 과업에 붙였습니다.'); }
@@ -2502,7 +2557,7 @@ $('#payList').addEventListener('click', async e=>{
     else {
       const ph=parseHist(r), now=new Date().toISOString(), t=ph.tasks.find(x=>x.id==='paycheck'); if(t){ t.done=true; t.doneAt=now; }
       ph.h.push({t:now, by:savedOwner()||'', what:'[과업] 결제 확인 완료'});
-      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp}), saved:now});
+      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now});
     }
     await store.list(); toast('결제 확인으로 표시했습니다.'); checkPayPopup(true);
   }
@@ -2569,7 +2624,8 @@ function openRecord(r){
     rec.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(rec) ? normStage(r.callType) : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
     nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; $('#memoBox').value=r.note||'';
-    const ph=parseHist(r); hist=ph.h; tasks=ph.tasks; erpList=ph.erp||[];
+    const ph=parseHist(r); hist=ph.h; tasks=ph.tasks; erpList=ph.erp||[]; memos=ph.memos||[];
+    { const o=(r.owner||r.takenBy||'').trim(), me=savedOwner(); lockOwner = o && me && o!==me ? o : ''; } paintLock();   // 남이 담당인 예약: 잠금 (메모만)
     renderContacts(); renderForm(); resetWarn(true); baseSnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
 }
 
@@ -2590,7 +2646,7 @@ $('#adminSyncBtn').onclick=async()=>{
 // ===================== 새 통화·단축키 =====================
 function newCall(withToast=true){
   resetState(); clearInterval(timerInt); tick(); $('#memoBox').value=''; status('');
-  hist=[]; baseSnap=null; tasks=[]; erpList=[]; tbdAuto=false; renderHist();
+  hist=[]; baseSnap=null; tasks=[]; erpList=[]; tbdAuto=false; memos=[]; lockOwner=''; renderHist(); if(typeof paintLock==='function') paintLock();
   renderContacts(); renderForm(); resetWarn(false); emptySnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty();
   if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
 }
@@ -3221,7 +3277,7 @@ function fixDiffList(a,b){ const out=[];
 const fixCur = () => ({ stage:$('#fixStage').value, erp:$('#fixErp').value, quote:$('#fixQuote').value, stmt:$('#fixStmt').value });
 function paintFixDiff(){ const d=fixDiffList(fixBase, fixCur()); $('#fixDiff').textContent = d.length ? '바뀌는 것: '+d.join(', ') : '바꿀 상태를 고르세요.'; $('#fixOk').disabled=!d.length; }
 function openFix(id){
-  const r=cache.find(x=>x.id===id); if(!r) return;
+  const r=cache.find(x=>x.id===id); if(!r) return; if(notMineMsg(r)) return;   // 남이 담당인 예약은 고칠 수 없음
   fixId=id; fixBase=fixStateOf(r);
   $('#fixWho').textContent = [r.org||r.contact||'(업체 미정)', r.date&&dateLabel(r.date)].filter(Boolean).join(' · ');
   $('#fixStage').value=fixBase.stage; $('#fixErp').value=fixBase.erp; $('#fixQuote').value=fixBase.quote; $('#fixStmt').value=fixBase.stmt;
@@ -3252,7 +3308,7 @@ $('#fixOk').onclick=async ()=>{
     t.done = cur[id]==='발행'; t.doneAt = t.done ? now : ''; t.subs=Object.fromEntries(DOC_SUBS[id].map(([k])=>[k, t.done])); ex[wk]='있음'; });
   ph.h.push({t:now, by:savedOwner()||'', what:`[목록 수정] ${diff.join(', ')} · 사유: ${why}`});
   const pk=packExtra(ex);
-  const item={...r, pay:pk.pay, memo:pk.memo, callType:cur.stage, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp}), saved:now};
+  const item={...r, pay:pk.pay, memo:pk.memo, callType:cur.stage, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now};
   await store.put(item); closeFix(); await renderList();
   if(editingId===r.id){ openRecord(cache.find(x=>x.id===r.id)||item); $('#listModal').hidden=false; }   // 열어 둔 예약이면 고친 상태로 다시 불러옴
   toast('목록 상태를 고쳤습니다. 사유는 수정 기록에 남았습니다.');
@@ -3260,7 +3316,7 @@ $('#fixOk').onclick=async ()=>{
 
 let delId=null;
 function openDel(id){
-  const r=cache.find(x=>x.id===id); if(!r) return;
+  const r=cache.find(x=>x.id===id); if(!r) return; if(notMineMsg(r)) return;   // 남이 담당인 예약은 지울 수 없음
   delId=id;
   $('#delWho').textContent = [r.org||r.contact||'(업체 미정)', r.date&&dateLabel(r.date), r.people&&`${r.people}명`].filter(Boolean).join(' · ');
   $('#delReason').innerHTML = '<option value="">사유를 고르세요</option>' + DEL_REASONS.map(x=>`<option>${esc(x)}</option>`).join('');
@@ -3277,7 +3333,7 @@ $('#delOk').onclick=async ()=>{
   const now=new Date().toISOString(), ph=parseHist(r), why = /^기타/.test(reason) ? note : reason + (note ? ` · ${note}` : '');
   ph.h.push({t:now, by:savedOwner()||'', what:`[삭제] ${why}`});
   // 사유를 수정 기록에 남긴 뒤 삭제 (시트에서는 줄을 지우지 않고 '삭제' 칸에 일시를 적으므로 사유도 남음)
-  await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp}), saved:now});
+  await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now});
   await store.del(r.id, true);
   if(editingId===r.id) newCall(false);
   closeDel(); renderList(); toast(`삭제했습니다 · ${why}`);
@@ -3406,7 +3462,7 @@ function renderMy(){
 }
 function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
   const m=othersEdits().length;
-  const t=n ? `과업 ${n}` : ''; void m;   // 수정 표시는 없앰 (마이페이지에서 다른 사람이 수정한 내 예약 칸을 뺌)
+  const mm=myNewMemos().length, t=[n&&`과업 ${n}`, mm&&`메모 ${mm}`].filter(Boolean).join(' · '); void m;   // 수정 표시는 없앰 · 내 예약에 확인 안 한 메모 수
   $('#myCount').hidden=!t; $('#myCount').textContent=t; }
 function openMy(){ $('#myModal').hidden=false; renderMy(); if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
 // group.html?open=예약ID → 그 예약을 엶 (팝업 마이페이지에서 단체 줄을 누른 경우 · 목록을 받은 뒤)
@@ -3429,6 +3485,70 @@ $('#myBody').addEventListener('click', e=>{ if(e.target.id==='myEditsSeen'){ mar
   if(MY_ONLY){ document.documentElement.classList.remove('my-only'); history.replaceState(null,'','group.html'); document.title='단체고객 전화응대 · 사유원 예약 관리 시스템'; $('#crumb').textContent='단체고객 전화응대'; $('#myModal').hidden=true; openRecordG(r); return; }   // 단체 줄 → 단체 화면으로 바뀌며 그 예약을 엶
   closeMy(); openRecordG(r); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#myModal').hidden){ e.preventDefault(); closeMy(); } });
+
+// ===================== 남이 담당인 예약: 잠금 + 담당자에게 메모 =====================
+// 영업 담당이 다른 사람인 예약을 열면 아무것도 고칠 수 없음(저장 · 과업 · 수정 · 삭제 모두). 바꿀 내용은 위쪽 메모로 → 담당자 화면에 '메모를 확인하세요' 팝업
+const mergeMemos = (a, b) => { const m=new Map(); [...(b||[]), ...(a||[])].forEach(x=>{ if(!x||!x.id) return; const o=m.get(x.id); m.set(x.id, o ? {...x, ...o, seen: !!(o.seen||x.seen), seenAt:o.seenAt||x.seenAt||''} : x); }); return [...m.values()].sort((x,y)=>String(x.t).localeCompare(String(y.t))); };
+function notMineMsg(r){ const o=ownerOf(r), me=savedOwner(); if(o && me && o!==me){ toast(`${o}님 담당 예약이라 고치거나 지울 수 없습니다. 예약을 열어 메모로 남겨 주세요.`); return true; } return false; }
+const memoLi = (m, own) => `<li class="${own && !m.seen ? 'new' : ''}"><small>${esc(fmt(m.t))} · <b>${esc(m.by||'')}</b>${own ? (m.seen ? ' · 확인함' : ' · <b style="color:var(--red)">새 메모</b>') : ''}</small><br>${esc(m.text).replace(/\n/g,'<br>')}</li>`;
+function paintLock(){
+  document.body.classList.toggle('locked', !!lockOwner);
+  const box=$('#ownerMemo'); if(!box) return;
+  const me=savedOwner(), list=[...memos].reverse();
+  if(lockOwner){
+    box.className='owner-memo lock-ok'; box.hidden=false;
+    box.innerHTML = `<div class="om-h">🔒 ${esc(lockOwner)}님 담당 예약입니다 · 고칠 수 없습니다</div><div class="hint" style="margin:0">바꿀 내용이나 전할 말은 아래에 메모로 남겨 주세요. ${esc(lockOwner)}님 화면에 「메모를 확인하세요」 알림이 뜹니다.</div>`
+      + (list.length ? `<ul>${list.map(m=>memoLi(m,false)).join('')}</ul>` : '')
+      + `<div class="om-add"><textarea id="omText" data-ime="ko" placeholder="예) 고객님이 인원 30 → 35명으로 바꾸고 싶다고 전화 주셨어요"></textarea><button type="button" class="btn primary" id="omSend">메모 남기기</button></div>`;
+  } else if(editingId && memos.length){
+    const unseen=memos.filter(m=>!m.seen && m.by!==me).length;
+    box.className='owner-memo mine lock-ok'; box.hidden=false;
+    box.innerHTML = `<div class="om-h">다른 사람이 남긴 메모 ${memos.length}개${unseen?` · <b style="color:var(--red)">새 메모 ${unseen}개</b> <button type="button" class="btn" id="omSeen" style="padding:2px 8px;font-size:12px">확인함</button>`:''}</div><ul>${list.map(m=>memoLi(m,true)).join('')}</ul>`;
+  } else { box.hidden=true; box.innerHTML=''; }
+}
+async function saveMemos(id, fn){   // 공유 기록의 최신 예약에 메모를 바꿔 저장 (다른 칸은 건드리지 않음)
+  const r=cache.find(x=>x.id===id); if(!r) return null;
+  const ph=parseHist(r); ph.memos=fn(ph.memos||[]);
+  const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos})};
+  await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
+  if(editingId===id) memos=ph.memos;
+  return item;
+}
+document.addEventListener('click', async e=>{
+  if(e.target.id==='omSend'){ const ta=$('#omText'), text=ta.value.trim(); if(!text){ toast('메모를 적어 주세요.'); ta.focus(); return; }
+    e.target.disabled=true;
+    await saveMemos(editingId, ms=>[...ms, {id:'m'+Date.now().toString(36), t:new Date().toISOString(), by:savedOwner()||'', text, seen:false}]);
+    paintLock(); toast(`메모를 남겼습니다. ${lockOwner}님께 알림이 갑니다.`); return; }
+  if(e.target.id==='omSeen'){ const me=savedOwner(), now=new Date().toISOString(); await saveMemos(editingId, ms=>ms.map(m=>m.by!==me && !m.seen ? {...m, seen:true, seenAt:now} : m)); paintLock(); paintMemoCount(); }
+});
+// 잠긴 예약: 화면의 칸 · 버튼을 누르거나 쳐도 아무 일이 없게 (위쪽 메모 · 예약 현황 목록 · 텍스트 복사는 됨)
+const lockBlocked = t => !!lockOwner && t && t.closest && t.closest('.layout') && !t.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn');
+let lockNudgeT=0;
+['mousedown','click','dblclick','beforeinput','paste','drop','dragstart','change','input'].forEach(ev=>document.addEventListener(ev, e=>{
+  if(!lockBlocked(e.target)) return; e.preventDefault(); e.stopImmediatePropagation();
+  if(ev==='mousedown' && Date.now()-lockNudgeT>2500){ lockNudgeT=Date.now(); toast(`${lockOwner}님 담당 예약이라 고칠 수 없습니다. 위쪽 메모로 남겨 주세요.`); }
+}, true));
+document.addEventListener('keydown', e=>{ if(!lockBlocked(e.target)) return; if(['Tab','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key) || ((e.ctrlKey||e.metaKey) && /^[ca]$/i.test(e.key))) return; e.preventDefault(); e.stopImmediatePropagation(); }, true);
+// 내 예약에 새 메모가 있으면: '메모를 확인하세요' 팝업 (확인할 때까지, 이 화면에서는 새 메모가 생길 때마다)
+let memoShown=new Set();
+function myNewMemos(){ const me=savedOwner(); if(!me) return []; const out=[]; (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).memos.forEach(m=>{ if(!m.seen && m.by!==me) out.push({r, m}); })); return out.sort((a,b)=>String(b.m.t).localeCompare(String(a.m.t))); }
+function paintMemoCount(){ if(typeof paintMyCount==='function') paintMyCount(); }
+function checkMemoPopup(){
+  if(MY_EMBED) return;
+  const list=myNewMemos(); if(!list.length || list.every(o=>memoShown.has(o.m.id))) return;
+  if([...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 닫힌 뒤에 (1분마다 다시 봄)
+  list.forEach(o=>memoShown.add(o.m.id));
+  $('#memoList').innerHTML = list.map(({r,m})=>`<li><span class="who"><b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date)||'미정')}<br><small class="hint" style="margin:0">${esc(fmt(m.t))} · <b>${esc(m.by||'')}</b>님 메모</small><br>${esc(m.text).replace(/\n/g,'<br>')}</span><button class="btn primary" data-mseen="${esc(r.id)}|${esc(m.id)}">확인</button><button class="btn" data-mopen="${esc(r.id)}|${esc(m.id)}">열기</button></li>`).join('');
+  $('#memoTitle').innerHTML = `메모를 확인하세요 <small>내 예약에 다른 사람이 남긴 메모 ${list.length}개</small>`;
+  $('#memoModal').hidden=false;
+}
+$('#memoLater').onclick=()=>{ $('#memoModal').hidden=true; };
+$('#memoList').addEventListener('click', async e=>{ const d=e.target.dataset, v=d.mseen||d.mopen; if(!v) return; const [rid,mid]=v.split('|'), now=new Date().toISOString();
+  e.target.disabled=true; await saveMemos(rid, ms=>ms.map(m=>m.id===mid ? {...m, seen:true, seenAt:now} : m));
+  e.target.closest('li').remove(); if(!$('#memoList').children.length) $('#memoModal').hidden=true;
+  if(editingId===rid) paintLock(); paintMemoCount();
+  if(d.mopen){ $('#memoModal').hidden=true; const r=cache.find(x=>x.id===rid); if(r) openRecordG(r); } else toast('메모를 확인했습니다.'); });
+setInterval(()=>{ if(window.__tasksReady) checkMemoPopup(); }, 60000);
 
 // ===================== 남의 예약을 고쳤을 때: 담당자에게 보고 =====================
 function openReport(item, owner, me, changes){
@@ -3488,7 +3608,7 @@ async function doneTask(id, tid){
   if(editingId===id){ let t=tasks.find(x=>x.id===tid); if(!t){ t={...base}; tasks.push(t); } t.done=true; t.doneAt=now; if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=true); (t.xsubs||[]).forEach(x=>x.done=true); renderTasks(); await save({auto:true}); return; }
   const ph=parseHist(r); let t=ph.tasks.find(x=>x.id===tid); if(!t){ t={...base, memo:'', at:now}; ph.tasks.push(t); }
   t.done=true; t.doneAt=now; if(DOC_SUBS[t.id]) t.subs=Object.fromEntries(DOC_SUBS[t.id].map(([k])=>[k,true])); (t.xsubs||[]).forEach(x=>x.done=true); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료`});
-  const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp}), saved:now}; await store.put(item);
+  const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item);
   const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;   // 공유 기록에서 다시 받기 전에도 바로 반영
 }
 $('#tbdList').addEventListener('click', async e=>{
@@ -3566,7 +3686,7 @@ async function restoreView(){
 }
 emptySnap=snap(); window.__autoReady=true; paintDirty();   // 자동 저장 시작 (빈 화면 기준)
 restoreView();   // 새로고침 전에 보던 화면
-window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs(); checkTbdPopup();   // 추후 과업 · 결제 확인 알림 · 미정 항목 알림
+window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs(); checkTbdPopup(); checkMemoPopup();   // 추후 과업 · 결제 확인 알림 · 미정 항목 알림
 window.addEventListener('focus', ()=>{ if(priceLoaded && Date.now()-priceLoaded>10*60000) loadQuotePrices(); });
 $('#memoBox').focus();
 
