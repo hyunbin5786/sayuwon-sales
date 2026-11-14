@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 예약 관리 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); else localStorage.setItem("sayuwon_owner", u.name); }catch(e){} if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 마이페이지 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261114f">
+<link rel="stylesheet" href="css/group.css?v=20261114g">
 </head>
 <body>
 <header>
@@ -314,7 +314,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/group.js?v=20261114f"></script>
-<script src="js/ime.js?v=20261114f"></script>
+<script src="js/group.js?v=20261114g"></script>
+<script src="js/ime.js?v=20261114g"></script>
 </body>
 </html>

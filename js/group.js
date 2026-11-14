@@ -423,13 +423,14 @@ function paintItemPrices(){
   document.querySelectorAll('#itemsBox [data-ip]').forEach(el=>{ const k=el.dataset.ip, src=itemSrc(k), up=document.querySelector(`#itemsBox [data-iup="${CSS.escape(k)}"]`), am=document.querySelector(`#itemsBox [data-iamt="${CSS.escape(k)}"]`);
     let h='', amt='';
     // 가격 칸: 할인까지 빼고 실제로 결제하는 금액을 과세(신라) · 비과세(사유원)로 (전산 내역 모드 · 금액을 모르면 1인 가격)
-    const pm = !E && priceInfo && src ? (priceInfo[normSrc(src)]||{}).m : null;
-    if(up) up.innerHTML = !quoteCat ? '' : pm && !seen.has(src) ? [pm.fTx>0 && `<span title="정상가 ${won(pm.fTx)}원 − 할인 ${won(pm.dTx)}원"><i>과세(신라)</i>${won(pm.tx)}원</span>`, pm.fTf>0 && `<span title="정상가 ${won(pm.fTf)}원 − 할인 ${won(pm.dTf)}원"><i>비과세(사유원)</i>${won(pm.tf)}원</span>`].filter(Boolean).join('') : upHTML(src);
+    // 전산 내역이 있으면 전산 금액 · 할인을 그 품목의 과세 · 비과세 비율로 나눔
+    const ex = E && E.m[k] ? (()=>{ const x=E.m[k], p=src ? priceOf(src) : null, u = p ? splitOf(src, p, rec) : {tx:1, tf:0}, rt = (u.tx+u.tf) ? u.tf/(u.tx+u.tf) : 0, aTf=Math.round(x.amount*rt), dTf=Math.round(x.disc*rt);
+      return { fTx:Math.round(x.base*(1-rt)), fTf:Math.round(x.base*rt), tx:x.amount-aTf, tf:aTf, dTx:x.disc-dTf, dTf }; })() : null;
+    const pm = ex || (!E && priceInfo && src ? (priceInfo[normSrc(src)]||{}).m : null);
+    if(up) up.innerHTML = !quoteCat && !ex ? '' : pm && !seen.has(src) ? [pm.fTx>0 && `<span title="정상가 ${won(pm.fTx)}원 − 할인 ${won(pm.dTx)}원"><i>과세(신라)</i>${won(pm.tx)}원</span>`, pm.fTf>0 && `<span title="정상가 ${won(pm.fTf)}원 − 할인 ${won(pm.dTf)}원"><i>비과세(사유원)</i>${won(pm.tf)}원</span>`].filter(Boolean).join('') : upHTML(src);
     if(E){ const x=E.m[k];
       if(!x) h = k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', '<b class="bad">전산 내역에 없음</b>', 'warn');
-      else { const q=numOf(itemQty(k)), diff = q!==x.people;
-        h = cell('전산 인원', `${x.people}${itemUnit(k)}${diff?` <b class="bad">(예약 ${q})</b>`:''}`, diff?'warn':'')
-          + cell('상품금액', won(x.base)) + cell('할인', x.disc ? `-${won(x.disc)}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}` : '없음') + cell('금액', `<b>${won(x.amount)}</b>`, 'amt'); } }
+      else if(x.disc) h = `<span class="im"><i>할인</i>${[ex.dTx>0 && `과세(신라) -${won(ex.dTx)}원`, ex.dTf>0 && `비과세(사유원) -${won(ex.dTf)}원`].filter(Boolean).join(' · ')}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}</span>`; }   // 전산 내역 줄: 할인만 (인원 · 상품금액 · 금액은 없앰, 결제 금액은 위 금액 칸)
     else if(!priceInfo) h='';
     else { const x=src ? priceInfo[normSrc(src)] : null;
       if(k==='view' && !x) h=cell('관람권', numOf(rec.people)?'0명 (모두 관람 포함 품목으로 계산)':'인원 입력');
