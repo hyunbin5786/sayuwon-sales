@@ -352,6 +352,9 @@ html.cat-only body > *:not(#catalog-modal){display:none !important}
 html.cat-only body{background:transparent}
 html.cat-only #catalog-modal{background:transparent; padding:0}
 html.cat-only #catalog-modal .modalbox{width:100%; max-height:100vh; height:100vh; border-radius:0; box-shadow:none}
+/* 메뉴에서 연 품목관리 (?catalog=1&page=1): 팝업 모양 없이 페이지로 · × 대신 위쪽 「사유원 예약 관리 시스템」으로 메뉴에 */
+html.cat-page #catalog-modal .modalbox{max-width:none; background:var(--paper)}
+html.cat-page #cat-close{display:none !important}
 </style>
 
 <!-- 사유원 예약 관리 시스템 공통 헤더: 시스템 이름(누르면 메뉴) › 화면 이름 · 버튼 · 로그인한 이름 -->
@@ -2686,6 +2689,7 @@ html.cat-only #catalog-modal .modalbox{width:100%; max-height:100vh; height:100v
   document.getElementById("cat-close").addEventListener("click", closeCatalog);
   if(CAT_ONLY){
     document.documentElement.classList.add("cat-only");
+    if(/[?&]page=1(&|$)/.test(location.search)) document.documentElement.classList.add("cat-page");   // 메뉴의 품목관리 페이지
     document.getElementById("open-catalog").click();
     window.addEventListener("message", function(e){   // 도우미의 × 를 누르면 저장 안 한 변경을 먼저 묻는다
       if(e.data && e.data.type === "sy-catalog" && e.data.ev === "close-request") closeCatalog();
