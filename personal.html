@@ -63,6 +63,7 @@ main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;
 .manual{position:sticky;top:64px;display:flex;flex-direction:column;height:calc(100vh - 80px);min-height:420px}
 .manual iframe{flex:1;width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;min-height:0}
 @media (max-width:900px){.manual{position:static;height:70vh}}
+/* 날짜 칸: 단체 방문일과 같은 방식 (칸 안에 날짜 (요일) · 누르면 달력) */.dbox{position:relative;display:block;min-width:0}.dbox .dtxt{width:100%;height:36px;border:1px solid var(--line);border-radius:7px;padding:0 9px;font:14px var(--sans);background:#fff;color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums}.dbox .dtxt:not([readonly]){cursor:text}.dbox .dtxt:focus{outline:none;border-color:var(--pine)}.dbox input.dpick{position:absolute;left:0;bottom:0;width:1px!important;height:1px!important;opacity:0;pointer-events:none;border:0;padding:0}.tadd .dbox{flex:0 0 150px}.tasks li .dbox{flex:0 0 140px}.tasks li .dbox .dtxt{height:28px;font-size:12.5px;padding:0 6px}
 /* 추후 과업 (통화마다) */
 .tadd{display:flex;gap:6px;flex-wrap:wrap}
 .tadd #taskIn{flex:1 1 220px;height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:14px var(--sans)}
@@ -220,6 +221,42 @@ function put(item){
 }
 $('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#keyInput').value.trim(); if(!v) return; try{ localStorage.setItem(KEY_LS, v); }catch(_){} $('#keyInput').value=''; flush(); });
 
+// ===================== 날짜 칸 (단체 화면 방문일과 같은 방식) =====================
+// 칸 안에 "2026-12-05 (토)". 누르면 바로 달력, 달력을 연 뒤 한 번 더 누르거나 숫자를 치면 글자로 직접 입력 (2026-12-05 · 12/5 · 1205)
+// 원래 <input type="date"> 는 숨긴 달력으로 그대로 두어 값 · 이벤트(input · change)는 예전 그대로
+const dateDisp = v => { if(!v) return ''; const t=new Date(v+'T00:00'); return isNaN(t) ? v : `${v} (${DOW[t.getDay()]})`; };
+function parseDateText(s){
+  s=String(s||'').replace(/\([^)]*\)\s*$/,'').trim(); if(!s) return '';
+  let y, m, d, x;
+  if((x=s.match(/^(\d{4})\s*[-./년 ]?\s*(\d{1,2})\s*[-./월 ]?\s*(\d{1,2})\s*일?$/))){ y=+x[1]; m=+x[2]; d=+x[3]; }
+  else if((x=s.match(/^(\d{1,2})\s*[-./월 ]\s*(\d{1,2})\s*일?$/)) || (x=s.match(/^(\d{2})(\d{2})$/))){
+    m=+x[1]; d=+x[2]; const now=new Date(); y=now.getFullYear(); const t=new Date(y,m-1,d); now.setHours(0,0,0,0); if(t<now) y++; }   // 연도 없으면 올해 (이미 지났으면 내년)
+  else return null;
+  const t=new Date(y,m-1,d); if(t.getFullYear()!==y || t.getMonth()!==m-1 || t.getDate()!==d) return null;
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+function makeDateBox(pick){
+  if(!pick || pick.dataset.dbox) return; pick.dataset.dbox='1';
+  const box=document.createElement('span'); box.className='dbox'; pick.parentNode.insertBefore(box, pick);
+  const txt=document.createElement('input'); txt.className='dtxt'; txt.readOnly=true; txt.placeholder=pick.dataset.ph||'누르면 달력'; txt.title='누르면 달력 · 한 번 더 누르면 직접 입력 (예: 2026-12-05, 12/5)'; txt.setAttribute('inputmode','numeric');
+  box.appendChild(txt); box.appendChild(pick); pick.classList.add('dpick'); pick.tabIndex=-1;
+  const paint=()=>{ if(!txt.dataset.editing) txt.value=dateDisp(pick.value); };
+  const set=v=>{ pick.value=v; pick.dispatchEvent(new Event('input',{bubbles:true})); pick.dispatchEvent(new Event('change',{bubbles:true})); paint(); };
+  const openPick=()=>{ try{ pick.showPicker(); }catch(_){ pick.focus(); } };
+  const startEdit=blank=>{ txt.dataset.editing='1'; txt.readOnly=false; txt.value = blank ? '' : pick.value; txt.focus(); if(!blank) txt.select(); };
+  txt.addEventListener('mousedown', e=>{ if(txt.dataset.editing) return;
+    if(Date.now()-(+txt.dataset.pickAt||0) < 20000){ e.preventDefault(); txt.dataset.pickAt=''; startEdit(false); return; }   // 두 번째 누름 = 직접 입력
+    txt.dataset.pickAt=String(Date.now()); setTimeout(openPick,0); });
+  txt.addEventListener('keydown', e=>{ if(!txt.dataset.editing && /^\d$/.test(e.key)) startEdit(true); else if(!txt.dataset.editing && (e.key==='Enter' || e.key===' ')){ e.preventDefault(); openPick(); } else if(txt.dataset.editing && e.key==='Enter'){ e.preventDefault(); txt.blur(); } });
+  txt.addEventListener('blur', ()=>{ if(!txt.dataset.editing) return; const d=parseDateText(txt.value);
+    delete txt.dataset.editing; txt.readOnly=true;
+    if(d===null){ toast('날짜를 알아볼 수 없습니다. 예) 2026-12-05, 12/5'); paint(); return; }
+    if(d!==pick.value) set(d); else paint(); });
+  pick.addEventListener('input', paint); pick.addEventListener('change', paint);
+  pick.__paintBox = paint; paint();
+}
+const enhanceDates = root => (root||document).querySelectorAll('input[type=date]:not([data-dbox])').forEach(makeDateBox);
+const syncDates = () => document.querySelectorAll('input[type=date][data-dbox]').forEach(p=>p.__paintBox && p.__paintBox());   // 코드로 값을 바꾼 뒤 칸 글자 맞춤
 // ===================== 통화 기록 =====================
 // 시트 칸: 고객 이름 → 고객 담당자, 연락처, 방문 희망일 / 예약일 → 방문일, 인원 → 관람, 문의 내용 → 통화 메모, 추후 과업 → 수정 기록 칸 JSON {h:[], tasks:[…]} (단체 화면과 같은 방식)
 let cur=null, startedAt=null;   // cur: 지금 열어 둔 기록 (새 통화면 null)
@@ -236,7 +273,7 @@ function paintForm(force){
   $('#editing').hidden = !cur; if(cur) $('#editing').textContent = `${dtLabel(cur.saved)} ${cur.takenBy||''}님이 받은 통화를 고치는 중 · 저장하면 그대로 덮어씁니다`;
   $('#startedAt').textContent = startedAt ? `통화 시작 ${dtLabel(startedAt.toISOString())}` : '';
   $('#state').textContent = isDirty() ? '저장하지 않은 내용이 있습니다' : (cur ? '저장됨' : '');
-  paintPrices();
+  paintPrices(); syncDates();   // 날짜 칸 글자 (요일)
 }
 // 이 통화의 추후 과업: 안 끝난 것(마감일 순) → 끝난 것
 function paintTasks(){
@@ -244,11 +281,14 @@ function paintTasks(){
   $('#taskList').innerHTML = list.map(t=>`<li class="${t.done?'done':''}${!t.done && t.due && t.due<today?' late':''}" data-tid="${esc(t.id)}"><input type="checkbox" data-tdone${t.done?' checked':''} title="끝나면 체크"><span class="tt">${esc(t.title)}</span>`
     + `<span class="due">${!t.done && t.due && t.due<today?'기한 지남 ':''}</span><input type="date" data-tdue value="${esc(t.due||'')}" title="마감일"><button type="button" class="x" data-tdel title="과업 빼기">×</button></li>`).join('')
     || '<li class="empty hint">추후 과업이 없습니다. 이 통화 뒤에 할 일이 있으면 위에 적어 주세요.</li>';
+  enhanceDates($('#taskList'));   // 과업 마감일도 방문일과 같은 날짜 칸
 }
 const isDirty = () => JSON.stringify(form)!==saved;
 const fmtPhone = v => { const d=String(v||'').replace(/\D/g,''); if(/^01\d{8,9}$/.test(d)) return d.length===10?`${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`:`${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`; if(/^0\d{8,10}$/.test(d)) return d.replace(/^(02|0\d{2})(\d{3,4})(\d{4})$/,'$1-$2-$3'); return v; };
 FIELDS.forEach(([id,k])=>{ $('#'+id).addEventListener('input', e=>{ let v=e.target.value; if(k==='people'){ v=v.replace(/[^\d+]/g,''); e.target.value=v; } form[k]=v; touch(); }); });
-$('#fPhone').addEventListener('blur', e=>{ const v=fmtPhone(e.target.value); if(v!==form.phone){ form.phone=v; e.target.value=v; touch(); } });
+// 연락처: 빈 칸을 누르면 010- 부터 (커서는 끝), 아무것도 안 치고 나가면 다시 비움 (단체 화면과 같음)
+$('#fPhone').addEventListener('focus', e=>{ const el=e.target; if(!el.value){ el.value='010-'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} },0); } });
+$('#fPhone').addEventListener('blur', e=>{ if(/^010-?$/.test(e.target.value)){ e.target.value=''; if(form.phone){ form.phone=''; touch(); } return; } const v=fmtPhone(e.target.value); if(v!==form.phone){ form.phone=v; e.target.value=v; touch(); } });
 function touch(){ if(!startedAt && !cur) startedAt=new Date(); paintForm(); }
 // 과업 추가 · 체크 · 마감일 · 빼기
 function addTask(){ const v=$('#taskIn').value.trim(); if(!v) return; form.tasks.push({id:'t'+Date.now().toString(36), title:v, due:$('#taskDue').value||todayYmd(), done:false, at:new Date().toISOString(), by:user.name||''}); $('#taskIn').value=''; $('#taskDue').value=todayYmd(); touch(); $('#taskIn').focus(); }
@@ -367,6 +407,7 @@ $('#manualOpen').href = MANUAL_URL;   // 문의 매뉴얼은 헤더의 링크로
 // 마이페이지에서 개인고객 과업을 누르면 personal.html?open=통화ID → 그 통화를 엶 (목록을 받은 뒤)
 let openId = new URLSearchParams(location.search).get('open');
 function tryOpen(){ if(!openId) return; if(shown().some(x=>x.id===openId)){ const id=openId; openId=null; history.replaceState(null,'',location.pathname); openItem(id); } }
+enhanceDates();   // 방문 희망일 / 예약일 · 과업 마감일: 누르면 달력 · 칸 안에 (요일)
 paintForm(); renderLists(); paintSync(); tryOpen(); flush();
 </script>
 <!-- 마이페이지 팝업 (메뉴 6번 페이지 group.html?my=1 을 그대로 띄움, 품목관리 팝업과 같은 크기) -->
