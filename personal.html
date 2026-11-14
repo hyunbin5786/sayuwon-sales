@@ -197,8 +197,8 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
       <div class="editing" id="editing" hidden></div>
       <div class="sub-h" style="margin-top:0">구분 · 보고</div>
       <div class="row">
-        <div class="f w2"><label>구분</label><div class="chips" id="catChips" role="group" aria-label="구분"></div></div>
-        <div class="f"><label for="fReportTo">보고전달자</label><input id="fReportTo" lang="ko" data-ime="ko" autocomplete="off" placeholder="예) 김사유"></div>
+        <div class="f w4"><label>구분</label><div class="chips" id="catChips" role="group" aria-label="구분"></div></div>
+        <div class="f" style="grid-column:span 3"><label>보고전달자 <small>(선택 · 다시 누르면 해제)</small></label><div class="chips" id="rtChips" role="group" aria-label="보고전달자"></div></div>
         <div class="f"><label>예약 여부</label><div class="chips" id="resChips" role="group" aria-label="예약 여부"></div></div>
       </div>
       <div class="sub-h">고객 · 방문</div>
@@ -310,7 +310,7 @@ async function pull(inFlush){
   try{
     const j=await callApi({action:'list'});
     items=(j.items||[]).filter(r=>r.callType===CALL_TYPE); writeJSON(CACHE_LS, items.slice(-500));
-    { const pc=(j.items||[]).find(r=>r.id==='pcats'); if(pc && !pending.some(p=>p.action==='put' && p.item.id==='pcats')){ pcatRec=pc; writeJSON(PCATS_LS, pc); } paintChips(); }   // 모두가 추가한 구분
+    { const pc=(j.items||[]).find(r=>r.id==='pcats'); if(pc && !pending.some(p=>p.action==='put' && p.item.id==='pcats')){ pcatRec=pc; writeJSON(PCATS_LS, pc); } paintChips(); if(!memberNames.length) loadMembers(); }   // 모두가 추가한 구분 · 멤버 이름
     groupMine=(j.items||[]).filter(r=>r.callType!==CALL_TYPE && ['단체예약','예약상담','예약접수','상담','가예약','공식예약'].includes(r.callType||'단체예약') && (r.owner||r.takenBy)===(user.name||''));   // 마감 알림용: 내가 영업 담당인 단체 예약
     setTimeout(checkDue, 300); setTimeout(paintMyCount, 0);
     $('#keyMsg').textContent=''; paintSync(); renderLists(); tryOpen();
@@ -367,7 +367,7 @@ function blankForm(){ return {cat:'', reportTo:'', reserved:'', name:'', phone:'
 let form=blankForm(), saved=JSON.stringify(form);
 const todayYmd = () => ymd(new Date());
 const tasksOfItem = r => { try{ const h=JSON.parse(r.history||'{}'); return Array.isArray(h.tasks) ? h.tasks : []; }catch(_){ return []; } };
-const FIELDS=[['fReportTo','reportTo'],['fName','name'],['fPhone','phone'],['fDate','date'],['fPeople','people'],['fNote','note']];
+const FIELDS=[['fName','name'],['fPhone','phone'],['fDate','date'],['fPeople','people'],['fNote','note']];
 function paintForm(force){
   FIELDS.forEach(([id,k])=>{ const el=$('#'+id); if((force || document.activeElement!==el) && el.value!==form[k]) el.value=form[k]; });
   paintTasks(); paintChips();
@@ -490,6 +490,10 @@ function savePcats(list, what){
 function paintChips(){
   const list=pcats(), cats=[...list]; if(form.cat && !cats.includes(form.cat)) cats.push(form.cat);   // 삭제된 구분이어도 이 통화에 고른 것은 보이게
   $('#catChips').innerHTML = cats.map(c=>`<button type="button" data-cat="${esc(c)}" class="${form.cat===c?'on':''}${list.includes(c)?'':' gone'}" aria-pressed="${form.cat===c}">${esc(c)}${list.includes(c)?`<span class="x" data-catdel="${esc(c)}" title="'${esc(c)}' 구분 삭제 (모든 사람에게서)">×</span>`:''}</button>`).join('') + `<button type="button" class="add" data-catadd title="구분 추가 (모든 사람에게 보임)">＋</button>`;
+  // 보고전달자: 멤버관리에 등록된 사람 중 하나 (나는 빼고, 안 골라도 됨)
+  const me=String(user.name||'').replace(/\s/g,''), mem=memberNames.filter(n=>n.replace(/\s/g,'')!==me);
+  if(form.reportTo && !mem.includes(form.reportTo)) mem.push(form.reportTo);   // 예전에 적어 둔 이름도 보이게
+  $('#rtChips').innerHTML = mem.length ? mem.map(n=>`<button type="button" data-rt="${esc(n)}" class="${form.reportTo===n?'on':''}" aria-pressed="${form.reportTo===n}">${esc(n)}</button>`).join('') : '<span class="hint" style="margin:0">멤버 목록을 불러오는 중…</span>';
   $('#resChips').innerHTML = RES_OPTS.map(c=>`<button type="button" data-res="${esc(c)}" class="${form.reserved===c?'on':''}" aria-pressed="${form.reserved===c}">${esc(c)}</button>`).join('');
 }
 $('#catChips').addEventListener('click', e=>{
@@ -500,11 +504,17 @@ $('#catChips').addEventListener('click', e=>{
   if(b.dataset.catadd!==undefined){ const v=(prompt('추가할 구분 이름 (예: 단체 문의). 추가하면 모든 사람에게 보입니다.')||'').trim().replace(/\s+/g,' ').slice(0,20); if(!v) return;
     if(!pcats().includes(v)){ savePcats([...pcats(), v], `'${v}' 추가`); toast(`구분 '${v}'을(를) 추가했습니다. 모든 사람에게 보입니다.`); } form.cat=v; touch(); return; }
   form.cat = form.cat===b.dataset.cat ? '' : b.dataset.cat; touch(); });
+$('#rtChips').addEventListener('click', e=>{ const b=e.target.closest('button[data-rt]'); if(!b) return; form.reportTo = form.reportTo===b.dataset.rt ? '' : b.dataset.rt; touch(); });
+// 멤버 이름 (멤버관리 · 공유 시트 members 탭): 이 브라우저에 기억해 두고 열 때마다 새로
+const MEMBERS_LS='sayuwon_member_names';
+let memberNames = readJSON(MEMBERS_LS, []);
+async function loadMembers(){ if(!getKey()) return; try{ const j=await callApi({action:'members'}); memberNames=(j.members||[]).map(m=>String(m.name||'').trim()).filter(Boolean); writeJSON(MEMBERS_LS, memberNames); paintChips(); }catch(_){} }
+setTimeout(loadMembers, 500); setInterval(loadMembers, 10*60e3);
 $('#resChips').addEventListener('click', e=>{ const b=e.target.closest('button[data-res]'); if(!b) return; form.reserved = form.reserved===b.dataset.res ? '' : b.dataset.res; touch(); });
 // ===================== 카카오톡 보고용 글자 복사 =====================
 // [구분] 담당자 -> 보고전달자 / 고객 이름 / 연락처 / 방문 희망일/예약일 / 인원 / 문의내용
 function reportText(){ const f=form, who=(cur && cur.takenBy) || user.name || '';
-  return [`[${f.cat||'구분 없음'}] ${who} -> ${f.reportTo||''}`.trimEnd(), `고객 이름 : ${f.name||''}`, `연락처 : ${f.phone||''}`,
+  return [`[${f.cat||'구분 없음'}] ${who}${f.reportTo ? ` -> ${f.reportTo}` : ''}`, `고객 이름 : ${f.name||''}`, `연락처 : ${f.phone||''}`,
     `방문 희망일/예약일 : ${f.date ? dLabel(f.date) : ''}`, `인원 : ${f.people ? f.people+(/^\d+$/.test(f.people)?'명':'') : ''}`, `문의내용 : ${f.note||''}`].join('\n'); }
 async function copyText(s){ try{ await navigator.clipboard.writeText(s); return true; }catch(_){ const t=document.createElement('textarea'); t.value=s; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(__){} t.remove(); return ok; } }
 $('#copyBtn').onclick=async()=>{ const ok=await copyText(reportText()); toast(ok ? '보고 글자를 복사했습니다. 카카오톡에 붙여 넣으세요.' : '복사하지 못했습니다.'); };
