@@ -146,6 +146,12 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
 .all-t td.note{white-space:normal;min-width:220px;color:#55524a}
 .all-t tbody tr{cursor:pointer}
 .all-t tbody tr:hover td{background:#faf8f2}
+.all-t th.owner,.all-t td.owner{background:#e3eedc;color:#2f5a22;font-weight:700}   /* 받은 사람: 단체예약 목록의 영업 담당처럼 초록 띠 */
+.all-t tbody tr:hover td.owner{background:#d8e7cf}
+.all-t td.acts{padding:3px 6px}
+.all-t .pdel{padding:2px 10px;font-size:12px}
+.del-box{width:min(420px,100%);margin-top:8vh}
+.del-box input{width:100%;box-sizing:border-box;height:36px;border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:14px var(--sans);margin-top:6px}
 .due-list{list-style:none;margin:0;padding:0;overflow:auto}
 .due-list li{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:8px 2px}
 .due-list li .who{flex:1;min-width:0;font-size:13px}
@@ -217,7 +223,16 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
   <section class="panel wide" role="dialog" aria-modal="true" aria-labelledby="allTitle">
     <h2 id="allTitle">개인고객 통화 기록 전체 <small id="allCount"></small><button type="button" class="btn" id="allClose" style="margin-left:auto;padding:4px 12px">닫기</button></h2>
     <input class="search" id="allSearch" type="search" lang="ko" placeholder="검색: 이름 · 연락처 · 문의 내용 · 받은 사람 · 과업">
-    <div class="all-tw"><table class="all-t"><thead><tr><th>저장</th><th>받은 사람</th><th>고객</th><th>연락처</th><th>방문 희망일 / 예약일</th><th>인원</th><th>문의 내용</th><th>남은 과업</th></tr></thead><tbody id="allBody"></tbody></table></div>
+    <div class="all-tw"><table class="all-t"><thead><tr><th>저장</th><th>고객</th><th>연락처</th><th>방문 희망일 / 예약일</th><th>인원</th><th>문의 내용</th><th>남은 과업</th><th></th><th class="owner">받은 사람</th></tr></thead><tbody id="allBody"></tbody></table></div>
+  </section>
+</div>
+<!-- 통화 기록 삭제 (사유 필수) -->
+<div class="modal" id="pdelModal" hidden>
+  <section class="panel del-box" role="dialog" aria-modal="true" aria-labelledby="pdelTitle">
+    <h2 id="pdelTitle">통화 기록 삭제 <small id="pdelWho"></small></h2>
+    <label for="pdelWhy" style="font-size:13px;font-weight:700">삭제 사유 (필수)</label>
+    <input id="pdelWhy" lang="ko" placeholder="예: 같은 통화 중복 저장 · 잘못 입력" autocomplete="off">
+    <div class="row-btns" style="margin-top:12px;justify-content:flex-end;display:flex;gap:6px"><button type="button" class="btn" id="pdelCancel">취소</button><button type="button" class="btn danger" id="pdelOk">삭제</button></div>
   </section>
 </div>
 <!-- 마감이 된 추후 과업 알림 (오전 8시 · 11시 · 오후 1시 · 5시, 단체 화면과 같은 기록이라 한 시각에 한 번) -->
@@ -440,8 +455,7 @@ $('#callForm').addEventListener('submit', e=>{ e.preventDefault(); save(); });
 document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); } });
 function newCall(){ if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 새 통화를 시작할까요?')) return false; cur=null; form=blankForm(); saved=JSON.stringify(form); startedAt=null; paintForm(true); $('#fName').focus(); return true; }
 $('#newBtn').onclick=newCall;
-$('#delBtn').onclick=()=>{ if(!cur || !confirm('이 통화 기록을 삭제할까요? (시트에는 삭제 표시로 남습니다)')) return;
-  pending.push({action:'del', id:cur.id}); writeJSON(PEND_LS,pending); items=items.filter(x=>x.id!==cur.id); cur=null; form=blankForm(); saved=JSON.stringify(form); paintForm(true); renderLists(); flush(); toast('삭제했습니다.'); };
+$('#delBtn').onclick=()=>{ if(cur) openPdel(cur.id); };   // 아래 삭제 버튼도 사유를 받고 삭제
 window.addEventListener('beforeunload', e=>{ if(isDirty()){ e.preventDefault(); e.returnValue=''; } });
 function openItem(id){ const r=shown().find(x=>x.id===id); if(!r) return; if(cur && cur.id===id) return; if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 이 기록을 열까요?')) return; cur=r; form=fromItem(r); saved=JSON.stringify(form); startedAt=null; paintForm(true); window.scrollTo({top:0, behavior:'smooth'}); }
 
@@ -534,15 +548,34 @@ function renderAll(){
   const list=all.filter(hit);
   $('#allCount').textContent = `${all.length}건${q?` · 찾은 ${list.length}건`:''}`;
   $('#allBody').innerHTML = list.map(r=>{ const left=tasksOfItem(r).filter(t=>!t.done).length, d=String(r.date||'').slice(0,10);
-    return `<tr data-id="${esc(r.id)}"><td>${esc(dtLabel(r.saved))}</td><td>${esc(r.takenBy||'')}</td><td><b>${esc(r.contact||'(이름 없음)')}</b></td><td>${esc(r.phone||'')}</td><td>${d?esc(dLabel(d)):''}</td><td>${esc(r.people||'')}</td><td class="note">${esc(String(r.note||'').split(/\n/)[0].slice(0,80))}</td><td>${left?`<span class="tag cb">${left}개</span>`:''}</td></tr>`; }).join('')
-    || `<tr><td colspan="8" class="empty">${q?'찾은 통화가 없습니다.':'저장된 개인고객 통화가 없습니다.'}</td></tr>`;
+    return `<tr data-id="${esc(r.id)}"><td>${esc(dtLabel(r.saved))}</td><td><b>${esc(r.contact||'(이름 없음)')}</b></td><td>${esc(r.phone||'')}</td><td>${d?esc(dLabel(d)):''}</td><td>${esc(r.people||'')}</td><td class="note">${esc(String(r.note||'').split(/\n/)[0].slice(0,80))}</td><td>${left?`<span class="tag cb">${left}개</span>`:''}</td><td class="acts"><button type="button" class="btn danger pdel" data-pdel="${esc(r.id)}" title="이 통화 기록 삭제 (사유 필수)">삭제</button></td><td class="owner">${esc(r.takenBy||r.owner||'')}</td></tr>`; }).join('')
+    || `<tr><td colspan="9" class="empty">${q?'찾은 통화가 없습니다.':'저장된 개인고객 통화가 없습니다.'}</td></tr>`;
 }
+// 통화 기록 삭제: 사유를 꼭 적어야 함. 사유는 그 기록의 수정 기록에 남긴 뒤 삭제 (시트에서는 줄을 지우지 않고 '삭제' 칸에 일시)
+let pdelId=null;
+function openPdel(id){ const r=shown().find(x=>x.id===id); if(!r) return; pdelId=id;
+  $('#pdelWho').textContent=[r.contact||'(이름 없음)', r.phone, r.saved&&dtLabel(r.saved)].filter(Boolean).join(' · ');
+  $('#pdelWhy').value=''; $('#pdelModal').hidden=false; setTimeout(()=>$('#pdelWhy').focus(),0); }
+const closePdel = () => { $('#pdelModal').hidden=true; pdelId=null; };
+$('#pdelCancel').onclick=closePdel;
+$('#pdelModal').addEventListener('mousedown', e=>{ if(e.target.id==='pdelModal') closePdel(); });
+$('#pdelWhy').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); $('#pdelOk').click(); } });
+$('#pdelOk').onclick=()=>{
+  const why=$('#pdelWhy').value.trim(); if(!why){ toast('삭제 사유를 적어 주세요.'); $('#pdelWhy').focus(); return; }
+  const r=shown().find(x=>x.id===pdelId); if(!r){ closePdel(); return; }
+  let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const now=new Date().toISOString();
+  h.h=[...(Array.isArray(h.h)?h.h:[]), {t:now, by:user.name||'', what:`[삭제] ${why}`}];
+  put({...r, history:JSON.stringify(h), saved:now});   // 사유를 먼저 남기고
+  pending.push({action:'del', id:r.id}); writeJSON(PEND_LS,pending); items=items.filter(x=>x.id!==r.id);   // 그다음 삭제
+  if(cur && cur.id===r.id){ cur=null; form=blankForm(); saved=JSON.stringify(form); paintForm(true); }
+  closePdel(); renderLists(); if(!$('#allModal').hidden) renderAll(); flush(); toast(`삭제했습니다 · ${why}`);
+};
 const openAll = () => { $('#allModal').hidden=false; $('#allSearch').value=''; renderAll(); $('#allSearch').focus(); flush(); };
 $('#allCallsBtn').onclick=openAll;
 $('#allClose').onclick=()=>{ $('#allModal').hidden=true; };
 $('#allModal').addEventListener('mousedown', e=>{ if(e.target.id==='allModal') $('#allModal').hidden=true; });
 $('#allSearch').addEventListener('input', renderAll);
-$('#allBody').addEventListener('click', e=>{ const tr=e.target.closest('tr[data-id]'); if(!tr) return; $('#allModal').hidden=true; openItem(tr.dataset.id); });
+$('#allBody').addEventListener('click', e=>{ const del=e.target.closest('[data-pdel]'); if(del){ openPdel(del.dataset.pdel); return; } const tr=e.target.closest('tr[data-id]'); if(!tr) return; $('#allModal').hidden=true; openItem(tr.dataset.id); });
 
 // ===================== 마감이 된 추후 과업 알림: 오전 8시 · 11시 · 오후 1시 · 5시 =====================
 // 그 시각이 지나고 처음 화면을 볼 때 (시각마다 한 번, 단체 화면과 같은 기록이라 두 화면에서 두 번 뜨지 않음). 내 개인고객 과업 + 내가 영업 담당인 단체 과업
@@ -574,7 +607,7 @@ $('#dueList').addEventListener('click', e=>{ const d=e.target.dataset;
     if(cur && cur.id===rid){ cur=item; form=fromItem(item); saved=JSON.stringify(form); paintForm(true); }
     e.target.closest('li').remove(); if(!$('#dueList').children.length) $('#dueModal').hidden=true; toast('과업을 완료로 표시했습니다.'); }
 });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(!$('#allModal').hidden){ $('#allModal').hidden=true; } else if(!$('#dueModal').hidden){ $('#dueModal').hidden=true; } } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(!$('#pdelModal').hidden){ closePdel(); } else if(!$('#allModal').hidden){ $('#allModal').hidden=true; } else if(!$('#dueModal').hidden){ $('#dueModal').hidden=true; } } });
 setInterval(checkDue, 60000);   // 1분마다 알림 시각인지 확인
 // 마이페이지에서 개인고객 과업을 누르면 personal.html?open=통화ID → 그 통화를 엶 (목록을 받은 뒤)
 let openId = new URLSearchParams(location.search).get('open');

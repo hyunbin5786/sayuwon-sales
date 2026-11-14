@@ -184,6 +184,11 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 .it-money .im small{color:var(--muted);font-size:11px}
 .it-money .im.amt{margin-left:auto;font-size:14px}
 .it-money .im.warn, .it-money .bad{color:var(--red)}
+.it-money .im.dsel{flex-basis:100%;display:flex;gap:4px;align-items:center}   /* 할인 버튼: 할인 없음 · 사전예약 5% · 단체예약 10% */
+.it-money .dbtn{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:12px;padding:1px 9px;font:11.5px var(--sans);cursor:pointer}
+.it-money .dbtn:hover{border-color:var(--pine);color:var(--pine)}
+.it-money .dbtn.on{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:700}
+.it-money .dman{color:#b06a00;font-size:11px;margin-left:4px}
 .it-row.it-erponly{display:block;border-color:var(--red);border-style:dashed}
 .it-row.it-erponly > b{font-size:12px;color:var(--red)}
 .it-erponly .it-money{align-items:center}
@@ -846,6 +851,7 @@ const FIELDS = [
   ['굿즈','views','관람 · 관람+식사 추가 품목','','',null],   // 관람 영역의 다른 품목 "평일 관람(학생) x5 · 평일(관람, 사담 윈터 스페셜 다이닝 런치) x10" (사담 1부 · 2부 · 디너 · 해오름은 각자 칸)
   ['굿즈','viewN','관람권 인원','','',null],   // 기본 관람 줄 인원을 직접 줄였을 때만 (비면 = 관람 인원 − 다른 관람 영역 인원)   // 예약 내역 관람 줄에서 고른 관람 품목 (평일 · 주말은 방문일에 맞춰 바뀜, 비면 입장 시각으로)
   ['굿즈','inotes','항목 비고','','',null],   // 예약 내역 줄마다 비고 "sadam1=창가 자리; g:모과청(new)=선물 포장" (시트 비고 칸 '항목 비고')
+  ['굿즈','idisc','항목 할인','','',null],   // 예약 내역 줄마다 할인 버튼 "sadam1=grp; v:(관람, …)=none" (시트 비고 칸 '항목 할인')
 ];
 // 프로그램 · 굿즈 담당: 프로그램마다 'stf_키' 칸을 바로 뒤에. 모두 필수, 기본은 영업 담당 (바꿀 수 있음)
 const STAFF_FREE = new Set();   // 예전엔 차방 · 당두봉갈 대관 제외 → 이제 모두 담당 필수
@@ -959,7 +965,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['idisc','항목 할인'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
@@ -1052,6 +1058,13 @@ const itemKind = k => k==='view' ? 'view' : /^v:/.test(k) ? 'varea' : /^sadam/.t
 // 항목 비고: rec.inotes = "sadam1=창가 자리; g:모과청(new)=선물 포장"
 const inotesMap = () => Object.fromEntries(String(rec.inotes||'').split(/\s*;\s*/).map(s=>{ const i=s.indexOf('='); return i>0 ? [s.slice(0,i).trim(), s.slice(i+1).trim()] : null; }).filter(Boolean));
 const itemNote = k => inotesMap()[k] || '';
+// 항목 할인 (줄마다 할인 버튼): rec.idisc = "sadam1=grp; v:(관람, 사담 윈터 스페셜 다이닝 런치)=none" (none 할인 없음 · pre 사전예약 5% · grp 단체예약 10%)
+// 자동으로 정해지는 것과 같으면 적지 않음 → 인원이 바뀌면 자동을 따라감. 관람 품목은 평일 · 주말 앞머리를 떼고 (방문일이 바뀌어도 같은 줄)
+const DISC_OPTS = [['none','할인 없음'],['pre','사전예약 5%'],['grp','단체예약 10%']];
+const DISC_OF = p => p===10 ? 'grp' : p===5 ? 'pre' : 'none';
+const dkey = k => /^v:/.test(k) ? 'v:'+k.slice(2).replace(/^(평일|주말\/공휴일)/,'').replace(/\//g,'·') : String(k);
+const idiscMap = r => Object.fromEntries(String((r&&r.idisc)||'').split(/\s*;\s*/).map(s=>{ const i=s.lastIndexOf('='); return i>0 ? [s.slice(0,i).trim(), s.slice(i+1).trim()] : null; }).filter(Boolean));
+function setItemDisc(k, v, auto){ const m=idiscMap(rec), kk=dkey(k); if(v===auto) delete m[kk]; else m[kk]=v; rec.idisc=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); touched.add('idisc'); }
 function setItemNote(k, v){ const m=inotesMap(); v=String(v||'').replace(/[;=]/g,',').trim(); if(v) m[k]=v; else delete m[k]; rec.inotes=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); touched.add('inotes'); }
 const itemName = k => k==='view' ? '관람' : /^v:/.test(k) ? itemLabel(daySrc(k.slice(2), rec)) : k==='mb' ? '몽몽마방 '+(rec.mabangMenu||'') : /^g:/.test(k) ? goodsName(k.slice(2)) : (SADAM_ITEMS.find(x=>x[0]===k)||[])[1] || LABEL[k] || k;
 const itemNotesText = () => Object.entries(inotesMap()).filter(([k])=>itemKeysFromRec().includes(k)).map(([k,v])=>`${itemName(k)}: ${v}`);   // 비고가 있는 항목만
@@ -1188,28 +1201,41 @@ function erpByKey(){ const m={}, other=[];
     o.people+=x.people; o.base+=x.base; o.disc+=x.disc; o.amount+=x.amount; o.notes.push(...x.notes); if(x.seq) o.seqs.push(x.seq); });
   return {m, other}; }
 const cleanErpNote = n => String(n).replace(/\s*-\s*[\d,]+\(.*$/,'').replace(/\s*-\s*([\d,]+)\s*$/,' $1원');
-// 줄마다 [단가 · 할인 · 금액] (전산 내역이 있으면 전산 순번 · 상품금액 · 할인 · 금액, 인원이 다르면 빨갛게)
+// 관람+식사 패키지 "평일(관람, 사담 런치1부)" → 1인 관람 · 식사 가격. 품목 관리의 비과세(관람) · 과세(식사)가 있으면 그것, 없으면 그날 기본 관람권 가격만큼 관람
+function pkgSplit(src){
+  if(!src || !/\(관람,/.test(src)) return null;
+  const p=priceOf(src); if(p==null) return null;
+  const tx=taxOf(src); if(tx && tx.tx+tx.tf===p) return {v:tx.tf, m:tx.tx};
+  const v=priceOf(viewSrcOf(rec)); return v!=null && v<p ? {v, m:p-v} : null;
+}
+const unitCells = (sp, r) => [['관람',sp.v],['식사',sp.m]].map(([l,u])=>`<span class="im"><i>${l}</i>${won(u)}${r<1?` → <b>${won(Math.round(u*r))}</b>`:''}</span>`).join('');   // r: 할인 뒤 비율
+document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-idisc]'); if(!b) return;
+  setItemDisc(b.dataset.idisc, b.dataset.dv, b.dataset.da); startTimer(); renderSide(); });   // 할인 버튼
+// 줄마다 [단가 · 할인 · 금액] (전산 내역이 있으면 인원 · 상품금액 · 할인 · 금액, 인원이 다르면 빨갛게)
 function paintItemPrices(){
   const seen=new Set(), E = erpList.length ? erpByKey() : null;
   const cell=(l,v,cls='')=>`<span class="im ${cls}"><i>${l}</i>${v}</span>`;
   document.querySelectorAll('#itemsBox [data-ip]').forEach(el=>{ const k=el.dataset.ip; let h='';
     if(E){ const x=E.m[k];
       if(!x) h = k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', '<b class="bad">전산 내역에 없음</b>', 'warn');
-      else { const q=numOf(itemQty(k)), diff = q!==x.people;
-        h = cell('전산', `순번 ${esc(x.seqs.join(' · ')||'-')}`) + cell('인원', `${x.people}${itemUnit(k)}${diff?` <b class="bad">(예약 ${q})</b>`:''}`, diff?'warn':'')
+      else { const q=numOf(itemQty(k)), diff = q!==x.people, sp=pkgSplit(itemSrc(k)), r = x.base ? x.amount/x.base : 1;
+        h = cell('인원', `${x.people}${itemUnit(k)}${diff?` <b class="bad">(예약 ${q})</b>`:''}`, diff?'warn':'')
+          + (sp ? unitCells(sp, r) : '')
           + cell('상품금액', won(x.base)) + cell('할인', x.disc ? `-${won(x.disc)}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}` : '없음') + cell('금액', `<b>${won(x.amount)}</b>`, 'amt'); } }
     else if(!priceInfo) h='';
     else { const src=itemSrc(k), x=src ? priceInfo[normSrc(src)] : null;
       if(k==='view' && !x) h=cell('관람권', numOf(rec.people)?'0명 (모두 관람 포함 품목으로 계산)':'인원 입력');
       else if(!x) h=cell('금액', '가격 없음', 'warn');
       else if(seen.has(src)) h=cell('금액', '위 줄과 합산');   // 같은 견적서 품목(예: 대관)은 한 줄로 계산
-      else { seen.add(src); const full=x.p!=null ? x.p*x.qty : null, dc = x.a && full!=null ? full-x.a.amount : 0;
-        h = cell('단가', won(x.p)) + cell(k==='view'?'관람권':'수량', `${x.qty}${k==='view'?'명':itemUnit(k)}`)
-          + cell('할인', dc>0 ? `-${won(dc)} <small>${esc(x.a.disc)}</small>` : '없음') + cell('금액', `<b>${x.a?won(x.a.amount):'가격 없음'}</b>`, 'amt'); } }
+      else { seen.add(src); const full=x.p!=null ? x.p*x.qty : null, dc = x.a && full!=null ? full-x.a.amount : 0, r = x.a && full ? x.a.amount/full : 1, sp=pkgSplit(src);
+        // 관람+식사 패키지는 관람 · 식사 단가를 나눠서, 할인이 있으면 할인된 단가도 (→)
+        h = (sp ? unitCells(sp, r) : cell('단가', x.p==null ? '-' : won(x.p) + (r<1 ? ` → <b>${won(Math.round(x.p*r))}</b>` : ''))) + cell(k==='view'?'관람권':'수량', `${x.qty}${k==='view'?'명':itemUnit(k)}`)
+          + cell('할인', dc>0 ? `-${won(dc)} <small>${esc(x.a.disc)}</small>` : '없음') + cell('금액', `<b>${x.a?won(x.a.amount):'가격 없음'}</b>`, 'amt')
+          + (x.b && x.p!=null ? `<span class="im dsel" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}</button>`).join('')}${x.b.dsel!==x.b.dauto?'<small class="dman">직접 바꿈</small>':''}</span>` : ''); } }
     el.innerHTML=h; });
   // 전산에만 있는 상품 (예약 내역 줄로 못 옮긴 것)
   if(E) erpList.forEach(x=>{ const k=erpKeyOf(x.product); if(k && !itemRows.includes(k) && !E.other.includes(x)) E.other.push(x); });   // 품목은 알지만 예약 내역에 줄이 없는 것도
-  const ex=$('#erpExtra'); if(ex){ ex.innerHTML = E && E.other.length ? `<div class="it-row it-erponly"><b>전산에만 있는 상품</b>${E.other.map(x=>`<div class="it-money">${`<span class="im"><i>순번 ${esc(x.seq||'-')}</i>${esc(x.product)}</span><span class="im"><i>인원</i>${x.people}</span><span class="im"><i>할인</i>${x.disc?'-'+won(x.disc):'없음'}</span><span class="im amt"><i>금액</i><b>${won(x.amount)}</b></span>`}${erpKeyOf(x.product) ? `<button type="button" class="btn it-erpadd" data-erpadd="${erpList.indexOf(x)}" title="이 상품을 예약 내역 줄로 추가 (인원 · 수량은 전산 그대로)">＋ 항목으로 추가</button>` : `<span class="im warn">품목 관리에 없는 상품 · 품목을 먼저 추가</span>`}</div>`).join('')}</div>` : ''; }
+  const ex=$('#erpExtra'); if(ex){ ex.innerHTML = E && E.other.length ? `<div class="it-row it-erponly"><b>전산에만 있는 상품</b>${E.other.map(x=>`<div class="it-money">${`<span class="im"><i>상품</i>${esc(x.product)}</span><span class="im"><i>인원</i>${x.people}</span><span class="im"><i>할인</i>${x.disc?'-'+won(x.disc):'없음'}</span><span class="im amt"><i>금액</i><b>${won(x.amount)}</b></span>`}${erpKeyOf(x.product) ? `<button type="button" class="btn it-erpadd" data-erpadd="${erpList.indexOf(x)}" title="이 상품을 예약 내역 줄로 추가 (인원 · 수량은 전산 그대로)">＋ 항목으로 추가</button>` : `<span class="im warn">품목 관리에 없는 상품 · 품목을 먼저 추가</span>`}</div>`).join('')}</div>` : ''; }
 }
 // 전산에만 있는 상품 → 예약 내역 줄로 (인원 · 수량은 전산 그대로)
 document.addEventListener('click', e=>{ const b=e.target.closest('#itemsBox [data-erpadd]'); if(!b) return; const x=erpList[+b.dataset.erpadd]; if(!x) return;
@@ -1351,7 +1377,7 @@ function buildForm(){
     if(grp!==g){
       close();
       if(OPT[grp] && !Object.keys(OPT).some(x=>x===g)){   // 첫 접는 묶음 앞에 버튼 3개
-        html+=`<div class="grp items-grp"><div class="grp-t"><span>예약 내역</span><span class="hint" style="margin:0">「＋ 항목 추가」로 관람 · 관람+식사 · 몽몽마방 · 프로그램 · 굿즈를 모두 직접 넣으세요 (수량 · 담당 · 비고)</span></div><div class="items-box" id="itemsBox"></div><div id="itemsInfo"></div></div>`;
+        html+=`<div class="grp items-grp"><div class="grp-t"><span>예약 내역</span></div><div class="items-box" id="itemsBox"></div><div id="itemsInfo"></div></div>`;
         html+=`<div class="opt-bar">${Object.values(OPT).map(o=>`<button type="button" class="opt-btn" data-opt="${o.id}" aria-expanded="false"><span>${o.short||o.title}</span><small id="optsum_${o.id}"></small></button>`).join('')}</div>`;
       }
       html+= OPT[grp]
@@ -2661,7 +2687,7 @@ function renderPrice(){
     let total=0; const missing=[]; priceInfo={};
     const rows = blocks.map(b=>{
       const p = b.price ?? priceOf(b.product), a = blockAmount(b, p);
-      priceInfo[normSrc(b.product)] = {qty:b.qty, p, a};   // 예약 내역 줄마다 금액
+      priceInfo[normSrc(b.product)] = {qty:b.qty, p, a, b};   // 예약 내역 줄마다 금액 (b: 할인 버튼)
       if(a) total += a.amount; else missing.push(itemLabel(b.product));
       const unit = PROG_KEYS().some(k=>rec[k] && progSrc(k, rec)===b.product && UNIT(k)==='시간') ? '시간' : goodsParse(rec.goods).some(g=>normSrc(g.src)===normSrc(b.product)) ? '개' : '명';   // 굿즈는 개
       const tm = b.product.match(/^(평일|주말\/공휴일) 관람\((\d\d):00~(\d\d):00\)$/) || [];
@@ -2909,31 +2935,34 @@ function quoteBlocks(r){
   const cnt = v => v ? (numOf(v) || n) : 0;   // 'O' 처럼 숫자가 없으면 전체 인원
   const mbM = mbMenuOf(r);   // 몽몽마방은 단체도 관람과 따로: 관람권 + 고른 메뉴 품목 (사유의 밥상이면 사유의 밥상(단체))
   const blocks=[], skipped=[];
-  const add=(product, qty, disc)=>{ if(qty>0) blocks.push({product, qty, disc}); };
+  const add=(product, qty, disc, key)=>{ if(qty>0) blocks.push({product, qty, disc, key}); };   // key = 예약 내역 줄 (할인 버튼)
   // 관람 자동 줄 없음 (2026-11-14): 관람권도 예약 내역에서 직접 고른 것만 계산
-  add(`${DAY}(관람, 사담 런치1부)`, cnt(r.sadam1), true);
-  add(`${DAY}(관람, 사담 런치2부)`, cnt(r.sadam2), true);
-  add(`${DAY}(관람, 사담 디너)`, cnt(r.sadamD), false);
-  viewsParse(r.views).forEach(v=>{ const s=daySrc(v.src, r), it=catalogItems().find(x=>normSrc(x.src)===normSrc(s)); add(s, v.qty, it ? !!it.disc : /관람\(/.test(s)); });   // 관람 영역의 다른 품목 (할인 대상은 품목 관리 기준)
-  if(r.mabangL && mbM) add(mbM.src, cnt(r.mabangL), false);   // 고른 메뉴 품목 (품목 리스트 가격)
+  add(`${DAY}(관람, 사담 런치1부)`, cnt(r.sadam1), true, 'sadam1');
+  add(`${DAY}(관람, 사담 런치2부)`, cnt(r.sadam2), true, 'sadam2');
+  add(`${DAY}(관람, 사담 디너)`, cnt(r.sadamD), false, 'sadamD');
+  viewsParse(r.views).forEach(v=>{ const s=daySrc(v.src, r), it=catalogItems().find(x=>normSrc(x.src)===normSrc(s)); add(s, v.qty, it ? !!it.disc : /관람\(/.test(s), 'v:'+v.src); });   // 관람 영역의 다른 품목 (할인 대상은 품목 관리 기준)
+  if(r.mabangL && mbM) add(mbM.src, cnt(r.mabangL), false, 'mb');   // 고른 메뉴 품목 (품목 리스트 가격)
   else if(r.mabangL && Number(r.mabangPrice)){ add('몽몽마방 단품', cnt(r.mabangL), false); blocks[blocks.length-1].price=Number(r.mabangPrice); }   // 예전 기록: 적어 둔 단가
   else if(r.mabangL) skipped.push('몽몽마방 (메뉴를 고르면 계산)');
   if(r.mabangD) skipped.push('몽몽마방 디너');
-  goodsParse(r.goods).forEach(g=>add(g.src, g.qty, false));   // 굿즈: 품목 리스트 가격 그대로
+  goodsParse(r.goods).forEach(g=>add(g.src, g.qty, false, 'g:'+g.src));   // 굿즈: 품목 리스트 가격 그대로
   // 프로그램: 개별은 인원(숫자가 없으면 전체 인원), 시간은 시간 수(숫자가 없으면 1시간). 같은 견적서 품목이면 합침
   PROG_KEYS().forEach(k=>{ if(!r[k]) return; const src=progSrc(k, r); const q = UNIT(k)==='시간' ? (numOf(r[k])||1) : cnt(r[k]);
-    if(!src){ skipped.push(LABEL[k]); return; } const b=blocks.find(b=>b.product===src); if(b) b.qty+=q; else add(src, q, false); });
+    if(!src){ skipped.push(LABEL[k]); return; } const b=blocks.find(b=>b.product===src); if(b) b.qty+=q; else add(src, q, false, k); });
   if(r.teaMed) skipped.push('티하우스 명상'); if(r.gayageum) skipped.push('가야금'); if(r.cabin) skipped.push('유루 캐빈');
   // 할인 줄: 특별 할인 인원을 할인 대상 블록에 앞에서부터 나눠 넣고, 나머지는 단체 할인
   const g = Math.round(groupRate(n)*100), gName = n>20 ? '단체예약' : '사전예약';
-  const sp = specialCounts(r).map(s=>({...s, left:s.n}));
+  const sp = specialCounts(r).map(s=>({...s, left:s.n})), ov = idiscMap(r);
   blocks.forEach(b=>{
     b.notes=[];
-    if(!b.disc) return;
+    // 할인 버튼: 자동 = 할인 대상 품목이면 인원으로(20명 이하 사전예약 5% · 초과 단체예약 10%), 줄마다 버튼으로 바꾼 것(항목 할인)이 있으면 그것
+    const autoP = b.disc ? g : 0, o = ov[dkey(b.key||'')], pct = o==='none' ? 0 : o==='pre' ? 5 : o==='grp' ? 10 : autoP, nm = pct===10 ? '단체예약' : '사전예약';
+    b.dauto = DISC_OF(autoP); b.dsel = o && DISC_OPTS.some(x=>x[0]===o) ? o : b.dauto;
+    if(o==='none' || (!b.disc && !pct)) return;
     let left=b.qty;
-    sp.forEach(s=>{ const c=Math.min(s.left,left); if(c<=0) return; s.left-=c; left-=c;
-      const pct=Math.max(Math.round(s.rate*100), g); b.notes.push(`* ${pct===g?gName:s.short} ${c}명 ${pct}%`); });
-    if(left>0 && g) b.notes.push(`* ${gName} ${left}명 ${g}%`);
+    if(b.disc) sp.forEach(s=>{ const c=Math.min(s.left,left); if(c<=0) return; s.left-=c; left-=c;
+      const sp2=Math.max(Math.round(s.rate*100), pct); b.notes.push(`* ${sp2===pct?nm:s.short} ${c}명 ${sp2}%`); });
+    if(left>0 && pct) b.notes.push(`* ${nm} ${left}명 ${pct}%`);
   });
   return {blocks, skipped};
 }
