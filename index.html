@@ -786,7 +786,9 @@ const FIELDS = [
   ['프로그램(시간)','seminar','세미나 도슨트','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에
   ['굿즈','goods','굿즈 품목','','w4',null],   // 굿즈 구매: 견적서 품목 리스트의 굿즈 품목에서 골라 수량 (값: "고추장 x2 · 모과청(new) x1")
   ['굿즈','stf_goods','굿즈 담당','','',null],   // 굿즈도 담당 필수 (기본 = 영업 담당)
-  ['굿즈','viewSrc','관람 종류','','',null],   // 예약 내역 관람 줄에서 고른 관람 품목 (평일 · 주말은 방문일에 맞춰 바뀜, 비면 입장 시각으로)
+  ['굿즈','viewSrc','관람 종류','','',null],
+  ['굿즈','views','관람 · 관람+식사 추가 품목','','',null],   // 관람 영역의 다른 품목 "평일 관람(학생) x5 · 평일(관람, 사담 윈터 스페셜 다이닝 런치) x10" (사담 1부 · 2부 · 디너 · 해오름은 각자 칸)
+  ['굿즈','viewN','관람권 인원','','',null],   // 기본 관람 줄 인원을 직접 줄였을 때만 (비면 = 관람 인원 − 다른 관람 영역 인원)   // 예약 내역 관람 줄에서 고른 관람 품목 (평일 · 주말은 방문일에 맞춰 바뀜, 비면 입장 시각으로)
   ['굿즈','inotes','항목 비고','','',null],   // 예약 내역 줄마다 비고 "sadam1=창가 자리; g:모과청(new)=선물 포장" (시트 비고 칸 '항목 비고')
 ];
 // 프로그램 · 굿즈 담당: 프로그램마다 'stf_키' 칸을 바로 뒤에. 모두 필수, 기본은 영업 담당 (바꿀 수 있음)
@@ -901,7 +903,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['viewSrc','관람 종류']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
@@ -990,27 +992,31 @@ function mbMenuHTML(v){
 // 줄 key: 'sadam1' 'sadam2' 'sadamD' · 'mb'(몽몽마방, 하나) · 프로그램 키 · 'g:품목'(굿즈) · 'new:…'(아직 안 고른 줄)
 let itemRows = [], itemPend = new Set();   // itemPend: 수량을 아직 안 넣은 줄 (값이 없어도 보이게)
 const SADAM_ITEMS = [['sadam1','사담 런치 1부'],['sadam2','사담 런치 2부'],['sadamD','사담 디너']];
-const itemKind = k => k==='view' ? 'view' : /^sadam/.test(k) ? 'sadam' : k==='mb' ? 'mb' : /^g:/.test(k) ? 'goods' : /^new:/.test(k) ? 'new' : 'prog';   // view: 관람 인원 (첫 줄, 관람 인원 칸과 같은 값)
+const itemKind = k => k==='view' ? 'view' : /^v:/.test(k) ? 'varea' : /^sadam/.test(k) ? 'sadam' : k==='mb' ? 'mb' : /^g:/.test(k) ? 'goods' : /^new:/.test(k) ? 'new' : 'prog';   // view: 관람 인원 (첫 줄, 관람 인원 칸과 같은 값)
 // 항목 비고: rec.inotes = "sadam1=창가 자리; g:모과청(new)=선물 포장"
 const inotesMap = () => Object.fromEntries(String(rec.inotes||'').split(/\s*;\s*/).map(s=>{ const i=s.indexOf('='); return i>0 ? [s.slice(0,i).trim(), s.slice(i+1).trim()] : null; }).filter(Boolean));
 const itemNote = k => inotesMap()[k] || '';
 function setItemNote(k, v){ const m=inotesMap(); v=String(v||'').replace(/[;=]/g,',').trim(); if(v) m[k]=v; else delete m[k]; rec.inotes=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); touched.add('inotes'); }
-const itemName = k => k==='view' ? '관람' : k==='mb' ? '몽몽마방 '+(rec.mabangMenu||'') : /^g:/.test(k) ? goodsName(k.slice(2)) : (SADAM_ITEMS.find(x=>x[0]===k)||[])[1] || LABEL[k] || k;
+const itemName = k => k==='view' ? '관람' : /^v:/.test(k) ? itemLabel(daySrc(k.slice(2), rec)) : k==='mb' ? '몽몽마방 '+(rec.mabangMenu||'') : /^g:/.test(k) ? goodsName(k.slice(2)) : (SADAM_ITEMS.find(x=>x[0]===k)||[])[1] || LABEL[k] || k;
 const itemNotesText = () => Object.entries(inotesMap()).filter(([k])=>itemKeysFromRec().includes(k)).map(([k,v])=>`${itemName(k)}: ${v}`);   // 비고가 있는 항목만
 const itemUnit = k => itemKind(k)==='goods' ? '개' : itemKind(k)==='prog' ? UNIT(k) : '명';
 const itemHasStaff = k => ['prog','goods'].includes(itemKind(k));
 const itemStfKey = k => itemKind(k)==='goods' ? 'stf_goods' : 'stf_'+k;   // 굿즈 담당은 굿즈 전체 하나
 function itemKeysFromRec(){
-  return [...(rec.people ? ['view'] : []), ...SADAM_ITEMS.map(x=>x[0]).filter(k=>rec[k]), ...(rec.mabangL||rec.mabangMenu||rec.mabangTime ? ['mb'] : []),
+  return [...(rec.people || String(rec.viewN||'').trim() ? ['view'] : []), ...viewsParse(rec.views).map(v=>'v:'+v.src), ...SADAM_ITEMS.map(x=>x[0]).filter(k=>rec[k]), ...(rec.mabangL||rec.mabangMenu||rec.mabangTime ? ['mb'] : []),
     ...PROG_KEYS().filter(k=>rec[k]), ...goodsParse(rec.goods).map(g=>'g:'+g.src)];
 }
 function itemQty(k){ const t=itemKind(k);
-  if(t==='view') return rec.people||'';
+  if(t==='view') return String(effViewN(rec));   // 기본 관람 줄 = 관람 인원 − 다른 관람 영역 (직접 줄였으면 그 수)
+  if(t==='varea'){ const v=viewsParse(rec.views).find(x=>x.src===k.slice(2)); return v ? String(v.qty) : ''; }
   if(t==='mb') return rec.mabangL||'';
   if(t==='goods'){ const g=goodsParse(rec.goods).find(x=>x.src===k.slice(2)); return g ? String(g.qty) : ''; }
   return t==='new' ? '' : (rec[k]||''); }
 function setItemQty(k, v){ const t=itemKind(k); v=String(v||'').trim();
-  if(t==='view'){ rec.people=v; touched.add('people'); return; }   // 관람 줄 수량 = 관람 인원
+  if(t==='view'){   // 기본 관람 줄: 관람 인원이 비었으면 관람 인원으로, 남은 인원과 같으면 자동, 줄이면 그 수
+    if(!numOf(rec.people)){ rec.people=v; touched.add('people'); if(rec.viewN){ rec.viewN=''; touched.add('viewN'); } return; }
+    const nv = numOf(v)===viewAuto(rec) ? '' : v; if(String(rec.viewN||'')!==nv){ rec.viewN=nv; touched.add('viewN'); } return; }
+  if(t==='varea'){ const list=viewsParse(rec.views), src=k.slice(2), q=Math.max(0, parseInt(v)||0), x=list.find(y=>y.src===src); if(x) x.qty=q; else if(q) list.push({src, qty:q}); rec.views=goodsJoin(list); touched.add('views'); if(q) itemPend.delete(k); else itemPend.add(k); return; }
   if(t==='mb'){ rec.mabangL=v; touched.add('mabangL');
     if(v && !rec.mabangTime){ const tt=fmtTime(rec.tin); if(tt){ rec.mabangTime=`${tt}~${String(Math.min(+tt.slice(0,2)+1,23)).padStart(2,'0')}${tt.slice(2)}`; touched.add('mabangTime'); } } }   // 몽몽마방 시간 기본 = 입장부터 1시간
   else if(t==='goods'){ const list=goodsParse(rec.goods), src=k.slice(2), q=Math.max(0, parseInt(v)||0), g=list.find(x=>x.src===src); if(g) g.qty=q; else if(q) list.push({src, qty:q}); rec.goods=goodsJoin(list); touched.add('goods'); }
@@ -1020,6 +1026,7 @@ function setItemQty(k, v){ const t=itemKind(k); v=String(v||'').trim();
 function clearItem(k){ const t=itemKind(k);
   if(itemNote(k)) setItemNote(k, '');
   if(t==='view') return;   // 관람 줄은 관람 인원 칸으로만
+  if(t==='varea'){ rec.views=goodsJoin(viewsParse(rec.views).filter(x=>x.src!==k.slice(2))); touched.add('views'); itemPend.delete(k); return; }
   if(t==='mb'){ ['mabangL','mabangMenu','mabangTime','mabangPay'].forEach(x=>{ if(rec[x]){ rec[x]=''; touched.add(x); } }); }
   else if(t==='goods'){ rec.goods=goodsJoin(goodsParse(rec.goods).filter(x=>x.src!==k.slice(2))); touched.add('goods'); if(!rec.goods && rec.stf_goods){ rec.stf_goods=''; touched.add('stf_goods'); } }
   else if(t!=='new'){ [k, 'stf_'+k, 'tm_'+k, 'crs_'+k].forEach(x=>{ if(rec[x]){ rec[x]=''; touched.add(x); } }); }
@@ -1032,10 +1039,16 @@ function itemSelectHTML(k, rows){
   const pr=src=>{ const v=src ? priceOf(src) : null; return v!=null ? ` · ${wonTxt(v)}원` : ''; };
   const cur=mbMenuOf(rec);
   let h=`<option value="">항목 고르기</option>`;
-  h+=`<optgroup label="사담 식사">${SADAM_ITEMS.map(([v,l])=>opt(v,l,used.has(v),k===v)).join('')}</optgroup>`;
+  // 관람 · 관람+식사: 관람권(기본 관람 줄과 다른 것) · 관람 포함 패키지 전부 · 새벽 해오름 산책. 사담 1부 · 2부 · 디너는 예전 칸(sadam1 · 2 · D)
+  const day=rec.date && isRedDay(rec.date) ? '주말/공휴일' : '평일', base=normSrc(viewSrcOf(rec));
+  const SADAM_OF = {'사담런치1부':'sadam1','사담런치2부':'sadam2','사담디너':'sadamD'};
+  const area = catalogItems().filter(it=>(it.kind==='view' || it.kind==='package') && !/네이버/.test(it.src) && String(it.src).startsWith(day) && it.price!=null && normSrc(it.src)!==base);
+  h+=`<optgroup label="관람 · 관람+식사">${area.map(it=>{ const pm=String(it.src).match(/\(관람,\s*(.+)\)$/), sk=pm ? SADAM_OF[normSrc(pm[1])] : null, v=sk || 'v:'+it.src;
+      return opt(v, (pm ? '관람 + '+pm[1] : viewLabel(it.src))+` · ${wonTxt(it.price)}원`, used.has(v), k===v || (itemKind(k)==='varea' && normSrc(daySrc(k.slice(2), rec))===normSrc(it.src))); }).join('')}`
+    + `${FIELDS.some(f=>f[1]==='haeorum') ? opt('haeorum', '새벽 해오름 산책 (관람료 포함)'+pr(progSrc('haeorum', rec)), used.has('haeorum'), k==='haeorum') : ''}</optgroup>`;
   h+=`<optgroup label="몽몽마방">${mbMenus().map(m=>opt('mb:'+m.name, `몽몽마방 ${m.name} · ${wonTxt(m.price)}원`, mbUsed, k==='mb' && cur && cur.name===m.name)).join('')}${k==='mb' && !cur ? opt('mb:', rec.mabangMenu ? `몽몽마방 ${rec.mabangMenu} (예전 메뉴 · 다시 고르기)` : '몽몽마방 (메뉴 고르기)', false, true) : ''}</optgroup>`;
   [['프로그램(개별)','개별 프로그램'],['프로그램(시간)','시간 프로그램']].forEach(([g,l])=>{
-    h+=`<optgroup label="${l}">${FIELDS.filter(f=>f[0]===g && !isSub(f[1])).map(f=>opt(f[1], f[2]+pr(progSrc(f[1], rec))+(UNIT(f[1])==='시간'?' (회당)':''), used.has(f[1]), k===f[1])).join('')}</optgroup>`; });
+    h+=`<optgroup label="${l}">${FIELDS.filter(f=>f[0]===g && !isSub(f[1]) && f[1]!=='haeorum').map(f=>opt(f[1], f[2]+pr(progSrc(f[1], rec))+(UNIT(f[1])==='시간'?' (회당)':''), used.has(f[1]), k===f[1])).join('')}</optgroup>`; });
   const gi=goodsItems();
   h+=`<optgroup label="굿즈">${gi.map(it=>opt('g:'+it.src, (String(it.name||'').trim()||it.src)+` · ${wonTxt(it.price)}원`, used.has('g:'+it.src), k==='g:'+it.src)).join('')}${itemKind(k)==='goods' && !gi.some(it=>'g:'+it.src===k) ? opt(k, k.slice(2), false, true) : ''}</optgroup>`;
   return `<select class="it-sel" data-isel="${esc(k)}" aria-label="항목">${h}</select>`;
@@ -1043,10 +1056,10 @@ function itemSelectHTML(k, rows){
 function itemRowHTML(k, rows){
   const t=itemKind(k), stf=itemHasStaff(k), sv=stf ? String(rec[itemStfKey(k)]||'') : '';
   const note = t==='new' ? '' : `<input class="it-x it-note" data-inote="${esc(k)}" data-ime="ko" placeholder="비고 (예: ${t==='view'?'인솔자 2명 포함':t==='goods'?'선물 포장':t==='sadam'||t==='mb'?'창가 자리 · 알레르기':'준비물 · 장소'})" value="${esc(itemNote(k))}">`;
-  if(t==='view'){ const vs=viewSrcOf(rec), vi=viewItems(rec);
+  if(t==='view'){ const vs=viewSrcOf(rec), vi=viewItems(rec).filter(it=>!/\(\d\d:00~18:00\)/.test(it.src) || normSrc(it.src)===normSrc(vs));   // 시간대 관람권은 입장 시각으로 정해진 것만
     const opts = vi.length ? vi.map(it=>`<option value="${esc(it.src)}"${normSrc(it.src)===normSrc(vs)?' selected':''}>${esc(viewLabel(it.src))} · ${wonTxt(it.price)}원</option>`).join('') : `<option>관람 (관람 인원)</option>`;
     return `<div class="it-row it-view" data-irow="view"><select class="it-sel" data-iview aria-label="관람 품목" title="관람 품목 (관람 인원 = 수량)">${opts}</select>`
-      + `<span class="it-q"><input data-iq="view" inputmode="numeric" data-ime="num" placeholder="인원" value="${esc(itemQty('view'))}" title="관람 인원 칸과 같은 값"><i>명</i></span>`
+      + `<span class="it-q"><input data-iq="view" inputmode="numeric" data-ime="num" placeholder="인원" value="${esc(itemQty('view'))}" title="관람 인원 − 다른 관람 품목(관람+식사 · 해오름 등). 직접 줄이면 그 수로 (관람하지 않는 인원)"><i>명</i></span>`
       + `<span class="it-s none"><input disabled placeholder="담당 없음"></span><span></span><div class="it-money" data-ip="view"></div><div class="it-extra">${note}</div></div>`; }
   const extra = note + (t==='mb' ? `<input class="it-x" data-ix="mabangTime" inputmode="numeric" data-ime="num" placeholder="시간 12:00~13:00" title="몽몽마방 시간 (24시간)" value="${esc(rec.mabangTime||'')}"><select class="it-x" data-ix="mabangPay" title="몽몽마방 결제"><option value="">결제 (선택)</option>${MB_PAYS.map(x=>`<option${rec.mabangPay===x?' selected':''}>${x}</option>`).join('')}</select>`
     : t==='prog' && FIELDS.some(f=>f[1]==='tm_'+k) ? `<input class="it-x" data-ix="tm_${esc(k)}" inputmode="numeric" data-ime="num" placeholder="시간대 13:00~15:00" value="${esc(rec['tm_'+k]||'')}"><input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="코스 (예: 정원 코스)" value="${esc(rec['crs_'+k]||'')}">` : '');
@@ -1092,6 +1105,7 @@ function mergePriceLayout(){
 let priceInfo = null;   // { 품목: {qty, p, a} } (renderPrice가 채움, 전산 내역이 있으면 null)
 function itemSrc(k){ const t=itemKind(k), DAY=rec.date && isRedDay(rec.date) ? '주말/공휴일' : '평일';
   if(t==='view') return viewSrcOf(rec);
+  if(t==='varea') return daySrc(k.slice(2), rec);
   if(t==='sadam') return `${DAY}(관람, ${{sadam1:'사담 런치1부', sadam2:'사담 런치2부', sadamD:'사담 디너'}[k]})`;
   if(t==='mb') return (mbMenuOf(rec)||{}).src || (Number(rec.mabangPrice) ? '몽몽마방 단품' : '');
   if(t==='prog') return progSrc(k, rec) || '';
@@ -1103,8 +1117,9 @@ function erpKeyOf(p){ const ns=normSrc(p);
   if(/\(관람,\s*사담\s*런치\s*2부\)/.test(p)) return 'sadam2';
   if(/\(관람,\s*사담\s*디너\)/.test(p)) return 'sadamD';
   if(/해오름/.test(p)) return 'haeorum';
-  if(/\(관람,/.test(p)) return null;
-  if(/관람/.test(p) && !/관람권|관람식사권/.test(p)) return 'view';
+  const vrow = viewsParse(rec.views).find(v=>normSrc(daySrc(v.src, rec))===ns || normSrc(v.src)===ns); if(vrow) return 'v:'+vrow.src;   // 관람 영역의 다른 품목 줄
+  if(/\(관람,/.test(p)) return 'v:'+p;
+  if(/관람/.test(p) && !/관람권|관람식사권/.test(p)) return ns===normSrc(viewSrcOf(rec)) ? 'view' : 'v:'+p;
   const pk=PROG_KEYS().find(k=>normSrc(PROG_SRC[k]||'')===ns || normSrc(progSrc(k, rec)||'')===ns); if(pk) return /당두봉갈/.test(p) ? 'dangdu' : pk;
   if(mbMenus().some(m=>normSrc(m.src)===ns)) return 'mb';
   if(goodsItems().some(g=>normSrc(g.src)===ns)) return 'g:'+goodsItems().find(g=>normSrc(g.src)===ns).src;
@@ -1122,13 +1137,13 @@ function paintItemPrices(){
   const cell=(l,v,cls='')=>`<span class="im ${cls}"><i>${l}</i>${v}</span>`;
   document.querySelectorAll('#itemsBox [data-ip]').forEach(el=>{ const k=el.dataset.ip; let h='';
     if(E){ const x=E.m[k];
-      if(!x) h = k==='view' ? cell('전산', '관람 포함 상품 · 따로 없음') : cell('전산', '<b class="bad">전산 내역에 없음</b>', 'warn');
-      else { const q=k==='view' ? null : numOf(itemQty(k)), diff = q!=null && q!==x.people;
+      if(!x) h = k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', '<b class="bad">전산 내역에 없음</b>', 'warn');
+      else { const q=numOf(itemQty(k)), diff = q!==x.people;
         h = cell('전산', `순번 ${esc(x.seqs.join(' · ')||'-')}`) + cell('인원', `${x.people}${itemUnit(k)}${diff?` <b class="bad">(예약 ${q})</b>`:''}`, diff?'warn':'')
           + cell('상품금액', won(x.base)) + cell('할인', x.disc ? `-${won(x.disc)}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}` : '없음') + cell('금액', `<b>${won(x.amount)}</b>`, 'amt'); } }
     else if(!priceInfo) h='';
     else { const src=itemSrc(k), x=src ? priceInfo[normSrc(src)] : null;
-      if(k==='view' && !x) h=cell('관람권', numOf(rec.people)?'관람 포함 상품(사담 등)으로 계산':'인원 입력');
+      if(k==='view' && !x) h=cell('관람권', numOf(rec.people)?'0명 (모두 관람 포함 품목으로 계산)':'인원 입력');
       else if(!x) h=cell('금액', '가격 없음', 'warn');
       else if(seen.has(src)) h=cell('금액', '위 줄과 합산');   // 같은 견적서 품목(예: 대관)은 한 줄로 계산
       else { seen.add(src); const full=x.p!=null ? x.p*x.qty : null, dc = x.a && full!=null ? full-x.a.amount : 0;
@@ -2607,7 +2622,7 @@ function renderErp(){
 }
 // 전산 내역 → 예약 내용 칸: 관람 · 관람+사담 · 몽몽마방 메뉴 · 프로그램 · 굿즈 · 방문일 · 인원 · 기타 할인 · 특별 할인
 function erpFields(list){
-  const o={}, goods=[], unknown=[], sp={}; let view=0, etc=0, etcTo='';
+  const o={}, goods=[], views=[], unknown=[], sp={}; let view=0, etc=0, etcTo='';
   const add=(k,n)=>{ o[k]=String((numOf(o[k])||0)+(n||0)); };
   const progBy={}; Object.entries(PROG_SRC).forEach(([k,s])=>{ if(!progBy[normSrc(s)]) progBy[normSrc(s)]=k; }); progBy[normSrc('당두봉갈 대관')]='dangdu';
   const mbs=mbMenus(), gds=goodsItems();
@@ -2621,21 +2636,23 @@ function erpFields(list){
     else if(/\(관람,\s*사담\s*런치\s*2부\)/.test(p)) add('sadam2',n);
     else if(/\(관람,\s*사담\s*디너\)/.test(p)) add('sadamD',n);
     else if(/해오름/.test(p)) add('haeorum',n);   // 평일 · 주말 품목 모두
-    else if(/\(관람,/.test(p)) unknown.push(p);
-    else if(/관람/.test(p) && !/관람권|관람식사권/.test(p)) view+=n;
+    else if(/\(관람,/.test(p) || (/관람/.test(p) && !/관람권|관람식사권/.test(p))){   // 관람권 · 관람+식사 패키지
+      const isBase = !/\(관람,/.test(p) && ns===normSrc(viewSrcOf({date:x.date||rec.date, tin:rec.tin, viewSrc:rec.viewSrc}));
+      if(isBase) view+=n; else { const v=views.find(y=>normSrc(y.src)===ns); if(v) v.qty+=n; else views.push({src:p, qty:n}); } }
     else if(progBy[ns]) add(progBy[ns], n);
     else { const mb=mbs.find(m=>normSrc(m.src)===ns);
       if(mb){ add('mabangL',n); if(o.mabangMenu && o.mabangMenu!==mb.name) unknown.push(p+' (몽몽마방 메뉴가 여러 개)'); else o.mabangMenu=mb.name; }
       else { const gi=gds.find(g=>normSrc(g.src)===ns); if(gi){ const g=goods.find(g=>g.src===gi.src); if(g) g.qty+=n; else goods.push({src:gi.src, qty:n}); } else unknown.push(p); } }
   });
-  o.goods=goodsJoin(goods);
-  const pkg=numOf(o.sadam1)+numOf(o.sadam2)+numOf(o.sadamD), ppl=Math.max(view+pkg, numOf(o.haeorum)) || Math.max(0, ...['mabangL',...PROG_KEYS()].filter(k=>UNIT(k)!=='시간').map(k=>numOf(o[k])));
+  o.goods=goodsJoin(goods); o.views=goodsJoin(views);
+  const vsum=views.reduce((s,y)=>s+y.qty,0), pkg=numOf(o.sadam1)+numOf(o.sadam2)+numOf(o.sadamD)+vsum, ppl=Math.max(view+pkg, numOf(o.haeorum)) || Math.max(0, ...['mabangL',...PROG_KEYS()].filter(k=>UNIT(k)!=='시간').map(k=>numOf(o[k])));
   if(ppl) o.people=String(ppl);
+  const auto=Math.max(0, ppl - (pkg + numOf(o.haeorum))); o.viewN = view===auto ? '' : String(view);   // 기본 관람권 수가 남은 인원과 다를 때만
   const d=list.find(x=>x.date); if(d) o.date=d.date;
   const v=(list.find(x=>x.visitor)||{}).visitor||'', vm=v.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
   return { o, sp, etc, etcTo, unknown, org:(vm?vm[1]:v).trim(), phone: vm && /\d{2,}/.test(vm[2]) ? vm[2] : '' };
 }
-const ERP_FILL_KEYS = () => ['sadam1','sadam2','sadamD','mabangL','mabangMenu',...PROG_KEYS(),'goods'];   // 전산 내역대로 맞추는 칸 (없으면 비움)
+const ERP_FILL_KEYS = () => ['sadam1','sadam2','sadamD','views','viewN','mabangL','mabangMenu',...PROG_KEYS(),'goods'];   // 전산 내역대로 맞추는 칸 (없으면 비움)
 function fillFromErp(list){
   const {o, sp, etc, etcTo, unknown, org, phone} = erpFields(list), ch=[];
   const set=(k,v)=>{ v=v||''; if(String(rec[k]||'')===v) return; rec[k]=v; touched.add(k); ch.push(k); };
@@ -2652,9 +2669,9 @@ function fillFromErp(list){
 }
 // 전산 내역 ↔ 예약 내용 다른 점 (식사 · 몽몽마방 · 프로그램 · 굿즈 · 방문일 · 관람 인원 + 알아보지 못한 상품)
 function erpCompare(list){
-  const {o, unknown}=erpFields(list), show=(k,v)=>!v?'없음':k==='goods'?goodsText({goods:v}):k==='date'?dateLabel(v):/^\d+$/.test(String(v))&&UNIT(k)?v+(k==='people'||/^sadam|mabangL/.test(k)?'명':UNIT(k)):v;
+  const {o, unknown}=erpFields(list), show=(k,v)=>!v?(k==='viewN'?'자동':'없음'):k==='goods'?goodsText({goods:v}):k==='views'?viewsParse(v).map(x=>`${itemLabel(x.src)} ${x.qty}명`).join(', '):k==='date'?dateLabel(v):/^\d+$/.test(String(v))&&UNIT(k)?v+(k==='people'||/^sadam|mabangL/.test(k)?'명':UNIT(k)):v;
   const d=[...ERP_FILL_KEYS(),'people','date'].filter(k=>String(o[k]||'')!==String(rec[k]||'') && !((k==='people'||k==='date') && !o[k]))
-    .map(k=>({k, label:k==='goods'?'굿즈':LABEL[k]||k, mine:show(k,rec[k]), erp:show(k,o[k])}));
+    .map(k=>({k, label:k==='goods'?'굿즈':k==='views'?'관람 · 관람+식사':k==='viewN'?'기본 관람권 인원':LABEL[k]||k, mine:show(k,rec[k]), erp:show(k,o[k])}));
   unknown.forEach(p=>d.push({k:'?', label:'알아보지 못한 전산 상품', mine:'-', erp:p}));
   return d;
 }
@@ -2734,8 +2751,14 @@ const HOLIDAYS = new Set([
 ]);
 const isRedDay = date => { const d=new Date(date+'T00:00'); return !isNaN(d) && (d.getDay()===0 || d.getDay()===6 || HOLIDAYS.has(date)); };
 function viewSrcOf(r){ const we=isRedDay(r.date), h=tinHour(r.tin), day=we?'주말/공휴일':'평일';
-  if(r.viewSrc){ const s=String(r.viewSrc).replace(/^(평일|주말\/공휴일)/, day); if(priceOf(s)!=null) return s; }   // 예약 내역에서 고른 관람 품목 (방문일의 평일 · 주말에 맞춤)
+  if(r.viewSrc && !/\(\d\d:00~18:00\)/.test(r.viewSrc)){ const s=String(r.viewSrc).replace(/^(평일|주말\/공휴일)/, day); if(priceOf(s)!=null) return s; }   // 시간대 관람권(9~18 · 13~18)은 입장 시각으로 자동, 그 밖(학생 등)은 고른 것
   return `${day} 관람(${h!=null && h>=13 ? '13:00~18:00' : '09:00~18:00'})`; }
+// 관람 영역: 기본 관람권 + 관람 포함 품목(관람+식사 패키지 · 다른 관람권 · 새벽 해오름 산책). 품목 이름의 평일 · 주말은 방문일에 맞춤
+const daySrc = (src, r) => { const day=r.date && isRedDay(r.date) ? '주말/공휴일' : '평일', s=String(src).replace(/^(평일|주말\/공휴일)/, day); return priceOf(s)!=null ? s : src; };
+const viewsParse = v => goodsParse(v);   // "품목 x5 · 품목 x10"
+const areaOthers = r => { const n=numOf(r.people), cnt=v=>v?(numOf(v)||n):0; return cnt(r.sadam1)+cnt(r.sadam2)+cnt(r.sadamD)+cnt(r.haeorum)+viewsParse(r.views).reduce((s,x)=>s+x.qty,0); };
+const viewAuto = r => Math.max(0, numOf(r.people) - areaOthers(r));   // 기본 관람 줄 = 관람 인원 − 다른 관람 영역
+const effViewN = r => String(r.viewN||'').trim()!=='' ? numOf(r.viewN) : viewAuto(r);   // 직접 줄였으면 그 수
 const viewLabel = src => { const m=String(src).match(/\((\d\d):00~(\d\d):00\)/); return itemLabel(src) + (m ? ` (${+m[1]}~${+m[2]}시)` : ''); };   // "관람 (9~18시)" · "관람 (학생)"
 // 예약 내역 관람 줄 드롭다운: 품목 관리의 관람 품목 중 방문일(평일 · 주말)에 맞는 것 (네이버 제외)
 const viewItems = r => { const day=r.date && isRedDay(r.date) ? '주말/공휴일' : '평일'; return catalogItems().filter(it=>it.kind==='view' && !/네이버/.test(it.src) && String(it.src).startsWith(day) && it.price!=null); };
@@ -2746,11 +2769,11 @@ function quoteBlocks(r){
   const mbM = mbMenuOf(r);   // 몽몽마방은 단체도 관람과 따로: 관람권 + 고른 메뉴 품목 (사유의 밥상이면 사유의 밥상(단체))
   const blocks=[], skipped=[];
   const add=(product, qty, disc)=>{ if(qty>0) blocks.push({product, qty, disc}); };
-  const pkg = cnt(r.sadam1)+cnt(r.sadam2)+cnt(r.sadamD)+cnt(r.haeorum);   // 해오름 산책은 관람료 포함이라 그 인원은 관람권을 따로 넣지 않음
-  add(viewSrcOf(r), Math.max(0, n-pkg), true);
+  add(viewSrcOf(r), effViewN(r), true);   // 기본 관람권 = 관람 인원 − 관람 포함 품목(사담 · 해오름 · 다른 관람권 등), 직접 줄였으면 그 수
   add(`${DAY}(관람, 사담 런치1부)`, cnt(r.sadam1), true);
   add(`${DAY}(관람, 사담 런치2부)`, cnt(r.sadam2), true);
   add(`${DAY}(관람, 사담 디너)`, cnt(r.sadamD), false);
+  viewsParse(r.views).forEach(v=>{ const s=daySrc(v.src, r), it=catalogItems().find(x=>normSrc(x.src)===normSrc(s)); add(s, v.qty, it ? !!it.disc : /관람\(/.test(s)); });   // 관람 영역의 다른 품목 (할인 대상은 품목 관리 기준)
   if(r.mabangL && mbM) add(mbM.src, cnt(r.mabangL), false);   // 고른 메뉴 품목 (품목 리스트 가격)
   else if(r.mabangL && Number(r.mabangPrice)){ add('몽몽마방 단품', cnt(r.mabangL), false); blocks[blocks.length-1].price=Number(r.mabangPrice); }   // 예전 기록: 적어 둔 단가
   else if(r.mabangL) skipped.push('몽몽마방 (메뉴를 고르면 계산)');
