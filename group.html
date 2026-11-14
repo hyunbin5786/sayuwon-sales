@@ -351,7 +351,14 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .dayinfo .none{color:var(--muted)}
 .dayinfo .adm{margin-top:6px;padding-top:6px;border-top:1px dashed #bccab4}
 .dayinfo .adm .full{color:var(--red)}
-.day-all{margin:0 0 10px}   /* 예약 현황 (방문일 하루): 단체 · 몽몽마방 · 사담 */
+.day-all{margin:0 0 10px}   /* 예약 현황: 몽몽마방 · 대관 · 도슨트 · 프로그램 버튼 */
+.da-btns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.da-btn{border:1px solid #bccab4;background:#fff;color:var(--pine);border-radius:7px;padding:8px 4px;font:700 13px var(--sans);cursor:pointer}
+.da-btn:hover{background:var(--pine);color:#fff}
+.da-btn b{display:inline-block;min-width:18px;margin-left:3px;border-radius:9px;background:var(--pine);color:#fff;font-size:11px;padding:0 5px}
+.da-btn:hover b{background:#fff;color:var(--pine)}
+.da-note{font-size:11.5px;margin-top:6px}
+.mbdb-t tr.same td{background:#eef5ea}
 .day-all .da{margin-top:6px;padding-top:6px;border-top:1px dashed #bccab4}
 .day-all .da-h{display:inline-block;min-width:58px;font-weight:700;color:var(--pine);margin-right:6px}
 .day-all .mb-cat{margin-left:6px}
@@ -568,19 +575,6 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
   </section>
 </div>
 <!-- 몽몽마방 예약 목록 (NAS 엑셀 '몽몽마방 예약' 탭을 붙여 넣어 공유 기록에 저장 → 예약 현황에 보임) -->
-<div class="modal" id="mbdbModal" hidden>
-  <section class="list panel mbdb" role="dialog" aria-modal="true" aria-labelledby="mbdbTitle">
-    <h2><span id="mbdbTitle">몽몽마방 예약 목록</span> <small id="mbdbSum"></small>
-      <span class="row-btns"><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="mbPast"> 지난 예약도 보기</label><button type="button" class="btn list-x" id="mbdbClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
-    <div class="tw"><table class="mbdb-t"><thead><tr><th>날짜</th><th>시간</th><th>예약자 · 업체</th><th>인원</th><th>메뉴</th><th></th></tr></thead><tbody id="mbdbBody"></tbody></table></div>
-    <div class="mb-paste">
-      <p class="hint" style="margin:0 0 6px">엑셀 <b>몽몽마방 예약</b> 탭에서 예약 줄을 골라 복사(Ctrl+C)한 뒤 아래에 붙여 넣기(Ctrl+V) 하세요. 직접 적을 때는 한 줄에 하나씩 <code>11/19 12:30-13:30 조미화 29 사유의 밥상</code>. 붙여 넣은 날짜의 몽몽마방 예약은 새 내용으로 바뀌고, 다른 날짜는 그대로 둡니다.</p>
-      <textarea id="mbPaste" lang="ko" placeholder="여기에 붙여 넣기 (날짜 · 시간 · 예약자 · 인원 · 메뉴)"></textarea>
-      <div id="mbPrev" class="mb-prev"></div>
-      <div class="row-btns" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn primary" id="mbSave" disabled>저장</button></div>
-    </div>
-  </section>
-</div>
 <!-- 내 예약에 다른 사람이 남긴 메모: 확인할 때까지 -->
 <div class="modal" id="memoModal" hidden>
   <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="memoTitle">
@@ -602,10 +596,20 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 <!-- 대관 · 도슨트 · 프로그램 예약 목록 (예약접수된 단체 예약에서 자동) -->
 <div class="modal" id="bookModal" hidden>
   <section class="list panel mbdb book" role="dialog" aria-modal="true" aria-labelledby="bookTitle">
-    <h2><span id="bookTitle">예약 목록</span> <span class="seg my-tabs" id="bookTabs"><button type="button" data-bt="rent">대관</button><button type="button" data-bt="docent">도슨트</button><button type="button" data-bt="prog">프로그램</button></span> <small id="bookSum"></small>
+    <h2><span id="bookTitle">예약 목록</span> <span class="seg my-tabs" id="bookTabs"><button type="button" data-bt="mb">몽몽마방</button><button type="button" data-bt="rent">대관</button><button type="button" data-bt="docent">도슨트</button><button type="button" data-bt="prog">프로그램</button></span> <small id="bookSum"></small>
       <span class="row-btns"><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bookPast"> 지난 예약도 보기</label><button type="button" class="btn list-x" id="bookClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
-    <div class="tw"><table class="mbdb-t"><thead id="bookHead"></thead><tbody id="bookBody"></tbody></table></div>
-    <p class="hint" style="margin:8px 0 0">단체 예약이 <b>예약접수</b>가 되면 예약 내역의 대관(차방 = 몽몽차방 · 당두봉갈) · 도슨트(동행 도슨트 = 동행 · 세미나 도슨트 = PPT) · 프로그램이 자동으로 들어갑니다. 줄을 누르면 그 예약이 열립니다.</p>
+    <div id="bookGen" class="book-pane"><div class="tw"><table class="mbdb-t"><thead id="bookHead"></thead><tbody id="bookBody"></tbody></table></div>
+    <p class="hint" style="margin:8px 0 0">단체 예약이 <b>예약접수</b>가 되면 예약 내역의 대관(차방 = 몽몽차방 · 당두봉갈) · 도슨트(동행 도슨트 = 동행 · 세미나 도슨트 = PPT) · 프로그램이 자동으로 들어갑니다. 줄을 누르면 그 예약이 열립니다.</p></div>
+    <div id="bookMb" class="book-pane" hidden>
+    <span id="mbdbSum" hidden></span>
+    <div class="tw"><table class="mbdb-t"><thead><tr><th>날짜</th><th>시간</th><th>예약자 · 업체</th><th>인원</th><th>메뉴</th><th></th></tr></thead><tbody id="mbdbBody"></tbody></table></div>
+    <div class="mb-paste">
+      <p class="hint" style="margin:0 0 6px">엑셀 <b>몽몽마방 예약</b> 탭에서 예약 줄을 골라 복사(Ctrl+C)한 뒤 아래에 붙여 넣기(Ctrl+V) 하세요. 직접 적을 때는 한 줄에 하나씩 <code>11/19 12:30-13:30 조미화 29 사유의 밥상</code>. 붙여 넣은 날짜의 몽몽마방 예약은 새 내용으로 바뀌고, 다른 날짜는 그대로 둡니다.</p>
+      <textarea id="mbPaste" lang="ko" placeholder="여기에 붙여 넣기 (날짜 · 시간 · 예약자 · 인원 · 메뉴)"></textarea>
+      <div id="mbPrev" class="mb-prev"></div>
+      <div class="row-btns" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn primary" id="mbSave" disabled>저장</button></div>
+    </div>
+    </div>
   </section>
 </div>
 <!-- 마감이 된 추후 과업: 해결할 때까지 계속 (나중에 = 2시간 뒤) -->
@@ -1214,7 +1218,7 @@ function mergePriceLayout(){
   box.after(w);
   $('#selTitle').textContent='할인 · 합계';
   const ph=$('#priceHint'); if(ph) box.closest('.grp')?.querySelector('.grp-t')?.appendChild(ph);   // "11/27(금) → 평일 가격"
-  dp.querySelector('h2').innerHTML='예약 현황 <small>방문일의 단체 · 몽몽마방 예약 (사담은 예약 전산)</small>';
+  dp.querySelector('h2').innerHTML='예약 현황 <small>누르면 구분별 예약 목록</small>';
   dp.querySelector('h2').insertAdjacentHTML('afterend','<div class="dayinfo day-all" id="dayAll"></div>');
   const info=$('#itemsInfo'); if(info) dp.appendChild(info);
   dp.insertAdjacentHTML('beforeend','<p class="hint" id="dayNone" style="margin:0">방문일과 예약 내역(사담 · 몽몽마방 · 프로그램)을 넣으면 그날 다른 예약 현황이 여기에 보입니다. 예약 내역의 수량 칸에 커서를 두면 업체별로 보입니다.</p>');
@@ -1766,16 +1770,10 @@ const bookLine = x => (x.cat==='rent' ? `<b>${esc(x.place)}</b>${x.hrs?` ${x.hrs
   + ` · ${esc(x.org)}${x.me?' <small>(이 예약)</small>':''}${x.ppl?` · ${x.ppl}명`:''}${x.staff?` · 담당 ${esc(x.staff)}`:''}${x.note?` · <small>${esc(x.note)}</small>`:''}`;
 function renderDayAll(){
   const el=$('#dayAll'); if(!el) return;
-  const btn = c => c==='mb' ? `<button type="button" class="mb-cat" data-mbdb>전체 목록</button>` : `<button type="button" class="mb-cat" data-book="${c}">전체 목록</button>`;
-  if(!rec.date){ el.innerHTML='<span class="none">방문일을 넣으면 그날 몽몽마방 · 대관 · 도슨트 · 프로그램 예약 현황이 여기에 보입니다.</span>'
-    + `<div class="da"><span class="da-h">몽몽마방</span>${btn('mb')}</div>` + Object.entries(BOOK_CATS).map(([c,t])=>`<div class="da"><span class="da-h">${t}</span>${btn(c)}</div>`).join(''); return; }
-  const db=mbDb(), mb=mbDbOn(rec.date), mPpl=mb.reduce((s,x)=>s+(+x.p||0),0), rows=bookRows().filter(x=>x.d===rec.date);
-  const mList = mb.length ? `<ul>${mb.map(x=>`<li>${esc(x.t||'시간 미정')} · <b>${esc(x.n||'')}</b> · ${esc(x.p)}명${x.m?` · ${esc(x.m)}`:''}</li>`).join('')}</ul>` : '';
-  el.innerHTML = `<b>${dateLabel(rec.date)} 예약 현황</b> <small class="none">(대관 · 도슨트 · 프로그램 = 예약접수된 단체 예약)</small>`
-    + `<div class="da"><span class="da-h">몽몽마방</span>${db.rows.length ? (mb.length?`${mb.length}팀 · ${mPpl}명`:'<span class="none">예약 없음</span>') : '<span class="none">몽몽마방 예약 목록이 아직 없습니다</span>'} ${btn('mb')}${db.at?` <small class="none">${esc(fmtAgo(db.at))} 저장</small>`:''}${mList}</div>`
-    + Object.entries(BOOK_CATS).map(([c,t])=>{ const l=rows.filter(x=>x.cat===c);
-        return `<div class="da"><span class="da-h">${t}</span>${l.length?`${l.length}건`:'<span class="none">예약 없음</span>'} ${btn(c)}${l.length?`<ul>${l.map(x=>`<li>${bookLine(x)}</li>`).join('')}</ul>`:''}</div>`; }).join('')
-    + `<div class="da none">사담 예약 현황은 <b>예약 전산</b>에서 확인하세요.</div>`;
+  // 예약 현황 = 버튼 4개 (몽몽마방 · 대관 · 도슨트 · 프로그램). 누르면 예약 목록 창이 그 구분 탭으로. 방문일이 있으면 그날 건수
+  const d=rec.date, rows = d ? bookRows().filter(x=>x.d===d) : [], n = c => !d ? 0 : c==='mb' ? mbDbOn(d).length : rows.filter(x=>x.cat===c).length;
+  el.innerHTML = `<div class="da-btns">${[['mb','몽몽마방'], ...Object.entries(BOOK_CATS)].map(([c,t])=>`<button type="button" class="da-btn" data-book="${c}" title="${t} 예약 목록${d?` (${dateLabel(d)} ${n(c)}건)`:''}">${t}${n(c)?` <b>${n(c)}</b>`:''}</button>`).join('')}</div>`
+    + `<div class="none da-note">${d ? `숫자 = ${dateLabel(d)} 예약 건수 · ` : ''}사담은 예약 전산에서 확인하세요.</div>`;
 }
 // ===================== 삭제된 단체 예약 (Apps Script 'deleted', 보기 전용) =====================
 let trashItems=null, trashErr='';
@@ -1802,15 +1800,18 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#trashModal
 let bookCatNow='rent';
 const BOOK_COLS = { rent:[['일자'],['업체'],['인원'],['장소'],['담당자 이름'],['비고사항']], docent:[['일자'],['업체'],['인원'],['시간'],['종류'],['담당자 이름'],['비고사항']], prog:[['일자'],['업체'],['인원'],['프로그램 항목'],['담당자 이름'],['비고사항']] };
 function paintBook(){
+  document.querySelectorAll('#bookTabs [data-bt]').forEach(b=>b.classList.toggle('on', b.dataset.bt===bookCatNow));
+  const isMb = bookCatNow==='mb'; $('#bookMb').hidden=!isMb; $('#bookGen').hidden=isMb;
+  if(isMb){ paintMbDb(); $('#bookTitle').textContent='몽몽마방 예약 목록'; $('#bookSum').textContent = $('#mbdbSum').textContent + ' · NAS 엑셀 붙여넣기'; return; }   // 몽몽마방: 엑셀에서 붙여 넣은 목록
   const c=bookCatNow, today=todayYmd(), past=$('#bookPast').checked, all=bookRows().filter(x=>x.cat===c), list=all.filter(x=>past || x.d>=today);
   $('#bookTitle').textContent = `${BOOK_CATS[c]} 예약 목록`; $('#bookSum').textContent = `${list.length}건 · 예약접수된 단체 예약에서 자동`;
   document.querySelectorAll('#bookTabs [data-bt]').forEach(b=>b.classList.toggle('on', b.dataset.bt===c));
   $('#bookHead').innerHTML = `<tr>${BOOK_COLS[c].map(([h])=>`<th>${h}</th>`).join('')}</tr>`;
   const cell = x => c==='rent' ? [x.place+(x.hrs?` (${x.hrs}시간)`:'')] : c==='docent' ? [x.tm||'(미정)', x.kind+(x.hrs?` · ${x.hrs}시간`:'')] : [x.item];
-  $('#bookBody').innerHTML = list.map(x=>`<tr class="r${x.d<today?' past':''}" data-bopen="${esc(x.id)}"><td>${esc(dateLabel(x.d))}</td><td><b>${esc(x.org)}</b>${x.me?' <small>(이 예약)</small>':''}</td><td class="num">${x.ppl?x.ppl+'명':''}</td>${cell(x).map(v=>`<td>${esc(v)}</td>`).join('')}<td>${esc(x.staff)}</td><td class="note">${esc(x.note)}</td></tr>`).join('')
+  $('#bookBody').innerHTML = list.map(x=>`<tr class="r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}" data-bopen="${esc(x.id)}"><td>${esc(dateLabel(x.d))}</td><td><b>${esc(x.org)}</b>${x.me?' <small>(이 예약)</small>':''}</td><td class="num">${x.ppl?x.ppl+'명':''}</td>${cell(x).map(v=>`<td>${esc(v)}</td>`).join('')}<td>${esc(x.staff)}</td><td class="note">${esc(x.note)}</td></tr>`).join('')
     || `<tr><td colspan="${BOOK_COLS[c].length}" class="empty">${all.length?'앞으로 있을 예약이 없습니다.':'예약접수된 단체 예약 중 '+BOOK_CATS[c]+' 예약이 없습니다.'}</td></tr>`;
 }
-function openBook(c){ bookCatNow=c; $('#bookModal').hidden=false; paintBook(); }
+function openBook(c){ bookCatNow=c; if(c==='mb'){ mbPreview=null; $('#mbPaste').value=''; } $('#bookModal').hidden=false; paintBook(); }
 document.addEventListener('click', e=>{ const b=e.target.closest?.('[data-book]'); if(b) openBook(b.dataset.book); const t=e.target.closest?.('#bookTabs [data-bt]'); if(t){ bookCatNow=t.dataset.bt; paintBook(); } });
 $('#bookClose').onclick=()=>{ $('#bookModal').hidden=true; };
 $('#bookPast').onchange=paintBook;
@@ -1842,7 +1843,7 @@ function mbParse(text){
 }
 let mbPreview=null;
 function paintMbDb(){
-  const db=mbDb(), today=todayYmd(), past=$('#mbPast').checked;
+  const db=mbDb(), today=todayYmd(), past=$('#bookPast').checked;   // 지난 예약도 보기 (예약 목록 창 공통)
   const list=db.rows.filter(x=>past || x.d>=today).sort((a,b)=>(a.d+a.t).localeCompare(b.d+b.t));
   $('#mbdbSum').textContent = db.rows.length ? `${db.rows.length}건${db.at?` · 마지막 저장 ${dtLabel(db.at)}${db.by?` (${db.by})`:''}`:''}` : '아직 없음';
   $('#mbdbBody').innerHTML = list.map(x=>`<tr${x.d<today?' class="past"':''}><td>${esc(dateLabel(x.d))}</td><td>${esc(x.t||'')}</td><td><b>${esc(x.n)}</b></td><td class="num">${esc(x.p)}명</td><td>${esc(x.m||'')}</td><td><button type="button" class="del" data-mbdel="${esc(x.d+'|'+x.t+'|'+x.n)}" title="이 예약 빼기">×</button></td></tr>`).join('')
@@ -1859,14 +1860,9 @@ async function mbDbSave(rows, msg){
   rows=rows.filter(x=>x.d>=keep).sort((a,b)=>(a.d+a.t).localeCompare(b.d+b.t));   // 90일 지난 것은 정리
   const item={...(old||{}), id:MBDB_ID, callType:MBDB_TYPE, saved:now, takenBy:savedOwner()||'', summary:`몽몽마방 예약 목록 ${rows.length}건`, history:JSON.stringify({rows, at:now, by:savedOwner()||''})};
   await store.put(item); const ci=cache.findIndex(x=>x.id===MBDB_ID); if(ci>=0) cache[ci]=item; else cache.push(item);
-  paintMbDb(); renderDayAll(); toast(msg);
+  if(!$('#bookModal').hidden) paintBook(); renderDayAll(); toast(msg);
 }
-function openMbDb(){ mbPreview=null; $('#mbPaste').value=''; $('#mbdbModal').hidden=false; paintMbDb(); setTimeout(()=>$('#mbPaste').focus(),0); }
-document.addEventListener('click', e=>{ if(e.target.closest?.('[data-mbdb]')) openMbDb(); });
-$('#mbdbClose').onclick=()=>{ $('#mbdbModal').hidden=true; };
-$('#mbdbModal').addEventListener('mousedown', e=>{ if(e.target.id==='mbdbModal') $('#mbdbModal').hidden=true; });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#mbdbModal').hidden){ e.preventDefault(); $('#mbdbModal').hidden=true; } });
-$('#mbPast').onchange=paintMbDb;
+function openMbDb(){ openBook('mb'); }   // 몽몽마방 예약 목록 = 예약 목록 창의 '몽몽마방' 탭
 $('#mbPaste').addEventListener('input', ()=>{ mbPreview=$('#mbPaste').value.trim() ? mbParse($('#mbPaste').value) : null; paintMbDb(); });   // 붙여 넣으면 바로 읽어서 미리 보기
 $('#mbSave').onclick=()=>{ if(!mbPreview || !mbPreview.rows.length) return;
   const ds=new Set(mbPreview.rows.map(x=>x.d)), rows=[...mbDb().rows.filter(x=>!ds.has(x.d)), ...mbPreview.rows], n=mbPreview.rows.length;   // 붙여 넣은 날짜는 새 내용으로, 다른 날짜는 그대로
