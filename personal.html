@@ -19,6 +19,11 @@ html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
 header{background:var(--pine);color:#f3f1ec;padding:10px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
 header h1{margin:0;font:600 17px var(--serif)}
+header .sys-brand{color:#f3f1ec;text-decoration:none;font:600 18px var(--serif);letter-spacing:.02em;white-space:nowrap}
+header .sys-brand:hover{text-decoration:underline;text-underline-offset:4px}
+header .sys-crumb{font:600 15px var(--sans);color:#f3f1ec;white-space:nowrap}
+header .sys-crumb::before{content:"›";margin:0 10px 0 2px;opacity:.55;font-weight:400}
+header .sys-crumb[hidden]{display:none}   /* 공통 헤더: 시스템 이름(누르면 메뉴) › 화면 이름 */
 header .hb{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#f3f1ec;border-radius:7px;padding:4px 12px;font:700 13px var(--sans);cursor:pointer;text-decoration:none}
 header .hb:hover{background:rgba(255,255,255,.2)}
 header .me{margin-left:auto;font-size:13px}
@@ -106,8 +111,7 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
 </head>
 <body>
 <header>
-  <a class="hb" href="./" title="사유원 예약 관리 시스템 메뉴로">☰ 메뉴</a>
-  <h1>개인고객 전화응대</h1>
+  <a class="sys-brand" href="./" title="메뉴로">사유원 예약 관리 시스템</a><span class="sys-crumb">개인고객 전화응대</span>
   <span class="sync warn" id="syncChip" hidden></span>
   <span class="me" id="me"></span>
   <a class="hb" href="mypage.html" data-mypop title="단체 예약 · 개인고객 통화의 추후 과업을 한눈에 (팝업)">마이페이지</a>
@@ -174,7 +178,7 @@ const dtLabel = s => { const t=new Date(s); return isNaN(t)?'':`${t.getMonth()+1
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 let toastT; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), 2600); }
 const user = readJSON('sy_user', {}) || {};
-$('#me').textContent = user.name ? `${user.name} · 사번 ${user.emp}` : '';
+$('#me').textContent = user.name ? `👤 ${user.name}` : '';
 
 // ===================== 공유 기록 (단체 화면과 같은 Apps Script · 같은 팀 비밀번호) =====================
 const SHARED_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";

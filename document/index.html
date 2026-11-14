@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap">
 <style>
 :root{
-  --paper:#f4f3ef; --surface:#ffffff; --surface-2:#fbfaf7;
+  --paper:#f3f1ec; --surface:#ffffff; --surface-2:#fbfaf7;
   --ink:#1c1e1d; --muted:#6c716d; --faint:#8e938f;
   --line:#e0ded7; --line-strong:#c8c5bc;
   --accent:#2f5d4a; --accent-soft:#e7efea;
@@ -45,7 +45,17 @@ button,input,select,textarea{font:inherit; color:inherit}
 .wrap{max-width:1480px; margin:0 auto; padding-left:16px; padding-right:16px; padding-block:22px 48px}
 
 header.top{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:20px}
-.menu-link{display:inline-block; margin-bottom:8px; text-decoration:none; font-weight:700}
+/* 사유원 예약 관리 시스템 공통 헤더 (단체 · 개인 화면과 같은 초록 띠) */
+.sys-hd{background:#3f5236; color:#f3f1ec; padding:10px max(16px,env(safe-area-inset-left,0px)); display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:none; font-family:"Noto Sans KR",system-ui,sans-serif}
+.sys-brand{color:#f3f1ec; text-decoration:none; font:600 18px "Noto Serif KR",serif; letter-spacing:.02em; white-space:nowrap}
+.sys-brand:hover{text-decoration:underline; text-underline-offset:4px}
+.sys-crumb{font:600 15px "Noto Sans KR",system-ui,sans-serif; color:#f3f1ec; white-space:nowrap; margin-right:auto}
+.sys-crumb::before{content:"›"; margin:0 10px 0 2px; opacity:.55; font-weight:400}
+.sys-hd .hb{border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.1); color:#f3f1ec; border-radius:7px; padding:4px 12px; font:500 13px "Noto Sans KR",system-ui,sans-serif; cursor:pointer}
+.sys-hd .hb:hover{background:rgba(255,255,255,.2)}
+.sys-hd .kobtn.on{background:rgba(255,255,255,.9); color:#3f5236; border-color:#fff}
+.sys-me{font-size:13px; white-space:nowrap}
+.page-sub{margin:0 0 10px; font-size:12.5px; color:var(--muted); flex:none}
 .brand{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
 .brand h1{
   font-family:'Noto Serif KR', serif; font-weight:700; font-size:25px; margin:0;
@@ -135,7 +145,8 @@ header.top{display:flex; align-items:flex-end; justify-content:space-between; ga
 /* 넓은 화면: 제목과 미리보기는 고정하고 왼쪽 입력 열만 스크롤. 견적서는 세로 전체가 보이게 줄이고, 두 장이면 나란히 */
 @media (min-width:981px){
   html, body{height:100%; overflow:hidden}
-  .wrap{height:100vh; display:flex; flex-direction:column; padding-block:18px}
+  body{display:flex; flex-direction:column}   /* 위 공통 헤더 + 아래 작업 화면이 한 화면에 */
+  .wrap{flex:1; min-height:0; width:100%; box-sizing:border-box; display:flex; flex-direction:column; padding-block:12px 18px}
   header.top{flex:none}
   .app{flex:1; min-height:0; align-items:stretch}
   .app > div:first-child{min-height:0; overflow-y:auto; padding-right:8px; padding-bottom:24px}
@@ -343,19 +354,17 @@ html.cat-only #catalog-modal{background:transparent; padding:0}
 html.cat-only #catalog-modal .modalbox{width:100%; max-height:100vh; height:100vh; border-radius:0; box-shadow:none}
 </style>
 
+<!-- 사유원 예약 관리 시스템 공통 헤더: 시스템 이름(누르면 메뉴) › 화면 이름 · 버튼 · 로그인한 이름 -->
+<header class="sys-hd">
+  <a class="sys-brand" href="../" title="메뉴로">사유원 예약 관리 시스템</a><span class="sys-crumb">견적서 / 거래명세서 발급</span>
+  <button class="hb kobtn" type="button" id="ko-toggle" aria-pressed="true">한</button>
+  <button class="hb" type="button" id="open-history">발급 내역</button>
+  <button class="hb" type="button" id="open-catalog">품목 관리</button>
+  <span class="sys-me" id="sysMe"></span>
+  <script>try{ var su=JSON.parse(localStorage.getItem("sy_user")||"null"); if(su && su.name) document.getElementById("sysMe").textContent="👤 "+su.name; }catch(e){}</script>
+</header>
 <div class="wrap">
-  <header class="top">
-    <div class="brand">
-      <a class="btn menu-link" id="sys-menu" href="../" title="사유원 예약 관리 시스템 메뉴로">☰ 메뉴</a>
-      <h1>견적서&amp;거래명세서 발행</h1>
-      <span class="sub">예약 정보를 붙여넣거나 직접 입력해 사유원 · 신라철강 견적서와 거래명세서를 만듭니다</span>
-    </div>
-    <div class="rulechips">
-      <button class="btn kobtn" type="button" id="ko-toggle" aria-pressed="true">한</button>
-      <button class="btn" type="button" id="open-history">발급 내역</button>
-      <button class="btn" type="button" id="open-catalog">품목 관리</button>
-    </div>
-  </header>
+  <p class="page-sub">예약 정보를 붙여넣거나 직접 입력해 사유원 · 신라철강 견적서와 거래명세서를 만듭니다</p>
 
   <!-- 3단계: 1 시작(붙여넣기 / 직접 생성) → 2 문서 작성 → 3 출력 · 메일 -->
   <nav class="steps" aria-label="진행 단계">

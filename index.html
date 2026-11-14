@@ -20,6 +20,11 @@ html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--ink);font:14px/1.6 var(--sans)}
 header{background:var(--pine);color:#f3f1ec;padding:12px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 header h1{margin:0;font:600 18px var(--serif);letter-spacing:.02em}
+header .sys-brand{color:#f3f1ec;text-decoration:none;font:600 18px var(--serif);letter-spacing:.02em;white-space:nowrap}
+header .sys-brand:hover{text-decoration:underline;text-underline-offset:4px}
+header .sys-crumb{font:600 15px var(--sans);color:#f3f1ec;white-space:nowrap}
+header .sys-crumb::before{content:"›";margin:0 10px 0 2px;opacity:.55;font-weight:400}
+header .sys-crumb[hidden]{display:none}   /* 공통 헤더: 시스템 이름(누르면 메뉴) › 화면 이름 */
 header .who{margin-left:auto;font-size:13px;display:flex;align-items:center;gap:10px}
 header .who[hidden]{display:none}
 header button{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#f3f1ec;border-radius:7px;padding:4px 12px;font:500 13px var(--sans);cursor:pointer}
@@ -84,7 +89,7 @@ main{max-width:980px;margin:0 auto;padding:40px 16px}
 </head>
 <body>
 <header>
-  <h1>사유원 예약 관리 시스템</h1>
+  <a class="sys-brand" href="./" id="brand" title="메뉴로">사유원 예약 관리 시스템</a><span class="sys-crumb" id="crumb" hidden></span>
   <div class="who" id="who" hidden><span id="whoName"></span><button type="button" data-mypop title="단체 예약 · 개인고객 통화의 추후 과업을 한눈에 (팝업)">마이페이지</button><button type="button" id="logoutBtn">로그아웃</button></div>
 </header>
 <main>
@@ -129,7 +134,7 @@ main{max-width:980px;margin:0 auto;padding:40px 16px}
 
   <!-- 3) 멤버관리 -->
   <section id="memberView" class="panel" hidden>
-    <div class="mhead"><button type="button" class="back" id="memberBack">← 메뉴</button><h2>멤버관리</h2><span class="hint" id="memberHint"></span></div>
+    <div class="mhead"><h2>멤버관리</h2><span class="hint" id="memberHint"></span></div>
     <div id="memberKey" class="keybox" hidden>
       <p>멤버 목록을 보려면 팀 비밀번호가 필요합니다 (단체 화면과 같은 비밀번호, 이 브라우저에 기억).</p>
       <form id="memberKeyForm" class="inline"><input id="memberKeyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn-sm primary" type="submit">연결</button></form>
@@ -152,7 +157,7 @@ main{max-width:980px;margin:0 auto;padding:40px 16px}
 </main>
 
 <!-- 품목관리: 견적서 사이트의 품목 관리 창을 그대로 띄움 (닫으면 메뉴로) -->
-<div class="catwrap" id="catWrap" hidden><div class="catbar"><button type="button" class="back" id="catBack">← 메뉴</button><h2>품목관리</h2></div><iframe id="catFrame" title="품목관리"></iframe></div>
+<div class="catwrap" id="catWrap" hidden><iframe id="catFrame" title="품목관리"></iframe></div>
 
 <script>
 // 로그인 정보: localStorage 'sy_user' = {name, emp, at}. 같은 주소(hyunbin5786.github.io)의 단체 화면 · 견적서 사이트가 함께 씀
@@ -168,8 +173,9 @@ function paint(){
   const u=getUser();
   $('#loginForm').hidden = !!u; $('#who').hidden = !u;
   $('#menuView').hidden = !u || view!=='menu'; $('#memberView').hidden = !u || view!=='members';
+  { const cr=$('#crumb'); if($('#catWrap').hidden){ cr.textContent = u && view==='members' ? '멤버관리' : ''; cr.hidden = !cr.textContent; } }   // 헤더: 시스템 이름 › 지금 화면
   if(u){
-    $('#whoName').textContent = `${u.name} · 사번 ${u.emp}`;
+    $('#whoName').textContent = `👤 ${u.name}`; $('#whoName').title = `사번 ${u.emp}`;
     $('#hello').innerHTML = `${esc(u.name)}님, 무엇을 할까요?<small>메뉴를 고르세요. 각 화면 위쪽 「☰ 메뉴」로 이 화면에 돌아옵니다.</small>`;
     $('#quoteLink').href = QUOTE;
     $('#setupBar').hidden = !u.setup;
@@ -221,7 +227,8 @@ document.addEventListener('click', e=>{
   if(c.dataset.go==='catalog'){ e.preventDefault(); openCatalog(); }
   if(c.dataset.go==='members'){ e.preventDefault(); view='members'; history.replaceState(null,'','#members'); paint(); }
 });
-$('#memberBack').onclick=()=>{ view='menu'; history.replaceState(null,'',location.pathname); paint(); };
+// 헤더의 「사유원 예약 관리 시스템」 = 메뉴로 (품목관리는 남은 변경을 저장한 뒤)
+$('#brand').addEventListener('click', e=>{ if(!getUser()) return; e.preventDefault(); if(!$('#catWrap').hidden){ askClose(); return; } view='menu'; history.replaceState(null,'',location.pathname); paint(); });
 
 // ===================== 멤버관리 (팀 비밀번호 필요) =====================
 let members=[];
@@ -264,11 +271,11 @@ document.addEventListener('click', async e=>{ const b=e.target.closest('[data-md
   if(!confirm(`${b.dataset.mname}(${b.dataset.mdel}) 님을 멤버에서 뺄까요?${self?'\n본인입니다. 빼면 다음 로그인부터 들어올 수 없습니다.':''}`)) return;
   memberCall({action:'memberDel', emp:b.dataset.mdel, by:u.name||''}); });
 // 품목관리 (#catalog): 메뉴에서 열면 이 화면 안의 한 페이지 (헤더 아래 꽉 차게), 닫기(저장이 끝난 뒤) · ← 메뉴 로 메뉴에
-function openCatalog(){ $('#catFrame').src = QUOTE + (QUOTE.includes('?')?'&':'?') + 'catalog=1&t=' + Date.now(); $('#catWrap').hidden=false; document.querySelector('main').hidden=true; if(location.hash!=='#catalog') history.replaceState(null,'','#catalog'); }
-function closeCatalog(){ $('#catWrap').hidden=true; document.querySelector('main').hidden=false; $('#catFrame').src='about:blank'; history.replaceState(null,'',location.pathname); }
+function openCatalog(){ $('#catFrame').src = QUOTE + (QUOTE.includes('?')?'&':'?') + 'catalog=1&t=' + Date.now(); $('#catWrap').hidden=false; document.querySelector('main').hidden=true; $('#crumb').textContent='품목관리'; $('#crumb').hidden=false; if(location.hash!=='#catalog') history.replaceState(null,'','#catalog'); }
+function closeCatalog(){ $('#catWrap').hidden=true; document.querySelector('main').hidden=false; view='menu'; $('#crumb').hidden=true; $('#catFrame').src='about:blank'; history.replaceState(null,'',location.pathname); }
 window.addEventListener('message', e=>{ if(!e.data || e.data.type!=='sy-catalog' || e.source!==$('#catFrame').contentWindow) return; if(e.data.ev==='close') closeCatalog(); });
 const askClose = () => $('#catFrame').contentWindow?.postMessage({type:'sy-catalog', ev:'close-request'}, '*');
-$('#catBack').onclick=askClose;   // 남은 변경은 저장한 뒤 닫힘
+
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#catWrap').hidden){ e.preventDefault(); askClose(); } });
 paint();
 // 이미 로그인한 브라우저도 첫 화면을 열 때 다시 확인: 멤버에서 빠졌거나 이름 · 사번이 다르면 로그아웃
