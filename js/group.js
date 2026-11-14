@@ -433,17 +433,17 @@ function paintItemPrices(){
   // 줄 구성 (2026-11-14): ① [품목 · 가격(관람+식사는 관람 · 식사 따로) · 인원 · 담당 · ×] ② 할인(할인 대상 품목만: 버튼 · 할인 금액 · 할인 단가 · 금액) ③ 비고 (할인 줄이 없으면 금액은 비고 줄 끝)
   const seen=new Set(), E = erpList.length ? erpByKey() : null;
   const cell=(l,v,cls='')=>`<span class="im ${cls}"><i>${l}</i>${v}</span>`;
-  const upHTML = src => { const sp=pkgSplit(src); if(sp) return `<span><i>과세(신라)</i>${won(sp.m)}원</span><span><i>비과세(사유원)</i>${won(sp.v)}원</span>`; const p=src?priceOf(src):null; return p==null ? '' : `<span><i>${/대관|도슨트|세미나/.test(src)?'회당':'1인'}</i>${won(p)}</span>`; };
+  const upHTML = src => { const sp=pkgSplit(src); if(sp) return `<span><i>비과세(사유원)</i>${won(sp.v)}원</span><span><i>과세(신라)</i>${won(sp.m)}원</span>`; const p=src?priceOf(src):null; return p==null ? '' : `<span><i>${/대관|도슨트|세미나/.test(src)?'회당':'1인'}</i>${won(p)}</span>`; };
   document.querySelectorAll('#itemsBox [data-ip]').forEach(el=>{ const k=el.dataset.ip, src=itemSrc(k), up=document.querySelector(`#itemsBox [data-iup="${CSS.escape(k)}"]`), am=document.querySelector(`#itemsBox [data-iamt="${CSS.escape(k)}"]`);
     let h='', amt='';
     // 가격 칸: 할인까지 빼고 실제로 결제하는 금액을 과세(신라) · 비과세(사유원)로 (전산 내역 모드 · 금액을 모르면 1인 가격)
     // 전산 내역이 있으면 전산 금액 · 할인을 그 품목의 과세 · 비과세 비율로 나눔
     const ex = E && E.m[k] ? erpRowMoney(k, E.m[k]) : null;
     const pm = ex || (!E && priceInfo && src ? (priceInfo[normSrc(src)]||{}).m : null);
-    if(up) up.innerHTML = !quoteCat && !ex ? '' : pm && !seen.has(src) ? [pm.fTx>0 && `<span title="정상가 ${won(pm.fTx)}원 − 할인 ${won(pm.dTx)}원"><i>과세(신라)</i>${won(pm.tx)}원</span>`, pm.fTf>0 && `<span title="정상가 ${won(pm.fTf)}원 − 할인 ${won(pm.dTf)}원"><i>비과세(사유원)</i>${won(pm.tf)}원</span>`].filter(Boolean).join('') : upHTML(src);
+    if(up) up.innerHTML = !quoteCat && !ex ? '' : pm && !seen.has(src) ? [pm.fTf>0 && `<span title="정상가 ${won(pm.fTf)}원 − 할인 ${won(pm.dTf)}원"><i>비과세(사유원)</i>${won(pm.tf)}원</span>`, pm.fTx>0 && `<span title="정상가 ${won(pm.fTx)}원 − 할인 ${won(pm.dTx)}원"><i>과세(신라)</i>${won(pm.tx)}원</span>`].filter(Boolean).join('') : upHTML(src);
     if(E){ const x=E.m[k];
       if(!x) h = k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', '<b class="bad">전산 내역에 없음</b>', 'warn');
-      else if(x.disc || ex.ov || openDisc.has(k)) h = `<span class="im dams"><i>할인</i>${ex.fTx>0?damIn(k,'tx', ex.dTx, ex.fTx):''}${ex.fTf>0?damIn(k,'tf', ex.dTf, ex.fTf):''}${ex.ov?`<small class="dman">직접 고침</small><button type="button" class="dreset" data-idamtreset="${esc(k)}" title="전산 할인으로 되돌리기">↺</button>`:''}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}</span>`;   // 전산 내역 줄: 할인만 (과세 · 비과세 할인액은 고칠 수 있음)
+      else if(x.disc || ex.ov || openDisc.has(k)) h = `<span class="im dams"><i>할인</i>${ex.fTf>0?damIn(k,'tf', ex.dTf, ex.fTf):''}${ex.fTx>0?damIn(k,'tx', ex.dTx, ex.fTx):''}${ex.ov?`<small class="dman">직접 고침</small><button type="button" class="dreset" data-idamtreset="${esc(k)}" title="전산 할인으로 되돌리기">↺</button>`:''}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}</span>`;   // 전산 내역 줄: 할인만 (과세 · 비과세 할인액은 고칠 수 있음)
       else amt = `<button type="button" class="dopen" data-dopen="${esc(k)}" title="이 품목에 할인 넣기 (과세 · 비과세 할인액)">할인 넣기</button>`; }
     else if(!priceInfo) h='';
     else { const x=src ? priceInfo[normSrc(src)] : null;
@@ -457,7 +457,7 @@ function paintItemPrices(){
         // 할인액: 과세(신라) · 비과세(사유원) 따로, 칸에서 바로 고칠 수 있음 (고치면 「직접 고침」, ↺ = 할인 버튼 계산으로 되돌리기)
         const dIn = (side, v, max) => `<label class="dam"><i>${side==='tx'?'과세(신라)':'비과세(사유원)'}</i>-<input data-idamt="${esc(k)}" data-side="${side}" inputmode="numeric" data-ime="num" value="${won(v)}" title="할인액 (최대 ${won(max)}원)">원</label>`;
         if(discRow) h = `<span class="im dsel${eligible?'':' off'}" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}</button>`).join('')}${x.b.dsel!==x.b.dauto?'<small class="dman">직접 바꿈</small>':''}</span>`
-            + `<span class="im dams"><i>할인</i>${m.fTx>0?dIn('tx', m.dTx, m.fTx):''}${m.fTf>0?dIn('tf', m.dTf, m.fTf):''}${m.ov?`<small class="dman">직접 고침</small><button type="button" class="dreset" data-idamtreset="${esc(k)}" title="할인 버튼(%)으로 계산한 할인액으로 되돌리기">↺</button>`:(m.disc?` <small>${esc(m.disc)}</small>`:'')}</span>`
+            + `<span class="im dams"><i>할인</i>${m.fTf>0?dIn('tf', m.dTf, m.fTf):''}${m.fTx>0?dIn('tx', m.dTx, m.fTx):''}${m.ov?`<small class="dman">직접 고침</small><button type="button" class="dreset" data-idamtreset="${esc(k)}" title="할인 버튼(%)으로 계산한 할인액으로 되돌리기">↺</button>`:(m.disc?` <small>${esc(m.disc)}</small>`:'')}</span>`
             + money;
         else amt = money + (m && x.b ? `<button type="button" class="dopen" data-dopen="${esc(k)}" title="이 품목에 할인 넣기 (과세 · 비과세 할인액)">할인 넣기</button>` : ''); } }
     el.innerHTML=h; if(am) am.innerHTML=amt; });
@@ -2057,7 +2057,7 @@ function renderPrice(){
       return `<tr><td>${esc(lab)}</td><td>${b.qty}${unit}</td><td>${p==null?'-':won(p)}</td><td>${a&&a.disc?`<span class="dtag">${esc(a.disc)}</span>`:''}</td><td class="tot">${a?won(a.amount):'가격 없음'}</td></tr>`;
     }).join('');
     const etc=etcAmt(rec); total=Math.max(0,total-etc);   // 기타 할인
-    const etcRow = etc ? `<tr class="etc-row"><td>기타 할인${rec.etcDiscWhy?` (${esc(rec.etcDiscWhy)})`:''}</td><td></td><td></td><td><span class="dtag">${(es=>[es.tx&&`과세(신라) -${won(es.tx)}`, es.tf&&`비과세(사유원) -${won(es.tf)}`].filter(Boolean).join(' · '))(etcSplit(rec))}</span></td><td class="tot">-${won(etc)}</td></tr>` : '';
+    const etcRow = etc ? `<tr class="etc-row"><td>기타 할인${rec.etcDiscWhy?` (${esc(rec.etcDiscWhy)})`:''}</td><td></td><td></td><td><span class="dtag">${(es=>[es.tf&&`비과세(사유원) -${won(es.tf)}`, es.tx&&`과세(신라) -${won(es.tx)}`].filter(Boolean).join(' · '))(etcSplit(rec))}</span></td><td class="tot">-${won(etc)}</td></tr>` : '';
     const ms=moneySplit(rec);
     void rows;   // 품목별 금액은 예약 내역 줄에 (가격표와 예약 내역을 합침)
     box.innerHTML = `<table class="ptable sel"><tbody>${etcRow}</tbody>`
