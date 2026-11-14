@@ -557,3 +557,4 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 #stageFilter button.dim{opacity:.45}   /* 검색 중에는 탭 대신 전체에서 찾음 */
 .list-search{flex:1 1 260px;max-width:380px;height:32px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:13px var(--sans);background:#fff;color:var(--ink)}
 .list-search:focus{outline:none;border-color:var(--pine)}
+.form-col .hist-panel{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}   /* 수정 기록: 2열 예약 내용 아래 */
