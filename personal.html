@@ -54,6 +54,21 @@ main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;
 .editing[hidden]{display:none}
 .group-tip{background:var(--pine-soft);border-radius:7px;padding:8px 10px;font-size:12.5px;margin-top:8px}
 .group-tip[hidden]{display:none}
+/* 추후 과업 (통화마다) */
+.tadd{display:flex;gap:6px;flex-wrap:wrap}
+.tadd #taskIn{flex:1 1 220px;height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:14px var(--sans)}
+.tadd #taskDue{height:36px;border:1px solid var(--line);border-radius:7px;padding:0 6px;font:13px var(--sans)}
+.tadd input:focus{outline:none;border-color:var(--pine)}
+.tasks{list-style:none;margin:8px 0 0;padding:0}
+.tasks li{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:6px}
+.tasks li .tt{flex:1;min-width:0}
+.tasks li.done .tt{color:#9a9a92;text-decoration:line-through}
+.tasks li.late{border-color:var(--red)}
+.tasks li.late .due{color:var(--red);font-weight:700}
+.tasks li input[type=date]{height:28px;border:1px solid var(--line);border-radius:6px;padding:0 4px;font:12px var(--sans)}
+.tasks li .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
+.tasks li .x:hover{color:var(--red)}
+.tasks .empty{border:0;background:none;padding:2px}
 /* 목록 */
 .list{list-style:none;margin:0;padding:0}
 .list li{border-top:1px solid var(--line);padding:8px 2px;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px}
@@ -99,28 +114,18 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
     <form class="panel" id="callForm" autocomplete="off">
       <h2>통화 기록 <small id="startedAt"></small></h2>
       <div class="editing" id="editing" hidden></div>
-      <div class="sub-h" style="margin-top:0">문의 유형 (여러 개 고를 수 있음)</div>
-      <div class="chips" id="typeChips"></div>
-      <div class="group-tip" id="groupTip" hidden>단체(15명 이상 등) 문의면 <a href="group.html">단체고객 전화응대</a>에서 받아 주세요.</div>
-      <div class="sub-h">고객 · 방문</div>
+      <div class="sub-h" style="margin-top:0">고객 · 방문</div>
       <div class="row">
         <div class="f"><label for="fName">고객 이름</label><input id="fName" lang="ko" placeholder="예) 홍길동"></div>
         <div class="f"><label for="fPhone">연락처</label><input id="fPhone" inputmode="tel" placeholder="010-0000-0000"></div>
-        <div class="f"><label for="fDate">방문 희망일</label><input id="fDate" type="date"></div>
+        <div class="f"><label for="fDate">방문 희망일 / 예약일</label><input id="fDate" type="date"></div>
         <div class="f"><label for="fPeople">인원</label><input id="fPeople" inputmode="numeric" placeholder="명"></div>
       </div>
       <div class="sub-h">문의 내용</div>
       <div class="f w4"><textarea id="fNote" lang="ko" placeholder="예) 11/27 금요일 2명 사담 런치 1부 가능한지 · 주차 문의"></textarea></div>
-      <div class="sub-h">처리 결과</div>
-      <div class="row">
-        <div class="f w2"><label for="fResult">결과</label>
-          <select id="fResult">
-            <option>안내 완료</option><option>예약 완료 (전산 등록)</option><option>고객이 직접 예약하기로</option>
-            <option>다시 연락 필요</option><option>다른 담당자에게 전달</option><option>기타</option>
-          </select></div>
-        <div class="f w2" id="wCallback" hidden><label for="fCallback">다시 연락할 때</label><input id="fCallback" type="datetime-local"></div>
-        <div class="f w2" id="wTo" hidden><label for="fTo">전달 받는 사람</label><input id="fTo" lang="ko" placeholder="이름 · 부서"></div>
-      </div>
+      <div class="sub-h">추후 과업 <span class="hint" style="display:inline">(이 통화 뒤에 할 일 · 마감일 · 끝나면 체크)</span></div>
+      <div class="tadd"><input id="taskIn" lang="ko" placeholder="+ 과업 추가 (예: 사담 자리 확인 후 연락) · 적고 Enter" autocomplete="off"><input id="taskDue" type="date" title="마감일"><button class="btn" type="button" id="taskAddBtn">추가</button></div>
+      <ul class="tasks" id="taskList"></ul>
       <div class="btns">
         <button class="btn primary" type="submit" id="saveBtn">저장 (Ctrl+S)</button>
         <button class="btn" type="button" id="newBtn">＋ 새 통화</button>
@@ -134,7 +139,7 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
   <!-- 오른쪽: 다시 연락 · 최근 통화 · 안내 -->
   <div class="col">
     <section class="panel">
-      <h2>다시 연락할 통화 <small id="cbCount"></small></h2>
+      <h2>추후 과업 <small id="cbCount"></small></h2>
       <ul class="list" id="cbList"></ul>
     </section>
     <section class="panel">
@@ -218,49 +223,57 @@ function put(item){
 $('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#keyInput').value.trim(); if(!v) return; try{ localStorage.setItem(KEY_LS, v); }catch(_){} $('#keyInput').value=''; flush(); });
 
 // ===================== 통화 기록 =====================
-const TYPES=['관람 예약','사담 예약','몽몽마방','프로그램','예약 변경','취소 · 환불','길 안내 · 주차','단체 문의','기타'];
-const MEMO_KEYS=[['types','문의 유형'],['result','처리 결과'],['callback','다시 연락'],['cbDone','연락 완료'],['to','전달 대상']];
+// 시트 칸: 고객 이름 → 고객 담당자, 연락처, 방문 희망일 / 예약일 → 방문일, 인원 → 관람, 문의 내용 → 통화 메모, 추후 과업 → 수정 기록 칸 JSON {h:[], tasks:[…]} (단체 화면과 같은 방식)
 let cur=null, startedAt=null;   // cur: 지금 열어 둔 기록 (새 통화면 null)
-function blankForm(){ return {types:[], name:'', phone:'', date:'', people:'', note:'', result:'안내 완료', callback:'', to:'', cbDone:''}; }
+function blankForm(){ return {name:'', phone:'', date:'', people:'', note:'', tasks:[]}; }
 let form=blankForm(), saved=JSON.stringify(form);
-$('#typeChips').innerHTML = TYPES.map(t=>`<button type="button" data-t="${esc(t)}">${esc(t)}</button>`).join('');
+const todayYmd = () => ymd(new Date());
+const tasksOfItem = r => { try{ const h=JSON.parse(r.history||'{}'); return Array.isArray(h.tasks) ? h.tasks : []; }catch(_){ return []; } };
+const FIELDS=[['fName','name'],['fPhone','phone'],['fDate','date'],['fPeople','people'],['fNote','note']];
 function paintForm(force){
-  document.querySelectorAll('#typeChips button').forEach(b=>b.classList.toggle('on', form.types.includes(b.dataset.t)));
-  $('#groupTip').hidden = !form.types.includes('단체 문의');
-  [['fName','name'],['fPhone','phone'],['fDate','date'],['fPeople','people'],['fNote','note'],['fResult','result'],['fCallback','callback'],['fTo','to']].forEach(([id,k])=>{ const el=$('#'+id); if((force || document.activeElement!==el) && el.value!==form[k]) el.value=form[k]; });
-  $('#wCallback').hidden = form.result!=='다시 연락 필요'; $('#wTo').hidden = form.result!=='다른 담당자에게 전달';
+  FIELDS.forEach(([id,k])=>{ const el=$('#'+id); if((force || document.activeElement!==el) && el.value!==form[k]) el.value=form[k]; });
+  if(!$('#taskDue').value) $('#taskDue').value=todayYmd();
+  paintTasks();
   $('#delBtn').hidden = !cur;
   $('#editing').hidden = !cur; if(cur) $('#editing').textContent = `${dtLabel(cur.saved)} ${cur.takenBy||''}님이 받은 통화를 고치는 중 · 저장하면 그대로 덮어씁니다`;
   $('#startedAt').textContent = startedAt ? `통화 시작 ${dtLabel(startedAt.toISOString())}` : '';
   $('#state').textContent = isDirty() ? '저장하지 않은 내용이 있습니다' : (cur ? '저장됨' : '');
   paintPrices();
 }
+// 이 통화의 추후 과업: 안 끝난 것(마감일 순) → 끝난 것
+function paintTasks(){
+  const today=todayYmd(), list=[...form.tasks].sort((a,b)=>(a.done-b.done) || String(a.due).localeCompare(String(b.due)));
+  $('#taskList').innerHTML = list.map(t=>`<li class="${t.done?'done':''}${!t.done && t.due && t.due<today?' late':''}" data-tid="${esc(t.id)}"><input type="checkbox" data-tdone${t.done?' checked':''} title="끝나면 체크"><span class="tt">${esc(t.title)}</span>`
+    + `<span class="due">${!t.done && t.due && t.due<today?'기한 지남 ':''}</span><input type="date" data-tdue value="${esc(t.due||'')}" title="마감일"><button type="button" class="x" data-tdel title="과업 빼기">×</button></li>`).join('')
+    || '<li class="empty hint">추후 과업이 없습니다. 이 통화 뒤에 할 일이 있으면 위에 적어 주세요.</li>';
+}
 const isDirty = () => JSON.stringify(form)!==saved;
 const fmtPhone = v => { const d=String(v||'').replace(/\D/g,''); if(/^01\d{8,9}$/.test(d)) return d.length===10?`${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`:`${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`; if(/^0\d{8,10}$/.test(d)) return d.replace(/^(02|0\d{2})(\d{3,4})(\d{4})$/,'$1-$2-$3'); return v; };
-document.addEventListener('click', e=>{ const b=e.target.closest('#typeChips [data-t]'); if(!b) return; const t=b.dataset.t; form.types = form.types.includes(t) ? form.types.filter(x=>x!==t) : [...form.types, t]; touch(); });
-[['fName','name'],['fPhone','phone'],['fDate','date'],['fPeople','people'],['fNote','note'],['fResult','result'],['fCallback','callback'],['fTo','to']].forEach(([id,k])=>{
-  $('#'+id).addEventListener(id==='fResult'?'change':'input', e=>{ let v=e.target.value; if(k==='people'){ v=v.replace(/[^\d+]/g,''); e.target.value=v; } form[k]=v; touch(); });
-});
+FIELDS.forEach(([id,k])=>{ $('#'+id).addEventListener('input', e=>{ let v=e.target.value; if(k==='people'){ v=v.replace(/[^\d+]/g,''); e.target.value=v; } form[k]=v; touch(); }); });
 $('#fPhone').addEventListener('blur', e=>{ const v=fmtPhone(e.target.value); if(v!==form.phone){ form.phone=v; e.target.value=v; touch(); } });
 function touch(){ if(!startedAt && !cur) startedAt=new Date(); paintForm(); }
-function toItem(){
-  const id = cur ? cur.id : (Date.now().toString(36)+Math.random().toString(36).slice(2,6));
-  const memo = MEMO_KEYS.map(([k,l])=>{ const v = k==='types' ? form.types.join(', ') : form[k]; return v ? `${l} ${String(v).replace(/\s*\/\s*/g,', ')}` : ''; }).filter(Boolean).join(' / ');
-  const first = String(form.note||'').split(/\n/)[0].slice(0,60);
-  return { ...(cur||{}), id, saved: cur ? cur.saved : new Date().toISOString(), callStart: cur ? cur.callStart : (startedAt||new Date()).toISOString(),
-    takenBy: cur ? (cur.takenBy || user.name || '') : (user.name || ''), owner: user.name || '', callType: CALL_TYPE,
-    summary: [form.types.join(' · '), form.result, first].filter(Boolean).join(' · '), date: form.date, people: form.people,
-    contact: form.name, phone: form.phone, note: form.note, memo };
+// 과업 추가 · 체크 · 마감일 · 빼기
+function addTask(){ const v=$('#taskIn').value.trim(); if(!v) return; form.tasks.push({id:'t'+Date.now().toString(36), title:v, due:$('#taskDue').value||todayYmd(), done:false, at:new Date().toISOString(), by:user.name||''}); $('#taskIn').value=''; $('#taskDue').value=todayYmd(); touch(); $('#taskIn').focus(); }
+$('#taskAddBtn').onclick=addTask;
+$('#taskIn').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); addTask(); } });
+$('#taskList').addEventListener('change', e=>{ const li=e.target.closest('[data-tid]'); if(!li) return; const t=form.tasks.find(x=>x.id===li.dataset.tid); if(!t) return;
+  if(e.target.dataset.tdone!==undefined){ t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():''; t.doneBy=t.done?(user.name||''):''; }
+  if(e.target.dataset.tdue!==undefined && e.target.value) t.due=e.target.value;
+  touch(); });
+$('#taskList').addEventListener('click', e=>{ if(e.target.dataset.tdel===undefined) return; const li=e.target.closest('[data-tid]'); form.tasks=form.tasks.filter(x=>x.id!==li.dataset.tid); touch(); });
+function toItem(f=form, base=cur){
+  const id = base ? base.id : (Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+  const open = f.tasks.filter(t=>!t.done).length, first = String(f.note||'').split(/\n/)[0].slice(0,60);
+  let h={}; try{ h=JSON.parse((base&&base.history)||'{}')||{}; }catch(_){}
+  return { ...(base||{}), id, saved: base ? base.saved : new Date().toISOString(), callStart: base ? base.callStart : (startedAt||new Date()).toISOString(),
+    takenBy: base ? (base.takenBy || user.name || '') : (user.name || ''), owner: user.name || '', callType: CALL_TYPE,
+    summary: [first, open ? `추후 과업 ${open}건` : ''].filter(Boolean).join(' · '), date: f.date, people: f.people,
+    contact: f.name, phone: f.phone, note: f.note, history: JSON.stringify({...h, h:h.h||[], tasks:f.tasks}) };
 }
-function fromItem(r){
-  const m={}; String(r.memo||'').split(/\s*\/\s*/).forEach(p=>{ MEMO_KEYS.forEach(([k,l])=>{ if(p.startsWith(l+' ')) m[k]=p.slice(l.length+1).trim(); }); });
-  return { types: m.types ? m.types.split(/\s*,\s*/).filter(Boolean) : [], name:r.contact||'', phone:r.phone||'', date:String(r.date||'').slice(0,10), people:r.people||'', note:r.note||'',
-    result: m.result||'안내 완료', callback: m.callback||'', to: m.to||'', cbDone: m.cbDone||'' };
-}
+function fromItem(r){ return { name:r.contact||'', phone:r.phone||'', date:String(r.date||'').slice(0,10), people:r.people||'', note:r.note||'', tasks:tasksOfItem(r).map(t=>({...t})) }; }
 function save(){
-  if(!form.types.length && !form.note.trim() && !form.name.trim() && !form.phone.trim()){ toast('문의 유형이나 내용을 넣어 주세요.'); return; }
-  if(form.result==='다시 연락 필요' && !form.callback){ toast('다시 연락할 때를 넣어 주세요.'); $('#fCallback').focus(); return; }
-  if(form.result!=='다시 연락 필요') form.callback='';
+  if(!form.note.trim() && !form.name.trim() && !form.phone.trim() && !form.tasks.length){ toast('문의 내용이나 고객 정보를 넣어 주세요.'); return; }
+  if($('#taskIn').value.trim()) addTask();   // 과업 칸에 적어 두고 Enter 안 누른 것도
   const item=toItem(); put(item); cur=item; saved=JSON.stringify(form); startedAt=null; paintForm(); toast('저장했습니다.');
 }
 $('#callForm').addEventListener('submit', e=>{ e.preventDefault(); save(); });
@@ -268,37 +281,41 @@ document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toL
 function newCall(){ if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 새 통화를 시작할까요?')) return false; cur=null; form=blankForm(); saved=JSON.stringify(form); startedAt=null; paintForm(true); $('#fName').focus(); return true; }
 $('#newBtn').onclick=newCall;
 $('#delBtn').onclick=()=>{ if(!cur || !confirm('이 통화 기록을 삭제할까요? (시트에는 삭제 표시로 남습니다)')) return;
-  pending.push({action:'del', id:cur.id}); writeJSON(PEND_LS,pending); items=items.filter(x=>x.id!==cur.id); cur=null; form=blankForm(); saved=JSON.stringify(form); paintForm(); renderLists(); flush(); toast('삭제했습니다.'); };
+  pending.push({action:'del', id:cur.id}); writeJSON(PEND_LS,pending); items=items.filter(x=>x.id!==cur.id); cur=null; form=blankForm(); saved=JSON.stringify(form); paintForm(true); renderLists(); flush(); toast('삭제했습니다.'); };
 window.addEventListener('beforeunload', e=>{ if(isDirty()){ e.preventDefault(); e.returnValue=''; } });
-function openItem(id){ const r=items.find(x=>x.id===id); if(!r) return; if(cur && cur.id===id) return; if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 이 기록을 열까요?')) return; cur=r; form=fromItem(r); saved=JSON.stringify(form); startedAt=null; paintForm(true); window.scrollTo({top:0, behavior:'smooth'}); }
+function openItem(id){ const r=shown().find(x=>x.id===id); if(!r) return; if(cur && cur.id===id) return; if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 이 기록을 열까요?')) return; cur=r; form=fromItem(r); saved=JSON.stringify(form); startedAt=null; paintForm(true); window.scrollTo({top:0, behavior:'smooth'}); }
 
-// ===================== 목록: 다시 연락할 통화 · 최근 통화 =====================
+// ===================== 목록: 추후 과업(모든 개인고객 통화) · 최근 통화 =====================
 const shown = () => { const m=new Map(items.map(x=>[x.id,x])); pending.forEach(p=>{ if(p.action==='put') m.set(p.item.id,p.item); else m.delete(p.id); }); return [...m.values()]; };
-function rowHTML(r, cb){
-  const f=fromItem(r), late = cb && f.callback && new Date(f.callback) < new Date();
-  const tags = (cb ? `<span class="tag ${late?'late':'cb'}">${late?'지남 ':''}${esc(dtLabel(f.callback))}</span>` : '') + f.types.map(t=>`<span class="tag">${esc(t)}</span>`).join('')
-    + (!cb && f.result==='다시 연락 필요' ? (f.cbDone ? '<span class="tag done">연락 완료</span>' : '<span class="tag cb">다시 연락</span>') : '');
-  return `<li data-id="${esc(r.id)}"><div><b>${esc(f.name||'(이름 없음)')}</b> <span class="meta">${esc(f.phone)}${f.date?` · 방문 ${esc(dLabel(f.date))}`:''}${f.people?` · ${esc(f.people)}명`:''}</span></div>`
+function rowHTML(r){
+  const f=fromItem(r), open=f.tasks.filter(t=>!t.done).length;
+  return `<li data-id="${esc(r.id)}"><div><b>${esc(f.name||'(이름 없음)')}</b> <span class="meta">${esc(f.phone)}${f.date?` · ${esc(dLabel(f.date))}`:''}${f.people?` · ${esc(f.people)}명`:''}</span></div>`
     + `<div class="r">${esc(dtLabel(r.saved))}<br>${esc(r.takenBy||'')}</div>`
-    + `<div class="txt">${tags}${esc(f.result)}${f.note?` · ${esc(f.note.split(/\n/)[0])}`:''}</div>`
-    + (cb ? `<div class="txt" style="text-align:right"><button type="button" class="btn" data-cbdone="${esc(r.id)}" style="padding:2px 10px;font-size:12px">연락 완료</button></div>` : '') + `</li>`;
+    + `<div class="txt">${open?`<span class="tag cb">추후 과업 ${open}</span>`:''}${esc(f.note.split(/\n/)[0]||'')}</div></li>`;
 }
 function renderLists(){
-  const all=shown().sort((a,b)=>String(b.saved).localeCompare(String(a.saved)));
-  const cbs=all.filter(r=>{ const f=fromItem(r); return f.result==='다시 연락 필요' && f.callback && !f.cbDone; }).sort((a,b)=>fromItem(a).callback.localeCompare(fromItem(b).callback));
-  $('#cbCount').textContent = cbs.length ? `${cbs.length}건` : '';
-  $('#cbList').innerHTML = cbs.map(r=>rowHTML(r,true)).join('') || '<li class="empty" style="cursor:default">다시 연락할 통화가 없습니다.</li>';
+  const all=shown().sort((a,b)=>String(b.saved).localeCompare(String(a.saved))), today=todayYmd();
+  // 추후 과업: 안 끝난 과업을 마감일 순으로 (지난 것 빨강 · 오늘 노랑), 체크하면 그 통화 기록에 완료로 저장
+  const open=[]; all.forEach(r=>tasksOfItem(r).forEach(t=>{ if(!t.done) open.push({r, t}); }));
+  open.sort((a,b)=>String(a.t.due).localeCompare(String(b.t.due)));
+  $('#cbCount').textContent = open.length ? `${open.length}건` : '';
+  $('#cbList').innerHTML = open.map(({r,t})=>{ const late=t.due && t.due<today, td=t.due===today, f=fromItem(r);
+    return `<li data-id="${esc(r.id)}"><div><b>${esc(t.title)}</b> <span class="meta">${esc(f.name||'(이름 없음)')}${f.phone?` · ${esc(f.phone)}`:''}</span></div>`
+      + `<div class="r"><span class="tag ${late?'late':td?'cb':''}">${late?'기한 지남 ':td?'오늘 ':''}${esc(dLabel(t.due))}</span></div>`
+      + `<div class="txt" style="text-align:right"><button type="button" class="btn" data-tfin="${esc(r.id)}|${esc(t.id)}" style="padding:2px 10px;font-size:12px">완료</button></div></li>`; }).join('')
+    || '<li class="empty" style="cursor:default">안 끝난 추후 과업이 없습니다.</li>';
   const q=$('#search').value.trim().replace(/\s/g,'').toLowerCase(), qd=q.replace(/\D/g,'');
-  const hit = r => !q || [r.contact, r.note, r.summary, r.takenBy, r.memo].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd));
+  const hit = r => !q || [r.contact, r.note, r.summary, r.takenBy, r.history].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd));
   const list=all.filter(hit);
   $('#listCount').textContent = `${all.length}건${q?` · 찾은 ${list.length}건`:''}`;
-  $('#recentList').innerHTML = list.slice(0,60).map(r=>rowHTML(r,false)).join('') || `<li class="empty" style="cursor:default">${q?'찾은 통화가 없습니다.':'아직 저장한 개인고객 통화가 없습니다.'}</li>`;
+  $('#recentList').innerHTML = list.slice(0,60).map(rowHTML).join('') || `<li class="empty" style="cursor:default">${q?'찾은 통화가 없습니다.':'아직 저장한 개인고객 통화가 없습니다.'}</li>`;
 }
 document.addEventListener('click', e=>{
-  const d=e.target.closest('[data-cbdone]'); if(d){ e.stopPropagation(); const r=shown().find(x=>x.id===d.dataset.cbdone); if(!r) return;
-    const f=fromItem(r); const nw=new Date(); f.cbDone=`${ymd(nw)} ${String(nw.getHours()).padStart(2,'0')}:${String(nw.getMinutes()).padStart(2,'0')} ${user.name||''}`.trim();   // '/' 없이 (비고 칸 구분자)
-    const keep={cur, form, saved}; cur=r; form=f; const item=toItem(); ({cur, form, saved}=keep);
-    put(item); if(cur && cur.id===item.id){ cur=item; form=fromItem(item); saved=JSON.stringify(form); paintForm(); } toast('연락 완료로 표시했습니다.'); return; }
+  const d=e.target.closest('[data-tfin]'); if(d){ e.stopPropagation(); const [rid,tid]=d.dataset.tfin.split('|'), r=shown().find(x=>x.id===rid); if(!r) return;
+    const f=fromItem(r), t=f.tasks.find(x=>x.id===tid); if(!t) return; t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=user.name||'';
+    const item=toItem(f, r); put(item);
+    if(cur && cur.id===rid){ const keepDirty=isDirty(); cur=item; const ft=form.tasks.find(x=>x.id===tid); if(ft){ ft.done=true; ft.doneAt=t.doneAt; ft.doneBy=t.doneBy; } if(!keepDirty) saved=JSON.stringify(form); paintForm(); }
+    toast('과업을 완료로 표시했습니다.'); return; }
   const li=e.target.closest('.list li[data-id]'); if(li) openItem(li.dataset.id);
 });
 $('#search').addEventListener('input', renderLists);
