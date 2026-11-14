@@ -319,7 +319,6 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 #erpBox{margin-top:12px}
 .task-add input{flex:1;height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:13px var(--sans)}
 #memoBox{min-height:300px}   /* 통화 메모: 예전 120px의 2.5배 */
-.memo-in{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
 .pc-list{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:8px}
 .pc-list li{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;flex-wrap:wrap}
 .pc-list li .who{flex:1;min-width:160px}
