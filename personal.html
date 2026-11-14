@@ -151,7 +151,7 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
 .all-t td.acts{padding:3px 6px}
 .all-t .pdel{padding:2px 10px;font-size:12px}
 .del-box{width:min(420px,100%);margin-top:8vh}
-.del-box input{width:100%;box-sizing:border-box;height:36px;border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:14px var(--sans);margin-top:6px}
+.del-box input,.del-box select{width:100%;box-sizing:border-box;height:36px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:14px var(--sans);margin-top:6px}
 .due-list{list-style:none;margin:0;padding:0;overflow:auto}
 .due-list li{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:8px 2px}
 .due-list li .who{flex:1;min-width:0;font-size:13px}
@@ -230,8 +230,9 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
 <div class="modal" id="pdelModal" hidden>
   <section class="panel del-box" role="dialog" aria-modal="true" aria-labelledby="pdelTitle">
     <h2 id="pdelTitle">통화 기록 삭제 <small id="pdelWho"></small></h2>
-    <label for="pdelWhy" style="font-size:13px;font-weight:700">삭제 사유 (필수)</label>
-    <input id="pdelWhy" lang="ko" placeholder="예: 같은 통화 중복 저장 · 잘못 입력" autocomplete="off">
+    <label for="pdelReason" style="font-size:13px;font-weight:700">삭제 사유 (필수)</label>
+    <select id="pdelReason"></select>
+    <input id="pdelWhy" lang="ko" placeholder="자세한 사유 (선택 · 기타면 필수)" autocomplete="off">
     <div class="row-btns" style="margin-top:12px;justify-content:flex-end;display:flex;gap:6px"><button type="button" class="btn" id="pdelCancel">취소</button><button type="button" class="btn danger" id="pdelOk">삭제</button></div>
   </section>
 </div>
@@ -358,7 +359,13 @@ function paintForm(force){
 // 이 통화의 추후 과업: 안 끝난 것(마감일 순) → 끝난 것
 const isDirty = () => JSON.stringify(form)!==saved;
 const fmtPhone = v => { const d=String(v||'').replace(/\D/g,''); if(/^01\d{8,9}$/.test(d)) return d.length===10?`${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`:`${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`; if(/^0\d{8,10}$/.test(d)) return d.replace(/^(02|0\d{2})(\d{3,4})(\d{4})$/,'$1-$2-$3'); return v; };
-FIELDS.forEach(([id,k])=>{ $('#'+id).addEventListener('input', e=>{ let v=e.target.value; if(k==='people'){ v=v.replace(/[^\d+]/g,''); e.target.value=v; } form[k]=v; touch(); }); });
+FIELDS.forEach(([id,k])=>{ $('#'+id).addEventListener('input', e=>{ let v=e.target.value; if(k==='people'){ v=v.replace(/[^\d+]/g,''); e.target.value=v; } if(k==='phone') v=phoneTyping(e); form[k]=v; touch(); }); });
+// 연락처를 치는 동안 010-0000-0000 모양으로: 010- 다음 숫자 4개를 치면 바로 - (지울 때는 - 를 다시 붙이지 않음, 글자 중간을 고칠 때는 그대로)
+function phoneTyping(e){ const el=e.target, v=el.value; if(el.selectionStart!==v.length) return v;
+  const del=/^delete/.test(e.inputType||''), d=v.replace(/\D/g,'').slice(0,11); let out=d.slice(0,3);
+  if(d.length>3 || (d.length===3 && !del)) out+='-'+d.slice(3,7);
+  if(d.length>7 || (d.length===7 && !del)) out+='-'+d.slice(7);
+  el.value=out; return out; }
 // 연락처: 빈 칸을 누르면 010- 부터 (커서는 끝), 아무것도 안 치고 나가면 다시 비움 (단체 화면과 같음)
 $('#fPhone').addEventListener('focus', e=>{ const el=e.target; if(!el.value){ el.value='010-'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} },0); } });
 $('#fPhone').addEventListener('blur', e=>{ if(/^010-?$/.test(e.target.value)){ e.target.value=''; if(form.phone){ form.phone=''; touch(); } return; } const v=fmtPhone(e.target.value); if(v!==form.phone){ form.phone=v; e.target.value=v; touch(); } });
@@ -555,13 +562,18 @@ function renderAll(){
 let pdelId=null;
 function openPdel(id){ const r=shown().find(x=>x.id===id); if(!r) return; pdelId=id;
   $('#pdelWho').textContent=[r.contact||'(이름 없음)', r.phone, r.saved&&dtLabel(r.saved)].filter(Boolean).join(' · ');
-  $('#pdelWhy').value=''; $('#pdelModal').hidden=false; setTimeout(()=>$('#pdelWhy').focus(),0); }
+  $('#pdelReason').innerHTML = '<option value="">사유를 고르세요</option>' + PDEL_REASONS.map(x=>`<option>${esc(x)}</option>`).join('');
+  $('#pdelWhy').value=''; $('#pdelModal').hidden=false; setTimeout(()=>$('#pdelReason').focus(),0); }
+const PDEL_REASONS = ['같은 통화를 두 번 저장 (중복)','잘못 입력 · 테스트','다른 고객 기록에 잘못 저장','단체 예약으로 옮김 (단체고객 화면에 입력)','고객이 기록 삭제를 요청','기타 (직접 입력)'];   // 단체 화면 삭제처럼 골라서
 const closePdel = () => { $('#pdelModal').hidden=true; pdelId=null; };
 $('#pdelCancel').onclick=closePdel;
 $('#pdelModal').addEventListener('mousedown', e=>{ if(e.target.id==='pdelModal') closePdel(); });
 $('#pdelWhy').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); $('#pdelOk').click(); } });
 $('#pdelOk').onclick=()=>{
-  const why=$('#pdelWhy').value.trim(); if(!why){ toast('삭제 사유를 적어 주세요.'); $('#pdelWhy').focus(); return; }
+  const reason=$('#pdelReason').value, note=$('#pdelWhy').value.trim();
+  if(!reason){ toast('삭제 사유를 골라 주세요.'); $('#pdelReason').focus(); return; }
+  if(/^기타/.test(reason) && !note){ toast('기타 사유를 적어 주세요.'); $('#pdelWhy').focus(); return; }
+  const why = /^기타/.test(reason) ? note : reason + (note ? ` · ${note}` : '');
   const r=shown().find(x=>x.id===pdelId); if(!r){ closePdel(); return; }
   let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const now=new Date().toISOString();
   h.h=[...(Array.isArray(h.h)?h.h:[]), {t:now, by:user.name||'', what:`[삭제] ${why}`}];
