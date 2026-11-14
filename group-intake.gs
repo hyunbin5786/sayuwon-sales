@@ -8,7 +8,7 @@
  *     (이 코드는 공개되지 않습니다. 사이트에서 처음 한 번 이 비밀번호를 넣으면 그 브라우저에 기억됩니다)
  *  4. 위쪽 함수 목록에서 setup 을 골라 '실행' → 권한 승인 (내 드라이브에 '단체예약 접수 기록' 시트가 생김)
  *  5. 배포 → 새 배포 → 유형: 웹 앱 / 실행 사용자: 나 / 액세스 권한: 모든 사용자
- *  6. 나오는 웹 앱 URL(https://script.google.com/macros/s/…/exec)을 index.html 의 SHARED_URL 에 넣는다
+ *  6. 나오는 웹 앱 URL(https://script.google.com/macros/s/…/exec)을 group.html 의 SHARED_URL 에 넣는다
  *
  * 코드를 고친 뒤에는: 배포 → 배포 관리 → 편집(연필) → 버전: 새 버전 → 배포 (주소는 그대로)
  *
