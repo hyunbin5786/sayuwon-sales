@@ -169,7 +169,7 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 /* 식사 · 프로그램 · 굿즈: 항목 줄 [드롭다운 · 수량 · 담당 · ×]. 예전 묶음 버튼 · 칸은 숨김 (값은 같은 칸에 저장) */
 #form .opt-bar, #form .grp.opt{display:none!important}
 .items-box{display:flex;flex-direction:column;gap:6px}
-.it-head,.it-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 96px minmax(0,150px) 32px;gap:6px;align-items:center}   /* 품목 · 가격 · 인원 · 담당 · × */
+.it-head,.it-row{display:grid;grid-template-columns:minmax(0,1fr) 178px 96px minmax(0,150px) 32px;gap:6px;align-items:center}   /* 품목 · 가격 · 인원 · 담당 · × */
 .it-p{display:flex;flex-direction:column;gap:0;font-size:12.5px;font-variant-numeric:tabular-nums;line-height:1.35;padding:0 2px}
 .it-p i,.it-amt i{font-style:normal;font-size:11px;color:var(--muted);margin-right:4px}
 .it-amt{margin-left:auto;align-self:center;font-size:13.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -361,7 +361,8 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .day-all .da-h{display:inline-block;min-width:58px;font-weight:700;color:var(--pine);margin-right:6px}
 .day-all .mb-cat{margin-left:6px}
 .modal .mbdb{width:min(860px,100%)}
-.modal .book{width:min(1000px,100%)}
+.modal .book{width:min(1100px,100%);overflow:auto}   /* 예약 목록 창: 표 + 직접 추가 칸이 창 안에서 스크롤 */
+.modal .book .tw{flex:none}
 #trashModal{z-index:25}   /* 단체예약 목록 위에 뜸 */
 /* 남이 담당인 예약: 잠금 (메모만) */
 .owner-memo{border:1px solid #e0c48a;background:#fff8e6;border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:13px}
@@ -387,8 +388,20 @@ body.locked #saveBtn{display:none}
 .mbdb-t .del{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
 .mbdb-t .del:hover{color:var(--red)}
 .mbdb-t .empty{color:var(--muted);text-align:center;padding:16px}
-.mb-paste{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
-.mb-paste textarea{width:100%;box-sizing:border-box;min-height:90px;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:8px;font:13px/1.5 var(--sans);tab-size:4}
+/* 예약 목록 창: 직접 추가 · 수정 칸 */
+.book-add{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
+.book-add .ba-h{margin-bottom:6px;font-size:13px}
+.ba-row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:flex-end}
+.ba-row label{display:flex;flex-direction:column;gap:2px;font-size:11.5px;color:var(--muted)}
+.ba-row input,.ba-row select{height:32px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:13px var(--sans);color:var(--ink);background:#fff;width:150px}
+.ba-row input.t{width:118px}.ba-row input.n{width:64px;text-align:right}
+.ba-row label.wide input{width:240px}
+.ba-row .dbox{width:150px}
+.ba-row .ba-btns{display:flex;gap:6px;margin-left:auto}
+.ba-imp{margin-top:10px}.ba-imp summary{cursor:pointer}
+.ba-imp textarea{width:100%;box-sizing:border-box;min-height:80px;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:8px;font:13px/1.5 var(--sans);tab-size:4}
+.mbdb-t td.acts{white-space:nowrap;text-align:right}
+.mbdb-t .btn.sm{padding:2px 8px;font-size:12px}
 .mb-prev{font-size:12.5px;margin-top:6px}
 .mb-prev ul{margin:4px 0 0;padding-left:18px;max-height:180px;overflow:auto}
 .tag.call{background:var(--red-soft);color:var(--red)}

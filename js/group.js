@@ -392,10 +392,12 @@ function erpByKey(){ const m={}, other=[];
   return {m, other}; }
 const cleanErpNote = n => String(n).replace(/\s*-\s*[\d,]+\(.*$/,'').replace(/\s*-\s*([\d,]+)\s*$/,' $1원');
 // 관람+식사 패키지 "평일(관람, 사담 런치1부)" → 1인 관람 · 식사 가격. 품목 관리의 비과세(관람) · 과세(식사)가 있으면 그것, 없으면 그날 기본 관람권 가격만큼 관람
+// 그 밖의 품목도 품목 관리에 과세 · 비과세가 나뉘어 있으면(예: 새벽 해오름 산책) 같은 모양으로. v = 비과세(사유원 · 입장료), m = 과세(신라)
 function pkgSplit(src){
-  if(!src || !/\(관람,/.test(src)) return null;
+  if(!src) return null;
   const p=priceOf(src); if(p==null) return null;
-  const tx=taxOf(src); if(tx && tx.tx+tx.tf===p) return {v:tx.tf, m:tx.tx};
+  const tx=taxOf(src); if(tx && tx.tx>0 && tx.tf>0 && tx.tx+tx.tf===p) return {v:tx.tf, m:tx.tx};
+  if(!/\(관람,/.test(src)) return null;
   const v=priceOf(viewSrcOf(rec)); return v!=null && v<p ? {v, m:p-v} : null;
 }
 document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-idisc]'); if(!b) return;
@@ -405,7 +407,7 @@ function paintItemPrices(){
   // 줄 구성 (2026-11-14): ① [품목 · 가격(관람+식사는 관람 · 식사 따로) · 인원 · 담당 · ×] ② 할인(할인 대상 품목만: 버튼 · 할인 금액 · 할인 단가 · 금액) ③ 비고 (할인 줄이 없으면 금액은 비고 줄 끝)
   const seen=new Set(), E = erpList.length ? erpByKey() : null;
   const cell=(l,v,cls='')=>`<span class="im ${cls}"><i>${l}</i>${v}</span>`;
-  const upHTML = src => { const sp=pkgSplit(src); if(sp) return `<span><i>관람</i>${won(sp.v)}</span><span><i>식사</i>${won(sp.m)}</span>`; const p=src?priceOf(src):null; return p==null ? '' : `<span><i>${/대관|도슨트|세미나/.test(src)?'회당':'1인'}</i>${won(p)}</span>`; };
+  const upHTML = src => { const sp=pkgSplit(src); if(sp) return `<span><i>과세(신라)</i>${won(sp.m)}원</span><span><i>비과세(사유원)</i>${won(sp.v)}원</span>`; const p=src?priceOf(src):null; return p==null ? '' : `<span><i>${/대관|도슨트|세미나/.test(src)?'회당':'1인'}</i>${won(p)}</span>`; };
   document.querySelectorAll('#itemsBox [data-ip]').forEach(el=>{ const k=el.dataset.ip, src=itemSrc(k), up=document.querySelector(`#itemsBox [data-iup="${CSS.escape(k)}"]`), am=document.querySelector(`#itemsBox [data-iamt="${CSS.escape(k)}"]`);
     let h='', amt='';
     if(up) up.innerHTML = quoteCat ? upHTML(src) : '';
@@ -424,7 +426,7 @@ function paintItemPrices(){
         const discRow = x.b && x.p!=null && (x.b.disc || x.b.dsel!=='none');   // 할인 대상 품목(또는 직접 할인을 넣은 줄)만 할인 줄
         if(discRow) h = `<span class="im dsel" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}</button>`).join('')}${x.b.dsel!==x.b.dauto?'<small class="dman">직접 바꿈</small>':''}</span>`
             + cell('할인', dc>0 ? `-${won(dc)} <small>${esc(x.a.disc)}</small>` : '없음')
-            + (r<1 ? (sp ? cell('할인 단가', `관람 ${won(Math.round(sp.v*r))} · 식사 ${won(Math.round(sp.m*r))}`) : cell('할인 단가', won(Math.round(x.p*r)))) : '') + money;
+            + (r<1 ? (sp ? cell('할인 단가', `과세(신라) ${won(Math.round(sp.m*r))}원 · 비과세(사유원) ${won(Math.round(sp.v*r))}원`) : cell('할인 단가', won(Math.round(x.p*r)))) : '') + money;
         else amt = money; } }
     el.innerHTML=h; if(am) am.innerHTML=amt; });
   // 전산에만 있는 상품 (예약 내역 줄로 못 옮긴 것)
@@ -899,7 +901,7 @@ function bookRows0(){
 function renderDayAll(){
   const el=$('#dayAll'); if(!el) return;
   // 예약 현황 = 버튼 4개 (몽몽마방 · 대관 · 도슨트 · 프로그램). 누르면 예약 목록 창이 그 구분 탭으로. 방문일이 있으면 그날 건수
-  const d=rec.date, rows = d ? bookRows().filter(x=>x.d===d) : [], n = c => !d ? 0 : c==='mb' ? mbDbOn(d).length : rows.filter(x=>x.cat===c).length;
+  const d=rec.date, rows = d ? [...bookRows(), ...manualRows()].filter(x=>x.d===d) : [], n = c => !d ? 0 : c==='mb' ? mbDbOn(d).length : rows.filter(x=>x.cat===c).length;
   el.innerHTML = `<div class="da-btns">${[['mb','몽몽마방'], ...Object.entries(BOOK_CATS)].map(([c,t])=>`<button type="button" class="da-btn" data-book="${c}" title="${t} 예약 목록${d?` (${dateLabel(d)} ${n(c)}건)`:''}">${t}${n(c)?` <b>${n(c)}</b>`:''}</button>`).join('')}</div>`
     + `<div class="none da-note">${d ? `숫자 = ${dateLabel(d)} 예약 건수 · ` : ''}사담은 예약 전산에서 확인하세요.</div>`;
 }
@@ -924,64 +926,117 @@ $('#trashClose').onclick=()=>{ $('#trashModal').hidden=true; };
 $('#trashSearch').addEventListener('input', paintTrash);
 $('#trashModal').addEventListener('mousedown', e=>{ if(e.target.id==='trashModal') $('#trashModal').hidden=true; });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#trashModal').hidden){ e.preventDefault(); e.stopImmediatePropagation(); $('#trashModal').hidden=true; } }, true);
-// 대관 · 도슨트 · 프로그램 전체 목록 (앞으로 있을 것, 지난 것도 보기)
-let bookCatNow='rent';
-const BOOK_COLS = { rent:[['일자'],['업체'],['인원'],['장소'],['담당자 이름'],['비고사항']], docent:[['일자'],['업체'],['인원'],['시간'],['종류'],['담당자 이름'],['비고사항']], prog:[['일자'],['업체'],['인원'],['프로그램 항목'],['담당자 이름'],['비고사항']] };
+// ===================== 예약 목록 창: 몽몽마방 · 대관 · 도슨트 · 프로그램 =====================
+// 대관 · 도슨트 · 프로그램 = 예약접수된 단체 예약에서 자동 + 직접 넣은 예약 / 몽몽마방 = 직접 넣은 예약 (엑셀 붙여넣기는 없앰 · 2026-11-14)
+// 직접 넣은 대관 · 도슨트 · 프로그램은 공유 기록 한 줄(id bookdb, 통화 구분 '예약현황추가') 수정 기록 칸에 {rows:[{id,cat,d,org,ppl,tm,place,kind,item,staff,note}], at, by}
+var BKDB_ID='bookdb', BKDB_TYPE='예약현황추가';
+function bkDb(){ const r=cache.find(x=>x.id===BKDB_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return { rows:Array.isArray(j.rows)?j.rows:[], at:j.at||'', by:j.by||'' }; }
+async function bkDbSave(rows, msg){
+  const old=cache.find(x=>x.id===BKDB_ID), now=new Date().toISOString(), keep=ymd(new Date(Date.now()-180*864e5));
+  rows=rows.filter(x=>x.d>=keep);   // 180일 지난 것은 정리
+  const item={...(old||{}), id:BKDB_ID, callType:BKDB_TYPE, saved:now, takenBy:savedOwner()||'', summary:`예약 현황 직접 추가 ${rows.length}건`, history:JSON.stringify({rows, at:now, by:savedOwner()||''})};
+  await store.put(item); const ci=cache.findIndex(x=>x.id===BKDB_ID); if(ci>=0) cache[ci]=item; else cache.push(item);
+  if(!$('#bookModal').hidden) paintBook(); renderDayAll(); toast(msg);
+}
+let bookCatNow='rent', bookEdit=null;   // bookEdit: 고치는 줄 (몽몽마방은 {mb:번호}, 그 밖은 {id})
+const BOOK_COLS = { rent:['일자','업체','인원','장소 · 시간','담당자 이름','비고사항',''], docent:['일자','업체','인원','시간','종류','담당자 이름','비고사항',''], prog:['일자','업체','인원','프로그램 항목','담당자 이름','비고사항',''] };
+function manualRows(){ try{ return bkDb().rows.map(x=>({...x, manual:true, ppl:+x.ppl||0})); }catch(_){ return []; } }   // 직접 넣은 대관 · 도슨트 · 프로그램
 function paintBook(){
   document.querySelectorAll('#bookTabs [data-bt]').forEach(b=>b.classList.toggle('on', b.dataset.bt===bookCatNow));
   const isMb = bookCatNow==='mb'; $('#bookMb').hidden=!isMb; $('#bookGen').hidden=isMb;
-  if(isMb){ paintMbDb(); $('#bookTitle').textContent='몽몽마방 예약 목록'; $('#bookSum').textContent = $('#mbdbSum').textContent + ' · NAS 엑셀 붙여넣기'; return; }   // 몽몽마방: 엑셀에서 붙여 넣은 목록
-  const c=bookCatNow, today=todayYmd(), past=$('#bookPast').checked, all=bookRows().filter(x=>x.cat===c), list=all.filter(x=>past || x.d>=today);
-  $('#bookTitle').textContent = `${BOOK_CATS[c]} 예약 목록`; $('#bookSum').textContent = `${list.length}건 · 예약접수된 단체 예약에서 자동`;
-  document.querySelectorAll('#bookTabs [data-bt]').forEach(b=>b.classList.toggle('on', b.dataset.bt===c));
-  $('#bookHead').innerHTML = `<tr>${BOOK_COLS[c].map(([h])=>`<th>${h}</th>`).join('')}</tr>`;
-  const cell = x => c==='rent' ? [x.place+(x.hrs?` (${x.hrs}시간)`:'')] : c==='docent' ? [x.tm||'(미정)', x.kind+(x.hrs?` · ${x.hrs}시간`:'')] : [x.item];
-  $('#bookBody').innerHTML = list.map(x=>`<tr class="r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}" data-bopen="${esc(x.id)}"><td>${esc(dateLabel(x.d))}</td><td><b>${esc(x.org)}</b>${x.me?' <small>(이 예약)</small>':''}</td><td class="num">${x.ppl?x.ppl+'명':''}</td>${cell(x).map(v=>`<td>${esc(v)}</td>`).join('')}<td>${esc(x.staff)}</td><td class="note">${esc(x.note)}</td></tr>`).join('')
-    || `<tr><td colspan="${BOOK_COLS[c].length}" class="empty">${all.length?'앞으로 있을 예약이 없습니다.':'예약접수된 단체 예약 중 '+BOOK_CATS[c]+' 예약이 없습니다.'}</td></tr>`;
+  paintBookAdd();
+  if(isMb){ paintMbDb(); $('#bookTitle').textContent='몽몽마방 예약 목록'; $('#bookSum').textContent = $('#mbdbSum').textContent; return; }
+  const c=bookCatNow, today=todayYmd(), past=$('#bookPast').checked;
+  const all=[...bookRows(), ...manualRows()].filter(x=>x.cat===c).sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99'))), list=all.filter(x=>past || x.d>=today);
+  $('#bookTitle').textContent = `${BOOK_CATS[c]} 예약 목록`; $('#bookSum').textContent = `${list.length}건 · 단체 예약(예약접수)에서 자동 + 직접 추가`;
+  $('#bookHead').innerHTML = `<tr>${BOOK_COLS[c].map(h=>`<th>${h}</th>`).join('')}</tr>`;
+  const cell = x => c==='rent' ? [[x.place||'(장소 미정)', x.tm].filter(Boolean).join(' · ')+(x.hrs?` (${x.hrs}시간)`:'')] : c==='docent' ? [x.tm||'(미정)', (x.kind||'')+(x.hrs?` · ${x.hrs}시간`:'')] : [[x.item, x.tm].filter(Boolean).join(' · ')];
+  $('#bookBody').innerHTML = list.map(x=>`<tr class="r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}"${x.manual?'':` data-bopen="${esc(x.id)}"`}><td>${esc(dateLabel(x.d))}</td><td><b>${esc(x.org)}</b></td><td class="num">${x.ppl?x.ppl+'명':''}</td>${cell(x).map(v=>`<td>${esc(v)}</td>`).join('')}<td style="white-space:pre-line">${esc(x.staff)}</td><td class="note">${esc(x.note)}</td>`
+    + `<td class="acts">${x.manual ? `<button type="button" class="btn sm" data-bkedit="${esc(x.id)}">수정</button><button type="button" class="del" data-bkdel="${esc(x.id)}" title="빼기">×</button>` : '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>'}</td></tr>`).join('')
+    || `<tr><td colspan="${BOOK_COLS[c].length}" class="empty">${all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다. 아래에서 직접 추가하세요.'}</td></tr>`;
 }
-function openBook(c){ bookCatNow=c; if(c==='mb'){ mbPreview=null; $('#mbPaste').value=''; } $('#bookModal').hidden=false; paintBook(); }
-document.addEventListener('click', e=>{ const b=e.target.closest?.('[data-book]'); if(b) openBook(b.dataset.book); const t=e.target.closest?.('#bookTabs [data-bt]'); if(t){ bookCatNow=t.dataset.bt; paintBook(); } });
+// 직접 추가 · 수정 칸 (탭마다 칸이 다름)
+const PLACE_OPTS=['몽몽차방','당두봉갈'], KIND_OPTS=['동행','PPT'];
+function paintBookAdd(){
+  const c=bookCatNow, box=$('#bookAdd'); if(!box) return;
+  let x = {};
+  if(bookEdit && bookEdit.mb!=null){ const r=mbDb().rows[bookEdit.mb]; if(r) x={d:r.d, tm:r.t, org:r.n, ppl:r.p, item:r.m}; }
+  else if(bookEdit && bookEdit.id) x = bkDb().rows.find(r=>r.id===bookEdit.id) || {};
+  const inp=(id,ph,v,cls='')=>`<input id="${id}" class="${cls}" placeholder="${ph}" value="${esc(v==null?'':v)}" autocomplete="off"${/Org|Staff|Note|Item/.test(id)?' data-ime="ko"':''}>`;
+  const sel=(id,opts,v)=>`<select id="${id}">${opts.map(o=>`<option${o===v?' selected':''}>${esc(o)}</option>`).join('')}${v && !opts.includes(v)?`<option selected>${esc(v)}</option>`:''}</select>`;
+  const f = c==='mb'
+    ? [`<label>시간 ${inp('baTm','12:00~13:00',x.tm,'t')}</label>`, `<label>예약자 · 업체 ${inp('baOrg','예) 도레이첨단소재',x.org)}</label>`, `<label>인원 ${inp('baPpl','명',x.ppl,'n')}</label>`, `<label>메뉴 ${sel('baItem', mbMenus().map(m=>m.name), x.item||'')}</label>`]
+    : [`<label>업체 ${inp('baOrg','예) 도레이첨단소재',x.org)}</label>`, `<label>인원 ${inp('baPpl','명',x.ppl,'n')}</label>`, `<label>시간 ${inp('baTm','13:00~14:00',x.tm,'t')}</label>`,
+       c==='rent' ? `<label>장소 ${sel('baPlace', PLACE_OPTS, x.place||'')}</label>` : c==='docent' ? `<label>종류 ${sel('baKind', KIND_OPTS, x.kind||'')}</label>` : `<label>프로그램 항목 ${inp('baItem','예) 요가',x.item)}</label>`,
+       `<label>담당자 이름 ${inp('baStaff','예) 김선영 팀장',x.staff)}</label>`, `<label class="wide">비고사항 ${inp('baNote','예) 앵당삼거리 시작',x.note)}</label>`];
+  box.innerHTML = `<div class="ba-h"><b>${bookEdit?'예약 고치기':'＋ 직접 추가'}</b> <span class="hint" style="margin:0">${c==='mb'?'몽몽마방':BOOK_CATS[c]} 예약 한 건</span></div>`
+    + `<div class="ba-row"><label>날짜 ${dboxHTML('id="baDate"', x.d||rec.date||'')}</label>${f.join('')}`
+    + `<span class="ba-btns">${bookEdit?'<button type="button" class="btn" id="baCancel">취소</button>':''}<button type="button" class="btn primary" id="baSave">${bookEdit?'고치기':'추가'}</button></span></div>`
+    + (c!=='mb' && !bookEdit ? `<details class="ba-imp"><summary class="hint">엑셀 표를 한 번에 넣기 (대관 · 도슨트 · 프로그램 표)</summary><p class="hint" style="margin:4px 0">엑셀에서 줄을 복사해 붙여 넣으세요. 열 순서: 일자 · 업체 · 인원 · 동행 도슨트 시간 · PPT 도슨트 시간 · 대관 시간 · … · 담당 · 비고. 시간이 있는 칸마다 한 건씩 들어갑니다 (대관 장소는 넣은 뒤 「수정」에서).</p><textarea id="baImp" placeholder="여기에 붙여 넣기"></textarea><div id="baImpPrev" class="mb-prev"></div><div class="row-btns" style="justify-content:flex-end"><button type="button" class="btn primary" id="baImpSave" disabled>모두 넣기</button></div></details>` : '');
+}
+async function bookAddSave(){
+  const c=bookCatNow, v=id=>(($('#'+id)||{}).value||'').trim(), d=v('baDate'), org=v('baOrg'), ppl=parseInt(v('baPpl'))||0;
+  if(!d){ toast('날짜를 고르세요.'); return false; } if(!org){ toast(c==='mb'?'예약자 · 업체를 적어 주세요.':'업체를 적어 주세요.'); $('#baOrg').focus(); return false; }
+  const tm=(()=>{ const s=v('baTm'); const f=typeof fmtRange==='function' ? fmtRange(s) : ''; return f || s; })();
+  if(c==='mb'){ if(!ppl){ toast('인원을 적어 주세요.'); $('#baPpl').focus(); return false; }
+    const row={d, t:tm, n:org, p:ppl, m:v('baItem')}, rows=[...mbDb().rows];
+    if(bookEdit && bookEdit.mb!=null) rows[bookEdit.mb]=row; else rows.push(row);
+    const ed=!!bookEdit; bookEdit=null; await mbDbSave(rows, ed?'몽몽마방 예약을 고쳤습니다.':'몽몽마방 예약을 추가했습니다.'); return true; }
+  const row={ id: (bookEdit&&bookEdit.id) || 'b'+Date.now().toString(36), cat:c, d, org, ppl, tm, place:c==='rent'?v('baPlace'):'', kind:c==='docent'?v('baKind'):'', item:c==='prog'?v('baItem'):'', staff:v('baStaff'), note:v('baNote'), by:savedOwner()||'' };
+  const rows=bkDb().rows.filter(r=>r.id!==row.id); rows.push(row);
+  const ed=!!bookEdit; bookEdit=null; await bkDbSave(rows, ed?'예약을 고쳤습니다.':`${BOOK_CATS[c]} 예약을 추가했습니다.`); return true;
+}
+// 엑셀 표 한 번에 넣기: 일자 · 업체 · 인원 · 동행 시간 · PPT 시간 · 대관 시간 · … · 담당 · 비고 (따옴표로 묶인 칸 안 줄바꿈도)
+function tsvRows(text){ const rows=[]; let row=[], cell='', q=false; const s=String(text||'').replace(/\r/g,'');
+  for(let i=0;i<s.length;i++){ const ch=s[i];
+    if(q){ if(ch==='"'){ if(s[i+1]==='"'){ cell+='"'; i++; } else q=false; } else cell+=ch; continue; }
+    if(ch==='"' && cell.trim()===''){ q=true; cell=''; continue; }
+    if(ch==='\t'){ row.push(cell); cell=''; } else if(ch==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; } else cell+=ch; }
+  row.push(cell); rows.push(row); return rows.map(r=>r.map(c=>c.trim())).filter(r=>r.some(Boolean)); }
+let bookImp=null;
+function bookImpParse(text){ const out=[], skipped=[]; const p2=n=>String(n).padStart(2,'0');
+  tsvRows(text).forEach(cells0=>{ const cells = cells0[0]==='' ? cells0.slice(1) : cells0;
+    const dm=String(cells[0]||'').match(/(\d{1,2})\s*[\/.월]\s*(\d{1,2})/); if(!dm){ skipped.push(cells.join(' ')); return; }
+    const d=`${mbYear(+dm[1],+dm[2])}-${p2(dm[1])}-${p2(dm[2])}`, org=cells[1]||'', ppl=parseInt(cells[2])||0;
+    const tail=cells.slice(3), note=tail.length ? tail[tail.length-1] : '', staff=tail.length>1 ? tail[tail.length-2].replace(/\s*\n\s*/g,'\n') : '';
+    const t=i=>{ const s=tail[i]||''; return /\d{1,2}\s*:\s*\d{2}/.test(s) ? ((typeof fmtRange==='function' && fmtRange(s)) || s.replace(/\s/g,'')) : ''; };
+    const base={d, org, ppl, staff, note, by:savedOwner()||''}, n0=out.length;
+    if(t(0)) out.push({...base, cat:'docent', kind:'동행', tm:t(0)});
+    if(t(1)) out.push({...base, cat:'docent', kind:'PPT', tm:t(1)});
+    if(t(2)) out.push({...base, cat:'rent', place:'', tm:t(2)});
+    if(out.length===n0) out.push({...base, cat:'prog', item:note, tm:''});
+  });
+  out.forEach((x,i)=>{ x.id='b'+Date.now().toString(36)+i; });
+  return {rows:out, skipped};
+}
+document.addEventListener('input', e=>{ if(e.target.id!=='baImp') return; bookImp = e.target.value.trim() ? bookImpParse(e.target.value) : null;
+  $('#baImpPrev').innerHTML = !bookImp ? '' : bookImp.rows.length ? `<b>${bookImp.rows.length}건</b><ul>${bookImp.rows.map(x=>`<li>${esc(dateLabel(x.d))} · ${esc(BOOK_CATS[x.cat])}${x.kind?' '+esc(x.kind):''} ${esc(x.tm||'')} · <b>${esc(x.org)}</b> · ${x.ppl}명${x.staff?' · '+esc(x.staff.replace(/\n/g,', ')):''}${x.note?' · '+esc(x.note):''}</li>`).join('')}</ul>${bookImp.skipped.length?`<div class="hint">읽지 못한 줄 ${bookImp.skipped.length}개</div>`:''}` : '<b class="late">읽은 줄이 없습니다.</b>';
+  $('#baImpSave').disabled = !(bookImp && bookImp.rows.length); });
+document.addEventListener('click', async e=>{ const t=e.target;
+  if(t.id==='baSave'){ t.disabled=true; const ok=await bookAddSave(); if(!ok) t.disabled=false; return; }
+  if(t.id==='baCancel'){ bookEdit=null; paintBookAdd(); return; }
+  if(t.id==='baImpSave' && bookImp){ const key=x=>[x.cat,x.d,x.org,x.tm,x.kind].join('|'), have=new Set(bkDb().rows.map(key)), add=bookImp.rows.filter(x=>!have.has(key(x)));
+    bookImp=null; await bkDbSave([...bkDb().rows, ...add], `${add.length}건을 넣었습니다.${add.length?'':' (이미 있는 예약)'}`); return; }
+  if(t.dataset.bkedit){ bookEdit={id:t.dataset.bkedit}; paintBookAdd(); $('#bookAdd').scrollIntoView({block:'nearest'}); return; }
+  if(t.dataset.bkdel){ const r=bkDb().rows.find(x=>x.id===t.dataset.bkdel); if(!r || !confirm(`${dateLabel(r.d)} ${r.org} ${BOOK_CATS[r.cat]} 예약을 목록에서 뺄까요?`)) return; await bkDbSave(bkDb().rows.filter(x=>x.id!==r.id), '예약을 목록에서 뺐습니다.'); return; }
+  if(t.dataset.mbedit!=null){ bookEdit={mb:+t.dataset.mbedit}; paintBookAdd(); $('#bookAdd').scrollIntoView({block:'nearest'}); return; }
+});
+function openBook(c){ bookCatNow=c; bookEdit=null; bookImp=null; $('#bookModal').hidden=false; paintBook(); }
+document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('[data-book]'); if(b) openBook(b.dataset.book); const t=e.target.closest && e.target.closest('#bookTabs [data-bt]'); if(t){ bookCatNow=t.dataset.bt; bookEdit=null; paintBook(); } });
 $('#bookClose').onclick=()=>{ $('#bookModal').hidden=true; };
 $('#bookPast').onchange=paintBook;
 $('#bookModal').addEventListener('mousedown', e=>{ if(e.target.id==='bookModal') $('#bookModal').hidden=true; });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#bookModal').hidden){ e.preventDefault(); $('#bookModal').hidden=true; } });
-$('#bookBody').addEventListener('click', e=>{ const tr=e.target.closest('tr[data-bopen]'); if(!tr || !tr.dataset.bopen) return; const r=cache.find(x=>x.id===tr.dataset.bopen); if(!r) return; $('#bookModal').hidden=true; openRecordG(r); });
+$('#bookBody').addEventListener('click', e=>{ if(e.target.closest('button')) return; const tr=e.target.closest('tr[data-bopen]'); if(!tr || !tr.dataset.bopen) return; const r=cache.find(x=>x.id===tr.dataset.bopen); if(!r) return; $('#bookModal').hidden=true; openRecordG(r); });
 
-// 몽몽마방 예약 목록: 엑셀에서 줄을 복사해 붙여 넣기 (탭으로 나뉜 칸) 또는 "11/19(목) 12:30-13:30 조미화 29 사유의 밥상" 처럼 한 줄씩
-const MB_DATE_RE=/(?:(\d{4})\s*[-.\/년]\s*)?(\d{1,2})\s*[\/.\-월]\s*(\d{1,2})\s*일?(?:\s*\(\s*[월화수목금토일]\s*\))?/, MB_TIME_RE=/(\d{1,2})\s*:\s*(\d{2})(?:\s*[-~]\s*(\d{1,2})\s*:\s*(\d{2}))?/;
+// 몽몽마방 예약 목록 (직접 추가 · 수정 · 빼기)
 function mbYear(m,d){ const t=new Date(); t.setHours(0,0,0,0); let y=t.getFullYear(); const c=new Date(y,m-1,d); if(c-t < -120*864e5) y++; else if(c-t > 245*864e5) y--; return y; }   // 연도가 없으면 오늘에 가까운 쪽
-function mbParse(text){
-  const rows=[], skipped=[]; const p2=n=>String(n).padStart(2,'0');
-  String(text||'').split(/\r?\n/).forEach(line=>{
-    if(!line.trim()) return;
-    const dm=line.match(MB_DATE_RE); if(!dm || +dm[2]<1 || +dm[2]>12 || +dm[3]<1 || +dm[3]>31){ skipped.push(line.trim()); return; }
-    const y=dm[1]?+dm[1]:mbYear(+dm[2],+dm[3]), d=`${y}-${p2(dm[2])}-${p2(dm[3])}`;
-    let rest=line.slice(dm.index+dm[0].length);
-    const tm=rest.match(MB_TIME_RE); let t='';
-    if(tm){ t=`${p2(tm[1])}:${tm[2]}`+(tm[3]?`~${p2(tm[3])}:${tm[4]}`:''); rest=rest.slice(tm.index+tm[0].length); }
-    let cells = line.includes('\t') ? rest.split('\t') : (rest.match(/^\s*(.+?)\s+(\d+)\s*명?(?=\s|$)(.*)$/)||[]).slice(1);
-    cells=cells.map(c=>c.trim()).filter(Boolean);
-    const ni=cells.findIndex(c=>!/^\d+\s*명?$/.test(c)), n=ni>=0?cells[ni]:'';
-    const pi=cells.findIndex((c,i)=>i>ni && /^\d+\s*명?$/.test(c)), p=pi>=0?+cells[pi].match(/\d+/)[0]:0;
-    const after=pi>=0?cells.slice(pi+1):[], m=after.join(' ').split(/\s+/).filter(w=>!/^\d+$/.test(w)).join(' ').trim();   // 메뉴: 인원 뒤 글자 (0 같은 빈 칸 숫자는 빼고)
-    if(!n || !p){ skipped.push(line.trim()); return; }
-    rows.push({d, t, n, p, m});
-  });
-  return {rows, skipped};
-}
-let mbPreview=null;
 function paintMbDb(){
   const db=mbDb(), today=todayYmd(), past=$('#bookPast').checked;   // 지난 예약도 보기 (예약 목록 창 공통)
-  const list=db.rows.filter(x=>past || x.d>=today).sort((a,b)=>(a.d+a.t).localeCompare(b.d+b.t));
+  const list=db.rows.map((x,i)=>({...x, i})).filter(x=>past || x.d>=today).sort((a,b)=>(a.d+a.t).localeCompare(b.d+b.t));
   $('#mbdbSum').textContent = db.rows.length ? `${db.rows.length}건${db.at?` · 마지막 저장 ${dtLabel(db.at)}${db.by?` (${db.by})`:''}`:''}` : '아직 없음';
-  $('#mbdbBody').innerHTML = list.map(x=>`<tr${x.d<today?' class="past"':''}><td>${esc(dateLabel(x.d))}</td><td>${esc(x.t||'')}</td><td><b>${esc(x.n)}</b></td><td class="num">${esc(x.p)}명</td><td>${esc(x.m||'')}</td><td><button type="button" class="del" data-mbdel="${esc(x.d+'|'+x.t+'|'+x.n)}" title="이 예약 빼기">×</button></td></tr>`).join('')
-    || `<tr><td colspan="6" class="empty">${db.rows.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'아래에 엑셀 몽몽마방 예약 줄을 붙여 넣어 주세요.'}</td></tr>`;
-  const pv=$('#mbPrev');
-  if(!mbPreview){ pv.innerHTML=''; $('#mbSave').disabled=true; return; }
-  const ds=[...new Set(mbPreview.rows.map(x=>x.d))].sort();
-  pv.innerHTML = (mbPreview.rows.length ? `<b>${mbPreview.rows.length}건을 읽었습니다</b> · ${ds.length}일 (${esc(ds.map(dateLabel).join(', '))}) → 저장하면 이 날짜들의 몽몽마방 예약은 아래 내용으로 바뀝니다.<ul>${mbPreview.rows.map(x=>`<li>${esc(dateLabel(x.d))} ${esc(x.t||'시간 미정')} · <b>${esc(x.n)}</b> · ${x.p}명${x.m?` · ${esc(x.m)}`:''}</li>`).join('')}</ul>` : '<b class="late">읽은 예약이 없습니다.</b> 날짜 · 시간 · 이름 · 인원 순서인지 확인해 주세요.')
-    + (mbPreview.skipped.length ? `<div class="hint" style="margin:4px 0 0">읽지 못한 줄 ${mbPreview.skipped.length}개 (머리글 · 빈 줄이면 괜찮습니다): ${esc(mbPreview.skipped.slice(0,3).map(s=>s.replace(/\t+/g,' ').slice(0,40)).join(' / '))}${mbPreview.skipped.length>3?' …':''}</div>` : '');
-  $('#mbSave').disabled = !mbPreview.rows.length;
+  $('#mbdbBody').innerHTML = list.map(x=>`<tr class="${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}"><td>${esc(dateLabel(x.d))}</td><td>${esc(x.t||'')}</td><td><b>${esc(x.n)}</b></td><td class="num">${esc(x.p)}명</td><td>${esc(x.m||'')}</td><td class="acts"><button type="button" class="btn sm" data-mbedit="${x.i}">수정</button><button type="button" class="del" data-mbdel="${x.i}" title="이 예약 빼기">×</button></td></tr>`).join('')
+    || `<tr><td colspan="6" class="empty">${db.rows.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'아래에서 몽몽마방 예약을 추가하세요.'}</td></tr>`;
 }
 async function mbDbSave(rows, msg){
   const old=cache.find(x=>x.id===MBDB_ID), now=new Date().toISOString(), keep=ymd(new Date(Date.now()-90*864e5));
@@ -991,13 +1046,9 @@ async function mbDbSave(rows, msg){
   if(!$('#bookModal').hidden) paintBook(); renderDayAll(); toast(msg);
 }
 function openMbDb(){ openBook('mb'); }   // 몽몽마방 예약 목록 = 예약 목록 창의 '몽몽마방' 탭
-$('#mbPaste').addEventListener('input', ()=>{ mbPreview=$('#mbPaste').value.trim() ? mbParse($('#mbPaste').value) : null; paintMbDb(); });   // 붙여 넣으면 바로 읽어서 미리 보기
-$('#mbSave').onclick=()=>{ if(!mbPreview || !mbPreview.rows.length) return;
-  const ds=new Set(mbPreview.rows.map(x=>x.d)), rows=[...mbDb().rows.filter(x=>!ds.has(x.d)), ...mbPreview.rows], n=mbPreview.rows.length;   // 붙여 넣은 날짜는 새 내용으로, 다른 날짜는 그대로
-  mbPreview=null; $('#mbPaste').value=''; mbDbSave(rows, `몽몽마방 예약 ${n}건을 저장했습니다.`); };
-$('#mbdbBody').addEventListener('click', e=>{ const k=e.target.dataset.mbdel; if(!k) return; const [d,t,n]=k.split('|');
-  if(!confirm(`${dateLabel(d)} ${t} ${n} 몽몽마방 예약을 목록에서 뺄까요?`)) return;
-  mbDbSave(mbDb().rows.filter(x=>!(x.d===d && x.t===t && x.n===n)), '몽몽마방 예약을 목록에서 뺐습니다.'); });
+$('#mbdbBody').addEventListener('click', e=>{ const i=e.target.dataset.mbdel; if(i==null) return; const r=mbDb().rows[+i]; if(!r) return;
+  if(!confirm(`${dateLabel(r.d)} ${r.t} ${r.n} 몽몽마방 예약을 목록에서 뺄까요?`)) return;
+  mbDbSave(mbDb().rows.filter((_,k)=>k!==+i), '몽몽마방 예약을 목록에서 뺐습니다.'); });
 
 // 확인할 것(팝업): 입력된 값끼리 맞지 않거나, 관리자 사이트 기준 자리가 모자랄 때
 function fieldWarnings(r){

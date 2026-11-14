@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 예약 관리 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); else localStorage.setItem("sayuwon_owner", u.name); }catch(e){} if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 마이페이지 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261114">
+<link rel="stylesheet" href="css/group.css?v=20261114e">
 </head>
 <body>
 <header>
@@ -65,17 +65,12 @@
     <h2><span id="bookTitle">예약 목록</span> <span class="seg my-tabs" id="bookTabs"><button type="button" data-bt="mb">몽몽마방</button><button type="button" data-bt="rent">대관</button><button type="button" data-bt="docent">도슨트</button><button type="button" data-bt="prog">프로그램</button></span> <small id="bookSum"></small>
       <span class="row-btns"><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bookPast"> 지난 예약도 보기</label><button type="button" class="btn list-x" id="bookClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <div id="bookGen" class="book-pane"><div class="tw"><table class="mbdb-t"><thead id="bookHead"></thead><tbody id="bookBody"></tbody></table></div>
-    <p class="hint" style="margin:8px 0 0">단체 예약이 <b>예약접수</b>가 되면 예약 내역의 대관(차방 = 몽몽차방 · 당두봉갈) · 도슨트(동행 도슨트 = 동행 · 세미나 도슨트 = PPT) · 프로그램이 자동으로 들어갑니다. 줄을 누르면 그 예약이 열립니다.</p></div>
+    <p class="hint" style="margin:8px 0 0">단체 예약이 <b>예약접수</b>가 되면 예약 내역의 대관(차방 = 몽몽차방 · 당두봉갈) · 도슨트(동행 도슨트 = 동행 · 세미나 도슨트 = PPT) · 프로그램이 자동으로 들어갑니다(줄을 누르면 그 예약). 그 밖의 예약은 아래 「직접 추가」로.</p></div>
     <div id="bookMb" class="book-pane" hidden>
     <span id="mbdbSum" hidden></span>
     <div class="tw"><table class="mbdb-t"><thead><tr><th>날짜</th><th>시간</th><th>예약자 · 업체</th><th>인원</th><th>메뉴</th><th></th></tr></thead><tbody id="mbdbBody"></tbody></table></div>
-    <div class="mb-paste">
-      <p class="hint" style="margin:0 0 6px">엑셀 <b>몽몽마방 예약</b> 탭에서 예약 줄을 골라 복사(Ctrl+C)한 뒤 아래에 붙여 넣기(Ctrl+V) 하세요. 직접 적을 때는 한 줄에 하나씩 <code>11/19 12:30-13:30 조미화 29 사유의 밥상</code>. 붙여 넣은 날짜의 몽몽마방 예약은 새 내용으로 바뀌고, 다른 날짜는 그대로 둡니다.</p>
-      <textarea id="mbPaste" lang="ko" placeholder="여기에 붙여 넣기 (날짜 · 시간 · 예약자 · 인원 · 메뉴)"></textarea>
-      <div id="mbPrev" class="mb-prev"></div>
-      <div class="row-btns" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn primary" id="mbSave" disabled>저장</button></div>
     </div>
-    </div>
+    <div class="book-add" id="bookAdd"></div>
   </section>
 </div>
 <!-- 마감이 된 추후 과업: 해결할 때까지 계속 (나중에 = 2시간 뒤) -->
@@ -319,7 +314,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/group.js?v=20261114"></script>
-<script src="js/ime.js?v=20261114"></script>
+<script src="js/group.js?v=20261114e"></script>
+<script src="js/ime.js?v=20261114e"></script>
 </body>
 </html>
