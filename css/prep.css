@@ -29,7 +29,7 @@ main{max-width:1400px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-le
 .btn.primary{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:700}
 .btn:disabled{opacity:.5;cursor:default}
 .hint{font-size:12px;color:var(--muted);margin:0}
-.drop{border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center;background:#fff;cursor:pointer}
+.drop{display:block;border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center;background:#fff;cursor:pointer}
 .drop.over{border-color:var(--pine);background:var(--pine-soft)}
 .drop b{font-size:15px}
 .sum{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:13px}
@@ -37,7 +37,7 @@ main{max-width:1400px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-le
 .err{color:var(--red);font-size:13px;margin:6px 0 0}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:middle}
-th{font-size:12px;color:var(--muted);font-weight:500;background:#faf8f3;position:sticky;top:52px;z-index:1}
+th{font-size:12px;color:var(--muted);font-weight:500;background:#faf8f3;}   /* 머리글은 표 안에 그대로 (붙게 하면 표 안에서 줄을 가림) */
 td.num{text-align:right;font-variant-numeric:tabular-nums}
 tr.dim td{color:var(--muted)}
 .tag{display:inline-block;font-size:11px;padding:0 7px;border-radius:999px;background:#ece9e2;color:var(--muted);margin-right:4px;white-space:nowrap}
@@ -46,7 +46,7 @@ tr.dim td{color:var(--muted)}
 .tag.warn{background:var(--red-soft);color:var(--red);font-weight:700}
 .tw{overflow:auto}
 /* 결과 표: 예전 엑셀표 모양 */
-.out th{background:#5a6b4f;color:#fff;font-weight:700;text-align:center;font-size:13px;top:52px}
+.out th{background:#5a6b4f;color:#fff;font-weight:700;text-align:center;font-size:13px}
 .out td{border:1px solid #d9d5c8;padding:4px 6px;text-align:center}
 .out td.name{font-weight:600}
 .out td.name.ind{background:#fdf6e3}
