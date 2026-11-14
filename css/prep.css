@@ -69,3 +69,21 @@ tr.dim td{color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2f2f29;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;z-index:40;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 @media print{header,.panel:not(.print-me),.no-print{display:none!important}main{padding:0}.panel{border:0}.out th{position:static}}
+/* 이미지로 저장: 핸드폰 폭(430px) 표 — 화면 밖에 그렸다가 그림으로 */
+.shot{position:fixed;left:-10000px;top:0;width:430px;background:#fff;color:#262620;font:13px/1.45 "Noto Sans KR",sans-serif;padding:14px}
+.shot .sh-h{display:flex;justify-content:space-between;align-items:baseline;background:#5a6b4f;color:#fff;border-radius:8px 8px 0 0;padding:10px 12px}
+.shot .sh-h b{font-size:16px}
+.shot table{width:100%;border-collapse:collapse}
+.shot th{background:#eef0ea;color:#55524a;font-size:11.5px;font-weight:700;padding:5px 4px;border:1px solid #d9d5c8}
+.shot td{border:1px solid #d9d5c8;padding:5px 4px;vertical-align:middle}
+.shot td.c{text-align:center;white-space:nowrap}
+.shot td.nm b{display:block;font-size:13.5px}
+.shot td.nm small{color:#77736a;font-size:11px}
+.shot td.nm.ind{background:#fdf6e3}
+.shot tr.nt td{border-top:0;font-size:11.5px;color:#55524a;padding:3px 6px 6px;background:#fafaf7}
+.shot .g{display:inline-block;border-radius:999px;padding:1px 8px;font-weight:700;font-size:12px}
+.shot .g.곡신문{background:#dbe7f7;color:#2d4f86}.shot .g.치허문{background:#dcefd8;color:#2f6b2a}
+.shot .sh-f{display:flex;gap:4px;margin-top:6px}
+.shot .sh-f span{flex:1;text-align:center;font-weight:700;padding:6px 2px;border-radius:5px}
+.shot .g1{background:#d9ead3}.shot .g2{background:#f6c26b}.shot .g3{background:#fff200}
+.shot .sh-n{font-size:12px;margin-top:4px;color:#55524a}

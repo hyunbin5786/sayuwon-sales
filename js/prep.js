@@ -179,19 +179,14 @@ document.addEventListener('change', e=>{ const t=e.target;
 document.addEventListener('input', e=>{ const t=e.target; if(t.tagName==='TEXTAREA' && t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; const r=rows.find(x=>x.key===k); if(r) r[f]=t.value; saveState(); t.style.height='auto'; t.style.height=t.scrollHeight+'px'; } });
 document.addEventListener('click', e=>{ if(e.target.id==='clearBtn'){ if(!confirm('읽은 엑셀과 고친 내용을 지울까요?')) return; state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); } });
 $('#reGate').onclick=()=>{ if(!state) return; recommendGates(true); saveState(); render(); toast('입장문을 다시 추천했습니다.'); };
-$('#printBtn').onclick=()=>window.print();
-// 표 복사: 구글 시트 · 엑셀에 붙여 넣으면 칸이 그대로
+// 표 내용 (엑셀 · 이미지 공통): 도착 시간 순
 function tableData(){ const s=state, list=rows.filter(r=>r.on).sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999)), total=s.rows.reduce((a,x)=>a+x.ppl,0);
   const head=[`${s.date.slice(2).replace(/-/g,'')}(${DOW[new Date(s.date+'T00:00').getDay()]}) ${total}명+@`,'인원(명)','도착시간','입장문','차량','연락처','비고'];
   return [head, ...list.map(r=>[r.name, r.ppl, r.time||r.timeHint||'', r.gate, r.vehicle, r.phone, r.note])]; }
-$('#copyBtn').onclick=async()=>{ if(!state) return; const d=tableData();
-  const tsv=d.map(r=>r.map(c=>String(c).replace(/\t/g,' ').replace(/\n/g,' ')).join('\t')).join('\n');
-  const html='<table>'+d.map((r,i)=>'<tr>'+r.map(c=>`<${i?'td':'th'}>${esc(c)}</${i?'td':'th'}>`).join('')+'</tr>').join('')+'</table>';
-  try{ await navigator.clipboard.write([new ClipboardItem({'text/plain':new Blob([tsv],{type:'text/plain'}),'text/html':new Blob([html],{type:'text/html'})})]); toast('표를 복사했습니다. 구글 시트 · 엑셀에 붙여 넣으세요.'); }
-  catch(_){ try{ await navigator.clipboard.writeText(tsv); toast('표를 복사했습니다.'); }catch(__){ toast('복사하지 못했습니다.'); } } };
 // 엑셀로 내려받기 (예전 표 모양: 머리 초록 · 입장문 색 · 아래 합계)
 $('#xlsxBtn').onclick=async()=>{ if(!state || !window.ExcelJS) return; const d=tableData(), wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('다음날 고객 응대');
-  ws.columns=[{width:26},{width:10},{width:12},{width:11},{width:10},{width:16},{width:44}];
+  ws.columns=[{width:16},{width:6},{width:8},{width:8},{width:7},{width:13},{width:24}];   // 핸드폰에서 보기 좋게 좁게 (비고는 줄바꿈)
+  ws.pageSetup={orientation:'portrait', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9};
   d.forEach((r,i)=>{ const row=ws.addRow(r); row.eachCell(c=>{ c.alignment={horizontal:'center', vertical:'middle', wrapText:true}; c.border={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}}; });
     if(!i) row.eachCell(c=>{ c.font={bold:true, color:{argb:'FFFFFFFF'}}; c.fill={type:'pattern', pattern:'solid', fgColor:{argb:'FF5A6B4F'}}; });
     else { const g=row.getCell(4); g.fill={type:'pattern', pattern:'solid', fgColor:{argb: r[3]==='곡신문' ? 'FFDBE7F7' : 'FFDCEFD8'}}; } });
@@ -200,6 +195,29 @@ $('#xlsxBtn').onclick=async()=>{ if(!state || !window.ExcelJS) return; const d=t
   [[1,'FFD9EAD3'],[2,'FFD9EAD3'],[5,'FFF6C26B'],[6,'FFFFF200']].forEach(([c,col])=>{ const x=f.getCell(c); x.fill={type:'pattern', pattern:'solid', fgColor:{argb:col}}; x.font={bold:true}; x.alignment={horizontal:'center'}; });
   const buf=await wb.xlsx.writeBuffer(), a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf])); a.download=`다음날_고객응대_${state.date.slice(2).replace(/-/g,'')}.xlsx`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000); };
 
+
+// 이미지로 저장: 핸드폰에서 보기 좋은 좁은 폭(430px)의 표를 화면 밖에 그려 PNG로 (카카오톡으로 보내기 좋게)
+$('#pngBtn').onclick=async()=>{
+  if(!state || !window.html2canvas){ toast('잠시 뒤 다시 눌러 주세요.'); return; }
+  const s=state, list=rows.filter(r=>r.on).sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999)), total=s.rows.reduce((a,x)=>a+x.ppl,0);
+  const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
+  const onsite=list.filter(r=>/현장/.test(r.note)).map(r=>r.name);
+  const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
+  const box=$('#shot');
+  box.innerHTML = `<div class="sh-h"><b>${esc(dLab(s.date))} 고객 응대</b><span>방문 ${total}명+@ · ${list.length}팀</span></div>`
+    + `<table><thead><tr><th>단체 · 고객</th><th>인원</th><th>도착</th><th>입장문</th><th>차량</th></tr></thead><tbody>`
+    + list.map(r=>`<tr><td class="nm${r.group?'':' ind'}"><b>${esc(r.name)}</b>${r.phone?`<small>${esc(r.phone)}</small>`:''}</td><td class="c">${r.ppl}</td><td class="c">${esc(r.time||r.timeHint||'')}</td><td class="c"><span class="g ${esc(r.gate)}">${esc(r.gate)}</span></td><td class="c">${esc(r.vehicle||'')}</td></tr>`
+      + (r.note ? `<tr class="nt"><td colspan="5">${esc(r.note)}</td></tr>` : '')).join('')
+    + `</tbody></table>`
+    + `<div class="sh-f"><span class="g1">단체 ${gSum}명</span><span class="g2">버스 ${bus}대+</span><span class="g3">개인고객 ${ind}명</span></div>`
+    + `<div class="sh-n">현장결제건: ${esc(onsite.join(', ')||'-')}</div><div class="sh-n">해오름 산책: ${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</div>`;
+  try{
+    const cv=await html2canvas(box, {scale:2, backgroundColor:'#ffffff'});
+    const blob=await new Promise(ok=>cv.toBlob(ok, 'image/png')), a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=`다음날_고객응대_${s.date.slice(2).replace(/-/g,'')}.png`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+    toast('이미지로 저장했습니다.');
+  }catch(_){ toast('이미지를 만들지 못했습니다.'); }
+};
 
 if(state) build(false); else render();
 loadGroups();

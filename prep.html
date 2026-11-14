@@ -6,7 +6,7 @@
 <title>다음날 고객 응대 준비 · 사유원 예약 관리 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261114b">
+<link rel="stylesheet" href="css/prep.css?v=20261114c">
 <link rel="stylesheet" href="css/mypop.css?v=20261114">
 </head>
 <body>
@@ -44,7 +44,7 @@
   <!-- ④ 입장문 추천 · 결과 표 -->
   <section class="panel off print-me" id="p4">
     <h2><span class="step no-print">4</span>입장문 추천 · 응대 표 <small id="p4Sum"></small>
-      <span class="right no-print"><button class="btn" id="reGate" title="추천 규칙으로 입장문을 다시 고름 (직접 바꾼 것도 다시)">입장문 다시 추천</button><button class="btn" id="copyBtn" title="구글 시트 · 엑셀에 그대로 붙여 넣기">표 복사</button><button class="btn" id="printBtn">인쇄</button><button class="btn primary" id="xlsxBtn">엑셀로 내려받기</button></span></h2>
+      <span class="right no-print"><button class="btn" id="reGate" title="추천 규칙으로 입장문을 다시 고름 (직접 바꾼 것도 다시)">입장문 다시 추천</button><button class="btn primary" id="xlsxBtn">엑셀로 내려받기</button><button class="btn primary" id="pngBtn" title="핸드폰에서 보기 좋은 좁은 폭의 그림 파일 (PNG)">이미지로 저장</button></span></h2>
     <details class="no-print" style="margin:0 0 10px"><summary class="hint" style="cursor:pointer">입장문 추천 규칙 보기</summary>
       <ul class="rules">
         <li>기본은 <b>치허문</b>. 여행사(여행 · 투어 · 관광)와 해밀 · 아너드 · 군위시티투어는 <b>치허문</b></li>
@@ -59,10 +59,12 @@
 </main>
 
 <div class="toast" id="toast"></div>
+<div id="shot" class="shot" aria-hidden="true"></div><!-- 이미지로 저장할 때만 그리는 좁은 표 (화면 밖) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="마이페이지"></iframe></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-<script src="js/prep.js?v=20261114"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="js/prep.js?v=20261114c"></script>
 <script src="js/mypop.js?v=20261114"></script>
 </body>
 </html>
