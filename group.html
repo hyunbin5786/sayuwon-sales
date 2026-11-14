@@ -532,7 +532,7 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
   <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="tbdTitle">
     <h2 id="tbdTitle">마감이 된 추후 과업</h2>
     <ul class="pc-list" id="tbdList"></ul>
-    <div class="row-btns"><button class="btn" id="tbdLater">나중에</button></div>
+    <div class="row-btns"><button class="btn" id="tbdLater" title="다음 알림 시각(8 · 11 · 13 · 17시)에 다시">닫기</button></div>
   </section>
 </div>
 <!-- 담당이 아닌 사람이 수정했을 때: 담당자에게 보고 -->
@@ -3261,28 +3261,33 @@ function markEditsSeen(){ try{ const o=JSON.parse(localStorage.getItem(MY_SEEN_L
 // ===================== 마감이 된 추후 과업 팝업 =====================
 // 마감이 오늘이거나 지난, 해결 안 된 과업(영업 담당이 있으면 내 예약만)을 해결될 때까지 계속 띄움: 열 때 · 9시 · '나중에'를 누르면 2시간 뒤 다시
 const TASK_SNOOZE_LS='sayuwon_task_snooze', SNOOZE_MS=2*3600e3, TASK_SLOT_LS='sayuwon_task_slot', QUIET_MS=30*60e3;
+const ALERT_HOURS=[8,11,13,17];   // 추후 과업 마감 알림 시각 (개인고객 화면과 같음)
 const SELF_DONE = new Set(['erp','erpfix','progstaff','mbmenu']);   // erp · erpfix: 전산 내역을 붙여넣어야 완료   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
 function checkTbdPopup(force){
   // 마감 지난 과업: 열 때 · 1분마다 (나중에 = 2시간 뒤). 오늘 마감 과업: 오후 1시, 아직 안 끝났으면 오후 5시에 (시간마다 한 번)
   // 단, 입력(과업이 생기거나 마감을 바꾼 것)한 지 30분이 안 된 과업은 알리지 않음
-  const nowD=new Date(), now=+nowD, today=ymd(nowD); let snooze=0, slots=''; try{ snooze=+localStorage.getItem(TASK_SNOOZE_LS)||0; slots=localStorage.getItem(TASK_SLOT_LS)||''; }catch(_){}
+  // 2026-11-14부터: 오전 8시 · 11시 · 오후 1시 · 5시에 (그 시각이 지나고 처음 화면을 볼 때, 시각마다 한 번) 마감이 오늘이거나 지난 과업을 단체 + 개인고객 함께
+  // 개인고객 화면과 같은 기록(TASK_SLOT_LS)을 써서, 한 시각에 두 화면에서 두 번 뜨지 않음
+  const nowD=new Date(), now=+nowD, today=ymd(nowD); let slots=''; try{ slots=localStorage.getItem(TASK_SLOT_LS)||''; }catch(_){}
   if(!force && [...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)
+  const h=nowD.getHours(), slotH=ALERT_HOURS.filter(x=>h>=x).pop(), slotKey=`${today}|${slotH}`;
+  if(!force && (slotH==null || slots.split(',').includes(slotKey))) return;
   const fresh = ({r,t}) => now - Math.max(+new Date(t.dueSetAt||0)||0, +new Date(t.at||r.saved||0)||0) < QUIET_MS;
-  const all=dueTasks().filter(o=>!fresh(o));
-  const late=all.filter(o=>o.t.due<today), todays=all.filter(o=>o.t.due===today);
-  const h=nowD.getHours(), slot = h>=17 ? '17' : h>=13 ? '13' : '', slotKey=`${today}|${slot}`;
-  const showLate = force || now>=snooze, showToday = force || (slot && !slots.split(',').includes(slotKey));
-  const due=[...(showLate?late:[]), ...(showToday?todays:[])];
+  const pers = myPersonalOpen().flatMap(o=>o.left.filter(t=>t.due<=today).map(t=>({r:o.r, t, personal:true})));
+  const due=[...dueTasks(), ...pers].filter(o=>!fresh(o)).sort((a,b)=>a.t.due.localeCompare(b.t.due));
   if(!due.length) return;
-  if(showToday && slot && todays.length){ try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), slotKey].join(',')); }catch(_){} }
-  $('#tbdList').innerHTML = due.map(({r,t})=>{ const n=daysFrom(today,t.due);
+  if(slotH!=null){ try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), slotKey].join(',')); }catch(_){} }
+  $('#tbdList').innerHTML = due.map(({r,t,personal})=>{ const n=daysFrom(today,t.due);
+    if(personal) return `<li class="${n<0?'late':''}"><span class="who"><span class="tag">개인</span> <b>${esc(r.contact||'(이름 없음)')}</b>${r.phone?` · ${esc(r.phone)}`:''}<br>`
+      + `<b class="${n<0?'late':''}">${esc(t.title)}</b> <small class="hint" style="margin:0">마감 ${esc(mdLabel(t.due))} ${n<0?`(${-n}일 지남)`:'(오늘)'}</small></span>`
+      + `<button class="btn primary" data-pdone="${esc(r.id)}|${esc(t.id)}">완료</button><button class="btn" data-popen2="${esc(r.id)}">열기</button></li>`;
     return `<li class="${n<0?'late':''}"><span class="who"><b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date)||'미정')}${r.owner?` · ${esc(r.owner)}`:''}<br>`
       + `<b class="${n<0?'late':''}">${esc(t.title)}</b> <small class="hint" style="margin:0">마감 ${esc(mdLabel(t.due))} ${n<0?`(${-n}일 지남)`:'(오늘)'}${t.id==='tbdcall'||t.id==='onsitecall'?` · ${esc(firstContact(r)||'담당자 연락처 없음')}`:''}</small></span>`
       + (SELF_DONE.has(t.id) ? '' : `<button class="btn primary" data-tdone="${esc(r.id)}|${esc(t.id)}">완료</button>`) + `<button class="btn" data-tbdopen="${esc(r.id)}">열기</button></li>`; }).join('');
-  $('#tbdTitle').innerHTML = `마감이 된 추후 과업 <small>${due.length}개 · 오늘 마감은 오후 1시 · 5시, 마감 지난 과업은 해결할 때까지 (나중에 = 2시간 뒤)</small>`;
+  $('#tbdTitle').innerHTML = `마감이 된 추후 과업 <small>${due.length}개 · 단체 + 개인 · 알림은 오전 8시 · 11시 · 오후 1시 · 5시</small>`;
   $('#tbdModal').hidden=false;
 }
-$('#tbdLater').onclick=()=>{ try{ localStorage.setItem(TASK_SNOOZE_LS, String(Date.now()+SNOOZE_MS)); }catch(_){} $('#tbdModal').hidden=true; };
+$('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; };   // 다음 알림 시각에 다시
 // 과업 하나 완료 (열어 둔 예약이면 화면의 과업, 아니면 저장된 기록을 고쳐 저장)
 async function doneTask(id, tid){
   const r=cache.find(x=>x.id===id); if(!r) return;
@@ -3294,6 +3299,12 @@ async function doneTask(id, tid){
   const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;   // 공유 기록에서 다시 받기 전에도 바로 반영
 }
 $('#tbdList').addEventListener('click', async e=>{
+  // 개인고객 과업: 열기 = 개인고객 화면에서 그 통화, 완료 = 그 통화 기록에 완료로 저장
+  if(e.target.dataset.popen2){ const id=e.target.dataset.popen2; $('#tbdModal').hidden=true; guardLeave(()=>{ location.href='personal.html?open='+encodeURIComponent(id); }); return; }
+  if(e.target.dataset.pdone){ const [id,tid]=e.target.dataset.pdone.split('|'), r=cache.find(x=>x.id===id); if(!r) return; e.target.disabled=true;
+    let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const t=(h.tasks||[]).find(x=>x.id===tid); if(t){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=savedOwner()||''; (t.xsubs||[]).forEach(x=>x.done=true); }
+    const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
+    e.target.closest('li').remove(); if(!$('#tbdList').children.length) $('#tbdModal').hidden=true; toast('과업을 완료로 표시했습니다.'); paintMyCount(); if(!$('#myModal').hidden) renderMy(); return; }
   const dn=e.target.dataset.tdone, open=e.target.dataset.tbdopen;
   if(open){ const r=cache.find(x=>x.id===open); $('#tbdModal').hidden=true; if(r) openRecordG(r); }
   if(dn){ const [id,tid]=dn.split('|'); e.target.disabled=true; await doneTask(id, tid);

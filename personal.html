@@ -35,6 +35,9 @@ main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;
 .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
 .panel h2{margin:0 0 10px;font:600 16px var(--serif);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .panel h2 small{font:400 12px var(--sans);color:var(--muted)}
+.panel h2 .h-btns{margin-left:auto;display:flex;gap:6px}   /* 제목 줄 오른쪽 위: 저장 · 새 통화 */
+.panel h2 .h-btns .btn{font:700 13px var(--sans);padding:6px 12px}
+.panel h2 .h-btns .btn:not(.primary){font-weight:500}
 .col{display:flex;flex-direction:column;gap:16px;min-width:0}
 .row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 10px}
 @media (max-width:560px){.row{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -134,6 +137,20 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
 .seat span{border:1px solid var(--line);border-radius:7px;padding:3px 9px;font-size:12.5px;background:#fff}
 .seat span.full{color:var(--red);border-color:var(--red)}
 /* 팀 비밀번호 */
+.modal .panel.wide{width:min(1200px,100%);max-height:calc(100vh - 120px);display:flex;flex-direction:column}
+.all-tw{overflow:auto;min-height:0;flex:1;margin-top:4px}
+.all-t{width:100%;border-collapse:collapse;font-size:13px}
+.all-t th,.all-t td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.all-t th{font-size:12px;color:var(--muted);font-weight:500;position:sticky;top:0;background:var(--card)}
+.all-t td{white-space:nowrap}
+.all-t td.note{white-space:normal;min-width:220px;color:#55524a}
+.all-t tbody tr{cursor:pointer}
+.all-t tbody tr:hover td{background:#faf8f2}
+.due-list{list-style:none;margin:0;padding:0;overflow:auto}
+.due-list li{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:8px 2px}
+.due-list li .who{flex:1;min-width:0;font-size:13px}
+.due-list li.late b.t{color:var(--red)}
+.due-list .btn{padding:4px 10px;font-size:12px}
 .modal{position:fixed;inset:0;z-index:30;background:rgba(30,30,25,.45);display:flex;align-items:flex-start;justify-content:center;padding:80px 16px}
 .modal[hidden]{display:none}
 .modal .panel{width:min(420px,100%)}
@@ -146,7 +163,8 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
   <a class="sys-brand" href="./" title="메뉴로">사유원 예약 관리 시스템</a><span class="sys-crumb">개인고객 전화응대</span>
   <span class="sync warn" id="syncChip" hidden></span>
   <span class="me" id="me"></span>
-  <a class="hb" id="manualOpen" href="#" target="_blank" rel="noopener" title="노션 문의 매뉴얼 (새 창)">문의 매뉴얼 ↗</a>
+  <a class="hb" id="manualOpen" href="#" target="_blank" rel="noopener" title="노션 전화문의 응대 매뉴얼 (새 창)">전화문의 응대 매뉴얼 ↗</a>
+  <button type="button" class="hb" id="allCallsBtn" title="저장된 개인고객 통화 기록 전체 (검색 · 열기)">통화 기록 전체</button>
   <a class="hb" href="mypage.html" data-mypop title="단체 예약 · 개인고객 통화의 추후 과업을 한눈에 (팝업)">마이페이지</a>
 </header>
 
@@ -154,7 +172,7 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
   <!-- 왼쪽: 통화 기록 -->
   <div class="col">
     <form class="panel" id="callForm" autocomplete="off">
-      <h2>통화 기록 <small id="startedAt"></small></h2>
+      <h2>통화 기록 <small id="startedAt"></small><span class="h-btns"><button class="btn primary" type="submit" id="saveBtn">저장 (Ctrl+S)</button><button class="btn" type="button" id="newBtn">＋ 새 통화</button></span></h2>
       <div class="editing" id="editing" hidden></div>
       <div class="sub-h" style="margin-top:0">고객 · 방문</div>
       <div class="row">
@@ -166,8 +184,6 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
       <div class="sub-h">문의 내용</div>
       <div class="f w4"><textarea id="fNote" lang="ko" placeholder="예) 11/27 금요일 2명 사담 런치 1부 가능한지 · 주차 문의"></textarea></div>
       <div class="btns">
-        <button class="btn primary" type="submit" id="saveBtn">저장 (Ctrl+S)</button>
-        <button class="btn" type="button" id="newBtn">＋ 새 통화</button>
         <button class="btn danger" type="button" id="delBtn" hidden>삭제</button>
         <span class="state" id="state"></span>
       </div>
@@ -195,6 +211,22 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
     <p class="hint" id="keyMsg" style="color:var(--red);min-height:18px"></p>
     <div class="btns" style="justify-content:flex-end;margin-top:6px"><button class="btn primary" type="submit">연결</button></div>
   </form>
+</div>
+<!-- 개인고객 통화 기록 전체 (모든 직원이 받은 통화 · 검색 · 누르면 열기) -->
+<div class="modal" id="allModal" hidden>
+  <section class="panel wide" role="dialog" aria-modal="true" aria-labelledby="allTitle">
+    <h2 id="allTitle">개인고객 통화 기록 전체 <small id="allCount"></small><button type="button" class="btn" id="allClose" style="margin-left:auto;padding:4px 12px">닫기</button></h2>
+    <input class="search" id="allSearch" type="search" lang="ko" placeholder="검색: 이름 · 연락처 · 문의 내용 · 받은 사람 · 과업">
+    <div class="all-tw"><table class="all-t"><thead><tr><th>저장</th><th>받은 사람</th><th>고객</th><th>연락처</th><th>방문 희망일 / 예약일</th><th>인원</th><th>문의 내용</th><th>남은 과업</th></tr></thead><tbody id="allBody"></tbody></table></div>
+  </section>
+</div>
+<!-- 마감이 된 추후 과업 알림 (오전 8시 · 11시 · 오후 1시 · 5시, 단체 화면과 같은 기록이라 한 시각에 한 번) -->
+<div class="modal" id="dueModal" hidden>
+  <section class="panel wide" role="dialog" aria-modal="true" aria-labelledby="dueTitle">
+    <h2 id="dueTitle">마감이 된 추후 과업</h2>
+    <ul class="due-list" id="dueList"></ul>
+    <div class="btns" style="justify-content:flex-end"><button class="btn" id="dueClose" title="다음 알림 시각(8 · 11 · 13 · 17시)에 다시">닫기</button></div>
+  </section>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -242,6 +274,8 @@ async function pull(inFlush){
   try{
     const j=await callApi({action:'list'});
     items=(j.items||[]).filter(r=>r.callType===CALL_TYPE); writeJSON(CACHE_LS, items.slice(-500));
+    groupMine=(j.items||[]).filter(r=>r.callType!==CALL_TYPE && ['단체예약','예약상담','예약접수','상담','가예약','공식예약'].includes(r.callType||'단체예약') && (r.owner||r.takenBy)===(user.name||''));   // 마감 알림용: 내가 영업 담당인 단체 예약
+    setTimeout(checkDue, 300);
     $('#keyMsg').textContent=''; paintSync(); renderLists(); tryOpen();
     if(j.admin){ writeJSON('sayuwon_intake_admin', j.admin); paintSeats(); }   // 사담 · 마방 현황 (단체 화면과 같이 씀)
   }catch(e){ if(inFlush) throw e; handleErr(e); }
@@ -492,6 +526,56 @@ function paintSeats(){ if(!$('#seatBox')) return;
 // 문의 매뉴얼 (노션): 헤더 링크로 새 창에 엶
 const MANUAL_URL = 'https://happyyy-monkeyyy.notion.site/3d645f859824807090f1df4f0815a7bd?source=copy_link';   // 새 창으로 열기
 $('#manualOpen').href = MANUAL_URL;   // 문의 매뉴얼은 헤더의 링크로만 (새 창)
+// ===================== 통화 기록 전체 (모든 직원이 받은 개인고객 통화) =====================
+function renderAll(){
+  const q=$('#allSearch').value.trim().replace(/\s/g,'').toLowerCase(), qd=q.replace(/\D/g,'');
+  const all=shown().sort((a,b)=>String(b.saved).localeCompare(String(a.saved)));
+  const hit = r => !q || [r.contact, r.note, r.takenBy, r.history].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd));
+  const list=all.filter(hit);
+  $('#allCount').textContent = `${all.length}건${q?` · 찾은 ${list.length}건`:''}`;
+  $('#allBody').innerHTML = list.map(r=>{ const left=tasksOfItem(r).filter(t=>!t.done).length, d=String(r.date||'').slice(0,10);
+    return `<tr data-id="${esc(r.id)}"><td>${esc(dtLabel(r.saved))}</td><td>${esc(r.takenBy||'')}</td><td><b>${esc(r.contact||'(이름 없음)')}</b></td><td>${esc(r.phone||'')}</td><td>${d?esc(dLabel(d)):''}</td><td>${esc(r.people||'')}</td><td class="note">${esc(String(r.note||'').split(/\n/)[0].slice(0,80))}</td><td>${left?`<span class="tag cb">${left}개</span>`:''}</td></tr>`; }).join('')
+    || `<tr><td colspan="8" class="empty">${q?'찾은 통화가 없습니다.':'저장된 개인고객 통화가 없습니다.'}</td></tr>`;
+}
+const openAll = () => { $('#allModal').hidden=false; $('#allSearch').value=''; renderAll(); $('#allSearch').focus(); flush(); };
+$('#allCallsBtn').onclick=openAll;
+$('#allClose').onclick=()=>{ $('#allModal').hidden=true; };
+$('#allModal').addEventListener('mousedown', e=>{ if(e.target.id==='allModal') $('#allModal').hidden=true; });
+$('#allSearch').addEventListener('input', renderAll);
+$('#allBody').addEventListener('click', e=>{ const tr=e.target.closest('tr[data-id]'); if(!tr) return; $('#allModal').hidden=true; openItem(tr.dataset.id); });
+
+// ===================== 마감이 된 추후 과업 알림: 오전 8시 · 11시 · 오후 1시 · 5시 =====================
+// 그 시각이 지나고 처음 화면을 볼 때 (시각마다 한 번, 단체 화면과 같은 기록이라 두 화면에서 두 번 뜨지 않음). 내 개인고객 과업 + 내가 영업 담당인 단체 과업
+const TASK_SLOT_LS='sayuwon_task_slot', ALERT_HOURS=[8,11,13,17], QUIET_MS=30*60e3;
+let groupMine=[];
+function checkDue(){
+  if(document.querySelector('.modal:not([hidden])')) return;
+  const nowD=new Date(), today=todayYmd(), h=nowD.getHours(), slotH=ALERT_HOURS.filter(x=>h>=x).pop(); if(slotH==null) return;
+  let slots=''; try{ slots=localStorage.getItem(TASK_SLOT_LS)||''; }catch(_){} const key=`${today}|${slotH}`; if(slots.split(',').includes(key)) return;
+  const me=user.name||'', fresh = t => +nowD - (+new Date(t.dueSetAt||t.at||0)||0) < QUIET_MS;
+  const due=[];
+  shown().filter(r=>(r.owner||r.takenBy)===me).forEach(r=>tasksOfItem(r).forEach(t=>{ const d=t.due||today; if(!t.done && d<=today && !fresh(t)) due.push({r, t:{...t, due:d}, personal:true}); }));
+  groupMine.forEach(r=>tasksOfItem(r).forEach(t=>{ const d=t.due||String(r.saved||'').slice(0,10)||today; if(!t.done && d<=today && !fresh(t)) due.push({r, t:{...t, due:d}}); }));
+  if(!due.length) return;
+  try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), key].join(',')); }catch(_){}
+  due.sort((a,b)=>a.t.due.localeCompare(b.t.due));
+  $('#dueList').innerHTML = due.map(({r,t,personal})=>{ const late=t.due<today;
+    return `<li class="${late?'late':''}"><span class="who"><span class="tag">${personal?'개인':'단체'}</span> <b>${esc(personal ? (r.contact||'(이름 없음)') : (r.org||r.contact||'(업체 미정)'))}</b>${personal&&r.phone?` · ${esc(r.phone)}`:''}${!personal&&r.date?` · 방문 ${esc(dLabel(r.date))}`:''}<br><b class="t">${esc(t.title)}</b> <small class="hint" style="display:inline">마감 ${esc(dLabel(t.due))} ${late?'(지남)':'(오늘)'}</small></span>`
+      + (personal ? `<button class="btn primary" data-ddone="${esc(r.id)}|${esc(t.id)}">완료</button><button class="btn" data-dopen="${esc(r.id)}">열기</button>` : `<button class="btn" data-gopen="${esc(r.id)}">열기</button>`) + `</li>`; }).join('');
+  $('#dueTitle').innerHTML = `마감이 된 추후 과업 <small>${due.length}개 · 단체 + 개인 · 알림은 오전 8시 · 11시 · 오후 1시 · 5시</small>`;
+  $('#dueModal').hidden=false;
+}
+$('#dueClose').onclick=()=>{ $('#dueModal').hidden=true; };
+$('#dueList').addEventListener('click', e=>{ const d=e.target.dataset;
+  if(d.dopen){ $('#dueModal').hidden=true; openItem(d.dopen); return; }
+  if(d.gopen){ $('#dueModal').hidden=true; location.href='group.html?open='+encodeURIComponent(d.gopen); return; }
+  if(d.ddone){ const [rid,tid]=d.ddone.split('|'), r=shown().find(x=>x.id===rid); if(!r) return; const f=fromItem(r), t=f.tasks.find(x=>x.id===tid); if(!t) return;
+    t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=user.name||''; (t.xsubs||[]).forEach(x=>x.done=true); const item=toItem(f, r); put(item);
+    if(cur && cur.id===rid){ cur=item; form=fromItem(item); saved=JSON.stringify(form); paintForm(true); }
+    e.target.closest('li').remove(); if(!$('#dueList').children.length) $('#dueModal').hidden=true; toast('과업을 완료로 표시했습니다.'); }
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(!$('#allModal').hidden){ $('#allModal').hidden=true; } else if(!$('#dueModal').hidden){ $('#dueModal').hidden=true; } } });
+setInterval(checkDue, 60000);   // 1분마다 알림 시각인지 확인
 // 마이페이지에서 개인고객 과업을 누르면 personal.html?open=통화ID → 그 통화를 엶 (목록을 받은 뒤)
 let openId = new URLSearchParams(location.search).get('open');
 function tryOpen(){ if(!openId) return; if(shown().some(x=>x.id===openId)){ const id=openId; openId=null; history.replaceState(null,'',location.pathname); openItem(id); } }
