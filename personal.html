@@ -64,21 +64,52 @@ main{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;
 .manual iframe{flex:1;width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;min-height:0}
 @media (max-width:900px){.manual{position:static;height:70vh}}
 /* 날짜 칸: 단체 방문일과 같은 방식 (칸 안에 날짜 (요일) · 누르면 달력) */.dbox{position:relative;display:block;min-width:0}.dbox .dtxt{width:100%;height:36px;border:1px solid var(--line);border-radius:7px;padding:0 9px;font:14px var(--sans);background:#fff;color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums}.dbox .dtxt:not([readonly]){cursor:text}.dbox .dtxt:focus{outline:none;border-color:var(--pine)}.dbox input.dpick{position:absolute;left:0;bottom:0;width:1px!important;height:1px!important;opacity:0;pointer-events:none;border:0;padding:0}.tadd .dbox{flex:0 0 150px}.tasks li .dbox{flex:0 0 140px}.tasks li .dbox .dtxt{height:28px;font-size:12.5px;padding:0 6px}
-/* 추후 과업 (통화마다) */
-.tadd{display:flex;gap:6px;flex-wrap:wrap}
-.tadd #taskIn{flex:1 1 220px;height:36px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:14px var(--sans)}
-.tadd #taskDue{height:36px;border:1px solid var(--line);border-radius:7px;padding:0 6px;font:13px var(--sans)}
-.tadd input:focus{outline:none;border-color:var(--pine)}
-.tasks{list-style:none;margin:8px 0 0;padding:0}
-.tasks li{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;margin-top:6px}
-.tasks li .tt{flex:1;min-width:0}
-.tasks li.done .tt{color:#9a9a92;text-decoration:line-through}
-.tasks li.late{border-color:var(--red)}
-.tasks li.late .due{color:var(--red);font-weight:700}
-.tasks li input[type=date]{height:28px;border:1px solid var(--line);border-radius:6px;padding:0 4px;font:12px var(--sans)}
-.tasks li .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
-.tasks li .x:hover{color:var(--red)}
-.tasks .empty{border:0;background:none;padding:2px}
+/* 추후 과업: 단체 화면과 같은 모양 · 동작 (체크 · 끌어서 순서 · ▲▼ · 마감일 · 세부 과제 · 메모 · 끝난 과업은 한 줄로) */
+.task-add{display:flex;gap:6px;margin:0 0 10px;position:sticky;top:56px;z-index:3;background:var(--card);padding:6px 0;box-shadow:0 6px 6px -6px rgba(0,0,0,.08)}
+.task-add input{flex:1;height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:13px var(--sans)}
+.task-add input:focus{outline:none;border-color:var(--pine)}
+.tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.task{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff}
+.task.done{background:#f1f1ee;border-color:#e2e2dc;color:#9a9a92}
+.task.collapsed{padding:6px 12px}
+.task.collapsed > :not(.task-h){display:none}
+.task.late{background:#fdf0ee;border-color:#e0a399}
+.task-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.task-c{display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer}
+.task-c input{width:17px;height:17px;accent-color:var(--pine);flex:none}
+.task.done .task-c span{text-decoration:line-through;color:#9a9a92}
+.task.late .task-c span{color:var(--red)}
+.texp{border:0;background:none;color:var(--muted);font-size:11.5px;cursor:pointer;padding:0 4px;white-space:nowrap}
+.texp:hover{color:var(--pine)}
+.tdrag{flex:none;cursor:grab;color:var(--muted);font-size:14px;line-height:1;padding:2px 2px 2px 0;user-select:none}
+.tdrag:hover{color:var(--pine)}
+.task.dragging{opacity:.45}
+.task.drop-before{box-shadow:0 -3px 0 var(--pine)}
+.task.drop-after{box-shadow:0 3px 0 var(--pine)}
+.tmove{display:flex;flex:none;gap:2px}
+.tmove button{width:22px;height:22px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--muted);font-size:9px;cursor:pointer;padding:0}
+.tmove button:hover{border-color:var(--pine);color:var(--pine)}
+.tdue{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:400;color:var(--muted);flex:none;white-space:nowrap}
+.tdue .dbox{flex:0 0 128px}
+.tdue .dbox .dtxt{height:26px;font-size:12px;padding:0 5px;border-radius:5px}
+.task.late .tdue{color:var(--red);font-weight:700}
+.task.late .tdue .dtxt{border-color:var(--red);color:var(--red);font-weight:700}
+.task.done .tdue .dtxt{color:#9a9a92;background:transparent}
+.task-h .del{margin-left:auto;border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
+.task-h .del:hover{color:var(--red)}
+.task textarea{width:100%;margin-top:8px;min-height:38px;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13px/1.5 var(--sans)}
+.task textarea:focus{outline:none;border-color:var(--pine)}
+.tsubs{display:flex;flex-direction:column;gap:3px;margin:6px 0 0 25px}
+.tsub{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;cursor:pointer}
+.tsub input{width:15px;height:15px;margin:0;accent-color:var(--pine)}
+.tsub.on{color:#9a9a92;text-decoration:line-through}
+.tsub-row{display:flex;align-items:center;gap:4px}
+.tsub-del{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px}
+.tsub-del:hover{color:var(--red)}
+.tsub-add{display:flex;gap:4px;margin-top:2px}
+.tsub-add input{flex:1;height:28px;border:1px dashed var(--line);border-radius:5px;padding:0 8px;font:12.5px var(--sans);background:#fff}
+.tsub-add .btn{padding:2px 8px;font-size:12px}
+.tasks .empty{list-style:none;color:var(--muted);font-size:12.5px}
 /* 목록 */
 .list{list-style:none;margin:0;padding:0}
 .list li{border-top:1px solid var(--line);padding:8px 2px;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px}
@@ -147,9 +178,10 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
   <!-- 오른쪽: 이 통화의 추후 과업 (단체 화면처럼 2열) -->
   <div class="col">
     <section class="panel">
-      <h2>추후 과업 <small>이 통화 뒤에 할 일 · 마감일 · 끝나면 체크 · 저장하면 함께 저장</small></h2>
-      <div class="tadd"><input id="taskIn" lang="ko" placeholder="+ 과업 추가 (예: 사담 자리 확인 후 연락) · 적고 Enter" autocomplete="off"><input id="taskDue" type="date" title="마감일"><button class="btn" type="button" id="taskAddBtn">추가</button></div>
+      <h2>추후 과업 <small>체크리스트 · 과업마다 메모</small></h2>
+      <form class="task-add" id="taskAdd"><input id="taskAddIn" lang="ko" placeholder="과업 직접 추가 (예: 사담 자리 확인 후 연락)" autocomplete="off"><button class="btn" type="submit">추가</button></form>
       <ul class="tasks" id="taskList"></ul>
+      <p class="hint" id="taskHint" style="margin-top:8px"></p>
     </section>
   </div>
 </main>
@@ -267,7 +299,6 @@ const tasksOfItem = r => { try{ const h=JSON.parse(r.history||'{}'); return Arra
 const FIELDS=[['fName','name'],['fPhone','phone'],['fDate','date'],['fPeople','people'],['fNote','note']];
 function paintForm(force){
   FIELDS.forEach(([id,k])=>{ const el=$('#'+id); if((force || document.activeElement!==el) && el.value!==form[k]) el.value=form[k]; });
-  if(!$('#taskDue').value) $('#taskDue').value=todayYmd();
   paintTasks();
   $('#delBtn').hidden = !cur;
   $('#editing').hidden = !cur; if(cur) $('#editing').textContent = `${dtLabel(cur.saved)} ${cur.takenBy||''}님이 받은 통화를 고치는 중 · 저장하면 그대로 덮어씁니다`;
@@ -276,13 +307,6 @@ function paintForm(force){
   paintPrices(); syncDates();   // 날짜 칸 글자 (요일)
 }
 // 이 통화의 추후 과업: 안 끝난 것(마감일 순) → 끝난 것
-function paintTasks(){
-  const today=todayYmd(), list=[...form.tasks].sort((a,b)=>(a.done-b.done) || String(a.due).localeCompare(String(b.due)));
-  $('#taskList').innerHTML = list.map(t=>`<li class="${t.done?'done':''}${!t.done && t.due && t.due<today?' late':''}" data-tid="${esc(t.id)}"><input type="checkbox" data-tdone${t.done?' checked':''} title="끝나면 체크"><span class="tt">${esc(t.title)}</span>`
-    + `<span class="due">${!t.done && t.due && t.due<today?'기한 지남 ':''}</span><input type="date" data-tdue value="${esc(t.due||'')}" title="마감일"><button type="button" class="x" data-tdel title="과업 빼기">×</button></li>`).join('')
-    || '<li class="empty hint">추후 과업이 없습니다. 이 통화 뒤에 할 일이 있으면 위에 적어 주세요.</li>';
-  enhanceDates($('#taskList'));   // 과업 마감일도 방문일과 같은 날짜 칸
-}
 const isDirty = () => JSON.stringify(form)!==saved;
 const fmtPhone = v => { const d=String(v||'').replace(/\D/g,''); if(/^01\d{8,9}$/.test(d)) return d.length===10?`${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`:`${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`; if(/^0\d{8,10}$/.test(d)) return d.replace(/^(02|0\d{2})(\d{3,4})(\d{4})$/,'$1-$2-$3'); return v; };
 FIELDS.forEach(([id,k])=>{ $('#'+id).addEventListener('input', e=>{ let v=e.target.value; if(k==='people'){ v=v.replace(/[^\d+]/g,''); e.target.value=v; } form[k]=v; touch(); }); });
@@ -291,14 +315,78 @@ $('#fPhone').addEventListener('focus', e=>{ const el=e.target; if(!el.value){ el
 $('#fPhone').addEventListener('blur', e=>{ if(/^010-?$/.test(e.target.value)){ e.target.value=''; if(form.phone){ form.phone=''; touch(); } return; } const v=fmtPhone(e.target.value); if(v!==form.phone){ form.phone=v; e.target.value=v; touch(); } });
 function touch(){ if(!startedAt && !cur) startedAt=new Date(); paintForm(); }
 // 과업 추가 · 체크 · 마감일 · 빼기
-function addTask(){ const v=$('#taskIn').value.trim(); if(!v) return; form.tasks.push({id:'t'+Date.now().toString(36), title:v, due:$('#taskDue').value||todayYmd(), done:false, at:new Date().toISOString(), by:user.name||''}); $('#taskIn').value=''; $('#taskDue').value=todayYmd(); touch(); $('#taskIn').focus(); }
-$('#taskAddBtn').onclick=addTask;
-$('#taskIn').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); addTask(); } });
-$('#taskList').addEventListener('change', e=>{ const li=e.target.closest('[data-tid]'); if(!li) return; const t=form.tasks.find(x=>x.id===li.dataset.tid); if(!t) return;
-  if(e.target.dataset.tdone!==undefined){ t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():''; t.doneBy=t.done?(user.name||''):''; }
-  if(e.target.dataset.tdue!==undefined && e.target.value) t.due=e.target.value;
-  touch(); });
-$('#taskList').addEventListener('click', e=>{ if(e.target.dataset.tdel===undefined) return; const li=e.target.closest('[data-tid]'); form.tasks=form.tasks.filter(x=>x.id!==li.dataset.tid); touch(); });
+// ===================== 추후 과업 (단체 화면과 같은 모양 · 동작) =====================
+// 순서: 마감일이 빠른 순, 같으면 최근에 추가한 것이 위. 직접 옮긴 과업(ordSet)은 그 순서 그대로, 끝난 과업은 맨 아래 한 줄로(자세히 ▾)
+// 세부 과제가 있으면 모두 체크될 때 완료. 이미 저장한 통화면 체크 · 순서 · 마감일 · 세부 과제 · 메모(칸을 벗어날 때)는 바로 저장
+let openDone = new Set();   // 펼쳐 본 끝난 과업
+function sortedTasks(){
+  const byNew=(a,b)=>String(a.due||'').localeCompare(String(b.due||'')) || String(b.at||'').localeCompare(String(a.at||''));
+  const open=form.tasks.filter(t=>!t.done), done=form.tasks.filter(t=>t.done).sort(byNew);
+  const list=open.filter(t=>t.ordSet).sort((a,b)=>a.ord-b.ord);
+  open.filter(t=>!t.ordSet).sort(byNew).forEach(t=>{ let i=list.findIndex(x=>x.ordSet && String(x.due||'')>=String(t.due||'')); if(i<0) i=list.length; list.splice(i,0,t); });
+  return [...list, ...done];
+}
+function subsHTML(t){
+  const rows=(t.xsubs||[]).map(x=>`<div class="tsub-row"><label class="tsub${x.done?' on':''}"><input type="checkbox" data-xsub="${esc(t.id)}|${esc(x.id)}"${x.done?' checked':''}> ${esc(x.title)}</label><button type="button" class="tsub-del" data-xdel="${esc(t.id)}|${esc(x.id)}" title="세부 과제 빼기">×</button></div>`);
+  return `<div class="tsubs">${rows.join('')}<div class="tsub-add"><input data-xadd="${esc(t.id)}" lang="ko" placeholder="+ 세부 과제 추가 (적고 Enter)" autocomplete="off"><button type="button" class="btn" data-xaddbtn="${esc(t.id)}">추가</button></div></div>`;
+}
+function paintTasks(){
+  const box=$('#taskList'), ae=document.activeElement;
+  if(box.contains(ae) && (ae.tagName==='TEXTAREA' || (ae.tagName==='INPUT' && ae.type!=='checkbox' && !ae.readOnly && !ae.classList.contains('dpick')))) return;   // 메모 · 세부 과제를 쓰는 중이면 다시 그리지 않음
+  const today=todayYmd();
+  box.innerHTML = sortedTasks().map(t=>{ const due=t.due||today, late=!t.done && due<today, fold=t.done && !openDone.has(t.id);
+    return `<li class="task${t.done?' done':late?' late':''}${fold?' collapsed':''}" data-id="${esc(t.id)}">`
+      + `<div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<label class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span></label>`
+      + `${t.done?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}`
+      + `${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}`
+      + `<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"></label>`
+      + `<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button></div>`
+      + subsHTML(t) + `<textarea data-tm="${esc(t.id)}" lang="ko" placeholder="메모">${esc(t.memo||'')}</textarea></li>`; }).join('')
+    || '<li class="empty">추후 과업이 없습니다. 이 통화 뒤에 할 일이 있으면 위에 적어 주세요.</li>';
+  enhanceDates(box);   // 마감일 = 방문일 방식 날짜 칸
+  $('#taskHint').textContent = form.tasks.length ? (cur ? '체크 · 순서 · 마감일 · 세부 과제는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '통화 기록을 저장하면 과업도 함께 저장됩니다.') : '';
+}
+// 이미 저장한 통화면 과업을 바꾸자마자 저장 (단체 화면과 같음)
+function taskSave(){ if(!cur) return; const item=toItem(); put(item); cur=item; saved=JSON.stringify(form); }
+const taskOf = id => form.tasks.find(x=>x.id===id);
+function taskChanged(save=true){ touch(); paintTasks(); if(save) taskSave(); paintForm(); }
+$('#taskAdd').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#taskAddIn').value.trim(); if(!v) return;
+  form.tasks.push({id:'t'+Date.now().toString(36), title:v, done:false, memo:'', at:new Date().toISOString(), due:todayYmd(), by:user.name||''});   // 마감은 오늘 (바꿀 수 있음)
+  $('#taskAddIn').value=''; taskChanged(); $('#taskAddIn').focus(); });
+function addXsub(tid){ const inp=document.querySelector(`#taskList [data-xadd="${CSS.escape(tid)}"]`), v=inp?inp.value.trim():'', t=taskOf(tid); if(!v || !t) return;
+  (t.xsubs ||= []).push({id:'x'+Date.now().toString(36), title:v, done:false}); if(t.done){ t.done=false; t.doneAt=''; }
+  inp.blur(); taskChanged(); document.querySelector(`#taskList [data-xadd="${CSS.escape(tid)}"]`)?.focus(); }
+$('#taskList').addEventListener('change', e=>{ const d=e.target.dataset;
+  if(d.xsub){ const [tid,xid]=d.xsub.split('|'), t=taskOf(tid), x=t&&(t.xsubs||[]).find(s=>s.id===xid); if(!x) return; x.done=e.target.checked;
+    const all=(t.xsubs||[]).every(s=>s.done); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=user.name||''; } if(!all && t.done){ t.done=false; t.doneAt=''; } taskChanged(); return; }   // 세부 과제가 모두 끝나면 완료
+  if(d.tdue){ const t=taskOf(d.tdue); if(t && e.target.value){ t.due=e.target.value; t.dueSet=1; taskChanged(); } return; }
+  if(d.tk){ const t=taskOf(d.tk); if(!t) return; t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():''; t.doneBy=t.done?(user.name||''):''; (t.xsubs||[]).forEach(x=>x.done=t.done); taskChanged(); }
+});
+$('#taskList').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; const d=b.dataset;
+  if(d.texp){ openDone.has(d.texp) ? openDone.delete(d.texp) : openDone.add(d.texp); paintTasks(); return; }
+  if(d.tdel){ const t=taskOf(d.tdel); if(t && confirm(`'${t.title}' 과업을 삭제할까요?`)){ form.tasks=form.tasks.filter(x=>x.id!==d.tdel); taskChanged(); } return; }
+  if(d.xdel){ const [tid,xid]=d.xdel.split('|'), t=taskOf(tid); if(t){ t.xsubs=(t.xsubs||[]).filter(s=>s.id!==xid); taskChanged(); } return; }
+  if(d.xaddbtn){ addXsub(d.xaddbtn); return; }
+  if(d.tmv){ const [id,dir]=d.tmv.split('|'), open=sortedTasks().filter(t=>!t.done), i=open.findIndex(t=>t.id===id), j=i+(+dir);   // ▲▼: 안 끝난 과업끼리
+    if(i<0 || j<0 || j>=open.length) return; [open[i],open[j]]=[open[j],open[i]]; open.forEach((t,k)=>{ t.ord=k*10; t.ordSet=1; }); taskChanged(); }
+});
+$('#taskList').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing && e.target.dataset.xadd!==undefined){ e.preventDefault(); addXsub(e.target.dataset.xadd); } });   // 세부 과제: 적고 Enter
+$('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=taskOf(id); if(t){ t.memo=e.target.value; touch(); } });
+$('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) setTimeout(()=>{ taskSave(); paintForm(); },0); });   // 메모는 칸을 벗어나면 저장
+// 끌어서 순서 바꾸기 (⠿ 를 잡고)
+let dragId=null;
+$('#taskList').addEventListener('mousedown', e=>{ const h=e.target.closest('.tdrag'); if(h) h.closest('li.task').draggable=true; });
+$('#taskList').addEventListener('dragstart', e=>{ const li=e.target.closest('li.task'); if(!li || !li.draggable) return; dragId=li.dataset.id; li.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{ e.dataTransfer.setData('text/plain', dragId); }catch(_){} });
+$('#taskList').addEventListener('dragover', e=>{ if(!dragId) return; const li=e.target.closest('li.task'); if(!li || li.classList.contains('done')) return; e.preventDefault();
+  document.querySelectorAll('#taskList li.task').forEach(x=>x.classList.remove('drop-before','drop-after'));
+  if(li.dataset.id!==dragId){ const r=li.getBoundingClientRect(); li.classList.add(e.clientY < r.top+r.height/2 ? 'drop-before' : 'drop-after'); } });
+$('#taskList').addEventListener('drop', e=>{ if(!dragId) return; e.preventDefault(); const li=e.target.closest('li.task'); if(!li || li.dataset.id===dragId) return;
+  const before=li.classList.contains('drop-before'), open=sortedTasks().filter(t=>!t.done), from=open.findIndex(t=>t.id===dragId); if(from<0) return;
+  const [moved]=open.splice(from,1); let to=open.findIndex(t=>t.id===li.dataset.id); if(to<0) return; if(!before) to++;
+  open.splice(to,0,moved); open.forEach((t,k)=>{ t.ord=k*10; t.ordSet=1; }); dragId=null; taskChanged(); });
+$('#taskList').addEventListener('dragend', ()=>{ dragId=null; document.querySelectorAll('#taskList li.task').forEach(x=>{ x.draggable=false; x.classList.remove('dragging','drop-before','drop-after'); }); });
+document.addEventListener('mouseup', ()=>{ if(!dragId) document.querySelectorAll('#taskList li.task[draggable="true"]').forEach(x=>x.draggable=false); });
+document.addEventListener('dragover', e=>{ if(!dragId) return; const EDGE=70, H=window.innerHeight, sp=e.clientY<EDGE ? -Math.ceil((EDGE-e.clientY)/3) : e.clientY>H-EDGE ? Math.ceil((e.clientY-(H-EDGE))/3) : 0; if(sp) window.scrollBy(0, sp); });   // 화면 끝에서 저절로 스크롤
 function toItem(f=form, base=cur){
   const id = base ? base.id : (Date.now().toString(36)+Math.random().toString(36).slice(2,6));
   const open = f.tasks.filter(t=>!t.done).length, first = String(f.note||'').split(/\n/)[0].slice(0,60);
@@ -311,7 +399,7 @@ function toItem(f=form, base=cur){
 function fromItem(r){ return { name:r.contact||'', phone:r.phone||'', date:String(r.date||'').slice(0,10), people:r.people||'', note:r.note||'', tasks:tasksOfItem(r).map(t=>({...t})) }; }
 function save(){
   if(!form.note.trim() && !form.name.trim() && !form.phone.trim() && !form.tasks.length){ toast('문의 내용이나 고객 정보를 넣어 주세요.'); return; }
-  if($('#taskIn').value.trim()) addTask();   // 과업 칸에 적어 두고 Enter 안 누른 것도
+  if($('#taskAddIn').value.trim()) $('#taskAdd').requestSubmit();   // 과업 칸에 적어 두고 추가를 안 누른 것도
   const item=toItem(); put(item); cur=item; saved=JSON.stringify(form); startedAt=null; paintForm(); toast('저장했습니다.');
 }
 $('#callForm').addEventListener('submit', e=>{ e.preventDefault(); save(); });
