@@ -1753,9 +1753,8 @@ const bookCat = k => RENT_PLACE[k] ? 'rent' : (DOCENT_KIND[k] || isDocent(LABEL[
 const BOOK_CATS = { rent:'대관', docent:'도슨트', prog:'프로그램' };
 function bookRows(){ try{ return bookRows0(); }catch(_){ return []; } }   // 초기화 중(아래 정의 전)에 불려도 되게
 function bookRows0(){
-  const out=[], live = effStage(rec)==='예약접수' && rec.date && (rec.org||rec.contact);
+  const out=[];   // 지금 화면의 예약(내 단체)은 빼고 다른 단체 예약만
   const recs = (cache||[]).filter(r=>isGroupRec(r) && r.id!==editingId && r.date && stageOfRec(r)==='예약접수').map(r=>({r, x:xOf(r)}));
-  if(live) recs.push({r:{id:editingId||'', org:rec.org}, x:rec, me:true});
   recs.forEach(({r,x,me})=>{
     const notes = Object.fromEntries(String(x.inotes||'').split(/\s*;\s*/).map(s=>{ const i=s.indexOf('='); return i>0 ? [s.slice(0,i).trim(), s.slice(i+1).trim()] : null; }).filter(Boolean));
     PROG_KEYS().forEach(k=>{ const v=x[k]; if(!v) return; const cat=bookCat(k), unit=UNIT(k);
