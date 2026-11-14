@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 예약 관리 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); else localStorage.setItem("sayuwon_owner", u.name); }catch(e){} if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 마이페이지 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261114q">
+<link rel="stylesheet" href="css/group.css?v=20261114r">
 </head>
 <body>
 <header>
@@ -211,9 +211,7 @@
   <!-- 통화 메모 (2열 · 통화 중 확인 아래, 따로 된 칸) -->
   <section class="panel memo-panel">
     <h2>통화 메모 <small>칸에 없는 특이사항 · 전산 비고에도 들어갑니다</small></h2>
-    <textarea id="memoBox" placeholder="예)
-대표님 동행, 도착 전 연락 요청
-해설은 건축 위주로 부탁"></textarea>
+    <textarea id="memoBox"></textarea>
   </section>
 
   <!-- 가격표: 견적서 사이트 품목 목록 기준 (품목 관리에서 바꾼 가격은 열 때 다시 불러옴) -->
@@ -318,7 +316,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/group.js?v=20261114q"></script>
-<script src="js/ime.js?v=20261114q"></script>
+<script src="js/group.js?v=20261114r"></script>
+<script src="js/ime.js?v=20261114r"></script>
 </body>
 </html>
