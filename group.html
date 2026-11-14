@@ -1003,7 +1003,7 @@ function unpackExtra(r){ const o={}; let m;
 // 칸별 입력 방식: 한글 우선(한/영 키로 영어) · 영어 고정 · 숫자 고정
 const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner';
 const EN_ONLY  = k => /^c\d+_email$/.test(k);
-// 몽몽마방: 메뉴는 견적서 품목 리스트에서 구분이 '몽몽마방 메뉴'인 품목 (1인 고정가, 품목 관리에서 추가 · 이름 · 가격 수정) · 결제는 사무실 / 마방
+// 몽몽마방: 메뉴는 견적서 품목 리스트에서 구분이 식사이고 기본 메뉴(사유의 밥상(단체) · 몽몽마방 런치 · 단품) 또는 예약상품명이 '몽몽마방 '으로 시작하는 품목 (1인 고정가, 품목 관리에서 추가 · 이름 · 가격 수정) · 결제는 사무실 / 마방
 const MB_PAYS = ['사무실','마방'];
 const MB_INFO_SKIP = new Set(['goods','mabangTime','mabangPrice','mabangPay','mabangMenu','mabangNote']);   // 그날 현황에서 인원으로 세지 않는 칸
 const MB_DEF = [['사유의 밥상(단체)','사유의 밥상',38000],['몽몽마방 런치','비빔밥+녹두전+매실차',22000],['몽몽마방 단품','더덕비빔밥',17000]];   // 품목을 아직 못 불러왔을 때
@@ -2585,6 +2585,8 @@ const askCatClose = () => $('#catFrame').contentWindow?.postMessage({type:'sy-ca
 $('#catModal').addEventListener('click', e=>{ if(e.target.id==='catModal') askCatClose(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#catModal').hidden){ e.preventDefault(); askCatClose(); } });
 // 견적서 사이트와 같은 방식으로 품목 목록을 만든다 (숨긴 품목 제외, 바꾼 가격 반영, 추가 품목 포함)
+// 품목 관리에서 '몽몽마방 메뉴' 구분을 없애고 식사로 (2026-11-14): 식사 중 품목명이 '몽몽마방 '으로 시작하는 것(예: 몽몽마방 런치)도 몽몽마방 메뉴로
+const mbKind = (k, src) => k==='food' && /^몽몽마방\s/.test(String(src||'')) ? 'mabang' : k;
 function catalogItems(){
   if(!quoteCat) return [];
   const has = (arr, s) => (arr||[]).some(x=>normSrc(x)===normSrc(s));
@@ -2595,10 +2597,10 @@ function catalogItems(){
     const [src, price, disc] = line.split('|'); if(seen[normSrc(src)]) return; seen[normSrc(src)]=1;
     const e = (quoteCat.edits||{})[src] || {};
     if(e.hidden) return;
-    out.push({ src, name: e.name, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), disc: e.disc!=null ? !!e.disc : disc==='1', kind: (e.kind==='food' && MB_DEF.some(m=>normSrc(m[0])===normSrc(src))) ? 'mabang' : (e.kind || kindOf(src)),
+    out.push({ src, name: e.name, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), disc: e.disc!=null ? !!e.disc : disc==='1', kind: mbKind((e.kind==='food' && MB_DEF.some(m=>normSrc(m[0])===normSrc(src))) ? 'mabang' : (e.kind || kindOf(src)), src),
       taxable: e.taxable!=null ? Number(e.taxable) : ((quoteCat.tax||{})[src]||[])[0], taxfree: e.taxfree!=null ? Number(e.taxfree) : ((quoteCat.tax||{})[src]||[])[1] });   // 과세 · 비과세 (품목 관리 값 우선)   // 예전에 '식사'로 바꿔 둔 기본 몽몽마방 메뉴도 메뉴로
   });
-  (quoteCat.added||[]).forEach(a=>{ if(a.hidden) return; out.push({ src: a.src || a.name, name: a.name, price: a.price!=null ? Number(a.price) : null, disc: !!a.disc, kind: a.kind || 'food', taxable: a.taxable!=null ? Number(a.taxable) : undefined, taxfree: a.taxfree!=null ? Number(a.taxfree) : undefined }); });
+  (quoteCat.added||[]).forEach(a=>{ if(a.hidden) return; out.push({ src: a.src || a.name, name: a.name, price: a.price!=null ? Number(a.price) : null, disc: !!a.disc, kind: mbKind(a.kind || 'food', a.src || a.name), taxable: a.taxable!=null ? Number(a.taxable) : undefined, taxfree: a.taxfree!=null ? Number(a.taxfree) : undefined }); });
   return out;
 }
 // 과세 · 비과세 1인 금액 (품목 관리): 비과세 = 사유원(입장료), 과세 = 신라. 둘 다 없으면 null
@@ -2616,7 +2618,7 @@ function itemLabel(src){
 }
 // 전체 가격표: 묶음별로, 평일·주말 짝은 한 줄로
 function priceSections(){
-  const SEC = { view:'관람', package:'관람 + 식사', mabang:'몽몽마방 메뉴 (1인)', food:'식사', geach:'단체 프로그램 (1인)', gtime:'단체 프로그램 (회당)' };
+  const SEC = { view:'관람', package:'관람 + 식사', food:'식사', gtime:'단체 프로그램 (회당)', geach:'단체 프로그램 (1인)' };   // 품목 관리와 같은 순서, 몽몽마방 메뉴도 식사로
   const groups = {};
   catalogItems().forEach(it=>{
     if(!SEC[it.kind] || PRICE_EXCLUDE.test(it.src) || it.price==null) return;
@@ -2626,7 +2628,7 @@ function priceSections(){
     else if(/^(주말|공휴일)/.test(it.src)){ if(g.we==null) g.we=it.price; }
     else if(g.one==null) g.one=it.price;
   });
-  return Object.keys(SEC).map(k=>[SEC[k], Object.values(groups).filter(g=>g.kind===k).map(g=>{
+  return Object.keys(SEC).map(k=>[SEC[k], Object.values(groups).filter(g=>(g.kind==='mabang'?'food':g.kind)===k).map(g=>{
     if(g.one==null && (g.wd==null || g.we==null)) g.one = g.wd ?? g.we;   // 한쪽만 있으면 한 가격으로
     if(g.one!=null && g.wd!=null && g.we!=null) delete g.one;
     return g; })]).filter(([,rows])=>rows.length);

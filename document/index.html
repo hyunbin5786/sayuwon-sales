@@ -792,12 +792,14 @@ html.cat-page #cat-close{display:none !important}
   var GROUP_TIME = {}, GROUP_EACH = {};
   ["대관","세미나","해설사도슨트(수정)","임원도슨트(수정)"].forEach(function(n){ GROUP_TIME[n] = true; });
   ["사운드워킹","사유의 향","요가프로그램(단체)","음료쿠폰(가가빈빈)","음료쿠폰(몽몽차방)","사유원 새벽 해오름 산책(평일)","사유원 새벽 해오름 산책(주말)"].forEach(function(n){ GROUP_EACH[n] = true; });
-  // 몽몽마방 메뉴: 단체예약 도우미의 몽몽마방 식사에서 고르는 메뉴 (1인 고정가). 품목 관리에서 구분을 '몽몽마방 메뉴'로 하면 메뉴가 늘어남
+  // 몽몽마방 메뉴: 단체예약 도우미의 몽몽마방 식사에서 고르는 메뉴 (1인 고정가). 품목 관리에서는 '식사'로 보이고, 새 메뉴는 예약상품명을 '몽몽마방 ○○'으로 추가하면 단체 화면 메뉴에 나옴
   var MABANG = {};
   var MABANG_NAME = {"사유의 밥상(단체)":"사유의 밥상","몽몽마방 런치":"비빔밥+녹두전+매실차","몽몽마방 단품":"더덕비빔밥"};
   ["사유의 밥상(단체)","몽몽마방 런치","몽몽마방 단품"].forEach(function(n){ MABANG[n] = true; });
-  var KIND_LABEL = { gtime:"단체(시간)", geach:"단체(개별)", view:"관람", package:"관람+식사", mabang:"몽몽마방 메뉴", food:"식사", goods:"굿즈" };
-  var KIND_ORDER = { gtime:0, geach:1, view:2, package:3, mabang:4, food:5, goods:6 };
+  // 2026-11-14: 순서 관람 → 관람+식사 → 식사 → 단체(시간) → 단체(개별) → 굿즈. 몽몽마방 메뉴는 화면에서 따로 구분하지 않고 식사로 (안에서는 mabang 으로 남겨 단체 화면 몽몽마방 메뉴 고르기에 씀)
+  var KIND_LABEL = { view:"관람", package:"관람+식사", food:"식사", gtime:"단체(시간)", geach:"단체(개별)", goods:"굿즈", mabang:"식사" };
+  var KIND_ORDER = { view:0, package:1, food:2, mabang:2, gtime:3, geach:4, goods:5 };
+  var kindView = function(k){ return k === "mabang" ? "food" : k; };   // 화면에 보이는 구분 (몽몽마방 메뉴 = 식사)
   function byKind(a, b){
     return (KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) || String(a.src).localeCompare(String(b.src), "ko");
   }
@@ -2528,8 +2530,8 @@ html.cat-page #cat-close{display:none !important}
     var formSel = '<select data-f="form"' + (fixedForm ? ' disabled' : '') + '>' +
       '<option value="sayuwon"' + (it.form === "sayuwon" ? ' selected' : '') + '>사유원</option>' +
       '<option value="shilla"' + (it.form === "shilla" ? ' selected' : '') + '>신라철강</option></select>';
-    var kindSel = '<select data-f="kind">' + Object.keys(KIND_LABEL).map(function(k){
-      return '<option value="' + k + '"' + (it.kind === k ? ' selected' : '') + '>' + KIND_LABEL[k] + '</option>';
+    var kindSel = '<select data-f="kind">' + Object.keys(KIND_LABEL).filter(function(k){ return k !== "mabang"; }).map(function(k){
+      return '<option value="' + k + '"' + (kindView(it.kind) === k ? ' selected' : '') + '>' + KIND_LABEL[k] + '</option>';
     }).join("") + '</select>';
     return '<tr data-id="' + esc(it.id) + '">' +
       '<td style="text-align:center"><input type="checkbox" class="pick" aria-label="선택"' + (picked[it.id] ? ' checked' : '') + '></td>' +
@@ -2561,11 +2563,11 @@ html.cat-page #cat-close{display:none !important}
     all.checked = vis.length > 0 && on === vis.length;
     all.indeterminate = on > 0 && on < vis.length;
   }
-  var catKind = "all";   // 구분별로 보기 (전체 · 단체(시간) · 단체(개별) · 관람 · 관람+식사 · 몽몽마방 메뉴 · 식사 · 굿즈)
+  var catKind = "all";   // 구분별로 보기 (전체 · 관람 · 관람+식사 · 식사 · 단체(시간) · 단체(개별) · 굿즈)
   function paintCatKinds(){
     var all = CATALOG.filter(function(it){ return !it.sys && !it.hidden; }), cnt = {};
-    all.forEach(function(it){ cnt[it.kind] = (cnt[it.kind] || 0) + 1; });
-    var kinds = Object.keys(KIND_ORDER).sort(function(a, b){ return KIND_ORDER[a] - KIND_ORDER[b]; }).filter(function(k){ return cnt[k] || k === catKind; });   // 지금 정렬 순서대로
+    all.forEach(function(it){ var k = kindView(it.kind); cnt[k] = (cnt[k] || 0) + 1; });
+    var kinds = Object.keys(KIND_ORDER).filter(function(k){ return k !== "mabang"; }).sort(function(a, b){ return KIND_ORDER[a] - KIND_ORDER[b]; }).filter(function(k){ return cnt[k] || k === catKind; });   // 지금 정렬 순서대로
     document.getElementById("cat-kinds").innerHTML = [["all", "전체", all.length]].concat(kinds.map(function(k){ return [k, KIND_LABEL[k] || k, cnt[k] || 0]; }))
       .map(function(x){ return '<button type="button" data-kind="' + x[0] + '"' + (catKind === x[0] ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + esc(x[1]) + '<small>' + x[2] + '</small></button>'; }).join("");
   }
@@ -2574,7 +2576,7 @@ html.cat-page #cat-close{display:none !important}
     paintCatKinds();
     var items = CATALOG.filter(function(it){
       if(it.sys || it.hidden) return false;
-      if(catKind !== "all" && it.kind !== catKind) return false;
+      if(catKind !== "all" && kindView(it.kind) !== catKind) return false;
       return !q || (normName(it.src) + normName(it.name)).toLowerCase().indexOf(q) >= 0;
     });
     // 막 추가해 비어 있는 품목이 맨 위, 그다음 관람 → 관람+식사 → 식사 → 굿즈
