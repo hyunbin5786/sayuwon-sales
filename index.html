@@ -1643,8 +1643,8 @@ function status(s){ $('#status').textContent=s; }
 
 // 통화 시간
 let timerInt=null;
-function startTimer(){ if(startedAt) return; startedAt=new Date(); tick(); clearInterval(timerInt); timerInt=setInterval(tick,1000); }
-function tick(){ if(!startedAt){ $('#timer').textContent=''; return; } const s=Math.floor((Date.now()-startedAt)/1000); $('#timer').textContent=`통화 시작 ${startedAt.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} · ${Math.floor(s/60)}분 ${String(s%60).padStart(2,'0')}초`; }
+function startTimer(){ if(startedAt) return; startedAt=new Date(); }   // 통화 시작 시각만 기억 (화면에 통화 시간은 보이지 않음)
+function tick(){ $('#timer').textContent=''; }   // 통화 시간 표시는 없앰 (칸은 헤더 간격용으로 비워 둠)
 
 // ===================== 복사 =====================
 function toast(s){ const t=$('#toast'); t.textContent=s; t.classList.add('on'); clearTimeout(toast.t); toast.t=setTimeout(()=>t.classList.remove('on'),1800); }
