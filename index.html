@@ -116,17 +116,20 @@ main{max-width:980px;margin:0 auto;padding:40px 16px}
       <a class="card" data-go="group" href="group.html">
         <div class="num">2</div><div><b>단체고객 전화응대</b><span>단체 예약 접수 · 예약 내역 · 추후 과업 · 단체예약 목록 · 마이페이지</span></div>
       </a>
+      <a class="card" data-go="prep" href="prep.html">
+        <div class="num">3</div><div><b>다음날 고객 응대 준비</b><span>전산 방문자내역 엑셀 → 10인 이상 손님 · 단체예약 정보 · 입장문(치허문 · 곡신문) 추천 → 응대 표 (복사 · 엑셀 · 인쇄)</span></div>
+      </a>
       <a class="card" data-go="quote" id="quoteLink" href="#">
-        <div class="num">3</div><div><b>견적서 / 거래명세서 발급</b><span>예약 정보로 사유원 · 신라철강 견적서와 거래명세서를 만들고 발급 내역을 봅니다.</span></div>
+        <div class="num">4</div><div><b>견적서 / 거래명세서 발급</b><span>예약 정보로 사유원 · 신라철강 견적서와 거래명세서를 만들고 발급 내역을 봅니다.</span></div>
       </a>
       <button type="button" class="card" data-go="catalog">
-        <div class="num">4</div><div><b>품목관리</b><span>예약 상품 · 가격 · 과세/비과세 · 할인 대상 · 구분(관람 · 관람+식사 · 굿즈 등)</span></div>
+        <div class="num">5</div><div><b>품목관리</b><span>예약 상품 · 가격 · 과세/비과세 · 할인 대상 · 구분(관람 · 관람+식사 · 굿즈 등)</span></div>
       </button>
       <button type="button" class="card" data-go="members">
-        <div class="num">5</div><div><b>멤버관리</b><span>로그인할 수 있는 직원(이름 · 사번)을 추가하거나 뺍니다.</span></div>
+        <div class="num">6</div><div><b>멤버관리</b><span>로그인할 수 있는 직원(이름 · 사번)을 추가하거나 뺍니다.</span></div>
       </button>
       <a class="card" data-go="my" href="mypage.html">
-        <div class="num">6</div><div><b>마이페이지 · 나의 할 일</b><span>내 개인고객 통화 · 단체 예약의 추후 과업을 한눈에 (전체 · 개인 · 단체)</span></div>
+        <div class="num">7</div><div><b>마이페이지 · 나의 할 일</b><span>내 개인고객 통화 · 단체 예약의 추후 과업을 한눈에 (전체 · 개인 · 단체)</span></div>
       </a>
     </div>
     <p class="note" id="menuNote">로그인한 이름은 예약 기록 · 영업 담당 · 견적서 담당에 들어갑니다. 공유 기록은 지금처럼 팀 비밀번호로 보호됩니다.</p>
@@ -179,7 +182,7 @@ function paint(){
     $('#hello').innerHTML = `${esc(u.name)}님, 무엇을 할까요?<small>메뉴를 고르세요. 각 화면 위쪽 「☰ 메뉴」로 이 화면에 돌아옵니다.</small>`;
     $('#quoteLink').href = QUOTE;
     $('#setupBar').hidden = !u.setup;
-    $('#setupBar').textContent = u.setup==='empty' ? '아직 등록된 멤버가 없어 누구나 로그인할 수 있습니다. 5번 멤버관리에서 직원(본인 포함)을 추가하면 그때부터 이름 · 사번을 확인합니다.'
+    $('#setupBar').textContent = u.setup==='empty' ? '아직 등록된 멤버가 없어 누구나 로그인할 수 있습니다. 6번 멤버관리에서 직원(본인 포함)을 추가하면 그때부터 이름 · 사번을 확인합니다.'
       : u.setup==='old' ? '공유 저장소(Apps Script)가 아직 예전 버전이라 이름 · 사번을 확인하지 못했습니다. 새 버전으로 배포하면 확인합니다.' : '';
     if(location.hash==='#catalog') openCatalog();
     if(view==='members') loadMembers();
