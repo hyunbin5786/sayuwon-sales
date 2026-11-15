@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>사유원 예약 관리 시스템</title>
+<title>사유원 예약 보조 시스템</title>
 <script>/* 단체 · 견적서 화면이 팝업 안에서 이 주소(#catalog)를 부르면 품목 관리 창으로 바로 바꿈 (닫기 · 저장 알림이 바로 그 화면에 가도록) */
 if(window.parent!==window && location.hash==='#catalog') location.replace((/github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/index.html') + '?catalog=1&t=' + Date.now());</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/portal.css?v=20261114">
-<link rel="stylesheet" href="css/mypop.css?v=20261114">
+<link rel="stylesheet" href="css/portal.css?v=20261116">
+<link rel="stylesheet" href="css/mypop.css?v=20261116">
 </head>
 <body>
 <header>
-  <a class="sys-brand" href="./" id="brand" title="메뉴로">사유원 예약 관리 시스템</a><span class="sys-crumb" id="crumb" hidden></span>
+  <a class="sys-brand" href="./" id="brand" title="메뉴로">사유원 예약 보조 시스템</a><span class="sys-crumb" id="crumb" hidden></span>
   <div class="who" id="who" hidden><span id="whoName"></span><button type="button" data-mypop title="단체 예약 · 개인고객 통화의 추후 과업을 한눈에 (팝업)">마이페이지</button><button type="button" id="logoutBtn">로그아웃</button></div>
 </header>
 <main>
@@ -85,9 +85,9 @@ if(window.parent!==window && location.hash==='#catalog') location.replace((/gith
 <!-- 품목관리: 견적서 사이트의 품목 관리 창을 그대로 띄움 (닫으면 메뉴로) -->
 <div class="catwrap" id="catWrap" hidden><iframe id="catFrame" title="품목관리"></iframe></div>
 
-<script src="js/portal.js?v=20261114"></script>
+<script src="js/portal.js?v=20261116"></script>
 <!-- 마이페이지 팝업 (메뉴 7번 페이지 group.html?my=1 을 그대로 띄움) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="마이페이지"></iframe></div></div>
-<script src="js/mypop.js?v=20261114"></script>
+<script src="js/mypop.js?v=20261116"></script>
 </body>
 </html>

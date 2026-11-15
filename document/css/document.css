@@ -40,7 +40,7 @@ button,input,select,textarea{font:inherit; color:inherit}
 .wrap{max-width:1480px; margin:0 auto; padding-left:16px; padding-right:16px; padding-block:22px 48px}
 
 header.top{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:20px}
-/* 사유원 예약 관리 시스템 공통 헤더 (단체 · 개인 화면과 같은 초록 띠) */
+/* 사유원 예약 보조 시스템 공통 헤더 (단체 · 개인 화면과 같은 초록 띠) */
 .sys-hd{background:#3f5236; color:#f3f1ec; padding:10px max(16px,env(safe-area-inset-left,0px)); display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:none; font-family:"Noto Sans KR",system-ui,sans-serif}
 .sys-brand{color:#f3f1ec; text-decoration:none; font:600 18px "Noto Serif KR",serif; letter-spacing:.02em; white-space:nowrap}
 .sys-brand:hover{text-decoration:underline; text-underline-offset:4px}
@@ -347,9 +347,9 @@ html.cat-only body > *:not(#catalog-modal){display:none !important}
 html.cat-only body{background:transparent}
 html.cat-only #catalog-modal{background:transparent; padding:0}
 html.cat-only #catalog-modal .modalbox{width:100%; max-height:100vh; height:100vh; border-radius:0; box-shadow:none}
-/* 메뉴에서 연 품목관리 (?catalog=1&page=1): 팝업 모양 없이 페이지로 · × 대신 위쪽 「사유원 예약 관리 시스템」으로 메뉴에 */
+/* 메뉴에서 연 품목관리 (?catalog=1&page=1): 팝업 모양 없이 페이지로 · × 대신 위쪽 「사유원 예약 보조 시스템」으로 메뉴에 */
 html.cat-page #catalog-modal .modalbox{max-width:none; background:var(--paper)}
 html.cat-page #cat-close{display:none !important}
 
-/* 날짜 칸 (사유원 예약 관리 시스템 공통: 단체 방문일과 같은 방식) */
+/* 날짜 칸 (사유원 예약 보조 시스템 공통: 단체 방문일과 같은 방식) */
 .dbox{position:relative;display:block;min-width:0}.dbox .dtxt{width:100%;cursor:pointer;font-variant-numeric:tabular-nums}.dbox .dtxt:not([readonly]){cursor:text}.dbox input.dpick{position:absolute!important;left:0;bottom:0;width:1px!important;height:1px!important;min-width:0!important;opacity:0;pointer-events:none;border:0!important;padding:0!important}

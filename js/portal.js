@@ -67,7 +67,7 @@ document.addEventListener('click', e=>{
   if(c.dataset.go==='catalog'){ e.preventDefault(); openCatalog(); }
   if(c.dataset.go==='members'){ e.preventDefault(); view='members'; history.replaceState(null,'','#members'); paint(); }
 });
-// 헤더의 「사유원 예약 관리 시스템」 = 메뉴로 (품목관리는 남은 변경을 저장한 뒤)
+// 헤더의 「사유원 예약 보조 시스템」 = 메뉴로 (품목관리는 남은 변경을 저장한 뒤)
 $('#brand').addEventListener('click', e=>{ if(!getUser()) return; e.preventDefault(); if(!$('#catWrap').hidden){ askClose(); return; } view='menu'; history.replaceState(null,'',location.pathname); paint(); });
 
 // ===================== 멤버관리 (팀 비밀번호 필요) =====================

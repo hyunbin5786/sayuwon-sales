@@ -2726,7 +2726,7 @@ function closeMy(){ if(MY_EMBED){ window.parent.postMessage({type:'sy-my', ev:'c
 // 단체 화면의 「마이페이지」 = 이 화면 위 팝업 (메뉴 6번은 한 페이지)
 $('#myOpenBtn').onclick=()=>openMy(true);
 if(location.hash==='#my' && !MY_ONLY) setTimeout(openMy, 300);   // 예전 주소 group.html#my
-if(MY_ONLY){ document.title='마이페이지 · 사유원 예약 관리 시스템'; $('#crumb').textContent='마이페이지'; setTimeout(openMy, 50); }
+if(MY_ONLY){ document.title='마이페이지 · 사유원 예약 보조 시스템'; $('#crumb').textContent='마이페이지'; setTimeout(openMy, 50); }
 document.addEventListener('click', e=>{ const b=e.target.closest('#myTabs [data-mt]'); if(!b) return; myTab=b.dataset.mt; try{ localStorage.setItem('sayuwon_my_tab', myTab); }catch(_){} renderMy(); });
 $('#myCloseBtn').onclick=closeMy;
 $('#myPast').onchange=renderMy;
@@ -2734,7 +2734,7 @@ $('#myModal').addEventListener('mousedown', e=>{ if(e.target.id==='myModal' && !
 $('#myBody').addEventListener('click', e=>{ const pe=e.target.closest('[data-popen]');
   if(MY_EMBED){ const ge=e.target.closest('[data-myopen]'); if(pe||ge) window.parent.postMessage({type:'sy-my', ev:'go', url: pe ? 'personal.html?open='+encodeURIComponent(pe.dataset.popen) : 'group.html?open='+encodeURIComponent(ge.dataset.myopen)}, '*'); return; }   // 팝업 안: 바깥 화면이 그 화면으로 이동
   if(pe){ guardLeave(()=>{ location.href='personal.html?open='+encodeURIComponent(pe.dataset.popen); }); return; } const el=e.target.closest('[data-myopen]'); if(!el) return; const r=cache.find(x=>x.id===el.dataset.myopen); if(!r) return;
-  if(MY_ONLY){ document.documentElement.classList.remove('my-only'); history.replaceState(null,'','group.html'); document.title='단체고객 전화응대 · 사유원 예약 관리 시스템'; $('#crumb').textContent='단체고객 전화응대'; $('#myModal').hidden=true; openRecordG(r); return; }   // 단체 줄 → 단체 화면으로 바뀌며 그 예약을 엶
+  if(MY_ONLY){ document.documentElement.classList.remove('my-only'); history.replaceState(null,'','group.html'); document.title='단체고객 전화응대 · 사유원 예약 보조 시스템'; $('#crumb').textContent='단체고객 전화응대'; $('#myModal').hidden=true; openRecordG(r); return; }   // 단체 줄 → 단체 화면으로 바뀌며 그 예약을 엶
   closeMy(); openRecordG(r); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#myModal').hidden){ e.preventDefault(); closeMy(); } });
 
