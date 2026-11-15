@@ -16,7 +16,7 @@ function paint(){
   { const cr=$('#crumb'); if($('#catWrap').hidden){ cr.textContent = u && view==='members' ? '멤버관리' : ''; cr.hidden = !cr.textContent; } }   // 헤더: 시스템 이름 › 지금 화면
   if(u){
     $('#whoName').textContent = `👤 ${u.name}`; $('#whoName').title = `사번 ${u.emp}`;
-    $('#hello').innerHTML = `${esc(u.name)}님, 무엇을 할까요?<small>메뉴를 고르세요. 각 화면 위쪽 「☰ 메뉴」로 이 화면에 돌아옵니다.</small>`;
+    $('#hello').innerHTML = `${esc(u.name)}님, 무엇을 할까요?`;
     $('#quoteLink').href = QUOTE;
     $('#setupBar').hidden = !u.setup;
     $('#setupBar').textContent = u.setup==='empty' ? '아직 등록된 멤버가 없어 누구나 로그인할 수 있습니다. 6번 멤버관리에서 직원(본인 포함)을 추가하면 그때부터 이름 · 사번을 확인합니다.'
