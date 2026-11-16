@@ -1639,7 +1639,7 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
-const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인' };
+const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인', clergy:'대구대교구 정보 기입' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 // noMb: 몽몽마방 식사 금액은 빼고 (몽몽마방 결제가 '마방' = 손님이 식당에서 결제 → 전산 비고 현장결제 금액에 넣지 않음)
 function moneySplit(r, noMb){
@@ -1692,7 +1692,7 @@ function erpNote(r){
   if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');
   if(r===rec){ const nt=itemNotesText(); if(nt.length) p.push('항목 비고 '+nt.join(', ')); }   // 예약 내역 줄마다 적은 비고
   if(r.goods) p.push('굿즈 '+goodsText(r)+(String(r.stf_goods||'').trim() ? ` (담당:${String(r.stf_goods).trim()})` : ' (담당:미정)'));   // 굿즈 구매   // 몽몽마방 결제를 마방으로 고르면
-  { const sp=specialCounts(r); if(sp.length) p.push('특별할인 '+sp.map(s=>`${s.short} ${s.n}명(${s.rate===1?'무료':Math.round(s.rate*100)+'%'})`).join(', ')); }   // 특별 할인(간송 · 국가유공자 · 군위 주민 · 대구대교구 · 직원)은 비고에 넣음, 기타 할인은 안 넣음 (2026-11-17)
+  { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy'); if(sp.length) p.push('특별할인 '+sp.map(s=>`${s.short} ${s.n}명(${s.rate===1?'무료':Math.round(s.rate*100)+'%'})`).join(', ')); if(cl) p.push(`${cl.short} ${cl.n}명 시트기입`); }   // 대구대교구는 「대구대교구 n명 시트기입」 (2026-11-17) · 특별 할인(간송 · 국가유공자 · 군위 주민 · 대구대교구 · 직원)은 비고에 넣음, 기타 할인은 안 넣음 (2026-11-17)
   // 금액: 현장에서 결제할 때만 (현장 결제 · 결제링크 + 현장 재결제). 몽몽마방 결제가 '마방'이면 식사 금액은 빼고 (식당에서 결제), '사무실'이면 넣음. 지금 적용된 사유원 · 신라 금액 (할인 · 기타 할인 · 줄에서 고친 할인액 · 전산 내역 반영)
   // 세금계산서 · 결제링크 · 기타 · 미정이면 전산 비고에 금액 문구를 넣지 않음 (2026-11-16)
   { const onsite = r.pay==='현장 결제' || r.onsite;
@@ -1730,7 +1730,7 @@ function autoDue(id, r){
   return todayYmd();
 }
 const taskDue = t => t.due || (t.at ? ymd(new Date(t.at)) : todayYmd());   // 예전 과업은 생긴 날
-const DOC_SUBS = { quote:[['make','견적서 생성'],['send','견적서 전송'],['nas','견적서 NAS에 업로드']], stmt:[['make','거래명세서 생성'],['send','거래명세서 전송'],['nas','거래명세서 NAS에 업로드']] };
+const DOC_SUBS = { quote:[['make','견적서 생성'],['send','견적서 전송'],['nas','견적서 NAS에 업로드']], stmt:[['make','거래명세서 생성'],['send','거래명세서 전송'],['nas','거래명세서 NAS에 업로드']] , clergy:[['ask','예약자에게 정보 요청'],['sheet','대구대교구 시트 기입']] };   // 대구대교구 특별 할인이 들어가면 (2026-11-17)
 const FOLLOW_DUE = new Set(['tbdcall','onsitecall','staffbrief','goodsprep','paycheck']);   // 답변일 · 방문일이 바뀌면 기한도 따라감 (직접 바꾸기 전까지)
 function syncAutoTasks(){
   const want = [], consult = effStage(rec)==='예약상담';   // 예약상담은 기록용: 추후 과업 없음
@@ -1746,13 +1746,14 @@ function syncAutoTasks(){
   if(rec.goods) want.push('goodsprep');   // 굿즈가 들어가면 방문 전날까지 굿즈 준비 (그날 13시 · 17시 알림)
   if(rec.date && STAFF_BASES().some(k=>rec[k])) want.push('staffbrief');   // 프로그램 · 굿즈가 있으면 방문 전날 담당자에게 일정 전달 (영업 담당이 직접 체크)
   if(rec.mabangL || rec.mabangTime) want.push('mbcall');   // 몽몽마방이 들어가면 식당에 전화로 시간 확인 (직접 체크)
+  if((parseInt(rec.dClergy)||0)>0) want.push('clergy');   // 대구대교구 특별 할인 → 대구대교구 정보 기입 (예약자에게 정보 요청 · 대구대교구 시트 기입)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
   const e0=tasks.find(t=>t.id==='erp');
   if(e0){ e0.done=!!rec.erp; if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
   const fixes = e0 && e0.base ? erpDiff(e0.base, erpSnap()) : [];
   if(fixes.length) want.push('erpfix');
   if(rec.tour) want.push('tour');   // 사전 답사가 잡히면 답사도 전산에 예약
-  if(consult){ const keep=want.filter(id=>id==='tour'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약만 (손대지 않은 것은 아래에서 빠짐)
+  if(consult){ const keep=want.filter(id=>id==='tour' || id==='clergy'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약만 (손대지 않은 것은 아래에서 빠짐)
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? String(rec.tour||'').split(/\s*,\s*/).join('\n') : '', at:new Date().toISOString(), due:autoDue(id, rec)}); });   // 사전 답사 과업 메모 = 답사 정보
   tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } if(!t.due) t.due=taskDue(t); });
   const fx=tasks.find(t=>t.id==='erpfix');
@@ -1769,7 +1770,7 @@ function syncAutoTasks(){
   const ec=tasks.find(t=>t.id==='erpcheck'); if(ec){ const c=erpCheck(); const was=ec.done; ec.done=c.ok; ec.check=c; if(c.ok && !was) ec.doneAt=new Date().toISOString(); if(!c.ok) ec.doneAt=''; }   // 전산 내역 대조: 맞으면 자동 완료, 다르면 다시 열림
   { const ls=tasks.find(t=>t.id==='linksend'); if(ls){ ls.done=!!rec.linkSent; ls.doneAt=rec.linkSent||''; }   // 결제링크 전송 = 버튼을 누른 일시
     const pc=tasks.find(t=>t.id==='paycheck'); if(pc){ if(rec.paidAt){ pc.done=true; pc.doneAt=rec.paidAt; } else if(pc.done){ rec.paidAt=pc.doneAt||new Date().toISOString(); touched.add('paidAt'); } } }   // 입금 확인 (알림 팝업에서 완료한 것도 일시로)
-  const ORDER=['tour','tbdcall','onsitecall','mbcall','mbmenu','progstaff','staffbrief','goodsprep','erp','erpcheck','erpfix','quote','stmt','tax','linksend','paycheck'];
+  const ORDER=['tour','clergy','tbdcall','onsitecall','mbcall','mbmenu','progstaff','staffbrief','goodsprep','erp','erpcheck','erpfix','quote','stmt','tax','linksend','paycheck'];
   // 순서: 마감일이 빠른 순, 마감일이 같으면 최근에 추가된 것이 위. 직접 옮긴 과업(ordSet)은 그 순서 그대로 두고,
   // 옮기지 않은 과업은 그 사이에 마감일에 맞게 끼워 넣음 (같은 마감일이면 직접 옮긴 것보다 위). 끝난 과업은 맨 아래
   const byNew=(a,b)=>taskDue(a).localeCompare(taskDue(b)) || String(b.at||'').localeCompare(String(a.at||''));
@@ -1798,7 +1799,7 @@ function addXsub(tid){
   inp.blur(); renderTasks(); renderSide(); autoSave();
   document.querySelector(`#taskList [data-xadd="${CSS.escape(tid)}"]`)?.focus();   // 이어서 또 적을 수 있게
 }
-const consultTask = t => t.id==='tour' || t.custom;   // 예약상담에서 보이는 과업: 사전답사 전산 예약 + 직접 추가한 과업
+const consultTask = t => t.id==='tour' || t.id==='clergy' || t.custom;   // 예약상담에서 보이는 과업: 사전답사 전산 예약 + 직접 추가한 과업
 function renderTasks(){
   syncAutoTasks();
   const consultOnly = effStage(rec)==='예약상담';   // 예약상담: 자동 과업은 없고(사전답사 전산 예약만) 직접 추가한 과업은 그대로
