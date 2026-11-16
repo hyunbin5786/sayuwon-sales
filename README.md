@@ -13,6 +13,7 @@ index.html            첫 화면: 로그인 · 메뉴 · 품목관리(#catalog) 
 personal.html         1. 개인고객 전화응대
 group.html            2. 단체고객 전화응대 (+ 7. 나의 할일 = group.html?my=1)
 prep.html             3. 다음날 고객 응대 준비
+naver.html            네이버 예약 → 사유원 전산 이관 (한 파일, 엑셀 읽기는 cdnjs xlsx)
 mypage.html           예전 주소 → group.html?my=1 로 넘김
 document/             4. 견적서 / 거래명세서 (+ 5. 품목관리 창 = document/?catalog=1)
   index.html
@@ -55,7 +56,7 @@ apps-script/
 |---|---|---|
 | **고객응대접수** | 개인고객 전화응대 | `personal.html` |
 | | 단체고객 전화응대 | `group.html` |
-| **고객응대보조** | 네이버 예약 → 사유원 전산 이관 | https://hyunbin5786.github.io/sayuwon-naver/ (저장소 sayuwon-naver · 같은 헤더 · 같은 로그인) |
+| **고객응대보조** | 네이버 예약 → 사유원 전산 이관 | `naver.html` (예전 sayuwon-naver 사이트의 index.html을 그대로 옮긴 한 파일 · 다른 사이트로 가는 링크 없음 · 같은 헤더 · 같은 로그인) |
 | | 다음날 고객 응대 준비 | `prep.html` |
 | | 견적서 / 거래명세서 발급 | `document/` |
 | **예약 현황 공유** | 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 | `group.html?book=mb · rent · docent · prog · coupon` — 단체 화면 「예약 현황」의 예약 목록 창을 한 페이지로. **로그인 없이 볼 수 있고**(팀 비밀번호는 필요 · 브라우저에 한 번), 로그인하지 않은 사람은 추가 · 수정 · 빼기 · 줄 눌러 예약 열기를 못 함. 로그인한 사람은 단체 화면과 똑같이 고칠 수 있고 줄을 누르면 단체 화면으로 바뀌며 그 예약이 열림 |
