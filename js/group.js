@@ -1597,8 +1597,10 @@ const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tou
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 // noMb: 몽몽마방 식사 금액은 빼고 (몽몽마방 결제가 '마방' = 손님이 식당에서 결제 → 전산 비고 현장결제 금액에 넣지 않음)
 function moneySplit(r, noMb){
-  if(r===rec && erpList.length){ const t=erpTotals(); let saw=t.saw, shilla=t.shilla;
-    if(noMb){ const E=erpByKey(); if(E.m.mb){ const m=erpRowMoney('mb', E.m.mb); saw=Math.max(0, saw-m.tf); shilla=Math.max(0, shilla-m.tx); } }
+  if(r===rec && erpList.length){ const t=erpTotals(); let saw=t.saw, shilla=t.shilla; const E=erpByKey();
+    if(noMb && E.m.mb){ const m=erpRowMoney('mb', E.m.mb); saw=Math.max(0, saw-m.tf); shilla=Math.max(0, shilla-m.tx); }
+    // 예약 내역에는 있는데 전산 내역에 없는 품목(예: 몽몽마방 식사를 전산에 안 넣음)은 예약 칸으로 계산해 더함 — 관람은 사유원, 그 밖(식사 · 프로그램 · 굿즈)은 신라 (2026-11-16)
+    if(quoteCat && r.date){ const {blocks}=quoteBlocks(r); blocks.forEach(b=>{ if(!b.key || E.m[b.key] || (noMb && b.key==='mb')) return; const m=blockMoney(b, r); if(!m) return; saw+=m.tf; shilla+=m.tx; }); }
     return {saw, shilla, etc:0, missing:false, erp:true}; }   // 전산 내역이 있으면 전산 금액 (세금계산서 문구 등)
   if(!quoteCat || !r.date || !numOf(r.people)) return null;
   const d=new Date(r.date+'T00:00'), viewSrc=viewSrcOf(r), vp=priceOf(viewSrc);
