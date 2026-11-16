@@ -2738,7 +2738,7 @@ async function tryOpenG(){ if(!openGId) return; const list = await store.list();
 setTimeout(tryOpenG, 400);
 const MY_EMBED = MY_ONLY && window.parent!==window;   // 다른 화면이 팝업으로 띄운 마이페이지
 function closeMy(){ if(MY_EMBED){ window.parent.postMessage({type:'sy-my', ev:'close'}, '*'); return; } if(MY_ONLY && document.documentElement.classList.contains('my-only')){ location.href='./'; return; } $('#myModal').hidden=true; }   // 팝업 = 바깥 화면이 닫음, 단독 페이지 = 메뉴로
-// 단체 화면의 「마이페이지」 = 이 화면 위 팝업 (메뉴 6번은 한 페이지)
+// 단체 화면의 「마이페이지」 = 이 화면 위 팝업 (메뉴 8번은 한 페이지)
 $('#myOpenBtn').onclick=()=>openMy(true);
 if(location.hash==='#my' && !MY_ONLY) setTimeout(openMy, 300);   // 예전 주소 group.html#my
 if(MY_ONLY){ document.title='마이페이지 · 사유원 예약 보조 시스템'; $('#crumb').textContent='마이페이지'; setTimeout(openMy, 50); }
@@ -2926,7 +2926,7 @@ $('#f_tbdDate').addEventListener('change', ()=>{ if(tbdIsLate(rec)){ if(!rec.tbd
 const VIEW_LS='sayuwon_view';
 let viewT=null, restoring=false;
 function saveView(){
-  if(!window.__autoReady || restoring || MY_ONLY) return;   // 마이페이지 단독 화면(메뉴 6)은 기억하지 않음 → 단체 화면을 열 때 마이페이지가 먼저 뜨지 않게
+  if(!window.__autoReady || restoring || MY_ONLY) return;   // 마이페이지 단독 화면(메뉴 8)은 기억하지 않음 → 단체 화면을 열 때 마이페이지가 먼저 뜨지 않게
   try{
     const dirty=isDirty();
     const v={ id:editingId||'', dirty, opt:[...optOpen], y:Math.round(window.scrollY),

@@ -19,7 +19,7 @@ function paint(){
     $('#hello').innerHTML = `${esc(u.name)}님, 무엇을 할까요?`;
     $('#quoteLink').href = QUOTE;
     $('#setupBar').hidden = !u.setup;
-    $('#setupBar').textContent = u.setup==='empty' ? '아직 등록된 멤버가 없어 누구나 로그인할 수 있습니다. 6번 멤버관리에서 직원(본인 포함)을 추가하면 그때부터 이름 · 사번을 확인합니다.'
+    $('#setupBar').textContent = u.setup==='empty' ? '아직 등록된 멤버가 없어 누구나 로그인할 수 있습니다. 7번 멤버관리에서 직원(본인 포함)을 추가하면 그때부터 이름 · 사번을 확인합니다.'
       : u.setup==='old' ? '공유 저장소(Apps Script)가 아직 예전 버전이라 이름 · 사번을 확인하지 못했습니다. 새 버전으로 배포하면 확인합니다.' : '';
     if(location.hash==='#catalog') openCatalog();
     if(view==='members') loadMembers();

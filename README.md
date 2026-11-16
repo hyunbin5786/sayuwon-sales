@@ -55,10 +55,10 @@ apps-script/
 | 2 | 단체고객 전화응대 | `group.html` |
 | 3 | **다음날 고객 응대 준비** | `prep.html` |
 | 4 | 견적서 / 거래명세서 발급 | `document/` |
-| 5 | 품목관리 | `#catalog` (메뉴에서는 한 페이지, 단체 · 견적서 화면의 「품목 관리」 버튼은 1200px 팝업) |
-| 6 | 멤버관리 | `#members` |
-| 7 | 마이페이지 · 나의 할 일 | `group.html?my=1` (다른 화면의 「마이페이지」 버튼은 팝업) |
-| 8 | 네이버 예약 → 사유원 전산 이관 | https://hyunbin5786.github.io/sayuwon-naver/ (저장소 sayuwon-naver · 같은 헤더 · 같은 로그인) |
+| 6 | 품목관리 | `#catalog` (메뉴에서는 한 페이지, 단체 · 견적서 화면의 「품목 관리」 버튼은 1200px 팝업) |
+| 7 | 멤버관리 | `#members` |
+| 8 | 마이페이지 · 나의 할 일 | `group.html?my=1` (다른 화면의 「마이페이지」 버튼은 팝업) |
+| 5 | 네이버 예약 → 사유원 전산 이관 | https://hyunbin5786.github.io/sayuwon-naver/ (저장소 sayuwon-naver · 같은 헤더 · 같은 로그인) |
 
 ---
 

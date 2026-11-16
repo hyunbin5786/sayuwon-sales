@@ -45,17 +45,17 @@ if(window.parent!==window && location.hash==='#catalog') location.replace((/gith
       <a class="card" data-go="quote" id="quoteLink" href="#">
         <div class="num">4</div><div><b>견적서 / 거래명세서 발급</b><span>예약 정보로 사유원 · 신라철강 견적서와 거래명세서를 만들고 발급 내역을 봅니다.</span></div>
       </a>
+      <a class="card" data-go="naver" href="https://hyunbin5786.github.io/sayuwon-naver/">
+        <div class="num">5</div><div><b>네이버 예약 → 사유원 전산 이관</b><span>네이버 예약 내역을 사유원 전산에 옮기는 도구 (위쪽 「사유원 예약 보조 시스템」으로 메뉴에 돌아옴)</span></div>
+      </a>
       <button type="button" class="card" data-go="catalog">
-        <div class="num">5</div><div><b>품목관리</b><span>예약 상품 · 가격 · 과세/비과세 · 할인 대상 · 구분(관람 · 관람+식사 · 굿즈 등)</span></div>
+        <div class="num">6</div><div><b>품목관리</b><span>예약 상품 · 가격 · 과세/비과세 · 할인 대상 · 구분(관람 · 관람+식사 · 굿즈 등)</span></div>
       </button>
       <button type="button" class="card" data-go="members">
-        <div class="num">6</div><div><b>멤버관리</b><span>로그인할 수 있는 직원(이름 · 사번)을 추가하거나 뺍니다.</span></div>
+        <div class="num">7</div><div><b>멤버관리</b><span>로그인할 수 있는 직원(이름 · 사번)을 추가하거나 뺍니다.</span></div>
       </button>
       <a class="card" data-go="my" href="mypage.html">
-        <div class="num">7</div><div><b>마이페이지 · 나의 할 일</b><span>내 개인고객 통화 · 단체 예약의 추후 과업을 한눈에 (전체 · 개인 · 단체)</span></div>
-      </a>
-      <a class="card" data-go="naver" href="https://hyunbin5786.github.io/sayuwon-naver/">
-        <div class="num">8</div><div><b>네이버 예약 → 사유원 전산 이관</b><span>네이버 예약 내역을 사유원 전산에 옮기는 도구 (위쪽 「사유원 예약 보조 시스템」으로 메뉴에 돌아옴)</span></div>
+        <div class="num">8</div><div><b>마이페이지 · 나의 할 일</b><span>내 개인고객 통화 · 단체 예약의 추후 과업을 한눈에 (전체 · 개인 · 단체)</span></div>
       </a>
     </div>
     <p class="note" id="menuNote">로그인한 이름은 예약 기록 · 영업 담당 · 견적서 담당에 들어갑니다. 공유 기록은 지금처럼 팀 비밀번호로 보호됩니다.</p>
@@ -88,8 +88,8 @@ if(window.parent!==window && location.hash==='#catalog') location.replace((/gith
 <!-- 품목관리: 견적서 사이트의 품목 관리 창을 그대로 띄움 (닫으면 메뉴로) -->
 <div class="catwrap" id="catWrap" hidden><iframe id="catFrame" title="품목관리"></iframe></div>
 
-<script src="js/portal.js?v=20261116b"></script>
-<!-- 마이페이지 팝업 (메뉴 7번 페이지 group.html?my=1 을 그대로 띄움) -->
+<script src="js/portal.js?v=20261116c"></script>
+<!-- 마이페이지 팝업 (메뉴 8번 페이지 group.html?my=1 을 그대로 띄움) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="마이페이지"></iframe></div></div>
 <script src="js/mypop.js?v=20261116"></script>
 </body>
