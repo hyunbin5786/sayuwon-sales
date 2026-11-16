@@ -2337,8 +2337,12 @@ function fillFromErp(list){
 }
 // 전산 내역 ↔ 예약 내용 다른 점 (식사 · 몽몽마방 · 프로그램 · 굿즈 · 방문일 · 관람 인원 + 알아보지 못한 상품)
 function erpCompare(list){
-  const {o, unknown}=erpFields(list), show=(k,v)=>!v?(k==='viewN'?'자동':'없음'):k==='goods'?goodsText({goods:v}):k==='views'?viewsParse(v).map(x=>`${itemLabel(x.src)} ${x.qty}명`).join(', '):k==='date'?dateLabel(v):/^\d+$/.test(String(v))&&UNIT(k)?v+(k==='people'||/^sadam|mabangL/.test(k)?'명':UNIT(k)):v;
-  const d=[...ERP_FILL_KEYS(),'people','date'].filter(k=>String(o[k]||'')!==String(rec[k]||'') && !((k==='people'||k==='date') && !o[k]))
+  // 관람 · 굿즈는 글자 그대로 비교하면 띄어쓰기 · 평일/주말 · 순서 · 같은 품목이 두 줄로 나뉜 것만으로도 '다름'이 되어 같은 내용이 다르다고 떴음 (2026-11-16)
+  // → 품목(평일 · 주말은 방문일에 맞춰, 띄어쓰기 무시)별 수량 합으로 비교. 다를 때는 시간대까지 보이게 (관람 (9~18시) 20명)
+  const qmap = (k,v) => { const m={}; (k==='views'?viewsParse(v):goodsParse(v)).forEach(x=>{ const key=normSrc(k==='views'?daySrc(x.src, rec):x.src); m[key]=(m[key]||0)+(+x.qty||0); }); return JSON.stringify(Object.keys(m).sort().filter(a=>m[a]).map(a=>[a,m[a]])); };
+  const same = (k,a,b) => (k==='views'||k==='goods') ? qmap(k,a)===qmap(k,b) : String(a||'')===String(b||'');
+  const {o, unknown}=erpFields(list), show=(k,v)=>!v?(k==='viewN'?'자동':'없음'):k==='goods'?goodsText({goods:v}):k==='views'?viewsParse(v).map(x=>`${viewLabel(daySrc(x.src, rec))} ${x.qty}명`).join(', '):k==='date'?dateLabel(v):/^\d+$/.test(String(v))&&UNIT(k)?v+(k==='people'||/^sadam|mabangL/.test(k)?'명':UNIT(k)):v;
+  const d=[...ERP_FILL_KEYS(),'people','date'].filter(k=>!same(k, o[k], rec[k]) && !((k==='people'||k==='date') && !o[k]))
     .map(k=>({k, label:k==='goods'?'굿즈':k==='views'?'관람 · 관람+식사':k==='viewN'?'기본 관람권 인원':LABEL[k]||k, mine:show(k,rec[k]), erp:show(k,o[k])}));
   unknown.forEach(p=>d.push({k:'?', label:'알아보지 못한 전산 상품', mine:'-', erp:p}));
   return d;
