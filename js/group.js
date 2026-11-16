@@ -272,17 +272,16 @@ const ispEmpty = v => !v || (!Object.keys(v.sp||{}).length && !v.tf && !v.tx);
 const ispStr = m => Object.entries(m).filter(([,v])=>!ispEmpty(v)).map(([k,v])=>`${k}=${Object.entries(v.sp).map(([a,n])=>`${a}:${n}`).join(',')}|${v.tf||0}:${v.tx||0}|${String(v.why||'').replace(/[;|=\/]/g,' ').trim()}`).join('; ');
 function ispSumUp(){   // 줄마다 넣은 것 → 예약 전체 칸
   const m=Object.values(ispMap(rec)), set=(k,v)=>{ v=v?String(v):''; if(String(rec[k]||'')!==v){ rec[k]=v; touched.add(k); } };
-  SP_KEYS.forEach(k=>set(k, m.reduce((s,v)=>s+(v.sp[k]||0),0)));
+  SP_KEYS.forEach(k=>set(k, Math.max(0, ...m.map(v=>v.sp[k]||0))));   // 같은 분이 여러 품목(관람 · 식사 등)에서 할인받으면 품목마다 넣으므로, 인원은 품목 중 가장 큰 수 (합치면 2배로 셈)
   set('etcDiscTf', m.reduce((s,v)=>s+v.tf,0)); set('etcDiscTx', m.reduce((s,v)=>s+v.tx,0));
   set('etcDiscWhy', [...new Set(m.filter(v=>v.tf||v.tx).map(v=>v.why).filter(Boolean))].join(', '));
   if(rec.etcDisc){ set('etcDisc',''); set('etcDiscTo',''); }
 }
-function ispMigrate(k){   // 예전 기록: 예약 전체로 넣었던 특별 할인 · 기타 할인 → 첫 할인 대상 줄(없으면 이 줄)로 옮김 (합계는 그대로)
+function ispMigrate(k){   // 예약 전체로 들어 있던 특별 할인 · 기타 할인(예전 기록 · 전산 내역에서 읽은 것) → 지금 연 줄로 옮김 (팝업에 바로 보여서 같은 인원을 또 넣지 않게)
   if(String(rec.isp||'').trim()) return;
   const sp={}; SP_KEYS.forEach(x=>{ const n=parseInt(rec[x])||0; if(n>0) sp[x]=n; }); const es=etcSplit(rec);
   if(!Object.keys(sp).length && !es.tx && !es.tf) return;
-  const {blocks}=quoteBlocks(rec), b=blocks.find(b=>b.disc && b.key) || blocks.find(b=>b.key);
-  rec.isp=ispStr({[dkey(b ? b.key : k)]:{sp, tf:es.tf, tx:es.tx, why:rec.etcDiscWhy||''}}); touched.add('isp');
+  rec.isp=ispStr({[dkey(k)]:{sp, tf:es.tf, tx:es.tx, why:rec.etcDiscWhy||''}}); touched.add('isp');
 }
 function setItemSp(k, val){   // val = {sp, tf, tx, why} · null = 이 줄 특별 할인 없앰
   ispMigrate(k); const m=ispMap(rec);
@@ -300,7 +299,7 @@ function openSp(k){ spKey=k; ispMigrate(k); document.querySelectorAll('#itemsBox
   $('#spTitle').textContent = `특별 할인 · ${itemName(k)}`;
   $('#spPeople').innerHTML = SPECIAL.map(s=>`<label title="${esc(s.name)} · ${s.rate===1?'무료':Math.round(s.rate*100)+'%'} · 지참: ${esc(s.proof)}">${esc(s.short)} <small>${s.rate===1?'무료':Math.round(s.rate*100)+'%'}</small><input data-spk="${s.k}" inputmode="numeric" data-ime="num" maxlength="3" autocomplete="off" value="${v.sp[s.k]||''}">명</label>`).join('');
   $('#spTf').value = v.tf ? wonTxt(v.tf) : ''; $('#spTx').value = v.tx ? wonTxt(v.tx) : ''; $('#spWhy').value = v.why||'';
-  const n=numOf(itemQty(k)); $('#spHint').textContent = n ? `이 품목 ${n}${itemUnit(k)} 중 특별 할인 인원은 단체 할인과 비교해 큰 쪽 하나만 적용됩니다.` : '';
+  const n=numOf(itemQty(k)); $('#spHint').textContent = n ? `이 품목 ${n}${itemUnit(k)} 중 특별 할인 인원은 단체 할인과 비교해 큰 쪽 하나만 적용됩니다. 같은 분이 다른 품목에서도 할인받으면 그 품목에도 넣으세요 (증빙 안내 인원은 품목 중 가장 큰 수).` : '';
   $('#spModal').hidden=false; setTimeout(()=>$('#spPeople input')?.focus(), 0); }
 function spApply(){ if(spKey==null) return;
   const sp={}; document.querySelectorAll('#spPeople [data-spk]').forEach(el=>{ const n=parseInt(el.value.replace(/\D/g,''))||0; if(n>0) sp[el.dataset.spk]=n; });
@@ -2298,7 +2297,7 @@ function erpFields(list){
     const p=x.product, ns=normSrc(p), n=x.people||0;
     x.notes.forEach(t=>{
       const m=t.match(/^기타\s*할인\s*-?\s*([\d,]+)/); if(m){ etc+=wonNum(m[1]); if(!etcTo){ const s=erpSplit(x); etcTo = s.saw && !s.shilla ? '사유원' : '신라'; } return; }
-      const s=SPECIAL.find(s=>t.includes(s.short)), c=t.match(/(\d+)\s*명/); if(s && c) sp[s.k]=(sp[s.k]||0)+(+c[1]);   // 특별 할인 인원
+      const s=SPECIAL.find(s=>t.includes(s.short)), c=t.match(/(\d+)\s*명/); if(s && c) sp[s.k]=Math.max(sp[s.k]||0, +c[1]);   // 특별 할인 인원 (같은 분이 여러 상품 줄에 나오므로 합치지 않고 가장 큰 수)
     });
     if(/\(관람,\s*사담\s*런치\s*1부\)/.test(p)) add('sadam1',n);
     else if(/\(관람,\s*사담\s*런치\s*2부\)/.test(p)) add('sadam2',n);
