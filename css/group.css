@@ -261,10 +261,13 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .texp:hover{color:var(--pine)}   /* 해결: 회색 + 취소선 */
 .task.late{background:#fdf0ee;border-color:#e0a399}   /* 기한 지남: 빨강 */
 .task-h{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
-.task-c{display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer}
-.task-c input{width:17px;height:17px;accent-color:var(--pine);flex:none}
-.task.done .task-c span{text-decoration:line-through;color:#9a9a92}
-.task.late .task-c span{color:var(--red)}
+.task-c{display:flex;align-items:center;gap:6px;flex:1;min-width:0}   /* 체크 = 완료, 제목 = 누르면 고치기 (2026-11-16) */
+.task-c input[type=checkbox]{width:17px;height:17px;accent-color:var(--pine);flex:none;cursor:pointer}
+.task-c .ttl{flex:1;min-width:0;height:28px;border:1px solid transparent;border-radius:5px;background:transparent;padding:0 5px;font:inherit;color:inherit;cursor:text;text-overflow:ellipsis}
+.task-c .ttl:hover{border-color:var(--line);background:#fff}
+.task-c .ttl:focus{border-color:var(--pine);background:#fff;outline:none}
+.task.done .task-c span,.task.done .task-c .ttl{text-decoration:line-through;color:#9a9a92}
+.task.late .task-c span,.task.late .task-c .ttl{color:var(--red)}
 .my-task{display:inline-block;font-size:12.5px;color:var(--ink);margin-top:2px}
 .my-task small{color:var(--muted)}
 .my-task.today{background:#fff3a6;border-radius:4px;padding:0 5px;margin-left:-5px;font-weight:600}   /* 오늘 마감 = 노란색 */

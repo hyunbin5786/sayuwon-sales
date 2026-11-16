@@ -146,7 +146,7 @@ function paintTasks(){
   const today=todayYmd();
   box.innerHTML = sortedTasks().map(t=>{ const due=t.due||today, late=!t.done && due<today, fold=t.done && !openDone.has(t.id);
     return `<li class="task${t.done?' done':late?' late':''}${fold?' collapsed':''}" data-id="${esc(t.id)}">`
-      + `<div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<label class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''}><span>${esc(t.title)}</span></label>`
+      + `<div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<span class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''} title="체크하면 완료"><input class="ttl" data-tttl="${esc(t.id)}" value="${esc(t.title)}" data-ime="ko" spellcheck="false" autocomplete="off" title="눌러서 제목 고치기 (Enter로 확정)"></span>`
       + `${t.done?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}`
       + `${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}`
       + `<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"></label>`
@@ -167,6 +167,7 @@ function addXsub(tid){ const inp=document.querySelector(`#taskList [data-xadd="$
   (t.xsubs ||= []).push({id:'x'+Date.now().toString(36), title:v, done:false}); if(t.done){ t.done=false; t.doneAt=''; }
   inp.blur(); taskChanged(); document.querySelector(`#taskList [data-xadd="${CSS.escape(tid)}"]`)?.focus(); }
 $('#taskList').addEventListener('change', e=>{ const d=e.target.dataset;
+  if(d.tttl){ const t=taskOf(d.tttl); if(!t) return; const v=e.target.value.trim(); if(!v){ e.target.value=t.title; return; } if(v!==t.title){ t.title=v; t.titleSet=1; taskChanged(); } return; }   // 과업 제목 고치기 (제목을 눌러서)
   if(d.xsub){ const [tid,xid]=d.xsub.split('|'), t=taskOf(tid), x=t&&(t.xsubs||[]).find(s=>s.id===xid); if(!x) return; x.done=e.target.checked;
     const all=(t.xsubs||[]).every(s=>s.done); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=user.name||''; } if(!all && t.done){ t.done=false; t.doneAt=''; } taskChanged(); return; }   // 세부 과제가 모두 끝나면 완료
   if(d.tdue){ const t=taskOf(d.tdue); if(t && e.target.value){ t.due=e.target.value; t.dueSet=1; taskChanged(); } return; }
@@ -180,6 +181,7 @@ $('#taskList').addEventListener('click', e=>{ const b=e.target.closest('button')
   if(d.tmv){ const [id,dir]=d.tmv.split('|'), open=sortedTasks().filter(t=>!t.done), i=open.findIndex(t=>t.id===id), j=i+(+dir);   // ▲▼: 안 끝난 과업끼리
     if(i<0 || j<0 || j>=open.length) return; [open[i],open[j]]=[open[j],open[i]]; open.forEach((t,k)=>{ t.ord=k*10; t.ordSet=1; }); taskChanged(); }
 });
+$('#taskList').addEventListener('keydown', e=>{ if(e.target.dataset.tttl!==undefined){ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); e.target.blur(); } else if(e.key==='Escape'){ const t=(typeof taskOf==='function'?taskOf:(id=>tasks.find(x=>x.id===id)))(e.target.dataset.tttl); if(t) e.target.value=t.title; e.target.blur(); } } });   // 과업 제목: Enter = 확정, Esc = 되돌리기
 $('#taskList').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing && e.target.dataset.xadd!==undefined){ e.preventDefault(); addXsub(e.target.dataset.xadd); } });   // 세부 과제: 적고 Enter
 $('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=taskOf(id); if(t){ t.memo=e.target.value; touch(); } });
 $('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) setTimeout(()=>{ taskSave(); paintForm(); },0); });   // 메모는 칸을 벗어나면 저장
