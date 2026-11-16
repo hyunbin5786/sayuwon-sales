@@ -226,7 +226,7 @@
   <!-- 통화 메모 (2열 · 통화 중 확인 아래, 따로 된 칸) -->
   <section class="panel memo-panel">
     <h2>통화 메모 <small>칸에 없는 특이사항 · 전산 비고에도 들어갑니다</small></h2>
-    <textarea id="memoBox"></textarea>
+    <textarea id="memoBox" data-ime="ko" lang="ko" spellcheck="false" autocomplete="off"></textarea><!-- 다른 칸처럼 들어가면 바로 한글 (한/영 키 · Shift+Space · 위쪽 한/A 로 영어) -->
   </section>
 
   <!-- 가격표: 견적서 사이트 품목 목록 기준 (품목 관리에서 바꾼 가격은 열 때 다시 불러옴) -->
@@ -319,7 +319,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/group.js?v=20261116j"></script>
+<script src="js/group.js?v=20261116k"></script>
 <script src="js/ime.js?v=20261116"></script>
 </body>
 </html>
