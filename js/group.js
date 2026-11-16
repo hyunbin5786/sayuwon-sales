@@ -530,7 +530,7 @@ function paintItemPrices(){
     el.innerHTML=h; if(am) am.innerHTML=amt; });
   // 전산에만 있는 상품 (예약 내역 줄로 못 옮긴 것)
   if(E) erpList.forEach(x=>{ const k=erpKeyOf(x.product); if(k && !itemRows.includes(k) && !E.other.includes(x)) E.other.push(x); });   // 품목은 알지만 예약 내역에 줄이 없는 것도
-  const ex=$('#erpExtra'); if(ex){ ex.innerHTML = E && E.other.length ? `<div class="it-row it-erponly"><b>전산에만 있는 상품</b>${E.other.map(x=>`<div class="it-money">${`<span class="im"><i>상품</i>${esc(x.product)}</span><span class="im"><i>인원</i>${x.people}</span><span class="im"><i>할인</i>${x.disc?'-'+won(x.disc):'없음'}</span><span class="im amt"><i>금액</i><b>${won(x.amount)}</b></span>`}${erpKeyOf(x.product) ? `<button type="button" class="btn it-erpadd" data-erpadd="${erpList.indexOf(x)}" title="이 상품을 예약 내역 줄로 추가 (인원 · 수량은 전산 그대로)">＋ 항목으로 추가</button>` : `<span class="im warn">품목 관리에 없는 상품 · 품목을 먼저 추가</span>`}</div>`).join('')}</div>` : ''; }
+  const ex=$('#erpExtra'); if(ex){ ex.innerHTML = E && E.other.length ? `<div class="it-row it-erponly"><b>전산에만 있는 상품</b>${E.other.map(x=>`<div class="it-money">${`<span class="im"><i>상품</i>${esc(x.product)}</span><span class="im"><i>인원</i>${x.people}</span><span class="im"><i>할인</i>${x.disc?'-'+won(x.disc):'없음'}</span><span class="im amt"><i>금액</i><b>${won(x.amount)}</b></span>`}${erpKeyOf(x.product) ? `<button type="button" class="btn it-erpadd" data-erpadd="${erpList.indexOf(x)}" title="이 상품을 예약 내역 줄로 추가 (인원 · 수량은 전산 그대로)">＋ 항목으로 추가</button>` : `<span class="im warn">품목 관리에 없는 상품</span><button type="button" class="btn it-erpadd" data-erpcat="${erpList.indexOf(x)}" title="이 상품을 품목 관리에 추가하고(가격 = 전산 상품금액 ÷ 인원) 예약 내역 줄로도 넣습니다">＋ 품목 관리에 추가</button>`}</div>`).join('')}</div>` : ''; }
 }
 // 전산에만 있는 상품 → 예약 내역 줄로 (인원 · 수량은 전산 그대로)
 document.addEventListener('click', e=>{ const b=e.target.closest('#itemsBox [data-erpadd]'); if(!b) return; const x=erpList[+b.dataset.erpadd]; if(!x) return;
@@ -538,6 +538,27 @@ document.addEventListener('click', e=>{ const b=e.target.closest('#itemsBox [dat
   if(k==='mb'){ const m=mbMenus().find(m=>normSrc(m.src)===normSrc(x.product)); if(m){ rec.mabangMenu=m.name; touched.add('mabangMenu'); } }   // 몽몽마방은 그 메뉴로
   setItemQty(k, String(numOf(itemQty(k)) + (x.people||0))); if(!itemRows.includes(k)) itemRows.push(k);
   itemChanged(true); toast(`${itemLabel(x.product)} ${x.people}${erpUnit(x)}을(를) 예약 내역에 추가했습니다. 담당 · 비고를 확인하세요.`);
+});
+// 품목 관리에 없는 전산 상품 → 품목 관리(공유 품목 목록)에 자동 추가 → 바로 예약 내역 줄로 (2026-11-16)
+//  가격 = 전산 상품금액(할인 전) ÷ 인원 · 구분: 이름에 관람 → 관람(비과세 · 사유원, 할인 대상) / 식사 · 런치 등 → 식사 / 그 밖 → 굿즈 (과세 · 신라). 품목 관리에서 고칠 수 있음
+document.addEventListener('click', async e=>{ const b=e.target.closest('#itemsBox [data-erpcat]'); if(!b) return; const x=erpList[+b.dataset.erpcat]; if(!x) return;
+  const name=String(x.product||'').trim(), n=Math.max(1, x.people||1), unit=Math.round((x.base||x.amount||0)/n);
+  if(!name){ toast('상품 이름이 없습니다.'); return; }
+  if(catalogItems().some(it=>normSrc(it.src)===normSrc(name))){ toast('이미 품목 관리에 있는 상품입니다. 화면을 새로고침해 주세요.'); return; }
+  const kind = /관람/.test(name) && !/관람권|관람식사권/.test(name) ? 'view' : /식사|정식|런치|디너|밥상|도시락|비빔밥/.test(name) ? 'food' : 'goods', KL={view:'관람', food:'식사', goods:'굿즈'};
+  if(!confirm(`품목 관리에 추가할까요? (모두가 쓰는 품목 목록)\n\n상품: ${name}\n가격: ${won(unit)}원 (${kind==='goods'?'1개':'1인'} · 전산 상품금액 ${won(x.base||x.amount)}원 ÷ ${n})\n구분: ${KL[kind]} · ${kind==='view'?'비과세(사유원)':'과세(신라)'}\n\n추가한 뒤 이 예약 내역에도 줄로 넣습니다. 가격 · 구분은 품목 관리에서 고칠 수 있습니다.`)) return;
+  b.disabled=true; b.textContent='추가하는 중…';
+  const item={uid:Date.now(), src:name, name, kind, form: kind==='view'?'sayuwon':'shilla', price:unit, disc: kind==='view'};
+  try{
+    const r=await fetch(QUOTE_SHARED_URL, {method:'POST', body:JSON.stringify({ops:[{op:'add', item}]})}).then(r=>r.json());
+    if(!r || r.ok===false) throw new Error((r && r.error) || '저장 실패');
+    if(r.data && quoteCat){ quoteCat.added=r.data.added||quoteCat.added; quoteCat.edits=r.data.edits||quoteCat.edits; writeJSON('sayuwon_quote_cat', quoteCat); }
+    else if(quoteCat){ (quoteCat.added ||= []).unshift(item); writeJSON('sayuwon_quote_cat', quoteCat); }
+    markDb('cat');
+  }catch(err){ b.disabled=false; b.textContent='＋ 품목 관리에 추가'; toast('품목 관리에 추가하지 못했습니다: '+err.message); return; }
+  toast(`「${name}」을(를) 품목 관리에 추가했습니다 (${KL[kind]} · ${won(unit)}원).`);
+  renderSide(); paintItemPrices();
+  const k=erpKeyOf(x.product); if(k){ setItemQty(k, String(numOf(itemQty(k)) + (x.people||0))); if(!itemRows.includes(k)) itemRows.push(k); itemChanged(true); }   // 그대로 예약 내역 줄로
 });
 function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은 넣은 묶음만
   document.querySelectorAll('#itemsBox [data-is]').forEach(el=>el.closest('.it-s').classList.toggle('missing', !el.value.trim()));
