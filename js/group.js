@@ -1370,8 +1370,15 @@ async function callApi(body){
 function merged(){
   const m=new Map(serverItems.map(x=>[x.id,x]));
   pending.forEach(p=>{ if(p.action==='put') m.set(p.item.id,{...p.item,_pending:true}); else m.delete(p.id); });
+  // 개인고객 화면에서 이 브라우저로 고친 통화 (과업 체크 등): 시트에 아직 안 올라갔거나 시트를 다시 받기 전이면 그 내용을 씀
+  const pp = readJSON('sayuwon_personal_pending',[]), pc = readJSON('sayuwon_personal_cache',[]);
+  [...pc, ...pp.filter(p=>p.action==='put').map(p=>p.item)].forEach(x=>{ if(!x || !x.id || !x._localAt) return; const s=m.get(x.id);
+    if(!s || String(s.updated||'') < x._localAt) m.set(x.id, x); });
+  pp.forEach(p=>{ if(p.action==='delete') m.delete(p.id); });
   return [...m.values()];
 }
+window.addEventListener('storage', e=>{ if(!/^sayuwon_personal_(pending|cache)$/.test(e.key||'')) return; cache=merged();
+  if(window.__tasksReady){ paintMyCount(); if(!$('#myModal').hidden) renderMy(); } });   // 다른 창(개인고객)에서 과업을 체크하면 나의 할일에 바로
 function paintSync(){
   const chip=$('#syncChip'), n=pending.length;
   // 연결돼 있으면 아무것도 안 보임. 문제가 있을 때만 헤더에 표시 (비밀번호 문제는 팝업)

@@ -52,8 +52,10 @@ async function pull(inFlush){
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
 function put(item){
+  item._localAt = new Date().toISOString();   // 나의 할일(단체 화면)이 시트보다 이 브라우저의 새 내용을 먼저 보이게
   pending = pending.filter(p=>!(p.action==='put' && p.item.id===item.id)); pending.push({action:'put', item}); writeJSON(PEND_LS,pending);
   const i=items.findIndex(x=>x.id===item.id); if(i>=0) items[i]=item; else items.push(item);
+  writeJSON(CACHE_LS, items.slice(-500));
   renderLists(); paintSync(); flush(); paintMyCount();
 }
 $('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#keyInput').value.trim(); if(!v) return; try{ localStorage.setItem(KEY_LS, v); }catch(_){} $('#keyInput').value=''; flush(); });
