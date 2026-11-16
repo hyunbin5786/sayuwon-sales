@@ -10,7 +10,7 @@ const FIELDS = [
   ['기본','pchg','인원 변경','','',  null],   // 인원이 바뀔 수 있으면 체크
   ['방문','tin','입장시각','H','',  '몇 시쯤 도착 예정이세요?'],
   ['방문','gate','입장문','','',  null],   // 치허문 · 곡신문 · 미정
-  ['방문','tout','퇴장시각 (선택)','H','',  null],
+  ['방문','tout','퇴장시각 (선택)','H','',  null],   // 2026-11-16 화면에서 숨김 (그 자리에 차량). 예전 기록 값은 확인 멘트 · 요약에 그대로
   ['방문','vehicle','차량','G','w2',  '버스로 오세요, 승용차로 오세요? 몇 대인가요?'],
   ['방문','owner','영업 담당','E','',  null],
   ['방문','pay','결제','F','',  '결제는 세금계산서, 결제링크, 현장 결제 중 어떻게 하실까요?'],
@@ -898,19 +898,26 @@ function renderSide(){
   if(window.__autoReady) scheduleAuto();   // 고칠 때마다 자동 저장 타이머
   if(window.__autoReady) saveViewSoon();   // 새로고침해도 이 화면 그대로
 }
-// 결제링크: 결제 칸 줄 아래에 「결제링크 전송」 · 「입금 확인」 버튼. 누르면 그 일시를 기록(다시 누르면 지울지 물음), 추후 과업(결제링크 전송 · 입금 확인)과 서로 맞춤
-const PAYLINK = [['linkSent','결제링크 전송','linksend'],['paidAt','입금 확인','paycheck']];
+// 결제링크: 결제 · 현장 재결제 옆에 「결제링크 전송」 · 「입금 확인」 체크 칸 (현장 재결제와 같은 모양, 결제링크일 때만 체크 가능)
+// 체크하면 그 일시를 기록(칸에 일시가 보임), 끄면 지울지 물음. 추후 과업(결제링크 전송 · 입금 확인)과 서로 맞춤
+const PAYLINK = [['linkSent','결제링크 전송','linksend','보냄'],['paidAt','입금 확인','paycheck','입금됨']];
 function paintPayLink(){
-  const w=document.getElementById('w_pay'); if(!w) return;
-  let b=document.getElementById('payLinkBox');
-  if(!b){ b=document.createElement('div'); b.id='payLinkBox'; b.className='paylink'; (document.getElementById('w_onsite')||w).after(b); }
-  const on=rec.pay==='결제링크'; b.hidden=!on; if(!on){ b.innerHTML=''; return; }
-  b.innerHTML = `<span class="pl-t">결제링크</span>` + PAYLINK.map(([k,l])=>`<button type="button" class="plbtn${rec[k]?' on':''}" data-pl="${k}" title="${rec[k]?`${l} ${dtLabel(rec[k])} · 다시 누르면 기록을 지울지 물어봅니다`:`누르면 ${l} 일시가 기록되고 추후 과업도 완료됩니다`}"><i>${rec[k]?'✓':''}</i>${l}${rec[k]?` <small>${esc(dtLabel(rec[k]))}</small>`:''}</button>`).join('');
+  const anchor=document.getElementById('w_onsite') || document.getElementById('w_pay'); if(!anchor) return;
+  const on=rec.pay==='결제링크';
+  let prev=anchor;
+  PAYLINK.forEach(([k,l,,txt])=>{
+    let w=document.getElementById('pl_'+k);   // w_linkSent 는 숨은 칸이 따로 있어서 pl_
+    if(!w){ w=document.createElement('div'); w.className='f'; w.id='pl_'+k; w.innerHTML=`<label for="plck_${k}"><span>${l}</span></label><div class="inbox"><label class="ckf"><input type="checkbox" id="plck_${k}" data-pl="${k}"> <span class="pl-txt"></span></label></div>`; prev.after(w); }
+    prev=w;
+    const ck=w.querySelector('input'), lb=w.querySelector('.ckf'), sp=w.querySelector('.pl-txt');
+    ck.disabled=!on; ck.checked=!!rec[k]; sp.textContent = rec[k] ? (d=>`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`)(new Date(rec[k])) : txt;   // 칸이 좁아 11/16 15:09 (요일은 마우스를 올리면)
+    lb.title = !on ? '결제 방식이 결제링크일 때만 체크할 수 있습니다' : rec[k] ? `${l} ${dtLabel(rec[k])} · 끄면 기록을 지울지 물어봅니다` : `체크하면 ${l} 일시가 기록되고 추후 과업도 완료됩니다`;
+  });
 }
-document.addEventListener('click', e=>{ const btn=e.target.closest?.('#payLinkBox [data-pl]'); if(!btn) return;
-  const [k,l,tid]=PAYLINK.find(p=>p[0]===btn.dataset.pl);
-  if(rec[k]){ if(!confirm(`${l} 기록(${dtLabel(rec[k])})을 지울까요?`)) return; rec[k]=''; }
-  else { if(k==='paidAt' && !rec.linkSent && !confirm('결제링크 전송 기록이 없습니다. 그래도 입금 확인으로 표시할까요?')) return; rec[k]=new Date().toISOString(); }
+document.addEventListener('change', e=>{ const ck=e.target; if(!ck.matches?.('input[data-pl]')) return;
+  const [k,l,tid]=PAYLINK.find(p=>p[0]===ck.dataset.pl);
+  if(!ck.checked){ if(rec[k] && !confirm(`${l} 기록(${dtLabel(rec[k])})을 지울까요?`)){ ck.checked=true; return; } rec[k]=''; }
+  else { if(k==='paidAt' && !rec.linkSent && !confirm('결제링크 전송 기록이 없습니다. 그래도 입금 확인으로 표시할까요?')){ ck.checked=false; return; } rec[k]=new Date().toISOString(); }
   touched.add(k); const t=tasks.find(x=>x.id===tid); if(t){ t.done=!!rec[k]; t.doneAt=rec[k]||''; }
   startTimer(); paintPayLink(); renderSide(); renderTasks(); if(window.__autoReady) scheduleAuto();
   if(rec[k]) toast(`${l} ${dtLabel(rec[k])} 기록했습니다.`);
