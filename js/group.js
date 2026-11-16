@@ -916,8 +916,9 @@ const mbDbOn = d => mbDb().rows.filter(x=>x.d===d).sort((a,b)=>String(a.t).local
 // 대관 · 도슨트 · 프로그램 현황: 예약접수가 된 단체 예약에서 자동으로 (저장된 예약 + 지금 화면의 예약)
 //  대관 = 차방 대관(몽몽차방) · 당두봉갈 대관 / 도슨트 = 동행 도슨트(동행) · 세미나 도슨트(PPT) · 이름에 도슨트가 들어간 추가 프로그램 / 프로그램 = 그 밖의 개별 · 시간 프로그램
 const RENT_PLACE = { chabang:'몽몽차방', dangdu:'당두봉갈' }, DOCENT_KIND = { donghaeng:'동행', seminar:'PPT' };
-const bookCat = k => RENT_PLACE[k] ? 'rent' : (DOCENT_KIND[k] || isDocent(LABEL[k])) ? 'docent' : 'prog';
-const BOOK_CATS = { rent:'대관', docent:'도슨트', prog:'프로그램' };
+const isCoupon = k => /음료쿠폰/.test(LABEL[k]||'') || /음료쿠폰/.test(PROG_SRC[k]||'');   // 음료쿠폰(가가빈빈 · 몽몽차방)
+const bookCat = k => RENT_PLACE[k] ? 'rent' : (DOCENT_KIND[k] || isDocent(LABEL[k])) ? 'docent' : isCoupon(k) ? 'coupon' : 'prog';
+const BOOK_CATS = { rent:'대관', docent:'도슨트', prog:'프로그램', coupon:'음료쿠폰' };
 function bookRows(){ try{ return bookRows0(); }catch(_){ return []; } }   // 초기화 중(아래 정의 전)에 불려도 되게
 function bookRows0(){
   const out=[];   // 지금 화면의 예약(내 단체)은 빼고 다른 단체 예약만
@@ -926,7 +927,7 @@ function bookRows0(){
     const notes = Object.fromEntries(String(x.inotes||'').split(/\s*;\s*/).map(s=>{ const i=s.indexOf('='); return i>0 ? [s.slice(0,i).trim(), s.slice(i+1).trim()] : null; }).filter(Boolean));
     PROG_KEYS().forEach(k=>{ const v=x[k]; if(!v) return; const cat=bookCat(k), unit=UNIT(k);
       out.push({ cat, id:r.id, me:!!me, d:x.date, org:x.org||x.contact||'(업체 미정)',
-        ppl: cat==='prog' && unit!=='시간' ? (numOf(v)||numOf(x.people)) : numOf(x.people),
+        ppl: (cat==='prog' || cat==='coupon') && unit!=='시간' ? (numOf(v)||numOf(x.people)) : numOf(x.people),
         hrs: unit==='시간' ? (numOf(v)||1) : 0, place:RENT_PLACE[k]||'', kind:DOCENT_KIND[k]||(cat==='docent'?LABEL[k]:''), item:LABEL[k]||k,
         tm:x['tm_'+k]||'', staff:String(x['stf_'+k]||'').trim()||x.owner||'', note:[notes[k], x['crs_'+k]&&`코스 ${x['crs_'+k]}`].filter(Boolean).join(' · ') }); });
   });
@@ -934,7 +935,7 @@ function bookRows0(){
 }
 function renderDayAll(){
   const el=$('#dayAll'); if(!el) return;
-  // 예약 현황 = 버튼 4개 (몽몽마방 · 대관 · 도슨트 · 프로그램). 누르면 예약 목록 창이 그 구분 탭으로. 방문일이 있으면 그날 건수
+  // 예약 현황 = 버튼 5개 (몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰). 누르면 예약 목록 창이 그 구분 탭으로. 방문일이 있으면 그날 건수
   const d=rec.date, rows = d ? [...bookRows(), ...manualRows()].filter(x=>x.d===d) : [], n = c => !d ? 0 : c==='mb' ? mbDbOn(d).length : rows.filter(x=>x.cat===c).length;
   el.innerHTML = `<div class="da-btns">${[['mb','몽몽마방'], ...Object.entries(BOOK_CATS)].map(([c,t])=>`<button type="button" class="da-btn" data-book="${c}" title="${t} 예약 목록${d?` (${dateLabel(d)} ${n(c)}건)`:''}">${t}${n(c)?` <b>${n(c)}</b>`:''}</button>`).join('')}</div>`
     + `<div class="none da-note">${d ? `숫자 = ${dateLabel(d)} 예약 건수 · ` : ''}사담은 예약 전산에서 확인하세요.</div>`;
@@ -960,7 +961,7 @@ $('#trashClose').onclick=()=>{ $('#trashModal').hidden=true; };
 $('#trashSearch').addEventListener('input', paintTrash);
 $('#trashModal').addEventListener('mousedown', e=>{ if(e.target.id==='trashModal') $('#trashModal').hidden=true; });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#trashModal').hidden){ e.preventDefault(); e.stopImmediatePropagation(); $('#trashModal').hidden=true; } }, true);
-// ===================== 예약 목록 창: 몽몽마방 · 대관 · 도슨트 · 프로그램 =====================
+// ===================== 예약 목록 창: 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 =====================
 // 대관 · 도슨트 · 프로그램 = 예약접수된 단체 예약에서 자동 + 직접 넣은 예약 / 몽몽마방 = 직접 넣은 예약 (엑셀 붙여넣기는 없앰 · 2026-11-14)
 // 직접 넣은 대관 · 도슨트 · 프로그램은 공유 기록 한 줄(id bookdb, 통화 구분 '예약현황추가') 수정 기록 칸에 {rows:[{id,cat,d,org,ppl,tm,place,kind,item,staff,note}], at, by}
 var BKDB_ID='bookdb', BKDB_TYPE='예약현황추가';
@@ -973,7 +974,7 @@ async function bkDbSave(rows, msg){
   if(!$('#bookModal').hidden) paintBook(); renderDayAll(); toast(msg);
 }
 let bookCatNow='rent', bookEdit=null;   // bookEdit: 고치는 줄 (몽몽마방은 {mb:번호}, 그 밖은 {id})
-const BOOK_COLS = { rent:['일자','업체','인원','장소 · 시간','담당자 이름','비고사항',''], docent:['일자','업체','인원','시간','종류','담당자 이름','비고사항',''], prog:['일자','업체','인원','프로그램 항목','담당자 이름','비고사항',''] };
+const BOOK_COLS = { rent:['일자','업체','인원','장소 · 시간','담당자 이름','비고사항',''], docent:['일자','업체','인원','시간','종류','담당자 이름','비고사항',''], prog:['일자','업체','인원','프로그램 항목','담당자 이름','비고사항',''], coupon:['일자','업체','매수','쿠폰 종류','담당자 이름','비고사항',''] };
 function manualRows(){ try{ return bkDb().rows.map(x=>({...x, manual:true, ppl:+x.ppl||0})); }catch(_){ return []; } }   // 직접 넣은 대관 · 도슨트 · 프로그램
 function paintBook(){
   document.querySelectorAll('#bookTabs [data-bt]').forEach(b=>b.classList.toggle('on', b.dataset.bt===bookCatNow));
@@ -985,12 +986,12 @@ function paintBook(){
   $('#bookTitle').textContent = `${BOOK_CATS[c]} 예약 목록`; $('#bookSum').textContent = `${list.length}건 · 단체 예약(예약접수)에서 자동 + 직접 추가`;
   $('#bookHead').innerHTML = `<tr>${BOOK_COLS[c].map(h=>`<th>${h}</th>`).join('')}</tr>`;
   const cell = x => c==='rent' ? [[x.place||'(장소 미정)', x.tm].filter(Boolean).join(' · ')+(x.hrs?` (${x.hrs}시간)`:'')] : c==='docent' ? [x.tm||'(미정)', (x.kind||'')+(x.hrs?` · ${x.hrs}시간`:'')] : [[x.item, x.tm].filter(Boolean).join(' · ')];
-  $('#bookBody').innerHTML = list.map(x=>`<tr class="r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}"${x.manual?'':` data-bopen="${esc(x.id)}"`}><td>${esc(dateLabel(x.d))}</td><td><b>${esc(x.org)}</b></td><td class="num">${x.ppl?x.ppl+'명':''}</td>${cell(x).map(v=>`<td>${esc(v)}</td>`).join('')}<td style="white-space:pre-line">${esc(x.staff)}</td><td class="note">${esc(x.note)}</td>`
+  $('#bookBody').innerHTML = list.map(x=>`<tr class="r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}"${x.manual?'':` data-bopen="${esc(x.id)}"`}><td>${esc(dateLabel(x.d))}</td><td><b>${esc(x.org)}</b></td><td class="num">${x.ppl?x.ppl+(c==='coupon'?'장':'명'):''}</td>${cell(x).map(v=>`<td>${esc(v)}</td>`).join('')}<td style="white-space:pre-line">${esc(x.staff)}</td><td class="note">${esc(x.note)}</td>`
     + `<td class="acts">${x.manual ? `<button type="button" class="btn sm" data-bkedit="${esc(x.id)}">수정</button><button type="button" class="del" data-bkdel="${esc(x.id)}" title="빼기">×</button>` : '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>'}</td></tr>`).join('')
     || `<tr><td colspan="${BOOK_COLS[c].length}" class="empty">${all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다. 아래에서 직접 추가하세요.'}</td></tr>`;
 }
 // 직접 추가 · 수정 칸 (탭마다 칸이 다름)
-const PLACE_OPTS=['몽몽차방','당두봉갈'], KIND_OPTS=['동행','PPT'];
+const PLACE_OPTS=['몽몽차방','당두봉갈'], KIND_OPTS=['동행','PPT'], COUPON_OPTS=['음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)'];
 function paintBookAdd(){
   const c=bookCatNow, box=$('#bookAdd'); if(!box) return;
   let x = {};
@@ -1000,13 +1001,13 @@ function paintBookAdd(){
   const sel=(id,opts,v)=>`<select id="${id}">${opts.map(o=>`<option${o===v?' selected':''}>${esc(o)}</option>`).join('')}${v && !opts.includes(v)?`<option selected>${esc(v)}</option>`:''}</select>`;
   const f = c==='mb'
     ? [`<label>시간 ${inp('baTm','12:00~13:00',x.tm,'t')}</label>`, `<label>예약자 · 업체 ${inp('baOrg','예) 도레이첨단소재',x.org)}</label>`, `<label>인원 ${inp('baPpl','명',x.ppl,'n')}</label>`, `<label>메뉴 ${sel('baItem', mbMenus().map(m=>m.name), x.item||'')}</label>`]
-    : [`<label>업체 ${inp('baOrg','예) 도레이첨단소재',x.org)}</label>`, `<label>인원 ${inp('baPpl','명',x.ppl,'n')}</label>`, `<label>시간 ${inp('baTm','13:00~14:00',x.tm,'t')}</label>`,
-       c==='rent' ? `<label>장소 ${sel('baPlace', PLACE_OPTS, x.place||'')}</label>` : c==='docent' ? `<label>종류 ${sel('baKind', KIND_OPTS, x.kind||'')}</label>` : `<label>프로그램 항목 ${inp('baItem','예) 요가',x.item)}</label>`,
+    : [`<label>업체 ${inp('baOrg','예) 도레이첨단소재',x.org)}</label>`, `<label>${c==='coupon'?'매수':'인원'} ${inp('baPpl',c==='coupon'?'장':'명',x.ppl,'n')}</label>`, `<label>시간 ${inp('baTm','13:00~14:00',x.tm,'t')}</label>`,
+       c==='rent' ? `<label>장소 ${sel('baPlace', PLACE_OPTS, x.place||'')}</label>` : c==='docent' ? `<label>종류 ${sel('baKind', KIND_OPTS, x.kind||'')}</label>` : c==='coupon' ? `<label>쿠폰 종류 ${sel('baItem', COUPON_OPTS, x.item||'')}</label>` : `<label>프로그램 항목 ${inp('baItem','예) 요가',x.item)}</label>`,
        `<label>담당자 이름 ${inp('baStaff','예) 김선영 팀장',x.staff)}</label>`, `<label class="wide">비고사항 ${inp('baNote','예) 앵당삼거리 시작',x.note)}</label>`];
   box.innerHTML = `<div class="ba-h"><b>${bookEdit?'예약 고치기':'＋ 직접 추가'}</b> <span class="hint" style="margin:0">${c==='mb'?'몽몽마방':BOOK_CATS[c]} 예약 한 건</span></div>`
     + `<div class="ba-row"><label>날짜 ${dboxHTML('id="baDate"', x.d||rec.date||'')}</label>${f.join('')}`
     + `<span class="ba-btns">${bookEdit?'<button type="button" class="btn" id="baCancel">취소</button>':''}<button type="button" class="btn primary" id="baSave">${bookEdit?'고치기':'추가'}</button></span></div>`
-    + (c!=='mb' && !bookEdit ? `<details class="ba-imp"><summary class="hint">엑셀 표를 한 번에 넣기 (대관 · 도슨트 · 프로그램 표)</summary><p class="hint" style="margin:4px 0">엑셀에서 줄을 복사해 붙여 넣으세요. 열 순서: 일자 · 업체 · 인원 · 동행 도슨트 시간 · PPT 도슨트 시간 · 대관 시간 · … · 담당 · 비고. 시간이 있는 칸마다 한 건씩 들어갑니다 (대관 장소는 넣은 뒤 「수정」에서).</p><textarea id="baImp" placeholder="여기에 붙여 넣기"></textarea><div id="baImpPrev" class="mb-prev"></div><div class="row-btns" style="justify-content:flex-end"><button type="button" class="btn primary" id="baImpSave" disabled>모두 넣기</button></div></details>` : '');
+    + (!['mb','coupon'].includes(c) && !bookEdit ? `<details class="ba-imp"><summary class="hint">엑셀 표를 한 번에 넣기 (대관 · 도슨트 · 프로그램 표)</summary><p class="hint" style="margin:4px 0">엑셀에서 줄을 복사해 붙여 넣으세요. 열 순서: 일자 · 업체 · 인원 · 동행 도슨트 시간 · PPT 도슨트 시간 · 대관 시간 · … · 담당 · 비고. 시간이 있는 칸마다 한 건씩 들어갑니다 (대관 장소는 넣은 뒤 「수정」에서).</p><textarea id="baImp" placeholder="여기에 붙여 넣기"></textarea><div id="baImpPrev" class="mb-prev"></div><div class="row-btns" style="justify-content:flex-end"><button type="button" class="btn primary" id="baImpSave" disabled>모두 넣기</button></div></details>` : '');
 }
 async function bookAddSave(){
   const c=bookCatNow, v=id=>(($('#'+id)||{}).value||'').trim(), d=v('baDate'), org=v('baOrg'), ppl=parseInt(v('baPpl'))||0;
@@ -1016,7 +1017,7 @@ async function bookAddSave(){
     const row={d, t:tm, n:org, p:ppl, m:v('baItem')}, rows=[...mbDb().rows];
     if(bookEdit && bookEdit.mb!=null) rows[bookEdit.mb]=row; else rows.push(row);
     const ed=!!bookEdit; bookEdit=null; await mbDbSave(rows, ed?'몽몽마방 예약을 고쳤습니다.':'몽몽마방 예약을 추가했습니다.'); return true; }
-  const row={ id: (bookEdit&&bookEdit.id) || 'b'+Date.now().toString(36), cat:c, d, org, ppl, tm, place:c==='rent'?v('baPlace'):'', kind:c==='docent'?v('baKind'):'', item:c==='prog'?v('baItem'):'', staff:v('baStaff'), note:v('baNote'), by:savedOwner()||'' };
+  const row={ id: (bookEdit&&bookEdit.id) || 'b'+Date.now().toString(36), cat:c, d, org, ppl, tm, place:c==='rent'?v('baPlace'):'', kind:c==='docent'?v('baKind'):'', item:(c==='prog'||c==='coupon')?v('baItem'):'', staff:v('baStaff'), note:v('baNote'), by:savedOwner()||'' };
   const rows=bkDb().rows.filter(r=>r.id!==row.id); rows.push(row);
   const ed=!!bookEdit; bookEdit=null; await bkDbSave(rows, ed?'예약을 고쳤습니다.':`${BOOK_CATS[c]} 예약을 추가했습니다.`); return true;
 }
