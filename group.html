@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 예약 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261117c">
+<link rel="stylesheet" href="css/group.css?v=20261117d">
 </head>
 <body>
 <header>
@@ -85,7 +85,8 @@
 <!-- 품목마다 특별 할인: 예약 내역 줄의 「특별할인」 버튼 → 이 팝업 (특별 할인 인원 · 기타 할인) -->
 <div class="modal" id="spModal" hidden>
   <section class="panel consult sp-pop" role="dialog" aria-modal="true" aria-labelledby="spTitle">
-    <h2 id="spTitle">특별 할인</h2>
+    <div class="sp-head"><h2 id="spTitle">특별 할인</h2><button type="button" class="btn" id="spEditBtn" title="특별 할인 종류(이름 · 할인율 · 증빙)를 고치거나 새로 추가 · 빼기 (모든 직원에게 같은 목록)">편집</button></div>
+    <div id="spMain">
     <div class="sp-sec"><span class="hint disc-t">특별 할인 인원</span><div class="sp-people" id="spPeople"></div></div>
     <p class="hint" id="spHint" style="margin:2px 0 10px"></p>
     <div class="sp-sec"><span class="hint disc-t">기타 할인</span>
@@ -95,6 +96,13 @@
         <input id="spWhy" data-ime="ko" placeholder="사유 (예: 재방문 감사)" autocomplete="off" class="etc-why">
       </div></div>
     <div class="row-btns" style="justify-content:flex-end;margin-top:14px"><button type="button" class="btn" id="spClear">이 품목 특별 할인 없애기</button><button type="button" class="btn" id="spCancel">취소</button><button type="button" class="btn primary" id="spOk">넣기</button></div>
+    </div>
+    <div id="spEdit" hidden>
+      <p class="hint" style="margin:0 0 8px">특별 할인 종류를 고칩니다. 모든 직원에게 같은 목록이 보입니다. 할인율 100 = 무료. 「빼기」는 팝업에서만 숨기고, 이미 넣은 예약은 그대로 둡니다. 할인율을 바꾸면 그 할인이 들어간 예약 금액도 새 할인율로 계산됩니다.</p>
+      <table class="spd-tbl"><thead><tr><th>이름</th><th>할인율</th><th>방문 때 지참 (증빙)</th><th></th></tr></thead><tbody id="spEditBody"></tbody></table>
+      <div class="row-btns" style="margin-top:8px"><button type="button" class="btn" id="spEditAdd">＋ 할인 추가</button><small class="hint" id="spEditMsg" style="margin:0 0 0 auto"></small></div>
+      <div class="row-btns" style="justify-content:flex-end;margin-top:14px"><button type="button" class="btn" id="spEditCancel">취소</button><button type="button" class="btn primary" id="spEditSave">저장</button></div>
+    </div>
   </section>
 </div>
 <!-- 마감이 된 추후 과업: 해결할 때까지 계속 (나중에 = 2시간 뒤) -->
@@ -328,7 +336,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/group.js?v=20261117c"></script>
+<script src="js/group.js?v=20261117d"></script>
 <script src="js/ime.js?v=20261116"></script>
 </body>
 </html>

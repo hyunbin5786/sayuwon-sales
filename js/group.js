@@ -190,7 +190,7 @@ function unpackExtra(r){ const o={}; let m;
     const mst=String(r.memo||'').match(new RegExp(`프로그램 ${nm}\\s+([^/]+)`)); if(mst) mst[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?):(.+)$/); if(!x) return;
       const f=FIELDS.find(f=>f[2]===x[1].trim() && /^프로그램/.test(f[0]) && !isSub(f[1])), k=f ? f[1] : 'px:'+x[1].replace(/\s/g,''); o[`${p}_${k}`]=x[2].trim(); });
   });
-  const ms=String(r.memo||'').match(/(?:^|\s\/\s)특별 할인\s+([^/]+)/); if(ms) ms[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\d+)$/); if(!x) return; const s=SPECIAL.find(s=>s.short===x[1].trim()); if(s) o[s.k]=x[2]; });
+  const ms=String(r.memo||'').match(/(?:^|\s\/\s)특별 할인\s+([^/]+)/); if(ms) ms[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\d+)$/); if(!x) return; const nm=x[1].trim(), s=SPECIAL.find(s=>s.short===nm) || SPECIAL.find(s=>(s.olds||[]).includes(nm)); if(s) o[s.k]=x[2]; });
   return o; }
 
 // ===================== 칸 렌더 =====================
@@ -293,12 +293,12 @@ function setItemSp(k, val){   // val = {sp, tf, tx, why} · null = 이 줄 특�
 const ispOf = k => ispMap(rec)[dkey(k)];
 function spBtnHTML(k){ const v=ispOf(k), on=!ispEmpty(v);
   const t = on ? [...Object.entries(v.sp).map(([a,n])=>`${SPECIAL_LABEL[a].replace(/ 할인$/,'')} ${n}명`), (v.tf||v.tx) && `기타 -${wonTxt(v.tf+v.tx)}원`].filter(Boolean).join(' · ') : '';
-  return `<span class="spwrap" data-spwrap="${esc(k)}"><button type="button" class="spbtn${on?' on':''}" data-spopen="${esc(k)}" title="이 품목에 특별 할인(간송 · 국가유공자 · 군위 주민 · 대구대교구 · 직원) · 기타 할인 넣기">특별할인${t?` <b>${esc(t)}</b>`:''}</button>${on?`<button type="button" class="spedit" data-spopen="${esc(k)}" title="넣어 둔 특별 할인 내역 고치기 (인원 바꾸기 · 빼기)">편집</button>`:''}</span>`; }
+  return `<span class="spwrap" data-spwrap="${esc(k)}"><button type="button" class="spbtn${on?' on':''}" data-spopen="${esc(k)}" title="이 품목에 특별 할인(간송 · 국가유공자 · 군위 주민 · 대구대교구 · 직원) · 기타 할인 넣기">특별할인${t?` <b>${esc(t)}</b>`:''}</button></span>`; }
 let spKey=null;
-function openSp(k){ spKey=k; ispMigrate(k); document.querySelectorAll('#itemsBox [data-spwrap]').forEach(b=>{ b.outerHTML=spBtnHTML(b.dataset.spwrap); });   // 예전 기록이면 그 할인이 들어간 줄에 먼저 표시
+function openSp(k){ spKey=k; ispMigrate(k); $('#spEdit').hidden=true; $('#spMain').hidden=false; $('#spEditBtn').hidden=false; document.querySelectorAll('#itemsBox [data-spwrap]').forEach(b=>{ b.outerHTML=spBtnHTML(b.dataset.spwrap); });   // 예전 기록이면 그 할인이 들어간 줄에 먼저 표시
   const v=ispOf(k) || {sp:{}, tf:0, tx:0, why:''};
   $('#spTitle').textContent = `특별 할인 · ${itemName(k)}`;
-  $('#spPeople').innerHTML = SPECIAL.map(s=>`<label title="${esc(s.name)} · ${s.rate===1?'무료':Math.round(s.rate*100)+'%'} · 지참: ${esc(s.proof)}">${esc(s.short)} <small>${s.rate===1?'무료':Math.round(s.rate*100)+'%'}</small><input data-spk="${s.k}" inputmode="numeric" data-ime="num" maxlength="3" autocomplete="off" value="${v.sp[s.k]||''}">명</label>`).join('');
+  $('#spPeople').innerHTML = SPECIAL.filter(s=>!s.off || v.sp[s.k]).map(s=>`<label title="${esc(s.name)} · ${s.rate===1?'무료':Math.round(s.rate*100)+'%'} · 지참: ${esc(s.proof)}">${esc(s.short)} <small>${s.rate===1?'무료':Math.round(s.rate*100)+'%'}</small><input data-spk="${s.k}" inputmode="numeric" data-ime="num" maxlength="3" autocomplete="off" value="${v.sp[s.k]||''}">명</label>`).join('');
   $('#spTf').value = v.tf ? wonTxt(v.tf) : ''; $('#spTx').value = v.tx ? wonTxt(v.tx) : ''; $('#spWhy').value = v.why||'';
   const n=numOf(itemQty(k)); $('#spHint').textContent = n ? `이 품목 ${n}${itemUnit(k)} 중 특별 할인 인원은 단체 할인과 비교해 큰 쪽 하나만 적용됩니다. 같은 분이 다른 품목에서도 할인받으면 그 품목에도 넣으세요 (증빙 안내 인원은 품목 중 가장 큰 수).` : '';
   $('#spModal').hidden=false; setTimeout(()=>$('#spPeople input')?.focus(), 0); }
@@ -312,9 +312,9 @@ function spApply(){ if(spKey==null) return;
 document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-spopen]'); if(b){ openSp(b.dataset.spopen); return; }
   if(e.target.id==='spOk') spApply(); else if(e.target.id==='spCancel' || e.target.id==='spModal') { $('#spModal').hidden=true; spKey=null; }
   else if(e.target.id==='spClear' && spKey!=null){ setItemSp(spKey, null); $('#spModal').hidden=true; spKey=null; itemChanged(false, true); renderSide(); startTimer(); } });
-document.addEventListener('input', e=>{ const el=e.target; if(!el.closest?.('#spModal') || el.id==='spWhy') return; const c=el.value.replace(/[^\d,]/g,''); if(c!==el.value) el.value=c; });
+document.addEventListener('input', e=>{ const el=e.target; if(!el.closest?.('#spMain') || el.id==='spWhy') return; const c=el.value.replace(/[^\d,]/g,''); if(c!==el.value) el.value=c; });
 document.addEventListener('focusout', e=>{ const el=e.target; if(el.id==='spTf' || el.id==='spTx'){ const n=parseInt(el.value.replace(/\D/g,''))||0; el.value = n ? wonTxt(n) : ''; } });
-document.addEventListener('keydown', e=>{ if($('#spModal').hidden) return; if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); $('#spModal').hidden=true; spKey=null; } else if(e.key==='Enter' && e.target.closest?.('#spModal')){ e.preventDefault(); spApply(); } }, true);
+document.addEventListener('keydown', e=>{ if($('#spModal').hidden) return; if(!$('#spEdit').hidden){ if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); closeSpd(); } else if(e.key==='Enter' && !e.isComposing && e.target.tagName==='INPUT'){ e.preventDefault(); } return; } if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); $('#spModal').hidden=true; spKey=null; } else if(e.key==='Enter' && e.target.closest?.('#spModal')){ e.preventDefault(); spApply(); } }, true);
 function setItemNote(k, v){ const m=inotesMap(); v=String(v||'').replace(/[;=]/g,',').trim(); if(v) m[k]=v; else delete m[k]; rec.inotes=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); touched.add('inotes'); }
 const itemName = k => k==='view' ? '관람' : /^v:/.test(k) ? itemLabel(daySrc(k.slice(2), rec)) : k==='mb' ? '몽몽마방 '+(rec.mabangMenu||'') : /^g:/.test(k) ? goodsName(k.slice(2)) : (SADAM_ITEMS.find(x=>x[0]===k)||[])[1] || LABEL[k] || k;
 const itemNotesText = () => Object.entries(inotesMap()).filter(([k])=>itemKeysFromRec().includes(k)).map(([k,v])=>`${itemName(k)}: ${v}`);   // 비고가 있는 항목만
@@ -1443,7 +1443,7 @@ async function pull(inFlush){
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
 const store={
-  async list(){ cache = SHARED_URL ? merged() : readJSON(LKEY,[]); return cache; },
+  async list(){ cache = SHARED_URL ? merged() : readJSON(LKEY,[]); if(typeof applySpd==='function') applySpd(); return cache; },
   async put(item){
     if(!SHARED_URL){ const l=readJSON(LKEY,[]); const i=l.findIndex(x=>x.id===item.id); if(i>=0) l[i]=item; else l.push(item); writeJSON(LKEY,l); return; }
     pending=pending.filter(p=>!(p.action==='put'&&p.item.id===item.id)); pending.push({action:'put',item}); writeJSON(PEND_LS,pending); paintSync(); flush();
@@ -2184,6 +2184,51 @@ const SPECIAL = [
   {k:'dClergy',  name:'대구대교구 신부·수녀·신학생', short:'대구대교구', rate:1, proof:'소속 증명서 또는 신분증'},
   {k:'dStaff',   name:'직원',             short:'직원', rate:.30, proof:'사원증 (직원 확인)'},   // 2026-11-17 직원 할인 30%
 ];
+// ===== 특별 할인 종류 편집 (2026-11-17): 특별할인 팝업의 「편집」 → 이름 · 할인율 · 증빙을 고치고, 새 할인 추가 · 빼기 =====
+// 공유 기록 한 줄(id spdisc, 통화 구분 '특별할인설정')의 수정 기록 칸에 {list:[{k,name,short,rate,proof,off,olds}], at, by} → 모든 직원이 같은 목록
+//  k(저장 키)는 바뀌지 않음 → 이미 저장된 예약 인원은 그대로. 뺀 할인(off)은 팝업에서만 숨김 (그 할인이 들어간 예약은 계산 · 비고 그대로). 이름을 바꾸면 예전 이름(olds)도 읽음
+var SPD_ID='spdisc', SPD_TYPE='특별할인설정';
+const SPECIAL_BASE = SPECIAL.map(s=>({...s})), SPECIAL_LABEL_BASE = {...SPECIAL_LABEL};
+let spdSig='';
+function spdList(){ const r=(cache||[]).find(x=>x.id===SPD_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return Array.isArray(j.list)&&j.list.length ? j.list : SPECIAL_BASE; }
+function applySpd(){ try{
+  const list=spdList(), sig=JSON.stringify(list); if(sig===spdSig) return false; spdSig=sig;
+  SPECIAL.splice(0, SPECIAL.length, ...list.filter(s=>s && s.k && (s.short||s.name)).map(s=>({k:s.k, name:String(s.name||s.short), short:String(s.short||s.name), rate:Math.min(1, Math.max(0, +s.rate||0)), proof:String(s.proof||''), off:!!s.off, olds:Array.isArray(s.olds)?s.olds:[]})));
+  SPECIAL.forEach(s=>{ const b=SPECIAL_BASE.find(x=>x.k===s.k); SPECIAL_LABEL[s.k] = b && b.short===s.short ? SPECIAL_LABEL_BASE[s.k] : s.short+' 할인'; LABEL[s.k]=SPECIAL_LABEL[s.k]; if(!SP_KEYS.includes(s.k)) SP_KEYS.push(s.k); });
+  if(typeof spKey!=='undefined' && spKey!=null && !$('#spModal').hidden && $('#spEdit').hidden) openSp(spKey);   // 다른 직원이 바꾼 목록을 받으면 열린 팝업도
+  return true; }catch(_){ return false; } }
+const spdRate = s => s.rate>=1 ? '무료' : Math.round(s.rate*100)+'%';
+function spdRowHTML(s){ return `<tr data-spdk="${esc(s.k)}"${s.off?' class="off"':''}><td><input class="spd-short" value="${esc(s.short)}" data-ime="ko" maxlength="20" placeholder="예) 직원"></td>`
+  + `<td><input class="spd-rate" value="${s.rate>=1?100:Math.round((s.rate||0)*100)||''}" inputmode="numeric" maxlength="3" placeholder="30">%</td>`
+  + `<td><input class="spd-proof" value="${esc(s.proof)}" data-ime="ko" placeholder="방문 때 지참 (예: 사원증)"></td>`
+  + `<td><label class="spd-off" title="빼면 팝업에 안 보임 (이미 넣은 예약은 그대로)"><input type="checkbox" class="spd-offck"${s.off?' checked':''}> 빼기</label></td></tr>`; }
+function openSpd(){ $('#spEditBody').innerHTML = SPECIAL.map(spdRowHTML).join(''); $('#spEdit').hidden=false; $('#spMain').hidden=true; $('#spEditBtn').hidden=true;
+  $('#spEditMsg').textContent = (()=>{ const r=(cache||[]).find(x=>x.id===SPD_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return j.at ? `마지막 수정 ${fmt(j.at)}${j.by?' · '+j.by:''}` : ''; })(); }
+function closeSpd(){ $('#spEdit').hidden=true; $('#spMain').hidden=false; $('#spEditBtn').hidden=false; }
+async function saveSpd(){
+  const rows=[...document.querySelectorAll('#spEditBody tr')], prev=Object.fromEntries(SPECIAL.map(s=>[s.k,s])), list=[];
+  for(const tr of rows){ const short=tr.querySelector('.spd-short').value.trim(), rv=tr.querySelector('.spd-rate').value.replace(/\D/g,''), proof=tr.querySelector('.spd-proof').value.trim(), off=tr.querySelector('.spd-offck').checked, k=tr.dataset.spdk;
+    if(!short && !rv && !proof && !prev[k]) continue;   // 비워 둔 새 줄은 건너뜀
+    if(!short){ toast('할인 이름을 넣어 주세요.'); tr.querySelector('.spd-short').focus(); return; }
+    const rate=+rv; if(!rv || rate<=0 || rate>100){ toast(`${short}: 할인율을 1~100으로 넣어 주세요 (100 = 무료).`); tr.querySelector('.spd-rate').focus(); return; }
+    if(list.some(x=>x.short===short)){ toast(`'${short}' 이름이 두 번 있습니다.`); return; }
+    const p=prev[k], olds=[...((p&&p.olds)||[])]; if(p && p.short!==short && !olds.includes(p.short)) olds.push(p.short);   // 이름을 바꾸면 예전 이름도 기억 (저장된 예약을 읽을 때)
+    list.push({k, name: p && p.short===short ? p.name : short, short, rate: rate>=100 ? 1 : rate/100, proof, off, ...(olds.length?{olds}:{})}); }
+  if(!list.some(s=>!s.off)){ toast('쓰는 특별 할인이 하나는 있어야 합니다.'); return; }
+  const old=(cache||[]).find(x=>x.id===SPD_ID), now=new Date().toISOString(), me=savedOwner()||'';
+  const item={...(old||{}), id:SPD_ID, callType:SPD_TYPE, saved:now, takenBy:me, summary:`특별 할인 종류 ${list.filter(s=>!s.off).length}개`, history:JSON.stringify({list, at:now, by:me})};
+  try{ await store.put(item); }catch(e){ toast('저장하지 못했습니다: '+e.message); return; }
+  const ci=cache.findIndex(x=>x.id===SPD_ID); if(ci>=0) cache[ci]=item; else cache.push(item);
+  applySpd(); closeSpd(); if(spKey!=null) openSp(spKey); itemChanged(false, true); renderSide(); toast('특별 할인 종류를 저장했습니다. 모든 직원에게 같은 목록이 보입니다.');
+}
+document.addEventListener('click', e=>{
+  if(e.target.id==='spEditBtn'){ openSpd(); return; }
+  if(e.target.id==='spEditCancel'){ closeSpd(); return; }
+  if(e.target.id==='spEditSave'){ saveSpd(); return; }
+  if(e.target.id==='spEditAdd'){ $('#spEditBody').insertAdjacentHTML('beforeend', spdRowHTML({k:'dx'+Date.now().toString(36), short:'', rate:0, proof:''})); $('#spEditBody tr:last-child .spd-short').focus(); return; }
+});
+document.addEventListener('change', e=>{ if(e.target.classList?.contains('spd-offck')) e.target.closest('tr').classList.toggle('off', e.target.checked); });
+applySpd();
 function groupRate(n){ return !n ? 0 : n>20 ? .10 : .05; }
 function groupLabel(n){ return !n ? '' : n>20 ? '단체예약 10%' : '사전예약 5%'; }
 function specialCounts(r){ return SPECIAL.map(s=>({...s, n: Math.max(0, parseInt(r[s.k])||0)})).filter(s=>s.n>0); }

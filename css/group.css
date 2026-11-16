@@ -618,5 +618,19 @@ html.book-guest #bookBody tr{cursor:default}
 #noteModal .note-out{width:100%;box-sizing:border-box;min-height:180px;font:13px/1.55 var(--sans);padding:8px 10px;border:1px solid var(--line);border-radius:6px;resize:vertical;margin:6px 0}
 /* 특별할인 옆 「편집」 (할인을 넣은 줄에만) */
 .it-extra .spwrap{display:inline-flex;gap:4px;align-items:center}
-.it-extra .spedit{height:30px;border:1px solid #b9b5ab;background:#fff;border-radius:6px;padding:0 10px;font:600 12px var(--sans);color:#3d3b36;cursor:pointer;white-space:nowrap}
-.it-extra .spedit:hover{background:#efede8;border-color:#8f8b82}
+
+
+/* 특별할인 팝업 「편집」: 특별 할인 종류 고치기 */
+.sp-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sp-head h2{margin:0;flex:1}
+.spd-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.spd-tbl th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:0 4px 4px}
+.spd-tbl td{padding:3px 4px;white-space:nowrap}
+.spd-tbl input:not([type=checkbox]){height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:13px var(--sans);box-sizing:border-box}
+.spd-tbl .spd-short{width:110px}
+.spd-tbl .spd-rate{width:52px;text-align:right;margin-right:3px}
+.spd-tbl .spd-proof{width:100%;min-width:160px}
+.spd-tbl td:nth-child(3){width:100%}
+.spd-tbl .spd-off{display:flex;align-items:center;gap:3px;font-size:12px;color:var(--muted);cursor:pointer}
+.spd-tbl tr.off input:not([type=checkbox]){opacity:.45;text-decoration:line-through}
+.sp-pop{width:min(640px,94vw)}
