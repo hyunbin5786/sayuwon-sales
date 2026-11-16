@@ -609,6 +609,6 @@ html.book-guest #bookBody tr{cursor:default}
 #pl_linkSent .ckf,#pl_paidAt .ckf{font-size:12.5px;padding:0 8px;gap:5px}
 /* 가격표: 특별 할인 요약 · 안내 문구 없앰 → 비면 칸도 숨김 */
 .disc-line:empty,.disc-box:has(.disc-line:empty){display:none}
-.task-h .tsave{margin-left:auto;flex:none;border:1px solid var(--line);background:#fff;color:#4a5a42;cursor:pointer;font:12px var(--sans);padding:3px 8px;border-radius:5px}
-.task-h .tsave:hover{border-color:#3f5236;color:#3f5236}
+.task-h .tsave{margin-left:auto;flex:none;border:1px solid #3f5236;background:#3f5236;color:#fff;cursor:pointer;font:12px var(--sans);padding:3px 8px;border-radius:5px}
+.task-h .tsave:hover{background:#2f3f28;border-color:#2f3f28}
 .task-h .tsave + .del{margin-left:0}   /* 과업마다 「저장」 (자동 저장도 그대로) */
