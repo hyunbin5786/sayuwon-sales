@@ -3182,3 +3182,21 @@ window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs(); checkTbdPo
 window.addEventListener('focus', ()=>{ if(priceLoaded && Date.now()-priceLoaded>10*60000) loadQuotePrices(); });
 $('#memoBox').focus();
 
+
+// ===== 예약 내용 「비고 멘트 재출력」: 지금 예약 내용으로 전산 비고 문구를 다시 만들어 팝업으로 (복사 · 직접 고친 과업 문구 바꾸기) =====
+(function(){
+  const erpTasks = () => tasks.filter(t=>(t.id==='erp'||t.id==='erpfix') && t.noteEdit);
+  $('#noteRegenBtn').onclick = () => {
+    if(!rec || (!rec.org && !rec.date)){ toast('업체나 방문일을 먼저 입력하세요.'); return; }
+    $('#noteOut').value = erpNote(rec);
+    const ed = erpTasks(); $('#noteApply').hidden = !ed.length;
+    $('#noteHint').textContent = ed.length ? '추후 과업 「전산 예약」의 비고 문구는 직접 고친 것이라 예약 내용이 바뀌어도 그대로입니다. 이 멘트로 바꾸려면 「과업 문구도 이걸로 바꾸기」.' : '';
+    $('#noteModal').hidden = false; $('#noteOut').focus(); $('#noteOut').setSelectionRange(0,0); $('#noteOut').scrollTop=0;
+  };
+  $('#noteCopy').onclick = () => copy($('#noteOut').value, '비고 멘트를 복사했습니다. 전산 비고에 붙여넣으세요.');
+  $('#noteApply').onclick = () => { erpTasks().forEach(t=>t.noteEdit=''); renderTasks(); renderSide(); autoSave(); $('#noteApply').hidden=true; $('#noteHint').textContent='추후 과업 「전산 예약」 비고 문구도 이 멘트로 바꿨습니다.'; };
+  const close = () => { $('#noteModal').hidden = true; };
+  $('#noteClose').onclick = close;
+  $('#noteModal').addEventListener('mousedown', e=>{ if(e.target.id==='noteModal') close(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#noteModal').hidden){ e.preventDefault(); close(); } });
+})();

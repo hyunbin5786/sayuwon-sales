@@ -612,3 +612,7 @@ html.book-guest #bookBody tr{cursor:default}
 .task-h .tsave{margin-left:auto;flex:none;border:1px solid #3f5236;background:#3f5236;color:#fff;cursor:pointer;font:12px var(--sans);padding:3px 8px;border-radius:5px}
 .task-h .tsave:hover{background:#2f3f28;border-color:#2f3f28}
 .task-h .tsave + .del{margin-left:0}   /* 과업마다 「저장」 (자동 저장도 그대로) */
+/* 예약 내용 「비고 멘트 재출력」 + 팝업 */
+#noteRegenBtn{padding:3px 10px;font-size:12px;margin-left:4px}
+#noteModal .panel{width:min(640px,100%)}
+#noteModal .note-out{width:100%;box-sizing:border-box;min-height:180px;font:13px/1.55 var(--sans);padding:8px 10px;border:1px solid var(--line);border-radius:6px;resize:vertical;margin:6px 0}
