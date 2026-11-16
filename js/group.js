@@ -1594,13 +1594,16 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
 const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
-function moneySplit(r){
-  if(r===rec && erpList.length){ const t=erpTotals(); return {saw:t.saw, shilla:t.shilla, etc:0, missing:false, erp:true}; }   // 전산 내역이 있으면 전산 금액 (세금계산서 문구 등)
+// noMb: 몽몽마방 식사 금액은 빼고 (몽몽마방 결제가 '마방' = 손님이 식당에서 결제 → 전산 비고 현장결제 금액에 넣지 않음)
+function moneySplit(r, noMb){
+  if(r===rec && erpList.length){ const t=erpTotals(); let saw=t.saw, shilla=t.shilla;
+    if(noMb){ const E=erpByKey(); if(E.m.mb){ const m=erpRowMoney('mb', E.m.mb); saw=Math.max(0, saw-m.tf); shilla=Math.max(0, shilla-m.tx); } }
+    return {saw, shilla, etc:0, missing:false, erp:true}; }   // 전산 내역이 있으면 전산 금액 (세금계산서 문구 등)
   if(!quoteCat || !r.date || !numOf(r.people)) return null;
   const d=new Date(r.date+'T00:00'), viewSrc=viewSrcOf(r), vp=priceOf(viewSrc);
   let saw=0, shilla=0, missing=false;
   const {blocks, skipped} = quoteBlocks(r);
-  blocks.forEach(b=>{ const m=blockMoney(b, r); if(!m){ missing=true; return; } saw+=m.tf; shilla+=m.tx; });   // 줄마다 비과세 = 사유원, 과세 = 신라 (할인 · 직접 고친 할인액 반영)
+  blocks.forEach(b=>{ if(noMb && (b.key==='mb' || b.product==='몽몽마방 단품')) return; const m=blockMoney(b, r); if(!m){ missing=true; return; } saw+=m.tf; shilla+=m.tx; });   // 줄마다 비과세 = 사유원, 과세 = 신라 (할인 · 직접 고친 할인액 반영)
   void d; void viewSrc; void vp;
   const es=etcSplit(r), etc=es.tx+es.tf; saw=Math.max(0,saw-es.tf); shilla=Math.max(0,shilla-es.tx);   // 기타 할인: 비과세는 사유원, 과세는 신라에서
   return {saw, shilla, etc, missing: missing || skipped.length>0};
@@ -1640,10 +1643,10 @@ function erpNote(r){
   if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');
   if(r===rec){ const nt=itemNotesText(); if(nt.length) p.push('항목 비고 '+nt.join(', ')); }   // 예약 내역 줄마다 적은 비고
   if(r.goods) p.push('굿즈 '+goodsText(r)+(String(r.stf_goods||'').trim() ? ` (담당:${String(r.stf_goods).trim()})` : ' (담당:미정)'));   // 굿즈 구매   // 몽몽마방 결제를 마방으로 고르면
-  // 금액: 현장에서 결제할 때만 (현장 결제 · 결제링크 + 현장 재결제). 지금 적용된 사유원 · 신라 금액 (할인 · 기타 할인 · 줄에서 고친 할인액 · 전산 내역 반영)
+  // 금액: 현장에서 결제할 때만 (현장 결제 · 결제링크 + 현장 재결제). 몽몽마방 결제가 '마방'이면 식사 금액은 빼고 (식당에서 결제), '사무실'이면 넣음. 지금 적용된 사유원 · 신라 금액 (할인 · 기타 할인 · 줄에서 고친 할인액 · 전산 내역 반영)
   // 세금계산서 · 결제링크 · 기타 · 미정이면 전산 비고에 금액 문구를 넣지 않음 (2026-11-16)
   { const onsite = r.pay==='현장 결제' || r.onsite;
-    if(onsite){ const m=moneySplit(r); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); } }
+    if(onsite){ const m=moneySplit(r, r.mabangPay==='마방'); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); } }
   // 할인 사항(기타 할인 · 줄에서 고친 할인액)은 전산 비고에 넣지 않음 (2026-11-14) — 금액만 위 사유원 · 신라에 반영
   const who=(r.owner||savedOwner()||'').trim();   // 끝에 항상 (영업 담당 이름)
   return [...p, ...memoLines()].join(' / ') + (who ? ` (${who})` : '');
