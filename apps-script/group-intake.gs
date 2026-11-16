@@ -80,6 +80,8 @@ function doPost(e) {
   if (req.action === "list") return json_({ ok: true, items: list_(Number(req.limit) || 2000), admin: readAdmin_(), api: 3 });
   // 삭제된 기록 (단체예약 · 개인고객 통화): 시트에서는 줄을 지우지 않고 '삭제' 칸에 일시만 적으므로 그 줄들을 돌려줌 (보기 전용)
   if (req.action === "deleted") return json_({ ok: true, items: listDeleted_(Number(req.limit) || 1000), api: 4 });
+  // 같은 예약을 두 PC(창)에서 동시에 고치지 않도록: 예약을 열면 '고치는 중' 표시 (2분 30초 유지, 열어 둔 화면이 1분마다 연장 · 닫으면 풀림)
+  if (req.action === "lock") return json_(editLock_(req));
   if (req.action === "upload") {
     try { return json_({ ok: true, file: upload_(req) }); }
     catch (err) { return json_({ ok: false, error: "upload: " + String(err && err.message || err) }); }
@@ -226,6 +228,22 @@ function del_(id) {
   if (r < 0) return id;
   s.getRange(r, KEYS.indexOf("deleted") + 1).setValue(new Date().toISOString());
   return id;
+}
+
+// 예약 고치는 중 표시: { id, sid(창마다 다른 값), by(이름), release? }
+//  - 다른 창이 고치는 중이면 { locked:true, by, at } (그 창은 읽기 전용)
+//  - 아니면 이 창이 고치는 중으로 잡고 { locked:false }. release 면 이 창의 표시를 지움
+function editLock_(req) {
+  var id = String(req.id || ""), sid = String(req.sid || "");
+  if (!/^[a-z0-9]{4,40}$/.test(id) || !sid) return { ok: false, error: "bad_id" };
+  var lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    var c = CacheService.getScriptCache(), k = "lk_" + id, raw = c.get(k), v = raw ? JSON.parse(raw) : null, now = Date.now();
+    if (req.release) { if (v && v.sid === sid) c.remove(k); return { ok: true, released: true }; }
+    if (v && v.sid !== sid && now - v.at < 150000) return { ok: true, locked: true, by: v.by, at: v.at };
+    c.put(k, JSON.stringify({ sid: sid, by: String(req.by || ""), at: now }), 150);
+    return { ok: true, locked: false };
+  } finally { lock.releaseLock(); }
 }
 
 // 삭제 표시가 된 줄 (최근 limit개)
