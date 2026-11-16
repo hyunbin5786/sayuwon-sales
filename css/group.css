@@ -616,3 +616,7 @@ html.book-guest #bookBody tr{cursor:default}
 
 #noteModal .panel{width:min(640px,100%)}
 #noteModal .note-out{width:100%;box-sizing:border-box;min-height:180px;font:13px/1.55 var(--sans);padding:8px 10px;border:1px solid var(--line);border-radius:6px;resize:vertical;margin:6px 0}
+/* 특별할인 옆 「편집」 (할인을 넣은 줄에만) */
+.it-extra .spwrap{display:inline-flex;gap:4px;align-items:center}
+.it-extra .spedit{height:30px;border:1px solid #b9b5ab;background:#fff;border-radius:6px;padding:0 10px;font:600 12px var(--sans);color:#3d3b36;cursor:pointer;white-space:nowrap}
+.it-extra .spedit:hover{background:#efede8;border-color:#8f8b82}

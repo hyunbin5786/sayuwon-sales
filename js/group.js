@@ -121,7 +121,7 @@ let optOpen = new Set();
 const GROUP_OF = Object.fromEntries(FIELDS.map(f=>[f[1], f[0]]));
 const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1], ['사담','몽몽마방'].includes(f[0]) ? `${f[0]} ${f[2]}` : f[2]]));
 CFIELDS.forEach(([f,l])=>{ for(let i=0;i<10;i++) LABEL[`c${i}_${f}`]= i? `${l}(${i+1})` : l; });
-const SPECIAL_LABEL = { dKansong:'간송 할인', dMerit:'국가유공자 할인', dGunwi:'군위 주민 할인', dClergy:'대구대교구' }; Object.assign(LABEL, SPECIAL_LABEL);
+const SPECIAL_LABEL = { dKansong:'간송 할인', dMerit:'국가유공자 할인', dGunwi:'군위 주민 할인', dClergy:'대구대교구', dStaff:'직원 할인' }; Object.assign(LABEL, SPECIAL_LABEL);
 Object.assign(LABEL, { teaMed:'티하우스 명상', gayageum:'가야금', cabin:'유루 캐빈' });
 try{ addCatalogProgs(JSON.parse(localStorage.getItem('sayuwon_quote_cat'))); }catch(_){}   // 마지막으로 받은 견적서 품목으로 (새로 받으면 그때 다시)
 const DOW = '일월화수목금토';
@@ -293,9 +293,9 @@ function setItemSp(k, val){   // val = {sp, tf, tx, why} · null = 이 줄 특�
 const ispOf = k => ispMap(rec)[dkey(k)];
 function spBtnHTML(k){ const v=ispOf(k), on=!ispEmpty(v);
   const t = on ? [...Object.entries(v.sp).map(([a,n])=>`${SPECIAL_LABEL[a].replace(/ 할인$/,'')} ${n}명`), (v.tf||v.tx) && `기타 -${wonTxt(v.tf+v.tx)}원`].filter(Boolean).join(' · ') : '';
-  return `<button type="button" class="spbtn${on?' on':''}" data-spopen="${esc(k)}" title="이 품목에 특별 할인(간송 · 국가유공자 · 군위 주민 · 대구대교구) · 기타 할인 넣기">특별할인${t?` <b>${esc(t)}</b>`:''}</button>`; }
+  return `<span class="spwrap" data-spwrap="${esc(k)}"><button type="button" class="spbtn${on?' on':''}" data-spopen="${esc(k)}" title="이 품목에 특별 할인(간송 · 국가유공자 · 군위 주민 · 대구대교구 · 직원) · 기타 할인 넣기">특별할인${t?` <b>${esc(t)}</b>`:''}</button>${on?`<button type="button" class="spedit" data-spopen="${esc(k)}" title="넣어 둔 특별 할인 내역 고치기 (인원 바꾸기 · 빼기)">편집</button>`:''}</span>`; }
 let spKey=null;
-function openSp(k){ spKey=k; ispMigrate(k); document.querySelectorAll('#itemsBox [data-spopen]').forEach(b=>{ b.outerHTML=spBtnHTML(b.dataset.spopen); });   // 예전 기록이면 그 할인이 들어간 줄에 먼저 표시
+function openSp(k){ spKey=k; ispMigrate(k); document.querySelectorAll('#itemsBox [data-spwrap]').forEach(b=>{ b.outerHTML=spBtnHTML(b.dataset.spwrap); });   // 예전 기록이면 그 할인이 들어간 줄에 먼저 표시
   const v=ispOf(k) || {sp:{}, tf:0, tx:0, why:''};
   $('#spTitle').textContent = `특별 할인 · ${itemName(k)}`;
   $('#spPeople').innerHTML = SPECIAL.map(s=>`<label title="${esc(s.name)} · ${s.rate===1?'무료':Math.round(s.rate*100)+'%'} · 지참: ${esc(s.proof)}">${esc(s.short)} <small>${s.rate===1?'무료':Math.round(s.rate*100)+'%'}</small><input data-spk="${s.k}" inputmode="numeric" data-ime="num" maxlength="3" autocomplete="off" value="${v.sp[s.k]||''}">명</label>`).join('');
@@ -1692,11 +1692,12 @@ function erpNote(r){
   if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');
   if(r===rec){ const nt=itemNotesText(); if(nt.length) p.push('항목 비고 '+nt.join(', ')); }   // 예약 내역 줄마다 적은 비고
   if(r.goods) p.push('굿즈 '+goodsText(r)+(String(r.stf_goods||'').trim() ? ` (담당:${String(r.stf_goods).trim()})` : ' (담당:미정)'));   // 굿즈 구매   // 몽몽마방 결제를 마방으로 고르면
+  { const sp=specialCounts(r); if(sp.length) p.push('특별할인 '+sp.map(s=>`${s.short} ${s.n}명(${s.rate===1?'무료':Math.round(s.rate*100)+'%'})`).join(', ')); }   // 특별 할인(간송 · 국가유공자 · 군위 주민 · 대구대교구 · 직원)은 비고에 넣음, 기타 할인은 안 넣음 (2026-11-17)
   // 금액: 현장에서 결제할 때만 (현장 결제 · 결제링크 + 현장 재결제). 몽몽마방 결제가 '마방'이면 식사 금액은 빼고 (식당에서 결제), '사무실'이면 넣음. 지금 적용된 사유원 · 신라 금액 (할인 · 기타 할인 · 줄에서 고친 할인액 · 전산 내역 반영)
   // 세금계산서 · 결제링크 · 기타 · 미정이면 전산 비고에 금액 문구를 넣지 않음 (2026-11-16)
   { const onsite = r.pay==='현장 결제' || r.onsite;
     if(onsite){ const m=moneySplit(r, r.mabangPay==='마방'); p.push(m && (m.saw||m.shilla) ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일 · 예약 내역을 넣으면 계산)'); } }
-  // 할인 사항(기타 할인 · 줄에서 고친 할인액)은 전산 비고에 넣지 않음 (2026-11-14) — 금액만 위 사유원 · 신라에 반영
+  // 기타 할인 · 줄에서 고친 할인액은 전산 비고에 넣지 않음 (2026-11-14) · 특별 할인 인원은 위에서 넣음 — 금액만 위 사유원 · 신라에 반영
   const who=(r.owner||savedOwner()||'').trim();   // 끝에 항상 (영업 담당 이름)
   return [...p, ...memoLines()].join(' / ') + (who ? ` (${who})` : '');
 }
@@ -2181,6 +2182,7 @@ const SPECIAL = [
   {k:'dMerit',   name:'국가유공자',       short:'국가유공자', rate:.30, proof:'국가유공자 증서'},
   {k:'dGunwi',   name:'군위 주민',        short:'군위 주민', rate:.50, proof:'주민등록증 또는 등본 (거주지 확인)'},
   {k:'dClergy',  name:'대구대교구 신부·수녀·신학생', short:'대구대교구', rate:1, proof:'소속 증명서 또는 신분증'},
+  {k:'dStaff',   name:'직원',             short:'직원', rate:.30, proof:'사원증 (직원 확인)'},   // 2026-11-17 직원 할인 30%
 ];
 function groupRate(n){ return !n ? 0 : n>20 ? .10 : .05; }
 function groupLabel(n){ return !n ? '' : n>20 ? '단체예약 10%' : '사전예약 5%'; }
