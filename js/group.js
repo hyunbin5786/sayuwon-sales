@@ -1695,7 +1695,7 @@ function erpNote(r){
   // 금액: 현장에서 결제할 때만 (현장 결제 · 결제링크 + 현장 재결제). 몽몽마방 결제가 '마방'이면 식사 금액은 빼고 (식당에서 결제), '사무실'이면 넣음. 지금 적용된 사유원 · 신라 금액 (할인 · 기타 할인 · 줄에서 고친 할인액 · 전산 내역 반영)
   // 세금계산서 · 결제링크 · 기타 · 미정이면 전산 비고에 금액 문구를 넣지 않음 (2026-11-16)
   { const onsite = r.pay==='현장 결제' || r.onsite;
-    if(onsite){ const m=moneySplit(r, r.mabangPay==='마방'); p.push(m ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일·인원을 넣으면 계산)'); } }
+    if(onsite){ const m=moneySplit(r, r.mabangPay==='마방'); p.push(m && (m.saw||m.shilla) ? `${won(m.saw)}원(사유원) ${won(m.shilla)}원(신라) 현장결제 필요` : '현장결제 필요 (금액은 방문일 · 예약 내역을 넣으면 계산)'); } }
   // 할인 사항(기타 할인 · 줄에서 고친 할인액)은 전산 비고에 넣지 않음 (2026-11-14) — 금액만 위 사유원 · 신라에 반영
   const who=(r.owner||savedOwner()||'').trim();   // 끝에 항상 (영업 담당 이름)
   return [...p, ...memoLines()].join(' / ') + (who ? ` (${who})` : '');
@@ -3031,7 +3031,7 @@ document.addEventListener('click', async e=>{
   if(e.target.id==='omSeen'){ const me=savedOwner(), now=new Date().toISOString(); await saveMemos(editingId, ms=>ms.map(m=>m.by!==me && !m.seen ? {...m, seen:true, seenAt:now} : m)); paintLock(); paintMemoCount(); }
 });
 // 잠긴 예약: 화면의 칸 · 버튼을 누르거나 쳐도 아무 일이 없게 (위쪽 메모 · 예약 현황 목록 · 텍스트 복사는 됨)
-const lockBlocked = t => !!(lockOwner || editLockBy) && t && t.closest && t.closest('.layout') && !t.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn, #histDet > summary');
+const lockBlocked = t => !!(lockOwner || editLockBy) && t && t.closest && t.closest('.layout') && !t.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn, #noteRegenBtn, #noteModal, #histDet > summary');
 let lockNudgeT=0;
 ['mousedown','click','dblclick','beforeinput','paste','drop','dragstart','change','input'].forEach(ev=>document.addEventListener(ev, e=>{
   if(!lockBlocked(e.target)) return; e.preventDefault(); e.stopImmediatePropagation();
