@@ -168,7 +168,7 @@ function syncPayTbd(r){ const s=tbdSet(r); r.pay==='미정' ? s.add('pay') : s.d
 function packExtra(r){
   const o={};
   o.pay = r.pay;   // 결제 미정의 답변일은 미정 항목 답변일로
-  o.memo = MEMO_PARTS.filter(([k])=>r[k] && (!['tbdDate','tbdLate'].includes(k) || r.tbd)).map(([k,l])=>`${l} ${String(r[k]).replace(/\s*\/\s*/g,', ')}`).join(' / ');
+  o.memo = MEMO_PARTS.filter(([k])=>r[k] && (!['tbdDate','tbdLate'].includes(k) || r.tbd)).map(([k,l])=>`${l} ${String(r[k]).replace(/\s+\/\s+/g,', ')}`).join(' / ');   // 칸 구분은 " / " (띄어쓰기 있는 것만). 품목 이름의 '주말/공휴일' 같은 / 는 그대로 (2026-11-16 전에는 ", " 로 바뀌어 새로고침하면 관람 줄이 「항목 고르기」가 됐음)
   if(typeof SPECIAL!=='undefined'){ const sp=specialCounts(r); if(sp.length) o.memo=[o.memo, '특별 할인 '+sp.map(s=>s.short+' '+s.n).join(', ')].filter(Boolean).join(' / '); }
   const xp = Object.keys(r).filter(k=>r[k] && (isXProg(k) || /^px:/.test(k))).map(k=>`${LABEL[k]||k.slice(3)} ${String(r[k]).replace(/[,/]/g,' ').trim()}`);
   if(xp.length) o.memo=[o.memo, '추가 프로그램 '+xp.join(', ')].filter(Boolean).join(' / ');
@@ -181,7 +181,8 @@ function packExtra(r){
 }
 function unpackExtra(r){ const o={}; let m;
   if((m=String(r.pay||'').match(/^미정\s*\(연락\s*(\d{4}-\d{2}-\d{2})\)/))){ o.pay='미정'; o.payContact=m[1]; }
-  String(r.memo||'').replace(/미정 항목 입력 기한 /g,'미정 항목 답변일 ').split(/\s*\/\s*/).forEach(part=>{ MEMO_PARTS.forEach(([k,l])=>{ if(part.startsWith(l+' ')) o[k]=part.slice(l.length+1).trim(); }); });   // 예전 이름 '입력 기한'도 읽음
+  String(r.memo||'').replace(/미정 항목 입력 기한 /g,'미정 항목 답변일 ').split(/\s+\/\s+/).forEach(part=>{ MEMO_PARTS.forEach(([k,l])=>{ if(part.startsWith(l+' ')) o[k]=part.slice(l.length+1).trim(); }); });   // 칸 구분 " / " 로만 나눔 (품목 이름의 '주말/공휴일' 은 그대로) · 예전 이름 '입력 기한'도 읽음
+  ['views','viewSrc','inotes'].forEach(k=>{ if(o[k]) o[k]=o[k].replace(/주말,\s*공휴일/g,'주말/공휴일'); });   // 예전에 '주말/공휴일' 이 '주말, 공휴일' 로 저장된 관람 품목 되살리기
   if(o.payContact && !o.tbdDate) o.tbdDate=o.payContact;   // 예전 '결제 연락 예정일' → 미정 항목 답변일
   const mx=String(r.memo||'').match(/추가 프로그램\s+([^/]+)/); if(mx) mx[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\S+)$/); if(!x) return;
     const f=FIELDS.find(f=>f[2]===x[1] && isXProg(f[1])), k=f ? f[1] : 'px:'+x[1].replace(/\s/g,''); if(!f) LABEL[k]=x[1]; o[k]=x[2]; });
@@ -189,7 +190,7 @@ function unpackExtra(r){ const o={}; let m;
     const mst=String(r.memo||'').match(new RegExp(`프로그램 ${nm}\\s+([^/]+)`)); if(mst) mst[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?):(.+)$/); if(!x) return;
       const f=FIELDS.find(f=>f[2]===x[1].trim() && /^프로그램/.test(f[0]) && !isSub(f[1])), k=f ? f[1] : 'px:'+x[1].replace(/\s/g,''); o[`${p}_${k}`]=x[2].trim(); });
   });
-  const ms=String(r.memo||'').match(/특별 할인\s+([^/]+)/); if(ms) ms[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\d+)$/); if(!x) return; const s=SPECIAL.find(s=>s.short===x[1].trim()); if(s) o[s.k]=x[2]; });
+  const ms=String(r.memo||'').match(/(?:^|\s\/\s)특별 할인\s+([^/]+)/); if(ms) ms[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\d+)$/); if(!x) return; const s=SPECIAL.find(s=>s.short===x[1].trim()); if(s) o[s.k]=x[2]; });
   return o; }
 
 // ===================== 칸 렌더 =====================
@@ -2645,7 +2646,7 @@ async function downloadXlsx(){
     const ws = wb.addWorksheet('단체예약 현황', { views:[{ state:'frozen', ySplit:1 }] });
     ws.columns = COLS.map(([h,w])=>({ header:h, width:w }));
     rows.forEach(r=>{
-      const x={...r, ...unpackExtra(r)}, sp=(String(r.memo||'').match(/특별 할인\s+([^/]+)/)||[])[1]||'';
+      const x={...r, ...unpackExtra(r)}, sp=(String(r.memo||'').match(/(?:^|\s\/\s)특별 할인\s+([^/]+)/)||[])[1]||'';   // 칸 맨 앞 '특별 할인' 만 ('항목 특별 할인' 과 헷갈리지 않게)
       ws.addRow([r.date||'', listView.stageOf(r), listView.erpOf(r)?'등록':(listView.stageOf(r)==='예약상담'?'':'미등록'), r.org||'', r.owner||r.takenBy||'', r.pay||'', r.vehicle||'', r.tin||'', x.gate||'', r.tout||'', r.people||'',
         r.sadam1||'', r.sadam2||'', r.sadamD||'', x.mabangTime||'', (r.mabangL||'')+(r.mabangD?` (예전 디너 ${r.mabangD})`:''), r.mabangMenu||'', (mbUnit({...r,...x})||''), x.mabangPay||'', x.mabangNote||'', ...PROG_KEYS().map(k=>x[k]||''), Object.keys(x).filter(k=>x[k] && (LEGACY_KEYS.includes(k) || (/^px:/.test(k) && !PROG_KEYS().includes(k)))).map(k=>`${LABEL[k]||k.slice(3)} ${x[k]}`).join(', '),
         docState(r,'quote'), docState(r,'stmt'),         r.contact||'', r.phone||'', r.email||'', x.pchg?'있음':'', x.onsite?'있음':'', x.tbd?(x.tbd+(x.tbdDate?` (${x.tbdDate}까지)`:'')):'', sp.trim(), r.note||'', r.saved?fmt(r.saved):'']);
