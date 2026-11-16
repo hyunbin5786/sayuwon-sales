@@ -8,9 +8,9 @@ const FIELDS = [
   ['기본','date','방문일','B','w2',  '방문 날짜가 언제로 생각하고 계실까요?'],
   ['기본','people','관람 인원','I','',  '방문 인원은 총 몇 분이세요? (인솔자·기사님 포함 여부도)'],
   ['기본','pchg','인원 변경','','',  null],   // 인원이 바뀔 수 있으면 체크
-  ['방문','tin','입장','H','',  '몇 시쯤 도착 예정이세요?'],
+  ['방문','tin','입장시각','H','',  '몇 시쯤 도착 예정이세요?'],
   ['방문','gate','입장문','','',  null],   // 치허문 · 곡신문 · 미정
-  ['방문','tout','퇴장 (선택)','H','',  null],
+  ['방문','tout','퇴장시각 (선택)','H','',  null],
   ['방문','vehicle','차량','G','w2',  '버스로 오세요, 승용차로 오세요? 몇 대인가요?'],
   ['방문','owner','영업 담당','E','',  null],
   ['방문','pay','결제','F','',  '결제는 세금계산서, 결제링크, 현장 결제 중 어떻게 하실까요?'],
@@ -159,8 +159,8 @@ const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
-const TBD_KEYS = [['org','업체'],['date','방문일'],['people','관람 인원'],['tin','입장'],['vehicle','차량 대수'],['pay','결제 방법']];   // 결제 미정 = 미정 항목 '결제 방법' (입장문은 전날 전화로 안내하므로 미정 항목 아님)
-const tbdSet = r => { const names=String(r?.tbd||'').split(/\s*,\s*/); return new Set(TBD_KEYS.filter(([,l])=>names.includes(l)).map(([k])=>k)); };
+const TBD_KEYS = [['org','업체'],['date','방문일'],['people','관람 인원'],['tin','입장시각'],['vehicle','차량 대수'],['pay','결제 방법']];   // 결제 미정 = 미정 항목 '결제 방법' (입장문은 전날 전화로 안내하므로 미정 항목 아님)
+const tbdSet = r => { const names=String(r?.tbd||'').split(/\s*,\s*/); return new Set(TBD_KEYS.filter(([k,l])=>names.includes(l) || (k==='tin' && names.includes('입장'))).map(([k])=>k)); };   // 예전 기록의 '입장'도 입장시각으로
 function syncPayTbd(r){ const s=tbdSet(r); r.pay==='미정' ? s.add('pay') : s.delete('pay'); r.tbd=TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', '); if(!s.size){ r.tbdDate=''; r.tbdLate=''; if(r===rec) tbdAuto=false; } }
 function packExtra(r){
   const o={};
@@ -566,7 +566,7 @@ function fieldHTML(k,label,col,cls,req){
   if(EN_ONLY(k))  extra+=' data-ime="en" inputmode="email" lang="en" autocapitalize="off" spellcheck="false"';
   if(PHONE(k))    extra+=' data-ime="num" inputmode="tel" placeholder="010-0000-0000"';
   if(NUM_ONLY[k]) extra+=' inputmode="numeric" data-ime="num"';
-  if(TIME_KEYS[k]) extra+=` inputmode="numeric" data-ime="num" maxlength="5" placeholder="${TIME_KEYS[k]}" title="24시간 표시 (예: 13:30)"`;
+  if(TIME_KEYS[k]) extra+=` inputmode="numeric" data-ime="num" maxlength="5" title="24시간 표시 (예: 13:30)"`;
   if(k==='mabangTime') extra+=' placeholder="12:00~13:00" title="24시간 · 숫자만 쳐도 됨 (12001300)"';
   if(k==='mabangPrice') extra+=' placeholder="1인 단가"';
   if(k==='mabangNote') extra+=' data-ime="ko" placeholder="예) 20% 할인, 2인 이상 주문"';
