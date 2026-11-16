@@ -698,8 +698,7 @@ function buildForm(){
       delete dt.dataset.editing; dt.readOnly=true; paintFields(); });
     dp.addEventListener('change', ()=>{ dt.value=dp.value; dt.dispatchEvent(new Event('input',{bubbles:true})); });
   }
-  // 입장: 빈 칸을 누르면 기본 12:00 (선택된 상태라 바로 고쳐 쓰기). 나갈 때 24시간 HH:MM 으로 맞춤 (9:30 → 09:30, 13 → 13:00)
-  $('#form').addEventListener('focusin', e=>{ const el=e.target; if(el.dataset?.k==='tin' && !el.value){ el.value='12:00'; el.dispatchEvent(new Event('input',{bubbles:true})); setTimeout(()=>{ try{ el.select(); }catch(_){} },0); } });
+  // 입장시각: 빈 칸을 눌러도 아무것도 넣지 않음 (2026-11-16). 나갈 때 24시간 HH:MM 으로 맞춤 (9:30 → 09:30, 13 → 13:00)
   // 몽몽마방 시간: 빈 칸을 누르면 고객님 입장 시각부터 1시간 (예: 입장 13:00 → 13:00~14:00), 고쳐 쓰기 쉽게 선택된 상태
   $('#form').addEventListener('focusin', e=>{ const el=e.target; if(el.dataset?.k!=='mabangTime' || el.value) return; const t=fmtTime(rec.tin); if(!t) return; const h=+t.slice(0,2)+1; el.value=`${t}~${String(Math.min(h,23)).padStart(2,'0')}${t.slice(2)}`; el.dispatchEvent(new Event('input',{bubbles:true})); setTimeout(()=>{ try{ el.select(); }catch(_){} },0); });
   const mbDefTime = () => { const t=fmtTime(rec.tin); if(!t) return ''; const h=Math.min(+t.slice(0,2)+1,23); return `${t}~${String(h).padStart(2,'0')}${t.slice(2)}`; };
