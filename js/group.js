@@ -1826,7 +1826,11 @@ $('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!
 $('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) autoSave(); });
 $('#taskAdd').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#taskAddIn').value.trim(); if(!v) return;
   tasks.push({id:'c'+Date.now().toString(36), title:v, custom:true, done:false, memo:'', at:new Date().toISOString(), due:todayYmd()}); $('#taskAddIn').value=''; renderTasks(); autoSave(); });   // 마감은 오늘 (바꿀 수 있음)
-$('#memoBox').addEventListener('input', ()=>{ renderTasks(); if(window.__autoReady){ scheduleAuto(); saveViewSoon(); } });
+// 통화 메모: 칠 때마다 과업 · 자동 저장 계산을 하면 느려져서, 치기를 멈추고 0.4초 뒤에 한 번만 (한글 조합 중에는 안 함)
+let memoT=0;
+$('#memoBox').addEventListener('input', e=>{ clearTimeout(memoT); if(e.isComposing) return; memoT=setTimeout(()=>{ renderTasks(); if(window.__autoReady){ scheduleAuto(); saveViewSoon(); } }, 400); });
+$('#memoBox').addEventListener('compositionend', ()=>{ clearTimeout(memoT); memoT=setTimeout(()=>{ renderTasks(); if(window.__autoReady){ scheduleAuto(); saveViewSoon(); } }, 400); });
+$('#memoBox').addEventListener('blur', ()=>{ if(!memoT) return; clearTimeout(memoT); memoT=0; renderTasks(); if(window.__autoReady){ scheduleAuto(); saveViewSoon(); } });   // 칸을 나가면 바로
 
 // 견적서 사이트가 출력 후 드라이브에 올린 파일 링크를 같은 사이트 저장소(sy_intake_docs)로 돌려줌 → 그 예약의 견적서/거래명세서 과업에 붙이고 완료
 const DOCS_LS='sy_intake_docs';
