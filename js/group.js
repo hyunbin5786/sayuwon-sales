@@ -81,12 +81,12 @@ function staffDefaults(){
   const me=(rec.owner||savedOwner()||'').trim(); if(!me) return false;
   return syncGoodsStaff();   // 2026-11-14: 프로그램 담당은 자동으로 넣지 않음 (직접 입력 · 비면 과업 「프로그램 · 굿즈 담당 입력」). 굿즈 담당만 늘 영업 담당
 }
-// 굿즈 담당은 항상 영업 담당 (헤더의 영업 담당 이름을 따라감)
+// 굿즈 담당: 비어 있으면 영업 담당으로 채움 (고칠 수 있음). 굿즈가 없으면 비움
 function syncGoodsStaff(){
   const me=(rec.owner||savedOwner()||'').trim(), want = rec.goods ? me : '';
   if(!want && !rec.goods && !rec.stf_goods) return false;
   if(rec.goods && !me) return false;   // 영업 담당 이름이 없으면 그대로 (담당 입력 과업이 알려 줌)
-  if(String(rec.stf_goods||'')===want) return false;
+  if(rec.goods && String(rec.stf_goods||'').trim()) return false;   // 직접 고친(또는 이미 들어간) 굿즈 담당은 그대로 (2026-11-16: 고칠 수 있게)
   rec.stf_goods=want; touched.add('stf_goods'); return true;
 }
 const missingStaff = r =>STAFF_BASES().filter(k=>r[k] && needsStaff(k) && !String(r['stf_'+k]||'').trim());
@@ -393,7 +393,7 @@ function itemRowHTML(k, rows){
     : note + (t==='prog' && FIELDS.some(f=>f[1]==='tm_'+k) ? `<input class="it-x" data-ix="tm_${esc(k)}" inputmode="numeric" data-ime="num" placeholder="시간대 13:00~15:00" value="${esc(rec['tm_'+k]||'')}"><input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="코스 (예: 정원 코스)" value="${esc(rec['crs_'+k]||'')}">` : '');
   return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}<span class="it-p" data-iup="${esc(k)}"></span>`
     + `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`
-    + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" readonly placeholder="헤더에 영업 담당 이름을 넣으세요" value="${esc(sv)}" title="굿즈 담당 = 영업 담당 (헤더의 영업 담당 이름을 따라감)"></span>`
+    + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="굿즈 담당 (기본 = 영업 담당 · 고칠 수 있음 · 굿즈 모두 같은 담당)"></span>`
       : stf ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="프로그램 담당"></span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
     + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
     + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div><div class="it-extra">${extra}${spBtnHTML(k)}<span class="it-amt" data-iamt="${esc(k)}"></span></div>`) + `</div>`;   // 둘째 줄: 할인(할인 대상만) · 셋째 줄: 비고 (할인이 없으면 바로 비고, 금액은 그 줄 끝)
