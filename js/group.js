@@ -504,7 +504,11 @@ document.addEventListener('focusout', e=>{ const el=e.target; if(!el.closest?.('
   if(/^(mabangTime|tm_)/.test(el.dataset.ix)){ const f=fmtRange(el.value); if(f && f!==el.value){ el.value=f; rec[el.dataset.ix]=f; touched.add(el.dataset.ix); itemChanged(false); } } });   // 12001300 → 12:00~13:00
 document.addEventListener('focusin', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.iq==null) return; const k=el.dataset.iq, t=itemKind(k); renderInfo(t==='mb' ? 'mabangL' : ['sadam','prog'].includes(t) ? k : null); });   // 그날 같은 항목 예약 현황
 document.addEventListener('click', e=>{
-  if(e.target.closest?.('#itemsBox [data-iadd]')){ const k='new:'+Date.now().toString(36); itemRows.push(k); itemPend.add(k); renderItems(true); document.querySelector(`#itemsBox [data-isel="${k}"]`)?.focus(); return; }
+  if(e.target.closest?.('#itemsBox [data-iadd]')){
+    // 관람권이 아직 없으면 먼저 관람권 줄을 자동으로: 입장시각 13시 이후면 13~18시, 아니면 9~18시 · 인원 = 관람 인원 − 관람 포함 품목(사담 등) 인원
+    if(!viewsParse(rec.views).some(x=>/관람\(\d\d:00~18:00\)/.test(x.src)) && numOf(rec.people)){ const src=timedViewSrc(rec), q=Math.max(0, numOf(rec.people)-areaOthers(rec));
+      if(q){ setItemQty('v:'+src, String(q)); if(!itemRows.includes('v:'+src)) itemRows.unshift('v:'+src); toast(`관람권(${/13:00/.test(src)?'13~18시':'9~18시'}) ${q}명을 넣었습니다.`); } }
+    const k='new:'+Date.now().toString(36); itemRows.push(k); itemPend.add(k); renderItems(true); document.querySelector(`#itemsBox [data-isel="${k}"]`)?.focus(); return; }
   const d=e.target.closest?.('#itemsBox [data-idel]'); if(d){ const k=d.dataset.idel; clearItem(k); itemRows=itemRows.filter(x=>x!==k); itemChanged(true); }
 });
 // "12001300" · "12-13" · "12:00~13:00" → "12:00~13:00"
@@ -2286,6 +2290,17 @@ const isRedDay = date => { const d=new Date(date+'T00:00'); return !isNaN(d) && 
 function viewSrcOf(r){ const we=isRedDay(r.date), h=tinHour(r.tin), day=we?'주말/공휴일':'평일';
   if(r.viewSrc && !/\(\d\d:00~18:00\)/.test(r.viewSrc)){ const s=String(r.viewSrc).replace(/^(평일|주말\/공휴일)/, day); if(priceOf(s)!=null) return s; }   // 시간대 관람권(9~18 · 13~18)은 입장 시각으로 자동, 그 밖(학생 등)은 고른 것
   return `${day} 관람(${h!=null && h>=13 ? '13:00~18:00' : '09:00~18:00'})`; }
+['focusout'].forEach(ev=>document.addEventListener(ev, e=>{ if(!e.target.closest || !e.target.closest('#form [data-k="tin"]')) return;   // 입장시각 칸을 나갈 때
+  setTimeout(()=>{ if(fmtTime(rec.tin) && syncViewTime()){ renderItems(true); renderSide(); toast(`입장시각에 맞춰 관람권을 ${(tinHour(rec.tin)??0)>=13?'13~18시':'9~18시'}로 바꿨습니다.`); } }, 0); }));
+// 시간대 관람권: 입장시각 13시 이후 = 13~18시, 그 밖(모름 포함) = 9~18시
+const timedViewSrc = r => `${r.date && isRedDay(r.date) ? '주말/공휴일' : '평일'} 관람(${(tinHour(r.tin)??0)>=13 ? '13:00~18:00' : '09:00~18:00'})`;
+// 입장시각이 바뀌면 예약 내역의 시간대 관람권(9~18 ↔ 13~18)도 따라 바뀜 (인원 · 줄은 그대로)
+function syncViewTime(){
+  const list=viewsParse(rec.views), i=list.findIndex(x=>/관람\((09|13):00~18:00\)/.test(x.src)); if(i<0) return false;
+  const wantT=(tinHour(rec.tin)??0)>=13 ? '13' : '09', curT=list[i].src.match(/\((\d\d):00~/)[1]; if(curT===wantT) return false;
+  const old='v:'+list[i].src; list[i].src=list[i].src.replace(/\(\d\d:00~18:00\)/, `(${wantT}:00~18:00)`);
+  rec.views=goodsJoin(list); touched.add('views'); const ri=itemRows.indexOf(old); if(ri>=0) itemRows[ri]='v:'+list[i].src; return true;
+}
 // 관람 영역: 기본 관람권 + 관람 포함 품목(관람+식사 패키지 · 다른 관람권 · 새벽 해오름 산책). 품목 이름의 평일 · 주말은 방문일에 맞춤
 const daySrc = (src, r) => { const day=r.date && isRedDay(r.date) ? '주말/공휴일' : '평일', s=String(src).replace(/^(평일|주말\/공휴일)/, day); return priceOf(s)!=null ? s : src; };
 const viewsParse = v => goodsParse(v);   // "품목 x5 · 품목 x10"
