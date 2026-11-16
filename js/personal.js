@@ -150,7 +150,7 @@ function paintTasks(){
       + `${t.done?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}`
       + `${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}`
       + `<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"></label>`
-      + `<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button></div>`
+      + (t.id==='inqcheck' ? '' : `<button type="button" class="del" data-tdel="${esc(t.id)}" title="과업 삭제">×</button>`) + `</div>`
       + subsHTML(t) + `<textarea data-tm="${esc(t.id)}" lang="ko" data-ime="ko" placeholder="메모">${esc(t.memo||'')}</textarea></li>`; }).join('')
     || '<li class="empty">추후 과업이 없습니다. 이 통화 뒤에 할 일이 있으면 위에 적어 주세요.</li>';
   enhanceDates(box);   // 마감일 = 방문일 방식 날짜 칸
@@ -258,6 +258,8 @@ $('#copyBtn').onclick=async()=>{ const ok=await copyText(reportText()); toast(ok
 function save(){
   if(!form.note.trim() && !form.name.trim() && !form.phone.trim() && !form.tasks.length){ toast('문의 내용이나 고객 정보를 넣어 주세요.'); return; }
   if($('#taskAddIn').value.trim()) $('#taskAdd').requestSubmit();   // 과업 칸에 적어 두고 추가를 안 누른 것도
+  // 개인고객 문의는 처리가 필요한 것만 남기므로, 저장하면 늘 추후 과업 「문의 처리 현황 점검」(마감 오늘 · 지울 수 없음, 처리되면 체크)
+  if(!form.tasks.some(t=>t.id==='inqcheck')) form.tasks.push({id:'inqcheck', title:'문의 처리 현황 점검', done:false, memo:'', at:new Date().toISOString(), due:todayYmd(), by:user.name||'', auto:1});
   const item=toItem(); put(item); cur=item; saved=JSON.stringify(form); startedAt=null; paintForm(); toast('저장했습니다.');
 }
 $('#callForm').addEventListener('submit', e=>{ e.preventDefault(); save(); });
