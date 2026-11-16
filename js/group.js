@@ -1337,7 +1337,8 @@ function paintSync(){
   const chip=$('#syncChip'), n=pending.length;
   // 연결돼 있으면 아무것도 안 보임. 문제가 있을 때만 헤더에 표시 (비밀번호 문제는 팝업)
   const txt={ off:'이 브라우저에만 저장', loading:'', ok: n?`올리는 중 ${n}건`:'', error: n?`연결 끊김 · ${n}건 대기 · 다시 시도 중`:'연결 끊김 · 다시 시도 중', needkey:'' }[syncState];
-  chip.textContent=txt; chip.hidden=!txt; chip.className='sync '+(syncState==='error'||syncState==='off'?'warn':'');
+  chip.textContent=txt; chip.hidden=!txt; chip.title = syncState==='error' && lastSyncErr ? `마지막 오류: ${lastSyncErr}
+15초마다 다시 보냅니다. 저장 대기 중인 내용은 이 브라우저에 남아 있으니 창을 닫아도 다음에 열면 이어서 보냅니다.` : ''; chip.className='sync '+(syncState==='error'||syncState==='off'?'warn':'');
   const km=$('#keyModal'), wasHidden=km.hidden; km.hidden = syncState!=='needkey';
   if(!km.hidden && wasHidden) setTimeout(()=>$('#keyInput').focus(), 0);
   paintDbTime();
@@ -1355,9 +1356,16 @@ function paintDbTime(){
   el.textContent = (last ? `DB 저장 ${dtLabel(last)}` : t ? `DB 동기화 ${dtLabel(t)}` : '') + (n ? ` · 저장 대기 ${n}건` : '');
   el.title = `구글 시트(Apps Script) DB · 이 브라우저 기준\n· 예약 마지막 저장: ${dbTime.saved?dtLabel(dbTime.saved):'아직 없음'} (고치고 30초 뒤 자동 저장)\n· 품목 관리 마지막 저장: ${dbTime.cat?dtLabel(dbTime.cat):'아직 없음'} (고치고 2초 뒤 자동 저장)\n· 마지막으로 목록을 받아 옴: ${dbTime.pulled?dtLabel(dbTime.pulled):'아직 없음'}`;
 }
+// 구글 시트 칸 하나 = 5만 자까지. 수정 기록(history)이 넘으면 처음 저장 줄은 두고 오래된 기록부터 덜어 냄 (바꿨으면 줄인 기록을 돌려줌)
+function fitHist(item){ const s=String(item && item.history || ''); if(s.length<=45000) return null; let hj; try{ hj=JSON.parse(s); }catch(_){ return null; }
+  let h=Array.isArray(hj.h)?hj.h:[]; while(item.history.length>45000 && h.length>20){ h=[h[0], ...h.slice(1+Math.max(1, Math.floor(h.length/10)))]; hj.h=h; item.history=JSON.stringify(hj); } return h; }
+var lastSyncErr='', syncErrN=0;   // 저장 실패 이유 (헤더 「연결 끊김」에 마우스를 올리면 보임)
 function handleErr(e){
   if(e.code==='bad_key'){ syncState='needkey'; if(getKey()) $('#keyMsg').textContent='비밀번호가 맞지 않습니다.'; }
-  else { syncState='error'; clearTimeout(retryTimer); retryTimer=setTimeout(()=>{ flush(); }, 15000); }
+  else { syncState='error'; clearTimeout(retryTimer); retryTimer=setTimeout(()=>{ flush(); }, 15000);
+    const net = e instanceof TypeError || /fetch|network|Load failed/i.test(String(e.message||e)), msg = net ? '인터넷 연결 (또는 구글 서버 응답 없음)' : String(e.message||e).replace(/^Error:\s*/,'');
+    syncErrN = msg===lastSyncErr ? syncErrN+1 : 1; lastSyncErr = msg;
+    if(!net && syncErrN===3) toast(`구글 시트 저장이 계속 실패합니다: ${msg}`); }   // 같은 오류가 세 번 이어지면 한 번 알림 (연결 문제는 알리지 않고 계속 다시 시도)
   paintSync();
 }
 async function flush(){
@@ -1367,6 +1375,7 @@ async function flush(){
   try{
     do {   // 보내는 사이 새로 쌓인 것(예: 삭제 사유 저장 뒤 삭제)까지 이어서 보냄
     while(pending.length){
+      if(pending[0].action==='put' && fitHist(pending[0].item)) writeJSON(PEND_LS,pending);   // 예전에 쌓인 저장도 시트 칸 크기에 맞춰
       await callApi(pending[0]);
       pending.shift(); writeJSON(PEND_LS,pending); dbTime.saved=new Date().toISOString(); writeJSON(DBT_LS, dbTime); paintSync();
     }
@@ -1384,7 +1393,7 @@ async function pull(inFlush){
     serverItems=j.items||[]; writeJSON(CACHE_LS,serverItems.slice(-1000));
     if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
     dbTime.pulled=new Date().toISOString(); writeJSON(DBT_LS, dbTime);
-    syncState='ok'; $('#keyMsg').textContent=''; paintSync(); renderList(); tryOpenG(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); checkMemoPopup(); if(editingId){ const cr=cache.find(x=>x.id===editingId); if(cr){ memos=mergeMemos(memos, parseHist(cr).memos); paintLock(); } } if(!$("#myModal").hidden) renderMy(); }
+    syncState='ok'; lastSyncErr=''; syncErrN=0; $('#keyMsg').textContent=''; paintSync(); renderList(); tryOpenG(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); checkMemoPopup(); if(editingId){ const cr=cache.find(x=>x.id===editingId); if(cr){ memos=mergeMemos(memos, parseHist(cr).memos); paintLock(); } } if(!$("#myModal").hidden) renderMy(); }
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
 const store={
@@ -1507,10 +1516,12 @@ async function save(opt){
   if(row){ row.t=now; if(auto) row.o=1; else delete row.o; }
   if(row && opt && opt.revert) row.what = `[되돌리기] ${opt.revert} 버전으로 · ${row.what}`;
   const changes = row && row.ch ? Object.keys(row.ch) : row ? ['처음 저장'] : [];
-  const newHist = row ? [...(open ? hist.slice(0,-1) : hist), row].slice(-200) : hist;
+  let newHist = row ? [...(open ? hist.slice(0,-1) : hist), row].slice(-200) : hist;
   const j=joinContacts(rec);
   const item={...rec, ...j, ...packExtra(rec), callType:effStage(rec), summary:autoSummary(), note:$('#memoBox').value, takenBy:rec.owner,
     callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:now, history:JSON.stringify({h:newHist, tasks, erp:erpList, memos:mergeMemos(memos, parseHist(cache.find(x=>x.id===editingId)||{}).memos)})};   // 메모: 그사이 남이 남긴 것까지 합침
+  // 구글 시트 칸 하나에는 5만 자까지만 들어감 → 수정 기록이 너무 길면 처음 저장 줄은 두고 오래된 기록부터 덜어 냄 (넘으면 저장이 계속 실패함)
+  { const h2=fitHist(item); if(h2) newHist=h2; }
   Object.keys(item).forEach(k=>{ if(isCKey(k)) delete item[k]; });
   delete item.tbd; delete item.stage; delete item.erp; delete item.tbdDate; delete item.tbdLate; delete item.payContact;
   saving=true;
