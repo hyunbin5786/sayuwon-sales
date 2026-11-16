@@ -224,8 +224,8 @@ function savePcats(list, what){
 function paintChips(){
   const list=pcats(), cats=[...list]; if(form.cat && !cats.includes(form.cat)) cats.push(form.cat);   // 삭제된 구분이어도 이 통화에 고른 것은 보이게
   $('#catChips').innerHTML = cats.map(c=>`<button type="button" data-cat="${esc(c)}" class="${form.cat===c?'on':''}${list.includes(c)?'':' gone'}" aria-pressed="${form.cat===c}">${esc(c)}${list.includes(c)?`<span class="x" data-catdel="${esc(c)}" title="'${esc(c)}' 구분 삭제 (모든 사람에게서)">×</span>`:''}</button>`).join('') + `<button type="button" class="add" data-catadd title="구분 추가 (모든 사람에게 보임)">＋</button>`;
-  // 보고전달자: 멤버관리에 등록된 사람 중 하나 (나는 빼고, 안 골라도 됨)
-  const me=String(user.name||'').replace(/\s/g,''), mem=memberNames.filter(n=>n.replace(/\s/g,'')!==me);
+  // 보고전달자: 멤버관리에 등록된 사람 모두 중 하나 (안 골라도 됨). 새로 등록된 멤버는 2분마다 · 창으로 돌아올 때 받아서 자동으로 추가
+  const mem=[...memberNames];
   if(form.reportTo && !mem.includes(form.reportTo)) mem.push(form.reportTo);   // 예전에 적어 둔 이름도 보이게
   $('#rtChips').innerHTML = mem.length ? mem.map(n=>`<button type="button" data-rt="${esc(n)}" class="${form.reportTo===n?'on':''}" aria-pressed="${form.reportTo===n}">${esc(n)}</button>`).join('') : '<span class="hint" style="margin:0">멤버 목록을 불러오는 중…</span>';
   $('#resChips').innerHTML = RES_OPTS.map(c=>`<button type="button" data-res="${esc(c)}" class="${form.reserved===c?'on':''}" aria-pressed="${form.reserved===c}">${esc(c)}</button>`).join('');
@@ -243,13 +243,16 @@ $('#rtChips').addEventListener('click', e=>{ const b=e.target.closest('button[da
 const MEMBERS_LS='sayuwon_member_names';
 let memberNames = readJSON(MEMBERS_LS, []);
 async function loadMembers(){ if(!getKey()) return; try{ const j=await callApi({action:'members'}); memberNames=(j.members||[]).map(m=>String(m.name||'').trim()).filter(Boolean); writeJSON(MEMBERS_LS, memberNames); paintChips(); }catch(_){} }
-setTimeout(loadMembers, 500); setInterval(loadMembers, 10*60e3);
+setTimeout(loadMembers, 500); setInterval(loadMembers, 2*60e3); window.addEventListener('focus', loadMembers);   // 새 멤버는 2분마다 · 이 창으로 돌아올 때 다시 받아 자동으로 추가
 $('#resChips').addEventListener('click', e=>{ const b=e.target.closest('button[data-res]'); if(!b) return; form.reserved = form.reserved===b.dataset.res ? '' : b.dataset.res; touch(); });
 // ===================== 카카오톡 보고용 글자 복사 =====================
 // [구분] 담당자 -> 보고전달자 / 고객 이름 / 연락처 / 방문 희망일/예약일 / 인원 / 문의내용
 function reportText(){ const f=form, who=(cur && cur.takenBy) || user.name || '';
-  return [`[${f.cat||'구분 없음'}] ${who}${f.reportTo ? ` -> ${f.reportTo}` : ''}`, `고객 이름 : ${f.name||''}`, `연락처 : ${f.phone||''}`,
-    `방문 희망일/예약일 : ${f.date ? dLabel(f.date) : ''}`, `인원 : ${f.people ? f.people+(/^\d+$/.test(f.people)?'명':'') : ''}`, `문의내용 : ${f.note||''}`].join('\n'); }
+  // 비어 있는 항목은 줄째 빼고 (첫 줄은 늘)
+  const phone = /^010-?$/.test(String(f.phone||'').trim()) ? '' : f.phone;
+  return [`[${f.cat||'구분 없음'}] ${who}${f.reportTo ? ` -> ${f.reportTo}` : ''}`,
+    f.name && `고객 이름 : ${f.name}`, phone && `연락처 : ${phone}`, f.date && `방문 희망일/예약일 : ${dLabel(f.date)}`,
+    f.people && `인원 : ${f.people}${/^\d+$/.test(f.people)?'명':''}`, String(f.note||'').trim() && `문의내용 : ${f.note}`].filter(Boolean).join('\n'); }
 async function copyText(s){ try{ await navigator.clipboard.writeText(s); return true; }catch(_){ const t=document.createElement('textarea'); t.value=s; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(__){} t.remove(); return ok; } }
 $('#copyBtn').onclick=async()=>{ const ok=await copyText(reportText()); toast(ok ? '보고 글자를 복사했습니다. 카카오톡에 붙여 넣으세요.' : '복사하지 못했습니다.'); };
 function save(){
@@ -260,7 +263,8 @@ function save(){
 $('#callForm').addEventListener('submit', e=>{ e.preventDefault(); save(); });
 document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); } });
 function newCall(){ if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 새 통화를 시작할까요?')) return false; cur=null; form=blankForm(); saved=JSON.stringify(form); startedAt=null; paintForm(true); $('#fName').focus(); return true; }
-$('#newBtn').onclick=newCall;
+$('#newBtn').onclick=()=>{ if(newCall()) toast('새 통화를 시작합니다.'); };
+document.addEventListener('keydown', e=>{ if(e.altKey && !e.ctrlKey && (e.key==='n'||e.key==='N'||e.code==='KeyN')){ e.preventDefault(); $('#newBtn').click(); } });   // Alt+N = 새 통화 (단체 화면과 같음)
 window.addEventListener('beforeunload', e=>{ if(isDirty()){ e.preventDefault(); e.returnValue=''; } });
 function openItem(id){ const r=shown().find(x=>x.id===id); if(!r) return; if(cur && cur.id===id) return; if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 이 기록을 열까요?')) return; cur=r; form=fromItem(r); saved=JSON.stringify(form); startedAt=null; paintForm(true); window.scrollTo({top:0, behavior:'smooth'}); }
 

@@ -167,3 +167,7 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
 .modal .panel{width:min(420px,100%)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2f2f29;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;z-index:40;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
 .toast.on{opacity:1}
+/* 헤더 「＋ 새 통화」 (단체 화면과 같은 모양) */
+.new-btn{border:0;background:#fff;color:var(--pine);border-radius:7px;padding:5px 14px;font:700 14px var(--sans);cursor:pointer;display:flex;gap:6px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.new-btn:hover{background:#f3f7ef}
+.new-btn kbd{font:500 11px var(--sans);color:var(--muted);background:var(--bg);border-radius:4px;padding:1px 5px}
