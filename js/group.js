@@ -151,7 +151,7 @@ const MISS_LABEL = { phone:'연락처(010)' };   // 물어볼 것에 보이는 �
 MISS_LABEL.payContact='결제 연락일';
 // 결제 연락 예정일은 결제가 '미정'일 때만 필수
 const REQUIRED = () => [...FIELDS.filter(f=>f[5] && (f[1]!=='payContact' || rec?.pay==='미정')).map(f=>[f[1],MISS_LABEL[f[1]]||f[2],f[5]]), ...CFIELDS.map(([f,l,q])=>[`c0_${f}`,MISS_LABEL[f]||l,q])];
-const PAYS = ['미정','세금계산서','결제링크','현장 결제'];   // 기본 미정 ('선택' 없음)
+const PAYS = ['미정','세금계산서','결제링크','현장 결제','기타'];   // 기타 = 통화 메모에 결제 방법을 남김 (고르면 팝업)   // 기본 미정 ('선택' 없음)
 const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
@@ -195,7 +195,7 @@ function unpackExtra(r){ const o={}; let m;
 const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner';
 const EN_ONLY  = k => /^c\d+_email$/.test(k);
 // 몽몽마방: 메뉴는 견적서 품목 리스트에서 구분이 식사이고 기본 메뉴(사유의 밥상(단체) · 몽몽마방 런치 · 단품) 또는 예약상품명이 '몽몽마방 '으로 시작하는 품목 (1인 고정가, 품목 관리에서 추가 · 이름 · 가격 수정) · 결제는 사무실 / 마방
-const MB_PAYS = ['미정','사무실','마방'];   // 몽몽마방 결제방식: 새로 넣으면 '미정' (미정 항목 '몽몽마방 결제' → 고객님께 꼭 여쭤 보기)
+const MB_PAYS = ['미정','사무실','마방','기타'];   // 몽몽마방 결제방식: 새로 넣으면 '미정' (미정 항목 '몽몽마방 결제' → 고객님께 꼭 여쭤 보기)
 const MB_INFO_SKIP = new Set(['goods','mabangTime','mabangPrice','mabangPay','mabangMenu','mabangNote']);   // 그날 현황에서 인원으로 세지 않는 칸
 const MB_DEF = [['사유의 밥상(단체)','사유의 밥상',38000],['몽몽마방 런치','비빔밥+녹두전+매실차',22000],['몽몽마방 단품','더덕비빔밥',17000]];   // 품목을 아직 못 불러왔을 때
 function mbMenus(){
@@ -565,7 +565,7 @@ document.addEventListener('input', e=>{
   else if(el.dataset.ix!=null && el.tagName==='INPUT'){ rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix); itemChanged(false, true); }
 });
 document.addEventListener('change', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.ix==null || el.tagName!=='SELECT') return; rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix);
-  if(el.dataset.ix==='mabangPay'){ syncPayTbd(rec); touched.add('tbd'); el.parentNode.classList.toggle('tbd', el.value==='미정'); paintFields(); renderSide(); }   // 몽몽마방 결제 미정 ↔ 미정 항목
+  if(el.dataset.ix==='mabangPay'){ syncPayTbd(rec); touched.add('tbd'); el.parentNode.classList.toggle('tbd', el.value==='미정'); paintFields(); renderSide(); if(el.value==='기타') openPayGuide('기타', '몽몽마방'); }   // 몽몽마방 결제 미정 ↔ 미정 항목
   itemChanged(false); });
 // 몽몽마방 시작 · 끝나는 시각: 칸을 나갈 때 24시간으로 맞추고, 시작을 넣으면 끝 = 1시간 뒤
 document.addEventListener('focusout', e=>{ const el=e.target, ix=el.dataset?.ix; if(!el.closest?.('#itemsBox') || (ix!=='mbS' && ix!=='mbE')) return;
@@ -729,7 +729,8 @@ function buildForm(){
     rec[k]= e.target.type==='checkbox' ? (e.target.checked?'있음':'') : k==='vehicle' ? vehRead() : k==='date' ? parseDateText(e.target.value) : e.target.value;
     touched.add(k);
     if(k==='pay' || k==='mabangPay'){ syncPayTbd(rec); touched.add('tbd'); }   // 결제 미정 ↔ 미정 항목 '결제 방법' · '몽몽마방 결제'
-    if(k==='pay' && PAY_GUIDE[rec.pay]) openPayGuide(rec.pay);   // 결제 방식을 고르면 그 안내를 바로 팝업으로
+    if(k==='pay' && PAY_GUIDE[rec.pay]) openPayGuide(rec.pay);
+    if(k==='mabangPay' && rec.mabangPay==='기타') openPayGuide('기타', '몽몽마방');   // 결제 방식을 고르면 그 안내를 바로 팝업으로
     if(k==='vehicle' && e.target.id==='f_vtype'){ const s=tbdSet(rec); rec.vehicle==='미정' ? s.add('vehicle') : s.delete('vehicle'); rec.tbd=TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', '); if(!s.size){ rec.tbdDate=''; rec.tbdLate=''; tbdAuto=false; } touched.add('tbd'); }   // 차종 '미정' = 차량 미정 체크
     if(k==='date') renderInfo();
     startTimer(); paintFields(); renderSide();
@@ -899,13 +900,15 @@ const PAY_GUIDE = {
   '세금계산서': ['세금계산서 발행을 위해 사업자등록증을 보내주시겠어요?', '세금계산서 받으실 이메일 주소가 어떻게 되실까요?', '세금계산서 발행일은 언제로 해 드릴까요?'],
   '결제링크':   ['결제링크 보내드리면 언제쯤 결제하실 수 있을까요?', '현장에서 법인카드로 다시 결제하실 계획도 있으실까요?'],
   '현장 결제':  ['현장 결제로 하시면 당일 인원 변경이 어려운 점 양해 부탁드립니다.', '인원은 언제까지 확정해 주실 수 있을까요?'],
+  '기타':       ['고객님께 어떻게 결제하실지 여쭤 보세요.', '정한 결제 방법을 「통화 메모」에 꼭 남겨 주세요. (예: 법인카드 현장 결제 + 일부 계좌이체)'],
 };
-function openPayGuide(pay){
-  $('#pgTitle').textContent = `[${pay} 안내] 고객님께 말씀드리세요`;
+let pgMemo=false;   // 기타 결제 안내를 닫으면 통화 메모 칸으로
+function openPayGuide(pay, what){ pgMemo = pay==='기타';
+  $('#pgTitle').textContent = pay==='기타' ? `[${what?what+' ':''}기타 결제] 통화 메모에 결제 방법을 남겨 주세요` : `[${pay} 안내] 고객님께 말씀드리세요`;
   $('#pgBody').innerHTML = PAY_GUIDE[pay].map(g=>`<li>${esc(g)}</li>`).join('');
   $('#pgModal').hidden = false; setTimeout(()=>$('#pgOk').focus(), 0);
 }
-$('#pgOk').onclick = () => { $('#pgModal').hidden = true; };
+$('#pgOk').onclick = () => { $('#pgModal').hidden = true; if(pgMemo){ pgMemo=false; const m=$('#memoBox'); if(m){ m.scrollIntoView({block:'center'}); m.focus(); } } };
 $('#pgModal').addEventListener('click', e=>{ if(e.target.id==='pgModal') $('#pgModal').hidden = true; });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#pgModal').hidden){ e.preventDefault(); $('#pgModal').hidden = true; } });
 // 프로그램 입력 내용: "요가 20명", "차방 대관 2시간" (grp 를 주면 그 묶음만)
