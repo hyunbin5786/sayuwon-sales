@@ -1206,17 +1206,25 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#bookModal'
 // 몽몽마방 예약 목록 (직접 추가 · 수정 · 빼기)
 function mbYear(m,d){ const t=new Date(); t.setHours(0,0,0,0); let y=t.getFullYear(); const c=new Date(y,m-1,d); if(c-t < -120*864e5) y++; else if(c-t > 245*864e5) y--; return y; }   // 연도가 없으면 오늘에 가까운 쪽
 // 몽몽마방 예약 목록 = 직접 넣은 예약 + 단체 예약(예약접수)의 몽몽마방 식사 자동 (대관 · 도슨트 · 프로그램처럼, 지금 열어 둔 예약은 빼고) (2026-11-16)
+// 몽몽마방 예약 현황에 들어갈 식사: 몽몽마방 줄(mabangL · 시간 · 메뉴) + 관람+식사 패키지 중 몽몽마방이 든 것(예: 「관람 + 몽몽마방 사유의 밥상」)
+function mbMealsOf(x){ const out=[];
+  if(x.mabangL || x.mabangTime || x.mabangMenu) out.push({t:x.mabangTime||'', p:numOf(x.mabangL)||'', m:x.mabangMenu||'', pay:x.mabangPay||''});
+  viewsParse(x.views).forEach(v=>{ const pm=String(v.src).match(/\(관람,\s*(몽몽마방[^)]*)\)/); if(pm && v.qty) out.push({t:x.mabangTime||'', p:v.qty, m:pm[1].replace(/^몽몽마방\s*/,'')+' (관람 포함)', pay:''}); });
+  return out; }
 function mbAutoRows(){ try{
-  return (cache||[]).filter(r=>isGroupRec(r) && r.id!==editingId && r.date && stageOfRec(r)==='예약접수').map(r=>({r, x:xOf(r)})).filter(({x})=>x.mabangL || x.mabangTime || x.mabangMenu)
-    .map(({r,x})=>({auto:true, id:r.id, d:x.date, t:x.mabangTime||'', n:x.org||x.contact||'(업체 미정)', p:numOf(x.mabangL)||'', m:x.mabangMenu||'', pay:x.mabangPay||''}));
+  const others = (cache||[]).filter(r=>isGroupRec(r) && r.id!==editingId && r.date && stageOfRec(r)==='예약접수').map(r=>({r, x:xOf(r)}))
+    .flatMap(({r,x})=>mbMealsOf(x).map(m=>({auto:true, id:r.id, d:x.date, n:x.org||x.contact||'(업체 미정)', ...m})));
+  // 지금 입력 중인 예약도: 예약 내역에 몽몽마방(또는 관람+몽몽마방)을 넣으면 저장 · 예약접수 전이라도 바로 (2026-11-16)
+  const mine = !BOOK_ONLY && rec && rec.date ? mbMealsOf(rec).map(m=>({auto:true, cur:true, id:'', d:rec.date, n:rec.org||(contactsOf(rec)[0]||{}).name||'(지금 예약)', ...m})) : [];
+  return [...others, ...mine];
 }catch(_){ return []; } }
 function paintMbDb(){
   const db=mbDb(), today=todayYmd(), past=$('#bookPast').checked;   // 지난 예약도 보기 (예약 목록 창 공통)
   const all=[...db.rows.map((x,i)=>({...x, i})), ...mbAutoRows()];
   const list=all.filter(x=>past || x.d>=today).sort((a,b)=>(a.d+String(a.t)).localeCompare(b.d+String(b.t)));
   $('#mbdbSum').textContent = all.length ? `${all.length}건 · 단체 예약(예약접수)에서 자동 + 직접 추가${db.at?` · 직접 추가 마지막 저장 ${dtLabel(db.at)}${db.by?` (${db.by})`:''}`:''}` : '아직 없음';
-  $('#mbdbBody').innerHTML = list.map(x=>`<tr class="${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}"${x.auto?` data-bopen="${esc(x.id)}"`:''}><td>${esc(dateLabel(x.d))}</td><td>${esc(x.t||'')}</td><td><b>${esc(x.n)}</b></td><td class="num">${x.p?esc(x.p)+'명':''}</td><td>${esc(x.m||'')}${x.pay==='마방'?' <small class="hint" style="margin:0">(마방 결제)</small>':''}</td>`
-    + `<td class="acts">${x.auto ? '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>' : `<button type="button" class="btn sm" data-mbedit="${x.i}">수정</button><button type="button" class="del" data-mbdel="${x.i}" title="이 예약 빼기">×</button>`}</td></tr>`).join('')
+  $('#mbdbBody').innerHTML = list.map(x=>`<tr class="${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}"${x.auto && !x.cur?` data-bopen="${esc(x.id)}"`:''}><td>${esc(dateLabel(x.d))}</td><td>${esc(x.t||'')}</td><td><b>${esc(x.n)}</b></td><td class="num">${x.p?esc(x.p)+'명':''}</td><td>${esc(x.m||'')}${x.pay==='마방'?' <small class="hint" style="margin:0">(마방 결제)</small>':''}</td>`
+    + `<td class="acts">${x.cur ? '<span class="tag call" title="지금 화면에서 입력 중인 예약 (저장 전이어도 바로)">지금 이 예약</span>' : x.auto ? '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>' : `<button type="button" class="btn sm" data-mbedit="${x.i}">수정</button><button type="button" class="del" data-mbdel="${x.i}" title="이 예약 빼기">×</button>`}</td></tr>`).join('')
     || `<tr><td colspan="6" class="empty">${all.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'아래에서 몽몽마방 예약을 추가하세요.'}</td></tr>`;
 }
 async function mbDbSave(rows, msg){
