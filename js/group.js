@@ -496,7 +496,7 @@ document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [d
 // 줄마다 [단가 · 할인 · 금액] (전산 내역이 있으면 인원 · 상품금액 · 할인 · 금액, 인원이 다르면 빨갛게)
 function paintItemPrices(){
   // 줄 구성 (2026-11-14): ① [품목 · 가격(관람+식사는 관람 · 식사 따로) · 인원 · 담당 · ×] ② 할인(할인 대상 품목만: 버튼 · 할인 금액 · 할인 단가 · 금액) ③ 비고 (할인 줄이 없으면 금액은 비고 줄 끝)
-  const seen=new Set(), E = erpList.length ? erpByKey() : null;
+  const seen=new Set(), E = erpList.length ? erpByKey() : null, MISS = E ? erpMissing() : [];   // MISS: 전산에 없는 품목 (품목 관리 가격으로 계산)
   const cell=(l,v,cls='')=>`<span class="im ${cls}"><i>${l}</i>${v}</span>`;
   const upHTML = src => { const sp=pkgSplit(src); if(sp) return `<span><i>비과세(사유원)</i>${won(sp.v)}원</span><span><i>과세(신라)</i>${won(sp.m)}원</span>`; const p=src?priceOf(src):null; return p==null ? '' : `<span><i>${/대관|도슨트|세미나/.test(src)?'회당':'1인'}</i>${won(p)}</span>`; };
   document.querySelectorAll('#itemsBox [data-ip]').forEach(el=>{ const k=el.dataset.ip, src=itemSrc(k), up=document.querySelector(`#itemsBox [data-iup="${CSS.escape(k)}"]`), am=document.querySelector(`#itemsBox [data-iamt="${CSS.escape(k)}"]`);
@@ -504,10 +504,12 @@ function paintItemPrices(){
     // 가격 칸: 할인까지 빼고 실제로 결제하는 금액을 과세(신라) · 비과세(사유원)로 (전산 내역 모드 · 금액을 모르면 1인 가격)
     // 전산 내역이 있으면 전산 금액 · 할인을 그 품목의 과세 · 비과세 비율로 나눔
     const ex = E && E.m[k] ? erpRowMoney(k, E.m[k]) : null;
-    const pm = ex || (!E && priceInfo && src ? (priceInfo[normSrc(src)]||{}).m : null);
-    if(up) up.innerHTML = !quoteCat && !ex ? '' : pm && !seen.has(src) ? [pm.fTf>0 && `<span title="정상가 ${won(pm.fTf)}원 − 할인 ${won(pm.dTf)}원"><i>비과세(사유원)</i>${won(pm.tf)}원</span>`, pm.fTx>0 && `<span title="정상가 ${won(pm.fTx)}원 − 할인 ${won(pm.dTx)}원"><i>과세(신라)</i>${won(pm.tx)}원</span>`].filter(Boolean).join('') : upHTML(src);
+    const mi = E && !ex ? MISS.find(x=>x.key===k) : null;   // 전산에 없는 품목: 품목 관리 가격 (과세(신라) · 비과세(사유원))
+    const pm = ex || (mi && mi.m) || (!E && priceInfo && src ? (priceInfo[normSrc(src)]||{}).m : null);
+    if(up) up.innerHTML = !quoteCat && !ex && !mi ? '' : pm && !seen.has(src) ? [pm.fTf>0 && `<span title="정상가 ${won(pm.fTf)}원 − 할인 ${won(pm.dTf)}원"><i>비과세(사유원)</i>${won(pm.tf)}원</span>`, pm.fTx>0 && `<span title="정상가 ${won(pm.fTx)}원 − 할인 ${won(pm.dTx)}원"><i>과세(신라)</i>${won(pm.tx)}원</span>`].filter(Boolean).join('') : upHTML(src);
     if(E){ const x=E.m[k];
-      if(!x) h = k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', '<b class="bad">전산 내역에 없음</b>', 'warn');
+      if(!x){ h = k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', `<b class="bad">전산 내역에 없음</b>${mi?' <small>· 품목 관리 가격으로 합계에 넣음</small>':''}`, 'warn');
+        if(mi) amt = cell('금액', mi.atMabang ? `<s>${won(mi.m.amount)}</s> <small>마방에서 결제</small>` : `<b>${won(mi.m.amount)}</b>`, 'amt'); }
       else if(x.disc || ex.ov || openDisc.has(k)) h = `<span class="im dams"><i>할인</i>${ex.fTf>0?damIn(k,'tf', ex.dTf, ex.fTf):''}${ex.fTx>0?damIn(k,'tx', ex.dTx, ex.fTx):''}${ex.ov?`<small class="dman">직접 고침</small><button type="button" class="dreset" data-idamtreset="${esc(k)}" title="전산 할인으로 되돌리기">↺</button>`:''}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}</span>`;   // 전산 내역 줄: 할인만 (과세 · 비과세 할인액은 고칠 수 있음)
       else amt = `<button type="button" class="dopen" data-dopen="${esc(k)}" title="이 품목에 할인 넣기 (과세 · 비과세 할인액)">할인 넣기</button>`; }
     else if(!priceInfo) h='';
@@ -1600,7 +1602,7 @@ function moneySplit(r, noMb){
   if(r===rec && erpList.length){ const t=erpTotals(); let saw=t.saw, shilla=t.shilla; const E=erpByKey();
     if(noMb && E.m.mb){ const m=erpRowMoney('mb', E.m.mb); saw=Math.max(0, saw-m.tf); shilla=Math.max(0, shilla-m.tx); }
     // 예약 내역에는 있는데 전산 내역에 없는 품목(예: 몽몽마방 식사를 전산에 안 넣음)은 예약 칸으로 계산해 더함 — 관람은 사유원, 그 밖(식사 · 프로그램 · 굿즈)은 신라 (2026-11-16)
-    if(quoteCat && r.date){ const {blocks}=quoteBlocks(r); blocks.forEach(b=>{ if(!b.key || E.m[b.key] || (noMb && b.key==='mb')) return; const m=blockMoney(b, r); if(!m) return; saw+=m.tf; shilla+=m.tx; }); }
+    erpMissing().forEach(x=>{ if(noMb && x.key==='mb') return; saw+=x.m.tf; shilla+=x.m.tx; });
     return {saw, shilla, etc:0, missing:false, erp:true}; }   // 전산 내역이 있으면 전산 금액 (세금계산서 문구 등)
   if(!quoteCat || !r.date || !numOf(r.people)) return null;
   const d=new Date(r.date+'T00:00'), viewSrc=viewSrcOf(r), vp=priceOf(viewSrc);
@@ -2296,14 +2298,23 @@ function erpTotals(list=erpList){
   if(pi && pi.free!=null && pi.taxable!=null){ saw=pi.free; shilla=pi.taxable; }
   return {tot, saw, shilla, pi};
 }
+// 예약 내역에는 있는데 전산 내역에 없는 품목(예: 몽몽마방 식사를 전산에 안 넣음): 품목 관리 가격으로 계산 (관람 = 사유원, 그 밖 = 신라 · 할인 버튼 · 할인액 반영)
+// atMabang: 몽몽마방 결제가 '마방'(손님이 식당에서 결제)이라 현장결제 금액에는 넣지 않음
+function erpMissing(){
+  if(!erpList.length || !quoteCat || !rec.date) return [];
+  const E=erpByKey();
+  return quoteBlocks(rec).blocks.filter(b=>b.key && !E.m[b.key]).map(b=>({b, key:b.key, m:blockMoney(b, rec), atMabang: b.key==='mb' && rec.mabangPay==='마방'})).filter(x=>x.m);
+}
 function renderErp(){
   const box=$('#erpBox'); if(!box) return;
   if(!erpList.length){ box.hidden=true; box.innerHTML=''; return; }
-  const {tot, saw, shilla, pi}=erpTotals();
+  const t0=erpTotals(), pi=t0.pi, miss=erpMissing(); let {tot, saw, shilla}=t0;
+  miss.forEach(x=>{ if(x.atMabang) return; tot+=x.m.amount; saw+=x.m.tf; shilla+=x.m.tx; });   // 전산에 없는 품목도 합계에 (품목 관리 가격)
   box.hidden=false;
-  box.innerHTML = `<div class="psec-t">전산 내역 합계 (${erpList.length}건 · 상품별은 위 예약 내역 줄에) <button type="button" class="btn" id="erpClear" style="padding:1px 8px;font-size:11.5px;margin-left:6px" title="전산 내역을 지우면 예약 칸으로 계산한 금액으로 돌아갑니다">지우기</button></div>`
-    + `<table class="ptable sel">`
-    + `<tfoot><tr><td colspan="4">전산 합계</td><td class="tot">${won(tot)}</td></tr><tr class="split-row"><td colspan="4">└ 사유원 (비과세${pi&&pi.free!=null?' · 전산 면세금액':''})</td><td class="tot">${won(saw)}</td></tr><tr class="split-row"><td colspan="4">└ 신라 (과세${pi&&pi.taxable!=null?' · 전산 과세금액':''})</td><td class="tot">${won(shilla)}</td></tr>${pi&&pi.total?`<tr class="split-row"><td colspan="4">결제 ${esc([pi.state, pi.method].filter(Boolean).join(' · '))}</td><td class="tot">${won(pi.total)}</td></tr>`:''}</tfoot></table>`;
+  const missRows = miss.map(x=>`<tr class="erp-miss"><td colspan="4">${esc(itemName(x.key))} ${x.b.qty}${itemUnit(x.key)} <small class="hint" style="margin:0">전산에 없음 · 품목 관리 가격${x.atMabang?' · 마방에서 결제 (합계 제외)':''}</small>${[x.m.tf>0 && ` · 비과세(사유원) ${won(x.m.tf)}원`, x.m.tx>0 && ` · 과세(신라) ${won(x.m.tx)}원`].filter(Boolean).join('')}</td><td class="tot">${x.atMabang?`<s>${won(x.m.amount)}</s>`:won(x.m.amount)}</td></tr>`).join('');
+  box.innerHTML = `<div class="psec-t">전산 내역 합계 (${erpList.length}건${miss.length?` + 전산에 없는 ${miss.length}건`:''} · 상품별은 위 예약 내역 줄에) <button type="button" class="btn" id="erpClear" style="padding:1px 8px;font-size:11.5px;margin-left:6px" title="전산 내역을 지우면 예약 칸으로 계산한 금액으로 돌아갑니다">지우기</button></div>`
+    + `<table class="ptable sel">${missRows?`<tbody>${missRows}</tbody>`:''}`
+    + `<tfoot><tr><td colspan="4">${miss.length?'합계 (전산 + 전산에 없는 품목)':'전산 합계'}</td><td class="tot">${won(tot)}</td></tr><tr class="split-row"><td colspan="4">└ 사유원 (비과세${pi&&pi.free!=null?' · 전산 면세금액':''}${miss.some(x=>!x.atMabang&&x.m.tf)?' + 전산에 없는 품목':''})</td><td class="tot">${won(saw)}</td></tr><tr class="split-row"><td colspan="4">└ 신라 (과세${pi&&pi.taxable!=null?' · 전산 과세금액':''}${miss.some(x=>!x.atMabang&&x.m.tx)?' + 전산에 없는 품목':''})</td><td class="tot">${won(shilla)}</td></tr>${pi&&pi.total?`<tr class="split-row"><td colspan="4">전산 결제 ${esc([pi.state, pi.method].filter(Boolean).join(' · '))}</td><td class="tot">${won(pi.total)}</td></tr>`:''}</tfoot></table>`;
   box.insertAdjacentHTML('beforeend', `<div class="erp-ck" title="예약 내용(할인 버튼 % · 기타 할인)으로 계산한 값과 전산 내역 비교">${erpCheckHTML(erpCheck())}</div>`);   // 대조: 할인 합계 · 총 금액
 }
 // 전산 내역 → 예약 내용 칸: 관람 · 관람+사담 · 몽몽마방 메뉴 · 프로그램 · 굿즈 · 방문일 · 인원 · 기타 할인 · 특별 할인
