@@ -41,6 +41,7 @@ const FIELDS = [
   ['굿즈','viewN','관람권 인원','','',null],   // 기본 관람 줄 인원을 직접 줄였을 때만 (비면 = 관람 인원 − 다른 관람 영역 인원)   // 예약 내역 관람 줄에서 고른 관람 품목 (평일 · 주말은 방문일에 맞춰 바뀜, 비면 입장 시각으로)
   ['굿즈','inotes','항목 비고','','',null],   // 예약 내역 줄마다 비고 "sadam1=창가 자리; g:모과청(new)=선물 포장" (시트 비고 칸 '항목 비고')
   ['굿즈','idisc','항목 할인','','',null],   // 예약 내역 줄마다 할인 버튼 "sadam1=grp; v:(관람, …)=none" (시트 비고 칸 '항목 할인')
+  ['굿즈','isp','항목 특별 할인','','',null],   // 줄마다 특별 할인 인원 · 기타 할인 "v:…=dKansong:2|0:10000|재방문 감사" (시트 비고 칸 '항목 특별 할인')
   ['굿즈','idamt','항목 할인액','','',null],   // 할인액을 직접 고친 줄 "sadam1=200000:125000" (과세(신라):비과세(사유원), 시트 비고 칸 '항목 할인액')
 ];
 // 프로그램 · 굿즈 담당: 프로그램마다 'stf_키' 칸을 바로 뒤에. 모두 필수, 기본은 영업 담당 (바꿀 수 있음)
@@ -155,7 +156,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['etcDiscTx','기타할인 과세'],['etcDiscTf','기타할인 비과세'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['idisc','항목 할인'],['idamt','항목 할인액'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['etcDiscTx','기타할인 과세'],['etcDiscTf','기타할인 비과세'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['idisc','항목 할인'],['idamt','항목 할인액'],['isp','항목 특별 할인'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
@@ -258,6 +259,60 @@ function setItemDisc(k, v, auto){ const m=idiscMap(rec), kk=dkey(k); if(v===auto
 // 할인액 직접 고치기: rec.idamt = "sadam1=200000:125000" (줄마다 과세(신라) 할인액:비과세(사유원) 할인액). 없으면 할인 버튼(%)으로 계산한 값
 const idamtMap = r => Object.fromEntries(String((r&&r.idamt)||'').split(/\s*;\s*/).map(s=>{ const i=s.lastIndexOf('='); if(i<=0) return null; const [tx,tf]=s.slice(i+1).split(':').map(v=>Math.max(0,parseInt(v)||0)); return [s.slice(0,i).trim(), {tx, tf}]; }).filter(Boolean));
 function setItemDamt(k, val){ const m=idamtMap(rec), kk=dkey(k); if(!val && !m[kk]) return; if(val) m[kk]=val; else delete m[kk]; rec.idamt=Object.entries(m).map(([a,b])=>`${a}=${b.tx}:${b.tf}`).join('; '); touched.add('idamt'); }
+// ===== 품목마다 특별 할인 (2026-11-16): 예약 내역 줄의 「특별할인」 버튼 → 팝업(특별 할인 인원 · 기타 할인) =====
+// rec.isp = "줄=dKansong:2,dMerit:1|비과세(사유원):과세(신라)|사유; …" (시트 비고 칸 '항목 특별 할인')
+// 예약 전체 칸(간송 · 국가유공자 · 군위 주민 · 대구대교구 인원, 기타 할인 비과세 · 과세 · 사유)은 줄마다 넣은 것의 합 → 안내 문구 · 전산 대조 · 합계가 그대로 씀
+const SP_KEYS = Object.keys(SPECIAL_LABEL);
+const ispMap = r => { const o={}; String((r&&r.isp)||'').split(/\s*;\s*/).forEach(s=>{ const i=s.indexOf('='); if(i<=0) return; const [cnt, money, why] = s.slice(i+1).split('|'), [tf, tx]=String(money||'').split(':'); const sp={};
+  String(cnt||'').split(',').forEach(p=>{ const [a,n]=p.split(':'); if(SP_KEYS.includes(a) && +n>0) sp[a]=+n; });
+  o[s.slice(0,i).trim()]={sp, tf:Math.max(0,parseInt(tf)||0), tx:Math.max(0,parseInt(tx)||0), why:String(why||'').trim()}; }); return o; };
+const ispEmpty = v => !v || (!Object.keys(v.sp||{}).length && !v.tf && !v.tx);
+const ispStr = m => Object.entries(m).filter(([,v])=>!ispEmpty(v)).map(([k,v])=>`${k}=${Object.entries(v.sp).map(([a,n])=>`${a}:${n}`).join(',')}|${v.tf||0}:${v.tx||0}|${String(v.why||'').replace(/[;|=\/]/g,' ').trim()}`).join('; ');
+function ispSumUp(){   // 줄마다 넣은 것 → 예약 전체 칸
+  const m=Object.values(ispMap(rec)), set=(k,v)=>{ v=v?String(v):''; if(String(rec[k]||'')!==v){ rec[k]=v; touched.add(k); } };
+  SP_KEYS.forEach(k=>set(k, m.reduce((s,v)=>s+(v.sp[k]||0),0)));
+  set('etcDiscTf', m.reduce((s,v)=>s+v.tf,0)); set('etcDiscTx', m.reduce((s,v)=>s+v.tx,0));
+  set('etcDiscWhy', [...new Set(m.filter(v=>v.tf||v.tx).map(v=>v.why).filter(Boolean))].join(', '));
+  if(rec.etcDisc){ set('etcDisc',''); set('etcDiscTo',''); }
+}
+function ispMigrate(k){   // 예전 기록: 예약 전체로 넣었던 특별 할인 · 기타 할인 → 첫 할인 대상 줄(없으면 이 줄)로 옮김 (합계는 그대로)
+  if(String(rec.isp||'').trim()) return;
+  const sp={}; SP_KEYS.forEach(x=>{ const n=parseInt(rec[x])||0; if(n>0) sp[x]=n; }); const es=etcSplit(rec);
+  if(!Object.keys(sp).length && !es.tx && !es.tf) return;
+  const {blocks}=quoteBlocks(rec), b=blocks.find(b=>b.disc && b.key) || blocks.find(b=>b.key);
+  rec.isp=ispStr({[dkey(b ? b.key : k)]:{sp, tf:es.tf, tx:es.tx, why:rec.etcDiscWhy||''}}); touched.add('isp');
+}
+function setItemSp(k, val){   // val = {sp, tf, tx, why} · null = 이 줄 특별 할인 없앰
+  ispMigrate(k); const m=ispMap(rec);
+  if(val && !ispEmpty(val)) m[dkey(k)]=val; else delete m[dkey(k)];
+  const s=ispStr(m); if(s!==String(rec.isp||'')){ rec.isp=s; touched.add('isp'); }
+  ispSumUp();
+}
+const ispOf = k => ispMap(rec)[dkey(k)];
+function spBtnHTML(k){ const v=ispOf(k), on=!ispEmpty(v);
+  const t = on ? [...Object.entries(v.sp).map(([a,n])=>`${SPECIAL_LABEL[a].replace(/ 할인$/,'')} ${n}명`), (v.tf||v.tx) && `기타 -${wonTxt(v.tf+v.tx)}원`].filter(Boolean).join(' · ') : '';
+  return `<button type="button" class="spbtn${on?' on':''}" data-spopen="${esc(k)}" title="이 품목에 특별 할인(간송 · 국가유공자 · 군위 주민 · 대구대교구) · 기타 할인 넣기">특별할인${t?` <b>${esc(t)}</b>`:''}</button>`; }
+let spKey=null;
+function openSp(k){ spKey=k; ispMigrate(k); document.querySelectorAll('#itemsBox [data-spopen]').forEach(b=>{ b.outerHTML=spBtnHTML(b.dataset.spopen); });   // 예전 기록이면 그 할인이 들어간 줄에 먼저 표시
+  const v=ispOf(k) || {sp:{}, tf:0, tx:0, why:''};
+  $('#spTitle').textContent = `특별 할인 · ${itemName(k)}`;
+  $('#spPeople').innerHTML = SPECIAL.map(s=>`<label title="${esc(s.name)} · ${s.rate===1?'무료':Math.round(s.rate*100)+'%'} · 지참: ${esc(s.proof)}">${esc(s.short)} <small>${s.rate===1?'무료':Math.round(s.rate*100)+'%'}</small><input data-spk="${s.k}" inputmode="numeric" data-ime="num" maxlength="3" autocomplete="off" value="${v.sp[s.k]||''}">명</label>`).join('');
+  $('#spTf').value = v.tf ? wonTxt(v.tf) : ''; $('#spTx').value = v.tx ? wonTxt(v.tx) : ''; $('#spWhy').value = v.why||'';
+  const n=numOf(itemQty(k)); $('#spHint').textContent = n ? `이 품목 ${n}${itemUnit(k)} 중 특별 할인 인원은 단체 할인과 비교해 큰 쪽 하나만 적용됩니다.` : '';
+  $('#spModal').hidden=false; setTimeout(()=>$('#spPeople input')?.focus(), 0); }
+function spApply(){ if(spKey==null) return;
+  const sp={}; document.querySelectorAll('#spPeople [data-spk]').forEach(el=>{ const n=parseInt(el.value.replace(/\D/g,''))||0; if(n>0) sp[el.dataset.spk]=n; });
+  const tot=Object.values(sp).reduce((a,b)=>a+b,0), q=numOf(itemQty(spKey));
+  if(q && tot>q){ toast(`특별 할인 인원(${tot}명)이 이 품목 수량(${q})보다 많습니다.`); return; }
+  const num=id=>Math.max(0, parseInt($(id).value.replace(/\D/g,''))||0), tf=num('#spTf'), tx=num('#spTx'), why=$('#spWhy').value.trim();
+  if((tf||tx) && !why){ toast('기타 할인 사유를 적어 주세요.'); $('#spWhy').focus(); return; }
+  setItemSp(spKey, {sp, tf, tx, why}); $('#spModal').hidden=true; spKey=null; itemChanged(false, true); renderSide(); startTimer(); }
+document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-spopen]'); if(b){ openSp(b.dataset.spopen); return; }
+  if(e.target.id==='spOk') spApply(); else if(e.target.id==='spCancel' || e.target.id==='spModal') { $('#spModal').hidden=true; spKey=null; }
+  else if(e.target.id==='spClear' && spKey!=null){ setItemSp(spKey, null); $('#spModal').hidden=true; spKey=null; itemChanged(false, true); renderSide(); startTimer(); } });
+document.addEventListener('input', e=>{ const el=e.target; if(!el.closest?.('#spModal') || el.id==='spWhy') return; const c=el.value.replace(/[^\d,]/g,''); if(c!==el.value) el.value=c; });
+document.addEventListener('focusout', e=>{ const el=e.target; if(el.id==='spTf' || el.id==='spTx'){ const n=parseInt(el.value.replace(/\D/g,''))||0; el.value = n ? wonTxt(n) : ''; } });
+document.addEventListener('keydown', e=>{ if($('#spModal').hidden) return; if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); $('#spModal').hidden=true; spKey=null; } else if(e.key==='Enter' && e.target.closest?.('#spModal')){ e.preventDefault(); spApply(); } }, true);
 function setItemNote(k, v){ const m=inotesMap(); v=String(v||'').replace(/[;=]/g,',').trim(); if(v) m[k]=v; else delete m[k]; rec.inotes=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); touched.add('inotes'); }
 const itemName = k => k==='view' ? '관람' : /^v:/.test(k) ? itemLabel(daySrc(k.slice(2), rec)) : k==='mb' ? '몽몽마방 '+(rec.mabangMenu||'') : /^g:/.test(k) ? goodsName(k.slice(2)) : (SADAM_ITEMS.find(x=>x[0]===k)||[])[1] || LABEL[k] || k;
 const itemNotesText = () => Object.entries(inotesMap()).filter(([k])=>itemKeysFromRec().includes(k)).map(([k,v])=>`${itemName(k)}: ${v}`);   // 비고가 있는 항목만
@@ -290,6 +345,7 @@ function mbPayDefault(){ if(rec.mabangPay) return; rec.mabangPay='미정'; touch
 const mbTimes = () => { const p=String(rec.mabangTime||'').split('~'); return [p[0]||'', p[1]||'']; };   // 몽몽마방 시간 "12:00~13:00" → [시작, 끝]
 const plus1h = t => { const f=fmtTime(t); return f ? `${String(Math.min(+f.slice(0,2)+1,23)).padStart(2,'0')}${f.slice(2)}` : ''; };
 function clearItem(k){ const t=itemKind(k);
+  if(ispOf(k)) setItemSp(k, null);   // 그 줄의 특별 할인 · 기타 할인도
   if(itemNote(k)) setItemNote(k, '');
   if(t==='view') return;   // 관람 줄은 관람 인원 칸으로만
   if(t==='varea'){ rec.views=goodsJoin(viewsParse(rec.views).filter(x=>x.src!==k.slice(2))); touched.add('views'); itemPend.delete(k); return; }
@@ -338,7 +394,7 @@ function itemRowHTML(k, rows){
     + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" readonly placeholder="헤더에 영업 담당 이름을 넣으세요" value="${esc(sv)}" title="굿즈 담당 = 영업 담당 (헤더의 영업 담당 이름을 따라감)"></span>`
       : stf ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="프로그램 담당"></span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
     + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
-    + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div><div class="it-extra">${extra}<span class="it-amt" data-iamt="${esc(k)}"></span></div>`) + `</div>`;   // 둘째 줄: 할인(할인 대상만) · 셋째 줄: 비고 (할인이 없으면 바로 비고, 금액은 그 줄 끝)
+    + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div><div class="it-extra">${extra}${spBtnHTML(k)}<span class="it-amt" data-iamt="${esc(k)}"></span></div>`) + `</div>`;   // 둘째 줄: 할인(할인 대상만) · 셋째 줄: 비고 (할인이 없으면 바로 비고, 금액은 그 줄 끝)
 }
 function renderItems(force){
   const box=$('#itemsBox'); if(!box) return;
@@ -2233,6 +2289,7 @@ function fillFromErp(list){
   if(org && !rec.org) set('org', org);
   if(phone && !rec.c0_phone) set('c0_phone', fmtPhone(phone));
   SPECIAL.forEach(s=>{ if(sp[s.k]) set(s.k, String(sp[s.k])); });
+  if(rec.isp && (SPECIAL.some(s=>sp[s.k]) || etc)){ rec.isp=''; touched.add('isp'); }   // 전산에서 읽은 특별 · 기타 할인은 예약 전체로 (줄마다 넣은 것은 지움)
   if(etc){ set('etcDisc',''); set('etcDiscTo',''); set('etcDiscTx', etcTo==='사유원' ? '' : String(etc)); set('etcDiscTf', etcTo==='사유원' ? String(etc) : ''); if(!rec.etcDiscWhy) set('etcDiscWhy', '전산 기타할인'); }   // 전산 기타할인: 전산이 알려 준 쪽(기본 신라 = 과세)으로
   else if(rec.etcDiscWhy==='전산 기타할인'){ ['etcDisc','etcDiscTx','etcDiscTf','etcDiscWhy'].forEach(k=>set(k,'')); }   // 전산에서 읽었던 기타 할인이 이번 내역에 없으면 뺌 (직접 넣은 할인은 그대로)
   ERP_FILL_KEYS().forEach(k=>{ const g=OPT[GROUP_OF[k]]; if(g && rec[k]) optOpen.add(g.id); });
@@ -2368,15 +2425,18 @@ function quoteBlocks(r){
   if(r.teaMed) skipped.push('티하우스 명상'); if(r.gayageum) skipped.push('가야금'); if(r.cabin) skipped.push('유루 캐빈');
   // 할인 줄: 특별 할인 인원을 할인 대상 블록에 앞에서부터 나눠 넣고, 나머지는 단체 할인
   const g = Math.round(groupRate(n)*100), gName = n>20 ? '단체예약' : '사전예약';
-  const sp = specialCounts(r).map(s=>({...s, left:s.n})), ov = idiscMap(r);
+  // 줄마다 넣은 특별 할인(rec.isp)이 있으면 그 줄에만, 없으면(예전 기록) 예약 전체 인원을 할인 대상 블록에 앞에서부터
+  const ispOn = !!String(r.isp||'').trim(), im = ispOn ? ispMap(r) : {};
+  const sp = ispOn ? [] : specialCounts(r).map(s=>({...s, left:s.n})), ov = idiscMap(r);
   blocks.forEach(b=>{
     b.notes=[];
     // 할인 버튼: 자동 = 할인 대상 품목이면 인원으로(20명 이하 사전예약 5% · 초과 단체예약 10%), 줄마다 버튼으로 바꾼 것(항목 할인)이 있으면 그것
     const autoP = b.disc ? g : 0, o = ov[dkey(b.key||'')], pct = o==='none' ? 0 : o==='pre' ? 5 : o==='grp' ? 10 : autoP, nm = pct===10 ? '단체예약' : '사전예약';
     b.dauto = DISC_OF(autoP); b.dsel = o && DISC_OPTS.some(x=>x[0]===o) ? o : b.dauto;
-    if(o==='none' || (!b.disc && !pct)) return;
+    const mine = ispOn ? SPECIAL.filter(s=>((im[dkey(b.key||'')]||{}).sp||{})[s.k]).map(s=>({...s, left:im[dkey(b.key||'')].sp[s.k]})) : (b.disc ? sp : []);
+    if(!mine.length && (o==='none' || (!b.disc && !pct))) return;
     let left=b.qty;
-    if(b.disc) sp.forEach(s=>{ const c=Math.min(s.left,left); if(c<=0) return; s.left-=c; left-=c;
+    mine.forEach(s=>{ const c=Math.min(s.left,left); if(c<=0) return; s.left-=c; left-=c;
       const sp2=Math.max(Math.round(s.rate*100), pct); b.notes.push(`* ${sp2===pct?nm:s.short} ${c}명 ${sp2}%`); });
     if(left>0 && pct) b.notes.push(`* ${nm} ${left}명 ${pct}%`);
   });

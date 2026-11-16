@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 예약 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261116c">
+<link rel="stylesheet" href="css/group.css?v=20261116d">
 </head>
 <body>
 <header>
@@ -71,6 +71,21 @@
     <div class="tw"><table class="mbdb-t"><thead><tr><th>날짜</th><th>시간</th><th>예약자 · 업체</th><th>인원</th><th>메뉴</th><th></th></tr></thead><tbody id="mbdbBody"></tbody></table></div>
     </div>
     <div class="book-add" id="bookAdd"></div>
+  </section>
+</div>
+<!-- 품목마다 특별 할인: 예약 내역 줄의 「특별할인」 버튼 → 이 팝업 (특별 할인 인원 · 기타 할인) -->
+<div class="modal" id="spModal" hidden>
+  <section class="panel consult sp-pop" role="dialog" aria-modal="true" aria-labelledby="spTitle">
+    <h2 id="spTitle">특별 할인</h2>
+    <div class="sp-sec"><span class="hint disc-t">특별 할인 인원</span><div class="sp-people" id="spPeople"></div></div>
+    <p class="hint" id="spHint" style="margin:2px 0 10px"></p>
+    <div class="sp-sec"><span class="hint disc-t">기타 할인</span>
+      <div class="sp-etc">
+        <label title="사유원 몫(입장료)에서 빼는 금액">비과세(사유원) <input id="spTf" inputmode="numeric" data-ime="num" placeholder="0" autocomplete="off">원</label>
+        <label title="신라철강 몫에서 빼는 금액">과세(신라) <input id="spTx" inputmode="numeric" data-ime="num" placeholder="0" autocomplete="off">원</label>
+        <input id="spWhy" data-ime="ko" placeholder="사유 (예: 재방문 감사)" autocomplete="off" class="etc-why">
+      </div></div>
+    <div class="row-btns" style="justify-content:flex-end;margin-top:14px"><button type="button" class="btn" id="spClear">이 품목 특별 할인 없애기</button><button type="button" class="btn" id="spCancel">취소</button><button type="button" class="btn primary" id="spOk">넣기</button></div>
   </section>
 </div>
 <!-- 마감이 된 추후 과업: 해결할 때까지 계속 (나중에 = 2시간 뒤) -->
@@ -219,19 +234,7 @@
     <h2>가격표 <small id="priceHint"></small></h2>
     <div class="disc-box">
       <div class="disc-line" id="discGroup"></div>
-      <div class="disc-inputs">
-        <span class="hint disc-t">특별 할인 인원</span>
-        <label>간송 <input id="dKansong" data-dk="dKansong" inputmode="numeric" pattern="[0-9]*" data-ime="num" maxlength="3" autocomplete="off"></label>
-        <label>국가유공자 <input id="dMerit" data-dk="dMerit" inputmode="numeric" pattern="[0-9]*" data-ime="num" maxlength="3" autocomplete="off"></label>
-        <label>군위 주민 <input id="dGunwi" data-dk="dGunwi" inputmode="numeric" pattern="[0-9]*" data-ime="num" maxlength="3" autocomplete="off"></label>
-        <label>대구대교구 <input id="dClergy" data-dk="dClergy" inputmode="numeric" pattern="[0-9]*" data-ime="num" maxlength="3" autocomplete="off"></label>
-      </div>
-      <div class="disc-inputs etc-disc">
-        <span class="hint disc-t">기타 할인</span>
-        <label title="사유원 몫(입장료)에서 빼는 금액">비과세(사유원) <input id="etcDiscTf" data-etc="etcDiscTf" inputmode="numeric" data-ime="num" placeholder="0" autocomplete="off" style="width:84px">원</label>
-        <label title="신라철강 몫에서 빼는 금액">과세(신라) <input id="etcDiscTx" data-etc="etcDiscTx" inputmode="numeric" data-ime="num" placeholder="0" autocomplete="off" style="width:84px">원</label>
-        <input id="etcDiscWhy" data-etc="etcDiscWhy" data-ime="ko" placeholder="사유 (예: 재방문 감사)" autocomplete="off" class="etc-why">
-      </div>
+      <p class="hint" style="margin:4px 0 0">특별 할인(간송 · 국가유공자 · 군위 주민 · 대구대교구) · 기타 할인은 예약 내역 품목 줄의 <b>「특별할인」</b> 버튼으로 넣습니다.</p>
     </div>
     <div class="psec-t" id="selTitle">선택한 항목</div>
     <div id="priceBox"></div>
@@ -316,7 +319,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/group.js?v=20261116h"></script>
+<script src="js/group.js?v=20261116i"></script>
 <script src="js/ime.js?v=20261116"></script>
 </body>
 </html>
