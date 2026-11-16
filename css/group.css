@@ -601,3 +601,13 @@ html.book-guest #bookBody tr{cursor:default}
 .sp-etc input{height:32px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:14px var(--sans)}
 .sp-etc label input{width:96px;text-align:right}
 .sp-etc .etc-why{flex:1 1 200px}
+/* 결제링크: 결제 칸 줄 아래 「결제링크 전송」 · 「입금 확인」 (누르면 일시 기록) */
+.paylink{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-2px 0 4px}
+.paylink[hidden]{display:none}
+.paylink .pl-t{font-size:12px;color:var(--muted)}
+.plbtn{display:inline-flex;align-items:center;gap:6px;height:32px;border:1px solid #b9b5ab;background:#e6e4de;border-radius:7px;padding:0 12px;font:600 13px var(--sans);color:#3d3b36;cursor:pointer}
+.plbtn i{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1.5px solid #8f8b82;border-radius:4px;background:#fff;font-style:normal;font-size:12px;line-height:1}
+.plbtn:hover{background:#d9d6cf}
+.plbtn.on{background:var(--pine-soft,#e4eadf);border-color:var(--pine);color:var(--pine)}
+.plbtn.on i{background:var(--pine);border-color:var(--pine);color:#fff}
+.plbtn small{font-weight:400;color:var(--muted)}

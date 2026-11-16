@@ -41,6 +41,8 @@ const FIELDS = [
   ['굿즈','viewN','관람권 인원','','',null],   // 기본 관람 줄 인원을 직접 줄였을 때만 (비면 = 관람 인원 − 다른 관람 영역 인원)   // 예약 내역 관람 줄에서 고른 관람 품목 (평일 · 주말은 방문일에 맞춰 바뀜, 비면 입장 시각으로)
   ['굿즈','inotes','항목 비고','','',null],   // 예약 내역 줄마다 비고 "sadam1=창가 자리; g:모과청(new)=선물 포장" (시트 비고 칸 '항목 비고')
   ['굿즈','idisc','항목 할인','','',null],   // 예약 내역 줄마다 할인 버튼 "sadam1=grp; v:(관람, …)=none" (시트 비고 칸 '항목 할인')
+  ['굿즈','linkSent','결제링크 전송','','',null],   // 결제링크를 보낸 일시 (예약 내용의 「결제링크 전송」 버튼, 시트 비고 칸)
+  ['굿즈','paidAt','입금 확인','','',null],   // 입금을 확인한 일시 (「입금 확인」 버튼)
   ['굿즈','isp','항목 특별 할인','','',null],   // 줄마다 특별 할인 인원 · 기타 할인 "v:…=dKansong:2|0:10000|재방문 감사" (시트 비고 칸 '항목 특별 할인')
   ['굿즈','idamt','항목 할인액','','',null],   // 할인액을 직접 고친 줄 "sadam1=200000:125000" (과세(신라):비과세(사유원), 시트 비고 칸 '항목 할인액')
 ];
@@ -156,7 +158,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['etcDiscTx','기타할인 과세'],['etcDiscTf','기타할인 비과세'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['idisc','항목 할인'],['idamt','항목 할인액'],['isp','항목 특별 할인'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['etcDiscTx','기타할인 과세'],['etcDiscTf','기타할인 비과세'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['idisc','항목 할인'],['idamt','항목 할인액'],['isp','항목 특별 할인'],['linkSent','결제링크 전송'],['paidAt','입금 확인'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
@@ -837,6 +839,7 @@ function paintFields(changed=[]){
   if(os){ const ok=rec.pay==='결제링크'; os.disabled=!ok; os.closest('.ckf').title = ok ? '' : '결제 방식이 결제링크일 때만 체크할 수 있습니다';
     if(!ok && rec.onsite){ rec.onsite=''; os.checked=false; } }
   const pc=document.getElementById('w_payContact'); if(pc) pc.hidden = rec.pay!=='미정';
+  paintPayLink();
   paintOpt();
 }
 // 접는 묶음: 값이 있으면 버튼·묶음을 초록으로, 버튼에 입력 내용 요약
@@ -895,6 +898,23 @@ function renderSide(){
   if(window.__autoReady) scheduleAuto();   // 고칠 때마다 자동 저장 타이머
   if(window.__autoReady) saveViewSoon();   // 새로고침해도 이 화면 그대로
 }
+// 결제링크: 결제 칸 줄 아래에 「결제링크 전송」 · 「입금 확인」 버튼. 누르면 그 일시를 기록(다시 누르면 지울지 물음), 추후 과업(결제링크 전송 · 입금 확인)과 서로 맞춤
+const PAYLINK = [['linkSent','결제링크 전송','linksend'],['paidAt','입금 확인','paycheck']];
+function paintPayLink(){
+  const w=document.getElementById('w_pay'); if(!w) return;
+  let b=document.getElementById('payLinkBox');
+  if(!b){ b=document.createElement('div'); b.id='payLinkBox'; b.className='paylink'; (document.getElementById('w_onsite')||w).after(b); }
+  const on=rec.pay==='결제링크'; b.hidden=!on; if(!on){ b.innerHTML=''; return; }
+  b.innerHTML = `<span class="pl-t">결제링크</span>` + PAYLINK.map(([k,l])=>`<button type="button" class="plbtn${rec[k]?' on':''}" data-pl="${k}" title="${rec[k]?`${l} ${dtLabel(rec[k])} · 다시 누르면 기록을 지울지 물어봅니다`:`누르면 ${l} 일시가 기록되고 추후 과업도 완료됩니다`}"><i>${rec[k]?'✓':''}</i>${l}${rec[k]?` <small>${esc(dtLabel(rec[k]))}</small>`:''}</button>`).join('');
+}
+document.addEventListener('click', e=>{ const btn=e.target.closest?.('#payLinkBox [data-pl]'); if(!btn) return;
+  const [k,l,tid]=PAYLINK.find(p=>p[0]===btn.dataset.pl);
+  if(rec[k]){ if(!confirm(`${l} 기록(${dtLabel(rec[k])})을 지울까요?`)) return; rec[k]=''; }
+  else { if(k==='paidAt' && !rec.linkSent && !confirm('결제링크 전송 기록이 없습니다. 그래도 입금 확인으로 표시할까요?')) return; rec[k]=new Date().toISOString(); }
+  touched.add(k); const t=tasks.find(x=>x.id===tid); if(t){ t.done=!!rec[k]; t.doneAt=rec[k]||''; }
+  startTimer(); paintPayLink(); renderSide(); renderTasks(); if(window.__autoReady) scheduleAuto();
+  if(rec[k]) toast(`${l} ${dtLabel(rec[k])} 기록했습니다.`);
+});
 // 결제 방식별로 끊기 전에 추가로 받거나 안내할 것
 const PAY_GUIDE = {
   '세금계산서': ['세금계산서 발행을 위해 사업자등록증을 보내주시겠어요?', '세금계산서 받으실 이메일 주소가 어떻게 되실까요?', '세금계산서 발행일은 언제로 해 드릴까요?'],
@@ -1555,7 +1575,7 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
-const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', paycheck:'결제 확인' };
+const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 function moneySplit(r){
   if(r===rec && erpList.length){ const t=erpTotals(); return {saw:t.saw, shilla:t.shilla, etc:0, missing:false, erp:true}; }   // 전산 내역이 있으면 전산 금액 (세금계산서 문구 등)
@@ -1635,20 +1655,20 @@ const todayYmd = () => ymd(new Date());
 function autoDue(id, r){
   if(id==='tbdcall') return r.tbdDate || todayYmd();
   if(id==='onsitecall') return r.date ? tbdLimit(r.date) : todayYmd();
-  if(id==='paycheck') return ymd(nextDay(new Date().toISOString()));
+  if(id==='paycheck') return ymd(nextDay(r.linkSent || new Date().toISOString()));   // 입금 확인 = 결제링크 보낸 다음날
   if(id==='staffbrief' || id==='goodsprep'){ if(!r.date) return todayYmd(); const d=new Date(r.date+'T00:00'); d.setDate(d.getDate()-1); return ymd(d); }   // 방문 전날
   return todayYmd();
 }
 const taskDue = t => t.due || (t.at ? ymd(new Date(t.at)) : todayYmd());   // 예전 과업은 생긴 날
 const DOC_SUBS = { quote:[['make','견적서 생성'],['send','견적서 전송'],['nas','견적서 NAS에 업로드']], stmt:[['make','거래명세서 생성'],['send','거래명세서 전송'],['nas','거래명세서 NAS에 업로드']] };
-const FOLLOW_DUE = new Set(['tbdcall','onsitecall','staffbrief','goodsprep']);   // 답변일 · 방문일이 바뀌면 기한도 따라감 (직접 바꾸기 전까지)
+const FOLLOW_DUE = new Set(['tbdcall','onsitecall','staffbrief','goodsprep','paycheck']);   // 답변일 · 방문일이 바뀌면 기한도 따라감 (직접 바꾸기 전까지)
 function syncAutoTasks(){
   const want = [], consult = effStage(rec)==='예약상담';   // 예약상담은 기록용: 추후 과업 없음
   if(rec.tbd) want.push('tbdcall');   // 미정 항목(결제 방법 포함)이 있으면 답변일에 연락
   if(rec.pay==='현장 결제' && rec.date) want.push('onsitecall');   // 현장 결제: 전주 목요일에 인원 확인 + 인원 변경 어려움 안내
   if(needsErp(rec)) want.push('erp', 'erpcheck');   // 전산 예약 + 전산 내역을 붙여 넣어 예약 내용과 총 금액 · 할인이 같은지 대조 (같으면 자동 완료)
   if(rec.pay==='세금계산서') want.push('tax');
-  if(rec.pay==='결제링크') want.push('paycheck');
+  if(rec.pay==='결제링크') want.push('linksend', 'paycheck');   // 결제링크: 보내기(오늘) · 입금 확인(보낸 다음날). 예약 내용의 버튼과 서로 맞춤
   if(rec.wantQuote) want.push('quote');
   if(rec.wantStmt) want.push('stmt');
   const ms=missingStaff(rec); if(ms.length) want.push('progstaff');   // 프로그램 담당이 비면 입력하라고
@@ -1677,7 +1697,9 @@ function syncAutoTasks(){
   const ps=tasks.find(t=>t.id==='progstaff'); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
   const ec=tasks.find(t=>t.id==='erpcheck'); if(ec){ const c=erpCheck(); const was=ec.done; ec.done=c.ok; ec.check=c; if(c.ok && !was) ec.doneAt=new Date().toISOString(); if(!c.ok) ec.doneAt=''; }   // 전산 내역 대조: 맞으면 자동 완료, 다르면 다시 열림
-  const ORDER=['tour','tbdcall','onsitecall','mbcall','mbmenu','progstaff','staffbrief','goodsprep','erp','erpcheck','erpfix','quote','stmt','tax','paycheck'];
+  { const ls=tasks.find(t=>t.id==='linksend'); if(ls){ ls.done=!!rec.linkSent; ls.doneAt=rec.linkSent||''; }   // 결제링크 전송 = 버튼을 누른 일시
+    const pc=tasks.find(t=>t.id==='paycheck'); if(pc){ if(rec.paidAt){ pc.done=true; pc.doneAt=rec.paidAt; } else if(pc.done){ rec.paidAt=pc.doneAt||new Date().toISOString(); touched.add('paidAt'); } } }   // 입금 확인 (알림 팝업에서 완료한 것도 일시로)
+  const ORDER=['tour','tbdcall','onsitecall','mbcall','mbmenu','progstaff','staffbrief','goodsprep','erp','erpcheck','erpfix','quote','stmt','tax','linksend','paycheck'];
   // 순서: 마감일이 빠른 순, 마감일이 같으면 최근에 추가된 것이 위. 직접 옮긴 과업(ordSet)은 그 순서 그대로 두고,
   // 옮기지 않은 과업은 그 사이에 마감일에 맞게 끼워 넣음 (같은 마감일이면 직접 옮긴 것보다 위). 끝난 과업은 맨 아래
   const byNew=(a,b)=>taskDue(a).localeCompare(taskDue(b)) || String(b.at||'').localeCompare(String(a.at||''));
@@ -1725,7 +1747,8 @@ function renderTasks(){
     stmt:'아래 세 가지를 모두 체크하면 완료됩니다. 버튼을 누르면 거래명세서로 채워집니다. 출력하면 PDF · 엑셀이 드라이브에도 저장되고 여기에 링크가 붙습니다.' };
   box.innerHTML = shownTasks.map(t=>{
     const txt=taskText(t);
-    const sub = t.id==='paycheck' ? `결제링크 보낸 다음날(${mdLabel(ymd(nextDay(t.at)))}) 아침에 이 창을 열면 확인 알림이 뜹니다.`
+    const sub = t.id==='paycheck' ? (rec.paidAt ? `입금 확인 ${esc(dtLabel(rec.paidAt))}` : rec.linkSent ? `결제링크를 ${esc(dtLabel(rec.linkSent))}에 보냈습니다. 입금되면 예약 내용의 <b>「입금 확인」</b>을 누르거나 체크하세요 (누른 일시가 기록됩니다). 보낸 다음날(${mdLabel(ymd(nextDay(rec.linkSent)))}) 아침에 이 창을 열면 확인 알림이 뜹니다.` : '결제링크를 먼저 보내세요 (결제링크 전송). 입금되면 예약 내용의 <b>「입금 확인」</b>을 누르거나 체크하세요.')
+      : t.id==='linksend' ? (rec.linkSent ? `결제링크 전송 ${esc(dtLabel(rec.linkSent))}` : '고객님께 결제링크를 보내고, 예약 내용 결제 칸 아래 <b>「결제링크 전송」</b>을 누르거나 체크하세요 (누른 일시가 기록됩니다).')
       : t.id==='tour' ? `사전 답사를 사유원 전산에 예약하고 체크하세요. 답사 정보는 아래 메모에 있습니다.`
       : t.id==='tbdcall' ? (rec.tbd ? `미정: <b>${esc(rec.tbd)}</b><br>답변일(${esc(mdLabel(taskDue(t)))})에 고객님께 연락해 확인하고, 정해진 내용을 칸에 채운 뒤 체크하세요.` : '미정 항목이 모두 정해졌습니다.')
       : t.id==='onsitecall' ? `현장 결제 예약입니다. 기한(${esc(mdLabel(taskDue(t)))} · 방문일 전주 목요일)에 고객님께 연락해 <b>최종 인원</b>을 확인하고, <b>당일 인원 변경이 어렵다는 점</b>을 다시 한번 안내하세요.`
@@ -1784,6 +1807,7 @@ $('#taskList').addEventListener('change', e=>{
   t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
   if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=t.done); (t.xsubs||[]).forEach(x=>x.done=t.done);   // 위 체크 = 하위 과업 모두 해결 (끄면 모두 해제)
   if(id==='erp'){ rec.erp = t.done ? ymd(new Date()) : ''; touched.add('erp'); }
+  if(id==='linksend' || id==='paycheck'){ const k=id==='linksend'?'linkSent':'paidAt'; rec[k] = t.done ? t.doneAt : ''; touched.add(k); paintFields(); }   // 과업 체크 = 예약 내용 버튼도 (일시 기록)
   if(id==='erpfix' && t.done){ const e=tasks.find(x=>x.id==='erp'); if(e) e.base=erpSnap(); t.changes=[]; }   // 전산에 고친 지금 내용을 기준으로
   renderSide(); autoSave();
 });
@@ -1862,7 +1886,9 @@ window.addEventListener('focus', ()=>{ if(window.__tasksReady) takeDocs(); });
 // 결제 확인 알림:결제링크를 보낸 다음날부터, 이 창을 열면 아직 확인 안 한 예약을 띄움 (하루 한 번)
 function duePayChecks(){
   const today=ymd(new Date());
-  return (cache||[]).map(r=>{ const t=parseHist(r).tasks.find(t=>t.id==='paycheck' && !t.done); return t && ymd(new Date(t.at))<today ? {r,t} : null; }).filter(Boolean);
+  // 결제링크를 보낸(「결제링크 전송」) 다음날부터. 보내기 전이면 알림 없음 (예전 기록은 과업이 생긴 다음날부터)
+  return (cache||[]).map(r=>{ const ph=parseHist(r), t=ph.tasks.find(t=>t.id==='paycheck' && !t.done); if(!t) return null; const x=xOf(r); if(x.paidAt) return null;
+    const base = x.linkSent || (ph.tasks.some(y=>y.id==='linksend') ? '' : t.at); return base && ymd(new Date(base))<today ? {r,t} : null; }).filter(Boolean);
 }
 function checkPayPopup(force){
   if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
