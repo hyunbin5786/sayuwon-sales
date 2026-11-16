@@ -2156,7 +2156,7 @@ function renderPrice(){
   const n = numOf(rec.people), g = groupRate(n), sp = specialCounts(rec);
   $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?(HOLIDAYS.has(rec.date)?'공휴일(주말)':'주말'):'평일'} 가격` : '';
   $('#discGroup').innerHTML = n
-    ? (sp.length ? `특별 할인 ${sp.map(s=>`${s.short} ${s.n}명 ${s.rate===1?'무료':Math.round(s.rate*100)+'%'}`).join(' · ')} <span class="hint" style="margin:0">(단체 할인과 비교해 큰 쪽)</span>` : '')
+    ? ''   // 특별 할인 요약은 없앰 (품목 줄의 「특별할인」 버튼에 바로 보임)
     : '<span class="hint" style="margin:0">관람 인원을 넣으면 할인(20명 미만 5% · 20명 초과 10%)이 계산됩니다</span>';
   SPECIAL.forEach(s=>{ const el=$('#'+s.k); if(el && document.activeElement!==el) el.value = rec[s.k]||''; el?.classList.toggle('has', !!rec[s.k]); });
   { const es=etcSplit(rec); [['etcDiscTx',es.tx],['etcDiscTf',es.tf],['etcDiscWhy',null]].forEach(([k,v])=>{ const el=$('#'+k); if(el && document.activeElement!==el) el.value = v==null ? (rec[k]||'') : (v?String(v):''); }); }   // 기타 할인 칸

@@ -604,3 +604,5 @@ html.book-guest #bookBody tr{cursor:default}
 /* 방문 칸 (2026-11-16): 퇴장시각은 숨김(예전 기록 값은 그대로) → 입장시각 · 입장문 · 차량 한 줄, 결제 · 현장 재결제 · 결제링크 전송 · 입금 확인 한 줄 */
 #w_tout{display:none}
 #pl_linkSent .ckf,#pl_paidAt .ckf{font-size:12.5px;padding:0 8px;gap:5px}
+/* 가격표: 특별 할인 요약 · 안내 문구 없앰 → 비면 칸도 숨김 */
+.disc-line:empty,.disc-box:has(.disc-line:empty){display:none}
