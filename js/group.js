@@ -1043,7 +1043,7 @@ function renderDayAll(){
   if(BOOK_ONLY && !$('#bookModal').hidden) paintBook();   // 공유 페이지: 새 기록을 받으면 다시 그림
   const el=$('#dayAll'); if(!el) return;
   // 예약 현황 = 버튼 5개 (몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰). 누르면 예약 목록 창이 그 구분 탭으로. 방문일이 있으면 그날 건수
-  const d=rec.date, rows = d ? [...bookRows(), ...manualRows()].filter(x=>x.d===d) : [], n = c => !d ? 0 : c==='mb' ? mbDbOn(d).length : rows.filter(x=>x.cat===c).length;
+  const d=rec.date, rows = d ? [...bookRows(), ...manualRows()].filter(x=>x.d===d) : [], n = c => !d ? 0 : c==='mb' ? mbDbOn(d).length + mbAutoRows().filter(x=>x.d===d).length : rows.filter(x=>x.cat===c).length;
   el.innerHTML = `<div class="da-btns">${[['mb','몽몽마방'], ...Object.entries(BOOK_CATS)].map(([c,t])=>`<button type="button" class="da-btn" data-book="${c}" title="${t} 예약 목록${d?` (${dateLabel(d)} ${n(c)}건)`:''}">${t}${n(c)?` <b>${n(c)}</b>`:''}</button>`).join('')}</div>`
     + `<div class="none da-note">${d ? `숫자 = ${dateLabel(d)} 예약 건수 · ` : ''}사담은 예약 전산에서 확인하세요.</div>`;
 }
@@ -1178,18 +1178,25 @@ $('#bookClose').onclick=bookShut;
 $('#bookPast').onchange=paintBook;
 $('#bookModal').addEventListener('mousedown', e=>{ if(e.target.id==='bookModal') bookShut(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#bookModal').hidden && !BOOK_ONLY){ e.preventDefault(); $('#bookModal').hidden=true; } });
-$('#bookBody').addEventListener('click', e=>{ if(e.target.closest('button')) return; const tr=e.target.closest('tr[data-bopen]'); if(!tr || !tr.dataset.bopen) return; const r=cache.find(x=>x.id===tr.dataset.bopen); if(!r || BOOK_GUEST) return;
+['#bookBody','#mbdbBody'].forEach(sel=>$(sel).addEventListener('click', e=>{ if(e.target.closest('button')) return; const tr=e.target.closest('tr[data-bopen]'); if(!tr || !tr.dataset.bopen) return; const r=cache.find(x=>x.id===tr.dataset.bopen); if(!r || BOOK_GUEST) return;
   if(BOOK_ONLY){ BOOK_ONLY=''; document.documentElement.classList.remove('book-only'); history.replaceState(null,'','group.html'); document.title='단체고객 전화응대 · 사유원 예약 보조 시스템'; $('#crumb').textContent='단체고객 전화응대'; }   // 공유 페이지 → 단체 화면으로 바뀌며 그 예약을 엶 (나의 할일 단독 화면과 같음)
-  $('#bookModal').hidden=true; openRecordG(r); });
+  $('#bookModal').hidden=true; openRecordG(r); }));
 
 // 몽몽마방 예약 목록 (직접 추가 · 수정 · 빼기)
 function mbYear(m,d){ const t=new Date(); t.setHours(0,0,0,0); let y=t.getFullYear(); const c=new Date(y,m-1,d); if(c-t < -120*864e5) y++; else if(c-t > 245*864e5) y--; return y; }   // 연도가 없으면 오늘에 가까운 쪽
+// 몽몽마방 예약 목록 = 직접 넣은 예약 + 단체 예약(예약접수)의 몽몽마방 식사 자동 (대관 · 도슨트 · 프로그램처럼, 지금 열어 둔 예약은 빼고) (2026-11-16)
+function mbAutoRows(){ try{
+  return (cache||[]).filter(r=>isGroupRec(r) && r.id!==editingId && r.date && stageOfRec(r)==='예약접수').map(r=>({r, x:xOf(r)})).filter(({x})=>x.mabangL || x.mabangTime || x.mabangMenu)
+    .map(({r,x})=>({auto:true, id:r.id, d:x.date, t:x.mabangTime||'', n:x.org||x.contact||'(업체 미정)', p:numOf(x.mabangL)||'', m:x.mabangMenu||'', pay:x.mabangPay||''}));
+}catch(_){ return []; } }
 function paintMbDb(){
   const db=mbDb(), today=todayYmd(), past=$('#bookPast').checked;   // 지난 예약도 보기 (예약 목록 창 공통)
-  const list=db.rows.map((x,i)=>({...x, i})).filter(x=>past || x.d>=today).sort((a,b)=>(a.d+a.t).localeCompare(b.d+b.t));
-  $('#mbdbSum').textContent = db.rows.length ? `${db.rows.length}건${db.at?` · 마지막 저장 ${dtLabel(db.at)}${db.by?` (${db.by})`:''}`:''}` : '아직 없음';
-  $('#mbdbBody').innerHTML = list.map(x=>`<tr class="${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}"><td>${esc(dateLabel(x.d))}</td><td>${esc(x.t||'')}</td><td><b>${esc(x.n)}</b></td><td class="num">${esc(x.p)}명</td><td>${esc(x.m||'')}</td><td class="acts"><button type="button" class="btn sm" data-mbedit="${x.i}">수정</button><button type="button" class="del" data-mbdel="${x.i}" title="이 예약 빼기">×</button></td></tr>`).join('')
-    || `<tr><td colspan="6" class="empty">${db.rows.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'아래에서 몽몽마방 예약을 추가하세요.'}</td></tr>`;
+  const all=[...db.rows.map((x,i)=>({...x, i})), ...mbAutoRows()];
+  const list=all.filter(x=>past || x.d>=today).sort((a,b)=>(a.d+String(a.t)).localeCompare(b.d+String(b.t)));
+  $('#mbdbSum').textContent = all.length ? `${all.length}건 · 단체 예약(예약접수)에서 자동 + 직접 추가${db.at?` · 직접 추가 마지막 저장 ${dtLabel(db.at)}${db.by?` (${db.by})`:''}`:''}` : '아직 없음';
+  $('#mbdbBody').innerHTML = list.map(x=>`<tr class="${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}"${x.auto?` data-bopen="${esc(x.id)}"`:''}><td>${esc(dateLabel(x.d))}</td><td>${esc(x.t||'')}</td><td><b>${esc(x.n)}</b></td><td class="num">${x.p?esc(x.p)+'명':''}</td><td>${esc(x.m||'')}${x.pay==='마방'?' <small class="hint" style="margin:0">(마방 결제)</small>':''}</td>`
+    + `<td class="acts">${x.auto ? '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>' : `<button type="button" class="btn sm" data-mbedit="${x.i}">수정</button><button type="button" class="del" data-mbdel="${x.i}" title="이 예약 빼기">×</button>`}</td></tr>`).join('')
+    || `<tr><td colspan="6" class="empty">${all.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'아래에서 몽몽마방 예약을 추가하세요.'}</td></tr>`;
 }
 async function mbDbSave(rows, msg){
   if(BOOK_GUEST){ toast('로그인한 사람만 고칠 수 있습니다.'); return; }
