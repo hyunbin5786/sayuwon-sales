@@ -581,3 +581,8 @@ html.book-only #bookClose{display:none}
 html.book-guest #bookBody td.acts,html.book-guest #mbdbBody td.acts{display:none}
 html.book-guest #bookHead th:last-child,html.book-guest .book thead tr th:last-child{display:none}
 html.book-guest #bookBody tr{cursor:default}
+/* 몽몽마방 줄: 시작 · 끝 · 결제 칸 앞 작은 이름. 결제 미정은 노란색 (미정 항목) */
+.it-extra .it-xl{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap}
+.it-extra .it-xl .it-x{min-width:0;width:70px}
+.it-extra .it-xl select.it-x{width:auto;min-width:80px}
+.it-extra .it-xl.tbd select{background:#fff6d6;border-color:#e2c46a}
