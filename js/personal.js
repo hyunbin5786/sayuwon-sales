@@ -422,7 +422,7 @@ $('#allBody').addEventListener('click', e=>{ const del=e.target.closest('[data-p
 // 그 시각이 지나고 처음 화면을 볼 때 (시각마다 한 번, 단체 화면과 같은 기록이라 두 화면에서 두 번 뜨지 않음). 내 개인고객 과업 + 내가 영업 담당인 단체 과업
 const TASK_SLOT_LS='sayuwon_task_slot', ALERT_HOURS=[8,11,13,17], QUIET_MS=30*60e3;
 let groupMine=[];
-// 마이페이지 버튼 옆 빨간 표시: 마감이 오늘이거나 지난 내 과업 수 (개인 + 내가 영업 담당인 단체, 단체 화면과 같은 모양)
+// 나의 할일 버튼 옆 빨간 표시: 마감이 오늘이거나 지난 내 과업 수 (개인 + 내가 영업 담당인 단체, 단체 화면과 같은 모양)
 function paintMyCount(){ const today=todayYmd(), me=user.name||''; let n=0;
   shown().filter(r=>(r.owner||r.takenBy)===me).forEach(r=>tasksOfItem(r).forEach(t=>{ if(!t.done && (t.due||today)<=today) n++; }));
   groupMine.forEach(r=>tasksOfItem(r).forEach(t=>{ if(!t.done && t.due && t.due<=today) n++; }));
@@ -455,7 +455,7 @@ $('#dueList').addEventListener('click', e=>{ const d=e.target.dataset;
 });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(!$('#pdelModal').hidden){ closePdel(); } else if(!$('#allModal').hidden){ $('#allModal').hidden=true; } else if(!$('#dueModal').hidden){ $('#dueModal').hidden=true; } } });
 setInterval(checkDue, 60000);   // 1분마다 알림 시각인지 확인
-// 마이페이지에서 개인고객 과업을 누르면 personal.html?open=통화ID → 그 통화를 엶 (목록을 받은 뒤)
+// 나의 할일에서 개인고객 과업을 누르면 personal.html?open=통화ID → 그 통화를 엶 (목록을 받은 뒤)
 let openId = new URLSearchParams(location.search).get('open');
 function tryOpen(){ if(!openId) return; if(shown().some(x=>x.id===openId)){ const id=openId; openId=null; history.replaceState(null,'',location.pathname); openItem(id); } }
 enhanceDates();   // 방문 희망일 / 예약일 · 과업 마감일: 누르면 달력 · 칸 안에 (요일)

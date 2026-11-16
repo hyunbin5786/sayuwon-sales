@@ -12,14 +12,16 @@ let view = location.hash==='#members' ? 'members' : 'menu';
 function paint(){
   const u=getUser();
   $('#loginForm').hidden = !!u; $('#who').hidden = !u;
-  $('#menuView').hidden = !u || view!=='menu'; $('#memberView').hidden = !u || view!=='members';
+  $('#menuView').hidden = view!=='menu' && !!u; $('#memberView').hidden = !u || view!=='members';
+  $('#menuView').classList.toggle('guest', !u); $('#hello').hidden = !u;   // 로그인 전에는 3열 「예약 현황 공유」만 (보기 전용)
+  $('#shareHint').textContent = u ? '' : '로그인 없이 보기만';
   { const cr=$('#crumb'); if($('#catWrap').hidden){ cr.textContent = u && view==='members' ? '멤버관리' : ''; cr.hidden = !cr.textContent; } }   // 헤더: 시스템 이름 › 지금 화면
   if(u){
     $('#whoName').textContent = `👤 ${u.name}`; $('#whoName').title = `사번 ${u.emp}`;
     $('#hello').innerHTML = `${esc(u.name)}님, 무엇을 할까요?`;
     $('#quoteLink').href = QUOTE;
     $('#setupBar').hidden = !u.setup;
-    $('#setupBar').textContent = u.setup==='empty' ? '아직 등록된 멤버가 없어 누구나 로그인할 수 있습니다. 7번 멤버관리에서 직원(본인 포함)을 추가하면 그때부터 이름 · 사번을 확인합니다.'
+    $('#setupBar').textContent = u.setup==='empty' ? '아직 등록된 멤버가 없어 누구나 로그인할 수 있습니다. 「관리 › 멤버관리」에서 직원(본인 포함)을 추가하면 그때부터 이름 · 사번을 확인합니다.'
       : u.setup==='old' ? '공유 저장소(Apps Script)가 아직 예전 버전이라 이름 · 사번을 확인하지 못했습니다. 새 버전으로 배포하면 확인합니다.' : '';
     if(location.hash==='#catalog') openCatalog();
     if(view==='members') loadMembers();

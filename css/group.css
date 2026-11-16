@@ -527,7 +527,7 @@ body.locked #saveBtn{display:none}
 .my-tabs button{border:0;background:transparent;padding:4px 14px;border-radius:6px;font:600 13px var(--sans);color:var(--muted);cursor:pointer}
 .my-tabs button.on{background:var(--pine);color:#fff}
 .my-cols.two{grid-template-columns:1fr 1fr}
-/* 마이페이지 단독 페이지 (mypage.html → group.html?my=1): 단체 화면은 숨기고 마이페이지만 한 페이지로 */
+/* 나의 할일 단독 페이지 (mypage.html → group.html?my=1): 단체 화면은 숨기고 나의 할일만 한 페이지로 */
 html.my-only header > *:not(.sys-brand):not(.sys-crumb):not(.me):not(.sync){display:none!important}
 html.my-only .layout{display:none!important}
 html.my-only #myModal{position:static;background:none;padding:12px max(16px,env(safe-area-inset-left,0px));display:block}
@@ -541,7 +541,7 @@ html.my-embed #myModal{padding:12px 16px}
 html.my-embed #myCloseBtn{display:inline-flex}
 html.my-only.my-embed .my-col{max-height:calc(100vh - 100px)}
 html.my-only .my-col{max-height:calc(100vh - 150px)}
-.my-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:0}   /* 마이페이지 3열: 방문 예정 · 연락할 미정 · 남은 과업 */
+.my-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:0}   /* 나의 할일 3열: 방문 예정 · 연락할 미정 · 남은 과업 */
 .my-col{overflow:auto;min-height:0;max-height:calc(100vh - 170px);background:var(--bg);border-radius:8px;padding:10px}
 .my-col .pc-list li.r{cursor:pointer}
 .my-col .pc-list li.r:hover{border-color:var(--pine)}
@@ -570,3 +570,14 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 .erp-ck{display:flex;flex-direction:column;gap:2px;margin-top:6px;font-size:12.5px}   /* 전산 내역 대조: 할인 합계 · 총 금액 */
 .erp-ck .ck.ok{color:var(--pine);font-weight:600}
 .erp-ck .ck.bad{color:var(--red);font-weight:700}
+/* 예약 현황 공유 (첫 화면 3열 → group.html?book=…): 단체 화면은 숨기고 예약 목록 창만 한 페이지로. 로그인 안 했으면(book-guest) 보기만 */
+html.book-only header > *:not(.sys-brand):not(.sys-crumb):not(.sync){display:none!important}
+html.book-only .layout{display:none!important}
+html.book-only #bookModal{position:static;background:none;padding:12px max(16px,env(safe-area-inset-left,0px));display:block}
+html.book-only #bookModal[hidden]{display:none}
+html.book-only #bookModal > section{width:auto;max-width:none;max-height:none;margin:0;border:0;border-radius:0;box-shadow:none;background:transparent;padding:4px 0 0}
+html.book-only #bookModal > section > h2{border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px}
+html.book-only #bookClose{display:none}
+html.book-guest #bookBody td.acts,html.book-guest #mbdbBody td.acts{display:none}
+html.book-guest #bookHead th:last-child,html.book-guest .book thead tr th:last-child{display:none}
+html.book-guest #bookBody tr{cursor:default}

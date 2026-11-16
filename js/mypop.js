@@ -1,8 +1,8 @@
-// ===== 마이페이지 팝업 (첫 화면 · 개인고객 · 다음날 준비 공통) =====
+// ===== 나의 할일 팝업 (첫 화면 · 개인고객 · 다음날 준비 공통) =====
 
 (function(){
   const pop=document.getElementById('myPop'), fr=document.getElementById('myPopFrame');
-  // 마이페이지 팝업 (개인고객 · 다음날 준비 화면 공통). <body data-my-tab="personal"> 이면 그 탭부터
+  // 나의 할일 팝업 (개인고객 · 다음날 준비 화면 공통). <body data-my-tab="personal"> 이면 그 탭부터
   const tab=document.body.dataset.myTab||'';
   window.openMyPop = () => { fr.src='group.html?my=1&embed=1'+(tab?'&tab='+tab:'')+'&t='+Date.now(); pop.hidden=false; };
   const close = () => { pop.hidden=true; fr.src='about:blank'; };

@@ -24,7 +24,7 @@ header .me{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:60
 header .hd-gap{margin-left:auto}
 .list-btn{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#f3f1ec;border-radius:7px;padding:4px 12px;font:500 13px var(--sans);cursor:pointer;display:flex;gap:6px;align-items:center}
 .list-btn:hover{background:rgba(255,255,255,.2)}
-.tag.call{background:var(--red-soft);color:var(--red);font-weight:700;margin:0}   /* 마이페이지 버튼 옆 과업 수 (단체 화면과 같음) */
+.tag.call{background:var(--red-soft);color:var(--red);font-weight:700;margin:0}   /* 나의 할일 버튼 옆 과업 수 (단체 화면과 같음) */
 header .sync{font-size:12px;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.14)}
 header .sync.warn{background:#f3d9b5;color:#6b4513}
 header .sync[hidden]{display:none}

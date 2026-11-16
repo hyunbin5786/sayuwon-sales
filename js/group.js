@@ -1,5 +1,5 @@
 // ===== 단체고객 전화응대 (group.html) =====
-// 예약 칸 · 예약 내역(가격 · 할인) · 추후 과업 · 전산 내역 · 예약 현황 · 단체예약 목록 · 마이페이지 · 잠금 · 메모 · 알림
+// 예약 칸 · 예약 내역(가격 · 할인) · 추후 과업 · 전산 내역 · 예약 현황 · 단체예약 목록 · 나의 할일 · 잠금 · 메모 · 알림
 
 // ===================== 필드 정의 (엑셀 메인 시트 열 기준) =====================
 // grp, key, label, 엑셀열, 너비, 물어볼 질문(필수)
@@ -934,6 +934,7 @@ function bookRows0(){
   return out.sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99')));
 }
 function renderDayAll(){
+  if(BOOK_ONLY && !$('#bookModal').hidden) paintBook();   // 공유 페이지: 새 기록을 받으면 다시 그림
   const el=$('#dayAll'); if(!el) return;
   // 예약 현황 = 버튼 5개 (몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰). 누르면 예약 목록 창이 그 구분 탭으로. 방문일이 있으면 그날 건수
   const d=rec.date, rows = d ? [...bookRows(), ...manualRows()].filter(x=>x.d===d) : [], n = c => !d ? 0 : c==='mb' ? mbDbOn(d).length : rows.filter(x=>x.cat===c).length;
@@ -967,6 +968,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#trashModal
 var BKDB_ID='bookdb', BKDB_TYPE='예약현황추가';
 function bkDb(){ const r=cache.find(x=>x.id===BKDB_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return { rows:Array.isArray(j.rows)?j.rows:[], at:j.at||'', by:j.by||'' }; }
 async function bkDbSave(rows, msg){
+  if(BOOK_GUEST){ toast('로그인한 사람만 고칠 수 있습니다.'); return; }
   const old=cache.find(x=>x.id===BKDB_ID), now=new Date().toISOString(), keep=ymd(new Date(Date.now()-180*864e5));
   rows=rows.filter(x=>x.d>=keep);   // 180일 지난 것은 정리
   const item={...(old||{}), id:BKDB_ID, callType:BKDB_TYPE, saved:now, takenBy:savedOwner()||'', summary:`예약 현황 직접 추가 ${rows.length}건`, history:JSON.stringify({rows, at:now, by:savedOwner()||''})};
@@ -994,6 +996,7 @@ function paintBook(){
 const PLACE_OPTS=['몽몽차방','당두봉갈'], KIND_OPTS=['동행','PPT'], COUPON_OPTS=['음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)'];
 function paintBookAdd(){
   const c=bookCatNow, box=$('#bookAdd'); if(!box) return;
+  if(BOOK_GUEST){ box.innerHTML='<p class="hint" style="margin:0">보기 전용입니다. <a href="./">로그인</a>하면 직접 추가 · 수정할 수 있습니다.</p>'; return; }
   let x = {};
   if(bookEdit && bookEdit.mb!=null){ const r=mbDb().rows[bookEdit.mb]; if(r) x={d:r.d, tm:r.t, org:r.n, ppl:r.p, item:r.m}; }
   else if(bookEdit && bookEdit.id) x = bkDb().rows.find(r=>r.id===bookEdit.id) || {};
@@ -1056,13 +1059,22 @@ document.addEventListener('click', async e=>{ const t=e.target;
   if(t.dataset.bkdel){ const r=bkDb().rows.find(x=>x.id===t.dataset.bkdel); if(!r || !confirm(`${dateLabel(r.d)} ${r.org} ${BOOK_CATS[r.cat]} 예약을 목록에서 뺄까요?`)) return; await bkDbSave(bkDb().rows.filter(x=>x.id!==r.id), '예약을 목록에서 뺐습니다.'); return; }
   if(t.dataset.mbedit!=null){ bookEdit={mb:+t.dataset.mbedit}; paintBookAdd(); $('#bookAdd').scrollIntoView({block:'nearest'}); return; }
 });
-function openBook(c){ bookCatNow=c; bookEdit=null; bookImp=null; $('#bookModal').hidden=false; paintBook(); }
-document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('[data-book]'); if(b) openBook(b.dataset.book); const t=e.target.closest && e.target.closest('#bookTabs [data-bt]'); if(t){ bookCatNow=t.dataset.bt; bookEdit=null; paintBook(); } });
-$('#bookClose').onclick=()=>{ $('#bookModal').hidden=true; };
+// ===== 예약 현황 공유 (첫 화면 3열 → group.html?book=mb|rent|docent|prog|coupon): 예약 목록 창만 한 페이지로 =====
+// 로그인하지 않은 사람(book-guest)은 보기만 (직접 추가 · 수정 · 빼기 · 줄 눌러 예약 열기 없음). 로그인한 사람은 단체 화면의 예약 목록 창과 똑같이
+var BOOK_ONLY = (()=>{ const q=new URLSearchParams(location.search).get('book'); return q==null ? '' : (q==='mb' || BOOK_CATS[q]) ? q : 'mb'; })();
+var BOOK_GUEST = !!BOOK_ONLY && document.documentElement.classList.contains('book-guest');
+if(BOOK_ONLY){ $('#crumb').textContent='예약 현황 공유'; setTimeout(()=>openBook(BOOK_ONLY), 50); }
+function bookPageSync(){ if(!BOOK_ONLY) return; const t=bookCatNow==='mb'?'몽몽마방':BOOK_CATS[bookCatNow]; document.title=`${t} · 예약 현황 공유 · 사유원 예약 보조 시스템`; $('#crumb').textContent=`예약 현황 공유 › ${t}`; history.replaceState(null,'','group.html?book='+bookCatNow); }
+const bookShut = () => { if(!BOOK_ONLY) $('#bookModal').hidden=true; };   // 공유 페이지는 닫지 않음 (메뉴로는 헤더)
+function openBook(c){ bookCatNow=c; bookEdit=null; bookImp=null; $('#bookModal').hidden=false; paintBook(); bookPageSync(); }
+document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('[data-book]'); if(b) openBook(b.dataset.book); const t=e.target.closest && e.target.closest('#bookTabs [data-bt]'); if(t){ bookCatNow=t.dataset.bt; bookEdit=null; paintBook(); bookPageSync(); } });
+$('#bookClose').onclick=bookShut;
 $('#bookPast').onchange=paintBook;
-$('#bookModal').addEventListener('mousedown', e=>{ if(e.target.id==='bookModal') $('#bookModal').hidden=true; });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#bookModal').hidden){ e.preventDefault(); $('#bookModal').hidden=true; } });
-$('#bookBody').addEventListener('click', e=>{ if(e.target.closest('button')) return; const tr=e.target.closest('tr[data-bopen]'); if(!tr || !tr.dataset.bopen) return; const r=cache.find(x=>x.id===tr.dataset.bopen); if(!r) return; $('#bookModal').hidden=true; openRecordG(r); });
+$('#bookModal').addEventListener('mousedown', e=>{ if(e.target.id==='bookModal') bookShut(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#bookModal').hidden && !BOOK_ONLY){ e.preventDefault(); $('#bookModal').hidden=true; } });
+$('#bookBody').addEventListener('click', e=>{ if(e.target.closest('button')) return; const tr=e.target.closest('tr[data-bopen]'); if(!tr || !tr.dataset.bopen) return; const r=cache.find(x=>x.id===tr.dataset.bopen); if(!r || BOOK_GUEST) return;
+  if(BOOK_ONLY){ BOOK_ONLY=''; document.documentElement.classList.remove('book-only'); history.replaceState(null,'','group.html'); document.title='단체고객 전화응대 · 사유원 예약 보조 시스템'; $('#crumb').textContent='단체고객 전화응대'; }   // 공유 페이지 → 단체 화면으로 바뀌며 그 예약을 엶 (나의 할일 단독 화면과 같음)
+  $('#bookModal').hidden=true; openRecordG(r); });
 
 // 몽몽마방 예약 목록 (직접 추가 · 수정 · 빼기)
 function mbYear(m,d){ const t=new Date(); t.setHours(0,0,0,0); let y=t.getFullYear(); const c=new Date(y,m-1,d); if(c-t < -120*864e5) y++; else if(c-t > 245*864e5) y--; return y; }   // 연도가 없으면 오늘에 가까운 쪽
@@ -1074,6 +1086,7 @@ function paintMbDb(){
     || `<tr><td colspan="6" class="empty">${db.rows.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'아래에서 몽몽마방 예약을 추가하세요.'}</td></tr>`;
 }
 async function mbDbSave(rows, msg){
+  if(BOOK_GUEST){ toast('로그인한 사람만 고칠 수 있습니다.'); return; }
   const old=cache.find(x=>x.id===MBDB_ID), now=new Date().toISOString(), keep=ymd(new Date(Date.now()-90*864e5));
   rows=rows.filter(x=>x.d>=keep).sort((a,b)=>(a.d+a.t).localeCompare(b.d+b.t));   // 90일 지난 것은 정리
   const item={...(old||{}), id:MBDB_ID, callType:MBDB_TYPE, saved:now, takenBy:savedOwner()||'', summary:`몽몽마방 예약 목록 ${rows.length}건`, history:JSON.stringify({rows, at:now, by:savedOwner()||''})};
@@ -1742,6 +1755,7 @@ $('#memoBox').addEventListener('input', ()=>{ renderTasks(); if(window.__autoRea
 const DOCS_LS='sy_intake_docs';
 let takingDocs=false;
 async function takeDocs(){
+  if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
   if(takingDocs) return; takingDocs=true;
   try{
     let list=[]; try{ list=JSON.parse(localStorage.getItem(DOCS_LS)||'[]'); }catch(_){}
@@ -1770,6 +1784,7 @@ function duePayChecks(){
   return (cache||[]).map(r=>{ const t=parseHist(r).tasks.find(t=>t.id==='paycheck' && !t.done); return t && ymd(new Date(t.at))<today ? {r,t} : null; }).filter(Boolean);
 }
 function checkPayPopup(force){
+  if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
   const today=ymd(new Date()); let seen=''; try{ seen=sessionStorage.getItem('sayuwon_paycheck_seen')||''; }catch(_){}
   if(!force && seen===today) return;
   const due=duePayChecks();
@@ -2633,7 +2648,7 @@ const ownerOf = r => (r.owner||r.takenBy||'').trim();
 const daysFrom = (a,b) => Math.round((new Date(b+'T00:00')-new Date(a+'T00:00'))/864e5);   // a → b 며칠
 const firstContact = r => { const n=String(r.contact||'').split(/\s*\/\s*/)[0]||'', p=String(r.phone||'').split(/\s*\/\s*/)[0]||''; return n||p ? `${n}${p?`(${p})`:''}` : ''; };
 
-// ===================== 마이페이지: 내가 영업 담당인 예약 =====================
+// ===================== 나의 할일: 내가 영업 담당인 예약 =====================
 // 헤더 '영업 담당' 이름과 같은 예약만. 연락할 미정 항목 · 남은 과업 · 방문 예정 순서로
 function myRecords(){ const me=savedOwner(); return me ? (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me) : []; }
 // 저장된 예약의 추후 과업 (열지 않은 예약도): 저장된 과업 + 아직 저장 안 된 미정 항목 연락 · 현장 결제 인원 확인
@@ -2658,8 +2673,8 @@ function dueTasks(){   // 마감이 오늘이거나 지난 해결 안 된 과업
 }
 // 개인고객 통화 (personal.html, 통화 구분 '개인고객')의 추후 과업: 내가 받은(저장한) 통화의 안 끝난 과업
 const isPersonalRec = r => r && r.callType==='개인고객';
-let myTab = (()=>{ const q=new URLSearchParams(location.search).get('tab'); if(['all','personal','group'].includes(q)) return q; try{ return localStorage.getItem('sayuwon_my_tab')||'all'; }catch(_){ return 'all'; } })();   // 마이페이지 탭: all · personal · group (개인고객 화면에서 열면 ?tab=personal → 개인부터)
-const MY_ONLY = new URLSearchParams(location.search).get('my')==='1';   // 마이페이지 단독 페이지 (mypage.html → group.html?my=1)
+let myTab = (()=>{ const q=new URLSearchParams(location.search).get('tab'); if(['all','personal','group'].includes(q)) return q; try{ return localStorage.getItem('sayuwon_my_tab')||'all'; }catch(_){ return 'all'; } })();   // 나의 할일 탭: all · personal · group (개인고객 화면에서 열면 ?tab=personal → 개인부터)
+const MY_ONLY = new URLSearchParams(location.search).get('my')==='1';   // 나의 할일 단독 페이지 (mypage.html → group.html?my=1)
 function myPersonalOpen(){
   const me=savedOwner(); if(!me) return [];
   return (cache||[]).filter(r=>isPersonalRec(r) && (r.owner||r.takenBy)===me).map(r=>{ let ts=[]; try{ ts=(JSON.parse(r.history||'{}').tasks)||[]; }catch(_){}
@@ -2668,7 +2683,7 @@ function myPersonalOpen(){
 const personalDueCount = () => { const today=ymd(new Date()); return myPersonalOpen().reduce((s,o)=>s+o.left.filter(t=>t.due<=today).length, 0); };
 function renderMy(){
   const me=savedOwner(), today=ymd(new Date()), past=$('#myPast').checked;
-  $('#myTitle').textContent = me ? `마이페이지 · ${me}` : '마이페이지';
+  $('#myTitle').textContent = me ? `나의 할일 · ${me}` : '나의 할일';
   if(!me){ $('#mySum').textContent=''; $('#myBody').innerHTML='<p class="hint">맨 위 초록 헤더의 <b>영업 담당</b>에 이름을 넣으면, 그 이름이 영업 담당인 예약을 모아 보여 줍니다.</p>'; return; }
   const mine = myRecords().map(r=>({r, x:xOf(r), tasks:openTasksOf(r)}));
   const ahead = mine.filter(o=>!o.r.date || o.r.date>=today);
@@ -2731,18 +2746,18 @@ function renderMy(){
 function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
   const mm=myNewMemos().length, t=[n&&`과업 ${n}`, mm&&`메모 ${mm}`].filter(Boolean).join(' · ');   // 수정 표시는 없앰 · 내 예약에 확인 안 한 메모 수
   $('#myCount').hidden=!t; $('#myCount').textContent=t; }
-function openMy(fromGroup){ if(fromGroup===true) myTab='group'; $('#myModal').hidden=false; renderMy();   // 단체 화면의 마이페이지 버튼 = '단체' 탭부터
+function openMy(fromGroup){ if(fromGroup===true) myTab='group'; $('#myModal').hidden=false; renderMy();   // 단체 화면의 나의 할일 버튼 = '단체' 탭부터
   if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
-// group.html?open=예약ID → 그 예약을 엶 (팝업 마이페이지에서 단체 줄을 누른 경우 · 목록을 받은 뒤)
+// group.html?open=예약ID → 그 예약을 엶 (팝업 나의 할일에서 단체 줄을 누른 경우 · 목록을 받은 뒤)
 let openGId = new URLSearchParams(location.search).get('open');
 async function tryOpenG(){ if(!openGId) return; const list = await store.list(); const r=(list||[]).find(x=>x.id===openGId); if(!r) return; openGId=null; history.replaceState(null,'','group.html'); openRecordG(r); }
 setTimeout(tryOpenG, 400);
-const MY_EMBED = MY_ONLY && window.parent!==window;   // 다른 화면이 팝업으로 띄운 마이페이지
+const MY_EMBED = MY_ONLY && window.parent!==window;   // 다른 화면이 팝업으로 띄운 나의 할일
 function closeMy(){ if(MY_EMBED){ window.parent.postMessage({type:'sy-my', ev:'close'}, '*'); return; } if(MY_ONLY && document.documentElement.classList.contains('my-only')){ location.href='./'; return; } $('#myModal').hidden=true; }   // 팝업 = 바깥 화면이 닫음, 단독 페이지 = 메뉴로
-// 단체 화면의 「마이페이지」 = 이 화면 위 팝업 (메뉴 8번은 한 페이지)
+// 단체 화면의 「나의 할일」 = 이 화면 위 팝업 (메뉴 8번은 한 페이지)
 $('#myOpenBtn').onclick=()=>openMy(true);
 if(location.hash==='#my' && !MY_ONLY) setTimeout(openMy, 300);   // 예전 주소 group.html#my
-if(MY_ONLY){ document.title='마이페이지 · 사유원 예약 보조 시스템'; $('#crumb').textContent='마이페이지'; setTimeout(openMy, 50); }
+if(MY_ONLY){ document.title='나의 할일 · 사유원 예약 보조 시스템'; $('#crumb').textContent='나의 할일'; setTimeout(openMy, 50); }
 document.addEventListener('click', e=>{ const b=e.target.closest('#myTabs [data-mt]'); if(!b) return; myTab=b.dataset.mt; try{ localStorage.setItem('sayuwon_my_tab', myTab); }catch(_){} renderMy(); });
 $('#myCloseBtn').onclick=closeMy;
 $('#myPast').onchange=renderMy;
@@ -2832,6 +2847,7 @@ let memoShown=new Set();
 function myNewMemos(){ const me=savedOwner(); if(!me) return []; const out=[]; (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).memos.forEach(m=>{ if(!m.seen && m.by!==me) out.push({r, m}); })); return out.sort((a,b)=>String(b.m.t).localeCompare(String(a.m.t))); }
 function paintMemoCount(){ if(typeof paintMyCount==='function') paintMyCount(); }
 function checkMemoPopup(){
+  if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
   if(MY_EMBED) return;
   const list=myNewMemos(); if(!list.length || list.every(o=>memoShown.has(o.m.id))) return;
   if([...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 닫힌 뒤에 (1분마다 다시 봄)
@@ -2854,6 +2870,7 @@ const TASK_SNOOZE_LS='sayuwon_task_snooze', SNOOZE_MS=2*3600e3, TASK_SLOT_LS='sa
 const ALERT_HOURS=[8,11,13,17];   // 추후 과업 마감 알림 시각 (개인고객 화면과 같음)
 const SELF_DONE = new Set(['erp','erpcheck','erpfix','progstaff','mbmenu']);   // erp · erpfix: 전산 내역을 붙여넣어야 완료   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
 function checkTbdPopup(force){
+  if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
   // 마감 지난 과업: 열 때 · 1분마다 (나중에 = 2시간 뒤). 오늘 마감 과업: 오후 1시, 아직 안 끝났으면 오후 5시에 (시간마다 한 번)
   // 단, 입력(과업이 생기거나 마감을 바꾼 것)한 지 30분이 안 된 과업은 알리지 않음
   // 2026-11-14부터: 오전 8시 · 11시 · 오후 1시 · 5시에 (그 시각이 지나고 처음 화면을 볼 때, 시각마다 한 번) 마감이 오늘이거나 지난 과업을 단체 + 개인고객 함께
@@ -2923,15 +2940,16 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#lateModal'
 $('#f_tbdDate').addEventListener('change', ()=>{ if(tbdIsLate(rec)){ if(!rec.tbdLate) openLate(); } else if(rec.tbdLate){ rec.tbdLate=''; renderSide(); } });
 
 // ===================== 새로고침해도 마지막으로 보던 화면 =====================
-// 열어 둔 예약 · 저장 안 한 입력 · 펼친 묶음 · 열어 둔 목록/마이페이지 · 스크롤을 이 브라우저에 기억했다가 다시 열 때 그대로
+// 열어 둔 예약 · 저장 안 한 입력 · 펼친 묶음 · 열어 둔 목록/나의 할일 · 스크롤을 이 브라우저에 기억했다가 다시 열 때 그대로
 const VIEW_LS='sayuwon_view';
 let viewT=null, restoring=false;
 function saveView(){
-  if(!window.__autoReady || restoring || MY_ONLY) return;   // 마이페이지 단독 화면(메뉴 8)은 기억하지 않음 → 단체 화면을 열 때 마이페이지가 먼저 뜨지 않게
+  if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
+  if(!window.__autoReady || restoring || MY_ONLY) return;   // 나의 할일 단독 화면(메뉴 8)은 기억하지 않음 → 단체 화면을 열 때 나의 할일가 먼저 뜨지 않게
   try{
     const dirty=isDirty();
     const v={ id:editingId||'', dirty, opt:[...optOpen], y:Math.round(window.scrollY),
-      modal: !$('#listModal').hidden ? 'list' : '', at:Date.now() };   // 마이페이지 팝업은 기억하지 않음 (단체 화면은 늘 입력 화면부터)
+      modal: !$('#listModal').hidden ? 'list' : '', at:Date.now() };   // 나의 할일 팝업은 기억하지 않음 (단체 화면은 늘 입력 화면부터)
     if(dirty){ v.rec=rec; v.memo=$('#memoBox').value; v.tasks=tasks; v.nc=nContacts; v.tbdAuto=tbdAuto; }   // 저장 안 한 입력은 통째로
     localStorage.setItem(VIEW_LS, JSON.stringify(v));
   }catch(_){}
@@ -2942,6 +2960,7 @@ window.addEventListener('pagehide', saveView);
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveView(); });
 ['listModal','myModal'].forEach(id=>new MutationObserver(saveViewSoon).observe($('#'+id), {attributes:true, attributeFilter:['hidden']}));
 async function restoreView(){
+  if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
   let v=null; try{ v=JSON.parse(localStorage.getItem(VIEW_LS)||'null'); }catch(_){}
   if(!v) return;
   restoring=true;
