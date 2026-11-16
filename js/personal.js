@@ -152,6 +152,7 @@ function paintTasks(){
       + `${t.done?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}`
       + `${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}`
       + `<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"></label>`
+      + `<button type="button" class="tsave" data-tsave="${esc(t.id)}" title="이 과업의 고친 내용(체크 · 제목 · 마감일 · 메모 · 세부 과제)을 지금 저장">저장</button>`
       + `<button type="button" class="del" data-tdel="${esc(t.id)}" title="이 과업 삭제">삭제</button></div>`
       + subsHTML(t) + `<textarea data-tm="${esc(t.id)}" lang="ko" data-ime="ko" placeholder="메모">${esc(t.memo||'')}</textarea></li>`; }).join('')
     || '<li class="empty">추후 과업이 없습니다. 이 통화 뒤에 할 일이 있으면 위에 적어 주세요.</li>';
@@ -176,6 +177,7 @@ $('#taskList').addEventListener('change', e=>{ const d=e.target.dataset;
   if(d.tk){ const t=taskOf(d.tk); if(!t) return; t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():''; t.doneBy=t.done?(user.name||''):''; (t.xsubs||[]).forEach(x=>x.done=t.done); taskChanged(); }
 });
 $('#taskList').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; const d=b.dataset;
+  if(d.tsave){ document.activeElement?.blur(); setTimeout(()=>{ if(cur){ taskSave(); paintForm(); toast('저장했습니다.'); } else save(); },0); return; }   // 과업마다 「저장」 (새 통화면 통화 전체 저장)
   if(d.texp){ openDone.has(d.texp) ? openDone.delete(d.texp) : openDone.add(d.texp); paintTasks(); return; }
   if(d.tdel){ const t=taskOf(d.tdel); if(t && confirm(`'${t.title}' 과업을 삭제할까요?`)){ form.tasks=form.tasks.filter(x=>x.id!==d.tdel); taskChanged(); } return; }
   if(d.xdel){ const [tid,xid]=d.xdel.split('|'), t=taskOf(tid); if(t){ t.xsubs=(t.xsubs||[]).filter(s=>s.id!==xid); taskChanged(); } return; }
