@@ -663,3 +663,9 @@ html.book-guest #bookBody tr{cursor:default}
 .it-money .spbtn.on{background:#e4eadf;border-color:var(--pine);color:var(--pine);font-weight:700}
 .it-row:has(.it-money .dsel) .it-extra > .spwrap{display:none}
 .it-money .dam{color:var(--ink)}
+/* 도슨트 코스: 앵당삼거리 시작 토글 + 직접 입력 */
+.it-crs{display:flex;align-items:center;gap:4px}
+.crs-tg{height:30px;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:15px;padding:0 10px;font:12px var(--sans);cursor:pointer;white-space:nowrap}
+.crs-tg:hover{border-color:var(--pine);color:var(--pine)}
+.crs-tg.on{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:700}
+.it-crs .it-x{min-width:120px}

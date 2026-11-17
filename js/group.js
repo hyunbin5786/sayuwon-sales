@@ -52,6 +52,7 @@ const STAFF_FREE = new Set();   // 예전엔 차방 · 당두봉갈 대관 제�
 // 프로그램에 딸린 칸: 담당(stf_) · 도슨트는 시간대(tm_) · 코스(crs_)도. 프로그램을 넣었을 때만 보임
 const SUB_NAME = { stf:'담당', tm:'시간대', crs:'코스', plc:'장소' };   // 장소(plc_) = 세미나 도슨트만 (몽몽차방 · 당두봉갈 · 기타)
 const PLC_OPTS = ['몽몽차방','당두봉갈','기타'];
+const CRS_DEFAULT = '앵당삼거리 시작';   // 도슨트 코스 토글 (아니면 직접 입력)
 const isSub = k => /^(stf|tm|crs|plc)_/.test(k);
 const baseOf = k => String(k).replace(/^(stf|tm|crs|plc)_/,'');
 const isStf = k => /^stf_/.test(k);
@@ -406,8 +407,9 @@ function itemRowHTML(k, rows){
         return `<label class="it-xl">시작 <input class="it-x" data-ix="tmS:${esc(k)}" inputmode="numeric" data-ime="num" placeholder="13:00" title="프로그램 시작 시각 (24시간 · 1300 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 자동" value="${esc(s)}"></label>`
           + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:${esc(k)}" inputmode="numeric" data-ime="num" placeholder="14:00" title="프로그램 끝나는 시각 (시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤로 자동)" value="${esc(en)}"></label>`
           + (FIELDS.some(f=>f[1]==='plc_'+k) ? (()=>{ const pv=rec['plc_'+k]||''; return `<label class="it-xl">장소 <select class="it-x" data-ix="plc_${esc(k)}" title="세미나 도슨트 장소">${pv?'':'<option value="" selected>선택</option>'}${[...PLC_OPTS, ...(pv && !PLC_OPTS.includes(pv) ? [pv] : [])].map(x=>`<option${pv===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`; })() : '')   // 세미나 도슨트: 장소 (몽몽차방 · 당두봉갈 · 기타) → 비고
-          + note
-          + (FIELDS.some(f=>f[1]==='crs_'+k) ? `<input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="코스 (예: 정원 코스)" value="${esc(rec['crs_'+k]||'')}">` : ''); })()
+          + (FIELDS.some(f=>f[1]==='crs_'+k) ? (()=>{ const cv=rec['crs_'+k]||'', on=cv===CRS_DEFAULT;   // 도슨트: 코스 = 「앵당삼거리 시작」 토글 또는 직접 입력 → 비고 (2026-11-17)
+              return `<label class="it-xl it-crs">코스 <button type="button" class="crs-tg${on?' on':''}" data-crstg="${esc(k)}" aria-pressed="${on}" title="누르면 코스 = ${CRS_DEFAULT} (다시 누르면 직접 입력)">${CRS_DEFAULT}</button>${on?'':`<input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="또는 직접 입력" value="${esc(cv)}">`}</label>`; })() : '')
+          + note; })()
     : note;
   return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}<span class="it-p" data-iup="${esc(k)}"></span>`
     + `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`
@@ -3381,3 +3383,7 @@ document.getElementById('askNo').onclick = closeAsk;
 document.getElementById('askYes').onclick = () => { const f=askOk; closeAsk(); if(f) f(); };
 document.getElementById('askModal').addEventListener('mousedown', e=>{ if(e.target.id==='askModal') closeAsk(); });
 document.addEventListener('keydown', e=>{ if(document.getElementById('askModal').hidden) return; if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); closeAsk(); } }, true);
+// 도슨트 코스 토글: 「앵당삼거리 시작」 ↔ 직접 입력
+document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-crstg]'); if(!b) return; const k=b.dataset.crstg, key='crs_'+k;
+  const on = rec[key]===CRS_DEFAULT; rec[key] = on ? '' : CRS_DEFAULT; touched.add(key); itemChanged(true);
+  if(on) setTimeout(()=>document.querySelector(`#itemsBox [data-ix="${CSS.escape(key)}"]`)?.focus(), 0); });
