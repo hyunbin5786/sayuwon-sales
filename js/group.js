@@ -1006,8 +1006,11 @@ function paintPayLink(){
 }
 document.addEventListener('change', e=>{ const ck=e.target; if(!ck.matches?.('input[data-pl]')) return;
   const [k,l,tid]=PAYLINK.find(p=>p[0]===ck.dataset.pl);
-  if(!ck.checked){ if(rec[k] && !confirm(`${l} 기록(${dtLabel(rec[k])})을 지울까요?`)){ ck.checked=true; return; } rec[k]=''; }
-  else { if(k==='paidAt' && !rec.linkSent && !confirm('결제링크 전송 기록이 없습니다. 그래도 입금 확인으로 표시할까요?')){ ck.checked=false; return; } rec[k]=new Date().toISOString(); }
+  // 결제링크 전송 전에는 입금 확인 불가 · 결제링크 전송을 풀면(다시 보낼 때) 입금 확인도 함께 해제 (2026-11-18)
+  if(!ck.checked){ const alsoPaid = k==='linkSent' && rec.paidAt;
+    if(rec[k] && !confirm(`${l} 기록(${dtLabel(rec[k])})을 지울까요?${alsoPaid?'\n입금 확인 기록도 함께 지워집니다.':''}`)){ ck.checked=true; return; } rec[k]='';
+    if(alsoPaid){ rec.paidAt=''; touched.add('paidAt'); const pc=tasks.find(x=>x.id==='paycheck'); if(pc){ pc.done=false; pc.doneAt=''; delete pc.manualDone; } } }
+  else { if(k==='paidAt' && !rec.linkSent){ ck.checked=false; toast('결제링크 전송을 먼저 체크해 주세요. (결제링크를 보내기 전에는 입금 확인을 할 수 없습니다)'); return; } rec[k]=new Date().toISOString(); }
   touched.add(k); const t=tasks.find(x=>x.id===tid); if(t){ t.done=!!rec[k]; t.doneAt=rec[k]||''; }
   startTimer(); paintPayLink(); renderSide(); renderTasks(); if(window.__autoReady) scheduleAuto();
   if(rec[k]) toast(`${l} ${dtLabel(rec[k])} 기록했습니다.`);
@@ -1963,6 +1966,8 @@ $('#taskList').addEventListener('change', e=>{
   const id=e.target.dataset.tk; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return;
   if(id==='erpcheck'){ e.target.checked=!!t.done; toast('전산 내역을 붙여 넣어 예약 내용과 총 금액 · 할인이 같으면 저절로 완료됩니다.'); if(!erpList.length) $('#erpPasteBtn')?.click(); return; }   // 직접 체크하지 않음
   if((id==='erp'||id==='erpfix') && e.target.checked){ e.target.checked=false; askErpForTask(id); return; }   // 전산 예약 완료 = 전산 내역을 붙여넣어 예약 내용과 맞는지 확인한 뒤
+  if(id==='paycheck' && e.target.checked && !rec.linkSent){ e.target.checked=false; toast('결제링크 전송을 먼저 체크해 주세요. (결제링크를 보내기 전에는 입금 확인을 할 수 없습니다)'); return; }   // 결제링크 전송 전에는 입금 확인 불가
+  if(id==='linksend' && !e.target.checked && rec.paidAt){ if(!confirm('결제링크 전송을 해제하면 입금 확인도 함께 해제됩니다. 계속할까요?')){ e.target.checked=true; return; } rec.paidAt=''; touched.add('paidAt'); const pc=tasks.find(x=>x.id==='paycheck'); if(pc){ pc.done=false; pc.doneAt=''; delete pc.manualDone; } }   // 결제링크를 다시 보낼 때: 입금 확인도 함께 해제
   t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
   if(t.done) t.manualDone=1; else { delete t.manualDone; if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=false); (t.xsubs||[]).forEach(x=>x.done=false); }   // 위 체크 = 완료 (아래 하위 과업은 그대로, 다 체크될 때까지 접히지 않음) · 끄면 모두 해제 (2026-11-18)
   if(id==='erp'){ rec.erp = t.done ? ymd(new Date()) : ''; touched.add('erp'); }
