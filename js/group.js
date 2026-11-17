@@ -55,7 +55,7 @@ const baseOf = k => String(k).replace(/^(stf|tm|crs)_/,'');
 const isStf = k => /^stf_/.test(k);
 const needsStaff = k => !isSub(k) && !STAFF_FREE.has(k);
 const isDocent = label => /도슨트/.test(label||'');
-const subRows = f => [...(isDocent(f[2]) ? ['tm','crs'] : []), ...(needsStaff(f[1]) ? ['stf'] : [])].map(p=>[f[0], `${p}_${f[1]}`, `${f[2]} ${SUB_NAME[p]}`, '', '', null]);
+const subRows = f => [...(isDocent(f[2]) ? ['tm','crs'] : ['tm']), ...(needsStaff(f[1]) ? ['stf'] : [])].map(p=>[f[0], `${p}_${f[1]}`, `${f[2]} ${SUB_NAME[p]}`, '', '', null]);
 
 for(let i=FIELDS.length-1;i>=0;i--){ const f=FIELDS[i]; if(/^프로그램/.test(f[0]) && !isSub(f[1])) FIELDS.splice(i+1,0,...subRows(f)); }
 // 프로그램 품목 ↔ 견적서 품목 (견적서·금액 계산용)
@@ -346,6 +346,9 @@ function setItemQty(k, v){ const t=itemKind(k); v=String(v||'').trim();
 function mbPayDefault(){ if(rec.mabangPay) return; rec.mabangPay='미정'; touched.add('mabangPay'); syncPayTbd(rec); touched.add('tbd'); }   // 몽몽마방을 새로 넣으면 결제방식 = 미정 → 미정 항목 '몽몽마방 결제' (고객님께 여쭤 볼 것)
 const mbTimes = () => { const p=String(rec.mabangTime||'').split('~'); return [p[0]||'', p[1]||'']; };   // 몽몽마방 시간 "12:00~13:00" → [시작, 끝]
 const plus1h = t => { const f=fmtTime(t); return f ? `${String(Math.min(+f.slice(0,2)+1,23)).padStart(2,'0')}${f.slice(2)}` : ''; };
+const plusH = (t, h) => { const f=fmtTime(t); if(!f) return ''; const m=+f.slice(0,2)*60 + +f.slice(3,5) + Math.round((h||1)*60), e=Math.min(m, 23*60+59); return `${String(Math.floor(e/60)).padStart(2,'0')}:${String(e%60).padStart(2,'0')}`; };   // 시작 + h시간
+const tmTimes = k => { const p=String(rec['tm_'+k]||'').split('~'); return [p[0]||'', p[1]||'']; };   // 프로그램 시간대 "13:00~15:00" → [시작, 끝]
+const progHours = k => itemUnit(k)==='시간' ? Math.max(1, numOf(itemQty(k))||1) : 1;   // 끝 = 시작 + 1시간 (시간 프로그램은 예약한 시간만큼)
 function clearItem(k){ const t=itemKind(k);
   if(ispOf(k)) setItemSp(k, null);   // 그 줄의 특별 할인 · 기타 할인도
   if(itemNote(k)) setItemNote(k, '');
@@ -390,7 +393,11 @@ function itemRowHTML(k, rows){
   const extra = t==='mb' ? `<label class="it-xl">시작 <input class="it-x" data-ix="mbS" inputmode="numeric" data-ime="num" placeholder="12:00" title="몽몽마방 시작 시각 (24시간 · 1200 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 1시간 뒤로" value="${esc(mbt[0])}"></label>`
       + `<label class="it-xl">끝 <input class="it-x" data-ix="mbE" inputmode="numeric" data-ime="num" placeholder="13:00" title="몽몽마방 끝나는 시각 (시작 시각을 넣으면 1시간 뒤로 자동)" value="${esc(mbt[1])}"></label>`
       + `<label class="it-xl${rec.mabangPay==='미정'?' tbd':''}">결제 <select class="it-x" data-ix="mabangPay" title="몽몽마방 결제방식 · 미정이면 미정 항목 '몽몽마방 결제'로 (고객님께 여쭤 보기)">${rec.mabangPay?'':'<option value="" selected>선택</option>'}${MB_PAYS.map(x=>`<option${rec.mabangPay===x?' selected':''}>${x}</option>`).join('')}</select></label>` + note
-    : note + (t==='prog' && FIELDS.some(f=>f[1]==='tm_'+k) ? `<input class="it-x" data-ix="tm_${esc(k)}" inputmode="numeric" data-ime="num" placeholder="시간대 13:00~15:00" value="${esc(rec['tm_'+k]||'')}"><input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="코스 (예: 정원 코스)" value="${esc(rec['crs_'+k]||'')}">` : '');
+    : t==='prog' ? (()=>{ const [s,en]=tmTimes(k);   // 개별 · 시간 프로그램: 시작 → 끝(시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤) → 비고 (도슨트는 코스도). 저장은 예전처럼 tm_키 "13:00~14:00"
+        return `<label class="it-xl">시작 <input class="it-x" data-ix="tmS:${esc(k)}" inputmode="numeric" data-ime="num" placeholder="13:00" title="프로그램 시작 시각 (24시간 · 1300 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 자동" value="${esc(s)}"></label>`
+          + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:${esc(k)}" inputmode="numeric" data-ime="num" placeholder="14:00" title="프로그램 끝나는 시각 (시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤로 자동)" value="${esc(en)}"></label>` + note
+          + (FIELDS.some(f=>f[1]==='crs_'+k) ? `<input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="코스 (예: 정원 코스)" value="${esc(rec['crs_'+k]||'')}">` : ''); })()
+    : note;
   return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}<span class="it-p" data-iup="${esc(k)}"></span>`
     + `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`
     + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="굿즈 담당 (기본 = 영업 담당 · 고칠 수 있음 · 굿즈 모두 같은 담당)"></span>`
@@ -407,7 +414,7 @@ function renderItems(force){
   const sig=itemRows.join('|');
   if(!force && box.dataset.sig===sig && box.contains(document.activeElement)){   // 쓰는 중: 줄은 그대로 두고 값만 맞춤
     box.querySelectorAll('[data-iq],[data-is],[data-ix],[data-inote]').forEach(el=>{ if(el===document.activeElement) return;
-      const v = el.dataset.iq!=null ? itemQty(el.dataset.iq) : el.dataset.is!=null ? String(rec[itemStfKey(el.dataset.is)]||'') : el.dataset.inote!=null ? itemNote(el.dataset.inote) : el.dataset.ix==='mbS' ? mbTimes()[0] : el.dataset.ix==='mbE' ? mbTimes()[1] : String(rec[el.dataset.ix]||''); if(el.value!==v) el.value=v; });
+      const v = el.dataset.iq!=null ? itemQty(el.dataset.iq) : el.dataset.is!=null ? String(rec[itemStfKey(el.dataset.is)]||'') : el.dataset.inote!=null ? itemNote(el.dataset.inote) : el.dataset.ix==='mbS' ? mbTimes()[0] : el.dataset.ix==='mbE' ? mbTimes()[1] : /^tm[SE]:/.test(el.dataset.ix) ? tmTimes(el.dataset.ix.slice(4))[el.dataset.ix[2]==='S'?0:1] : String(rec[el.dataset.ix]||''); if(el.value!==v) el.value=v; });
     paintItemState(); paintItemPrices(); return;
   }
   box.dataset.sig=sig;
@@ -586,7 +593,7 @@ document.addEventListener('input', e=>{
   if(el.dataset.iq!=null){ const k=el.dataset.iq, c=el.value.replace(/[^\d+]/g,''), was=itemQty(k); if(c!==el.value) el.value=c; setItemQty(k, el.value); itemChanged(false, !!was); }   // 담당 기본값은 수량을 처음 넣을 때만
   else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); itemChanged(false, true); }   // 항목 비고
   else if(el.dataset.is!=null){ const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); itemChanged(false, true); }
-  else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE'){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
+  else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^tm[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
   else if(el.dataset.ix!=null && el.tagName==='INPUT'){ rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix); itemChanged(false, true); }
 });
 document.addEventListener('change', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.ix==null || el.tagName!=='SELECT') return; rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix);
@@ -598,6 +605,13 @@ document.addEventListener('focusout', e=>{ const el=e.target, ix=el.dataset?.ix;
   if(ix==='mbS'){ if(v===s) { el.value=v; return; } s=v; if(v && fmtTime(v)) en=plus1h(v); } else { if(v===en){ el.value=v; return; } en=v; }
   rec.mabangTime = s||en ? `${s}~${en}` : ''; touched.add('mabangTime');
   const row=el.closest('.it-row'); if(row){ const a=row.querySelector('[data-ix="mbS"]'), b=row.querySelector('[data-ix="mbE"]'); if(a) a.value=s; if(b) b.value=en; }
+  itemChanged(false, true); });
+// 개별 · 시간 프로그램 시작 · 끝나는 시각 (몽몽마방과 같은 방식): 시작을 넣으면 끝 = 1시간 뒤 (시간 프로그램은 예약한 시간만큼). 저장은 tm_키 "13:00~14:00"
+document.addEventListener('focusout', e=>{ const el=e.target, ix=el.dataset?.ix||''; if(!el.closest?.('#itemsBox') || !/^tm[SE]:/.test(ix)) return;
+  const k=ix.slice(4), isS=ix[2]==='S'; let [s, en]=tmTimes(k); const v=el.value.trim() ? (fmtTime(el.value)||el.value.trim()) : '';
+  if(isS){ if(v===s){ el.value=v; return; } s=v; if(v && fmtTime(v)) en=plusH(v, progHours(k)); } else { if(v===en){ el.value=v; return; } en=v; }
+  rec['tm_'+k] = s||en ? `${s}~${en}` : ''; touched.add('tm_'+k);
+  const row=el.closest('.it-row'); if(row){ const a=row.querySelector(`[data-ix="tmS:${CSS.escape(k)}"]`), b=row.querySelector(`[data-ix="tmE:${CSS.escape(k)}"]`); if(a) a.value=s; if(b) b.value=en; }
   itemChanged(false, true); });
 document.addEventListener('focusout', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.ix==null || el.tagName!=='INPUT' || !el.value) return;
   if(/^(mabangTime|tm_)/.test(el.dataset.ix)){ const f=fmtRange(el.value); if(f && f!==el.value){ el.value=f; rec[el.dataset.ix]=f; touched.add(el.dataset.ix); itemChanged(false); } } });   // 12001300 → 12:00~13:00
