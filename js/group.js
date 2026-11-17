@@ -560,7 +560,7 @@ function paintItemPrices(){
     else if(!priceInfo) h='';
     else { const x=src ? priceInfo[normSrc(src)] : null;
       if(k==='view' && !x) h=cell('관람권', numOf(rec.people)?'0명 (모두 관람 포함 품목으로 계산)':'인원 입력');
-      else if(!x) amt=cell('금액', '가격 없음', 'warn');
+      else if(!x) amt = src && priceOf(src)!=null && !numOf(itemQty(k)) ? cell('금액', `<small>${itemUnit(k)==='명'?'인원':'수량'}을 넣으면 계산</small>`) : cell('금액', '가격 없음', 'warn');   // 가격은 있는데 인원 · 수량이 아직 없으면 (가격 없음이 아님)
       else if(seen.has(src)) amt=cell('금액', '위 줄과 합산');   // 같은 견적서 품목(예: 대관)은 한 줄로 계산
       else { seen.add(src); const m=x.m;
         const money = cell('금액', `<b>${m?won(m.amount):'가격 없음'}</b>`, 'amt');
