@@ -634,3 +634,9 @@ html.book-guest #bookBody tr{cursor:default}
 .spd-tbl .spd-off{display:flex;align-items:center;gap:3px;font-size:12px;color:var(--muted);cursor:pointer}
 .spd-tbl tr.off input:not([type=checkbox]){opacity:.45;text-decoration:line-through}
 .sp-pop{width:min(640px,94vw)}
+/* 사전답사 팝업 */
+.tour-box{width:min(460px,100%)}
+.tour-grid{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0}
+.tour-grid>label{display:grid;grid-template-columns:64px 1fr;align-items:center;gap:8px;font-size:13px;font-weight:700}
+.tour-grid input{width:100%;box-sizing:border-box}
+.tour-n{display:flex;align-items:center;gap:4px}.tour-n i{font-style:normal;font-weight:400}

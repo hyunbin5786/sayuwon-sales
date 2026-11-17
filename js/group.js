@@ -1661,6 +1661,16 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
+// ---- 사전답사 정보 (rec.tour = "성명: 홍길동, 연락처: 010-…, 일자: 2026-12-01, 인원: 2명, 시간: 10:00") ----
+// 단체상담 입력의 '답사 요청 정보' · 예약 내용의 「사전답사」 팝업이 같은 칸에 씀. 성명 · 연락처가 비면 담당자(첫 줄) 이름 · 연락처
+const TOUR_KEYS = [['name','성명',/성명|이름|신청자|담당자/],['phone','연락처',/연락처|전화|휴대|핸드폰/],['date','일자',/일자|날짜|일시|답사일/],['people','인원',/인원/],['time','시간',/시간/]];
+function tourParse(s){ const o={extra:[]}; String(s||'').split(/\s*,\s*/).filter(Boolean).forEach(p=>{ const m=p.match(/^([^:：]+?)\s*[:：]\s*(.*)$/); const hit=m && TOUR_KEYS.find(([,,re])=>re.test(m[1]));
+    if(hit && !o[hit[0]]) o[hit[0]]=m[2].trim(); else o.extra.push(p.trim()); }); return o; }
+function tourJoin(o){ return [...TOUR_KEYS.filter(([k])=>String(o[k]||'').trim()).map(([k,l])=>`${l}: ${String(o[k]).replace(/\s*,\s*/g,' ').trim()}`), ...(o.extra||[])].join(', '); }
+function tourWithDefaults(r, s){ const o=tourParse(s), c=contactsOf(r)[0]||{}; if(!o.name && c.name) o.name=c.name; if(!o.phone && c.phone) o.phone=c.phone; return o; }
+const tourPeople = r => numOf(tourParse(r.tour).people);
+const tourNote = r => `<${String(r.org||'').trim()||'단체명'}> 사전답사${tourPeople(r)>=1?`/${tourPeople(r)}명 현장결제 필요`:''}`;   // 답사 인원이 1명 이상이면 현장결제 필요
+const tourMemo = r => String(r.tour||'').split(/\s*,\s*/).filter(Boolean).join('\n');
 const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인', clergy:'대구대교구 정보 기입' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 // noMb: 몽몽마방 식사 금액은 빼고 (몽몽마방 결제가 '마방' = 손님이 식당에서 결제 → 전산 비고 현장결제 금액에 넣지 않음)
@@ -1740,7 +1750,7 @@ function staffMsg(r){
   const c=contactsOf(r)[0]||{};
   return `[단체 일정 전달] ${head}\n` + Object.entries(by).map(([w,l])=>`- ${w}: ${l.join(', ')}`).join('\n') + (c.name||c.phone ? `\n고객 담당: ${[c.name,c.phone].filter(Boolean).join(' ')}` : '') + `\n영업 담당: ${(r.owner||savedOwner()||'').trim()||'-'}`;
 }
-const taskAuto = t =>(t.id==='erp'||t.id==='erpfix') ? erpNote(rec) : t.id==='staffbrief' ? staffMsg(rec) : t.id==='tax' ? taxMsg(rec) : t.id==='onsitecall' ? onsiteMsg(rec) : t.id==='tour' ? `<${String(rec.org||'').trim()||'단체명'} 사전답사>` : '';   // 사전답사 전산 예약: 전산 비고 <단체명 사전답사>   // 자동으로 만든 문구
+const taskAuto = t =>(t.id==='erp'||t.id==='erpfix') ? erpNote(rec) : t.id==='staffbrief' ? staffMsg(rec) : t.id==='tax' ? taxMsg(rec) : t.id==='onsitecall' ? onsiteMsg(rec) : t.id==='tour' ? tourNote(rec) : '';   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장결제 필요)   // 자동으로 만든 문구
 const taskText = t => taskAuto(t) ? (t.noteEdit || taskAuto(t)) : '';   // 직접 고쳤으면 그 글 (전산 비고 등)
 // 과업 기한(due): 생기면 그날이 기본, 각자 바꿀 수 있음(dueSet). 미정 항목 연락 = 답변일, 현장 결제 인원 확인 = 전주 목요일(지났으면 전날), 결제 확인 = 다음날
 const todayYmd = () => ymd(new Date());
@@ -1777,7 +1787,7 @@ function syncAutoTasks(){
   if(fixes.length) want.push('erpfix');
   if(rec.tour) want.push('tour');   // 사전 답사가 잡히면 답사도 전산에 예약
   if(consult){ const keep=want.filter(id=>id==='tour' || id==='clergy'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약만 (손대지 않은 것은 아래에서 빠짐)
-  want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? String(rec.tour||'').split(/\s*,\s*/).join('\n') : '', at:new Date().toISOString(), due:autoDue(id, rec)}); });   // 사전 답사 과업 메모 = 답사 정보
+  want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec)}); });   // 사전 답사 과업 메모 = 답사 정보
   tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } if(!t.due) t.due=taskDue(t); });
   const fx=tasks.find(t=>t.id==='erpfix');
   if(fx){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; } else if(!fx.done) fx.changes=[]; }
@@ -2755,6 +2765,7 @@ $('#consultApplyBtn').onclick=()=>{
   if(!n){ $('#consultMsg').textContent='알아볼 수 있는 항목이 없습니다. "항목 [탭] 값" 형식인지 확인해 주세요.'; return; }
   if($('#consultNew').checked) newCall(false);
   Object.entries(fields).forEach(([k,v])=>{ rec[k]=v; touched.add(k); });
+  if(fields.tour){ rec.tour=tourJoin(tourWithDefaults(rec, fields.tour)); syncTourTask(); }   // 답사 신청: 성명 · 연락처가 없으면 담당자 이름 · 연락처 → 과업 「사전답사 전산 예약」 메모도
   staffDefaults();   // 단체상담 상품으로 채운 프로그램 담당 = 영업 담당
   Object.keys(fields).forEach(k=>{ const g=OPT[GROUP_OF[k]]; if(g) optOpen.add(g.id); });   // 식사 · 프로그램이 채워졌으면 그 묶음을 펼침
   if(extra.length){ const box=$('#memoBox'); box.value = (box.value ? box.value.replace(/\s*$/,'\n') : '') + extra.join('\n'); }
@@ -2802,6 +2813,7 @@ async function downloadXlsx(){
 // 견적서 · 거래명세서 버튼: 발급했으면 체크 표시
 function paintDocBtns(){
   [['ckQuote','wantQuote'],['ckStmt','wantStmt']].forEach(([c,wk])=>{ const el=document.getElementById(c); if(el) el.checked=!!rec[wk]; });   // 버튼 앞 체크 = 과업 요청
+  paintTourCk();   // 사전답사 체크 = 답사 정보 있음
   [['quoteBtn','quote','견적서'],['stmtBtn','stmt','거래명세서']].forEach(([b,id,name])=>{ const el=document.getElementById(b); if(!el) return;
     const t=tasks.find(x=>x.id===id && x.done); el.classList.toggle('issued', !!t); el.textContent = name;
     el.title = t ? `${name} 발급함 ${t.doneAt?dtLabel(t.doneAt):''} · 누르면 다시 발급` : `${name} 발급 (누르면 발급으로 체크)`; });
@@ -3278,3 +3290,36 @@ $('#memoBox').focus();
   $('#noteModal').addEventListener('mousedown', e=>{ if(e.target.id==='noteModal') close(); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#noteModal').hidden){ e.preventDefault(); close(); } });
 })();
+
+// ===== 사전답사 (예약 내용의 「사전답사」 버튼 · 견적서 앞) =====
+// 팝업: 성명 · 연락처(기본 = 담당자 첫 줄) · 일자 · 인원 · 시간 → rec.tour. 정보가 있으면 추후 과업 「사전답사 전산 예약」(메모 = 답사 정보, 비고 문구 = <단체명> 사전답사/n명 현장결제 필요)
+function syncTourTask(){   // 답사 정보가 바뀌면 과업 메모도 (메모를 직접 고치지 않았으면)
+  const t=tasks.find(x=>x.id==='tour'); if(!t || t.done) return;
+  if(!t.memo || t.memo===t.memoTour){ t.memo=tourMemo(rec); t.memoTour=t.memo; }
+}
+function paintTourCk(){ const c=$('#ckTour'); if(c) c.checked=!!String(rec.tour||'').trim(); const b=$('#tourBtn'); if(b) b.classList.toggle('on', !!String(rec.tour||'').trim()); }
+function openTour(){
+  const o=tourWithDefaults(rec, rec.tour);
+  $('#tourName').value=o.name||''; $('#tourPhone').value=o.phone||''; $('#tourPeople').value=String(o.people||'').replace(/\D/g,''); $('#tourTime').value=o.time||'';
+  const dv = /^\d{4}-\d{2}-\d{2}$/.test(o.date||'') ? o.date : '';
+  $('#tourDateBox').innerHTML = dboxHTML('id="tourDate"', dv) + (o.date && !dv ? `<small class="hint" style="margin:0"> (적혀 있던 일자: ${esc(o.date)})</small>` : '');
+  $('#tourModal').dataset.extra = JSON.stringify(o.extra||[]); $('#tourModal').dataset.rawDate = dv ? '' : (o.date||'');
+  $('#tourClear').hidden = !String(rec.tour||'').trim();
+  $('#tourModal').hidden=false; setTimeout(()=>$('#tourName').focus(),0);
+}
+const closeTour = () => { $('#tourModal').hidden=true; paintTourCk(); };
+function setTour(v){ rec.tour=v; touched.add('tour'); syncTourTask(); startTimer(); renderSide(); renderTasks(); paintTourCk(); }
+$('#tourBtn').onclick = openTour;
+$('#ckTour').addEventListener('change', e=>{ if(e.target.checked){ e.target.checked=false; openTour(); return; }
+  if(!confirm('사전답사 정보를 지울까요? (손대지 않은 과업 「사전답사 전산 예약」도 빠집니다)')){ e.target.checked=true; return; } setTour(''); toast('사전답사 정보를 지웠습니다.'); });
+$('#tourSave').onclick = () => {
+  let extra=[]; try{ extra=JSON.parse($('#tourModal').dataset.extra||'[]'); }catch(_){}
+  const ppl=$('#tourPeople').value.replace(/\D/g,''), t=fmtTime($('#tourTime').value)||$('#tourTime').value.trim();
+  const o={ name:$('#tourName').value.trim(), phone:fmtPhone($('#tourPhone').value.trim())||$('#tourPhone').value.trim(), date:$('#tourDate').value||$('#tourModal').dataset.rawDate||'', people: ppl ? ppl+'명' : '', time:t, extra };
+  if(!o.date && !o.people && !o.time && !extra.length){ toast('일자 · 인원 · 시간 중 하나는 넣어 주세요.'); return; }
+  setTour(tourJoin(o)); closeTour(); toast('사전답사 정보를 넣었습니다. 추후 과업 「사전답사 전산 예약」을 확인하세요.');
+};
+$('#tourClear').onclick = () => { if(!confirm('사전답사 정보를 지울까요?')) return; setTour(''); closeTour(); };
+$('#tourClose').onclick = closeTour;
+$('#tourModal').addEventListener('mousedown', e=>{ if(e.target.id==='tourModal') closeTour(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#tourModal').hidden){ e.preventDefault(); closeTour(); } });
