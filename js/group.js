@@ -139,7 +139,8 @@ let hist=[], baseSnap=null, tasks=[], erpList=[], openDone=new Set(), memos=[], 
    // openDone: 펼쳐 본 끝난 과업   // erpList: 붙여넣은 전산 예약 내역   // 수정 기록 · 추후 과업
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
 function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; o.gate='미정'; o.tbd='결제 방법'; return o; }   // 결제 · 입장문은 기본 미정   // 결제는 기본 미정
-function resetState(){ itemRows=[]; itemPend=new Set(); rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
+let discBand=null;   // 관람 인원 구간 (1 = 19명까지 · 2 = 20명부터), followDiscBand
+function resetState(){ discBand=null; itemRows=[]; itemPend=new Set(); rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
 function contactsOf(r){
   const out=[]; for(let i=0;i<nContactsOf(r);i++){ const c={name:r[`c${i}_name`]||'',phone:r[`c${i}_phone`]||'',email:r[`c${i}_email`]||''}; if(c.name||c.phone||c.email) out.push(c); } return out;
 }
@@ -926,7 +927,20 @@ function applyTbdDefault(){
   const v=tbdLimit(rec.date);   // 전주 목요일, 이미 지났으면 방문일 전날
   if(v && rec.tbdDate!==v){ rec.tbdDate=v; tbdAuto=true; const el=document.getElementById('f_tbdDate'); if(el) el.value=v; }
 }
+// 인원이 19명 ↔ 20명을 넘나들면 할인 버튼을 직접 고른 것(사전예약 · 단체예약)과 고친 할인액은 지우고 인원 기준(자동)으로 다시 (할인 없음은 그대로)
+
+function followDiscBand(){
+  const n=numOf(rec.people), b = n>=20 ? 2 : n>0 ? 1 : 0; if(!b) return;
+  if(discBand && b!==discBand){
+    const m=idiscMap(rec), keys=Object.keys(m).filter(k=>m[k]==='pre' || m[k]==='grp');
+    keys.forEach(k=>delete m[k]); if(keys.length){ rec.idisc=Object.entries(m).map(([a,c])=>`${a}=${c}`).join('; '); touched.add('idisc'); }
+    const am=idamtMap(rec); let cleared=0; quoteBlocks(rec).blocks.forEach(x=>{ if(x.key && x.dsel!=='none' && am[dkey(x.key)]){ setItemDamt(x.key, null); cleared++; } });
+    if(keys.length || cleared || quoteBlocks(rec).blocks.some(x=>x.disc)) toast(b===2 ? '관람 인원이 20명 이상이 되어 할인을 단체예약 10%로 바꿨습니다.' : '관람 인원이 20명 미만이 되어 할인을 사전예약 5%로 바꿨습니다.');
+  }
+  discBand=b;
+}
 function renderSide(){
+  followDiscBand();
   applyTbdDefault();
   if(typeof renderStage==='function') renderStage();
   const ts = tbdSet(rec), req = REQUIRED(), miss = req.filter(([k])=>!rec[k] && !ts.has(k));
@@ -2209,7 +2223,7 @@ function priceSections(){
     return g; })]).filter(([,rows])=>rows.length);
 }
 // ---------- 할인 ----------
-// 단체 할인: 20명 미만 사전예약 5%, 20명 초과 단체예약 10% (20명은 5%로 봄) → 관람·사담 런치 상품에만
+// 단체 할인: 20명 미만 사전예약 5%, 20명 이상 단체예약 10% → 관람·사담 런치 상품에만
 // 특별 할인(사람마다): 그 사람은 단체 할인과 비교해 큰 쪽 하나만
 const SPECIAL = [
   {k:'dKansong', name:'간송미술관 제휴', short:'간송', rate:.15, proof:'간송미술관 방문 티켓 (방문일 기준 6개월 이내 것)'},
@@ -2263,8 +2277,8 @@ document.addEventListener('click', e=>{
 });
 document.addEventListener('change', e=>{ if(e.target.classList?.contains('spd-offck')) e.target.closest('tr').classList.toggle('off', e.target.checked); });
 applySpd();
-function groupRate(n){ return !n ? 0 : n>20 ? .10 : .05; }
-function groupLabel(n){ return !n ? '' : n>20 ? '단체예약 10%' : '사전예약 5%'; }
+function groupRate(n){ return !n ? 0 : n>=20 ? .10 : .05; }   // 20명부터 단체예약 10% (2026-11-17, 견적서와 같게)
+function groupLabel(n){ return !n ? '' : n>=20 ? '단체예약 10%' : '사전예약 5%'; }
 function specialCounts(r){ return SPECIAL.map(s=>({...s, n: Math.max(0, parseInt(r[s.k])||0)})).filter(s=>s.n>0); }
 // 할인 대상 품목의 합계: 특별 할인 인원은 각자 큰 할인, 나머지는 단체 할인
 function discTotal(price, n, r){
@@ -2304,7 +2318,7 @@ function renderPrice(){
   $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?(HOLIDAYS.has(rec.date)?'공휴일(주말)':'주말'):'평일'} 가격` : '';
   $('#discGroup').innerHTML = n
     ? ''   // 특별 할인 요약은 없앰 (품목 줄의 「특별할인」 버튼에 바로 보임)
-    : '<span class="hint" style="margin:0">관람 인원을 넣으면 할인(20명 미만 5% · 20명 초과 10%)이 계산됩니다</span>';
+    : '<span class="hint" style="margin:0">관람 인원을 넣으면 할인(19명까지 사전예약 5% · 20명부터 단체예약 10%)이 계산됩니다</span>';
   SPECIAL.forEach(s=>{ const el=$('#'+s.k); if(el && document.activeElement!==el) el.value = rec[s.k]||''; el?.classList.toggle('has', !!rec[s.k]); });
   { const es=etcSplit(rec); [['etcDiscTx',es.tx],['etcDiscTf',es.tf],['etcDiscWhy',null]].forEach(([k,v])=>{ const el=$('#'+k); if(el && document.activeElement!==el) el.value = v==null ? (rec[k]||'') : (v?String(v):''); }); }   // 기타 할인 칸
   // 전산 내역을 붙여넣었으면 예약 칸으로 계산한 예상 금액 · 할인 칸은 숨기고 전산 내역이 가격표
@@ -2630,13 +2644,13 @@ function quoteBlocks(r){
     if(!src){ skipped.push(LABEL[k]); return; } const b=blocks.find(b=>b.product===src); if(b) b.qty+=q; else add(src, q, false, k); });
   if(r.teaMed) skipped.push('티하우스 명상'); if(r.gayageum) skipped.push('가야금'); if(r.cabin) skipped.push('유루 캐빈');
   // 할인 줄: 특별 할인 인원을 할인 대상 블록에 앞에서부터 나눠 넣고, 나머지는 단체 할인
-  const g = Math.round(groupRate(n)*100), gName = n>20 ? '단체예약' : '사전예약';
+  const g = Math.round(groupRate(n)*100), gName = n>=20 ? '단체예약' : '사전예약';
   // 줄마다 넣은 특별 할인(rec.isp)이 있으면 그 줄에만, 없으면(예전 기록) 예약 전체 인원을 할인 대상 블록에 앞에서부터
   const ispOn = !!String(r.isp||'').trim(), im = ispOn ? ispMap(r) : {};
   const sp = ispOn ? [] : specialCounts(r).map(s=>({...s, left:s.n})), ov = idiscMap(r);
   blocks.forEach(b=>{
     b.notes=[];
-    // 할인 버튼: 자동 = 할인 대상 품목이면 인원으로(20명 이하 사전예약 5% · 초과 단체예약 10%), 줄마다 버튼으로 바꾼 것(항목 할인)이 있으면 그것
+    // 할인 버튼: 자동 = 할인 대상 품목이면 인원으로(19명까지 사전예약 5% · 20명부터 단체예약 10%), 줄마다 버튼으로 바꾼 것(항목 할인)이 있으면 그것
     const autoP = b.disc ? g : 0, o = ov[dkey(b.key||'')], pct = o==='none' ? 0 : o==='pre' ? 5 : o==='grp' ? 10 : autoP, nm = pct===10 ? '단체예약' : '사전예약';
     b.dauto = DISC_OF(autoP); b.dsel = o && DISC_OPTS.some(x=>x[0]===o) ? o : b.dauto;
     const mine = ispOn ? SPECIAL.filter(s=>((im[dkey(b.key||'')]||{}).sp||{})[s.k]).map(s=>({...s, left:im[dkey(b.key||'')].sp[s.k]})) : (b.disc ? sp : []);
