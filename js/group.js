@@ -1769,7 +1769,7 @@ function erpNote(r){
   if(r.mabangPay==='마방') p.push('몽몽마방 식사 마방에서 결제');
   if(r===rec){ const nt=itemNotesText(); if(nt.length) p.push('항목 비고 '+nt.join(', ')); }   // 예약 내역 줄마다 적은 비고
   if(r.goods) p.push('굿즈 '+goodsText(r)+(String(r.stf_goods||'').trim() ? ` (담당:${String(r.stf_goods).trim()})` : ' (담당:미정)'));   // 굿즈 구매   // 몽몽마방 결제를 마방으로 고르면
-  { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy'); if(sp.length) p.push('특별할인 '+sp.map(s=>`${s.short} ${s.n}명(${s.rate===1?'무료':Math.round(s.rate*100)+'%'})`).join(', ')); if(cl) p.push(`${cl.short} ${cl.n}명 시트기입`); }
+  { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy'); sp.forEach(s=>p.push(`${s.short} ${s.n}명 증빙서류 확인`));   /* 특별 할인(기타 할인 제외): 간송 18명 증빙서류 확인 (2026-11-17) */ if(cl) p.push(`${cl.short} ${cl.n}명 시트기입`); }
   { const st=viewsParse(r.views).filter(x=>/학생/.test(x.src)).reduce((a,x)=>a+(+x.qty||0),0); if(st) p.push(`학생 ${st}명 확인 필요`); }   // 학생 관람: 입장할 때 학생인지 확인 (2026-11-17)   // 대구대교구는 「대구대교구 n명 시트기입」 (2026-11-17) · 특별 할인(간송 · 국가유공자 · 군위 주민 · 대구대교구 · 직원)은 비고에 넣음, 기타 할인은 안 넣음 (2026-11-17)
   // 금액: 현장에서 결제할 때만 (현장 결제 · 결제링크 + 현장 재결제). 몽몽마방 결제가 '마방'이면 식사 금액은 빼고 (식당에서 결제), '사무실'이면 넣음. 지금 적용된 사유원 · 신라 금액 (할인 · 기타 할인 · 줄에서 고친 할인액 · 전산 내역 반영)
   // 세금계산서 · 결제링크 · 기타 · 미정이면 전산 비고에 금액 문구를 넣지 않음 (2026-11-16)
