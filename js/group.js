@@ -1748,6 +1748,7 @@ function autoDue(id, r){
   if(id==='tbdcall') return r.tbdDate || todayYmd();
   if(id==='onsitecall') return r.date ? tbdLimit(r.date) : todayYmd();
   if(id==='paycheck') return ymd(nextDay(r.linkSent || new Date().toISOString()));   // 입금 확인 = 결제링크 보낸 다음날
+  if(id==='staffbrief' && r.date && PROG_KEYS().some(k=>r[k])){ const d=new Date(r.date+'T00:00'); d.setDate(d.getDate()-((d.getDay()+6)%7)); return ymd(d); }   // 개별 · 시간 프로그램이 있으면 방문일이 있는 주 월요일 (2026-11-17)
   if(id==='staffbrief' || id==='goodsprep'){ if(!r.date) return todayYmd(); const d=new Date(r.date+'T00:00'); d.setDate(d.getDate()-1); return ymd(d); }   // 방문 전날
   return todayYmd();
 }
@@ -1766,7 +1767,7 @@ function syncAutoTasks(){
   const ms=missingStaff(rec); if(ms.length) want.push('progstaff');   // 프로그램 담당이 비면 입력하라고
   const mbNeed=mbNeedsMenu(rec); if(mbNeed) want.push('mbmenu');   // 몽몽마방 예약인데 메뉴를 안 고름
   if(rec.goods) want.push('goodsprep');   // 굿즈가 들어가면 방문 전날까지 굿즈 준비 (그날 13시 · 17시 알림)
-  if(rec.date && STAFF_BASES().some(k=>rec[k])) want.push('staffbrief');   // 프로그램 · 굿즈가 있으면 방문 전날 담당자에게 일정 전달 (영업 담당이 직접 체크)
+  if(rec.date && STAFF_BASES().some(k=>rec[k])) want.push('staffbrief');   // 프로그램 · 굿즈가 있으면 담당자에게 일정 전달 (프로그램이 있으면 방문 주 월요일, 굿즈만이면 방문 전날) (영업 담당이 직접 체크)
   if(rec.mabangL || rec.mabangTime) want.push('mbcall');   // 몽몽마방이 들어가면 식당에 전화로 시간 확인 (직접 체크)
   if((parseInt(rec.dClergy)||0)>0) want.push('clergy');   // 대구대교구 특별 할인 → 대구대교구 정보 기입 (예약자에게 정보 요청 · 대구대교구 시트 기입)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
@@ -1848,7 +1849,7 @@ function renderTasks(){
       : t.id==='mbcall' ? `몽몽마방 식당에 전화해서 확인하고 체크하세요. (${esc([rec.date&&dateLabel(rec.date), rec.mabangL&&rec.mabangL+'명'].filter(Boolean).join(' · ')||'방문일 · 인원 미정')})<br>① 고객님이 말씀하신 시각 <b>${esc(rec.mabangTime||'(시간 미입력)')}</b> 가능한지<br>② 그날 예약 가능한 시간이 모두 언제인지 → 아래 메모에 적어 두기`
       : t.id==='mbmenu' ? (t.done ? '몽몽마방 메뉴를 골랐습니다.' : `몽몽마방 식사에서 메뉴(${esc(mbMenus().map(m=>m.name).join(' · '))}) 중 하나를 고르세요. 고르면 자동으로 완료됩니다.`)
       : t.id==='goodsprep' ? `굿즈: <b>${esc(goodsText(rec)||'없음')}</b>${goodsParse(rec.goods).map(g=>itemNote('g:'+g.src)?` · ${esc(goodsName(g.src))} 비고: ${esc(itemNote('g:'+g.src))}`:'').join('')}<br>방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 그날 13시 · 17시에 알림이 뜹니다.`
-      : t.id==='staffbrief' ? `방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')}) 각 담당자에게 아래 일정을 전달하고 체크하세요. 영업 담당이 이 예약의 프로그램 · 굿즈를 모두 챙깁니다.`
+      : t.id==='staffbrief' ? `${PROG_KEYS().some(k=>rec[k])?'방문 주 월요일':'방문 전날'}(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')}) 각 담당자에게 아래 일정을 전달하고 체크하세요. 영업 담당이 이 예약의 프로그램 · 굿즈를 모두 챙깁니다.`
       : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 칸: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 · 굿즈 옆 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (개별 · 시간 프로그램 · 굿즈 모두 담당 필수)` : '프로그램 · 굿즈 담당을 모두 넣었습니다.')
       : t.id==='erpcheck' ? (!erpList.length ? '전산에 예약을 넣은 뒤 <b>전산 내역을 붙여 넣어</b> 실제 예약이 이 예약 내용과 같은지 확인하세요. <b>할인 합계</b>와 <b>총 금액</b>이 같으면 저절로 완료됩니다.'
           : `<span class="erp-ck">${erpCheckHTML(erpCheck())}</span><br>${t.done ? '전산 내역과 예약 내용이 같습니다.' : '다른 곳을 전산이나 예약 내용에서 고친 뒤 전산 내역을 다시 붙여 넣으세요 (예약 내역 줄의 할인 · 기타 할인 · 인원 확인).'}`)
