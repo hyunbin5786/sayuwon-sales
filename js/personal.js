@@ -98,6 +98,7 @@ const enhanceDates = root => (root||document).querySelectorAll('input[type=date]
 const syncDates = () => document.querySelectorAll('input[type=date][data-dbox]').forEach(p=>p.__paintBox && p.__paintBox());   // 코드로 값을 바꾼 뒤 칸 글자 맞춤
 // ===================== 통화 기록 =====================
 // 시트 칸: 고객 이름 → 고객 담당자, 연락처, 방문 희망일 / 예약일 → 방문일, 인원 → 관람, 문의 내용 → 통화 메모, 추후 과업 → 수정 기록 칸 JSON {h:[], tasks:[…]} (단체 화면과 같은 방식)
+let reportShown='';   // 이 통화에서 보고 글자 팝업을 띄운 보고전달자 (저장할 때 보고전달자가 새로 정해졌으면 팝업)
 let autoT=null, lastAuto=null; const AUTO_SAVE_MS = 30000;   // 자동 저장 (아래 scheduleAuto)
 let cur=null, startedAt=null;   // cur: 지금 열어 둔 기록 (새 통화면 null)
 function blankForm(){ return {cat:'', reportTo:'', reserved:'', name:'', phone:'', date:'', people:'', note:'', tasks:[]}; }
@@ -279,6 +280,7 @@ function save(auto){
   { const ic=form.tasks.find(t=>t.id==='inqcheck' && t.memoAuto); if(ic) ic.memo=form.note.trim(); }
   const item=toItem(); put(item); cur=item; saved=JSON.stringify(form); startedAt=null;
   lastAuto = auto ? Date.now() : null; paintForm(); if(!auto) toast('저장했습니다.');
+  if(!auto && form.reportTo && form.reportTo!==reportShown){ reportShown=form.reportTo; $('#copyBtn').click(); }   // 보고전달자가 정해지고 저장을 누르면 보고 글자 미리보기 (같은 보고전달자로는 한 번만)
 }
 // 자동 저장 (단체 화면처럼): 마지막으로 고친 뒤 30초가 지나면 · 다른 창으로 가면 바로. 저장 버튼 · Ctrl+S 도 그대로
 
@@ -287,11 +289,11 @@ function scheduleAuto(){ clearTimeout(autoT); if(isDirty() && hasContent()) auto
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && isDirty() && hasContent()) save(true); });
 $('#callForm').addEventListener('submit', e=>{ e.preventDefault(); save(); });
 document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); } });
-function newCall(){ if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 새 통화를 시작할까요?')) return false; clearTimeout(autoT); lastAuto=null; cur=null; form=blankForm(); saved=JSON.stringify(form); startedAt=null; paintForm(true); $('#fName').focus(); return true; }
+function newCall(){ if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 새 통화를 시작할까요?')) return false; clearTimeout(autoT); lastAuto=null; reportShown=''; cur=null; form=blankForm(); saved=JSON.stringify(form); startedAt=null; paintForm(true); $('#fName').focus(); return true; }
 $('#newBtn').onclick=()=>{ if(newCall()) toast('새 통화를 시작합니다.'); };
 document.addEventListener('keydown', e=>{ if(e.altKey && !e.ctrlKey && (e.key==='n'||e.key==='N'||e.code==='KeyN')){ e.preventDefault(); $('#newBtn').click(); } });   // Alt+N = 새 통화 (단체 화면과 같음)
 window.addEventListener('beforeunload', e=>{ if(isDirty()){ e.preventDefault(); e.returnValue=''; } });
-function openItem(id){ const r=shown().find(x=>x.id===id); if(!r) return; if(cur && cur.id===id) return; if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 이 기록을 열까요?')) return; clearTimeout(autoT); lastAuto=null; cur=r; form=fromItem(r); saved=JSON.stringify(form); startedAt=null; paintForm(true); window.scrollTo({top:0, behavior:'smooth'}); }
+function openItem(id){ const r=shown().find(x=>x.id===id); if(!r) return; if(cur && cur.id===id) return; if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 이 기록을 열까요?')) return; clearTimeout(autoT); lastAuto=null; cur=r; form=fromItem(r); reportShown=form.reportTo||''; saved=JSON.stringify(form); startedAt=null; paintForm(true); window.scrollTo({top:0, behavior:'smooth'}); }
 
 // ===================== 목록: 추후 과업(모든 개인고객 통화) · 최근 통화 =====================
 const shown = () => { const m=new Map(items.map(x=>[x.id,x])); pending.forEach(p=>{ if(p.action==='put') m.set(p.item.id,p.item); else m.delete(p.id); }); return [...m.values()]; };
