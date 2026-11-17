@@ -1606,7 +1606,11 @@ let autoT=null, lastAuto=null, saving=false, emptySnap=null, SID=Math.random().t
 const canSave = () => !!(rec.org || rec.date);
 const refSnap = () => baseSnap || emptySnap || {};
 const isDirty = () => diffSnap(refSnap(), snap()).length>0;
-function paintDirty(){ $('#saveBtn').classList.toggle('dirty', isDirty()); }
+function paintDirty(){ const ids=dirtyTaskIds(); document.querySelectorAll('#taskList textarea[data-tm]').forEach(ta=>{ const t=tasks.find(x=>x.id===ta.dataset.tm); if(t && ta.value!==(t.memo||'')) ids.add(t.id); });   // 치는 중인 과업 메모도 (칸을 벗어나야 반영되므로)
+  $('#saveBtn').classList.toggle('dirty', isDirty() || ids.size>0); document.querySelectorAll('#taskList [data-tsave]').forEach(b=>b.classList.toggle('dirty', ids.has(b.dataset.tsave))); }   // 저장 안 한 변경: 저장 버튼 · 그 과업의 「저장」에 노란 점
+// 저장 안 한 변경이 있는 과업 id (체크 · 메모 · 파일 · 마감 · 제목 · 문구 · 하위 과업)
+function dirtyTaskIds(){ const a=refSnap(), b=snap(), s=new Set(); new Set([...Object.keys(a), ...Object.keys(b)]).forEach(k=>{ const m=k.match(/^(task|tmemo|tfile|tadd|tdue|tttl|tnote|tsub):(.+)$/); if(m && String(a[k]||'')!==String(b[k]||'')) s.add(m[2]); }); return s; }
+let dirtyT=0; document.addEventListener('input', e=>{ if(!e.target.closest?.('#taskList')) return; clearTimeout(dirtyT); dirtyT=setTimeout(paintDirty, 60); });   // 과업 메모를 치는 동안에도
 function scheduleAuto(){
   paintDirty(); clearTimeout(autoT);
   if(isDirty() && canSave()) autoT=setTimeout(()=>save({auto:true}), AUTO_SAVE_MS);
@@ -1928,6 +1932,7 @@ function renderTasks(){
       <textarea data-tm="${esc(t.id)}" placeholder="메모">${esc(t.memo||'')}</textarea>
     </li>`; }).join('');
   $('#taskHint').textContent = tasks.length ? (editingId ? '체크와 복사는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '저장하면 과업도 함께 저장됩니다.') : '';
+  if(typeof paintDirty==='function' && window.__autoReady) paintDirty();   // 다시 그린 과업 「저장」에도 노란 점
 }
 const autoSave = () => { if(editingId) save({auto:true}); };   // 과업 체크 · 메모 등은 바로 자동 저장 (수정 기록은 이 세션 줄에 모임)
 // 사업자등록증 올리기 → Apps Script 가 구글 드라이브에 저장하고 링크를 돌려줌 → 과업에 링크 보관

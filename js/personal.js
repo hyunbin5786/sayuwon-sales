@@ -112,6 +112,7 @@ function paintForm(force){
   $('#editing').hidden = !cur; if(cur) $('#editing').textContent = `${dtLabel(cur.saved)} ${cur.takenBy||''}님이 받은 통화를 고치는 중 · 저장하면 그대로 덮어씁니다`;
   $('#startedAt').textContent = startedAt ? `통화 시작 ${dtLabel(startedAt.toISOString())}` : '';
   $('#state').textContent = isDirty() ? '저장하지 않은 내용이 있습니다 (30초 뒤 자동 저장)' : (cur ? (lastAuto ? `자동 저장 ${new Date(lastAuto).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}` : '저장됨') : '');
+  paintDirtyDots();   // 저장 안 한 변경: 저장 버튼 · 그 과업의 「저장」에 노란 점 (단체 화면과 같음)
   paintPrices(); syncDates();   // 날짜 칸 글자 (요일)
 }
 // 이 통화의 추후 과업: 안 끝난 것(마감일 순) → 끝난 것
@@ -495,3 +496,12 @@ document.getElementById('askNo').onclick = closeAsk;
 document.getElementById('askYes').onclick = () => { const f=askOk; closeAsk(); if(f) f(); };
 document.getElementById('askModal').addEventListener('mousedown', e=>{ if(e.target.id==='askModal') closeAsk(); });
 document.addEventListener('keydown', e=>{ if(document.getElementById('askModal').hidden) return; if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); closeAsk(); } }, true);
+
+// ===== 저장 안 한 변경 표시 (노란 점): 저장 버튼 · 과업마다 「저장」 =====
+function paintDirtyDots(){
+  const d=isDirty(); $('#saveBtn').classList.toggle('dirty', d);
+  let sv={}; try{ sv=JSON.parse(saved)||{}; }catch(_){}
+  const old=new Map((sv.tasks||[]).map(t=>[t.id, JSON.stringify(t)]));
+  document.querySelectorAll('#taskList [data-tsave]').forEach(b=>{ const t=(form.tasks||[]).find(x=>x.id===b.dataset.tsave); b.classList.toggle('dirty', !!t && (!cur || old.get(t.id)!==JSON.stringify(t))); });
+}
+document.addEventListener('input', e=>{ if(e.target.closest && (e.target.closest('#taskList') || e.target.closest('#callForm'))) setTimeout(paintDirtyDots, 60); });
