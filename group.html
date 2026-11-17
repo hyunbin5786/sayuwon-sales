@@ -60,7 +60,7 @@
       <label>인원<span class="tour-n"><input id="tourPeople" inputmode="numeric" data-ime="num" autocomplete="off"><i>명</i></span></label>
       <label>시간<input id="tourTime" inputmode="numeric" data-ime="num" placeholder="10:00" autocomplete="off"></label>
     </div>
-    <p class="hint" id="tourHint">인원이 1명 이상이면 전산 비고에 「n명 현장결제 필요」가 붙습니다.</p>
+    <p class="hint" id="tourHint">답사 1명은 무료 · 2명 이상이면 전산 비고에 「(인원 − 1)명 현장결제 필요」가 붙습니다.</p>
     <div class="row-btns"><button class="btn primary" id="tourSave">저장</button><button class="btn danger" id="tourClear" title="사전답사 정보를 지움 (손대지 않은 과업도 빠짐)">답사 없음</button><button class="btn" id="tourClose">닫기</button></div>
   </section>
 </div>
@@ -352,7 +352,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/group.js?v=20261117m"></script>
+<script src="js/group.js?v=20261117n"></script>
 <script src="js/ime.js?v=20261116"></script>
 </body>
 </html>

@@ -1669,7 +1669,7 @@ function tourParse(s){ const o={extra:[]}; String(s||'').split(/\s*,\s*/).filter
 function tourJoin(o){ return [...TOUR_KEYS.filter(([k])=>String(o[k]||'').trim()).map(([k,l])=>`${l}: ${String(o[k]).replace(/\s*,\s*/g,' ').trim()}`), ...(o.extra||[])].join(', '); }
 function tourWithDefaults(r, s){ const o=tourParse(s), c=contactsOf(r)[0]||{}; if(!o.name && c.name) o.name=c.name; if(!o.phone && c.phone) o.phone=c.phone; return o; }
 const tourPeople = r => numOf(tourParse(r.tour).people);
-const tourNote = r => `<${String(r.org||'').trim()||'단체명'}> 사전답사${tourPeople(r)>=1?`/${tourPeople(r)}명 현장결제 필요`:''}`;   // 답사 인원이 1명 이상이면 현장결제 필요
+const tourNote = r => { const pay=tourPeople(r)-1; return `${String(r.org||'').trim()||'단체명'} 사전답사${pay>=1?`/${pay}명 현장결제 필요`:''}`; };   // 답사 1명은 무료 → 2명 이상이면 (인원 − 1)명 현장결제 필요 (2026-11-17)
 const tourMemo = r => String(r.tour||'').split(/\s*,\s*/).filter(Boolean).join('\n');
 const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', tbdcall:'미정 항목 확인 연락', onsitecall:'현장 결제 인원 확인 연락', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인', clergy:'대구대교구 정보 기입' };
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
