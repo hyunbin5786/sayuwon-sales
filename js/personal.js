@@ -98,6 +98,7 @@ const enhanceDates = root => (root||document).querySelectorAll('input[type=date]
 const syncDates = () => document.querySelectorAll('input[type=date][data-dbox]').forEach(p=>p.__paintBox && p.__paintBox());   // 코드로 값을 바꾼 뒤 칸 글자 맞춤
 // ===================== 통화 기록 =====================
 // 시트 칸: 고객 이름 → 고객 담당자, 연락처, 방문 희망일 / 예약일 → 방문일, 인원 → 관람, 문의 내용 → 통화 메모, 추후 과업 → 수정 기록 칸 JSON {h:[], tasks:[…]} (단체 화면과 같은 방식)
+let autoT=null, lastAuto=null; const AUTO_SAVE_MS = 30000;   // 자동 저장 (아래 scheduleAuto)
 let cur=null, startedAt=null;   // cur: 지금 열어 둔 기록 (새 통화면 null)
 function blankForm(){ return {cat:'', reportTo:'', reserved:'', name:'', phone:'', date:'', people:'', note:'', tasks:[]}; }
 let form=blankForm(), saved=JSON.stringify(form);
@@ -109,7 +110,7 @@ function paintForm(force){
   paintTasks(); paintChips();
   $('#editing').hidden = !cur; if(cur) $('#editing').textContent = `${dtLabel(cur.saved)} ${cur.takenBy||''}님이 받은 통화를 고치는 중 · 저장하면 그대로 덮어씁니다`;
   $('#startedAt').textContent = startedAt ? `통화 시작 ${dtLabel(startedAt.toISOString())}` : '';
-  $('#state').textContent = isDirty() ? '저장하지 않은 내용이 있습니다' : (cur ? '저장됨' : '');
+  $('#state').textContent = isDirty() ? '저장하지 않은 내용이 있습니다 (30초 뒤 자동 저장)' : (cur ? (lastAuto ? `자동 저장 ${new Date(lastAuto).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}` : '저장됨') : '');
   paintPrices(); syncDates();   // 날짜 칸 글자 (요일)
 }
 // 이 통화의 추후 과업: 안 끝난 것(마감일 순) → 끝난 것
@@ -125,7 +126,7 @@ function phoneTyping(e){ const el=e.target, v=el.value; if(el.selectionStart!==v
 // 연락처: 빈 칸을 누르면 010- 부터 (커서는 끝), 아무것도 안 치고 나가면 다시 비움 (단체 화면과 같음)
 $('#fPhone').addEventListener('focus', e=>{ const el=e.target; if(!el.value){ el.value='010-'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} },0); } });
 $('#fPhone').addEventListener('blur', e=>{ if(/^010-?$/.test(e.target.value)){ e.target.value=''; if(form.phone){ form.phone=''; touch(); } return; } const v=fmtPhone(e.target.value); if(v!==form.phone){ form.phone=v; e.target.value=v; touch(); } });
-function touch(){ if(!startedAt && !cur) startedAt=new Date(); paintForm(); }
+function touch(){ if(!startedAt && !cur) startedAt=new Date(); paintForm(); if(typeof scheduleAuto==='function') scheduleAuto(); }
 // 과업 추가 · 체크 · 마감일 · 빼기
 // ===================== 추후 과업 (단체 화면과 같은 모양 · 동작) =====================
 // 순서: 마감일이 빠른 순, 같으면 최근에 추가한 것이 위. 직접 옮긴 과업(ordSet)은 그 순서 그대로, 끝난 과업은 맨 아래 한 줄로(자세히 ▾)
@@ -187,7 +188,7 @@ $('#taskList').addEventListener('click', e=>{ const b=e.target.closest('button')
 });
 $('#taskList').addEventListener('keydown', e=>{ if(e.target.dataset.tttl!==undefined){ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); e.target.blur(); } else if(e.key==='Escape'){ const t=(typeof taskOf==='function'?taskOf:(id=>tasks.find(x=>x.id===id)))(e.target.dataset.tttl); if(t) e.target.value=t.title; e.target.blur(); } } });   // 과업 제목: Enter = 확정, Esc = 되돌리기
 $('#taskList').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing && e.target.dataset.xadd!==undefined){ e.preventDefault(); addXsub(e.target.dataset.xadd); } });   // 세부 과제: 적고 Enter
-$('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=taskOf(id); if(t){ t.memo=e.target.value; touch(); } });
+$('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=taskOf(id); if(t){ t.memo=e.target.value; delete t.memoAuto; touch(); } });   // 메모를 직접 고치면 문의 내용을 더 따라가지 않음
 $('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) setTimeout(()=>{ taskSave(); paintForm(); },0); });   // 메모는 칸을 벗어나면 저장
 // 끌어서 순서 바꾸기 (⠿ 를 잡고)
 let dragId=null;
@@ -260,21 +261,37 @@ function reportText(){ const f=form, who=(cur && cur.takenBy) || user.name || ''
     f.name && `고객 이름 : ${f.name}`, phone && `연락처 : ${phone}`, f.date && `방문 희망일/예약일 : ${dLabel(f.date)}`,
     f.people && `인원 : ${f.people}${/^\d+$/.test(f.people)?'명':''}`, String(f.note||'').trim() && `문의내용 : ${f.note}`].filter(Boolean).join('\n'); }
 async function copyText(s){ try{ await navigator.clipboard.writeText(s); return true; }catch(_){ const t=document.createElement('textarea'); t.value=s; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(__){} t.remove(); return ok; } }
-$('#copyBtn').onclick=async()=>{ const ok=await copyText(reportText()); toast(ok ? '보고 글자를 복사했습니다. 카카오톡에 붙여 넣으세요.' : '복사하지 못했습니다.'); };
-function save(){
-  if(!form.note.trim() && !form.name.trim() && !form.phone.trim() && !form.tasks.length){ toast('문의 내용이나 고객 정보를 넣어 주세요.'); return; }
-  if($('#taskAddIn').value.trim()) $('#taskAdd').requestSubmit();   // 과업 칸에 적어 두고 추가를 안 누른 것도
+// 보고 글자 복사 → 미리보기 팝업 (글자를 고칠 수 있음) → 「복사하기」로 복사. 고친 글자는 이 팝업에서만 (통화 기록은 그대로)
+const closeCopy = () => { $('#copyModal').hidden=true; };
+$('#copyBtn').onclick=()=>{ $('#copyOut').value=reportText(); $('#copyModal').hidden=false; setTimeout(()=>{ const t=$('#copyOut'); t.focus(); t.setSelectionRange(t.value.length, t.value.length); },0); };
+$('#copyDo').onclick=async()=>{ const ok=await copyText($('#copyOut').value); toast(ok ? '보고 글자를 복사했습니다. 카카오톡에 붙여 넣으세요.' : '복사하지 못했습니다.'); if(ok) closeCopy(); };
+$('#copyClose').onclick=closeCopy;
+$('#copyModal').addEventListener('click', e=>{ if(e.target.id==='copyModal') closeCopy(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#copyModal').hidden){ e.preventDefault(); closeCopy(); } });
+const hasContent = () => !!(form.note.trim() || form.name.trim() || form.phone.trim() || form.tasks.length);
+function save(auto){
+  clearTimeout(autoT);
+  if(!hasContent()){ if(!auto) toast('문의 내용이나 고객 정보를 넣어 주세요.'); return; }
+  if(!auto && $('#taskAddIn').value.trim()) $('#taskAdd').requestSubmit();   // 과업 칸에 적어 두고 추가를 안 누른 것도
   // 개인고객 문의는 처리가 필요한 것만 남기므로, 처음 저장할 때 추후 과업 「문의 처리 현황 점검」(마감 오늘, 처리되면 체크). 지우면 다시 저장해도 다시 생기지 않음
-  if(!cur && !form.tasks.some(t=>t.id==='inqcheck')) form.tasks.push({id:'inqcheck', title:'문의 처리 현황 점검', done:false, memo:'', at:new Date().toISOString(), due:todayYmd(), by:user.name||'', auto:1});
-  const item=toItem(); put(item); cur=item; saved=JSON.stringify(form); startedAt=null; paintForm(); toast('저장했습니다.');
+  // 그 메모 = 문의 내용 (메모를 직접 고치기 전까지는 문의 내용을 고치면 같이 바뀜)
+  if(!cur && !form.tasks.some(t=>t.id==='inqcheck')) form.tasks.push({id:'inqcheck', title:'문의 처리 현황 점검', done:false, memo:'', memoAuto:1, at:new Date().toISOString(), due:todayYmd(), by:user.name||'', auto:1});
+  { const ic=form.tasks.find(t=>t.id==='inqcheck' && t.memoAuto); if(ic) ic.memo=form.note.trim(); }
+  const item=toItem(); put(item); cur=item; saved=JSON.stringify(form); startedAt=null;
+  lastAuto = auto ? Date.now() : null; paintForm(); if(!auto) toast('저장했습니다.');
 }
+// 자동 저장 (단체 화면처럼): 마지막으로 고친 뒤 30초가 지나면 · 다른 창으로 가면 바로. 저장 버튼 · Ctrl+S 도 그대로
+
+
+function scheduleAuto(){ clearTimeout(autoT); if(isDirty() && hasContent()) autoT=setTimeout(()=>{ if(isDirty()) save(true); }, AUTO_SAVE_MS); }
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden && isDirty() && hasContent()) save(true); });
 $('#callForm').addEventListener('submit', e=>{ e.preventDefault(); save(); });
 document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); } });
-function newCall(){ if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 새 통화를 시작할까요?')) return false; cur=null; form=blankForm(); saved=JSON.stringify(form); startedAt=null; paintForm(true); $('#fName').focus(); return true; }
+function newCall(){ if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 새 통화를 시작할까요?')) return false; clearTimeout(autoT); lastAuto=null; cur=null; form=blankForm(); saved=JSON.stringify(form); startedAt=null; paintForm(true); $('#fName').focus(); return true; }
 $('#newBtn').onclick=()=>{ if(newCall()) toast('새 통화를 시작합니다.'); };
 document.addEventListener('keydown', e=>{ if(e.altKey && !e.ctrlKey && (e.key==='n'||e.key==='N'||e.code==='KeyN')){ e.preventDefault(); $('#newBtn').click(); } });   // Alt+N = 새 통화 (단체 화면과 같음)
 window.addEventListener('beforeunload', e=>{ if(isDirty()){ e.preventDefault(); e.returnValue=''; } });
-function openItem(id){ const r=shown().find(x=>x.id===id); if(!r) return; if(cur && cur.id===id) return; if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 이 기록을 열까요?')) return; cur=r; form=fromItem(r); saved=JSON.stringify(form); startedAt=null; paintForm(true); window.scrollTo({top:0, behavior:'smooth'}); }
+function openItem(id){ const r=shown().find(x=>x.id===id); if(!r) return; if(cur && cur.id===id) return; if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 이 기록을 열까요?')) return; clearTimeout(autoT); lastAuto=null; cur=r; form=fromItem(r); saved=JSON.stringify(form); startedAt=null; paintForm(true); window.scrollTo({top:0, behavior:'smooth'}); }
 
 // ===================== 목록: 추후 과업(모든 개인고객 통화) · 최근 통화 =====================
 const shown = () => { const m=new Map(items.map(x=>[x.id,x])); pending.forEach(p=>{ if(p.action==='put') m.set(p.item.id,p.item); else m.delete(p.id); }); return [...m.values()]; };
