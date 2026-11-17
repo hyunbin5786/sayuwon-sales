@@ -635,8 +635,13 @@ html.book-guest #bookBody tr{cursor:default}
 .spd-tbl tr.off input:not([type=checkbox]){opacity:.45;text-decoration:line-through}
 .sp-pop{width:min(640px,94vw)}
 /* 사전답사 팝업 */
-.tour-box{width:min(460px,100%)}
-.tour-grid{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0}
-.tour-grid>label{display:grid;grid-template-columns:64px 1fr;align-items:center;gap:8px;font-size:13px;font-weight:700}
-.tour-grid input{width:100%;box-sizing:border-box}
-.tour-n{display:flex;align-items:center;gap:4px}.tour-n i{font-style:normal;font-weight:400}
+.tour-box{width:min(560px,100%)}
+.tour-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px 12px;margin:4px 0 10px}   /* 1행 성명 · 연락처, 2행 일자 · 인원 · 입장시각 (다른 입력 칸과 같은 모양) */
+.tour-grid>.f{grid-column:span 2}
+.tour-grid>.tg-name,.tour-grid>.tg-phone{grid-column:span 3}
+.tour-grid .f label small{font-size:11px;color:var(--muted)}
+.tour-grid .dbox{display:flex;width:100%}
+.tour-grid .dbox input.dtxt{width:100%;height:36px;border-radius:6px;padding:6px 8px;font:13.5px var(--sans)}
+.tour-n{display:flex;align-items:center;gap:6px}.tour-n input{text-align:right}.tour-n i{font-style:normal;font-size:13px;color:var(--muted)}
+#tourModal .row-btns{justify-content:flex-end}
+@media (max-width:520px){.tour-grid{grid-template-columns:1fr 1fr}.tour-grid>.f,.tour-grid>.tg-name,.tour-grid>.tg-phone{grid-column:span 1}.tour-grid>.tg-name,.tour-grid>.tg-phone{grid-column:1 / -1}}

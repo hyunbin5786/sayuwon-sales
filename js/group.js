@@ -1699,11 +1699,13 @@ $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAu
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
 // ---- 사전답사 정보 (rec.tour = "성명: 홍길동, 연락처: 010-…, 일자: 2026-12-01, 인원: 2명, 시간: 10:00") ----
 // 단체상담 입력의 '답사 요청 정보' · 예약 내용의 「사전답사」 팝업이 같은 칸에 씀. 성명 · 연락처가 비면 담당자(첫 줄) 이름 · 연락처
-const TOUR_KEYS = [['name','성명',/성명|이름|신청자|담당자/],['phone','연락처',/연락처|전화|휴대|핸드폰/],['date','일자',/일자|날짜|일시|답사일/],['people','인원',/인원/],['time','시간',/시간/]];
+const TOUR_KEYS = [['name','성명',/성명|이름|신청자|담당자/],['phone','연락처',/연락처|전화|휴대|핸드폰/],['date','일자',/일자|날짜|일시|답사일/],['people','인원',/인원/],['time','입장시각',/입장|시간|시각/]];   // 시간 → 입장시각 (2026-11-17, 예전 '시간'도 읽음)
 function tourParse(s){ const o={extra:[]}; String(s||'').split(/\s*,\s*/).filter(Boolean).forEach(p=>{ const m=p.match(/^([^:：]+?)\s*[:：]\s*(.*)$/); const hit=m && TOUR_KEYS.find(([,,re])=>re.test(m[1]));
     if(hit && !o[hit[0]]) o[hit[0]]=m[2].trim(); else o.extra.push(p.trim()); }); return o; }
 function tourJoin(o){ return [...TOUR_KEYS.filter(([k])=>String(o[k]||'').trim()).map(([k,l])=>`${l}: ${String(o[k]).replace(/\s*,\s*/g,' ').trim()}`), ...(o.extra||[])].join(', '); }
-function tourWithDefaults(r, s){ const o=tourParse(s), c=contactsOf(r)[0]||{}; if(!o.name && c.name) o.name=c.name; if(!o.phone && c.phone) o.phone=c.phone; return o; }
+function tourWithDefaults(r, s){ const o=tourParse(s), c=contactsOf(r)[0]||{}, org=String(r.org||'').trim();   // 성명 = 단체명(성명), 기본은 담당자
+  if(!o.name && c.name) o.name=c.name; if(o.name && org && !o.name.includes(org)) o.name=`${org}(${o.name})`; if(!o.name && org) o.name=org;
+  if(!o.phone && c.phone) o.phone=c.phone; return o; }
 const tourPeople = r => numOf(tourParse(r.tour).people);
 const tourNote = r => { const pay=tourPeople(r)-1; return `${String(r.org||'').trim()||'단체명'} 사전답사${pay>=1?`/${pay}명 현장결제 필요`:''}`; };   // 답사 1명은 무료 → 2명 이상이면 (인원 − 1)명 현장결제 필요 (2026-11-17)
 const tourMemo = r => String(r.tour||'').split(/\s*,\s*/).filter(Boolean).join('\n');
@@ -3359,3 +3361,5 @@ $('#tourClear').onclick = () => { if(!confirm('사전답사 정보를 지울까�
 $('#tourClose').onclick = closeTour;
 $('#tourModal').addEventListener('mousedown', e=>{ if(e.target.id==='tourModal') closeTour(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#tourModal').hidden){ e.preventDefault(); closeTour(); } });
+$('#tourTime').addEventListener('blur', e=>{ const t=fmtTime(e.target.value); if(t) e.target.value=t; });   // 1000 → 10:00
+$('#tourPhone').addEventListener('blur', e=>{ const p=fmtPhone(e.target.value); if(p) e.target.value=p; });

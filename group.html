@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 예약 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261117e">
+<link rel="stylesheet" href="css/group.css?v=20261117f">
 </head>
 <body>
 <header>
@@ -52,13 +52,13 @@
 <!-- 사전답사 정보: 성명 · 연락처(기본 = 담당자) · 일자 · 인원 · 시간 → 추후 과업 「사전답사 전산 예약」 -->
 <div class="modal" id="tourModal" hidden>
   <section class="panel consult tour-box" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
-    <h2 id="tourTitle">사전답사 <small>성명 · 연락처는 기본으로 담당자</small></h2>
+    <h2 id="tourTitle">사전답사 <small>성명 = 단체명(담당자) · 연락처 = 담당자 연락처가 기본</small></h2>
     <div class="tour-grid">
-      <label>성명<input id="tourName" data-ime="ko" autocomplete="off"></label>
-      <label>연락처<input id="tourPhone" inputmode="tel" data-ime="num" placeholder="010-0000-0000" autocomplete="off"></label>
-      <label>일자<span id="tourDateBox"></span></label>
-      <label>인원<span class="tour-n"><input id="tourPeople" inputmode="numeric" data-ime="num" autocomplete="off"><i>명</i></span></label>
-      <label>시간<input id="tourTime" inputmode="numeric" data-ime="num" placeholder="10:00" autocomplete="off"></label>
+      <div class="f tg-name"><label for="tourName"><span>성명</span></label><input id="tourName" data-ime="ko" placeholder="단체명(성명)" autocomplete="off"></div>
+      <div class="f tg-phone"><label for="tourPhone"><span>연락처</span></label><input id="tourPhone" inputmode="tel" data-ime="num" placeholder="010-0000-0000" autocomplete="off"></div>
+      <div class="f"><label><span>일자</span></label><span id="tourDateBox"></span></div>
+      <div class="f"><label for="tourPeople"><span>인원</span></label><div class="tour-n"><input id="tourPeople" inputmode="numeric" data-ime="num" placeholder="0" autocomplete="off"><i>명</i></div></div>
+      <div class="f"><label for="tourTime"><span>입장시각</span></label><input id="tourTime" inputmode="numeric" data-ime="num" placeholder="10:00" autocomplete="off"></div>
     </div>
     <p class="hint" id="tourHint">답사 1명은 무료 · 2명 이상이면 전산 비고에 「(인원 − 1)명 현장결제 필요」가 붙습니다.</p>
     <div class="row-btns"><button class="btn primary" id="tourSave">저장</button><button class="btn danger" id="tourClear" title="사전답사 정보를 지움 (손대지 않은 과업도 빠짐)">답사 없음</button><button class="btn" id="tourClose">닫기</button></div>
@@ -352,7 +352,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/group.js?v=20261117p"></script>
+<script src="js/group.js?v=20261117q"></script>
 <script src="js/ime.js?v=20261116"></script>
 </body>
 </html>
