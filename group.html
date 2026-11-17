@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 예약 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261118a">
+<link rel="stylesheet" href="css/group.css?v=20261118b">
 </head>
 <body>
 <header>
@@ -54,7 +54,7 @@
   <section class="panel ask-box" role="dialog" aria-modal="true" aria-labelledby="askTitle">
     <h2 id="askTitle">삭제 확인</h2>
     <p id="askMsg" class="ask-msg"></p>
-    <div class="row-btns ask-btns"><button type="button" class="btn" id="askNo">취소</button><button type="button" class="btn danger" id="askYes">삭제</button></div>
+    <div class="row-btns ask-btns"><button type="button" class="btn" id="askNo">취소</button><button type="button" class="btn primary" id="askYes">삭제</button></div>
   </section>
 </div>
 <!-- 사전답사 정보: 성명 · 연락처(기본 = 담당자) · 일자 · 인원 · 시간 → 추후 과업 「사전답사 전산 예약」 -->
@@ -69,7 +69,7 @@
       <div class="f"><label for="tourTime"><span>입장시각</span></label><input id="tourTime" inputmode="numeric" data-ime="num" placeholder="10:00" autocomplete="off"></div>
     </div>
     <p class="hint" id="tourHint">답사 1명은 무료 · 2명 이상이면 전산 비고에 「(인원 − 1)명 현장결제 필요」가 붙습니다.</p>
-    <div class="row-btns"><button class="btn primary" id="tourSave">저장</button><button class="btn danger" id="tourClear" title="사전답사 정보를 지움 (손대지 않은 과업도 빠짐)">답사 없음</button><button class="btn" id="tourClose">닫기</button></div>
+    <div class="row-btns"><button class="btn primary" id="tourSave">저장</button><button class="btn" id="tourClear" title="사전답사 정보를 지움 (손대지 않은 과업도 빠짐)">답사 없음</button><button class="btn" id="tourClose">닫기</button></div>
   </section>
 </div>
 <!-- 비고 멘트 재출력: 지금 예약 내용으로 전산 비고 문구를 다시 만들어 보여 줌 -->
@@ -336,7 +336,7 @@
     <label class="del-l" for="delReason">삭제 사유</label>
     <select id="delReason"></select>
     <input id="delNote" data-ime="ko" placeholder="자세한 사유 (선택 · 기타면 필수)" autocomplete="off">
-    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="delCancel">취소</button><button class="btn danger" id="delOk">삭제</button></div>
+    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="delCancel">취소</button><button class="btn primary" id="delOk">삭제</button></div>
   </section>
 </div>
 <!-- 단체예약 목록 '수정': 목록에 보이는 상태(단계 · 전산 · 견적서 · 거래명세서)가 실제와 다를 때 사유를 받고 고침 -->
@@ -360,7 +360,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/group.js?v=20261118c"></script>
+<script src="js/group.js?v=20261118d"></script>
 <script src="js/ime.js?v=20261116"></script>
 <script src="js/keepsize.js?v=20261117"></script>
 </body>

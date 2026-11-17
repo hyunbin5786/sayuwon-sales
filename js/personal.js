@@ -411,7 +411,7 @@ function renderAll(){
   const list=all.filter(hit);
   $('#allCount').textContent = `${all.length}건${q?` · 찾은 ${list.length}건`:''}`;
   $('#allBody').innerHTML = list.map(r=>{ const left=tasksOfItem(r).filter(t=>!t.done).length, d=String(r.date||'').slice(0,10);
-    return `<tr data-id="${esc(r.id)}"><td>${esc(dtLabel(r.saved))}</td><td>${(c=>c?`<span class="tag">${esc(c)}</span>`:'')(fromItem(r).cat)}<b>${esc(r.contact||'(이름 없음)')}</b></td><td>${esc(r.phone||'')}</td><td>${d?esc(dLabel(d)):''}</td><td>${esc(r.people||'')}</td><td class="note">${esc(String(r.note||'').split(/\n/)[0].slice(0,80))}</td><td>${left?`<span class="tag cb">${left}개</span>`:''}</td><td class="acts"><button type="button" class="btn danger pdel" data-pdel="${esc(r.id)}" title="이 통화 기록 삭제 (사유 필수)">삭제</button></td><td class="owner">${esc(r.takenBy||r.owner||'')}</td></tr>`; }).join('')
+    return `<tr data-id="${esc(r.id)}"><td>${esc(dtLabel(r.saved))}</td><td>${(c=>c?`<span class="tag">${esc(c)}</span>`:'')(fromItem(r).cat)}<b>${esc(r.contact||'(이름 없음)')}</b></td><td>${esc(r.phone||'')}</td><td>${d?esc(dLabel(d)):''}</td><td>${esc(r.people||'')}</td><td class="note">${esc(String(r.note||'').split(/\n/)[0].slice(0,80))}</td><td>${left?`<span class="tag cb">${left}개</span>`:''}</td><td class="acts"><button type="button" class="btn primary pdel" data-pdel="${esc(r.id)}" title="이 통화 기록 삭제 (사유 필수)">삭제</button></td><td class="owner">${esc(r.takenBy||r.owner||'')}</td></tr>`; }).join('')
     || `<tr><td colspan="9" class="empty">${q?'찾은 통화가 없습니다.':'저장된 개인고객 통화가 없습니다.'}</td></tr>`;
 }
 // 통화 기록 삭제: 사유를 꼭 적어야 함. 사유는 그 기록의 수정 기록에 남긴 뒤 삭제 (시트에서는 줄을 지우지 않고 '삭제' 칸에 일시)
