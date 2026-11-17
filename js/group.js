@@ -2161,7 +2161,9 @@ function newCall(withToast=true){
   renderContacts(); renderForm(); resetWarn(false); emptySnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty();
   if(withToast){ toast('새 통화를 시작합니다.'); $('#memoBox').focus(); }
 }
-$('#newBtn').onclick=()=>guardLeave(()=>newCall());
+$('#newBtn').onclick=async()=>{   // 새 통화: 고치던 내용이 있으면 바로 저장하고 새 통화 (저장할 수 없으면 예전처럼 묻기, 2026-11-17)
+  if(isDirty() && canSave() && !lockOwner){ await save({auto:true}); if(!isDirty()){ newCall(false); toast('고치던 내용을 저장하고 새 통화를 시작합니다.'); $('#f_org')?.focus(); return; } }
+  guardLeave(()=>newCall()); };
 // ===================== 가격표 =====================
 // 가격은 견적서&거래명세서 사이트에서 그때그때 읽어 온다 → 그 사이트의 품목·가격이 바뀌면 여기도 바뀜
 //  · 기본 품목: 그 사이트 페이지의 CATALOG_RAW (품목 | 가격 | 할인 대상)와 굿즈·단체 프로그램 목록

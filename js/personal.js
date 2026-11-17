@@ -289,8 +289,9 @@ function scheduleAuto(){ clearTimeout(autoT); if(isDirty() && hasContent()) auto
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && isDirty() && hasContent()) save(true); });
 $('#callForm').addEventListener('submit', e=>{ e.preventDefault(); save(); });
 document.addEventListener('keydown', e=>{ if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); } });
-function newCall(){ if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 새 통화를 시작할까요?')) return false; clearTimeout(autoT); lastAuto=null; reportShown=''; cur=null; form=blankForm(); saved=JSON.stringify(form); startedAt=null; paintForm(true); $('#fName').focus(); return true; }
-$('#newBtn').onclick=()=>{ if(newCall()) toast('새 통화를 시작합니다.'); };
+// 새 통화: 고치던 내용이 있으면 바로 저장하고 새 통화 (내용이 없어 저장할 수 없을 때만 묻기, 2026-11-17)
+function newCall(){ if(isDirty()){ if(hasContent()) save(true); else if(!confirm('저장하지 않은 내용이 있습니다. 버리고 새 통화를 시작할까요?')) return false; } clearTimeout(autoT); lastAuto=null; reportShown=''; cur=null; form=blankForm(); saved=JSON.stringify(form); startedAt=null; paintForm(true); $('#fName').focus(); return true; }
+$('#newBtn').onclick=()=>{ const d=isDirty() && hasContent(); if(newCall()) toast(d ? '고치던 내용을 저장하고 새 통화를 시작합니다.' : '새 통화를 시작합니다.'); };
 document.addEventListener('keydown', e=>{ if(e.altKey && !e.ctrlKey && (e.key==='n'||e.key==='N'||e.code==='KeyN')){ e.preventDefault(); $('#newBtn').click(); } });   // Alt+N = 새 통화 (단체 화면과 같음)
 window.addEventListener('beforeunload', e=>{ if(isDirty()){ e.preventDefault(); e.returnValue=''; } });
 function openItem(id){ const r=shown().find(x=>x.id===id); if(!r) return; if(cur && cur.id===id) return; if(isDirty() && !confirm('저장하지 않은 내용이 있습니다. 버리고 이 기록을 열까요?')) return; clearTimeout(autoT); lastAuto=null; cur=r; form=fromItem(r); reportShown=form.reportTo||''; saved=JSON.stringify(form); startedAt=null; paintForm(true); window.scrollTo({top:0, behavior:'smooth'}); }
