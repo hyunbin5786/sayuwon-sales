@@ -482,7 +482,29 @@ function pkgSplit(src){
   const v=priceOf(viewSrcOf(rec)); return v!=null && v<p ? {v, m:p-v} : null;
 }
 document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-idisc]'); if(!b) return;
-  setItemDisc(b.dataset.idisc, b.dataset.dv, b.dataset.da); startTimer(); renderSide(); });   // 할인 버튼
+  const k=b.dataset.idisc, v=b.dataset.dv;
+  if(b.dataset.erp){   // 전산 내역 줄: 고른 %로 계산한 할인액을 그 줄 할인액으로 (전산 할인과 같으면 전산 그대로) → 대조에서 전산과 다르면 ✗ (전산 수정 필요)
+    const E=erpByKey(), x=E.m[k], info=x && erpDiscInfo(k, x), ex=x && erpRowMoney(k, x); if(!info) return;
+    setItemDisc(k, v, info.auto); const c=info.cand[v]; if(v===info.guess){ setItemDamt(k, null); startTimer(); renderSide(); return; }   // 전산과 같은 할인 → 전산 할인액 그대로
+    setItemDamt(k, (c.tx===ex.aTx && c.tf===ex.aTf) ? null : {tx:Math.min(c.tx, ex.fTx), tf:Math.min(c.tf, ex.fTf)}); startTimer(); renderSide(); return; }
+  setItemDisc(k, v, b.dataset.da); startTimer(); renderSide(); });   // 할인 버튼
+// 전산 내역 줄의 할인 버튼: 할인 대상 품목이면 할인 없음 · 사전예약 5% · 단체예약 10%로 계산한 할인액(과세 · 비과세)과, 전산 할인이 어느 것과 같은지(guess)
+function erpDiscInfo(k, x){
+  const b0=quoteBlocks(rec).blocks.find(b=>b.key===k); if(!b0 || !(b0.disc || idiscMap(rec)[dkey(k)])) return null;
+  const cand={none:{tx:0, tf:0}};
+  ['pre','grp'].forEach(v=>{ const m=idiscMap(rec); m[dkey(k)]=v; const r2={...rec, idamt:'', idisc:Object.entries(m).map(([a,c])=>`${a}=${c}`).join('; ')};
+    const b=quoteBlocks(r2).blocks.find(y=>y.key===k), mm=b && blockMoney(b, r2); cand[v] = mm ? {tx:mm.aTx, tf:mm.aTf} : {tx:0, tf:0}; });
+  const tot=c=>c.tx+c.tf, pc=[...new Set((x.notes||[]).flatMap(s=>[...String(s).matchAll(/(\d+(?:\.\d+)?)\s*%/g)].map(m=>+m[1])))];   // 전산 할인 줄의 % (사전예약자 성인 19명 5% → 사전예약)
+  const guess = !(+x.disc) ? 'none' : pc.length===1 && pc[0]===5 ? 'pre' : pc.length===1 && pc[0]===10 ? 'grp' : (['pre','grp'].find(v=>Math.abs(tot(cand[v])-(+x.disc||0))<1) || '');
+  return { cand, guess, auto:b0.dauto, n:numOf(rec.people) };
+}
+function erpDiscBtns(k, x, ex){
+  const info=erpDiscInfo(k, x); if(!info) return '';
+  const cur=ex.dTx+ex.dTf, on = !ex.ov ? info.guess : (['none','pre','grp'].find(v=>Math.abs(info.cand[v].tx+info.cand[v].tf-cur)<1) || '');   // 고치지 않았으면 전산 할인 그대로
+  const L=v=>(DISC_OPTS.find(o=>o[0]===v)||[])[1]||'';
+  const warn = info.guess && info.guess!==info.auto && !ex.ov ? `<small class="bad" style="margin-left:4px">인원 ${info.n}명 → ${L(info.auto)} 대상 · 전산은 ${L(info.guess)}</small>` : '';
+  return `<span class="im dsel" title="할인 (인원 기준: ${esc(L(info.auto))}) · 누르면 그 %로 할인액을 다시 계산 (전산과 다르면 대조에 ✗ → 전산 수정)">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${on===v?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-erp="1">${l}</button>`).join('')}${warn}</span>`;
+}
 let openDisc=new Set();   // 할인 대상이 아닌 품목에서 「할인 넣기」를 눌러 연 할인 줄
 document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('#itemsBox [data-dopen]'); if(!b) return; openDisc.add(b.dataset.dopen); paintItemPrices(); const i=document.querySelector(`#itemsBox [data-idamt="${CSS.escape(b.dataset.dopen)}"]`); if(i){ i.focus(); i.select(); } });
 // 할인액 칸 (예약 칸 계산 · 전산 내역 공통)
@@ -523,7 +545,7 @@ function paintItemPrices(){
       if(!x){ const inView = /^v:/.test(k) && /\(학생\)/.test(k) && E.m[k.replace(/\(학생\)/,'')];   // 관람(학생): 전산은 관람 한 줄에 어른 · 학생 함께
         h = k==='seminar2' && E.m.seminar ? cell('전산', '세미나 도슨트 줄에 함께 (전산은 세미나 한 품목 · 금액은 첫 세미나 도슨트 줄)') : inView ? cell('전산', '관람 줄에 함께 (어른 · 학생이 한 줄 · 금액은 관람 줄)') : k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', `<b class="bad">전산 내역에 없음</b>${mi?' <small>· 품목 관리 가격으로 합계에 넣음</small>':''}`, 'warn');
         if(mi) amt = cell('금액', mi.atMabang ? `<s>${won(mi.m.amount)}</s> <small>마방에서 결제</small>` : `<b>${won(mi.m.amount)}</b>`, 'amt'); }
-      else if(x.disc || ex.ov || openDisc.has(k)) h = `<span class="im dams"><i>할인</i>${ex.fTf>0?damIn(k,'tf', ex.dTf, ex.fTf):''}${ex.fTx>0?damIn(k,'tx', ex.dTx, ex.fTx):''}${ex.ov?`<small class="dman">직접 고침</small><button type="button" class="dreset" data-idamtreset="${esc(k)}" title="전산 할인으로 되돌리기">↺</button>`:''}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}</span>`;   // 전산 내역 줄: 할인만 (과세 · 비과세 할인액은 고칠 수 있음)
+      else if(x.disc || ex.ov || openDisc.has(k) || erpDiscInfo(k, x)) h = erpDiscBtns(k, x, ex) + `<span class="im dams"><i>할인</i>${ex.fTf>0?damIn(k,'tf', ex.dTf, ex.fTf):''}${ex.fTx>0?damIn(k,'tx', ex.dTx, ex.fTx):''}${ex.ov?`<small class="dman">직접 고침</small><button type="button" class="dreset" data-idamtreset="${esc(k)}" title="전산 할인으로 되돌리기">↺</button>`:''}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}</span>`;   // 전산 내역 줄: 할인만 (과세 · 비과세 할인액은 고칠 수 있음)
       else amt = `<button type="button" class="dopen" data-dopen="${esc(k)}" title="이 품목에 할인 넣기 (과세 · 비과세 할인액)">할인 넣기</button>`; }
     else if(!priceInfo) h='';
     else { const x=src ? priceInfo[normSrc(src)] : null;
