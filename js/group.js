@@ -1387,8 +1387,9 @@ function merged(){
   pending.forEach(p=>{ if(p.action==='put') m.set(p.item.id,{...p.item,_pending:true}); else m.delete(p.id); });
   // 개인고객 화면에서 이 브라우저로 고친 통화 (과업 체크 등): 시트에 아직 안 올라갔거나 시트를 다시 받기 전이면 그 내용을 씀
   const pp = readJSON('sayuwon_personal_pending',[]), pc = readJSON('sayuwon_personal_cache',[]);
-  [...pc, ...pp.filter(p=>p.action==='put').map(p=>p.item)].forEach(x=>{ if(!x || !x.id || !x._localAt) return; const s=m.get(x.id);
-    if(!s || String(s.updated||'') < x._localAt) m.set(x.id, x); });
+  // 개인고객 화면이 시트에 올린 뒤 다시 받은 내용(_localAt 없음, updated 가 더 새로움)도 이 화면이 가진 옛 내용보다 먼저
+  [...pc, ...pp.filter(p=>p.action==='put').map(p=>p.item)].forEach(x=>{ if(!x || !x.id) return; const t=String(x._localAt || (x.callType==='개인고객' && x.updated) || ''); if(!t) return; const s=m.get(x.id);
+    if(!s || String(s.updated||'') < t) m.set(x.id, x); });
   pp.forEach(p=>{ if(p.action==='delete') m.delete(p.id); });
   return [...m.values()];
 }
