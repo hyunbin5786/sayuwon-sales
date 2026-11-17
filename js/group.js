@@ -515,7 +515,8 @@ function paintItemPrices(){
     const pm = ex || (mi && mi.m) || (!E && priceInfo && src ? (priceInfo[normSrc(src)]||{}).m : null);
     if(up) up.innerHTML = !quoteCat && !ex && !mi ? '' : pm && !seen.has(src) ? [pm.fTf>0 && `<span title="정상가 ${won(pm.fTf)}원 − 할인 ${won(pm.dTf)}원"><i>비과세(사유원)</i>${won(pm.tf)}원</span>`, pm.fTx>0 && `<span title="정상가 ${won(pm.fTx)}원 − 할인 ${won(pm.dTx)}원"><i>과세(신라)</i>${won(pm.tx)}원</span>`].filter(Boolean).join('') : upHTML(src);
     if(E){ const x=E.m[k];
-      if(!x){ h = k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', `<b class="bad">전산 내역에 없음</b>${mi?' <small>· 품목 관리 가격으로 합계에 넣음</small>':''}`, 'warn');
+      if(!x){ const inView = /^v:/.test(k) && /\(학생\)/.test(k) && E.m[k.replace(/\(학생\)/,'')];   // 관람(학생): 전산은 관람 한 줄에 어른 · 학생 함께
+        h = inView ? cell('전산', '관람 줄에 함께 (어른 · 학생이 한 줄 · 금액은 관람 줄)') : k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', `<b class="bad">전산 내역에 없음</b>${mi?' <small>· 품목 관리 가격으로 합계에 넣음</small>':''}`, 'warn');
         if(mi) amt = cell('금액', mi.atMabang ? `<s>${won(mi.m.amount)}</s> <small>마방에서 결제</small>` : `<b>${won(mi.m.amount)}</b>`, 'amt'); }
       else if(x.disc || ex.ov || openDisc.has(k)) h = `<span class="im dams"><i>할인</i>${ex.fTf>0?damIn(k,'tf', ex.dTf, ex.fTf):''}${ex.fTx>0?damIn(k,'tx', ex.dTx, ex.fTx):''}${ex.ov?`<small class="dman">직접 고침</small><button type="button" class="dreset" data-idamtreset="${esc(k)}" title="전산 할인으로 되돌리기">↺</button>`:''}${x.notes.length?` <small>${esc(x.notes.map(cleanErpNote).join(' · '))}</small>`:''}</span>`;   // 전산 내역 줄: 할인만 (과세 · 비과세 할인액은 고칠 수 있음)
       else amt = `<button type="button" class="dopen" data-dopen="${esc(k)}" title="이 품목에 할인 넣기 (과세 · 비과세 할인액)">할인 넣기</button>`; }
@@ -2367,7 +2368,7 @@ function parseErp(text){
     if(/^\*/.test(t)){ cur.notes.push(t.replace(/^\*\s*/,'').replace(/\(\)\s*$/,'')); return; }
     if(key==='상품정보') cur.product=val;
     else if(key==='방문자정보') cur.visitor=val;
-    else if(key==='예약인원') cur.people=wonNum((val.match(/\d+/)||[''])[0]);
+    else if(key==='예약인원'){ cur.people=wonNum((val.match(/\d+/)||[''])[0]); const st=val.match(/학생\s*:?\s*(\d+)\s*명/); if(st) cur.students=+st[1]; }   // 「46명(어른 : 4명,학생 : 42명)」 → 학생 인원도 (관람을 어른 · 학생 품목으로 나눔)
     else if(key==='상품금액') cur.base=wonNum(val);
     else if(key==='할인금액'){ cur.disc=wonNum(val.replace(/\(.*$/,'')); const p=val.match(/\(([\d,]+)\)/); if(p) cur.discShilla=wonNum(p[1]); }   // 156,000(96,000): 괄호 = 할인 중 신라 몫
     else if(key==='금액') cur.amount=wonNum(val);
@@ -2410,7 +2411,8 @@ function erpTotals(list=erpList){
 function erpMissing(){
   if(!erpList.length || !quoteCat || !rec.date) return [];
   const E=erpByKey();
-  return quoteBlocks(rec).blocks.filter(b=>b.key && !E.m[b.key]).map(b=>({b, key:b.key, m:blockMoney(b, rec), atMabang: b.key==='mb' && rec.mabangPay==='마방'})).filter(x=>x.m);
+  const has = k => E.m[k] || (/^v:/.test(k) && /\(학생\)/.test(k) && E.m[k.replace(/\(학생\)/,'')]);   // 관람(학생)은 전산에서 관람 한 줄(어른 · 학생 함께)에 들어 있음 → 빠진 것 아님 (2026-11-17)
+  return quoteBlocks(rec).blocks.filter(b=>b.key && !has(b.key)).map(b=>({b, key:b.key, m:blockMoney(b, rec), atMabang: b.key==='mb' && rec.mabangPay==='마방'})).filter(x=>x.m);
 }
 function renderErp(){
   const box=$('#erpBox'); if(!box) return;
@@ -2442,7 +2444,11 @@ function erpFields(list){
     else if(/해오름/.test(p)) add('haeorum',n);   // 평일 · 주말 품목 모두
     else if(/\(관람,/.test(p) || (/관람/.test(p) && !/관람권|관람식사권/.test(p))){   // 관람권 · 관람+식사 패키지
       const isBase = false;   // 관람 자동 줄 없음: 전산의 관람권도 모두 항목 줄(관람 · 관람+식사)로
-      if(isBase) view+=n; else { const v=views.find(y=>normSrc(y.src)===ns); if(v) v.qty+=n; else views.push({src:p, qty:n}); } }
+      const put=(src,q)=>{ if(!q) return; const v=views.find(y=>normSrc(y.src)===normSrc(src)); if(v) v.qty+=q; else views.push({src, qty:q}); };
+      // 전산은 관람권 한 줄(46명)에 어른 · 학생이 함께 들어옴 (예약인원 「어른 : 4명,학생 : 42명」 · 할인 줄 「학생 42명」) → 예약 내역처럼 관람 · 관람(학생)으로 나눔 (2026-11-17)
+      const stN = x.students || +(((x.notes||[]).map(t=>t.match(/학생\s*(\d+)\s*명/)).find(Boolean)||[])[1] || 0);
+      const stSrc = !/학생|\(관람,/.test(p) ? p.replace(/^(.*?관람)(\(.*\))?\s*$/, (a,b,c)=>`${b}(학생)${c||''}`) : '';
+      if(isBase) view+=n; else if(stN && stSrc && stSrc!==p){ const sn=Math.min(n, stN); put(stSrc, sn); put(p, n-sn); } else put(p, n); }
     else if(progBy[ns]) add(progBy[ns], n);
     else { const mb=mbs.find(m=>normSrc(m.src)===ns);
       if(mb){ add('mabangL',n); if(o.mabangMenu && o.mabangMenu!==mb.name) unknown.push(p+' (몽몽마방 메뉴가 여러 개)'); else o.mabangMenu=mb.name; }
