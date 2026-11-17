@@ -149,10 +149,10 @@ function paintTasks(){
   const box=$('#taskList'), ae=document.activeElement;
   if(box.contains(ae) && (ae.tagName==='TEXTAREA' || (ae.tagName==='INPUT' && ae.type!=='checkbox' && !ae.readOnly && !ae.classList.contains('dpick')))) return;   // 메모 · 세부 과제를 쓰는 중이면 다시 그리지 않음
   const today=todayYmd();
-  box.innerHTML = sortedTasks().map(t=>{ const due=t.due||today, late=!t.done && due<today, fold=t.done && !openDone.has(t.id);
+  box.innerHTML = sortedTasks().map(t=>{ const due=t.due||today, late=!t.done && due<today, subsDone=(t.xsubs||[]).every(x=>x.done), fold=t.done && subsDone && !openDone.has(t.id);   // 세부 과제가 다 체크돼야 접힘 (2026-11-18)
     return `<li class="task${t.done?' done':late?' late':''}${fold?' collapsed':''}" data-id="${esc(t.id)}">`
       + `<div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<span class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''} title="체크하면 완료"><input class="ttl" data-tttl="${esc(t.id)}" value="${esc(t.title)}" data-ime="ko" spellcheck="false" autocomplete="off" title="눌러서 제목 고치기 (Enter로 확정)"></span>`
-      + `${t.done?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}`
+      + `${t.done && subsDone?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}`
       + `${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}`
       + `<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"></label>`
       + `<button type="button" class="tsave" data-tsave="${esc(t.id)}" title="이 과업의 고친 내용(체크 · 제목 · 마감일 · 메모 · 세부 과제)을 지금 저장">저장</button>`
@@ -175,9 +175,9 @@ function addXsub(tid){ const inp=document.querySelector(`#taskList [data-xadd="$
 $('#taskList').addEventListener('change', e=>{ const d=e.target.dataset;
   if(d.tttl){ const t=taskOf(d.tttl); if(!t) return; const v=e.target.value.trim(); if(!v){ e.target.value=t.title; return; } if(v!==t.title){ t.title=v; t.titleSet=1; taskChanged(); } return; }   // 과업 제목 고치기 (제목을 눌러서)
   if(d.xsub){ const [tid,xid]=d.xsub.split('|'), t=taskOf(tid), x=t&&(t.xsubs||[]).find(s=>s.id===xid); if(!x) return; x.done=e.target.checked;
-    const all=(t.xsubs||[]).every(s=>s.done); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=user.name||''; } if(!all && t.done){ t.done=false; t.doneAt=''; } taskChanged(); return; }   // 세부 과제가 모두 끝나면 완료
+    const all=(t.xsubs||[]).every(s=>s.done); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=user.name||''; } if(!all && t.done && !t.manualDone){ t.done=false; t.doneAt=''; } taskChanged(); return; }   // 세부 과제가 모두 끝나면 완료 (위 체크로 끝낸 과업은 그대로)
   if(d.tdue){ const t=taskOf(d.tdue); if(t && e.target.value){ t.due=e.target.value; t.dueSet=1; taskChanged(); } return; }
-  if(d.tk){ const t=taskOf(d.tk); if(!t) return; t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():''; t.doneBy=t.done?(user.name||''):''; (t.xsubs||[]).forEach(x=>x.done=t.done); taskChanged(); }
+  if(d.tk){ const t=taskOf(d.tk); if(!t) return; t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():''; t.doneBy=t.done?(user.name||''):''; if(t.done) t.manualDone=1; else { delete t.manualDone; (t.xsubs||[]).forEach(x=>x.done=false); } taskChanged(); }   // 위 체크 = 완료 (세부 과제는 그대로, 다 체크될 때까지 접히지 않음)
 });
 $('#taskList').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; const d=b.dataset;
   if(d.tsave){ document.activeElement?.blur(); setTimeout(()=>{ if(cur){ taskSave(); paintForm(); toast('저장했습니다.'); } else save(); },0); return; }   // 과업마다 「저장」 (새 통화면 통화 전체 저장)

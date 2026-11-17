@@ -1849,7 +1849,7 @@ function syncAutoTasks(){
   tasks.forEach(t=>{ if(t.removed) return; const ds=DOC_SUBS[t.id]; if(ds && !t.subs) t.subs=Object.fromEntries(ds.map(([k])=>[k, !!t.done]));   // 삭제한 과업은 그대로
     if(['erp','erpcheck','progstaff','mbmenu'].includes(t.id)) return;
     const st=[...(ds ? ds.map(([k])=>!!t.subs[k]) : []), ...(t.xsubs||[]).map(x=>!!x.done)]; if(!st.length) return;
-    const all=st.every(Boolean); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); } if(!all && t.done){ t.done=false; t.doneAt=''; } });
+    const all=st.every(Boolean); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); } if(!all && t.done && !t.manualDone){ t.done=false; t.doneAt=''; } });   // 위 체크로 끝낸 과업(manualDone)은 하위 과업이 남아도 완료 그대로
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)) || (t.xsubs||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
   const ps=tasks.find(t=>t.id==='progstaff' && !t.removed); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
@@ -1920,9 +1920,9 @@ function renderTasks(){
       : SUB[t.id] || '';
     const docBtn = (t.id==='quote'||t.id==='stmt') ? `<div class="tbtn"><button type="button" class="btn" data-tquote="${t.id==='stmt'?'statement':'quote'}">${t.id==='stmt'?'거래명세서 만들기':'견적서 만들기'}</button></div>` : '';
     const files = t.id!=='tax' && (t.files||[]).length ? `<div class="tfiles">${t.files.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}</div>` : '';
-    const due=taskDue(t), late=!t.done && due<todayYmd(); const fold=t.done && !openDone.has(t.id);   // 끝난 과업은 첫 줄만 (누르면 펼침)
+    const due=taskDue(t), late=!t.done && due<todayYmd(); const subsDone=taskSubsDone(t), fold=t.done && subsDone && !openDone.has(t.id);   // 아래 하위 과업 · 세부 과제가 다 체크돼야 접힘   // 끝난 과업은 첫 줄만 (누르면 펼침)
     return `<li class="task${t.done?' done':late?' late':''}${fold?' collapsed':''}" data-id="${esc(t.id)}">
-      <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<span class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''} title="체크하면 완료"><input class="ttl" data-tttl="${esc(t.id)}" value="${esc(t.title)}" data-ime="ko" spellcheck="false" autocomplete="off" title="눌러서 제목 고치기 (Enter로 확정)"></span>${t.done?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}
+      <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<span class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''} title="체크하면 완료"><input class="ttl" data-tttl="${esc(t.id)}" value="${esc(t.title)}" data-ime="ko" spellcheck="false" autocomplete="off" title="눌러서 제목 고치기 (Enter로 확정)"></span>${t.done && subsDone?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}
         ${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}${dboxHTML(`data-tdue="${esc(t.id)}"`, due)}</label><button type="button" class="tsave" data-tsave="${esc(t.id)}" title="이 과업의 고친 내용(체크 · 제목 · 마감일 · 메모 · 세부 과제)을 지금 저장">저장</button><button type="button" class="del" data-tdel="${esc(t.id)}" title="이 과업 삭제 (확인 뒤)" aria-label="과업 삭제">×</button></div>
       ${sub?`<div class="sub">${sub}</div>`:''}${subsHTML(t)}${docBtn}${files}
       ${txt?`<textarea class="tnote${t.noteEdit?' edited':''}" id="tpre_${esc(t.id)}" data-tnote="${esc(t.id)}" spellcheck="false" title="자동으로 만든 문구 · 직접 고칠 수 있음">${esc(txt)}</textarea><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')||t.id==='tour'?'비고 문구 복사':'문구 복사'}</button>${t.noteEdit?`<button type="button" class="btn" data-tregen="${esc(t.id)}" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><span class="hint" style="margin:0">직접 고친 문구</span>`:''}<span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
@@ -1964,7 +1964,7 @@ $('#taskList').addEventListener('change', e=>{
   if(id==='erpcheck'){ e.target.checked=!!t.done; toast('전산 내역을 붙여 넣어 예약 내용과 총 금액 · 할인이 같으면 저절로 완료됩니다.'); if(!erpList.length) $('#erpPasteBtn')?.click(); return; }   // 직접 체크하지 않음
   if((id==='erp'||id==='erpfix') && e.target.checked){ e.target.checked=false; askErpForTask(id); return; }   // 전산 예약 완료 = 전산 내역을 붙여넣어 예약 내용과 맞는지 확인한 뒤
   t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
-  if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=t.done); (t.xsubs||[]).forEach(x=>x.done=t.done);   // 위 체크 = 하위 과업 모두 해결 (끄면 모두 해제)
+  if(t.done) t.manualDone=1; else { delete t.manualDone; if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=false); (t.xsubs||[]).forEach(x=>x.done=false); }   // 위 체크 = 완료 (아래 하위 과업은 그대로, 다 체크될 때까지 접히지 않음) · 끄면 모두 해제 (2026-11-18)
   if(id==='erp'){ rec.erp = t.done ? ymd(new Date()) : ''; touched.add('erp'); }
   if(id==='linksend' || id==='paycheck'){ const k=id==='linksend'?'linkSent':'paidAt'; rec[k] = t.done ? t.doneAt : ''; touched.add(k); paintFields(); }   // 과업 체크 = 예약 내용 버튼도 (일시 기록)
   if(id==='erpfix' && t.done){ const e=tasks.find(x=>x.id==='erp'); if(e) e.base=erpSnap(); t.changes=[]; }   // 전산에 고친 지금 내용을 기준으로
@@ -3395,3 +3395,5 @@ document.addEventListener('keydown', e=>{ if(document.getElementById('askModal')
 document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-crstg]'); if(!b) return; const k=b.dataset.crstg, key='crs_'+k;
   const on = rec[key]===CRS_DEFAULT; rec[key] = on ? '' : CRS_DEFAULT; touched.add(key); itemChanged(true);
   if(on) setTimeout(()=>document.querySelector(`#itemsBox [data-ix="${CSS.escape(key)}"]`)?.focus(), 0); });
+// 과업의 하위 과업(견적서 생성 · 전송 · NAS 등) · 직접 추가한 세부 과제가 모두 체크됐는지 (없으면 true)
+function taskSubsDone(t){ const ds=DOC_SUBS[t.id]; return (!ds || !t.subs || ds.every(([k])=>t.subs[k])) && (t.xsubs||[]).every(x=>x.done); }
