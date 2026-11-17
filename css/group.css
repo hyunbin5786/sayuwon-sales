@@ -670,3 +670,6 @@ html.book-guest #bookBody tr{cursor:default}
 .crs-tg.on{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:700}
 .it-crs .it-x{min-width:120px}
 .tsave.dirty::after{content:"●";color:#ffd27a;font-size:9px;margin-left:3px}   /* 그 과업에 저장 안 한 변경 */
+/* 추후 과업 삭제 = × (2026-11-18) */
+.task-h .del{border:0;background:none;color:var(--muted);cursor:pointer;font:400 18px/1 var(--sans);padding:0 4px;width:auto;height:auto}
+.task-h .del:hover{color:var(--red)}

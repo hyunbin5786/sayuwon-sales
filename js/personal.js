@@ -156,7 +156,7 @@ function paintTasks(){
       + `${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}`
       + `<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}<input type="date" data-tdue="${esc(t.id)}" value="${esc(due)}"></label>`
       + `<button type="button" class="tsave" data-tsave="${esc(t.id)}" title="이 과업의 고친 내용(체크 · 제목 · 마감일 · 메모 · 세부 과제)을 지금 저장">저장</button>`
-      + `<button type="button" class="del" data-tdel="${esc(t.id)}" title="이 과업 삭제">삭제</button></div>`
+      + `<button type="button" class="del" data-tdel="${esc(t.id)}" title="이 과업 삭제 (확인 뒤)" aria-label="과업 삭제">×</button></div>`
       + subsHTML(t) + `<textarea data-tm="${esc(t.id)}" lang="ko" data-ime="ko" placeholder="메모">${esc(t.memo||'')}</textarea></li>`; }).join('')
     || '<li class="empty">추후 과업이 없습니다. 이 통화 뒤에 할 일이 있으면 위에 적어 주세요.</li>';
   enhanceDates(box);   // 마감일 = 방문일 방식 날짜 칸
