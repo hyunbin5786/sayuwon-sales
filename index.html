@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>사유원 예약 보조 시스템</title>
+<title>사유원 운영 보조 시스템</title>
 <script>/* 단체 · 견적서 화면이 팝업 안에서 이 주소(#catalog)를 부르면 품목 관리 창으로 바로 바꿈 (닫기 · 저장 알림이 바로 그 화면에 가도록) */
 if(window.parent!==window && location.hash==='#catalog') location.replace((/github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/index.html') + '?catalog=1&t=' + Date.now());</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/portal.css?v=20261116b">
+<link rel="stylesheet" href="css/portal.css?v=20261118">
 <link rel="stylesheet" href="css/mypop.css?v=20261116">
 </head>
 <body>
 <header>
-  <a class="sys-brand" href="./" id="brand" title="메뉴로">사유원 예약 보조 시스템</a><span class="sys-crumb" id="crumb" hidden></span>
+  <a class="sys-brand" href="./" id="brand" title="메뉴로">사유원 운영 보조 시스템</a><span class="sys-crumb" id="crumb" hidden></span>
   <div class="who" id="who" hidden><span id="whoName"></span><button type="button" data-mypop title="단체 예약 · 개인고객 통화의 추후 과업을 한눈에 (팝업)">나의 할일</button><button type="button" id="logoutBtn">로그아웃</button></div>
 </header>
 <main>
@@ -28,38 +28,58 @@ if(window.parent!==window && location.hash==='#catalog') location.replace((/gith
     <button class="btn-main" type="submit">시작하기</button>
   </form>
 
-  <!-- 2) 메뉴 -->
+  <!-- 2) 메뉴: 왼쪽 아코디언 (나의 할일 · 예약보조 · 운영보조 · 기타 설정) + 오른쪽 대시보드 (모든 사용자의 나의 할일) -->
   <section id="menuView" hidden>
     <h2 class="hello" id="hello"></h2>
     <div class="warnbar" id="setupBar" hidden></div>
-    <div class="cols">
-      <div class="col need-login">
-        <h3>고객응대접수</h3>
-        <a class="card" data-go="personal" href="personal.html"><div><b>개인고객 전화응대</b></div></a>
-        <a class="card" data-go="group" href="group.html"><div><b>단체고객 전화응대</b></div></a>
-      </div>
-      <div class="col need-login">
-        <h3>고객응대보조</h3>
-        <a class="card" data-go="naver" href="naver.html"><div><b>네이버 예약 → 사유원 전산 이관</b></div></a>
-        <a class="card" data-go="prep" href="prep.html"><div><b>다음날 고객 응대 준비</b></div></a>
-        <a class="card" data-go="quote" id="quoteLink" href="#"><div><b>견적서 / 거래명세서 발급</b></div></a>
-      </div>
-      <div class="col share">
-        <h3>예약 현황 공유 <small id="shareHint"></small></h3>
-        <a class="card sm" data-go="book" href="group.html?book=mb"><div><b>몽몽마방</b><span>날짜 · 시간 · 예약자 · 인원 · 메뉴</span></div></a>
-        <a class="card sm" data-go="book" href="group.html?book=rent"><div><b>대관</b><span>몽몽차방 · 당두봉갈</span></div></a>
-        <a class="card sm" data-go="book" href="group.html?book=docent"><div><b>도슨트</b><span>동행 · PPT(세미나)</span></div></a>
-        <a class="card sm" data-go="book" href="group.html?book=prog"><div><b>프로그램</b><span>요가 · 사운드워킹 · 사유의 향 등</span></div></a>
-        <a class="card sm" data-go="book" href="group.html?book=coupon"><div><b>음료쿠폰</b><span>가가빈빈 · 몽몽차방</span></div></a>
-      </div>
-      <div class="col need-login">
-        <h3>관리</h3>
-        <button type="button" class="card" data-go="catalog"><div><b>품목관리</b></div></button>
-        <button type="button" class="card" data-go="members"><div><b>멤버관리</b></div></button>
-        <a class="card" data-go="my" href="mypage.html"><div><b>나의 할일</b></div></a>
-      </div>
+    <div class="home">
+      <nav class="acc" id="acc" aria-label="메뉴">
+        <details class="acc-g need-login" data-acc="my" open>
+          <summary>나의 할일</summary>
+          <a class="acc-i" href="group.html?my=1&amp;tab=personal"><b>개인고객</b><span>개인고객 통화의 추후 과업</span></a>
+          <a class="acc-i" href="group.html?my=1&amp;tab=group"><b>단체고객</b><span>내가 영업 담당인 단체 예약 · 추후 과업</span></a>
+          <a class="acc-i" href="ops.html?p=task"><b>기타 개인 업무</b><span>직접 추가 · 매일 / 매주 / 매달 반복</span></a>
+        </details>
+        <details class="acc-g need-login" data-acc="book" open>
+          <summary>예약보조</summary>
+          <div class="acc-sub">고객응대 접수</div>
+          <a class="acc-i" data-go="personal" href="personal.html"><b>개인고객 전화응대</b></a>
+          <a class="acc-i" data-go="group" href="group.html"><b>단체고객 전화응대</b></a>
+          <div class="acc-sub">고객 응대 보조</div>
+          <a class="acc-i" data-go="naver" href="naver.html"><b>네이버 예약 → 사유원 전산 이관</b></a>
+          <a class="acc-i" data-go="prep" href="prep.html"><b>다음날 고객 응대 준비</b></a>
+          <a class="acc-i" data-go="quote" id="quoteLink" href="#"><b>견적서 / 거래명세서 발급</b></a>
+        </details>
+        <details class="acc-g" data-acc="ops" open>
+          <summary>운영보조</summary>
+          <div class="acc-sub">예약현황 공유 <small id="shareHint"></small></div>
+          <div class="acc-chips">
+            <a class="acc-chip" data-go="book" href="group.html?book=mb" title="날짜 · 시간 · 예약자 · 인원 · 메뉴">몽몽마방</a>
+            <a class="acc-chip" data-go="book" href="group.html?book=rent" title="몽몽차방 · 당두봉갈">대관</a>
+            <a class="acc-chip" data-go="book" href="group.html?book=docent" title="동행 · PPT(세미나)">도슨트</a>
+            <a class="acc-chip" data-go="book" href="group.html?book=prog" title="요가 · 사운드워킹 · 사유의 향 등">프로그램</a>
+            <a class="acc-chip" data-go="book" href="group.html?book=coupon" title="가가빈빈 · 몽몽차방">음료쿠폰</a>
+          </div>
+          <a class="acc-i need-login" href="ops.html?p=lost"><b>분실물 찾기</b><span>습득 · 분실 신고 · 보관 · 반환</span></a>
+          <a class="acc-i need-login" href="ops.html?p=accident"><b>사고현황 접수</b><span>부상 · 파손 등 · 조치 · 처리 상태</span></a>
+          <a class="acc-i need-login" href="ops.html?p=stock"><b>재고확인</b><span>품목별 수량 · 부족 표시</span></a>
+        </details>
+        <details class="acc-g need-login" data-acc="set">
+          <summary>기타 설정</summary>
+          <button type="button" class="acc-i" data-go="catalog"><b>품목관리</b></button>
+          <button type="button" class="acc-i" data-go="members"><b>멤버관리</b></button>
+        </details>
+      </nav>
+      <section class="dash need-login" id="dash" aria-label="모든 사용자의 나의 할일">
+        <div class="dash-h"><h3>모두의 할일</h3><span class="hint" id="dashSum"></span><button type="button" class="btn-sm" id="dashReload" title="다시 불러오기">↻</button></div>
+        <div id="dashKey" class="keybox" hidden>
+          <p>모든 사용자의 할일을 보려면 팀 비밀번호가 필요합니다 (단체 화면과 같은 비밀번호, 이 브라우저에 기억).</p>
+          <form id="dashKeyForm" class="inline"><input id="dashKeyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn-sm primary" type="submit">연결</button></form>
+        </div>
+        <div id="dashBody"><p class="hint">불러오는 중…</p></div>
+      </section>
     </div>
-    <p class="note need-login" id="menuNote">로그인한 이름은 예약 기록 · 영업 담당 · 견적서 담당에 들어갑니다. 공유 기록은 지금처럼 팀 비밀번호로 보호됩니다.</p>
+    <p class="note need-login" id="menuNote">로그인한 이름은 예약 기록 · 영업 담당 · 견적서 담당 · 업무 기록에 들어갑니다. 공유 기록은 팀 비밀번호로 보호됩니다.</p>
   </section>
 
   <!-- 3) 멤버관리 -->
@@ -89,7 +109,8 @@ if(window.parent!==window && location.hash==='#catalog') location.replace((/gith
 <!-- 품목관리: 견적서 사이트의 품목 관리 창을 그대로 띄움 (닫으면 메뉴로) -->
 <div class="catwrap" id="catWrap" hidden><iframe id="catFrame" title="품목관리"></iframe></div>
 
-<script src="js/portal.js?v=20261116d"></script>
+<script src="js/opslib.js?v=20261118"></script>
+<script src="js/portal.js?v=20261118"></script>
 <!-- 나의 할일 팝업 (메뉴 8번 페이지 group.html?my=1 을 그대로 띄움) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
 <script src="js/mypop.js?v=20261116"></script>

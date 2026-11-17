@@ -25,6 +25,7 @@ function paint(){
       : u.setup==='old' ? '공유 저장소(Apps Script)가 아직 예전 버전이라 이름 · 사번을 확인하지 못했습니다. 새 버전으로 배포하면 확인합니다.' : '';
     if(location.hash==='#catalog') openCatalog();
     if(view==='members') loadMembers();
+    if(view==='menu') setTimeout(()=>{ if(!dashData) loadDash(); }, 0);   // 대시보드 (스크립트를 다 읽은 뒤)
   } else setTimeout(()=>$('#inName').focus(), 0);
 }
 const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -69,7 +70,7 @@ document.addEventListener('click', e=>{
   if(c.dataset.go==='catalog'){ e.preventDefault(); openCatalog(); }
   if(c.dataset.go==='members'){ e.preventDefault(); view='members'; history.replaceState(null,'','#members'); paint(); }
 });
-// 헤더의 「사유원 예약 보조 시스템」 = 메뉴로 (품목관리는 남은 변경을 저장한 뒤)
+// 헤더의 「사유원 운영 보조 시스템」 = 메뉴로 (품목관리는 남은 변경을 저장한 뒤)
 $('#brand').addEventListener('click', e=>{ if(!getUser()) return; e.preventDefault(); if(!$('#catWrap').hidden){ askClose(); return; } view='menu'; history.replaceState(null,'',location.pathname); paint(); });
 
 // ===================== 멤버관리 (팀 비밀번호 필요) =====================
@@ -125,3 +126,63 @@ paint();
   if(!j || !j.ok) return;   // 연결 안 됨 · 예전 버전이면 그대로 둠
   if(!j.member){ [USER_KEY,'sayuwon_owner','sy_sender'].forEach(k=>setLS(k,null)); view='menu'; paint(); $('#loginErr').textContent='등록된 멤버가 아니어서 로그아웃했습니다. 이름과 사번을 다시 확인해 주세요.'; return; }
   const setup = j.empty ? 'empty' : ''; if((u.setup||'')!==setup){ u.setup=setup; setLS(USER_KEY, JSON.stringify(u)); paint(); } })();
+
+// ===================== 아코디언 메뉴: 펼친 묶음을 이 브라우저에 기억 =====================
+(function(){
+  let st={}; try{ st=JSON.parse(localStorage.getItem('sy_menu_acc')||'{}')||{}; }catch(_){}
+  document.querySelectorAll('#acc details[data-acc]').forEach(d=>{ if(d.dataset.acc in st) d.open=!!st[d.dataset.acc];
+    d.addEventListener('toggle', ()=>{ st[d.dataset.acc]=d.open; setLS('sy_menu_acc', JSON.stringify(st)); }); });
+})();
+
+// ===================== 대시보드: 모든 사용자의 나의 할일 (단체 · 개인고객 추후 과업 + 기타 개인 업무) =====================
+// 단체: 영업 담당(owner)별, 방문 뒤 30일이 지난 예약은 빼고 (나의 할일과 같은 기준). 예약상담은 사전답사 · 담당자 확정 · 대구대교구 · 직접 추가한 과업만
+// 개인고객: 받은(저장한) 사람별 안 끝난 과업 · 기타 개인 업무: 오늘 할 것 + 지난 것(반복은 최근 7일)
+const GROUP_TYPES = ['단체예약','예약상담','예약접수','상담','가예약','공식예약'];
+const histTasks = r => { try{ const j=JSON.parse(r.history||'{}'); return Array.isArray(j.tasks) ? j.tasks : []; }catch(_){ return []; } };
+const dueOf = (t, r) => t.due || (t.at ? opsYmd(t.at) : r.saved ? opsYmd(r.saved) : opsToday());
+let dashOpen = new Set();
+async function loadDash(){
+  if(!getUser()) return;
+  if(!getKey()){ $('#dashKey').hidden=false; $('#dashBody').innerHTML=''; $('#dashSum').textContent=''; return; }
+  $('#dashKey').hidden=true;
+  let items=[], names=[];
+  try{ const j=await callApi({action:'list'}); if(!j.ok){ if(j.error==='bad_key'){ $('#dashKey').hidden=false; $('#dashBody').innerHTML='<p class="err">팀 비밀번호가 맞지 않습니다.</p>'; return; } throw new Error(j.error); } items=j.items||[]; }
+  catch(e){ $('#dashBody').innerHTML='<p class="err">불러오지 못했습니다. 잠시 뒤 ↻ 를 눌러 주세요.</p>'; return; }
+  try{ const m=await callApi({action:'members'}); if(m.ok) names=(m.members||[]).map(x=>String(x.name||'').trim()).filter(Boolean); }catch(_){}
+  const today=opsToday(), by={};
+  const add = (who, o) => { who=String(who||'').trim()||'(담당 없음)'; (by[who] ||= []).push(o); };
+  items.forEach(r=>{
+    const ct=r.callType||'단체예약';
+    if(GROUP_TYPES.includes(ct)){
+      if(r.date && (new Date(today) - new Date(r.date))/864e5 > 30) return;
+      const consult = ct==='예약상담' || ct==='상담';
+      histTasks(r).filter(t=>!t.done && !t.removed && (!consult || ['tour','ctbd','clergy'].includes(t.id) || t.custom))
+        .forEach(t=>add(r.owner||r.takenBy, {kind:'단체', title:t.title, due:dueOf(t,r), who:r.org||r.contact||'(업체 미정)', href:'group.html?open='+encodeURIComponent(r.id)}));
+    } else if(ct==='개인고객'){
+      histTasks(r).filter(t=>!t.done).forEach(t=>add(r.owner||r.takenBy, {kind:'개인', title:t.title, due:dueOf(t,r), who:r.contact||'(이름 없음)', href:'personal.html?open='+encodeURIComponent(r.id)}));
+    } else if(ct===OPS_TYPES.task){
+      const j=opsParse(r); if(!j) return; const d=j.d||{};
+      opsPending(d, today).forEach(day=>add(d.owner||r.takenBy, {kind:'기타', title:d.title, due:day, who:opsRepeatLabel(d), href:'ops.html?p=task'}));
+    }
+  });
+  dashData={by, names, today}; renderDash();
+}
+let dashData=null;
+function renderDash(){ if(!dashData) return; const {by, names, today}=dashData;
+  const me=(getUser()||{}).name||'';
+  const all=[...new Set([...names, ...Object.keys(by)])].sort((a,b)=>(b===me)-(a===me) || (by[b]||[]).length-(by[a]||[]).length || a.localeCompare(b));
+  const late=o=>o.due<today, tot=Object.values(by).flat();
+  $('#dashSum').textContent = `남은 과업 ${tot.length}개 · 기한 지남 ${tot.filter(late).length}개 · 오늘 ${tot.filter(o=>o.due===today).length}개`;
+  const chip=(l,n,cls='')=>n?`<span class="dchip ${cls}">${l} ${n}</span>`:'';
+  $('#dashBody').innerHTML = `<div class="dgrid">${all.map(n=>{ const L=(by[n]||[]).slice().sort((a,b)=>a.due.localeCompare(b.due)), cnt=k=>L.filter(o=>o.kind===k).length, lt=L.filter(late).length;
+    return `<div class="dcard${n===me?' me':''}${L.length?'':' empty'}"><button type="button" class="dcard-h" data-dash="${esc(n)}" ${L.length?'':'disabled'}><b>${esc(n)}${n===me?' <small>(나)</small>':''}</b>`
+      + `<span class="dchips">${L.length?chip('단체',cnt('단체'))+chip('개인',cnt('개인'))+chip('기타',cnt('기타'))+chip('지남',lt,'late'):'<span class="hint">할일 없음</span>'}</span></button>`
+      + (dashOpen.has(n) && L.length ? `<ul class="dlist">${L.map(o=>`<li class="${late(o)?'late':o.due===today?'today':''}"><a href="${o.href}"><span class="dk k-${o.kind}">${o.kind}</span> <b>${esc(o.title)}</b> <small>${esc(o.who)}</small><em>${late(o)?'지남 ':''}${esc(opsDateLabel(o.due))}</em></a></li>`).join('')}</ul>` : '')
+      + `</div>`; }).join('')}</div>`;
+}
+document.addEventListener('click', e=>{ const b=e.target.closest('[data-dash]'); if(!b) return; const n=b.dataset.dash; dashOpen.has(n) ? dashOpen.delete(n) : dashOpen.add(n); loadDashCached(); });
+let dashTimer=null, dashLast=0;
+function loadDashCached(){ renderDash(); }
+$('#dashReload').onclick = () => loadDash();
+$('#dashKeyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#dashKeyIn').value.trim(); if(!v) return; setLS(KEY_LS, v); $('#dashKeyIn').value=''; loadDash(); });
+setInterval(()=>{ if(getUser() && !$('#menuView').hidden && document.visibilityState==='visible') loadDash(); }, 3*60e3);   // 3분마다 새로

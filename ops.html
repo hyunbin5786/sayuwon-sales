@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>운영보조 · 사유원 운영 보조 시스템</title>
+<script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/ops.css?v=20261118">
+<link rel="stylesheet" href="css/mypop.css?v=20261116">
+</head>
+<body>
+<!-- 운영보조 · 나의 할일 새 기능 (초안 2026-11-18): ?p=task 기타 개인 업무 · lost 분실물 찾기 · accident 사고현황 접수 · stock 재고확인 -->
+<header>
+  <a class="sys-brand" href="./" title="메뉴로">사유원 운영 보조 시스템</a><span class="sys-crumb" id="crumb"></span>
+  <span class="me" id="me"></span>
+  <button type="button" class="hd-btn" data-mypop title="내 개인고객 통화 · 단체 예약의 추후 과업을 한눈에 (팝업)">나의 할일</button>
+</header>
+<main>
+  <nav class="tabs" id="tabs">
+    <a data-p="task" href="?p=task">기타 개인 업무</a>
+    <a data-p="lost" href="?p=lost">분실물 찾기</a>
+    <a data-p="accident" href="?p=accident">사고현황 접수</a>
+    <a data-p="stock" href="?p=stock">재고확인</a>
+  </nav>
+  <div id="keyBox" class="panel keybox" hidden>
+    <p>공유 기록을 보려면 팀 비밀번호가 필요합니다 (단체 화면과 같은 비밀번호, 이 브라우저에 기억).</p>
+    <form id="keyForm" class="inline"><input id="keyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn primary" type="submit">연결</button></form>
+    <p class="err" id="keyErr"></p>
+  </div>
+  <section class="panel" id="board">
+    <div class="b-head"><h2 id="bTitle"></h2><span class="hint" id="bSum"></span><span class="sync" id="sync"></span>
+      <span class="b-tools"><input id="q" type="search" placeholder="검색" data-ime="ko" autocomplete="off"><button type="button" class="btn primary" id="addBtn">＋ 추가</button></span></div>
+    <div class="filters" id="filters"></div>
+    <div id="list"></div>
+  </section>
+</main>
+
+<!-- 추가 · 고치기 -->
+<div class="modal" id="editModal" hidden>
+  <section class="panel edit-box" role="dialog" aria-modal="true" aria-labelledby="eTitle">
+    <h2 id="eTitle"></h2>
+    <form id="eForm" autocomplete="off"><div class="egrid" id="eFields"></div>
+      <p class="err" id="eErr"></p>
+      <div class="row-btns"><button type="button" class="btn" id="eDel" hidden>삭제</button><span class="sp"></span><button type="button" class="btn" id="eCancel">취소</button><button type="submit" class="btn primary" id="eSave">저장</button></div>
+    </form>
+  </section>
+</div>
+<!-- 삭제 확인 -->
+<div class="modal" id="askModal" hidden>
+  <section class="panel ask-box" role="dialog" aria-modal="true" aria-labelledby="askTitle">
+    <h2 id="askTitle">삭제 확인</h2><p id="askMsg"></p>
+    <div class="row-btns"><span class="sp"></span><button type="button" class="btn" id="askNo">취소</button><button type="button" class="btn primary" id="askYes">삭제</button></div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/opslib.js?v=20261118"></script>
+<script src="js/ops.js?v=20261118"></script>
+<div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
+<script src="js/mypop.js?v=20261116"></script>
+<script src="js/ime.js?v=20261116"></script>
+<script src="js/keepsize.js?v=20261117"></script>
+</body>
+</html>
