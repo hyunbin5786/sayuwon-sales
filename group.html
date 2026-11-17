@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 예약 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261118b">
+<link rel="stylesheet" href="css/group.css?v=20261118d">
 </head>
 <body>
 <header>
@@ -255,7 +255,7 @@
 
   <!-- 확인 + 가격표 (가운데 열) -->
   <div class="checks col-stack">
-  <section class="panel">
+  <section class="panel" id="checkPanel" style="display:none">   <!-- 통화 중 확인: 보지 않아 숨김 → 예약 내용 칸 색으로 (빨강 미입력 · 노랑 미정 · 초록 완료, 2026-11-18) -->
     <h2>통화 중 확인</h2>
     <div class="sub-h">물어볼 것 <small class="hint" style="margin:0">받은 항목은 <b style="color:#2f8f3a">초록색</b>, 미정인 항목은 <b style="color:var(--amber)">노란색</b></small></div>
     <div id="missBox"></div>
@@ -360,7 +360,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/group.js?v=20261118f"></script>
+<script src="js/group.js?v=20261118g"></script>
 <script src="js/ime.js?v=20261116"></script>
 <script src="js/keepsize.js?v=20261117"></script>
 </body>

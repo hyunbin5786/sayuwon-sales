@@ -673,3 +673,15 @@ html.book-guest #bookBody tr{cursor:default}
 /* 추후 과업 삭제 = × (2026-11-18) */
 .task-h .del{border:0;background:none;color:var(--muted);cursor:pointer;font:400 18px/1 var(--sans);padding:0 4px;width:auto;height:auto}
 .task-h .del:hover{color:var(--red)}
+/* 예약 내용 칸 색 (2026-11-18): 빨강 = 미입력 · 노랑 = 미정 · 초록 = 완료 (필수 칸) */
+.f.missing input:not([type=checkbox]),.f.missing select,.f.missing .dtxt{border-style:solid;border-color:#d98b80;background:#fdf1ef}
+.f.got input:not([type=checkbox]),.f.got select,.f.got .dtxt{border-color:#9db394;background:#f3f8ef}
+.f.tbd input:not([type=checkbox]),.f.tbd select,.f.tbd .dtxt{border-color:var(--amber);background:var(--amber-soft)}
+/* 결제링크 전송 · 입금 확인 · 인원 변경 · 현장 재결제 등 체크 칸: 체크되면 검정 계열 */
+.ckf:has(input:checked){background:#3b3a36;border-color:#3b3a36;color:#fff;font-weight:700}
+.ckf:has(input:checked) input{accent-color:#fff}
+/* 담당자 미정 */
+.ctbd-ck{display:inline-flex;align-items:center;gap:5px;margin:0 0 6px;padding:3px 10px;border:1px solid var(--line);border-radius:14px;background:#fff;font-size:12.5px;cursor:pointer;color:var(--muted)}
+.ctbd-ck:has(input:checked){background:var(--amber-soft);border-color:var(--amber);color:var(--amber);font-weight:700}
+.ctbd-ck input{margin:0;accent-color:var(--amber)}
+.ctbd-ck{justify-self:start;align-self:start;width:max-content;grid-column:1/-1}
