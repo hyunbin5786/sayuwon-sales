@@ -181,7 +181,7 @@ $('#taskList').addEventListener('change', e=>{ const d=e.target.dataset;
 $('#taskList').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; const d=b.dataset;
   if(d.tsave){ document.activeElement?.blur(); setTimeout(()=>{ if(cur){ taskSave(); paintForm(); toast('저장했습니다.'); } else save(); },0); return; }   // 과업마다 「저장」 (새 통화면 통화 전체 저장)
   if(d.texp){ openDone.has(d.texp) ? openDone.delete(d.texp) : openDone.add(d.texp); paintTasks(); return; }
-  if(d.tdel){ const t=taskOf(d.tdel); if(t && confirm(`'${t.title}' 과업을 삭제할까요?`)){ form.tasks=form.tasks.filter(x=>x.id!==d.tdel); taskChanged(); } return; }
+  if(d.tdel){ const t=taskOf(d.tdel), id=d.tdel; if(t) askDelete(`「${t.title}」 과업을 정말로 삭제할 건가요?`, ()=>{ form.tasks=form.tasks.filter(x=>x.id!==id); taskChanged(); toast('과업을 삭제했습니다.'); }); return; }   // 확인 팝업 뒤 삭제
   if(d.xdel){ const [tid,xid]=d.xdel.split('|'), t=taskOf(tid); if(t){ t.xsubs=(t.xsubs||[]).filter(s=>s.id!==xid); taskChanged(); } return; }
   if(d.xaddbtn){ addXsub(d.xaddbtn); return; }
   if(d.tmv){ const [id,dir]=d.tmv.split('|'), open=sortedTasks().filter(t=>!t.done), i=open.findIndex(t=>t.id===id), j=i+(+dir);   // ▲▼: 안 끝난 과업끼리
@@ -485,3 +485,12 @@ let openId = new URLSearchParams(location.search).get('open');
 function tryOpen(){ if(!openId) return; if(shown().some(x=>x.id===openId)){ const id=openId; openId=null; history.replaceState(null,'',location.pathname); openItem(id); } }
 enhanceDates();   // 방문 희망일 / 예약일 · 과업 마감일: 누르면 달력 · 칸 안에 (요일)
 paintForm(); renderLists(); paintSync(); tryOpen(); flush();
+
+// ===== 삭제 확인 팝업 (추후 과업 삭제 등): 「정말로 삭제할 건가요?」 → 삭제 · 취소 (Enter = 삭제, Esc = 취소) =====
+let askOk=null;
+function askDelete(msg, ok){ askOk=ok; document.getElementById('askMsg').textContent=msg; document.getElementById('askModal').hidden=false; setTimeout(()=>document.getElementById('askNo').focus(),0); }
+const closeAsk = () => { document.getElementById('askModal').hidden=true; askOk=null; };
+document.getElementById('askNo').onclick = closeAsk;
+document.getElementById('askYes').onclick = () => { const f=askOk; closeAsk(); if(f) f(); };
+document.getElementById('askModal').addEventListener('mousedown', e=>{ if(e.target.id==='askModal') closeAsk(); });
+document.addEventListener('keydown', e=>{ if(document.getElementById('askModal').hidden) return; if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); closeAsk(); } }, true);
