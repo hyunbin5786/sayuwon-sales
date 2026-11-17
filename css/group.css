@@ -646,7 +646,7 @@ html.book-guest #bookBody tr{cursor:default}
 #tourModal .row-btns{justify-content:flex-end}
 @media (max-width:520px){.tour-grid{grid-template-columns:1fr 1fr}.tour-grid>.f,.tour-grid>.tg-name,.tour-grid>.tg-phone{grid-column:span 1}.tour-grid>.tg-name,.tour-grid>.tg-phone{grid-column:1 / -1}}
 /* 할인 줄 한 줄로 (2026-11-17): 버튼 · 할인액만, 설명 글은 툴팁 */
-.it-money:has(.dsel){flex-wrap:nowrap;gap:4px 10px;align-items:center}
+.it-money:has(.dsel){flex-wrap:wrap;gap:4px 10px;align-items:center}   /* 넓으면 한 줄, 좁은 화면에서만 다음 줄로 (넘치지 않게) */
 .it-money .im.dsel{flex:none}
 .it-money .dbtn{white-space:nowrap}
 .it-money .dbtn.should{border-color:var(--red);color:var(--red)}   /* 인원 기준 할인인데 지금(전산)은 다른 것 */

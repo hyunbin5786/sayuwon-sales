@@ -504,20 +504,21 @@ function erpDiscInfo(k, x){
     const b=quoteBlocks(r2).blocks.find(y=>y.key===k), mm=b && blockMoney(b, r2); cand[v] = mm ? {tx:mm.aTx, tf:mm.aTf} : {tx:0, tf:0}; });
   const tot=c=>c.tx+c.tf, pc=[...new Set((x.notes||[]).flatMap(s=>[...String(s).matchAll(/(\d+(?:\.\d+)?)\s*%/g)].map(m=>+m[1])))];   // 전산 할인 줄의 % (사전예약자 성인 19명 5% → 사전예약)
   const guess = !(+x.disc) ? 'none' : pc.length===1 && pc[0]===5 ? 'pre' : pc.length===1 && pc[0]===10 ? 'grp' : (['pre','grp'].find(v=>Math.abs(tot(cand[v])-(+x.disc||0))<1) || '');
-  return { cand, guess, auto:b0.dauto, n:numOf(rec.people) };
+  return { cand, guess, auto:b0.dauto, n:numOf(rec.people), gN:b0.gN||0 };
 }
 function erpDiscBtns(k, x, ex){
   const info=erpDiscInfo(k, x); if(!info) return '';
   const cur=ex.dTx+ex.dTf, on = !ex.ov ? info.guess : (['none','pre','grp'].find(v=>Math.abs(info.cand[v].tx+info.cand[v].tf-cur)<1) || '');   // 고치지 않았으면 전산 할인 그대로
   const L=v=>(DISC_OPTS.find(o=>o[0]===v)||[])[1]||'';
+  const cntOf = v => !ex.ov ? (x.notes||[]).reduce((a,s)=>{ const m=String(s).match(/(\d+)\s*명\s*(\d+(?:\.\d+)?)\s*%/); return a + (m && +m[2]===(v==='pre'?5:10) ? +m[1] : 0); }, 0) : info.gN;   // 그 할인을 받는 인원 (전산 할인 줄 · 버튼으로 고쳤으면 계산)
   const diff = info.guess && info.guess!==info.auto && !ex.ov;   // 전산 할인이 인원 기준과 다르면: 인원 기준 버튼에 빨간 테두리 (설명은 툴팁)
   const tip = diff ? `인원 ${info.n}명 → ${L(info.auto)} 대상인데 전산은 ${L(info.guess)}` : `인원 기준: ${L(info.auto)}`;
-  return `<span class="im dsel" title="${esc(tip)} · 누르면 그 %로 할인액을 다시 계산">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${on===v?' on':''}${diff&&v===info.auto?' should':''}" data-idisc="${esc(k)}" data-dv="${v}" data-erp="1" title="${v===info.auto?esc(tip):''}">${l}</button>`).join('')}${spBtnHTML(k)}</span>`;
+  return `<span class="im dsel" title="${esc(tip)} · 누르면 그 %로 할인액을 다시 계산">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${on===v?' on':''}${diff&&v===info.auto?' should':''}" data-idisc="${esc(k)}" data-dv="${v}" data-erp="1" title="${v===info.auto?esc(tip):''}">${l}${on===v && v!=='none' && cntOf(v) ? ` ${cntOf(v)}명` : ''}</button>`).join('')}${spBtnHTML(k)}</span>`;
 }
 let openDisc=new Set();   // 할인 대상이 아닌 품목에서 「할인 넣기」를 눌러 연 할인 줄
 document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('#itemsBox [data-dopen]'); if(!b) return; openDisc.add(b.dataset.dopen); paintItemPrices(); const i=document.querySelector(`#itemsBox [data-idamt="${CSS.escape(b.dataset.dopen)}"]`); if(i){ i.focus(); i.select(); } });
 // 할인액 칸 (예약 칸 계산 · 전산 내역 공통)
-const damIn = (k, side, v, max) => `<span class="dam"><i>${side==='tx'?'신라':'사유원'}</i>-${won(v)}원</span>`;   // 할인액은 버튼 · 특별할인으로만 (직접 고치지 않음, 2026-11-17)
+const damIn = (k, side, v, max) => `<span class="dam"><i>${side==='tx'?'과세(신라)':'비과세(사유원)'}</i>-${won(v)}원</span>`;   // 할인액은 버튼 · 특별할인으로만 (직접 고치지 않음, 2026-11-17)
 // 전산 내역 줄 금액: 전산 상품금액 · 할인을 과세(신라) · 비과세(사유원)로 (자동 = 전산 사유원/신라 나누기와 같은 계산), 할인액을 고쳤으면 그 값
 function erpRowMoney(k, x){
   const src=itemSrc(k), p=src ? priceOf(src) : null, u = p ? splitOf(src, p, rec) : {tx:1, tf:0}, rt=(u.tx+u.tf) ? u.tf/(u.tx+u.tf) : 0;
@@ -549,7 +550,7 @@ function paintItemPrices(){
     const ex = E && E.m[k] ? erpRowMoney(k, E.m[k]) : null;
     const mi = E && !ex ? MISS.find(x=>x.key===k) : null;   // 전산에 없는 품목: 품목 관리 가격 (과세(신라) · 비과세(사유원))
     const pm = ex || (mi && mi.m) || (!E && priceInfo && src ? (priceInfo[normSrc(src)]||{}).m : null);
-    if(up) up.innerHTML = !quoteCat && !ex && !mi ? '' : pm && !seen.has(src) ? [pm.fTf>0 && `<span title="정상가 ${won(pm.fTf)}원 − 할인 ${won(pm.dTf)}원"><i>비과세(사유원)</i>${won(pm.tf)}원</span>`, pm.fTx>0 && `<span title="정상가 ${won(pm.fTx)}원 − 할인 ${won(pm.dTx)}원"><i>과세(신라)</i>${won(pm.tx)}원</span>`].filter(Boolean).join('') : upHTML(src);
+    if(up) up.innerHTML = !quoteCat && !ex && !mi ? '' : pm && !seen.has(src) ? [pm.fTf>0 && `<span title="할인 전 금액 (할인 ${won(pm.dTf)}원 · 할인 뒤 ${won(pm.tf)}원)"><i>비과세(사유원)</i>${won(pm.fTf)}원</span>`, pm.fTx>0 && `<span title="할인 전 금액 (할인 ${won(pm.dTx)}원 · 할인 뒤 ${won(pm.tx)}원)"><i>과세(신라)</i>${won(pm.fTx)}원</span>`].filter(Boolean).join('') : upHTML(src);
     if(E){ const x=E.m[k];
       if(!x){ const inView = /^v:/.test(k) && /\(학생\)/.test(k) && E.m[k.replace(/\(학생\)/,'')];   // 관람(학생): 전산은 관람 한 줄에 어른 · 학생 함께
         h = k==='seminar2' && E.m.seminar ? cell('전산', '세미나 도슨트 줄에 함께 (전산은 세미나 한 품목 · 금액은 첫 세미나 도슨트 줄)') : inView ? cell('전산', '관람 줄에 함께 (어른 · 학생이 한 줄 · 금액은 관람 줄)') : k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', `<b class="bad">전산 내역에 없음</b>${mi?' <small>· 품목 관리 가격으로 합계에 넣음</small>':''}`, 'warn');
@@ -567,7 +568,7 @@ function paintItemPrices(){
         const discRow = m && x.b;   // 모든 품목에 같은 할인 줄 (버튼 · 할인액) — 할인 대상이 아닌 품목도 할인을 넣을 수 있게 (2026-11-17)   // 할인 대상이 아니어도 「할인 넣기」를 눌렀거나 할인액을 넣은 줄은 할인 줄
         // 할인액: 과세(신라) · 비과세(사유원) 따로, 칸에서 바로 고칠 수 있음 (고치면 「직접 고침」, ↺ = 할인 버튼 계산으로 되돌리기)
         const dIn = (side, v, max) => damIn(k, side, v, max);
-        if(discRow) h = `<span class="im dsel" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}</button>`).join('')}${spBtnHTML(k)}</span>`
+        if(discRow) h = `<span class="im dsel" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v && (v==='none' || x.b.gN>0)?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}${x.b.dsel===v && v!=='none' && x.b.gN>0 ? ` ${x.b.gN}명` : ''}</button>`).join('')}${spBtnHTML(k)}</span>`
             + `<span class="im dams" title="${esc(m.disc||'할인액')}">${m.fTf>0?dIn('tf', m.dTf, m.fTf):''}${m.fTx>0?dIn('tx', m.dTx, m.fTx):''}</span>`
             + money;
         else amt = money + (m && x.b ? `<button type="button" class="dopen" data-dopen="${esc(k)}" title="이 품목에 할인 넣기 (과세 · 비과세 할인액)">할인 넣기</button>` : ''); } }
@@ -2687,13 +2688,13 @@ function quoteBlocks(r){
     b.notes=[];
     // 할인 버튼: 자동 = 할인 대상 품목이면 인원으로(19명까지 사전예약 5% · 20명부터 단체예약 10%), 줄마다 버튼으로 바꾼 것(항목 할인)이 있으면 그것
     const autoP = b.disc ? g : 0, o = ov[dkey(b.key||'')], pct = o==='none' ? 0 : o==='pre' ? 5 : o==='grp' ? 10 : autoP, nm = pct===10 ? '단체예약' : '사전예약';
-    b.dauto = DISC_OF(autoP); b.dsel = o && DISC_OPTS.some(x=>x[0]===o) ? o : b.dauto;
+    b.dauto = DISC_OF(autoP); b.dsel = o && DISC_OPTS.some(x=>x[0]===o) ? o : b.dauto; b.gN=0;   // gN = 사전예약 · 단체예약 할인을 받는 인원 (특별 할인이 더 큰 사람은 빼고)
     const mine = ispOn ? SPECIAL.filter(s=>((im[dkey(b.key||'')]||{}).sp||{})[s.k]).map(s=>({...s, left:im[dkey(b.key||'')].sp[s.k]})) : (b.disc ? sp : []);
     if(!mine.length && (o==='none' || (!b.disc && !pct))) return;
     let left=b.qty;
     mine.forEach(s=>{ const c=Math.min(s.left,left); if(c<=0) return; s.left-=c; left-=c;
-      const sp2=Math.max(Math.round(s.rate*100), pct); b.notes.push(`* ${sp2===pct?nm:s.short} ${c}명 ${sp2}%`); });
-    if(left>0 && pct) b.notes.push(`* ${nm} ${left}명 ${pct}%`);
+      const sp2=Math.max(Math.round(s.rate*100), pct); if(sp2===pct) b.gN+=c; b.notes.push(`* ${sp2===pct?nm:s.short} ${c}명 ${sp2}%`); });
+    if(left>0 && pct){ b.notes.push(`* ${nm} ${left}명 ${pct}%`); b.gN+=left; }
   });
   return {blocks, skipped};
 }
