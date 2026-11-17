@@ -656,3 +656,10 @@ html.book-guest #bookBody tr{cursor:default}
 .ask-box{width:min(380px,100%)}
 .ask-msg{margin:4px 0 14px;font-size:14px;line-height:1.6;word-break:keep-all}
 .ask-btns{justify-content:flex-end}
+/* 특별할인 버튼: 할인 버튼(단체예약 10%) 옆 (2026-11-17). 할인 줄이 없는 줄(위 줄과 합산 등)만 비고 옆에 */
+.it-money .spwrap{display:inline-flex}
+.it-money .spbtn{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:12px;padding:1px 9px;font:11.5px var(--sans);cursor:pointer;white-space:nowrap;height:auto}
+.it-money .spbtn:hover{border-color:var(--pine);color:var(--pine)}
+.it-money .spbtn.on{background:#e4eadf;border-color:var(--pine);color:var(--pine);font-weight:700}
+.it-row:has(.it-money .dsel) .it-extra > .spwrap{display:none}
+.it-money .dam{color:var(--ink)}
