@@ -1700,12 +1700,13 @@
       var v = placeRow(baseView(hit.weekend).id, qty);
       v.disc = !!hit.disc;
       var f = placeRow(hit.id, qty);
-      if(unit != null) f.price = Math.max(0, unit - (Number(v.price) || 0));
+      // 단가는 품목 관리 가격 그대로. 품목 관리에 가격이 없을 때만 전산 상품금액으로 채움
+      // (전산 상품금액이 예약 전체 금액인 경우가 있어 그대로 나누면 단가가 틀림 · 다르면 아래에서 경고)
+      if(!(Number(f.price) > 0) && unit != null) f.price = Math.max(0, unit - (Number(v.price) || 0));
       rows.push(v, f);
     } else if(hit){
       var r = placeRow(hit.id, qty);
-      if(hit.kind !== "view" && unit != null) r.price = unit;   // 식사·굿즈는 실제 판매 단가 그대로
-      if(r.price == null && unit != null) r.price = unit;
+      if(!(Number(r.price) > 0) && unit != null) r.price = unit;
       rows.push(r);
     } else {
       warns.push('"' + b.product + '" 은(는) 품목 리스트에 없습니다. 품목 관리에서 추가해 주세요.');
