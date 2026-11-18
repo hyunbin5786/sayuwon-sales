@@ -45,7 +45,7 @@ apps-script/
 ## 2. 공통 규칙
 
 - **로그인**: 이름 + 사번. 멤버 목록(공유 시트 `members` 탭)과 맞아야 들어갑니다 (이름 띄어쓰기는 무시). 이미 로그인한 브라우저도 첫 화면을 열 때 다시 확인하고, 멤버에서 빠졌으면 로그아웃. 로그인하지 않고 다른 화면을 열면 첫 화면으로. 멤버 목록은 저장소 코드에 두지 않습니다
-- **헤더**: 모든 화면 위쪽 초록 줄이 같습니다. 「사유원 운영 보조 시스템」(누르면 메뉴) › 지금 화면 이름 · 한/A · 👤 로그인한 이름 · 나의 할일 · 그 화면의 버튼
+- **헤더**: 모든 화면 위쪽 초록 줄(높이 50px)이 같은 순서입니다. 「☰ 메뉴」 · 「사유원 운영 보조 시스템」 › 지금 화면 이름 · 👤 로그인한 이름 · 「나의 할일」 → 그 다음에 그 화면의 버튼(한/A 등). 모양 맞춤은 `css/menu.css` 의 `header:has(> .smenu-btn)` 규칙 하나로 (화면마다 CSS를 고치지 않아도 됨)
 - **날짜 칸**: 칸 안에 `2026-12-05 (토)`. 누르면 달력, 달력을 연 뒤 한 번 더 누르거나 숫자를 치면 직접 입력(`2026-12-05` · `12/5` · `1205` · `12월 5일`, 연도가 없으면 올해 · 지났으면 내년). 새로 만드는 날짜 칸도 이 방식
 - **한글 먼저**: 이름 · 업체 · 담당자 · 과업 칸은 들어가면 늘 한글부터 (입력기가 영문이어도 두벌식으로 조합). 영어는 한/영 키 · Shift+Space · 헤더 「한/A」 (`js/ime.js`)
 - **연락처**: 빈 칸을 누르면 `010-`, 치는 동안 `010-0000-0000` 모양 (010- 다음 숫자 4개를 치면 바로 `-`). **단체 화면은 어떤 번호든 자릿수에 맞춰 `-`** (2026-11-18): 010-1234-5678 · 010-123-4567 · 02-123-4567 · 02-1234-5678 · 031-123-4567 · 031-1234-5678 · 070 · 0505-123-4567 · 1588-1234. 자동으로 들어간 `010-` 뒤에 0으로 시작하는 번호(02 · 031 …)를 치면 010을 저절로 뗌 (1588 같은 대표번호는 010- 을 지우고 치기)
@@ -336,7 +336,7 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
 | 단체고객 전화응대 · 나의 할일(`?my=1`) · 예약 현황 공유(`?book=…`) | `group.html` | `group.css` · `menu.css` | `common.js` → `opslib.js` → `group.js` → `ime.js` → `keepsize.js` → `menu.js` → `timepick.js` |
 | 다음날 고객 응대 준비 | `prep.html` | `prep.css` · `mypop.css` · `menu.css` | (exceljs · html2canvas) → `common.js` → `prep.js` → `mypop.js` → `menu.js` |
 | 운영보조 · 기타 개인 업무 (`?p=task · lost · accident · stock`) | `ops.html` | `ops.css` · `mypop.css` · `menu.css` | `common.js` → `opslib.js` → `ops.js` → `mypop.js` → `ime.js` → `keepsize.js` → `menu.js` → `timepick.js` |
-| 네이버 이관 | `naver.html` (한 파일에 CSS · JS) | `menu.css` | (cdnjs xlsx) → 파일 안 스크립트 → `menu.js` |
+| 네이버 이관 | `naver.html` (한 파일에 CSS · JS) | `menu.css` (파일 안 `<style>` 끝의 「다른 화면과 같은 모양으로」 덮어쓰기 = 사유원 색 · 글꼴 · 버튼 높이 34px, 어두운 모드도 밝게) | (cdnjs xlsx) → 파일 안 스크립트 → `menu.js` |
 | 견적서 / 거래명세서 | `document/index.html` | `document/css/document.css` · `../css/menu.css` | `document/js/datebox.js` · `document/js/document.js` · `../js/menu.js` |
 | 예전 주소 | `mypage.html` | — | `group.html?my=1` 로 넘김 |
 

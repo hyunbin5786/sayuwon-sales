@@ -34,3 +34,11 @@ html.smenu-open{overflow:hidden}
 header .smenu-my{flex:none;margin-left:auto;height:30px;padding:0 12px;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.12);color:#f3f1ec;border-radius:7px;font:600 13px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
 header .smenu-my:hover{background:rgba(255,255,255,.25)}
 .smenu .sm-i span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}   /* 회색 설명은 한 줄 */
+/* ===== 헤더 왼쪽 통일 (2026-11-18): ☰ 메뉴 · 사유원 운영 보조 시스템 › 화면 이름 · 👤 이름 · 나의 할일 → 그 뒤에 화면마다 버튼 ===== */
+header:has(> .smenu-btn){padding:10px max(16px,env(safe-area-inset-left,0px)) !important;gap:12px !important;min-height:50px;box-sizing:border-box;align-items:center !important;flex-wrap:wrap}
+header:has(> .smenu-btn) .sys-brand{font:600 18px "Noto Serif KR",serif !important;letter-spacing:.02em;color:#f3f1ec}
+header:has(> .smenu-btn) .sys-crumb{font:600 15px "Noto Sans KR",sans-serif !important;color:#f3f1ec;margin-right:0 !important}
+header:has(> .smenu-btn) .me,header:has(> .smenu-btn) .sys-me,header:has(> .smenu-btn) #whoName{margin-left:0 !important;font:600 13px "Noto Sans KR",sans-serif !important;color:#f3f1ec;display:inline-flex;align-items:center;gap:4px}
+header:has(> .smenu-btn) .who{margin-left:0 !important}
+header:has(> .smenu-btn) [data-mypop],header:has(> .smenu-btn) #myOpenBtn,header:has(> .smenu-btn) .smenu-my{margin-left:0 !important;height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.12);color:#f3f1ec;border-radius:7px;font:600 13px "Noto Sans KR",sans-serif;cursor:pointer}
+header:has(> .smenu-btn) [data-mypop]:hover,header:has(> .smenu-btn) #myOpenBtn:hover,header:has(> .smenu-btn) .smenu-my:hover{background:rgba(255,255,255,.25)}

@@ -37,7 +37,7 @@
   // 나의 할일: 모든 화면 헤더에 (없는 화면 · 네이버 이관 · 견적서 등은 여기서 버튼과 팝업을 만듦, 2026-11-18). 메뉴에서는 뺌
   if(logged && !hd.querySelector('[data-mypop], #myOpenBtn')){
     const mb=document.createElement('button'); mb.type='button'; mb.className='smenu-my'; mb.textContent='나의 할일'; mb.title='단체 예약 · 개인고객 통화 · 기타 개인 업무의 할일을 한눈에 (팝업)';
-    hd.appendChild(mb);
+    const meEl=hd.querySelector('.me, .sys-me'); if(meEl) meEl.after(mb); else hd.appendChild(mb);   // 이름 바로 뒤 (헤더 왼쪽: ☰ 메뉴 · 시스템 이름 › 화면 · 이름 · 나의 할일)
     if(typeof window.openMyPop!=='function'){
       if(!document.querySelector('link[href*="mypop.css"]')){ const l=document.createElement('link'); l.rel='stylesheet'; l.href=base+'css/mypop.css?v=20261116'; document.head.appendChild(l); }
       const pop=document.createElement('div'); pop.className='mypop'; pop.hidden=true; pop.innerHTML='<div class="box"><iframe title="나의 할일"></iframe></div>'; document.body.appendChild(pop);
