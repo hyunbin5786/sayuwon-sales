@@ -694,3 +694,5 @@ html.book-guest #bookBody tr{cursor:default}
 .my-etc .who{cursor:pointer;flex:1}
 .my-h a[data-etcgo]{color:var(--pine);font-weight:700;text-decoration:none}
 @media (max-width:1100px){.my-cols.three{grid-template-columns:1fr 1fr}}
+.crow .f:nth-child(4){flex-grow:1.6}   /* 담당자 메모 (2026-11-18) */
+@media (max-width:900px){.crow{flex-wrap:wrap}.crow .f{flex-basis:45%}}

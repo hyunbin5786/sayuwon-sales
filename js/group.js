@@ -117,7 +117,7 @@ function addCatalogProgs(cat){
   return out;
 }
 // 담당자(여러 명): c0_name, c0_phone, c0_email, c1_name …
-const CFIELDS = [['name','담당자 성함','담당자분 성함이 어떻게 되세요?'],['phone','연락처','연락 가능한 번호 하나 남겨주시겠어요?'],['email','이메일','견적서 받으실 이메일 주소 알려주시겠어요?']];
+const CFIELDS = [['name','담당자 성함','담당자분 성함이 어떻게 되세요?'],['phone','연락처','연락 가능한 번호 하나 남겨주시겠어요?'],['email','이메일','견적서 받으실 이메일 주소 알려주시겠어요?'],['memo','메모','']];   // 메모 = 담당자마다 (필수 아님, 시트 비고 칸 '담당자 메모', 2026-11-18)
 const KEYS = FIELDS.map(f=>f[1]);
 // 처음엔 접어 두고 버튼으로 펼치는 묶음 (각 묶음 아래에 그날 예약 현황)
 const OPT = { '사담':{id:'sadam', title:'사담 식사'}, '몽몽마방':{id:'mabang', title:'몽몽마방 식사', short:'몽몽마방'}, '프로그램(개별)':{id:'progE', title:'프로그램(개별)', short:'개별 프로그램'}, '프로그램(시간)':{id:'progT', title:'프로그램(시간)', short:'시간 프로그램'}, '굿즈':{id:'goods', title:'굿즈 구매', short:'굿즈'} };
@@ -158,7 +158,7 @@ const allKeys = () => { const ks=[...KEYS]; for(let i=0;i<nContacts;i++) CFIELDS
 const MISS_LABEL = { phone:'연락처(010)' };   // 물어볼 것에 보이는 이름
 MISS_LABEL.payContact='결제 연락일';
 // 결제 연락 예정일은 결제가 '미정'일 때만 필수
-const REQUIRED = () => [...FIELDS.filter(f=>f[5] && (f[1]!=='payContact' || rec?.pay==='미정')).map(f=>[f[1],MISS_LABEL[f[1]]||f[2],f[5]]), ...CFIELDS.map(([f,l,q])=>[`c0_${f}`,MISS_LABEL[f]||l,q])];
+const REQUIRED = () => [...FIELDS.filter(f=>f[5] && (f[1]!=='payContact' || rec?.pay==='미정')).map(f=>[f[1],MISS_LABEL[f[1]]||f[2],f[5]]), ...CFIELDS.filter(([f])=>f!=='memo').map(([f,l,q])=>[`c0_${f}`,MISS_LABEL[f]||l,q])];
 const PAYS = ['미정','세금계산서','결제링크','현장 결제','기타'];   // 기타 = 통화 메모에 결제 방법을 남김 (고르면 팝업)   // 기본 미정 ('선택' 없음)
 const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
@@ -176,6 +176,8 @@ function packExtra(r){
   o.pay = r.pay;   // 결제 미정의 답변일은 미정 항목 답변일로
   o.memo = MEMO_PARTS.filter(([k])=>r[k] && (!['tbdDate','tbdLate'].includes(k) || r.tbd)).map(([k,l])=>`${l} ${String(r[k]).replace(/\s+\/\s+/g,', ')}`).join(' / ');   // 칸 구분은 " / " (띄어쓰기 있는 것만). 품목 이름의 '주말/공휴일' 같은 / 는 그대로 (2026-11-16 전에는 ", " 로 바뀌어 새로고침하면 관람 줄이 「항목 고르기」가 됐음)
   if(typeof SPECIAL!=='undefined'){ const sp=specialCounts(r); if(sp.length) o.memo=[o.memo, '특별 할인 '+sp.map(s=>s.short+' '+s.n).join(', ')].filter(Boolean).join(' / '); }
+  { const cm=Object.keys(r).map(k=>k.match(/^c(\d+)_memo$/)).filter(m=>m && String(r[m[0]]||'').trim()).map(m=>`${m[1]}=${String(r[m[0]]).replace(/\s+/g,' ').replace(/\s*[/¦]\s*/g,', ').trim()}`);   // 담당자 메모: "담당자 메모 0=…¦ 1=…" (담당자 순서)
+    if(cm.length) o.memo=[o.memo, '담당자 메모 '+cm.join(' ¦ ')].filter(Boolean).join(' / '); }
   const xp = Object.keys(r).filter(k=>r[k] && (isXProg(k) || /^px:/.test(k))).map(k=>`${LABEL[k]||k.slice(3)} ${String(r[k]).replace(/[,/]/g,' ').trim()}`);
   if(xp.length) o.memo=[o.memo, '추가 프로그램 '+xp.join(', ')].filter(Boolean).join(' / ');
   // 프로그램 담당 · 시간대 · 코스: "프로그램 담당 동행 도슨트:사공유빈, 요가:김사유 / 프로그램 시간대 동행 도슨트:13:00~15:00 / 프로그램 코스 동행 도슨트:정원 코스"
@@ -190,6 +192,7 @@ function unpackExtra(r){ const o={}; let m;
   String(r.memo||'').replace(/미정 항목 입력 기한 /g,'미정 항목 답변일 ').split(/\s+\/\s+/).forEach(part=>{ MEMO_PARTS.forEach(([k,l])=>{ if(part.startsWith(l+' ')) o[k]=part.slice(l.length+1).trim(); }); });   // 칸 구분 " / " 로만 나눔 (품목 이름의 '주말/공휴일' 은 그대로) · 예전 이름 '입력 기한'도 읽음
   ['views','viewSrc','inotes'].forEach(k=>{ if(o[k]) o[k]=o[k].replace(/주말,\s*공휴일/g,'주말/공휴일'); });   // 예전에 '주말/공휴일' 이 '주말, 공휴일' 로 저장된 관람 품목 되살리기
   if(o.payContact && !o.tbdDate) o.tbdDate=o.payContact;   // 예전 '결제 연락 예정일' → 미정 항목 답변일
+  { const cm=String(r.memo||'').split(/\s+\/\s+/).find(p=>p.startsWith('담당자 메모 ')); if(cm) cm.slice(7).split(/\s*¦\s*/).forEach(t=>{ const x=t.match(/^(\d+)=(.*)$/); if(x) o[`c${x[1]}_memo`]=x[2].trim(); }); }   // 담당자 메모
   const mx=String(r.memo||'').match(/추가 프로그램\s+([^/]+)/); if(mx) mx[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\S+)$/); if(!x) return;
     const f=FIELDS.find(f=>f[2]===x[1] && isXProg(f[1])), k=f ? f[1] : 'px:'+x[1].replace(/\s/g,''); if(!f) LABEL[k]=x[1]; o[k]=x[2]; });
   Object.entries(SUB_NAME).forEach(([p,nm])=>{
@@ -201,7 +204,7 @@ function unpackExtra(r){ const o={}; let m;
 
 // ===================== 칸 렌더 =====================
 // 칸별 입력 방식: 한글 우선(한/영 키로 영어) · 영어 고정 · 숫자 고정
-const KO_FIRST = k => k==='org' || /^c\d+_name$/.test(k) || k==='owner';
+const KO_FIRST = k => k==='org' || /^c\d+_(name|memo)$/.test(k) || k==='owner';
 const EN_ONLY  = k => /^c\d+_email$/.test(k);
 // 몽몽마방: 메뉴는 견적서 품목 리스트에서 구분이 식사이고 기본 메뉴(사유의 밥상(단체) · 몽몽마방 런치 · 단품) 또는 예약상품명이 '몽몽마방 '으로 시작하는 품목 (1인 고정가, 품목 관리에서 추가 · 이름 · 가격 수정) · 결제는 사무실 / 마방
 const MB_PAYS = ['미정','사무실','마방','기타'];   // 몽몽마방 결제방식: 새로 넣으면 '미정' (미정 항목 '몽몽마방 결제' → 고객님께 꼭 여쭤 보기)
@@ -692,15 +695,19 @@ function parseDateText(s){
 }
 const NUM_ONLY = { people:/[^\d+]/g, vehicle:/[^\d]/g, mabangPrice:/[^\d]/g, mabangTime:/[^\d:~]/g };   // 관람 인원은 42+2 처럼 + 허용
 FIELDS.forEach(f=>{ if(/^tm_/.test(f[1])) NUM_ONLY[f[1]]=/[^\d:~]/g; });   // 도슨트 시간대도 숫자 · : · ~ 만
-// 연락처: 빈 칸을 누르면 010- 이 들어가고, 숫자를 치면 - 가 자동. 내선 번호면 010- 을 지우고 쓰면 됨
+// 연락처: 빈 칸을 누르면 010- 이 들어가고, 숫자를 치면 - 가 자동 (어떤 번호든 자릿수에 맞춰, 2026-11-18)
+//  휴대폰 010-1234-5678 · 010-123-4567(예전 10자리) · 서울 02-123-4567 / 02-1234-5678 · 지역 · 070 031-123-4567 / 031-1234-5678
+//  0505 등 050X-123-4567 · 대표번호 1588-1234 · 그 밖 1234-5678. 010- 이 자동으로 들어간 칸에 0 으로 시작하는 번호(02 · 031 …)를 치면 010 은 뗌
 const PHONE = k => /^c\d+_phone$/.test(k);
 function fmtPhone(v){
   const d=String(v||'').replace(/\D/g,'').slice(0,12);
   if(!d) return '';
-  if(/^01[016789]/.test(d)) return d.length<=3 ? d : d.length<=7 ? `${d.slice(0,3)}-${d.slice(3)}` : `${d.slice(0,3)}-${d.slice(3,d.length-4)}-${d.slice(-4)}`;
-  if(/^02/.test(d))         return d.length<=2 ? d : d.length<=5 ? `02-${d.slice(2)}` : `02-${d.slice(2,d.length-4)}-${d.slice(-4)}`;
-  if(/^0\d\d/.test(d))      return d.length<=3 ? d : d.length<=6 ? `${d.slice(0,3)}-${d.slice(3)}` : `${d.slice(0,3)}-${d.slice(3,d.length-4)}-${d.slice(-4)}`;
-  return d.length<=4 ? d : `${d.slice(0,d.length-4)}-${d.slice(-4)}`;   // 내선·대표번호 (1234, 123-4567)
+  const g=a=>d.length<=a ? d : d.length<=a+4 ? `${d.slice(0,a)}-${d.slice(a)}` : `${d.slice(0,a)}-${d.slice(a,d.length-4)}-${d.slice(-4)}`;   // 앞자리 a개 - 가운데 - 끝 4자리 (가운데는 칠수록 늘어남)
+  if(/^02/.test(d))   return g(2);
+  if(/^050\d/.test(d)) return g(4);   // 0505 · 0507 등 안심번호
+  if(/^0\d\d/.test(d)) return g(3);   // 010 · 011 · 031 · 070 …
+  if(/^1[5-9]\d\d/.test(d) && d.length<=8) return d.length<=4 ? d : `${d.slice(0,4)}-${d.slice(4)}`;   // 대표번호 1588-1234
+  return d.length<=4 ? d : `${d.slice(0,d.length-4)}-${d.slice(-4)}`;   // 내선 등 (1234, 123-4567)
 }
 const VTYPES = ['버스','승용','혼합','미정'];
 // 차량 값: "버스 2대" · "승용 3대" · "혼합 (버스 1대 + 승용 2대)" · "미정"
@@ -795,6 +802,7 @@ function buildForm(){
     if(PHONE(k) && !e.isComposing){
       const el=e.target, atEnd=el.selectionStart===el.value.length;
       const del = e.inputType && e.inputType.startsWith('delete');
+      if(el.dataset.autop==='1'){ const dg=el.value.replace(/\D/g,''); if(/^0100/.test(dg)) el.value=dg.slice(3); else if(dg.length>4) delete el.dataset.autop; }   // 자동으로 넣은 010- 뒤에 0 으로 시작하는 번호(02 · 031 …)를 치면 010 을 뗌
       let f=fmtPhone(el.value);
       if(del && el.value.endsWith('-') && f===el.value.replace(/-$/,'')) f=el.value.replace(/-$/,'');   // 지우는 중에는 끝 - 를 다시 붙이지 않음
       if(f!==el.value){ el.value=f; if(atEnd) el.setSelectionRange(f.length,f.length); }
@@ -840,8 +848,8 @@ function buildForm(){
   $('#form').addEventListener('mouseover', hot);
   $('#form').addEventListener('focusin', hot);
   // 연락처: 빈 칸을 누르면 010- 부터. 아무것도 안 치고 나가면 다시 비움
-  $('#form').addEventListener('focusin', e=>{ const el=e.target; if(PHONE(el.dataset?.k||'') && !el.value){ el.value='010-'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} },0); } });
-  $('#form').addEventListener('focusout', e=>{ const el=e.target; if(PHONE(el.dataset?.k||'') && /^010-?$/.test(el.value) && !rec[el.dataset.k]) el.value=''; });
+  $('#form').addEventListener('focusin', e=>{ const el=e.target; if(PHONE(el.dataset?.k||'') && !el.value){ el.value='010-'; el.dataset.autop='1'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} },0); } });
+  $('#form').addEventListener('focusout', e=>{ const el=e.target; if(!PHONE(el.dataset?.k||'')) return; delete el.dataset.autop; if(/^010-?$/.test(el.value) && !rec[el.dataset.k]) el.value=''; });
   // 방문일: 누르면 달력부터. 달력을 연 뒤 칸을 한 번 더 누르면 글자로 직접 고치기. 숫자를 치기 시작해도 직접 입력
   { const dt=$('#f_date'), dp=$('#f_datePick');
     const openPick=()=>{ try{ dp.showPicker(); }catch(_){ dp.focus(); } };
@@ -882,7 +890,7 @@ function renderContacts(){
   }
   h = h.replace('<div class="crow">', `<label class="ctbd-ck" title="담당자가 아직 안 정해졌으면 체크 → 추후 과업 「담당자 확정」"><input type="checkbox" id="cTbdCk"${rec.cTbd?' checked':''}> 담당자 미정</label><div class="crow">`);   // 첫 담당자 줄: 미정 (2026-11-18)
   $('#contacts').innerHTML=h;
-  for(let i=0;i<nContacts;i++) CFIELDS.forEach(([f])=>{ const k=`c${i}_${f}`; document.getElementById('f_'+k).value=rec[k]||''; });
+  for(let i=0;i<nContacts;i++) CFIELDS.forEach(([f])=>{ const k=`c${i}_${f}`, el=document.getElementById('f_'+k); el.value=rec[k]||''; if(f==='memo') el.placeholder='예) 인솔 교사 · 오후에만 통화 가능'; });
   paintFields();
 }
 function paintFields(changed=[]){
