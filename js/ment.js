@@ -88,11 +88,27 @@
     paintImgs();
   }
   // 클립보드에 그림 그대로 (크롬 · 엣지: PNG로 바꿔서)
-  async function copyImg(id){
-    const url=await loadImg(id), im=new Image(); im.src=url; await im.decode();
-    const c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight; c.getContext('2d').drawImage(im,0,0);
-    const blob=await new Promise(r=>c.toBlob(r,'image/png'));
-    await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+  // 이미지 복사 · 보내기 (2026-11-18 다시): 그림을 미리 받아 PNG 로 만들어 두고(pngCache), 누르는 순간 바로
+  //  - 휴대폰: 공유 창(카카오톡 · 문자 등)으로 그림을 바로 보냄 (휴대폰 카톡은 붙여넣기로 그림이 잘 안 들어감) · 공유가 안 되는 브라우저는 클립보드로
+  //  - 컴퓨터: 클립보드에 그림 그대로 → 카톡 PC에 Ctrl+V
+  //  - 누르기 전에 받아 두지 않으면 휴대폰 브라우저가 「누른 직후」가 아니라고 막아서 안 되던 것
+  const pngCache={}, pngWait={};
+  function pngOf(id){
+    if(pngCache[id]) return Promise.resolve(pngCache[id]);
+    if(!pngWait[id]) pngWait[id]=loadImg(id).then(url=>new Promise((ok,no)=>{ const im=new Image(); im.onload=()=>{ const c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight; c.getContext('2d').drawImage(im,0,0); c.toBlob(b=>{ if(!b) return no(new Error('png')); pngCache[id]=b; ok(b); }, 'image/png'); }; im.onerror=()=>no(new Error('img')); im.src=url; })).catch(e=>{ delete pngWait[id]; throw e; });
+    return pngWait[id];
+  }
+  function preloadImgs(){ items.forEach(m=>(m.imgs||[]).forEach(x=>{ pngOf(x.id).catch(()=>{}); })); }
+  async function copyImg(id, name){
+    const fileOf = b => new File([b], (String(name||'이미지').replace(/[\/:*?"<>|]+/g,' ').trim()||'이미지')+'.png', {type:'image/png'});
+    if(isMobile() && navigator.share){
+      const b=pngCache[id] || await pngOf(id), f=fileOf(b);
+      if(!navigator.canShare || navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); return 'share'; }
+    }
+    // 클립보드: 누르는 순간 바로 쓰기 (그림이 아직이면 받는 중인 것을 넘김 — 사파리 · 크롬 모두)
+    const data = pngCache[id] || pngOf(id);
+    await navigator.clipboard.write([new ClipboardItem({'image/png': data})]);
+    return 'copy';
   }
 
   function render(){
@@ -113,7 +129,7 @@
       + `<button type="button" class="btn primary sm" data-mcopy title="제목과 글을 복사">${(m.imgs||[]).length?'글 복사':'복사'}</button>${imgBtns(m)}${canEdit()?'<button type="button" class="btn sm" data-medit>수정</button>':''}</div><div class="m-body-v">${esc(m.body)}</div>${imgsHTML(m)}</div>`;
     $('#list').innerHTML = (edit==='new' ? form({id:'new', title:'', body:''}) : '')
       + (list.length ? list.map(card).join('') : `<p class="hint">${q?'찾은 멘트가 없습니다.':'멘트가 없습니다.'}</p>`);
-    paintDraft(); paintImgs();
+    paintDraft(); paintImgs(); preloadImgs();   // 이미지 복사 · 보내기를 누르는 순간 바로 되게 그림을 미리 받아 둠
     const f=$('#list .ment-edit .m-title'); if(f && !f.value) f.focus();
   }
   async function copy(text){
@@ -123,8 +139,10 @@
   $('#list').addEventListener('click', async e=>{
     const box=e.target.closest('.ment'); if(!box) return; const id=box.dataset.id, m=items.find(x=>x.id===id);
     if(e.target.closest('[data-mcopy]') && m){ await copy(`[${m.title}]\n${m.body}`); toast((m.imgs||[]).length ? `「${m.title}」 글을 복사했습니다. 붙여 넣은 뒤 「이미지 복사」로 그림도 붙여 넣으세요.` : `「${m.title}」 멘트를 제목과 함께 복사했습니다.`, 3200); return; }   // 제목도 함께
-    const ic=e.target.closest('[data-imgcopy]'); if(ic){ ic.disabled=true; try{ await copyImg(ic.dataset.imgcopy); toast('이미지를 복사했습니다. 카톡 · 문자에 붙여 넣으세요 (Ctrl+V).'); }
-      catch(err){ toast(needDeploy(err) || '이미지를 복사하지 못했습니다. 크롬 · 엣지에서 해 주세요 (그림을 오른쪽 클릭 → 이미지 복사도 됩니다).', 4000); } finally{ ic.disabled=false; } return; }
+    const ic=e.target.closest('[data-imgcopy]'); if(ic){ const nm=(items.find(x=>(x.imgs||[]).some(i=>i.id===ic.dataset.imgcopy))||{}).title||'이미지';
+      try{ const how=await copyImg(ic.dataset.imgcopy, nm); toast(how==='share' ? '그림을 보냈습니다.' : isMobile() ? '그림을 복사했습니다. 붙여 넣기가 안 되면 「이미지」를 다시 눌러 공유로 보내세요.' : '이미지를 복사했습니다. 카톡 · 문자에 붙여 넣으세요 (Ctrl+V).', 3200); }
+      catch(err){ if(err && err.name==='AbortError') return;   // 공유 창을 닫음
+        toast(needDeploy(err) || (isMobile() ? '그림을 보내지 못했습니다. 잠시 뒤 다시 눌러 주세요 (그림을 받는 중일 수 있습니다).' : '이미지를 복사하지 못했습니다. 크롬 · 엣지에서 해 주세요.'), 4000); } return; }
     if(e.target.closest('[data-mfav]') && m){   // 즐겨찾기: 멘트에 저장 → 휴대폰 · 컴퓨터 · 모든 사람에게 같은 순서 (바꾸기는 컴퓨터에서 로그인한 사람만)
       if(!canEdit()){ toast(isMobile() ? '즐겨찾기는 컴퓨터에서 바꿀 수 있습니다.' : '로그인하면 즐겨찾기를 바꿀 수 있습니다.'); return; }
       items=items.map(x=>x.id===id ? {...x, fav:!x.fav} : x); await push(!m.fav ? `「${m.title}」 즐겨찾기 · 위로 올렸습니다 (휴대폰에도).` : `「${m.title}」 즐겨찾기를 뺐습니다.`); return; }

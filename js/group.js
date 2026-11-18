@@ -2237,6 +2237,7 @@ function openRecord(r){
     const ph=parseHist(r); hist=ph.h; tasks=ph.tasks; erpList=ph.erp||[]; memos=ph.memos||[];
     { const o=(r.owner||r.takenBy||'').trim(), me=savedOwner(); lockOwner = o && me && o!==me ? o : ''; } paintLock(); acquireEdit(r.id);   // 남이 담당인 예약: 잠금 (메모만)
     renderContacts(); renderForm(); resetWarn(true); baseSnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
+    setTimeout(()=>syncSavedTasks(r.id), 1200);   // 화면에서 저절로 바뀐 과업 상태를 저장된 예약에도 (나의 할일 · 대시보드가 같게)
 }
 
 // 관리자 사이트에서 지금 가져오기 (평소에는 Apps Script 가 15분마다 자동으로)
@@ -3086,13 +3087,40 @@ const firstContact = r => { const n=String(r.contact||'').split(/\s*\/\s*/)[0]||
 // ===================== 나의 할일: 내가 영업 담당인 예약 =====================
 // 헤더 '영업 담당' 이름과 같은 예약만. 연락할 미정 항목 · 남은 과업 · 방문 예정 순서로
 function myRecords(){ const me=savedOwner(); return me ? (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me) : []; }
+// 열어 둔 예약의 과업 상태(화면에서 저절로 완료 · 정리된 것)가 저장된 것과 다르면, 과업만 조용히 저장 (2026-11-18)
+//  - 다른 칸은 건드리지 않고 수정 기록에도 남기지 않음 · 고치는 중(저장 안 한 변경)이면 원래 저장 때 함께 · 남이 담당 · 다른 창에서 고치는 중이면 안 함
+function syncSavedTasks(id){
+  if(editingId!==id || lockOwner || editLockBy || isDirty()) return;
+  const r=cache.find(x=>x.id===id); if(!r) return;
+  const ph=parseHist(r), clean=ts=>JSON.stringify((ts||[]).map(t=>({id:t.id, done:!!t.done, removed:!!t.removed})));
+  if(clean(ph.tasks)===clean(tasks)) return;
+  let old={}; try{ old=JSON.parse(r.history||'{}')||{}; }catch(_){}
+  const item={...r, history:JSON.stringify({...old, h:ph.h, tasks, erp:ph.erp, memos:ph.memos})};
+  store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
+}
+// 저장된 과업을 추후 과업 칸(화면)과 같은 기준으로 맞춤 (2026-11-18): 화면에서 저절로 완료된 과업이 저장 전이라 나의 할일 · 알림에 「오늘 마감」으로 남던 것
+//  - 삭제한 과업(removed) 빼기 · 전산 예약 = 전산 등록 · 결제링크 전송 = 전송 일시 · 입금 확인 = 입금 일시 · 프로그램 담당 = 담당이 다 차면
+//  - 견적서 · 거래명세서 등 하위 과업이 모두 체크되면 완료 · 예전 기준(담당자 이름 등)으로 생긴 전산 예약 수정은 빼기
+function settleTasks(list, r, x){
+  return (list||[]).filter(t=>!t.removed)
+    .filter(t=>!(t.id==='erpfix' && !t.done && !(t.changes||[]).some(c=>/전산 비고/.test(c)) && !t.memo && !(t.xsubs||[]).length))
+    .map(t=>{ const u={...t};
+      if(u.id==='erp') u.done = !!x.erp || /^adm/.test(r.id);
+      else if(u.id==='linksend') u.done = !!x.linkSent;
+      else if(u.id==='paycheck'){ if(x.paidAt) u.done=true; }
+      else if(u.id==='progstaff'){ try{ u.done = !missingStaff(x).length; }catch(_){} }
+      else { const ds=DOC_SUBS[u.id], st=[...(ds && u.subs ? ds.map(([k])=>!!u.subs[k]) : []), ...(u.xsubs||[]).map(s=>!!s.done)]; if(st.length && st.every(Boolean)) u.done=true; }
+      return u; });
+}
 // 저장된 예약의 추후 과업 (열지 않은 예약도): 저장된 과업 + 아직 저장 안 된 미정 항목 연락 · 현장 결제 인원 확인
 function tasksOf(r){
   if(stageOfRec(r)==='예약상담' && editingId!==r.id){ const x=xOf(r), all=parseHist(r).tasks, st=all.find(t=>t.id==='tour'), own=all.filter(t=>t.custom).map(t=>({...t, due:taskDue(t)})); return [...(x.tour ? [st ? {...st, due:taskDue(st)} : {id:'tour', title:AUTO_TASKS.tour, done:false, due:ymd(new Date(r.saved||Date.now())), at:r.saved}] : []), ...own]; }   // 예약상담: 사전답사 전산 예약 + 직접 추가한 과업
   if(editingId===r.id && quietStage(effStage(rec))) return tasks.filter(consultTask).map(t=>({...t, due:taskDue(t)}));
   if(editingId===r.id) return tasks.map(t=>({...t, due:taskDue(t)}));   // 지금 열어 둔 예약은 화면의 과업
-  const x=xOf(r), ts=parseHist(r).tasks.map(t=>({...t}));
-  const has = id => ts.some(t=>t.id===id);
+  if(stageOfRec(r)==='예약취소') return [];   // 예약취소: 추후 과업 없음
+  const x={...xOf(r)}; syncPayTbd(x);   // 미정 항목은 화면과 같은 기준 (결제 · 몽몽마방 결제 · 차량)
+  const ts=settleTasks(parseHist(r).tasks, r, x);
+  const has = id => ts.some(t=>t.id===id) || parseHist(r).tasks.some(t=>t.id===id && t.removed);   // 삭제한 과업은 다시 만들지 않음
   if(x.tbd && !has('tbdcall')) ts.push({id:'tbdcall', title:AUTO_TASKS.tbdcall, done:false, due:x.tbdDate||ymd(new Date(r.saved||Date.now()))});
   if(x.pay==='현장 결제' && r.date && !has('onsitecall')) ts.push({id:'onsitecall', title:AUTO_TASKS.onsitecall, done:false, due:tbdLimit(r.date)});
   return ts.filter(t=> !(t.id==='tbdcall' && !x.tbd) && !(t.id==='onsitecall' && x.pay!=='현장 결제'))   // 조건이 사라진 것은 뺌

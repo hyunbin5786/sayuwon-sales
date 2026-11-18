@@ -134,6 +134,17 @@ paint();
 // 개인고객: 받은(저장한) 사람별 안 끝난 과업 · 기타 개인 업무: 오늘 할 것 + 지난 것(반복은 최근 7일)
 const GROUP_TYPES = ['단체예약','예약상담','가예약','예약확정','예약접수','상담','공식예약'];   // 예약취소는 대시보드에서 뺌 (2026-11-18 4단계)
 const histTasks = r => { try{ const j=JSON.parse(r.history||'{}'); return Array.isArray(j.tasks) ? j.tasks : []; }catch(_){ return []; } };
+// 단체 과업이 예약 내용으로 이미 끝났는지 (단체 화면 추후 과업과 같은 기준, 2026-11-18): 저장 전이라 「오늘 마감」으로 남던 것
+//  전산 예약 = 전산 등록 · 결제링크 전송 · 입금 확인 = 비고 칸에 그 일시 · 하위 과업이 모두 체크 · 예전 기준(담당자 이름 등)으로 생긴 전산 예약 수정
+const memoHas = (r, label) => new RegExp('(^|\s/\s)'+label+'\s+\S').test(String(r.memo||''));
+function doneByRec(t, r){
+  if(t.id==='erp') return /^adm/.test(r.id) || memoHas(r,'전산 등록');
+  if(t.id==='linksend') return memoHas(r,'결제링크 전송');
+  if(t.id==='paycheck') return memoHas(r,'입금 확인');
+  if(t.id==='erpfix') return !(t.changes||[]).some(c=>/전산 비고/.test(c)) && !t.memo && !(t.xsubs||[]).length;
+  const st=[...Object.values(t.subs||{}).map(Boolean), ...(t.xsubs||[]).map(x=>!!x.done)];
+  return st.length>0 && st.every(Boolean);
+}
 const dueOf = (t, r) => t.due || (t.at ? opsYmd(t.at) : r.saved ? opsYmd(r.saved) : opsToday());
 // 첫 화면 = 대시보드만 (2026-11-18): ① 개인고객 전화 ② 단체고객 전화 ③ 기타 개인 할일 ④ 개인 할일 보기(1행 1명 · 숫자)
 //  ①② 줄 = 예약 · 통화 하나: 단체명 / 접수자 이름 (없으면 전화번호) → 아래 회색으로 오늘까지(기한 지난 것 포함) 할 과업. 「내일 마감도 보기」면 내일 것도
@@ -148,8 +159,9 @@ function dashRecs(items){
     const ct=r.callType||'단체예약';
     if(GROUP_TYPES.includes(ct)){
       if(r.date && (new Date(opsToday()) - new Date(r.date))/864e5 > 30) return;
+      if(ct==='예약취소') return;   // 예약취소는 과업 없음
       const consult = ct==='예약상담' || ct==='상담';
-      const ts=histTasks(r).filter(t=>!t.done && !t.removed && (!consult || ['tour','clergy'].includes(t.id) || t.custom)).map(t=>({title:t.title, due:dueOf(t,r)}));
+      const ts=histTasks(r).filter(t=>!t.done && !t.removed && !doneByRec(t, r) && (!consult || ['tour','clergy'].includes(t.id) || t.custom)).map(t=>({title:t.title, due:dueOf(t,r)}));
       if(ts.length) recs.push({kind:'단체', owner:(r.owner||r.takenBy||'').trim(), name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:ts, href:'group.html?open='+encodeURIComponent(r.id)});
     } else if(ct==='개인고객'){
       const ts=histTasks(r).filter(t=>!t.done).map(t=>({title:t.title, due:dueOf(t,r)}));
