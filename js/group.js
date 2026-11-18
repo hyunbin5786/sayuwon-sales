@@ -161,7 +161,7 @@ const allKeys = () => { const ks=[...KEYS]; for(let i=0;i<nContacts;i++) CFIELDS
 const MISS_LABEL = { phone:'연락처(010)' };   // 물어볼 것에 보이는 이름
 MISS_LABEL.payContact='결제 연락일';
 // 결제 연락 예정일은 결제가 '미정'일 때만 필수
-const REQUIRED = () => [...FIELDS.filter(f=>f[5] && (f[1]!=='payContact' || rec?.pay==='미정')).map(f=>[f[1],MISS_LABEL[f[1]]||f[2],f[5]]), ...CFIELDS.filter(([f])=>f!=='memo').map(([f,l,q])=>[`c0_${f}`,MISS_LABEL[f]||l,q])];
+const REQUIRED = () => [...FIELDS.filter(f=>f[5] && (f[1]!=='payContact' || rec?.pay==='미정')).map(f=>[f[1],MISS_LABEL[f[1]]||f[2],f[5]]), ...CFIELDS.filter(([f])=>f!=='memo' && f!=='email').map(([f,l,q])=>[`c0_${f}`,MISS_LABEL[f]||l,q])];   // 담당자 이메일 · 메모는 필수 아님 (빨간 칸 아님, 2026-11-18)
 const PAYS = ['미정','세금계산서','결제링크','현장 결제','기타'];   // 기타 = 통화 메모에 결제 방법을 남김 (고르면 팝업)   // 기본 미정 ('선택' 없음)
 const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
@@ -620,7 +620,9 @@ document.addEventListener('click', async e=>{ const b=e.target.closest('#itemsBo
 });
 // 차방 대관 · 당두봉갈 대관: 시작 · 끝 시각이 비면 담당처럼 빨간 칸 (2026-11-18)
 const TM_REQ = ['chabang','dangdu'];
-function paintTmMissing(){ TM_REQ.forEach(k=>['S','E'].forEach(x=>{ const el=document.querySelector(`#itemsBox [data-ix="tm${x}:${k}"]`); if(el) el.closest('.it-xl').classList.toggle('missing', !el.value.trim()); })); }
+function paintTmMissing(){ TM_REQ.forEach(k=>{
+  ['S','E'].forEach(x=>{ const el=document.querySelector(`#itemsBox [data-ix="tm${x}:${k}"]`); if(el) el.closest('.it-xl').classList.toggle('missing', !el.value.trim()); });
+  const q=document.querySelector(`#itemsBox [data-iq="${k}"]`); if(q) q.closest('.it-q').classList.toggle('missing', !q.value.trim()); }); }   // 시간(수량)도
 function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은 넣은 묶음만
   document.querySelectorAll('#itemsBox [data-is]').forEach(el=>el.closest('.it-s').classList.toggle('missing', !el.value.trim()));
   paintTmMissing();
@@ -635,7 +637,7 @@ function repaintSoon(){ clearTimeout(repaintT); repaintT=setTimeout(()=>{ repain
 function repaintNow(){ if(!repaintT) return; clearTimeout(repaintT); repaintT=0; paintFields(); renderSide(); }
 document.addEventListener('focusout', e=>{ if(e.target.closest?.('#form, #itemsBox')) setTimeout(repaintNow, 0); });
 function itemChanged(structural, keepStaff){ if(!keepStaff) staffDefaults(); startTimer();   // 담당을 직접 지울 때는 다시 채우지 않음
-  paintFields(); renderSide(); if(structural) renderItems(true); }
+  paintFields(); renderSide(); if(structural) renderItems(true); else paintTmMissing(); }
 document.addEventListener('change', e=>{ const v=e.target.closest?.('#itemsBox [data-iview]'); if(!v) return; rec.viewSrc=v.value; touched.add('viewSrc'); itemChanged(false, true); });   // 관람 품목 고르기
 document.addEventListener('change', e=>{
   const s=e.target.closest?.('#itemsBox [data-isel]'); if(!s) return;

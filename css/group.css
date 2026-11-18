@@ -731,3 +731,7 @@ html.book-guest #bookBody tr{cursor:default}
 /* 차방 대관 · 당두봉갈 대관: 시작 · 끝이 비면 빨간 칸 (담당과 같은 모양, 2026-11-18) */
 .it-extra .it-xl.missing{color:var(--red)}
 .it-extra .it-xl.missing .it-x{border:1.5px dashed var(--red);background:var(--red-soft);color:var(--red)}
+/* 예약 내역 줄의 빨간 칸(담당 · 대관 시간 · 시작 · 끝)도 예약 내용 미입력 칸과 같은 모양 (2026-11-18): 연한 빨강 바탕 · 실선 테두리 · 글씨는 보통 색 */
+.it-s.missing input,.it-q.missing input,.it-extra .it-xl.missing .it-x{border:1px solid #d98b80 !important;background:#fdf1ef !important;color:var(--ink) !important}
+.it-s.missing input::placeholder{color:var(--muted)}
+.it-extra .it-xl.missing{color:var(--muted)}
