@@ -4,7 +4,7 @@
 //   (방문일 · 업체 칸은 비워 둠 → 단체 화면의 '그날 예약 현황' 등에 섞이지 않게)
 const OPS_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
 const OPS_KEY_LS = SY.KEY_LS;   // 팀 비밀번호 (단체 · 개인고객 화면과 같이 씀)
-const OPS_TYPES = { task:'개인업무', lost:'분실물', accident:'사고', stock:'재고' };
+const OPS_TYPES = { task:'개인업무', lost:'분실물', accident:'사고', stock:'재고', ship:'스마트스토어' };
 const opsKey = () => { try{ return localStorage.getItem(OPS_KEY_LS)||''; }catch(_){ return ''; } };
 async function opsApi(body){
   const r=await fetch(OPS_URL,{method:'POST',body:JSON.stringify({...body,key:opsKey()})});
@@ -38,3 +38,29 @@ function opsPending(d, today=opsToday()){
   return out;
 }
 const opsRepeatLabel = d => d.repeat==='daily' ? '매일' : d.repeat==='weekly' ? `매주 ${(d.dows||[]).slice().sort((a,b)=>((a+6)%7)-((b+6)%7)).map(i=>OPS_DOW[i]).join('·')||'(요일 없음)'}` : d.repeat==='monthly' ? `매달 ${+d.dom>=31?'말일':(d.dom||1)+'일'}` : '반복 없음';
+
+// ---- 굿즈 품목 (품목관리 · 견적서 품목 목록 중 굿즈): 스마트스토어 발송 보고의 상품명 ----
+// 단체 화면과 같은 자료: 견적서 코드(document/js/document.js)의 CATALOG_RAW · GOODS + 품목관리에서 고친 것(공유 · edits · added)
+// 단체 화면이 받아 둔 것(sayuwon_quote_cat)을 바로 쓰고, 새로 받아서 바꿈
+const OPS_QUOTE_DATA = 'document/js/document.js';
+const OPS_QUOTE_SHARED = "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec";
+function opsGoodsFrom(qc){
+  if(!qc || !qc.raw) return [];
+  const ns=s=>String(s||'').replace(/\s/g,''), isG=src=>(qc.goods||[]).some(x=>ns(x)===ns(src)), out=[], seen={};
+  qc.raw.forEach(line=>{ const [src, price]=line.split('|'); if(seen[ns(src)]) return; seen[ns(src)]=1; const e=(qc.edits||{})[src]||{}; if(e.hidden) return;
+    if((e.kind || (isG(src)?'goods':''))!=='goods') return; out.push({src, name:String(e.name||src).trim(), price: e.price!=null ? Number(e.price) : (price ? Number(price) : null)}); });
+  (qc.added||[]).forEach(a=>{ if(a.hidden || a.kind!=='goods') return; out.push({src:a.src||a.name, name:String(a.name||a.src).trim(), price: a.price!=null ? Number(a.price) : null}); });
+  return out.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+}
+let opsGoodsCache = opsGoodsFrom(SY.readJSON('sayuwon_quote_cat', null));
+async function opsLoadGoods(){
+  try{
+    const [html, shared] = await Promise.all([fetch(OPS_QUOTE_DATA+'?t='+Date.now()).then(r=>r.text()), fetch(OPS_QUOTE_SHARED).then(r=>r.json()).catch(()=>null)]);
+    const m=html.match(/var CATALOG_RAW = \[([\s\S]*?)\];/); if(!m) return opsGoodsCache;
+    const raw=[...m[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]);
+    const gm=html.match(/\[([^\]]*)\]\.forEach\(function\(n\)\{\s*GOODS\[n\]/), goods=gm ? [...gm[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]) : [];
+    const old=SY.readJSON('sayuwon_quote_cat', null)||{}, d=(shared && shared.data) || {edits:old.edits, added:old.added};
+    opsGoodsCache = opsGoodsFrom({raw, goods, edits:d.edits||{}, added:d.added||[]});
+  }catch(_){}
+  return opsGoodsCache;
+}

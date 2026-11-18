@@ -116,3 +116,18 @@ h3.sub + .tbl,h3.sub + .tlist{margin-bottom:18px}
 .tabs[hidden],.tabs a[hidden]{display:none}
 .ko-toggle{width:30px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:transparent;color:#f3f1ec;font:700 13px var(--sans);cursor:pointer}
 .ko-toggle.on{background:#f3f1ec;color:var(--pine)}
+/* 스마트스토어 발송 보고 */
+.chip-sel{height:28px;border:1px solid var(--line);border-radius:999px;padding:0 10px;font:13px var(--sans);background:#fff;color:var(--ink)}
+.ship-rep{border:1px solid var(--line);border-radius:10px;background:#faf9f5;padding:10px 12px;margin-bottom:12px}
+.ship-rep-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ship-rep-h > b{font:600 15px var(--serif);color:var(--pine)}
+.ship-rep-h span{font-size:13px}
+.ship-rep-h .late{color:var(--red)}
+.ship-rep-h .btn{margin-left:auto}
+.ship-items{margin-top:8px;background:#fff}
+.st.ship-wait{color:var(--red)}
+.st.ship-done{color:var(--pine)}
+.ship-sheets{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;max-height:50vh;overflow:auto;margin-top:8px}
+.ship-sheet{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;font-size:13px;cursor:pointer}
+.ship-sheet small{color:var(--muted);margin-left:auto}
+.ship-sheet.none{opacity:.5;cursor:default}

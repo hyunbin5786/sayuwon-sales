@@ -33,3 +33,4 @@ html.smenu-open{overflow:hidden}
 /* 나의 할일 버튼 (헤더에 없던 화면에 menu.js가 붙임) */
 header .smenu-my{flex:none;margin-left:auto;height:30px;padding:0 12px;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.12);color:#f3f1ec;border-radius:7px;font:600 13px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
 header .smenu-my:hover{background:rgba(255,255,255,.25)}
+.smenu .sm-i span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}   /* 회색 설명은 한 줄 */

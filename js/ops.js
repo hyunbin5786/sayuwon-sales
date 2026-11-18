@@ -41,6 +41,13 @@ const BOARDS = {
     fields:[ {k:'name', l:'품목', type:'text', req:1}, {k:'cat', l:'분류', type:'text'}, {k:'place', l:'위치', type:'text'},
       {k:'qty', l:'수량', type:'num', def:()=>'0'}, {k:'unit', l:'단위', type:'text', def:()=>'개'}, {k:'min', l:'최소 수량', type:'num', ph:'이 아래면 부족'}, {k:'memo', l:'메모', type:'textarea', w:2} ],
     summary:d=>`${d.name||''} ${d.qty||0}${d.unit||''}` },
+  // 스마트스토어 발송 보고 (2026-11-18): 엑셀(★ 스마트스토어 발송내역.xlsx, 달마다 시트) 열 그대로 · 상품명 = 품목관리 굿즈
+  ship: { title:'스마트스토어 발송 보고', add:'발송 추가', hint:'주문 · 발송 · 수령 · 달마다 보고',
+    fields:[ {k:'orderDate', l:'주문일', type:'date', def:()=>opsToday()}, {k:'shipDate', l:'발송일', type:'date'}, {k:'recvDate', l:'수령일', type:'date'},
+      {k:'item', l:'상품명 (굿즈)', type:'goods', req:1, w:2}, {k:'qty', l:'수량', type:'num', def:()=>'1'}, {k:'amount', l:'총 주문금액', type:'num'}, {k:'shipFee', l:'배송비', type:'num'},
+      {k:'buyer', l:'구매자명', type:'text'}, {k:'recv', l:'수취인명', type:'text'}, {k:'phone', l:'수취인연락처', type:'tel'}, {k:'phone2', l:'수취인연락처2', type:'tel'},
+      {k:'addr', l:'기본배송지', type:'text', w:2}, {k:'addr2', l:'상세배송지', type:'text'}, {k:'zip', l:'우편번호', type:'text'}, {k:'msg', l:'배송메세지', type:'textarea', w:2} ],
+    summary:d=>`${d.orderDate||''} ${d.item||''} ${d.qty||''}개 · ${d.recv||d.buyer||''}` },
 };
 const B = BOARDS[P] || BOARDS.task;
 document.title = `${B.title} · 사유원 운영 보조 시스템`;
@@ -86,6 +93,7 @@ function render(){
   const q=$('#q').value.trim().toLowerCase(), hit = d => !q || JSON.stringify(d).toLowerCase().includes(q);
   if(P==='task') return renderTasks(hit);
   if(P==='stock') return renderStock(hit);
+  if(P==='ship') return renderShip(hit);
   const st=B.status, list=rows.filter(x=>hit(x.d) && (filter==='all' || (filter==='open' ? B.open.includes(x.d[st]) : x.d[st]===filter)))
     .sort((a,b)=>String(b.d.date||'').localeCompare(String(a.d.date||'')) || String(b.r.saved).localeCompare(String(a.r.saved)));
   const opts=[['open','진행 중'],['all','전체'], ...B.fields.find(f=>f.k===st).opts.map(o=>[o,o])];
@@ -156,6 +164,8 @@ function openEdit(row){
 }
 function fieldHTML(f){
   const v=form[f.k]??'', id='e_'+f.k, lab=`<label for="${id}">${f.l}${f.req?' <i>*</i>':''}</label>`;
+  if(f.type==='goods'){ const names=opsGoodsCache.map(g=>g.name), has=!v || names.includes(v);   // 품목관리의 굿즈 (엑셀에서 온 이름이 목록에 없으면 그 이름도 보임)
+    return lab+`<select id="${id}" data-k="${f.k}"><option value=""${v?'':' selected'}>굿즈 고르기</option>${has?'':`<option selected>${esc(v)}</option>`}${names.map(n=>`<option${n===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`; }
   if(f.type==='select') return lab+`<select id="${id}" data-k="${f.k}">${f.opts.map(o=>`<option${o===v?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
   if(f.type==='repeat') return lab+`<div class="seg">${[['none','반복 없음'],['daily','매일'],['weekly','매주'],['monthly','매달']].map(([k,l])=>`<button type="button" class="${(v||'none')===k?'on':''}" data-rep="${k}">${l}</button>`).join('')}</div>`;
   if(f.type==='dows') return lab+`<div class="seg">${[1,2,3,4,5,6,0].map(i=>`<button type="button" class="${(form.dows||[]).includes(i)?'on':''}" data-dow="${i}">${OPS_DOW[i]}</button>`).join('')}</div>`;
@@ -198,9 +208,6 @@ $('#askNo').onclick=()=>{ $('#askModal').hidden=true; askOk=null; };
 $('#askYes').onclick=()=>{ const f=askOk; $('#askModal').hidden=true; askOk=null; if(f) f(); };
 document.addEventListener('keydown', e=>{ if(e.key!=='Escape') return; if(!$('#askModal').hidden){ $('#askModal').hidden=true; return; } if(!$('#editModal').hidden) $('#editModal').hidden=true; });
 
-render(); pull();
-setInterval(()=>{ if(document.visibilityState==='visible' && $('#editModal').hidden) pull(); }, 60e3);
-window.addEventListener('focus', ()=>{ if($('#editModal').hidden) pull(); });
 
 // ---------- 기타 개인 업무 세부 과업 ----------
 // d.subs = [{id, title}] · d.subDone = {날짜:{세부id:1}} (반복 업무는 날짜마다 따로 체크)
@@ -210,3 +217,95 @@ function subsList(x, day){ const subs=x.d.subs||[]; if(!subs.length) return '';
 function addSub(){ const i=$('#e_subAdd'); const v=i && i.value.trim(); if(!v) return; form.subs=[...(form.subs||[]), {id:'s'+Date.now().toString(36), title:v}]; paintForm(); setTimeout(()=>$('#e_subAdd')?.focus(),0); }
 $('#eFields').addEventListener('click', e=>{ if(e.target.id==='e_subAddBtn'){ addSub(); return; } const d=e.target.closest('[data-subdel]'); if(d){ form.subs=(form.subs||[]).filter(s=>s.id!==d.dataset.subdel); paintForm(); } });
 $('#eFields').addEventListener('keydown', e=>{ if(e.target.id==='e_subAdd' && e.key==='Enter' && !e.isComposing){ e.preventDefault(); addSub(); } });
+
+// ---------- 스마트스토어 발송 보고 (?p=ship, 2026-11-18) ----------
+// 목록: 달(주문일 기준) · 상태(발송 전 · 발송 완료 · 수령 완료) 로 걸러 보고, 위에 그 달 보고(건수 · 수량 · 금액 · 상품별). 「보고 글자 복사」
+// 엑셀 불러오기: 「★ 스마트스토어 발송내역.xlsx」처럼 달마다 시트 · 첫 줄 머리글(주문일 · 발송일 · 수령일 · 상품명 · 수량 · 총 주문금액 · 배송비 · 구매자명 · 수취인명 · 수취인연락처 · 수취인연락처2 · 기본배송지 · 상세배송지 · 우편번호 · 배송메세지)
+//   파일은 이 브라우저 안에서만 읽고, 고른 시트의 새 줄만 공유 기록에 올림 (주문일 · 상품 · 수취인 · 연락처 · 수량이 같은 줄은 이미 있는 것으로 봄)
+const SHIP_COLS = { '주문일':'orderDate', '발송일':'shipDate', '수령일':'recvDate', '상품명':'item', '수량':'qty', '총 주문금액':'amount', '총주문금액':'amount', '배송비':'shipFee', '구매자명':'buyer', '수취인명':'recv', '수취인연락처':'phone', '수취인연락처2':'phone2', '기본배송지':'addr', '상세배송지':'addr2', '우편번호':'zip', '배송메세지':'msg' };
+const shipStatus = d => d.recvDate ? '수령 완료' : d.shipDate ? '발송 완료' : '발송 전';
+const shipKey = d => [d.orderDate||'', String(d.item||'').replace(/\s/g,''), String(d.recv||'').replace(/\s/g,''), String(d.phone||'').replace(/\D/g,''), String(+d.qty||0)].join('|');
+let shipMonth = '', shipMonthAuto = true;   // 'YYYY-MM' · '' = 전체 · 직접 고르기 전에는 가장 최근 달
+function renderShip(hit){
+  const months=[...new Set(rows.map(x=>String(x.d.orderDate||'').slice(0,7)).filter(Boolean))].sort().reverse();
+  if(shipMonthAuto || (shipMonth && !months.includes(shipMonth))) shipMonth = months[0] || '';
+  const inMonth=rows.filter(x=>!shipMonth || String(x.d.orderDate||'').startsWith(shipMonth));
+  const list=inMonth.filter(x=>hit(x.d) && (filter==='all' || shipStatus(x.d)===filter)).sort((a,b)=>String(b.d.orderDate||'').localeCompare(String(a.d.orderDate||'')));
+  const st=['발송 전','발송 완료','수령 완료'];
+  $('#filters').innerHTML = `<select id="shipMonth" class="chip-sel"><option value="">전체 달</option>${months.map(m=>`<option value="${m}"${m===shipMonth?' selected':''}>${m.slice(0,4)}년 ${+m.slice(5)}월</option>`).join('')}</select>`
+    + [['all','전체',inMonth.length], ...st.map(s=>[s,s,inMonth.filter(x=>shipStatus(x.d)===s).length])].map(([v,l,n])=>`<button type="button" class="chip${filter===v?' on':''}" data-f="${v}">${l} <small>${n}</small></button>`).join('');
+  $('#bSum').textContent = B.hint;
+  const rep=shipReport(inMonth);
+  $('#list').innerHTML = `<div class="ship-rep"><div class="ship-rep-h"><b>${shipMonth?`${shipMonth.slice(0,4)}년 ${+shipMonth.slice(5)}월`:'전체'} 보고</b><span>주문 ${rep.n}건 · 수량 ${won(rep.qty)}개 · 금액 ${won(rep.amount)}원 · 배송비 ${won(rep.fee)}원 · 발송 전 <b class="${rep.wait?'late':''}">${rep.wait}건</b></span><button type="button" class="btn sm" id="shipCopy">보고 글자 복사</button></div>`
+      + (rep.items.length ? `<table class="tbl ship-items"><thead><tr><th>상품</th><th class="num">건수</th><th class="num">수량</th><th class="num">금액</th></tr></thead><tbody>${rep.items.map(i=>`<tr><td>${esc(i.name)}</td><td class="num">${i.n}</td><td class="num">${won(i.qty)}</td><td class="num">${won(i.amount)}</td></tr>`).join('')}</tbody></table>` : '') + `</div>`
+    + (list.length ? `<table class="tbl"><thead><tr><th>주문일</th><th>상품명</th><th class="num">수량</th><th class="num">금액</th><th>수취인</th><th>연락처</th><th>발송일</th><th>상태</th><th></th></tr></thead><tbody>${list.map(x=>{ const d=x.d, s=shipStatus(d);
+        return `<tr class="${s==='발송 전'?'':'closed'}"><td>${esc(opsDateLabel(d.orderDate))}</td><td>${esc(d.item||'')}</td><td class="num">${won(d.qty)}</td><td class="num">${won(d.amount)}</td><td>${esc(d.recv||d.buyer||'')}</td><td>${esc(d.phone||'')}</td><td>${esc(opsDateLabel(d.shipDate))}</td><td class="st ${s==='발송 전'?'ship-wait':'ship-done'}">${s}</td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></td></tr>`; }).join('')}</tbody></table>`
+      : `<p class="empty">${rows.length ? '조건에 맞는 발송이 없습니다.' : '아직 발송 기록이 없습니다. 「엑셀 불러오기」나 「＋ 발송 추가」로 넣어 주세요.'}</p>`);
+}
+function shipReport(L){
+  const by={}; let qty=0, amount=0, fee=0, wait=0;
+  L.forEach(x=>{ const d=x.d, k=d.item||'(상품 없음)'; (by[k] ||= {name:k, n:0, qty:0, amount:0}); by[k].n++; by[k].qty+=+d.qty||0; by[k].amount+=+d.amount||0; qty+=+d.qty||0; amount+=+d.amount||0; fee+=+d.shipFee||0; if(shipStatus(d)==='발송 전') wait++; });
+  return {n:L.length, qty, amount, fee, wait, items:Object.values(by).sort((a,b)=>b.amount-a.amount)};
+}
+document.addEventListener('change', e=>{ if(e.target.id==='shipMonth'){ shipMonth=e.target.value; shipMonthAuto=false; render(); } });
+document.addEventListener('click', async e=>{ if(e.target.id!=='shipCopy') return;
+  const inMonth=rows.filter(x=>!shipMonth || String(x.d.orderDate||'').startsWith(shipMonth)), r=shipReport(inMonth);
+  const t=[`[스마트스토어 발송 보고] ${shipMonth?`${shipMonth.slice(0,4)}년 ${+shipMonth.slice(5)}월`:'전체'}`, `주문 ${r.n}건 · 수량 ${won(r.qty)}개 · 금액 ${won(r.amount)}원 · 배송비 ${won(r.fee)}원`, `발송 전 ${r.wait}건`, ...r.items.map(i=>`- ${i.name} ${i.n}건 · ${won(i.qty)}개 · ${won(i.amount)}원`)].join('\n');
+  try{ await navigator.clipboard.writeText(t); toast('보고 글자를 복사했습니다.'); }catch(_){ toast('복사하지 못했습니다.'); } });
+
+// 엑셀 불러오기
+function shipCell2date(v){
+  if(v==null || v==='') return '';
+  if(typeof v==='number'){ const t=new Date(Math.round((v-25569)*864e5)); return `${t.getUTCFullYear()}-${String(t.getUTCMonth()+1).padStart(2,'0')}-${String(t.getUTCDate()).padStart(2,'0')}`; }   // 엑셀 날짜(일련번호, 시각 포함)
+  if(v instanceof Date) return opsYmd(v);
+  const s=String(v).trim(), m=s.match(/(\d{4})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/); if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;   // 2024.07.31.수.
+  const p=SY.parseDateText(s); return p || '';
+}
+function shipRowsFromSheet(ws){
+  const aoa=XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:''}); const hi=aoa.findIndex(r=>r.some(c=>String(c).trim()==='주문일') && r.some(c=>String(c).trim()==='상품명')); if(hi<0) return [];
+  const head=aoa[hi].map(c=>SHIP_COLS[String(c).replace(/\s+/g,' ').trim()] || SHIP_COLS[String(c).replace(/\s/g,'')] || '');
+  const goods=opsGoodsCache, ns=s=>String(s||'').replace(/\s/g,'');
+  return aoa.slice(hi+1).map(r=>{ const d={}; head.forEach((k,i)=>{ if(k) d[k]=r[i]; });
+    if(!String(d.item||'').trim() && !d.orderDate) return null;
+    ['orderDate','shipDate','recvDate'].forEach(k=>d[k]=shipCell2date(d[k]));
+    ['qty','amount','shipFee'].forEach(k=>d[k]=d[k]===''||d[k]==null ? '' : String(Number(String(d[k]).replace(/[^\d.-]/g,''))||0));
+    ['phone','phone2'].forEach(k=>d[k]=d[k] ? SY.fmtPhone(d[k]) : '');
+    ['item','buyer','recv','addr','addr2','zip','msg'].forEach(k=>d[k]=String(d[k]??'').trim());
+    const g=goods.find(x=>ns(x.name)===ns(d.item) || ns(x.src)===ns(d.item)); if(g) d.item=g.name;   // 품목관리 굿즈 이름과 같으면 그 이름으로
+    return d; }).filter(Boolean);
+}
+async function loadXLSX(){ if(window.XLSX) return; await new Promise((ok,no)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload=ok; s.onerror=no; document.head.appendChild(s); }); }
+let shipImport=null;   // {sheets:[{name, rows, fresh}]}
+async function shipOpenFile(file){
+  try{ await loadXLSX(); }catch(_){ toast('엑셀 읽기 도구를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.'); return; }
+  const wb=XLSX.read(await file.arrayBuffer(), {type:'array'}), have=new Set(rows.map(x=>shipKey(x.d)));
+  const sheets=wb.SheetNames.map(n=>{ const rs=shipRowsFromSheet(wb.Sheets[n]); return {name:n, rows:rs, fresh:rs.filter(d=>!have.has(shipKey(d)))}; }).filter(s=>s.rows.length);
+  if(!sheets.length){ toast('발송 내역(주문일 · 상품명 머리글)이 있는 시트를 찾지 못했습니다.'); return; }
+  shipImport={sheets, pick:new Set([sheets[sheets.length-1].name])};   // 기본: 마지막 시트(가장 최근 달)
+  paintShipImport(); $('#shipImpModal').hidden=false;
+}
+function paintShipImport(){ const s=shipImport, n=s.sheets.filter(x=>s.pick.has(x.name)).reduce((a,x)=>a+x.fresh.length,0);
+  $('#shipImpBody').innerHTML = `<p class="hint">올릴 시트를 고르세요. 이미 있는 발송(주문일 · 상품 · 수취인 · 연락처 · 수량이 같음)은 빼고 새 줄만 올립니다.</p><div class="ship-sheets">${s.sheets.slice().reverse().map(x=>`<label class="ship-sheet${x.fresh.length?'':' none'}"><input type="checkbox" data-shsh="${esc(x.name)}"${s.pick.has(x.name)?' checked':''}${x.fresh.length?'':' disabled'}> <b>${esc(x.name)}</b> <small>${x.rows.length}줄 · 새로 ${x.fresh.length}</small></label>`).join('')}</div>`;
+  $('#shipImpGo').textContent = n ? `${n}건 올리기` : '올릴 새 발송이 없습니다'; $('#shipImpGo').disabled=!n; }
+async function shipDoImport(){
+  const todo=shipImport.sheets.filter(x=>shipImport.pick.has(x.name)).flatMap(x=>x.fresh); if(!todo.length) return;
+  const btn=$('#shipImpGo'); btn.disabled=true; let ok=0;
+  for(const d of todo){ btn.textContent=`올리는 중 ${ok}/${todo.length}…`; const r=await putRow({d}, '엑셀 불러오기'); if(r===false) break; ok++; }
+  $('#shipImpModal').hidden=true; shipImport=null; toast(`${ok}건을 올렸습니다.`); render();
+}
+if(P==='ship'){
+  const tools=document.querySelector('.b-tools');
+  tools.insertAdjacentHTML('afterbegin', `<label class="btn" title="스마트스토어 발송내역 엑셀 (달마다 시트)">엑셀 불러오기<input type="file" id="shipFile" accept=".xlsx,.xls" hidden></label>`);
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal" id="shipImpModal" hidden><section class="panel edit-box" role="dialog" aria-modal="true"><h2>엑셀 불러오기</h2><div id="shipImpBody"></div><div class="row-btns"><span class="sp"></span><button type="button" class="btn" id="shipImpNo">취소</button><button type="button" class="btn primary" id="shipImpGo">올리기</button></div></section></div>`);
+  $('#shipFile').addEventListener('change', e=>{ const f=e.target.files[0]; e.target.value=''; if(f) shipOpenFile(f); });
+  document.addEventListener('change', e=>{ const c=e.target.dataset?.shsh; if(c==null || !shipImport) return; e.target.checked ? shipImport.pick.add(c) : shipImport.pick.delete(c); paintShipImport(); });
+  $('#shipImpNo').onclick=()=>{ $('#shipImpModal').hidden=true; shipImport=null; };
+  $('#shipImpGo').onclick=shipDoImport;
+  filter='all';
+  opsLoadGoods().then(()=>{ if(!$('#editModal').hidden) paintForm(); });   // 굿즈 목록 새로 받기
+}
+
+// ---------- 시작 (모든 정의가 끝난 뒤) ----------
+render(); pull();
+setInterval(()=>{ if(document.visibilityState==='visible' && $('#editModal').hidden) pull(); }, 60e3);
+window.addEventListener('focus', ()=>{ if($('#editModal').hidden) pull(); });

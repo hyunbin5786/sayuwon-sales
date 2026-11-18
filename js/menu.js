@@ -9,10 +9,10 @@
   const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const I = (href, b, s, go) => ({href:base+href, b, s, go});
   const G = [
-    {k:'book', t:'예약보조', login:1, items:[ {sub:'고객응대 접수'}, I('personal.html','개인고객 전화응대'), I('group.html','단체고객 전화응대'),
-      {sub:'고객 응대 보조'}, I('naver.html','네이버 예약 → 사유원 전산 이관'), I('prep.html','다음날 고객 응대 준비'), I('document/','견적서 / 거래명세서 발급') ]},
+    {k:'book', t:'예약보조', login:1, items:[ {sub:'고객응대 접수'}, I('personal.html','개인고객 전화응대','개인 문의 통화 기록 · 보고 · 추후 과업'), I('group.html','단체고객 전화응대','단체 예약 접수 · 가격 · 할인 · 전산 · 추후 과업'),
+      {sub:'고객 응대 보조'}, I('naver.html','네이버 예약 → 사유원 전산 이관','네이버 예약 엑셀을 전산 입력용으로 바꾸기'), I('prep.html','다음날 고객 응대 준비','방문자내역 엑셀로 다음날 단체 응대표 만들기'), I('document/','견적서 / 거래명세서 발급','사유원 · 신라철강 견적서 · 거래명세서 PDF · 엑셀') ]},
     {k:'ops', t:'운영보조', items:[ {sub:'예약현황 공유'}, {chips:[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']]},
-      {...I('ops.html?p=lost','분실물 찾기','습득 · 분실 신고 · 보관 · 반환'), login:1}, {...I('ops.html?p=accident','사고현황 접수','부상 · 파손 등 · 조치 · 처리 상태'), login:1}, {...I('ops.html?p=stock','재고확인','품목별 수량 · 부족 표시'), login:1} ]},
+      {...I('ops.html?p=lost','분실물 찾기','습득 · 분실 신고 · 보관 · 반환'), login:1}, {...I('ops.html?p=accident','사고현황 접수','부상 · 파손 등 · 조치 · 처리 상태'), login:1}, {...I('ops.html?p=stock','재고확인','품목별 수량 · 부족 표시'), login:1}, {...I('ops.html?p=ship','스마트스토어 발송 보고','엑셀 불러오기 · 발송 현황 · 달마다 보고'), login:1} ]},
     {k:'set', t:'기타 설정', login:1, items:[ I('./#catalog','품목관리','', 'catalog'), I('./#members','멤버관리','', 'members') ]},
   ];
   let st={}; try{ st=JSON.parse(localStorage.getItem('sy_menu_acc')||'{}')||{}; }catch(_){}
