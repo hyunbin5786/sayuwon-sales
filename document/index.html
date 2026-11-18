@@ -4,7 +4,7 @@
 <script>/* 사유원 운영 보조 시스템: 로그인(이름 + 사번)을 안 했으면 첫 화면으로 (품목 관리 창으로 띄운 경우는 그대로) */ (function(){ try{ if(/[?&]catalog=1/.test(location.search)) return; var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("../"); }catch(e){} })();</script>
 <!-- 이 페이지(sayuwon-sales/document/)는 견적서&거래명세서 발행기(hyunbin5786/sayuwon-invoice-quotation)를 사유원 운영 보조 시스템 안으로 옮긴 것. 예전 주소도 그대로 둠 -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap">
-<link rel="stylesheet" href="css/document.css?v=20261118">
+<link rel="stylesheet" href="css/document.css?v=20261119p">
 
 <!-- 사유원 운영 보조 시스템 공통 헤더: 시스템 이름(누르면 메뉴) › 화면 이름 · 버튼 · 로그인한 이름 -->
 <header class="sys-hd">

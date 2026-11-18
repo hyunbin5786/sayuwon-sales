@@ -353,3 +353,25 @@ html.cat-page #cat-close{display:none !important}
 
 /* 날짜 칸 (사유원 운영 보조 시스템 공통: 단체 방문일과 같은 방식) */
 .dbox{position:relative;display:block;min-width:0}.dbox .dtxt{width:100%;cursor:pointer;font-variant-numeric:tabular-nums}.dbox .dtxt:not([readonly]){cursor:text}.dbox input.dpick{position:absolute!important;left:0;bottom:0;width:1px!important;height:1px!important;min-width:0!important;opacity:0;pointer-events:none;border:0!important;padding:0!important}
+/* ===== 다른 화면과 같은 색 (2026-11-18): 사유원 운영 보조 시스템 팔레트 (단체 · 개인 · 운영보조와 같은 초록 #3f5236) =====
+   어두운 모드에서도 다른 화면처럼 밝게 */
+:root, :root[data-theme="dark"]{
+  --paper:#f3f1ec; --surface:#fffefb; --surface-2:#faf8f3;
+  --ink:#262620; --muted:#77736a; --faint:#8f8b82;
+  --line:#dfdace; --line-strong:#c9c3b5;
+  --accent:#3f5236; --accent-soft:#e4eadf;
+  --steel:#455a6d; --steel-soft:#e8edf2;
+  --danger:#a4442c;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#f3f1ec; --surface:#fffefb; --surface-2:#faf8f3;
+    --ink:#262620; --muted:#77736a; --faint:#8f8b82;
+    --line:#dfdace; --line-strong:#c9c3b5;
+    --accent:#3f5236; --accent-soft:#e4eadf;
+    --steel:#455a6d; --steel-soft:#e8edf2;
+    --danger:#a4442c;
+    color-scheme: light;
+  }
+}

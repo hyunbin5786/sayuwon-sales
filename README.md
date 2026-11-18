@@ -340,7 +340,7 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
 | 다음날 고객 응대 준비 | `prep.html` | `prep.css` · `mypop.css` · `menu.css` | (exceljs · html2canvas) → `common.js` → `prep.js` → `mypop.js` → `menu.js` |
 | 운영보조 · 기타 개인 업무 (`?p=task · lost · accident · stock`) | `ops.html` | `ops.css` · `mypop.css` · `menu.css` | `common.js` → `opslib.js` → `ops.js` → `mypop.js` → `ime.js` → `keepsize.js` → `menu.js` → `timepick.js` |
 | 네이버 이관 | `naver.html` (한 파일에 CSS · JS) | `menu.css` (파일 안 `<style>` 끝의 「다른 화면과 같은 모양으로」 덮어쓰기 = 사유원 색 · 글꼴 · 버튼 높이 34px, 어두운 모드도 밝게) | (cdnjs xlsx) → 파일 안 스크립트 → `menu.js` |
-| 견적서 / 거래명세서 | `document/index.html` | `document/css/document.css` · `../css/menu.css` | `document/js/datebox.js` · `document/js/document.js` · `../js/menu.js` |
+| 견적서 / 거래명세서 | `document/index.html` | `document/css/document.css` (끝에 「다른 화면과 같은 색」 덮어쓰기 = 초록 #3f5236 등 사유원 팔레트 · 어두운 모드도 밝게, 2026-11-18) · `../css/menu.css` | `document/js/datebox.js` · `document/js/document.js` · `../js/menu.js` |
 | 예전 주소 | `mypage.html` | — | `group.html?my=1` 로 넘김 |
 
 ### 14-2. 공통 파일 (여러 화면이 같이 씀)
