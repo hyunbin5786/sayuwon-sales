@@ -17,7 +17,7 @@ const BOARDS = {
       {k:'repeat', l:'반복', type:'repeat'}, {k:'dows', l:'요일', type:'dows', show:d=>d.repeat==='weekly'}, {k:'dom', l:'매달 날짜', type:'dom', show:d=>d.repeat==='monthly'},
       {k:'due', l:'날짜', type:'date', show:d=>!d.repeat || d.repeat==='none', def:()=>opsToday()},
       {k:'start', l:'시작일', type:'date', show:d=>d.repeat && d.repeat!=='none', def:()=>opsToday()},
-      {k:'owner', l:'담당', type:'text', def:()=>user.name||''}, {k:'memo', l:'메모', type:'textarea', w:2} ],
+      {k:'owner', l:'담당', type:'text', def:()=>user.name||''}, {k:'subs', l:'세부 과업', type:'subs', w:2}, {k:'memo', l:'메모', type:'textarea', w:2} ],
     summary:d=>`${d.title} · ${opsRepeatLabel(d)}` },
   lost: { title:'분실물 찾기', add:'분실물 접수', hint:'습득물 보관 · 분실 신고 · 반환까지',
     fields:[ {k:'kind', l:'구분', type:'select', opts:['습득','분실 신고'], def:()=>'습득'}, {k:'date', l:'접수일', type:'date', def:()=>opsToday()},
@@ -114,7 +114,7 @@ function renderTasks(hit){
   $('#bSum').textContent = `오늘 할 일 ${pend.filter(p=>p.day===today).length}개${pend.some(p=>p.day<today)?` · 지난 것 ${pend.filter(p=>p.day<today).length}개`:''}`;
   const doneToday = list.filter(x=>(x.d.done||{})[today]);
   $('#list').innerHTML = `<h3 class="sub">오늘 할 일 <small>${esc(opsDateLabel(today))}</small></h3>`
-    + (pend.length ? `<ul class="tlist">${pend.map(({x,day})=>`<li class="${day<today?'late':''}"><label><input type="checkbox" data-done="${esc(x.r.id)}|${day}"> <b>${esc(x.d.title)}</b></label><span class="hint">${esc(opsRepeatLabel(x.d))}${!mineOnly?` · ${esc(x.d.owner||'')}`:''}</span><em>${day<today?'지남 ':''}${esc(opsDateLabel(day))}</em><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></li>`).join('')}</ul>` : '<p class="empty">오늘 할 일을 다 했습니다.</p>')
+    + (pend.length ? `<ul class="tlist">${pend.map(({x,day})=>`<li class="${day<today?'late':''}"><label><input type="checkbox" data-done="${esc(x.r.id)}|${day}"> <b>${esc(x.d.title)}</b></label><span class="hint">${esc(opsRepeatLabel(x.d))}${!mineOnly?` · ${esc(x.d.owner||'')}`:''}</span><em>${day<today?'지남 ':''}${esc(opsDateLabel(day))}</em><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button>${subsList(x, day)}</li>`).join('')}</ul>` : '<p class="empty">오늘 할 일을 다 했습니다.</p>')
     + (doneToday.length ? `<ul class="tlist done">${doneToday.map(x=>`<li><label><input type="checkbox" checked data-undo="${esc(x.r.id)}|${today}"> <s>${esc(x.d.title)}</s></label><span class="hint">${esc((x.d.done[today]||{}).by||'')}</span></li>`).join('')}</ul>` : '')
     + `<h3 class="sub">전체 업무 <small>${list.length}개</small></h3>`
     + (list.length ? `<table class="tbl"><thead><tr><th>업무</th><th>반복</th><th>다음</th>${mineOnly?'':'<th>담당</th>'}<th></th></tr></thead><tbody>${list.slice().sort((a,b)=>String(a.d.title).localeCompare(String(b.d.title))).map(x=>{ const nx=nextOcc(x.d, today);
@@ -130,6 +130,12 @@ document.addEventListener('click', e=>{
   const pm=e.target.closest('[data-pm]'); if(pm){ const [id,dv]=pm.dataset.pm.split('|'), x=rows.find(y=>y.r.id===id); if(!x) return; const d={...x.d, qty:String(Math.max(0,(+x.d.qty||0)+(+dv)))}; putRow({...x, d}, `수량 ${x.d.qty||0} → ${d.qty}`); return; }
 });
 document.addEventListener('change', e=>{
+  const sb=e.target.dataset.sub; if(sb){ const [id,day,sid]=sb.split('|'), x=rows.find(y=>y.r.id===id); if(!x) return;   // 세부 과업 체크: 모두 체크되면 그날 업무 완료, 하나라도 풀면 (자동으로 된) 완료 해제
+    const sd={...(x.d.subDone||{})}, m={...(sd[day]||{})}; if(e.target.checked) m[sid]=1; else delete m[sid]; sd[day]=m;
+    const done={...(x.d.done||{})}, all=(x.d.subs||[]).length && (x.d.subs||[]).every(s=>m[s.id]);
+    if(all && !done[day]) done[day]={at:new Date().toISOString(), by:user.name||'', auto:1}; if(!all && done[day] && done[day].auto) delete done[day];
+    const keepS=Object.keys(sd).sort().slice(-120), keepD=Object.keys(done).sort().slice(-120);
+    putRow({...x, d:{...x.d, subDone:Object.fromEntries(keepS.map(k=>[k,sd[k]])), done:Object.fromEntries(keepD.map(k=>[k,done[k]]))}}, `${day} 세부 과업 ${e.target.checked?'체크':'해제'}`); return; }
   const dn=e.target.dataset.done, un=e.target.dataset.undo;
   if(dn||un){ const [id,day]=(dn||un).split('|'), x=rows.find(y=>y.r.id===id); if(!x) return; const done={...(x.d.done||{})};
     if(dn) done[day]={at:new Date().toISOString(), by:user.name||''}; else delete done[day];
@@ -153,6 +159,7 @@ function fieldHTML(f){
   if(f.type==='repeat') return lab+`<div class="seg">${[['none','반복 없음'],['daily','매일'],['weekly','매주'],['monthly','매달']].map(([k,l])=>`<button type="button" class="${(v||'none')===k?'on':''}" data-rep="${k}">${l}</button>`).join('')}</div>`;
   if(f.type==='dows') return lab+`<div class="seg">${[1,2,3,4,5,6,0].map(i=>`<button type="button" class="${(form.dows||[]).includes(i)?'on':''}" data-dow="${i}">${OPS_DOW[i]}</button>`).join('')}</div>`;
   if(f.type==='dom') return lab+`<select id="${id}" data-k="dom">${Array.from({length:30},(_,i)=>i+1).map(i=>`<option value="${i}"${+v===i?' selected':''}>${i}일</option>`).join('')}<option value="31"${+v>=31?' selected':''}>말일</option></select>`;
+  if(f.type==='subs') return lab+`<ul class="esubs">${(form.subs||[]).map(s=>`<li><span>${esc(s.title)}</span><button type="button" class="x" data-subdel="${esc(s.id)}" title="빼기">×</button></li>`).join('')}</ul><div class="esub-add"><input id="e_subAdd" data-ime="ko" placeholder="세부 과업 (적고 Enter)"><button type="button" class="btn sm" id="e_subAddBtn">추가</button></div>`;
   if(f.type==='textarea') return lab+`<textarea id="${id}" data-k="${f.k}" data-ime="ko" rows="3">${esc(v)}</textarea>`;
   if(f.type==='date') return lab+`<span class="dbox"><input class="dtxt" id="${id}" data-dt="${f.k}" readonly value="${esc(dateDisp(v))}" placeholder="누르면 달력"><input type="date" class="dpick" data-dp="${f.k}" value="${esc(v)}" tabindex="-1" aria-hidden="true"></span>`;
   return lab+`<input id="${id}" data-k="${f.k}" value="${esc(v)}"${f.ph?` placeholder="${esc(f.ph)}"`:''}${f.type==='num'||f.type==='time'?' inputmode="numeric" data-ime="num"':f.type==='tel'?' inputmode="tel" data-ime="num"':' data-ime="ko"'}>`;
@@ -177,6 +184,7 @@ $('#eFields').addEventListener('change', e=>{ const p=e.target.closest('.dpick')
 $('#eFields').addEventListener('focusout', e=>{ const t=e.target.closest('.dtxt'); if(!t || t.readOnly) return; const v=parseDateText(t.value); if(v===null){ t.value=dateDisp(form[t.dataset.dt]||''); } else { form[t.dataset.dt]=v; t.value=dateDisp(v); } t.readOnly=true; delete t.dataset.opened; });
 $('#eForm').addEventListener('submit', async e=>{ e.preventDefault();
   document.activeElement?.blur?.();
+  if($('#e_subAdd')?.value.trim()) addSub();   // 세부 과업 칸에 적어 두고 추가를 안 누른 것도
   const miss=B.fields.filter(f=>f.req && (!f.show || f.show(form)) && !String(form[f.k]||'').trim()); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>f.l).join(' · ')}을(를) 넣어 주세요.`; return; }
   if(P==='task' && form.repeat==='weekly' && !(form.dows||[]).length){ $('#eErr').textContent='요일을 하나 이상 골라 주세요.'; return; }
   const d={...form}; B.fields.forEach(f=>{ if(f.show && !f.show(form) && f.k in d && f.type!=='dows' && f.type!=='dom') delete d[f.k]; });
@@ -195,3 +203,12 @@ document.addEventListener('keydown', e=>{ if(e.key!=='Escape') return; if(!$('#a
 render(); pull();
 setInterval(()=>{ if(document.visibilityState==='visible' && $('#editModal').hidden) pull(); }, 60e3);
 window.addEventListener('focus', ()=>{ if($('#editModal').hidden) pull(); });
+
+// ---------- 기타 개인 업무 세부 과업 ----------
+// d.subs = [{id, title}] · d.subDone = {날짜:{세부id:1}} (반복 업무는 날짜마다 따로 체크)
+function subsList(x, day){ const subs=x.d.subs||[]; if(!subs.length) return '';
+  const m=((x.d.subDone||{})[day])||{}, n=subs.filter(s=>m[s.id]).length;
+  return `<ul class="subl"><li class="subn">세부 과업 ${n}/${subs.length}</li>${subs.map(s=>`<li><label><input type="checkbox" data-sub="${esc(x.r.id)}|${day}|${esc(s.id)}"${m[s.id]?' checked':''}> ${m[s.id]?`<s>${esc(s.title)}</s>`:esc(s.title)}</label></li>`).join('')}</ul>`; }
+function addSub(){ const i=$('#e_subAdd'); const v=i && i.value.trim(); if(!v) return; form.subs=[...(form.subs||[]), {id:'s'+Date.now().toString(36), title:v}]; paintForm(); setTimeout(()=>$('#e_subAdd')?.focus(),0); }
+$('#eFields').addEventListener('click', e=>{ if(e.target.id==='e_subAddBtn'){ addSub(); return; } const d=e.target.closest('[data-subdel]'); if(d){ form.subs=(form.subs||[]).filter(s=>s.id!==d.dataset.subdel); paintForm(); } });
+$('#eFields').addEventListener('keydown', e=>{ if(e.target.id==='e_subAdd' && e.key==='Enter' && !e.isComposing){ e.preventDefault(); addSub(); } });

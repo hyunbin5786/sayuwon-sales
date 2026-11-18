@@ -101,3 +101,16 @@ h3.sub + .tbl,h3.sub + .tlist{margin-bottom:18px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2b2b26;color:#fff;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:40}
 .toast[hidden]{display:none}
 @media (max-width:640px){.egrid{grid-template-columns:1fr}.b-tools{margin-left:0;width:100%}.b-tools input{flex:1}.tbl{font-size:12.5px}}
+/* 세부 과업 (기타 개인 업무) */
+.subl{list-style:none;margin:4px 0 0;padding:6px 0 0 26px;width:100%;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:2px}
+.subl li label{display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer}
+.subl li s{color:var(--muted)}
+.subl .subn{font-size:11.5px;color:var(--muted);font-weight:700}
+.esubs{list-style:none;margin:0 0 6px;padding:0;display:flex;flex-direction:column;gap:4px}
+.esubs li{display:flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:13.5px}
+.esubs li span{flex:1}
+.esubs .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1}
+.esubs .x:hover{color:var(--red)}
+.esub-add{display:flex;gap:6px}
+.esub-add input{flex:1}
+.tabs[hidden],.tabs a[hidden]{display:none}
