@@ -10,7 +10,7 @@
 
 ```
 index.html            첫 화면: 로그인 · 아코디언 메뉴 · 대시보드(모두의 할일) · 품목관리(#catalog) · 멤버관리(#members)
-ops.html              운영보조 · 기타 개인 업무 (?p=task · lost · accident · stock, 초안)
+ops.html              운영보조 (?p=lost · accident · stock · ship). 예전 ?p=task(기타 개인 업무)는 나의 할일로 옮겨서 없앰 → 주소로 들어오면 나의 할일 기타 탭으로
 personal.html         1. 개인고객 전화응대
 group.html            2. 단체고객 전화응대 (+ 7. 나의 할일 = group.html?my=1)
 prep.html             3. 다음날 고객 응대 준비
@@ -66,7 +66,7 @@ apps-script/
 |---|---|---|
 | **나의 할일** (☰ 메뉴에는 없음 · 모든 화면 헤더의 「나의 할일」 버튼 = 팝업, 탭 전체 · 개인 · 단체 · 기타) | 개인고객 | `group.html?my=1&tab=personal` (개인고객 통화의 추후 과업) |
 | | 단체고객 | `group.html?my=1&tab=group` (내가 영업 담당인 단체 예약 · 추후 과업) |
-| | 기타 개인 업무 | `ops.html?p=task` — **초안**. 직접 추가하는 내 업무, 반복: 반복 없음(날짜) · 매일 · 매주(요일 여러 개) · 매달(1~30일 · 말일). 「오늘 할 일」(지난 것 포함, 반복은 최근 7일)에서 체크, **세부 과업**(업무를 추가 · 고칠 때 넣음 · 적고 Enter · × 로 빼기, 오늘 할 일에서 날짜마다 따로 체크 · 모두 체크하면 그날 업무 완료), 「전체 업무」에서 열기 · 고치기 · 삭제. 「내 업무 / 모두의 업무」 |
+| | 기타 개인 업무 | **나의 할일 › 전체(3열 「기타 개인 업무」) · 기타 탭에서 모두** (2026-11-18, 예전 화면 `ops.html?p=task` 는 없앰 — 들어오면 `group.html?my=1&tab=etc` 로). 아래 10절 참고 |
 | **예약보조** | 고객응대 접수: 개인고객 전화응대 · 단체고객 전화응대 | `personal.html` · `group.html` |
 | | 고객 응대 보조: 네이버 예약 → 사유원 전산 이관 · 다음날 고객 응대 준비 · 견적서 / 거래명세서 발급 · **전화응대 멘트** | `naver.html` · `prep.html` · `document/` · `ment.html` — **전화응대 멘트는 로그인하지 않아도 보이고 복사 가능**(메뉴 · 첫 화면 로그인 전 칸에도, 팀 비밀번호는 필요) |
 | **운영보조** | 예약현황 공유: 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 | `group.html?book=mb · rent · docent · prog · coupon` — **로그인 없이 볼 수 있고**(팀 비밀번호는 필요), 로그인하지 않은 사람은 고치지 못함 |
@@ -77,7 +77,7 @@ apps-script/
 | **기타 설정** | 품목관리 | `#catalog` (메뉴에서는 한 페이지, 단체 · 견적서 화면의 「품목 관리」 버튼은 1200px 팝업) |
 | | 멤버관리 | `#members` |
 
-- **나의 할일 팝업 · 페이지에 기타 개인 업무**: 탭 「전체 · 개인 · 단체 · **기타**」, 전체는 개인 · 단체 · 기타 3열. 기타 = 내 업무 중 오늘 할 것 + 지난 것, 체크하면 그날 완료, 줄을 누르면 기타 개인 업무 화면. **바로 추가** (2026-11-18): 기타 칸 맨 위 「업무 직접 추가」 + 추가 (추후 과업과 같은 모양), 그 아래 반복 = 반복 없음(마감 날짜, 기본 오늘) · 매일 · 매주(요일 여러 개) · 매달(1~30일 · 말일), 시작일은 오늘. 담당은 나. 저장 모양은 ops.html?p=task 와 같아 그 화면에서 고치기 · 세부 과업 · 메모 (코드 `etcAddHTML` · `etcForm`)
+- **나의 할일의 기타 개인 업무** (2026-11-18, 예전 운영보조 화면 대신 여기서 전부): ① **업무 직접 추가** + 반복(반복 없음 = 마감 날짜 · 매일 · 매주 요일 여러 개 · 매달 1~30일 · 말일) ② **할 일**: 업무마다 한 줄(오늘 할 날, 없으면 가장 최근 밀린 날) — 체크 = 그날 완료, **세부 과업 체크**(모두 체크하면 그날 완료 · 하나라도 풀면 자동 완료 해제), 밀린 날이 있으면 **「지난 n일 모두 완료」** ③ **오늘 완료한 것**(접힘 · 체크를 풀면 취소) ④ **내 업무 전체**(접힘 · 다음 날짜). **업무 이름을 누르면 그 자리에서 고치기**: 이름 · 반복 · 날짜(반복이면 시작일) · 세부 과업(적고 Enter · ×) · 메모 · 저장 / 취소 / 삭제(확인 뒤). 고치는 중에는 자동 새로고침이 칸을 지우지 않음. 담당은 나(내 업무만). 저장 모양은 예전과 같음(통화 구분 `개인업무` · `{kind:task, d, log}` · 세부 과업 `{id, title}`) → 예전 업무 그대로 보임. 첫 화면 대시보드의 기타 줄을 누르면 나의 할일 기타 탭
 - **첫 화면 = 대시보드만 (화면에 꽉 차게, 2026-11-18)**: 위에 검색 칸 하나(전화번호 · 단체명 · 이름, 전화번호는 - 없이 일부만 쳐도). ① **개인고객 전화** ② **단체고객 전화** — 줄 = 통화 · 예약 하나, **접수자 이름 · 단체명(없으면 전화번호)** + 담당자 이름, 그 아래 **회색으로 오늘까지 할 과업 모두**(기한 지난 것은 빨강 「지남」). ③ **기타 개인 할일** — 업무 이름 · 담당 · 세부 과업 진행. ①②③ 열마다 「내일 마감도 보기」. ④ **개인 할일 보기** — 1행 1명, 오늘까지 할 것이 있는 개인고객 · 단체고객 · 기타 수(지남 표시), 이름을 누르면 ①②③을 그 사람 것만(다시 누르면 모두). 줄을 누르면 그 예약 · 통화 · 업무로. 단체는 방문 뒤 30일이 지난 예약 제외 · 예약상담은 사전답사 · 대구대교구 · 직접 추가한 과업만. **빠르게**: 마지막으로 받은 내용을 브라우저에 두고(`sy_dash_cache`, 로그아웃하면 지움) 열자마자 그린 뒤 새로 받아 다시 그림 · 목록과 멤버를 동시에 받음 · 3분마다 새로. 팀 비밀번호 필요
 - **운영보조 저장 방식** (`ops.html` · `js/ops.js` · `js/opslib.js`): 공유 시트 `calls` 한 줄 = 한 건, **통화 구분**이 `개인업무` · `분실물` · `사고` · `재고`. 내용은 수정 기록 칸에 JSON `{kind, d, log}`, 요약 칸에 한 줄. 방문일 · 업체 칸은 비워 둠(단체 화면 예약 현황에 섞이지 않게). Apps Script 고칠 것 없음
 
@@ -357,7 +357,7 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
 | 개인고객 전화응대 | `personal.html` | `personal.css` · `mypop.css` · `menu.css` | `common.js` → `personal.js` → `mypop.js` → `ime.js` → `keepsize.js` → `menu.js` |
 | 단체고객 전화응대 · 나의 할일(`?my=1`) · 예약 현황 공유(`?book=…`) | `group.html` | `group.css` · `menu.css` | `common.js` → `opslib.js` → `group.js` → `ime.js` → `keepsize.js` → `menu.js` → `timepick.js` |
 | 다음날 고객 응대 준비 | `prep.html` | `prep.css` · `mypop.css` · `menu.css` | (exceljs · html2canvas) → `common.js` → `prep.js` → `mypop.js` → `menu.js` |
-| 운영보조 · 기타 개인 업무 (`?p=task · lost · accident · stock`) | `ops.html` | `ops.css` · `mypop.css` · `menu.css` | `common.js` → `opslib.js` → `ops.js` → `mypop.js` → `ime.js` → `keepsize.js` → `menu.js` → `timepick.js` |
+| 운영보조 (`?p=lost · accident · stock · ship`, p 없음 · task 는 나의 할일로) | `ops.html` | `ops.css` · `mypop.css` · `menu.css` | `common.js` → `opslib.js` → `ops.js` → `mypop.js` → `ime.js` → `keepsize.js` → `menu.js` → `timepick.js` |
 | 네이버 이관 | `naver.html` (한 파일에 CSS · JS) | `menu.css` (파일 안 `<style>` 끝의 「다른 화면과 같은 모양으로」 덮어쓰기 = 사유원 색 · 글꼴 · 버튼 높이 34px, 어두운 모드도 밝게) | (cdnjs xlsx) → 파일 안 스크립트 → `menu.js` |
 | 전화응대 멘트 | `ment.html` | `ops.css` · `ment.css` · `menu.css` | `common.js` → `ment.js` → `ime.js` → `keepsize.js` → `menu.js` |
 | 견적서 / 거래명세서 | `document/index.html` | `document/css/document.css` (끝에 「다른 화면과 같은 색」 덮어쓰기 = 초록 #3f5236 등 사유원 팔레트 · 어두운 모드도 밝게, 2026-11-18) · `../css/menu.css` | `document/js/datebox.js` · `document/js/document.js` · `../js/menu.js` |
@@ -393,7 +393,7 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
 | 견적서 · 단계 · 단체상담 입력 · 엑셀 · 삭제 · 목록 | `openQuote()`(`sy_intake_handoff`) · `STAGES` · `parseConsult()` · 목록 창 |
 | 나의 할일 | `renderMy()`(탭 전체 · 개인 · 단체 · 기타) · `myPersonalOpen()` · `myEtcOpen()` |
 | 잠금 · 동시 수정 · 마감 알림 · 미정 기한 · 화면 기억 | `lockOwner` · `acquireEdit()` · `checkDue` · `tbdLimit()` · `sayuwon_view` |
-| 비고 멘트 · 사전답사 팝업 · 삭제 확인 · 기타 개인 업무 | `#noteModal` · `#tourModal` · `askDelete()` · `etcSection()` · `etcAddHTML()` |
+| 비고 멘트 · 사전답사 팝업 · 삭제 확인 · 기타 개인 업무 | `#noteModal` · `#tourModal` · `askDelete()` · `etcSection()` · `etcEditHTML()` · `etcPut()` (기타 개인 업무 전부) · `etcAddHTML()` |
 
 다른 JS 파일도 같은 모양입니다: `personal.js`(공유 기록 → 날짜 칸 → 칸 · 과업 → 구분 · 보고 → 저장 · 자동 저장 → 목록 · 통화 기록 전체 · 삭제 → 마감 알림 · 나의 할일 숫자 · 보고 글자 미리보기 · 삭제 확인 · 노란 점) · `portal.js`(로그인 → 멤버관리 → 품목관리 → 대시보드) · `ops.js`(화면별 칸 `BOARDS` → 공유 기록 → 목록 → 추가 · 고치기 → 세부 과업).
 

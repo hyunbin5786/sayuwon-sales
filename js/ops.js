@@ -1,11 +1,11 @@
 // ===== 운영보조 (ops.html, 초안 2026-11-18) =====
 // 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 README 14절
-// ?p=task 기타 개인 업무 (나의 할일) · lost 분실물 찾기 · accident 사고현황 접수 · stock 재고확인
+// lost 분실물 찾기 · accident 사고현황 접수 · stock 재고확인
 // 저장: 공유 기록(calls) 한 줄 = 한 건 (opslib.js). 고치면 바로 시트에 올리고, 다른 사람이 고친 것은 1분마다 · 이 창으로 돌아올 때 다시 받음
 const $ = s => document.querySelector(s);
 const esc = SY.esc;   // 공통 도구 (js/common.js)
 const user = opsUser();
-const P = (new URLSearchParams(location.search).get('p')) || 'task';
+const P = (new URLSearchParams(location.search).get('p')) || 'lost';   // 기타 개인 업무(?p=task)는 나의 할일로 옮김 (2026-11-18)
 const won = n => (Math.round(+n||0)).toLocaleString('ko-KR');
 function toast(m){ const t=$('#toast'); t.textContent=m; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true, 2600); }
 
@@ -13,13 +13,6 @@ function toast(m){ const t=$('#toast'); t.textContent=m; t.hidden=false; clearTi
 // type: text · tel · num · date · time · select · textarea · dows(요일) · dom(매달 일자) · repeat
 const LOST_ST = ['보관중','찾는 중','반환 완료','폐기'], ACC_ST = ['접수','처리 중','완료'];
 const BOARDS = {
-  task: { title:'기타 개인 업무', add:'업무 추가', hint:'직접 추가하는 내 업무 · 매일 / 매주(요일) / 매달(일자) 반복',
-    fields:[ {k:'title', l:'업무', type:'text', req:1, w:2},
-      {k:'repeat', l:'반복', type:'repeat'}, {k:'dows', l:'요일', type:'dows', show:d=>d.repeat==='weekly'}, {k:'dom', l:'매달 날짜', type:'dom', show:d=>d.repeat==='monthly'},
-      {k:'due', l:'날짜', type:'date', show:d=>!d.repeat || d.repeat==='none', def:()=>opsToday()},
-      {k:'start', l:'시작일', type:'date', show:d=>d.repeat && d.repeat!=='none', def:()=>opsToday()},
-      {k:'owner', l:'담당', type:'text', def:()=>user.name||''}, {k:'subs', l:'세부 과업', type:'subs', w:2}, {k:'memo', l:'메모', type:'textarea', w:2} ],
-    summary:d=>`${d.title} · ${opsRepeatLabel(d)}` },
   lost: { title:'분실물 찾기', add:'분실물 접수', hint:'습득물 보관 · 분실 신고 · 반환까지',
     fields:[ {k:'kind', l:'구분', type:'select', opts:['습득','분실 신고'], def:()=>'습득'}, {k:'date', l:'접수일', type:'date', def:()=>opsToday()},
       {k:'item', l:'물품', type:'text', req:1}, {k:'feature', l:'특징', type:'text', ph:'색 · 브랜드 · 안에 든 것'},
@@ -49,13 +42,12 @@ const BOARDS = {
       {k:'addr', l:'기본배송지', type:'text', w:2}, {k:'addr2', l:'상세배송지', type:'text'}, {k:'zip', l:'우편번호', type:'text'}, {k:'msg', l:'배송메세지', type:'textarea', w:2} ],
     summary:d=>`${d.orderDate||''} ${d.item||''} ${d.qty||''}개 · ${d.recv||d.buyer||''}` },
 };
-const B = BOARDS[P] || BOARDS.task;
+const B = BOARDS[P] || BOARDS.lost;
 document.title = `${B.title} · 사유원 운영 보조 시스템`;
-$('#crumb').textContent = P==='task' ? `나의 할일 › ${B.title}` : `운영보조 › ${B.title}`;
+$('#crumb').textContent = `운영보조 › ${B.title}`;
 $('#me').textContent = user.name ? `👤 ${user.name}` : '';
 $('#bTitle').textContent = B.title; $('#addBtn').textContent = '＋ ' + B.add;
-document.querySelectorAll('#tabs a').forEach(a=>{ a.classList.toggle('on', a.dataset.p===P); if(a.dataset.p==='task') a.hidden=true; });   // 탭 = 운영보조 3개 (기타 개인 업무는 나의 할일 쪽)
-$('#tabs').hidden = P==='task';
+document.querySelectorAll('#tabs a').forEach(a=>a.classList.toggle('on', a.dataset.p===P));
 
 // ---------- 공유 기록 ----------
 const CACHE_LS = 'sy_ops_cache_' + P;
@@ -74,7 +66,7 @@ async function pull(){
 async function putRow(row, what){
   const now=new Date().toISOString(), log=[...(row.log||[]), {at:now, by:user.name||'', what}].slice(-60);
   const item = {...(row.r||{}), id: row.r?.id || opsId(), callType:OPS_TYPES[P], saved: row.r?.saved || now, takenBy: row.r?.takenBy || user.name || '',
-    owner: P==='task' ? (row.d.owner||user.name||'') : (row.r?.owner || user.name || ''), summary: B.summary(row.d).slice(0,120), history: JSON.stringify({kind:P, d:row.d, log}) };
+    owner: row.r?.owner || user.name || '', summary: B.summary(row.d).slice(0,120), history: JSON.stringify({kind:P, d:row.d, log}) };
   delete item.date; delete item.org;   // 방문일 · 업체 칸은 비워 둠 (단체 화면 예약 현황에 섞이지 않게)
   const i=rows.findIndex(x=>x.r?.id===item.id), nr={r:item, d:row.d, log}; if(i>=0) rows[i]=nr; else rows.push(nr);
   render(); setSync('저장 중…');
@@ -91,7 +83,6 @@ $('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#ke
 let filter = B.open ? 'open' : 'all', mineOnly = true;
 function render(){
   const q=$('#q').value.trim().toLowerCase(), hit = d => !q || JSON.stringify(d).toLowerCase().includes(q);
-  if(P==='task') return renderTasks(hit);
   if(P==='stock') return renderStock(hit);
   if(P==='ship') return renderShip(hit);
   const st=B.status, list=rows.filter(x=>hit(x.d) && (filter==='all' || (filter==='open' ? B.open.includes(x.d[st]) : x.d[st]===filter)))
@@ -113,43 +104,11 @@ function renderStock(hit){
       + `<td class="num">${d.min!==''&&d.min!=null?won(d.min):''}</td><td class="hint">${last?esc(opsDateLabel(opsYmd(last.at)))+' '+esc(last.by||''):''}</td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></td></tr>`; }).join('')}</tbody></table>`
     : `<p class="empty">${rows.length ? '부족한 품목이 없습니다.' : '아직 품목이 없습니다. 「＋ 품목 추가」로 넣어 주세요.'}</p>`;
 }
-function renderTasks(hit){
-  const today=opsToday(), me=user.name||'';
-  const mine = x => !mineOnly || (x.d.owner||x.r.takenBy)===me;
-  const list=rows.filter(x=>mine(x) && hit(x.d));
-  $('#filters').innerHTML = `<button type="button" class="chip${mineOnly?' on':''}" data-mine="1">내 업무</button><button type="button" class="chip${mineOnly?'':' on'}" data-mine="0">모두의 업무</button>`;
-  const pend=[]; list.forEach(x=>opsPending(x.d, today).forEach(day=>pend.push({x, day})));
-  pend.sort((a,b)=>a.day.localeCompare(b.day));
-  $('#bSum').textContent = `오늘 할 일 ${pend.filter(p=>p.day===today).length}개${pend.some(p=>p.day<today)?` · 지난 것 ${pend.filter(p=>p.day<today).length}개`:''}`;
-  const doneToday = list.filter(x=>(x.d.done||{})[today]);
-  $('#list').innerHTML = `<h3 class="sub">오늘 할 일 <small>${esc(opsDateLabel(today))}</small></h3>`
-    + (pend.length ? `<ul class="tlist">${pend.map(({x,day})=>`<li class="${day<today?'late':''}"><label><input type="checkbox" data-done="${esc(x.r.id)}|${day}"> <b>${esc(x.d.title)}</b></label><span class="hint">${esc(opsRepeatLabel(x.d))}${!mineOnly?` · ${esc(x.d.owner||'')}`:''}</span><em>${day<today?'지남 ':''}${esc(opsDateLabel(day))}</em><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button>${subsList(x, day)}</li>`).join('')}</ul>` : '<p class="empty">오늘 할 일을 다 했습니다.</p>')
-    + (doneToday.length ? `<ul class="tlist done">${doneToday.map(x=>`<li><label><input type="checkbox" checked data-undo="${esc(x.r.id)}|${today}"> <s>${esc(x.d.title)}</s></label><span class="hint">${esc((x.d.done[today]||{}).by||'')}</span></li>`).join('')}</ul>` : '')
-    + `<h3 class="sub">전체 업무 <small>${list.length}개</small></h3>`
-    + (list.length ? `<table class="tbl"><thead><tr><th>업무</th><th>반복</th><th>다음</th>${mineOnly?'':'<th>담당</th>'}<th></th></tr></thead><tbody>${list.slice().sort((a,b)=>String(a.d.title).localeCompare(String(b.d.title))).map(x=>{ const nx=nextOcc(x.d, today);
-        return `<tr><td><b>${esc(x.d.title)}</b>${x.d.memo?`<br><small class="hint">${esc(String(x.d.memo).split('\n')[0].slice(0,50))}</small>`:''}</td><td>${esc(opsRepeatLabel(x.d))}</td><td>${nx?esc(opsDateLabel(nx)):'<span class="hint">끝남</span>'}</td>${mineOnly?'':`<td>${esc(x.d.owner||'')}</td>`}<td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></td></tr>`; }).join('')}</tbody></table>` : '<p class="empty">아직 업무가 없습니다. 「＋ 업무 추가」로 넣어 주세요.</p>');
-}
-function nextOcc(d, today){ if(!d.repeat || d.repeat==='none'){ const due=d.due||d.start; return due && !(d.done||{})[due] ? due : ''; }
-  for(let i=0;i<400;i++){ const x=new Date(today+'T00:00'); x.setDate(x.getDate()+i); const day=opsYmd(x); if(opsOccurs(d, day) && !(d.done||{})[day]) return day; } return ''; }
 
 document.addEventListener('click', e=>{
   const f=e.target.closest('[data-f]'); if(f){ filter=f.dataset.f; render(); return; }
-  const m=e.target.closest('[data-mine]'); if(m){ mineOnly=m.dataset.mine==='1'; render(); return; }
   const ed=e.target.closest('[data-edit]'); if(ed){ openEdit(rows.find(x=>x.r.id===ed.dataset.edit)); return; }
   const pm=e.target.closest('[data-pm]'); if(pm){ const [id,dv]=pm.dataset.pm.split('|'), x=rows.find(y=>y.r.id===id); if(!x) return; const d={...x.d, qty:String(Math.max(0,(+x.d.qty||0)+(+dv)))}; putRow({...x, d}, `수량 ${x.d.qty||0} → ${d.qty}`); return; }
-});
-document.addEventListener('change', e=>{
-  const sb=e.target.dataset.sub; if(sb){ const [id,day,sid]=sb.split('|'), x=rows.find(y=>y.r.id===id); if(!x) return;   // 세부 과업 체크: 모두 체크되면 그날 업무 완료, 하나라도 풀면 (자동으로 된) 완료 해제
-    const sd={...(x.d.subDone||{})}, m={...(sd[day]||{})}; if(e.target.checked) m[sid]=1; else delete m[sid]; sd[day]=m;
-    const done={...(x.d.done||{})}, all=(x.d.subs||[]).length && (x.d.subs||[]).every(s=>m[s.id]);
-    if(all && !done[day]) done[day]={at:new Date().toISOString(), by:user.name||'', auto:1}; if(!all && done[day] && done[day].auto) delete done[day];
-    const keepS=Object.keys(sd).sort().slice(-120), keepD=Object.keys(done).sort().slice(-120);
-    putRow({...x, d:{...x.d, subDone:Object.fromEntries(keepS.map(k=>[k,sd[k]])), done:Object.fromEntries(keepD.map(k=>[k,done[k]]))}}, `${day} 세부 과업 ${e.target.checked?'체크':'해제'}`); return; }
-  const dn=e.target.dataset.done, un=e.target.dataset.undo;
-  if(dn||un){ const [id,day]=(dn||un).split('|'), x=rows.find(y=>y.r.id===id); if(!x) return; const done={...(x.d.done||{})};
-    if(dn) done[day]={at:new Date().toISOString(), by:user.name||''}; else delete done[day];
-    const keep=Object.keys(done).sort().slice(-120); const d2={...x.d, done:Object.fromEntries(keep.map(k=>[k,done[k]]))};
-    putRow({...x, d:d2}, dn?`${day} 완료`:`${day} 완료 취소`); }
 });
 $('#q').addEventListener('input', ()=>render());
 
@@ -157,7 +116,6 @@ $('#q').addEventListener('input', ()=>render());
 let editRow=null, form={};
 function openEdit(row){
   editRow=row||null; form = row ? {...row.d} : Object.fromEntries(B.fields.filter(f=>f.def).map(f=>[f.k, f.def()]));
-  if(P==='task' && !form.repeat) form.repeat='none';
   $('#eTitle').textContent = row ? `${B.title} · 고치기` : B.add;
   $('#eDel').hidden = !row; $('#eErr').textContent=''; paintForm(); $('#editModal').hidden=false;
   setTimeout(()=>$('#eFields input:not([type=hidden]):not([readonly]), #eFields textarea')?.focus(), 0);
@@ -194,7 +152,6 @@ $('#eForm').addEventListener('submit', async e=>{ e.preventDefault();
   document.activeElement?.blur?.();
   if($('#e_subAdd')?.value.trim()) addSub();   // 세부 과업 칸에 적어 두고 추가를 안 누른 것도
   const miss=B.fields.filter(f=>f.req && (!f.show || f.show(form)) && !String(form[f.k]||'').trim()); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>f.l).join(' · ')}을(를) 넣어 주세요.`; return; }
-  if(P==='task' && form.repeat==='weekly' && !(form.dows||[]).length){ $('#eErr').textContent='요일을 하나 이상 골라 주세요.'; return; }
   const d={...form}; B.fields.forEach(f=>{ if(f.show && !f.show(form) && f.k in d && f.type!=='dows' && f.type!=='dom') delete d[f.k]; });
   const ok=await putRow({...(editRow||{}), d}, editRow?'고침':'추가'); if(ok!==false){ $('#editModal').hidden=true; toast(editRow?'고쳤습니다.':'추가했습니다.'); }
 });
@@ -208,15 +165,6 @@ $('#askNo').onclick=()=>{ $('#askModal').hidden=true; askOk=null; };
 $('#askYes').onclick=()=>{ const f=askOk; $('#askModal').hidden=true; askOk=null; if(f) f(); };
 document.addEventListener('keydown', e=>{ if(e.key!=='Escape') return; if(!$('#askModal').hidden){ $('#askModal').hidden=true; return; } if(!$('#editModal').hidden) $('#editModal').hidden=true; });
 
-
-// ---------- 기타 개인 업무 세부 과업 ----------
-// d.subs = [{id, title}] · d.subDone = {날짜:{세부id:1}} (반복 업무는 날짜마다 따로 체크)
-function subsList(x, day){ const subs=x.d.subs||[]; if(!subs.length) return '';
-  const m=((x.d.subDone||{})[day])||{}, n=subs.filter(s=>m[s.id]).length;
-  return `<ul class="subl"><li class="subn">세부 과업 ${n}/${subs.length}</li>${subs.map(s=>`<li><label><input type="checkbox" data-sub="${esc(x.r.id)}|${day}|${esc(s.id)}"${m[s.id]?' checked':''}> ${m[s.id]?`<s>${esc(s.title)}</s>`:esc(s.title)}</label></li>`).join('')}</ul>`; }
-function addSub(){ const i=$('#e_subAdd'); const v=i && i.value.trim(); if(!v) return; form.subs=[...(form.subs||[]), {id:'s'+Date.now().toString(36), title:v}]; paintForm(); setTimeout(()=>$('#e_subAdd')?.focus(),0); }
-$('#eFields').addEventListener('click', e=>{ if(e.target.id==='e_subAddBtn'){ addSub(); return; } const d=e.target.closest('[data-subdel]'); if(d){ form.subs=(form.subs||[]).filter(s=>s.id!==d.dataset.subdel); paintForm(); } });
-$('#eFields').addEventListener('keydown', e=>{ if(e.target.id==='e_subAdd' && e.key==='Enter' && !e.isComposing){ e.preventDefault(); addSub(); } });
 
 // ---------- 스마트스토어 발송 보고 (?p=ship, 2026-11-18) ----------
 // 목록: 달(주문일 기준) · 상태(발송 전 · 발송 완료 · 수령 완료) 로 걸러 보고, 위에 그 달 보고(건수 · 수량 · 금액 · 상품별). 「보고 글자 복사」

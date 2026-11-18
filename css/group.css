@@ -752,3 +752,28 @@ html.book-guest #bookBody tr{cursor:default}
 .dp-list li.r:hover{background:#e4eadf}
 .dp-list li small{color:var(--muted)}
 .dp-t{display:inline-block;min-width:74px;font-variant-numeric:tabular-nums;color:var(--muted)}
+/* ===== 나의 할일 · 기타 개인 업무: 오늘 할 일 · 세부 과업 체크 · 그 자리에서 고치기 · 전체 (2026-11-18, 예전 운영보조 화면 대신) ===== */
+.my-etc{flex-wrap:wrap}
+.my-etc.editing{display:block;border-color:var(--pine);box-shadow:0 0 0 2px var(--pine-soft)}
+.etc-subck{flex:1 1 100%;display:flex;flex-direction:column;gap:3px;padding:4px 0 0 26px;font-size:12.5px}
+.etc-subck label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.etc-subck input{accent-color:var(--pine)}
+.etc-subck label:has(input:checked){color:var(--muted);text-decoration:line-through}
+.etc-edit{display:flex;flex-direction:column;gap:8px}
+.etc-edit .etc-in{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13px var(--sans);color:var(--ink);background:#fff;width:100%;box-sizing:border-box}
+.etc-edit textarea.etc-in{resize:vertical;min-height:52px}
+.etc-edit .etc-rep{margin:0}
+.etc-subs{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12.5px}
+.etc-subs > b{font-size:12px;color:var(--muted);margin-right:2px}
+.etc-sub{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:999px;padding:1px 4px 1px 10px;background:#faf8f3}
+.etc-sub button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 4px}
+.etc-sub button:hover{color:var(--red)}
+.etc-subs .etc-in{flex:1 1 160px;width:auto}
+.etc-ebtns{display:flex;gap:6px;align-items:center}
+.etc-ebtns .sp{flex:1}
+.etc-ebtns .btn{height:30px;padding:0 12px;font-size:12.5px}
+.etc-more{margin:4px 0 10px}
+.etc-more > summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--pine);padding:4px 0}
+.etc-done li .who s{color:var(--muted)}
+.etc-past{border:1px solid #d98b80;background:#fdf1ef;color:var(--red);border-radius:999px;padding:0 8px;font:600 11.5px var(--sans);cursor:pointer;margin-left:4px;height:20px}
+.etc-past:hover{background:var(--red);color:#fff}
