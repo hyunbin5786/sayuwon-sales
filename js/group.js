@@ -624,7 +624,8 @@ document.addEventListener('click', async e=>{ const b=e.target.closest('#itemsBo
 const TM_REQ = ['chabang','dangdu'];
 function paintTmMissing(){ TM_REQ.forEach(k=>{
   ['S','E'].forEach(x=>{ const el=document.querySelector(`#itemsBox [data-ix="tm${x}:${k}"]`); if(el) el.closest('.it-xl').classList.toggle('missing', !el.value.trim()); });
-  const q=document.querySelector(`#itemsBox [data-iq="${k}"]`); if(q) q.closest('.it-q').classList.toggle('missing', !q.value.trim()); }); }   // 시간(수량)도
+  const q=document.querySelector(`#itemsBox [data-iq="${k}"]`); if(q) q.closest('.it-q').classList.toggle('missing', !q.value.trim()); });
+  ['mbS','mbE','mabangPay'].forEach(ix=>{ const el=document.querySelector(`#itemsBox [data-ix="${ix}"]`); if(el) el.closest('.it-xl').classList.toggle('missing', !el.value.trim()); }); }   // 시간(수량)도 · 몽몽마방 시작 · 끝 · 결제도 비면 빨간 칸 (2026-11-18, 결제 미정은 노란 칸)
 function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은 넣은 묶음만
   document.querySelectorAll('#itemsBox [data-is]:not([data-is="seminar2"])').forEach(el=>el.closest('.it-s').classList.toggle('missing', !el.value.trim()));
   paintTmMissing();
@@ -665,7 +666,7 @@ document.addEventListener('input', e=>{
   else if(el.dataset.ix!=null && el.tagName==='INPUT'){ rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix); itemChanged(false, true); }
 });
 document.addEventListener('change', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.ix==null || el.tagName!=='SELECT') return; rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix);
-  if(el.dataset.ix==='mabangPay'){ syncPayTbd(rec); touched.add('tbd'); el.parentNode.classList.toggle('tbd', el.value==='미정'); paintFields(); renderSide(); if(el.value==='기타') openPayGuide('기타', '몽몽마방'); }   // 몽몽마방 결제 미정 ↔ 미정 항목
+  if(el.dataset.ix==='mabangPay'){ syncPayTbd(rec); touched.add('tbd'); el.parentNode.classList.toggle('tbd', el.value==='미정'); paintFields(); renderSide(); paintTmMissing(); if(el.value==='기타') openPayGuide('기타', '몽몽마방'); }   // 몽몽마방 결제 미정 ↔ 미정 항목
   itemChanged(false); });
 // 몽몽마방 시작 · 끝나는 시각: 칸을 나갈 때 24시간으로 맞추고, 시작을 넣으면 끝 = 1시간 뒤
 document.addEventListener('focusout', e=>{ const el=e.target, ix=el.dataset?.ix; if(!el.closest?.('#itemsBox') || (ix!=='mbS' && ix!=='mbE')) return;
