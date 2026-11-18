@@ -1,6 +1,6 @@
 // ===== 다음날 고객 응대 준비 (prep.html) =====
 // 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 README 14절
-// ① 방문자내역 엑셀 → ② 10인 이상 목록 → ③ 단체예약 정보 → ④ 입장문 추천 · 표 복사 · 엑셀 · 인쇄
+// 준비할 날짜(기본 내일 · 엑셀 방문일이 다르면 팝업) → ① 방문자내역 엑셀 → ② 티켓 발권 대상(단체예약은 늘 자동 연결) → ④ 입장문 추천 · 표(목록 · 새로 조사 구분) · 엑셀 · 이미지
 
 const $ = s => document.querySelector(s);
 const esc = SY.esc;   // 공통 도구 (js/common.js)
@@ -58,7 +58,8 @@ async function readFile(f){
     if(head[0]===0xd0 && head[1]===0xcf) throw new Error('예전 엑셀(.xls 바이너리) 파일입니다. 전산 방문자내역에서 내려받은 파일을 그대로 넣어 주세요.');
     const text=new TextDecoder('utf-8').decode(buf), v=parseVisitors(text);
     if(!v.rows.length) throw new Error('예약 줄을 찾지 못했습니다.');
-    state={ file:f.name, date:v.date, rows:v.rows, sel:{}, link:{}, edit:{} };
+    if(v.date && v.date!==prepDate){ showDateModal(`넣은 엑셀의 방문일은 <b>${esc(dLab(v.date))}</b>인데, 준비할 날짜는 <b>${esc(dLab(prepDate))}</b>입니다.<br>${esc(dLab(prepDate))} 방문자내역 엑셀로 바꿔 주세요.`); return; }   // 다음날(준비할 날짜) 파일이 아니면 읽지 않음 (2026-11-18)
+    state={ file:f.name, date:v.date||prepDate, rows:v.rows, sel:{}, link:{}, edit:{} };
     build(true); saveState(); toast(`${v.rows.length}건을 읽었습니다.`);
   }catch(e){ $('#fileErr').textContent = e.message || '파일을 읽지 못했습니다.'; }
 }
@@ -67,6 +68,24 @@ const drop=$('#drop');
 ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e=>{ const f=e.dataTransfer.files[0]; if(f) readFile(f); });
+
+// ===================== 준비할 날짜 (2026-11-18): 맨 위 · 기본 = 내일 · 엑셀의 방문일이 다르면 팝업 =====================
+const tomorrowYmd = () => { const d=new Date(); d.setDate(d.getDate()+1); return SY.ymd(d); };
+let prepDate = tomorrowYmd();
+function paintPrepDate(){ $('#prepDateTxt').value = SY.dateDisp(prepDate); $('#prepDate').value = prepDate;
+  const h=$('#prepDateHint'), mis = state && state.date && state.date!==prepDate;
+  h.className = mis ? 'bad' : ''; h.textContent = mis ? `읽어 둔 엑셀은 ${dLab(state.date)} 것입니다 — 파일을 바꿔 주세요` : prepDate===tomorrowYmd() ? '내일 · 이 날짜의 방문자내역 엑셀을 넣으세요' : '이 날짜의 방문자내역 엑셀을 넣으세요'; }
+function showDateModal(html){ $('#dmMsg').innerHTML=html; $('#dateModal').hidden=false; setTimeout(()=>$('#dmPick').focus(), 0); }
+$('#dmClose').onclick=()=>{ $('#dateModal').hidden=true; };
+$('#dmPick').onclick=()=>{ $('#dateModal').hidden=true; $('#file').click(); };
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#dateModal').hidden) $('#dateModal').hidden=true; });
+// 날짜 칸: 누르면 달력, 달력이 열린 뒤 한 번 더 누르면 직접 입력 (다른 화면의 방문일 칸과 같음)
+{ const t=$('#prepDateTxt'), p=$('#prepDate'); let pickAt=0;
+  t.addEventListener('click', ()=>{ if(!t.readOnly) return; if(Date.now()-pickAt<20000){ t.readOnly=false; t.select(); pickAt=0; return; } pickAt=Date.now(); try{ p.showPicker(); }catch(_){ p.focus(); } });
+  const setD = v => { if(!v) return; prepDate=v; paintPrepDate(); if(state && state.date!==prepDate) showDateModal(`읽어 둔 엑셀의 방문일은 <b>${esc(dLab(state.date))}</b>입니다. 준비할 날짜 <b>${esc(dLab(prepDate))}</b>의 방문자내역 엑셀로 바꿔 주세요.`); };
+  p.addEventListener('change', ()=>setD(p.value));
+  t.addEventListener('blur', ()=>{ if(t.readOnly) return; t.readOnly=true; const v=SY.parseDateText(t.value); if(v) setD(v); else paintPrepDate(); });
+  t.addEventListener('keydown', e=>{ if(e.key==='Enter') t.blur(); }); }
 
 // ===================== 상태 (이 브라우저에만 · 새로고침해도 그대로) =====================
 const STATE_LS='sayuwon_prep_state';
@@ -142,7 +161,7 @@ function recommendGates(force){
 }
 // ===================== 화면 =====================
 function render(){
-  const s=state; [ '#p2','#p3','#p4' ].forEach(id=>$(id).classList.toggle('off', !s));
+  const s=state; [ '#p2','#p4' ].forEach(id=>$(id).classList.toggle('off', !s)); paintPrepDate();
   if(!s){ $('#fileSum').innerHTML=''; $('#listBody').innerHTML=''; $('#outBody').innerHTML=''; $('#outFoot').innerHTML=''; return; }
   const total=s.rows.reduce((a,x)=>a+x.ppl,0), dg=dayGroups();
   $('#fileSum').innerHTML = `<span>파일 <b>${esc(s.file)}</b></span><span>방문일 <b>${esc(dLab(s.date))}</b></span><span>예약 <b>${s.rows.length}</b>건</span><span>방문 인원 <b>${total}</b>명</span><button class="btn" id="clearBtn" type="button">지우기</button>`;
@@ -151,13 +170,12 @@ function render(){
   $('#listBody').innerHTML = rows.map(r=>`<tr class="${r.on?'':'dim'}"><td><input type="checkbox" data-sel="${esc(r.key)}"${r.on?' checked':''}></td><td>${r.group?'<span class="tag grp">단체</span>':'<span class="tag ind">개인</span>'}${r.missing?'<span class="tag warn" title="단체예약에는 있는데 전산 방문자내역에 없음">전산에 없음</span>':''}</td><td>${esc(r.xname||'-')}</td><td>${esc(r.phone)}</td><td class="num">${r.ppl}</td><td style="white-space:pre-line;font-size:12px">${esc(r.prods)}</td><td>${r.missing?esc(r.name):linkOpts(r.key, r.recId)}</td></tr>`).join('')
     || '<tr><td colspan="7" class="hint" style="text-align:center;padding:14px">기준 이상인 예약이 없습니다.</td></tr>';
   const on=rows.filter(r=>r.on);
-  $('#p2Sum').textContent = `${on.length}팀 · ${on.reduce((a,r)=>a+r.ppl,0)}명`;
-  $('#p3Sum').textContent = `단체예약 ${dg.length}건 중 연결 ${rows.filter(r=>r.group && !r.missing).length} · 전산에 없음 ${rows.filter(r=>r.missing).length}` + (groups.length?'':' (단체예약을 아직 못 불러옴)');
+  $('#p2Sum').textContent = `${on.length}팀 · ${on.reduce((a,r)=>a+r.ppl,0)}명 · 단체예약 ${dg.length}건 중 연결 ${rows.filter(r=>r.group && !r.missing).length}${rows.some(r=>r.missing)?` · 전산에 없음 ${rows.filter(r=>r.missing).length}`:''}${groups.length?'':' (단체예약을 아직 못 불러옴)'}`;   // ③ 단체예약 정보 넣기는 없애고 여기에 요약 (2026-11-18)
   // ④ 결과 표 (도착 시간 순)
   const list=on.slice().sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999));
   const yy=s.date.slice(2).replace(/-/g,'');
   $('#outHead').innerHTML = `${yy}(${DOW[new Date(s.date+'T00:00').getDay()]||''})<br>${total}명+@`;
-  $('#outBody').innerHTML = list.map(r=>`<tr><td class="name${r.group?'':' ind'}">${esc(r.name)}</td><td class="num">${r.ppl}</td>`
+  $('#outBody').innerHTML = list.map(r=>`<tr><td class="name${r.group?'':' ind'}"><span class="src ${r.group?'have':'new'} no-print" title="${r.group?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.group?'목록':'새로 조사'}</span>${esc(r.name)}</td><td class="num">${r.ppl}</td>`
     + `<td><input class="t" data-e="${esc(r.key)}|time" value="${esc(r.time)}" placeholder="${esc(r.timeHint||'시간')}"></td>`
     + `<td><select class="gate ${esc(r.gate)}" data-e="${esc(r.key)}|gate"><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select><span class="why no-print">${esc(r.gateWhy)}${r.gate!==r.recGateAuto?' · 직접 바꿈':''}</span></td>`
     + `<td><input class="v" data-e="${esc(r.key)}|vehicle" value="${esc(r.vehicle)}"></td><td><input class="p" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
@@ -168,7 +186,7 @@ function render(){
   $('#outFoot').innerHTML = `<tr><td class="g">단체</td><td class="g num">${gSum}</td><td></td><td></td><td class="bus">버스 ${bus}대+</td><td colspan="2" class="ind">개인고객 ${ind}명</td></tr>`
     + `<tr><td>현장결제건</td><td colspan="6" style="text-align:left">${esc(onsite.join(', ')||'-')}</td></tr>`
     + `<tr><td>해오름 산책</td><td colspan="6" style="text-align:left">${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</td></tr>`;
-  $('#p4Sum').textContent = `${list.length}팀 · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length}`;
+  $('#p4Sum').textContent = `${list.length}팀 (목록 ${list.filter(r=>r.group).length} · 새로 조사 ${list.filter(r=>!r.group).length}) · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length}`;
   document.querySelectorAll('.out textarea').forEach(t=>{ t.style.height='auto'; t.style.height=t.scrollHeight+'px'; });
 }
 document.addEventListener('change', e=>{ const t=e.target;
@@ -222,3 +240,5 @@ $('#pngBtn').onclick=async()=>{
 
 if(state) build(false); else render();
 loadGroups();
+paintPrepDate();
+if(state && state.date && state.date!==prepDate) showDateModal(`전에 읽어 둔 엑셀은 <b>${esc(dLab(state.date))}</b> 것입니다. 준비할 날짜 <b>${esc(dLab(prepDate))}</b>(내일)의 방문자내역 엑셀로 바꿔 주세요.`);   // 어제 넣은 파일이 남아 있으면

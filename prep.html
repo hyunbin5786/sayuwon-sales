@@ -6,7 +6,7 @@
 <title>다음날 고객 응대 준비 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261120r">
+<link rel="stylesheet" href="css/prep.css?v=20261119a7">
 <link rel="stylesheet" href="css/mypop.css?v=20261116">
 <link rel="stylesheet" href="css/menu.css?v=20261120t">
 </head>
@@ -18,7 +18,12 @@
 </header>
 
 <main>
-  <div class="pcol pcol-l">   <!-- 2열 (2026-11-18): 왼쪽 = ① ② ③ · 오른쪽 = ④ -->
+  <div class="pcol pcol-l">   <!-- 2열 (2026-11-18): 왼쪽 = 날짜 · ① ② · 오른쪽 = ④ (③ 단체예약 정보 넣기는 없애고 늘 자동 연결) -->
+  <!-- 준비할 날짜 (2026-11-18): 맨 위 · 기본 = 내일 (다음날 준비) · 엑셀의 방문일이 다르면 팝업 -->
+  <section class="panel day-pick" id="p0">
+    <h2>준비할 날짜 <span class="dbox"><input class="dtxt" id="prepDateTxt" readonly title="누르면 달력 · 한 번 더 누르면 직접 입력"><input type="date" class="dpick" id="prepDate" tabindex="-1" aria-hidden="true"></span><small id="prepDateHint"></small></h2>
+    <div class="keybox" id="keyBox" hidden><span class="hint">단체예약을 불러오려면 팀 비밀번호가 필요합니다 (다른 화면과 같은 비밀번호, 이 브라우저에 기억).</span><input id="keyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn primary" id="keyBtn">연결</button></div>
+  </section>
   <!-- ① 엑셀 -->
   <section class="panel" id="p1">
     <h2><span class="step">1</span>엑셀 파일 넣기 <small>전산 → 방문자내역 엑셀</small></h2>
@@ -28,20 +33,14 @@
     <div class="sum" id="fileSum"></div>
   </section>
 
-  <!-- ② 10인 이상 목록 -->
+  <!-- ② 티켓 발권 대상 (예전 이름: 10인 이상 손님 목록) -->
   <section class="panel off" id="p2">
-    <h2><span class="step">2</span>10인 이상 손님 목록 <small id="p2Sum"></small>
+    <h2><span class="step">2</span>티켓 발권 대상 <small id="p2Sum"></small>
       <span class="right"><label class="hint" style="display:flex;gap:4px;align-items:center">기준 <input id="minPpl" type="number" min="1" value="10" style="width:56px;height:28px;border:1px solid var(--line);border-radius:5px;padding:0 6px">명 이상</label></span></h2>
-    <p class="hint">엑셀에서 인원(어른 + 학생, 상품 줄을 모두 더함)이 기준 이상인 예약과, 그날 단체예약에 있는 예약을 모두 넣습니다. 빼려면 체크를 끄세요.</p>
+    <p class="hint">엑셀에서 인원(어른 + 학생, 상품 줄을 모두 더함)이 기준 이상인 예약과, 그날 단체예약에 있는 예약을 모두 넣습니다 (단체예약은 자동으로 연결 — 업체명 · 도착 시간 · 차량 · 연락처 · 비고. 안 맞으면 「단체예약 연결」에서 직접 고르기). 빼려면 체크를 끄세요.</p>
     <div class="tw"><table><thead><tr><th></th><th>구분</th><th>성명 (엑셀)</th><th>연락처</th><th class="num">인원</th><th>상품</th><th>단체예약 연결</th></tr></thead><tbody id="listBody"></tbody></table></div>
   </section>
 
-  <!-- ③ 단체예약 정보 -->
-  <section class="panel off" id="p3">
-    <h2><span class="step">3</span>단체예약 정보 넣기 <small id="p3Sum"></small></h2>
-    <p class="hint">단체예약에 들어 있는 손님은 업체명 · 도착 시간 · 차량 · 연락처 · 비고(식사 · 프로그램 · 현장결제)를 가져옵니다. 연락처가 같거나 이름 · 업체명이 맞으면 자동으로 연결하고, 안 맞으면 ②의 「단체예약 연결」에서 직접 고르세요.</p>
-    <div class="keybox" id="keyBox" hidden><span class="hint">단체예약을 불러오려면 팀 비밀번호가 필요합니다 (다른 화면과 같은 비밀번호, 이 브라우저에 기억).</span><input id="keyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn primary" id="keyBtn">연결</button></div>
-  </section>
 
   </div>
   <div class="pcol pcol-r">
@@ -58,11 +57,20 @@
         <li>도착 시간을 모르면 치허문 (시간을 넣으면 다시 추천)</li>
       </ul>
     </details>
+    <p class="out-legend no-print"><span><span class="src have">목록</span>단체예약 목록에 있는 단체 (예약 정보를 가져옴)</span><span><span class="src new">새로 조사</span>목록에 없음 — 연락처로 업체 · 도착 시간 · 차량 확인</span></p>
     <div class="tw"><table class="out"><thead><tr><th id="outHead">날짜</th><th>인원(명)</th><th>도착시간</th><th>입장문</th><th>차량</th><th>연락처</th><th>비고</th></tr></thead><tbody id="outBody"></tbody><tfoot id="outFoot"></tfoot></table></div>
   </section>
   </div>
 </main>
 
+<!-- 엑셀 날짜가 준비할 날짜와 다를 때 (2026-11-18) -->
+<div class="pmodal" id="dateModal" hidden>
+  <section class="panel" role="dialog" aria-modal="true" aria-labelledby="dmTitle">
+    <h2 id="dmTitle">엑셀 날짜가 다릅니다</h2>
+    <p id="dmMsg"></p>
+    <div class="dm-btns"><button class="btn" id="dmClose" type="button">닫기</button><button class="btn primary" id="dmPick" type="button">다른 파일 고르기</button></div>
+  </section>
+</div>
 <div class="toast" id="toast"></div>
 <div id="shot" class="shot" aria-hidden="true"></div><!-- 이미지로 저장할 때만 그리는 좁은 표 (화면 밖) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
@@ -70,7 +78,7 @@
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/common.js?v=20261118"></script>
-<script src="js/prep.js?v=20261119y"></script>
+<script src="js/prep.js?v=20261119a7"></script>
 <script src="js/mypop.js?v=20261118"></script>
 <script src="js/menu.js?v=20261119u"></script>
 </body>

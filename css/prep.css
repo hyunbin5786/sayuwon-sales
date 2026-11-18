@@ -93,3 +93,22 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 .pcol-r{min-width:0}
 @media (max-width:1100px){ main{grid-template-columns:1fr} }
 @media print{ main{display:block} }
+/* 준비할 날짜 (2026-11-18): 맨 위 · 방문일 칸 모양 (칸 안에 날짜 (요일), 누르면 달력) */
+.day-pick h2{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0}
+.day-pick .dbox{position:relative;display:inline-flex}
+.day-pick .dtxt{height:34px;width:170px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:600 15px var(--sans);background:#fff;color:var(--ink);cursor:pointer}
+.day-pick .dpick{position:absolute;left:0;bottom:0;width:0;height:0;opacity:0;border:0;padding:0}
+.day-pick small{font:400 12.5px var(--sans);color:var(--muted)}
+.day-pick small.bad{color:var(--red);font-weight:700}
+/* 팝업 */
+.pmodal{position:fixed;inset:0;z-index:60;background:rgba(30,30,25,.45);display:flex;align-items:flex-start;justify-content:center;padding:80px 16px}
+.pmodal[hidden]{display:none}
+.pmodal .panel{max-width:440px;width:100%}
+.pmodal h2{margin:0 0 10px}
+.pmodal p{margin:0;line-height:1.7}
+.dm-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+/* ④ 단체 구분: 목록에 있는 단체(단체예약) · 새로 조사할 단체 */
+.src{display:inline-block;font:700 10.5px var(--sans);padding:1px 6px;border-radius:999px;margin-right:5px;vertical-align:1px;white-space:nowrap}
+.src.have{background:var(--pine-soft);color:var(--pine)}
+.src.new{background:var(--amber-soft);color:var(--amber)}
+.out-legend{font-size:12px;color:var(--muted);margin:0 0 8px;display:flex;gap:12px;flex-wrap:wrap}
