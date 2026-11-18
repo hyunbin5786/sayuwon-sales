@@ -801,3 +801,7 @@ html.book-guest #bookBody tr{cursor:default}
 .stage-head #stageSeg{display:inline-flex;background:var(--bg)}
 .stage-bar .act-bar{margin-left:0;flex:1 1 auto;flex-wrap:wrap;align-items:center}
 .stage-bar .act-bar .save-r{margin-left:auto;min-width:72px}
+/* 품목 할인 줄 (2026-11-18): 할인 버튼은 왼쪽 · 비과세(사유원) · 과세(신라) 할인액은 오른쪽 (금액은 그 뒤 맨 오른쪽) */
+.it-money .im.dsel{margin-right:auto}
+.it-money .im-r{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:4px 14px;text-align:right}
+.it-money .im-r .im.amt{margin-left:0}

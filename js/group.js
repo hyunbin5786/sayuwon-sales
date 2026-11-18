@@ -593,8 +593,8 @@ function paintItemPrices(){
         // 할인액: 과세(신라) · 비과세(사유원) 따로, 칸에서 바로 고칠 수 있음 (고치면 「직접 고침」, ↺ = 할인 버튼 계산으로 되돌리기)
         const dIn = (side, v, max) => damIn(k, side, v, max);
         if(discRow) h = `<span class="im dsel" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v && (v==='none' || x.b.gN>0)?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}${x.b.dsel===v && v!=='none' && x.b.gN>0 ? ` ${x.b.gN}명` : ''}</button>`).join('')}${spBtnHTML(k)}</span>`
-            + `<span class="im dams" title="${esc(m.disc||'할인액')}">${m.fTf>0?dIn('tf', m.dTf, m.fTf):''}${m.fTx>0?dIn('tx', m.dTx, m.fTx):''}</span>`
-            + money;
+            + `<span class="im-r">` + `<span class="im dams" title="${esc(m.disc||'할인액')}">${m.fTf>0?dIn('tf', m.dTf, m.fTf):''}${m.fTx>0?dIn('tx', m.dTx, m.fTx):''}</span>`
+            + money + `</span>`;   // 할인액 · 금액은 오른쪽 묶음 (2026-11-18)
         else amt = money + (m && x.b ? `<button type="button" class="dopen" data-dopen="${esc(k)}" title="이 품목에 할인 넣기 (과세 · 비과세 할인액)">할인 넣기</button>` : ''); } }
     el.innerHTML=h; if(am) am.innerHTML=amt; });
   // 전산에만 있는 상품 (예약 내역 줄로 못 옮긴 것)
