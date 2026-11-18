@@ -312,8 +312,8 @@
   <section class="list panel" role="dialog" aria-modal="true" aria-labelledby="listTitle">
     <h2><span id="listTitle">단체예약 목록</span> <small id="storeHint"></small>
       <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn primary" id="xlsxBtn" style="padding:4px 10px;font-size:12px">엑셀로 내려받기</button><button type="button" class="btn" id="adminSyncBtn" style="padding:4px 10px;font-size:12px">관리자 사이트에서 지금 가져오기</button><button type="button" class="btn list-x" id="listCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
-    <div class="list-bar"><span class="stage-sum" id="stageSum" title="기본으로 보이는 단계"></span><div class="seg" id="stageFilter" style="display:inline-flex;background:var(--bg)" title="눌러서 이 단계도 보기 · 다시 누르면 숨기기">
-      <button type="button" data-f="consult">예약상담 보기</button><button type="button" data-f="cancel">예약취소 보기</button>
+    <div class="list-bar"><span class="stage-sum" id="stageSum" title="누른 단계만 보입니다 (기본: 가예약 · 예약확정)"></span><div class="seg" id="stageFilter" style="display:inline-flex;background:var(--bg)" title="누르면 그 단계를 보이기 · 숨기기 (여러 개 고를 수 있음)">
+      <button type="button" data-f="예약상담">예약상담</button><button type="button" data-f="가예약">가예약</button><button type="button" data-f="예약확정">예약확정</button><button type="button" data-f="예약취소">예약취소</button>
     </div>
     <input id="listSearch" class="list-search" type="search" data-ime="ko" placeholder="검색: 업체명 · 담당자 · 전화번호 (전체에서)" autocomplete="off">
     <div class="seg" id="sortSeg" style="display:inline-flex;background:var(--bg)" title="목록 정렬">
@@ -373,7 +373,7 @@
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
 <script src="js/common.js?v=20261118"></script>
 <script src="js/opslib.js?v=20261118t"></script>
-<script src="js/group.js?v=20261120a2"></script>
+<script src="js/group.js?v=20261120a3"></script>
 <script src="js/ime.js?v=20261118r"></script>
 <script src="js/keepsize.js?v=20261120g"></script>
 <script src="js/menu.js?v=20261119u"></script>

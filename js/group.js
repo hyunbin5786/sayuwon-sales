@@ -2140,7 +2140,8 @@ $('#payList').addEventListener('click', async e=>{
   }
 });
 const fmt=s=>dtLabel(s);
-let listShowConsult = SY.readJSON('sayuwon_list_consult', false), listShowCancel = SY.readJSON('sayuwon_list_cancel', false);   // 단체예약 목록: 예약상담 · 예약취소도 볼지 (기본은 가예약 · 예약확정만, 브라우저에 기억)
+const LIST_SHOW_DEF = {'예약상담':false, '가예약':true, '예약확정':true, '예약취소':false};   // 단체예약 목록에 보일 단계 (기본 = 가예약 · 예약확정, 버튼으로 켜고 끔 · 브라우저에 기억, 2026-11-18)
+let listShow = {...LIST_SHOW_DEF, ...SY.readJSON('sayuwon_list_show', {})};
 let listSort = (()=>{ try{ return localStorage.getItem('sayuwon_list_sort')||'date'; }catch(_){ return 'date'; } })();   // 기본 방문일 순
 document.addEventListener('click', e=>{ const b=e.target.closest('#sortSeg button'); if(b){ listSort=b.dataset.o; try{ localStorage.setItem('sayuwon_list_sort', listSort); }catch(_){} renderList(); } });
 // 정렬: 방문일 순(가까운 날부터, 날짜 없으면 뒤) · 접수 순(최근 접수부터)
@@ -2148,7 +2149,7 @@ const listOrder = (a,b) => listSort==='saved' ? String(b.saved||'').localeCompar
 // 담당자: 이름(전화번호), 여러 명이면 쉼표로
 function contactCell(r){ const sp=v=>String(v||'').split(/\s*\/\s*/); const n=sp(r.contact), p=sp(r.phone);
   return n.map((x,i)=>[x.trim(), (p[i]||'').trim()]).filter(([x,y])=>x||y).map(([x,y])=>y ? `${esc(x)}(${esc(y)})` : esc(x)).join(', '); }
-document.addEventListener('click', e=>{ const b=e.target.closest('#stageFilter button'); if(!b) return; if(b.dataset.f==='consult'){ listShowConsult=!listShowConsult; SY.writeJSON('sayuwon_list_consult', listShowConsult); } else { listShowCancel=!listShowCancel; SY.writeJSON('sayuwon_list_cancel', listShowCancel); } renderList(); });   // 예약상담 · 예약취소 보기 켜고 끄기
+document.addEventListener('click', e=>{ const b=e.target.closest('#stageFilter button'); if(!b) return; const s=b.dataset.f; listShow[s]=!listShow[s]; SY.writeJSON('sayuwon_list_show', listShow); renderList(); });   // 단계 버튼: 누르면 켜고 끔
 let listSearchT=null; document.addEventListener('input', e=>{ if(e.target.id!=='listSearch') return; clearTimeout(listSearchT); listSearchT=setTimeout(renderList, 150); });
 async function renderList(){
   // 예전 기록의 '단체예약'도 함께 (일반 문의·기타는 제외)
@@ -2164,12 +2165,12 @@ async function renderList(){
   const counts = Object.fromEntries(STAGES.map(s=>[s, all.filter(r=>stageOf(r)===s).length]));
   $('#callCount').hidden = !nCall; $('#callCount').textContent = `전화 필요 ${nCall}`; $('#listCount').textContent = counts['가예약']+counts['예약확정'];
   $('#adminHint').textContent = adminData?.updated ? `관리자 사이트 ${fmtAgo(adminData.updated)} 갱신 · ` : '';
-  document.querySelectorAll('#stageFilter button').forEach(b=>{ const f=b.dataset.f; b.classList.toggle('on', f==='consult' ? listShowConsult : listShowCancel); b.textContent = `${f==='consult'?'예약상담':'예약취소'} ${counts[f==='consult'?'예약상담':'예약취소']} 보기`; });
-  $('#stageSum').textContent = `가예약 ${counts['가예약']} · 예약확정 ${counts['예약확정']}`;
+  document.querySelectorAll('#stageFilter button').forEach(b=>{ const s=b.dataset.f; b.classList.toggle('on', !!listShow[s]); b.textContent=`${s} ${counts[s]||0}`; b.title=listShow[s] ? '누르면 숨기기' : '누르면 보이기'; });
+  { const ss=$('#stageSum'); if(ss) ss.textContent='보기'; }
   // 검색어가 있으면 단계 버튼과 상관없이 모두에서 업체명 · 담당자 이름 · 전화번호(숫자만 비교) · 영업 담당으로 찾음
   const q=String($('#listSearch')?.value||'').trim(), qd=q.replace(/\D/g,''), qs=q.replace(/\s/g,'').toLowerCase();
   const hit = r => { const t=[r.org, r.contact, r.owner, r.takenBy, r.email].join(' ').replace(/\s/g,'').toLowerCase(); return (qs && t.includes(qs)) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd)); };
-  const stageOn = s => isBooked(s) || (s==='예약상담' && listShowConsult) || (s==='예약취소' && listShowCancel);
+  const stageOn = s => !!listShow[s];
   const shown = q ? all.filter(hit) : all.filter(r=>stageOn(stageOf(r)));
   document.querySelectorAll('#stageFilter button').forEach(b=>b.classList.toggle('dim', !!q));   // 검색 중에는 단계 버튼이 적용 안 됨
   document.querySelectorAll('#sortSeg button').forEach(b=>b.classList.toggle('on', b.dataset.o===listSort));
