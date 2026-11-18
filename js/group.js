@@ -145,10 +145,10 @@ let cache=[];
 let hist=[], baseSnap=null, tasks=[], erpList=[], openDone=new Set(), memos=[], lockOwner='';   // memos: 이 예약에 남긴 메모 · lockOwner: 남이 담당인 예약을 열었을 때 그 담당 이름 (잠금)
    // openDone: 펼쳐 본 끝난 과업   // erpList: 붙여넣은 전산 예약 내역   // 수정 기록 · 추후 과업
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
-function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; o.gate='미정'; o.tbd='결제 방법'; return o; }   // 결제 · 입장문은 기본 미정   // 결제는 기본 미정
+function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; o.gate='미정'; o.vehicle='미정'; o.tbd='차량 대수, 결제 방법'; return o; }   // 결제 · 입장문 · 차량은 기본 미정 (차량 2026-11-18)   // 결제는 기본 미정
 let peopleAuto=false;   // 관람 인원을 예약 내역 관람 줄 인원 합으로 채운 중 (syncPeopleFromArea)
 let discBand=null;   // 관람 인원 구간 (1 = 19명까지 · 2 = 20명부터), followDiscBand
-function resetState(){ discBand=null; peopleAuto=false; itemRows=[]; itemPend=new Set(); rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
+function resetState(){ discBand=null; vehAutoN=0; peopleAuto=false; itemRows=[]; itemPend=new Set(); rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
 function contactsOf(r){
   const out=[]; for(let i=0;i<nContactsOf(r);i++){ const c={name:r[`c${i}_name`]||'',phone:r[`c${i}_phone`]||'',email:r[`c${i}_email`]||''}; if(c.name||c.phone||c.email) out.push(c); } return out;
 }
@@ -739,6 +739,8 @@ function vehJoin(t,n,bus,car){
   if(t==='혼합'){ const p=[bus&&`버스 ${bus}대`, car&&`승용 ${car}대`].filter(Boolean); return p.length ? `혼합 (${p.join(' + ')})` : '혼합'; }
   return n ? `${t||'버스'} ${n}대` : (t && t!=='버스' ? t : ''); }
 const vehRead = () => vehJoin($('#f_vtype').value, $('#f_vehicle').value, $('#f_vbus').value, $('#f_vcar').value);
+const busCount = people => { const n=numOf(people); return !n ? 0 : n<45 ? 1 : Math.floor(n/45); };   // 버스 대수: 45명 미만 1대, 그 이상 인원 ÷ 45 버림 (2026-11-18)
+var vehAutoN=0;   // 자동으로 넣은 버스 대수 (관람 인원을 바꾸면 따라감 · 직접 고치면 0)
 function fieldHTML(k,label,col,cls,req){
   let extra = DATE_KEYS.has(k) && k!=='date' ? ' type="date"' : '';
   if(k==='date') extra+=' readonly inputmode="numeric" data-ime="num" placeholder="누르면 달력" title="누르면 달력 · 한 번 더 누르면 직접 입력"';
@@ -835,6 +837,10 @@ function buildForm(){
     if(k==='pay' && PAY_GUIDE[rec.pay]) openPayGuide(rec.pay);
     if(k==='mabangPay' && rec.mabangPay==='기타') openPayGuide('기타', '몽몽마방');   // 결제 방식을 고르면 그 안내를 바로 팝업으로
     if(k==='vehicle' && e.target.id==='f_vtype'){ const s=tbdSet(rec); rec.vehicle==='미정' ? s.add('vehicle') : s.delete('vehicle'); rec.tbd=TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', '); if(!s.size){ rec.tbdDate=''; rec.tbdLate=''; tbdAuto=false; } touched.add('tbd'); }   // 차종 '미정' = 차량 미정 체크
+    // 버스: 고르는 순간 대수 자동 = 관람 인원 45명 미만 1대, 그 이상은 인원 ÷ 45 (버림). 관람 인원을 바꾸면 자동으로 넣은 대수도 따라감 (직접 고친 대수는 그대로, 2026-11-18)
+    if(k==='vehicle' && e.target.id==='f_vtype' && $('#f_vtype').value==='버스' && !vehParts(rec.vehicle).n){ const n=busCount(rec.people); if(n){ rec.vehicle=`버스 ${n}대`; vehAutoN=n; $('#f_vehicle').value=String(n); } }
+    if(k==='vehicle' && e.target.id==='f_vehicle') vehAutoN=0;
+    if(k==='people'){ const p=vehParts(rec.vehicle); if(p.t==='버스' && vehAutoN && +p.n===vehAutoN){ const n=busCount(rec.people); if(n && n!==vehAutoN){ rec.vehicle=`버스 ${n}대`; vehAutoN=n; touched.add('vehicle'); } } }
     if(k==='date') renderInfo();
     startTimer(); if(isTypingEl(e.target)) repaintSoon(); else { paintFields(); renderSide(); }   // 글자를 치는 칸은 멈춘 뒤 한 번만 다시 그림 (빠르게, 2026-11-18)
   });
@@ -916,7 +922,7 @@ function paintFields(changed=[]){
     const v=rec[k]||'';
     if(k==='vehicle'){ const p=vehParts(v), a=document.activeElement;
       if(p.t && a!==$('#f_vtype')) $('#f_vtype').value=p.t;
-      if(!v && a!==$('#f_vtype')) $('#f_vtype').value = tbdSet(rec).has('vehicle') ? '미정' : '버스';   // 예전 '차량 대수 미정' 체크
+      if(!v && a!==$('#f_vtype')) $('#f_vtype').value = '미정';   // 비어 있으면 미정 (2026-11-18 · 예전엔 버스)
       [[el,p.n],[$('#f_vbus'),p.bus],[$('#f_vcar'),p.car]].forEach(([x,val])=>{ if(a!==x && x.value!==val) x.value=val; });
       const t=$('#f_vtype').value; el.hidden = t==='혼합' || t==='미정'; $('#f_vmix').hidden = t!=='혼합'; }
     else if(el.type==='checkbox') el.checked=!!v;
