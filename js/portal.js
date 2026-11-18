@@ -136,11 +136,17 @@ const GROUP_TYPES = ['단체예약','예약상담','가예약','예약확정','�
 const histTasks = r => { try{ const j=JSON.parse(r.history||'{}'); return Array.isArray(j.tasks) ? j.tasks : []; }catch(_){ return []; } };
 // 단체 과업이 예약 내용으로 이미 끝났는지 (단체 화면 추후 과업과 같은 기준, 2026-11-18): 저장 전이라 「오늘 마감」으로 남던 것
 //  전산 예약 = 전산 등록 · 결제링크 전송 · 입금 확인 = 비고 칸에 그 일시 · 하위 과업이 모두 체크 · 예전 기준(담당자 이름 등)으로 생긴 전산 예약 수정
-const memoHas = (r, label) => new RegExp('(^|\s/\s)'+label+'\s+\S').test(String(r.memo||''));
+const memoVal = (r, label) => { const parts=String(r.memo||'').split(' / ').map(s=>s.trim()), p=parts.find(s=>s.startsWith(label+' ')); return p ? p.slice(label.length+1).trim() : ''; };   // 비고 칸 「항목 값 / 항목 값」에서 그 항목의 값
+const memoHas = (r, label) => !!memoVal(r, label);
+// 미정 항목 (단체 화면과 같은 기준): 비고 칸 '미정 체크' 에서 정해진 것은 뺌 — 결제 · 차량을 정했으면 빠짐
+function tbdLeft(r){ const s=memoVal(r,'미정 체크').split(/\s*,\s*/).filter(Boolean);
+  return s.filter(x=> !(x==='결제 방법' && r.pay && r.pay!=='미정') && !(x==='차량 대수' && r.vehicle && r.vehicle!=='미정') && !(x==='몽몽마방 결제' && memoVal(r,'마방 결제') && memoVal(r,'마방 결제')!=='미정')); }
 function doneByRec(t, r){
   if(t.id==='erp') return /^adm/.test(r.id) || memoHas(r,'전산 등록');
   if(t.id==='linksend') return memoHas(r,'결제링크 전송');
   if(t.id==='paycheck') return memoHas(r,'입금 확인');
+  if(t.id==='tbdcall') return !tbdLeft(r).length;   // 미정 항목이 다 정해지면
+  if(t.id==='onsitecall') return r.pay!=='현장 결제';   // 현장 결제가 아니면 필요 없음
   if(t.id==='erpfix') return !(t.changes||[]).some(c=>/전산 비고/.test(c)) && !t.memo && !(t.xsubs||[]).length;
   const st=[...Object.values(t.subs||{}).map(Boolean), ...(t.xsubs||[]).map(x=>!!x.done)];
   return st.length>0 && st.every(Boolean);
@@ -169,6 +175,7 @@ function dashRecs(items){
     } else if(ct===OPS_TYPES.task){
       const j=opsParse(r); if(!j) return; const d=j.d||{}, today=opsToday(), tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const t2=opsYmd(tm);
       const days=opsPending(d, today); if(opsOccurs(d, t2) && !(d.done||{})[t2]) days.push(t2);
+      for(let i=2;i<400;i++){ const x=new Date(today+'T00:00'); x.setDate(x.getDate()+i); const day=opsYmd(x); if(opsOccurs(d, day) && !(d.done||{})[day]){ days.push(day); break; } }   // 그 뒤 다음 할 날도 (개인 할일 보기의 이번주 · 전체 숫자용)
       const subs=d.subs||[], subTxt = day => subs.length ? `세부 과업 ${subs.filter(s=>((d.subDone||{})[day]||{})[s.id]).length}/${subs.length}` : opsRepeatLabel(d);
       if(days.length) recs.push({kind:'기타', owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({title:subTxt(day), due:day})), href:'group.html?my=1&tab=etc'});
     }
@@ -209,12 +216,16 @@ function renderDash(){ if(!dashData) return;
             + r.due.slice().sort((a,b)=>a.due.localeCompare(b.due)).map(t=>`<span class="dr-t">${dl(t.due)} · ${esc(t.title)}</span>`).join('') + `</a></li>`; }).join('')}</ul>`
         : `<p class="hint dempty">${q?'검색에 맞는 것이 없습니다.':withT?'오늘 · 내일까지 할 것이 없습니다.':'오늘까지 할 것이 없습니다.'}</p>`) + `</div>`; };
   // ④ 개인 할일 보기: 1행 1명, 오늘까지 할 것(기한 지난 것 포함)이 있는 예약 · 통화 · 업무 수 — 개인고객 전화 · 단체고객 전화 · 기타
-  const all=dashData.recs.filter(hit), cnt=(n,k)=>all.filter(r=>who(r)===n && r.kind===k && r.tasks.some(t=>t.due<=today)).length, lateN=n=>all.filter(r=>who(r)===n && r.tasks.some(t=>t.due<today)).length;
-  const people=[...new Set([...dashData.names, ...dashData.recs.map(who)])].map(n=>({n, a:cnt(n,'개인'), b:cnt(n,'단체'), c:cnt(n,'기타'), l:lateN(n)}))
-    .sort((x,y)=>(y.n===me)-(x.n===me) || (y.a+y.b+y.c)-(x.a+x.b+x.c) || x.n.localeCompare(y.n));
-  const num = v => v ? `<td>${v}</td>` : '<td class="z">0</td>';
-  const col4 = `<div class="dcol"><div class="dcol-h"><b>개인 할일 보기</b><span class="dn">오늘까지</span></div>${dashWho?`<p class="pfilter">${esc(dashWho)} 것만 보는 중 · 다시 누르면 모두</p>`:''}`
-    + `<div class="ptbl-wrap"><table class="ptbl"><thead><tr><th>이름</th><th>개인고객</th><th>단체고객</th><th>기타</th></tr></thead><tbody>${people.map(p=>`<tr class="${p.n===dashWho?'on':''}${p.n===me?' me':''}" data-dwho="${esc(p.n)}"><td>${esc(p.n)}${p.l?`<span class="late"> 지남 ${p.l}</span>`:''}</td>${num(p.a)}${num(p.b)}${num(p.c)}</tr>`).join('')}</tbody></table></div></div>`;
+  // 칸마다 숫자 3개 = 오늘까지 · 이번주까지(오늘부터 6일 뒤까지, 예: 수요일이면 다음주 화요일) · 모든 기간 (2026-11-18)
+  const wk=new Date(today+'T00:00'); wk.setDate(wk.getDate()+6); const weekEnd=opsYmd(wk);
+  const all=dashData.recs.filter(hit), cnt=(n,k,lim)=>all.filter(r=>who(r)===n && r.kind===k && r.tasks.some(t=>!lim || t.due<=lim)).length, lateN=n=>all.filter(r=>who(r)===n && r.tasks.some(t=>t.due<today)).length;
+  const trio = (n,k) => [cnt(n,k,today), cnt(n,k,weekEnd), cnt(n,k,'')];
+  const people=[...new Set([...dashData.names, ...dashData.recs.map(who)])].map(n=>({n, a:trio(n,'개인'), b:trio(n,'단체'), c:trio(n,'기타'), l:lateN(n)}))
+    .sort((x,y)=>(y.n===me)-(x.n===me) || (y.a[0]+y.b[0]+y.c[0])-(x.a[0]+x.b[0]+x.c[0]) || (y.a[2]+y.b[2]+y.c[2])-(x.a[2]+x.b[2]+x.c[2]) || x.n.localeCompare(y.n));
+  const num = t => `<td class="t3">${t.map((v,i)=>`<span class="${v?'':'z'}${i===0?' d':''}">${v}</span>`).join('<i>·</i>')}</td>`;
+  const col4 = `<div class="dcol"><div class="dcol-h"><b>개인 할일 보기</b><span class="dn">오늘 · 이번주 · 전체</span></div>${dashWho?`<p class="pfilter">${esc(dashWho)} 것만 보는 중 · 다시 누르면 모두</p>`:''}`
+    + `<div class="ptbl-wrap"><table class="ptbl"><thead><tr><th>이름</th><th>개인고객</th><th>단체고객</th><th>기타</th></tr><tr class="sub"><th></th>${'<th><span>오늘</span><i>·</i><span>주</span><i>·</i><span>전체</span></th>'.repeat(3)}</tr></thead><tbody>${people.map(p=>`<tr class="${p.n===dashWho?'on':''}${p.n===me?' me':''}" data-dwho="${esc(p.n)}"><td>${esc(p.n)}${p.l?`<span class="late"> 지남 ${p.l}</span>`:''}</td>${num(p.a)}${num(p.b)}${num(p.c)}</tr>`).join('')}</tbody></table></div>`
+    + `<p class="hint ptbl-note">숫자 = 그때까지 할 일이 있는 예약 · 통화 · 업무 수 · 이번주 = 오늘부터 ${esc(opsDateLabel(weekEnd))}까지</p></div>`;
   $('#dashBody').innerHTML = `<div class="dcols">${col('개인','개인고객 전화')}${col('단체','단체고객 전화')}${col('기타','기타 개인 할일')}${col4}</div>`;
 }
 document.addEventListener('click', e=>{
@@ -224,4 +235,9 @@ document.addEventListener('click', e=>{
 if($('#dashQ')) $('#dashQ').addEventListener('input', ()=>renderDash());
 $('#dashReload').onclick = () => loadDash();
 $('#dashKeyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#dashKeyIn').value.trim(); if(!v) return; setLS(KEY_LS, v); $('#dashKeyIn').value=''; loadDash(); });
-setInterval(()=>{ if(getUser() && !$('#menuView').hidden && document.visibilityState==='visible') loadDash(); }, 3*60e3);   // 3분마다 새로
+// 대시보드 새로 받기 (2026-11-18 · 거의 실시간): 20초마다 · 이 창으로 돌아오면 · 다른 탭(단체 · 개인고객 · 나의 할일)에서 저장하면 바로
+const dashSoon = (ms=0) => { clearTimeout(dashSoon.t); dashSoon.t=setTimeout(()=>{ if(getUser() && !$('#menuView').hidden && document.visibilityState==='visible') loadDash(); }, ms); };
+setInterval(()=>dashSoon(), 20e3);
+window.addEventListener('focus', ()=>dashSoon());
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') dashSoon(); });
+window.addEventListener('storage', e=>{ if(/^(sayuwon_intake_pending|sayuwon_personal_pending|sayuwon_intake_cache|sayuwon_personal_cache)$/.test(e.key||'')) dashSoon(2500); });   // 다른 탭의 저장 대기 · 받은 기록이 바뀜 → 저장이 끝날 즈음 다시

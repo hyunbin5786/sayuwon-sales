@@ -462,3 +462,4 @@ function paintDirtyDots(){
   document.querySelectorAll('#taskList [data-tsave]').forEach(b=>{ const t=(form.tasks||[]).find(x=>x.id===b.dataset.tsave); b.classList.toggle('dirty', !!t && (!cur || old.get(t.id)!==JSON.stringify(t))); });
 }
 document.addEventListener('input', e=>{ if(e.target.closest && (e.target.closest('#taskList') || e.target.closest('#callForm'))) setTimeout(paintDirtyDots, 60); });
+setInterval(()=>{ if(!document.hidden) flush(); }, 30000); window.addEventListener('focus', ()=>flush());   // 30초마다 · 이 창으로 돌아오면 최신 기록 (다른 사람 · 다른 창에서 끝낸 과업이 바로 보이게, 2026-11-18)
