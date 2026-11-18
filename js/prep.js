@@ -1,20 +1,21 @@
 // ===== 다음날 고객 응대 준비 (prep.html) =====
+// 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 README 14절
 // ① 방문자내역 엑셀 → ② 10인 이상 목록 → ③ 단체예약 정보 → ④ 입장문 추천 · 표 복사 · 엑셀 · 인쇄
 
 const $ = s => document.querySelector(s);
-const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = SY.esc;   // 공통 도구 (js/common.js)
 let user={}; try{ user=JSON.parse(localStorage.getItem('sy_user')||'{}')||{}; }catch(_){}
 $('#me').innerHTML = user.name ? `👤 <b>${esc(user.name)}</b>` : '';
 let toastT; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), 2600); }
-const DOW='일월화수목금토';
+const DOW = SY.DOW;
 const dLab = d => { const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; };
 const digits = s => String(s||'').replace(/\D/g,'');
 const norm = s => String(s||'').replace(/\s/g,'').toLowerCase();
 
 // ===================== 공유 기록 (단체예약) =====================
-const SHARED_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";
-const KEY_LS='sayuwon_intake_key', GROUP_CACHE_LS='sayuwon_intake_cache';
-const getKey = () => { try{ return localStorage.getItem(KEY_LS)||''; }catch(_){ return ''; } };
+const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
+const KEY_LS=SY.KEY_LS, GROUP_CACHE_LS='sayuwon_intake_cache';
+const getKey = SY.getKey;
 async function callApi(body){ const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})}); const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j; }
 const GROUP_TYPES=['단체예약','예약상담','예약접수','상담','가예약','공식예약'];
 let groups = (()=>{ try{ return (JSON.parse(localStorage.getItem(GROUP_CACHE_LS)||'[]')||[]).filter(r=>GROUP_TYPES.includes(r.callType||'단체예약')); }catch(_){ return []; } })();

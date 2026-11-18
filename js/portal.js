@@ -1,4 +1,5 @@
 // ===== 첫 화면 (index.html): 로그인 · 메뉴 · 품목관리 · 멤버관리 =====
+// 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 README 14절
 
 // 로그인 정보: localStorage 'sy_user' = {name, emp, at}. 같은 주소(hyunbin5786.github.io)의 단체 화면 · 견적서 사이트가 함께 씀
 const $ = s => document.querySelector(s);
@@ -28,12 +29,12 @@ function paint(){
     if(view==='menu') setTimeout(()=>loadDash(), 0);   // 대시보드: 저장해 둔 것을 바로 그리고 새로 받음 (스크립트를 다 읽은 뒤)
   } else setTimeout(()=>$('#inName').focus(), 0);
 }
-const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = SY.esc;   // 공통 도구 (js/common.js)
 
 // ===================== 공유 저장소 (단체 화면과 같은 Apps Script) =====================
-const SHARED_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";
-const KEY_LS = 'sayuwon_intake_key';   // 팀 비밀번호 (단체 화면 · 개인고객 화면과 같이 씀)
-const getKey = () => { try{ return localStorage.getItem(KEY_LS)||''; }catch(_){ return ''; } };
+const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
+const KEY_LS = SY.KEY_LS;   // 팀 비밀번호 (단체 · 개인고객 화면과 같이 씀)
+const getKey = SY.getKey;
 async function callApi(body){
   const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})});   // Content-Type 없이 (Apps Script 사전 확인 요청 없이)
   return r.json();
@@ -127,12 +128,6 @@ paint();
   if(!j.member){ [USER_KEY,'sayuwon_owner','sy_sender','sy_dash_cache'].forEach(k=>setLS(k,null)); view='menu'; paint(); $('#loginErr').textContent='등록된 멤버가 아니어서 로그아웃했습니다. 이름과 사번을 다시 확인해 주세요.'; return; }
   const setup = j.empty ? 'empty' : ''; if((u.setup||'')!==setup){ u.setup=setup; setLS(USER_KEY, JSON.stringify(u)); paint(); } })();
 
-// ===================== 아코디언 메뉴: 펼친 묶음을 이 브라우저에 기억 =====================
-(function(){
-  let st={}; try{ st=JSON.parse(localStorage.getItem('sy_menu_acc')||'{}')||{}; }catch(_){}
-  document.querySelectorAll('#acc details[data-acc]').forEach(d=>{ if(d.dataset.acc in st) d.open=!!st[d.dataset.acc];
-    d.addEventListener('toggle', ()=>{ st[d.dataset.acc]=d.open; setLS('sy_menu_acc', JSON.stringify(st)); }); });
-})();
 
 // ===================== 대시보드: 모든 사용자의 나의 할일 (단체 · 개인고객 추후 과업 + 기타 개인 업무) =====================
 // 단체: 영업 담당(owner)별, 방문 뒤 30일이 지난 예약은 빼고 (나의 할일과 같은 기준). 예약상담은 사전답사 · 담당자 확정 · 대구대교구 · 직접 추가한 과업만
@@ -140,7 +135,6 @@ paint();
 const GROUP_TYPES = ['단체예약','예약상담','예약접수','상담','가예약','공식예약'];
 const histTasks = r => { try{ const j=JSON.parse(r.history||'{}'); return Array.isArray(j.tasks) ? j.tasks : []; }catch(_){ return []; } };
 const dueOf = (t, r) => t.due || (t.at ? opsYmd(t.at) : r.saved ? opsYmd(r.saved) : opsToday());
-let dashOpen = new Set();
 // 첫 화면 = 대시보드만 (2026-11-18): ① 개인고객 전화 ② 단체고객 전화 ③ 기타 개인 할일 ④ 개인 할일 보기(1행 1명 · 숫자)
 //  ①② 줄 = 예약 · 통화 하나: 단체명 / 접수자 이름 (없으면 전화번호) → 아래 회색으로 오늘까지(기한 지난 것 포함) 할 과업. 「내일 마감도 보기」면 내일 것도
 //  ③ 줄 = 업무 하나 · ④ 이름을 누르면 ①②③을 그 사람 것만 · 위 검색: 전화번호 · 단체명 · 이름
@@ -216,8 +210,6 @@ document.addEventListener('click', e=>{
   const w=e.target.closest('[data-dwho]'); if(w){ dashWho = dashWho===w.dataset.dwho ? '' : w.dataset.dwho; renderDash(); }
 });
 if($('#dashQ')) $('#dashQ').addEventListener('input', ()=>renderDash());
-let dashTimer=null, dashLast=0;
-function loadDashCached(){ renderDash(); }
 $('#dashReload').onclick = () => loadDash();
 $('#dashKeyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#dashKeyIn').value.trim(); if(!v) return; setLS(KEY_LS, v); $('#dashKeyIn').value=''; loadDash(); });
 setInterval(()=>{ if(getUser() && !$('#menuView').hidden && document.visibilityState==='visible') loadDash(); }, 3*60e3);   // 3분마다 새로

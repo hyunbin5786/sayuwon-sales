@@ -114,3 +114,5 @@ h3.sub + .tbl,h3.sub + .tlist{margin-bottom:18px}
 .esub-add{display:flex;gap:6px}
 .esub-add input{flex:1}
 .tabs[hidden],.tabs a[hidden]{display:none}
+.ko-toggle{width:30px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.4);background:transparent;color:#f3f1ec;font:700 13px var(--sans);cursor:pointer}
+.ko-toggle.on{background:#f3f1ec;color:var(--pine)}

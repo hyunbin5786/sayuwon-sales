@@ -1,8 +1,9 @@
 // ===== 운영보조 (ops.html, 초안 2026-11-18) =====
+// 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 README 14절
 // ?p=task 기타 개인 업무 (나의 할일) · lost 분실물 찾기 · accident 사고현황 접수 · stock 재고확인
 // 저장: 공유 기록(calls) 한 줄 = 한 건 (opslib.js). 고치면 바로 시트에 올리고, 다른 사람이 고친 것은 1분마다 · 이 창으로 돌아올 때 다시 받음
 const $ = s => document.querySelector(s);
-const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = SY.esc;   // 공통 도구 (js/common.js)
 const user = opsUser();
 const P = (new URLSearchParams(location.search).get('p')) || 'task';
 const won = n => (Math.round(+n||0)).toLocaleString('ko-KR');
@@ -29,7 +30,7 @@ const BOARDS = {
     cols:[['date','접수일',v=>opsDateLabel(v)],['kind','구분'],['item','물품'],['place','장소'],['storage','보관 위치'],['status','상태'],['phone','연락처']],
     status:'status', open:['보관중','찾는 중'], summary:d=>`${d.kind||''} ${d.item||''} · ${d.status||''}` },
   accident: { title:'사고현황 접수', add:'사고 접수', hint:'부상 · 시설 파손 등 · 조치와 처리 상태',
-    fields:[ {k:'date', l:'날짜', type:'date', def:()=>opsToday()}, {k:'time', l:'시각', type:'time', ph:'14:30'},
+    fields:[ {k:'date', l:'날짜', type:'date', def:()=>opsToday()}, {k:'time', l:'시각', type:'time'},
       {k:'type', l:'유형', type:'select', opts:['부상','시설 파손','분실 · 도난','민원','기타'], def:()=>'부상'}, {k:'place', l:'장소', type:'text'},
       {k:'person', l:'관련자', type:'text', ph:'방문객 이름 · 단체명'}, {k:'phone', l:'연락처', type:'tel'},
       {k:'what', l:'내용', type:'textarea', req:1, w:2}, {k:'action', l:'조치', type:'textarea', w:2},
@@ -172,11 +173,8 @@ $('#eFields').addEventListener('click', e=>{
   const w=e.target.closest('[data-dow]'); if(w){ const i=+w.dataset.dow, s=new Set(form.dows||[]); s.has(i)?s.delete(i):s.add(i); form.dows=[...s]; paintForm(); return; }
 });
 // 날짜 칸 (단체 화면 방문일과 같은 방식): 칸 안에 "2026-12-05 (토)", 누르면 달력, 달력을 연 뒤 한 번 더 누르면 글자로 직접 입력
-const dateDisp = v => { if(!v) return ''; const t=new Date(v+'T00:00'); return isNaN(t) ? v : `${v} (${OPS_DOW[t.getDay()]})`; };
-function parseDateText(s){ s=String(s||'').replace(/\([^)]*\)\s*$/,'').trim(); if(!s) return ''; let y,m,d,x;
-  if((x=s.match(/^(\d{4})\s*[-./년 ]?\s*(\d{1,2})\s*[-./월 ]?\s*(\d{1,2})\s*일?$/))){ y=+x[1]; m=+x[2]; d=+x[3]; }
-  else if((x=s.match(/^(\d{1,2})\s*[-./월 ]\s*(\d{1,2})\s*일?$/)) || (x=s.match(/^(\d{2})(\d{2})$/))){ m=+x[1]; d=+x[2]; y=new Date().getFullYear(); }
-  else return null; const t=new Date(y,m-1,d); return t.getMonth()===m-1 ? opsYmd(t) : null; }
+const dateDisp = SY.dateDisp;   // 공통 (js/common.js)
+function parseDateText(s){ return SY.parseDateText(s); }   // 공통 (js/common.js)
 $('#eFields').addEventListener('click', e=>{ const t=e.target.closest('.dtxt'); if(!t) return; const p=t.parentElement.querySelector('.dpick');
   if(t.dataset.opened){ t.readOnly=false; t.value=t.value.replace(/\s*\(.\)$/,''); t.select(); return; }
   t.dataset.opened='1'; try{ p.showPicker(); }catch(_){ t.readOnly=false; } });

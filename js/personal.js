@@ -1,21 +1,22 @@
 // ===== 개인고객 전화응대 (personal.html) =====
+// 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 README 14절
 // 통화 기록(구분 · 보고전달자 · 예약 여부) · 추후 과업 · 통화 기록 전체 · 삭제된 통화 · 마감 알림 · 보고 글자 복사
 
 const $ = s => document.querySelector(s);
-const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const readJSON=(k,d)=>{ try{ const v=JSON.parse(localStorage.getItem(k)); return v==null?d:v; }catch(_){ return d; } };
-const writeJSON=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){} };
-const DOW='일월화수목금토';
+const esc = SY.esc;   // 공통 도구 (js/common.js)
+const readJSON = SY.readJSON;
+const writeJSON = SY.writeJSON;
+const DOW = SY.DOW;
 const dLabel = d => { const t=new Date(String(d).slice(0,10)+'T00:00'); return isNaN(t)?'':`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; };
 const dtLabel = s => { const t=new Date(s); return isNaN(t)?'':`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]}) ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`; };
-const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const ymd = SY.ymd;
 let toastT; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), 2600); }
 const user = readJSON('sy_user', {}) || {};
 $('#me').innerHTML = user.name ? `👤 <b>${esc(user.name)}</b>` : '';
 
 // ===================== 공유 기록 (단체 화면과 같은 Apps Script · 같은 팀 비밀번호) =====================
-const SHARED_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";
-const KEY_LS='sayuwon_intake_key', PEND_LS='sayuwon_personal_pending', CACHE_LS='sayuwon_personal_cache';
+const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
+const KEY_LS=SY.KEY_LS, PEND_LS='sayuwon_personal_pending', CACHE_LS='sayuwon_personal_cache';
 const CALL_TYPE='개인고객';
 const getKey=()=>{ try{ return localStorage.getItem(KEY_LS)||''; }catch(_){ return ''; } };
 let pending = readJSON(PEND_LS, []), items = readJSON(CACHE_LS, []), flushing=false, retryT=null;
@@ -48,7 +49,7 @@ async function pull(inFlush){
     groupMine=(j.items||[]).filter(r=>r.callType!==CALL_TYPE && ['단체예약','예약상담','예약접수','상담','가예약','공식예약'].includes(r.callType||'단체예약') && (r.owner||r.takenBy)===(user.name||''));   // 마감 알림용: 내가 영업 담당인 단체 예약
     setTimeout(checkDue, 300); setTimeout(paintMyCount, 0);
     $('#keyMsg').textContent=''; paintSync(); renderLists(); tryOpen();
-    if(j.admin){ writeJSON('sayuwon_intake_admin', j.admin); paintSeats(); }   // 사담 · 마방 현황 (단체 화면과 같이 씀)
+    if(j.admin){ writeJSON('sayuwon_intake_admin', j.admin); }   // 사담 · 마방 현황 (단체 화면이 씀)
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
 function put(item){
@@ -63,17 +64,8 @@ $('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#ke
 // ===================== 날짜 칸 (단체 화면 방문일과 같은 방식) =====================
 // 칸 안에 "2026-12-05 (토)". 누르면 바로 달력, 달력을 연 뒤 한 번 더 누르거나 숫자를 치면 글자로 직접 입력 (2026-12-05 · 12/5 · 1205)
 // 원래 <input type="date"> 는 숨긴 달력으로 그대로 두어 값 · 이벤트(input · change)는 예전 그대로
-const dateDisp = v => { if(!v) return ''; const t=new Date(v+'T00:00'); return isNaN(t) ? v : `${v} (${DOW[t.getDay()]})`; };
-function parseDateText(s){
-  s=String(s||'').replace(/\([^)]*\)\s*$/,'').trim(); if(!s) return '';
-  let y, m, d, x;
-  if((x=s.match(/^(\d{4})\s*[-./년 ]?\s*(\d{1,2})\s*[-./월 ]?\s*(\d{1,2})\s*일?$/))){ y=+x[1]; m=+x[2]; d=+x[3]; }
-  else if((x=s.match(/^(\d{1,2})\s*[-./월 ]\s*(\d{1,2})\s*일?$/)) || (x=s.match(/^(\d{2})(\d{2})$/))){
-    m=+x[1]; d=+x[2]; const now=new Date(); y=now.getFullYear(); const t=new Date(y,m-1,d); now.setHours(0,0,0,0); if(t<now) y++; }   // 연도 없으면 올해 (이미 지났으면 내년)
-  else return null;
-  const t=new Date(y,m-1,d); if(t.getFullYear()!==y || t.getMonth()!==m-1 || t.getDate()!==d) return null;
-  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-}
+const dateDisp = SY.dateDisp;   // 공통 (js/common.js)
+function parseDateText(s){ return SY.parseDateText(s); }   // 공통 (js/common.js)
 function makeDateBox(pick){
   if(!pick || pick.dataset.dbox) return; pick.dataset.dbox='1';
   const box=document.createElement('span'); box.className='dbox'; pick.parentNode.insertBefore(box, pick);
@@ -113,21 +105,17 @@ function paintForm(force){
   $('#startedAt').textContent = startedAt ? `통화 시작 ${dtLabel(startedAt.toISOString())}` : '';
   $('#state').textContent = isDirty() ? '저장하지 않은 내용이 있습니다 (30초 뒤 자동 저장)' : (cur ? (lastAuto ? `자동 저장 ${new Date(lastAuto).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}` : '저장됨') : '');
   paintDirtyDots();   // 저장 안 한 변경: 저장 버튼 · 그 과업의 「저장」에 노란 점 (단체 화면과 같음)
-  paintPrices(); syncDates();   // 날짜 칸 글자 (요일)
+  syncDates();   // 날짜 칸 글자 (요일)
 }
 // 이 통화의 추후 과업: 안 끝난 것(마감일 순) → 끝난 것
 const isDirty = () => JSON.stringify(form)!==saved;
-const fmtPhone = v => { const d=String(v||'').replace(/\D/g,''); if(/^01\d{8,9}$/.test(d)) return d.length===10?`${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`:`${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`; if(/^0\d{8,10}$/.test(d)) return d.replace(/^(02|0\d{2})(\d{3,4})(\d{4})$/,'$1-$2-$3'); return v; };
+const fmtPhone = SY.fmtPhone;   // 공통 (js/common.js)
 FIELDS.forEach(([id,k])=>{ $('#'+id).addEventListener('input', e=>{ let v=e.target.value; if(k==='people'){ v=v.replace(/[^\d+]/g,''); e.target.value=v; } if(k==='phone') v=phoneTyping(e); form[k]=v; touchSoon(); }); });
-// 연락처를 치는 동안 010-0000-0000 모양으로: 010- 다음 숫자 4개를 치면 바로 - (지울 때는 - 를 다시 붙이지 않음, 글자 중간을 고칠 때는 그대로)
-function phoneTyping(e){ const el=e.target, v=el.value; if(el.selectionStart!==v.length) return v;
-  const del=/^delete/.test(e.inputType||''), d=v.replace(/\D/g,'').slice(0,11); let out=d.slice(0,3);
-  if(d.length>3 || (d.length===3 && !del)) out+='-'+d.slice(3,7);
-  if(d.length>7 || (d.length===7 && !del)) out+='-'+d.slice(7);
-  el.value=out; return out; }
+// 연락처를 치는 동안: 자릿수에 맞춰 - (어떤 번호든) · 자동 010- 뒤에 02 · 031 … 이면 010 뗌 (js/common.js, 단체 화면과 같음)
+function phoneTyping(e){ const el=e.target; if(el.selectionStart!==el.value.length) return el.value; const f=SY.phoneTyping(el, e.inputType); el.value=f; return f; }
 // 연락처: 빈 칸을 누르면 010- 부터 (커서는 끝), 아무것도 안 치고 나가면 다시 비움 (단체 화면과 같음)
-$('#fPhone').addEventListener('focus', e=>{ const el=e.target; if(!el.value){ el.value='010-'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} },0); } });
-$('#fPhone').addEventListener('blur', e=>{ if(/^010-?$/.test(e.target.value)){ e.target.value=''; if(form.phone){ form.phone=''; touch(); } return; } const v=fmtPhone(e.target.value); if(v!==form.phone){ form.phone=v; e.target.value=v; touch(); } });
+$('#fPhone').addEventListener('focus', e=>{ const el=e.target; if(!el.value){ el.value='010-'; el.dataset.autop='1'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} },0); } });
+$('#fPhone').addEventListener('blur', e=>{ delete e.target.dataset.autop; if(/^010-?$/.test(e.target.value)){ e.target.value=''; if(form.phone){ form.phone=''; touch(); } return; } const v=fmtPhone(e.target.value); if(v!==form.phone){ form.phone=v; e.target.value=v; touch(); } });
 function touch(){ if(!startedAt && !cur) startedAt=new Date(); clearTimeout(touchT); touchT=0; paintForm(); if(typeof scheduleAuto==='function') scheduleAuto(); }
 // 글자를 칠 때(문의 내용 · 이름 · 과업 메모 등): 값은 바로 넣고, 화면 다시 그리기는 멈추고 0.35초 뒤 한 번 (빠르게 · 칸을 나가면 바로, 2026-11-18)
 let touchT=0;
@@ -335,50 +323,6 @@ document.addEventListener('click', e=>{
   const li=e.target.closest('.list li[data-id]'); if(li) openItem(li.dataset.id);
 });
 
-// ===================== 안내용 가격 · 사담 현황 =====================
-// 가격: 견적서 사이트 품목 목록(품목 관리 값 반영). 단체 화면이 받아 둔 것을 먼저 쓰고, 없으면 직접 불러옴
-const HOLI = new Set(['2026-12-25','2027-01-01','2027-02-06','2027-02-07','2027-02-08','2027-02-09','2027-03-01','2027-05-05','2027-05-13','2027-06-06','2027-08-15','2027-08-16','2027-09-14','2027-09-15','2027-09-16','2027-10-03','2027-10-04','2027-10-09','2027-10-11','2027-12-25']);
-const isRed = d => { const t=new Date(d+'T00:00'); return !isNaN(t) && (t.getDay()===0 || t.getDay()===6 || HOLI.has(d)); };
-let cat = readJSON('sayuwon_quote_cat', null);
-const QUOTE_PAGE = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/index.html';
-const QUOTE_DATA = (/github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/') + 'js/document.js';   // 품목 목록이 들어 있는 견적서 코드
-const QUOTE_SHARED = "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec";
-async function loadCat(){
-  try{
-    const [html, shared] = await Promise.all([fetch(QUOTE_DATA+'?t='+Date.now()).then(r=>r.text()), fetch(QUOTE_SHARED).then(r=>r.json()).catch(()=>null)]);
-    const m=html.match(/var CATALOG_RAW = \[([\s\S]*?)\];/); if(!m) throw 0;
-    const raw=[...m[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]); const d=(shared&&shared.data)||{};
-    cat = {...(cat||{}), raw, edits:d.edits||{}, added:d.added||[], at:new Date().toISOString()};
-  }catch(_){}
-  paintPrices();
-}
-function catItems(){
-  if(!cat || !cat.raw) return [];
-  const out=[], seen={};
-  cat.raw.forEach(line=>{ const [src,price]=line.split('|'); if(seen[src]) return; seen[src]=1; const e=(cat.edits||{})[src]||{}; if(e.hidden) return;
-    out.push({src, name:String(e.name||'').trim(), price: e.price!=null ? Number(e.price) : (price?Number(price):null), kind: e.kind || (/\(관람,/.test(src)?'package':/관람/.test(src)&&!/관람권|관람식사권/.test(src)?'view':'') }); });
-  (cat.added||[]).forEach(a=>{ if(!a.hidden) out.push({src:a.src||a.name, name:a.name, price:a.price!=null?Number(a.price):null, kind:a.kind||''}); });
-  return out;
-}
-function paintPrices(){ if(!$('#priceBox')) return;   // 안내용 가격은 없앰 (2026-11-14)
-  const day = form.date || ymd(new Date()), we=isRed(day), pre=we?'주말/공휴일':'평일';
-  $('#priceDay').textContent = `${dLabel(day)} → ${we?'주말 · 공휴일':'평일'} 가격${form.date?'':' (방문 희망일을 넣으면 그날 기준)'}`;
-  const its=catItems().filter(it=>it.price!=null && String(it.src).startsWith(pre) && !/네이버/.test(it.src) && (it.kind==='view' || it.kind==='package'));
-  const label = it => { let s=String(it.src).replace(/^(평일|주말\/공휴일)\s*/,''); const p=s.match(/^\(관람,\s*(.+)\)$/); if(p) return '관람 + '+p[1]; const t=s.match(/\((\d\d):00~(\d\d):00\)/); return s.replace(/\(\d\d:00~\d\d:00\)/,'').replace(/^관람\(학생\)/,'관람 (학생)').trim()+(t?` (${+t[1]}~${+t[2]}시)`:''); };
-  const per = n => { const k=Number(String(form.people).replace(/\D/g,''))||0; return k>1 ? `<td class="n">${(n*k).toLocaleString('ko-KR')}</td>` : ''; };
-  const k=Number(String(form.people).replace(/\D/g,''))||0;
-  $('#priceBox').innerHTML = its.length ? `<table class="pt"><thead><tr><th>상품</th><th style="text-align:right">1인</th>${k>1?`<th style="text-align:right">${k}명</th>`:''}</tr></thead><tbody>${its.map(it=>`<tr><td>${esc(label(it))}</td><td class="n">${it.price.toLocaleString('ko-KR')}</td>${per(it.price)}</tr>`).join('')}</tbody></table><p class="hint" style="margin-top:6px">품목 관리 기준 정상가 · 개인 예약 할인은 반영하지 않음</p>` : '<p class="empty">가격을 불러오지 못했습니다.</p>';
-  paintSeats();
-}
-// 사담 · 마방 남은 자리: 관리자 사이트 현황 (단체 화면과 같은 자료, 15분마다 갱신)
-function paintSeats(){ if(!$('#seatBox')) return;
-  const ad=readJSON('sayuwon_intake_admin', null), day=form.date, d=ad && ad.days && day && ad.days[day];
-  const NAMES={L1:'사담 런치 1부', L2:'사담 런치 2부', D:'사담 디너', MB:'마방 사유의 밥상'};
-  if(!day){ $('#seatBox').innerHTML=''; return; }
-  if(!d){ $('#seatBox').innerHTML=`<p class="hint" style="margin-bottom:8px">${esc(dLabel(day))} 사담 · 마방 현황: ${ad?'자료 없음':'관리자 사이트 현황을 아직 받지 않음'}</p>`; return; }
-  $('#seatBox').innerHTML = `<div class="sub-h" style="margin-top:0">${esc(dLabel(day))} 남은 자리 (관리자 사이트 ${ad.updated?esc(dtLabel(ad.updated)):''} 기준)</div><div class="seat" style="margin-bottom:10px">`
-    + Object.entries(NAMES).map(([s,n])=>{ const x=d[s]; if(!x) return ''; const left = x.max!=null && x.cur!=null ? x.max-x.cur : null; return `<span class="${x.close||left===0?'full':''}">${n} ${x.close?'마감':left!=null?`${left}자리`:'-'}</span>`; }).join('') + `</div>`;
-}
 
 // 문의 매뉴얼 (노션): 헤더 링크로 새 창에 엶
 const MANUAL_URL = 'https://happyyy-monkeyyy.notion.site/3d645f859824807090f1df4f0815a7bd?source=copy_link';   // 새 창으로 열기

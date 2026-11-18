@@ -2,8 +2,8 @@
 // 공유 기록(구글 시트 calls, 단체 화면과 같은 Apps Script)에 한 줄 = 한 건으로 저장. 통화 구분(callType)으로 나눔:
 //   개인업무 · 분실물 · 사고 · 재고. 내용은 '수정 기록' 칸(history)에 JSON {kind, d:{…}, log:[…]}
 //   (방문일 · 업체 칸은 비워 둠 → 단체 화면의 '그날 예약 현황' 등에 섞이지 않게)
-const OPS_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";
-const OPS_KEY_LS = 'sayuwon_intake_key';   // 팀 비밀번호 (단체 · 개인고객 화면과 같이 씀)
+const OPS_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
+const OPS_KEY_LS = SY.KEY_LS;   // 팀 비밀번호 (단체 · 개인고객 화면과 같이 씀)
 const OPS_TYPES = { task:'개인업무', lost:'분실물', accident:'사고', stock:'재고' };
 const opsKey = () => { try{ return localStorage.getItem(OPS_KEY_LS)||''; }catch(_){ return ''; } };
 async function opsApi(body){
@@ -17,7 +17,6 @@ const OPS_DOW = ['일','월','화','수','목','금','토'];
 const opsDateLabel = v => { if(!v) return ''; const t=new Date(v+'T00:00'); return isNaN(t) ? v : `${t.getMonth()+1}/${t.getDate()}(${OPS_DOW[t.getDay()]})`; };
 const opsId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 function opsParse(r){ try{ const j=JSON.parse(r.history||'{}'); return j && j.kind ? j : null; }catch(_){ return null; } }
-const opsKindOf = r => Object.keys(OPS_TYPES).find(k=>OPS_TYPES[k]===r.callType) || '';
 
 // ---- 기타 개인 업무: 반복 (없음 · 매일 · 매주(요일) · 매달(일자)) ----
 // d = {title, repeat:'none'|'daily'|'weekly'|'monthly', dows:[0..6], dom:1..31 (31 = 말일까지), start, due, memo, owner, done:{날짜:{at,by}}}

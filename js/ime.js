@@ -12,7 +12,7 @@
                 Q:"ㅃ", W:"ㅉ", E:"ㄸ", R:"ㄲ", T:"ㅆ", O:"ㅒ", P:"ㅖ" };
   const REV = {}; Object.keys(MAP).forEach(k=>{ if(!REV[MAP[k]] || k===k.toLowerCase()) REV[MAP[k]]=k; });
   Object.assign(REV,{ "ㅃ":"Q","ㅉ":"W","ㄸ":"E","ㄲ":"R","ㅆ":"T","ㅒ":"O","ㅖ":"P" });
-  const btn = document.getElementById('ko-toggle');
+  const btn = document.getElementById('ko-toggle'); if(!btn) return;   // 「한/A」 버튼이 없는 화면에서는 아무것도 안 함
   const mode = el => el && el.dataset ? el.dataset.ime : '';
   function paintBtn(){ btn.textContent = on ? '한' : 'A'; btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on?'true':'false');
     btn.title = on ? '한글 입력 중 (단체명·담당자 성함) · 한/영 키나 Shift+Space로 영어' : '영어 입력 중 · 한/영 키나 Shift+Space로 한글'; }

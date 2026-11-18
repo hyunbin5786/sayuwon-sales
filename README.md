@@ -25,6 +25,7 @@ css/
   portal.css  group.css  personal.css  prep.css  ops.css
   mypop.css           나의 할일 팝업 (첫 화면 · 개인고객 · 다음날 준비 공통)
 js/
+  common.js           공통 SY (공유 주소 · 팀 비밀번호 이름 · esc · ymd · 날짜 · 전화 · 저장소 읽기/쓰기) — 모든 화면이 맨 먼저
   portal.js  group.js  personal.js  prep.js  ops.js
   opslib.js           운영보조 공통 (공유 기록 · 반복 업무 계산 · 대시보드도 씀)
   ime.js              칸별 한글/영어 입력 (단체 · 개인고객 공통)
@@ -321,3 +322,92 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
 - 로컬 미리보기: `.claude/serve.ps1`(저장소에 올리지 않음)로 이 폴더를 띄워 봅니다. CSS · JS 파일 형식을 맞게 보내야 화면이 제대로 보입니다
 - 테스트할 때는 공유 시트에 쓰지 않도록 `callApi` 를 가짜로 바꿔 확인합니다
 - CSS · JS를 고치면 HTML의 `?v=` 를 바꾸고, README도 같이 고칩니다
+
+## 14. 코드 구조 (고칠 때 보는 지도, 2026-11-18 정리)
+
+### 14-1. 화면 ↔ 파일 (불러오는 순서)
+
+모든 화면은 **HTML(틀) + CSS(모양) + JS(동작)** 입니다. HTML `<head>` 에는 "로그인 안 했으면 첫 화면으로" 한 줄만 있고, 나머지는 `js/` 에 있습니다. JS는 아래 순서로 읽습니다 (앞의 것이 뒤에서 쓰는 이름을 만들어 둠).
+
+| 화면 | HTML | CSS | JS (읽는 순서) |
+|---|---|---|---|
+| 첫 화면 · 대시보드 · 품목관리 · 멤버관리 | `index.html` | `portal.css` · `mypop.css` · `menu.css` | `common.js` → `opslib.js` → `portal.js` → `mypop.js` → `menu.js` |
+| 개인고객 전화응대 | `personal.html` | `personal.css` · `mypop.css` · `menu.css` | `common.js` → `personal.js` → `mypop.js` → `ime.js` → `keepsize.js` → `menu.js` |
+| 단체고객 전화응대 · 나의 할일(`?my=1`) · 예약 현황 공유(`?book=…`) | `group.html` | `group.css` · `menu.css` | `common.js` → `opslib.js` → `group.js` → `ime.js` → `keepsize.js` → `menu.js` → `timepick.js` |
+| 다음날 고객 응대 준비 | `prep.html` | `prep.css` · `mypop.css` · `menu.css` | (exceljs · html2canvas) → `common.js` → `prep.js` → `mypop.js` → `menu.js` |
+| 운영보조 · 기타 개인 업무 (`?p=task · lost · accident · stock`) | `ops.html` | `ops.css` · `mypop.css` · `menu.css` | `common.js` → `opslib.js` → `ops.js` → `mypop.js` → `ime.js` → `keepsize.js` → `menu.js` → `timepick.js` |
+| 네이버 이관 | `naver.html` (한 파일에 CSS · JS) | `menu.css` | (cdnjs xlsx) → 파일 안 스크립트 → `menu.js` |
+| 견적서 / 거래명세서 | `document/index.html` | `document/css/document.css` · `../css/menu.css` | `document/js/datebox.js` · `document/js/document.js` · `../js/menu.js` |
+| 예전 주소 | `mypage.html` | — | `group.html?my=1` 로 넘김 |
+
+### 14-2. 공통 파일 (여러 화면이 같이 씀)
+
+| 파일 | 하는 일 · 안에 있는 것 |
+|---|---|
+| `js/common.js` | **`SY` 하나**: `API_URL`(공유 기록 Apps Script 주소) · `KEY_LS`(팀 비밀번호 저장 이름) · `USER_LS` · `DOW` · `esc()` · `ymd()` · `readJSON()` · `writeJSON()` · `getKey()` · `user()` · `dateDisp()`(2026-12-05 (토)) · `parseDateText()`(12/5 · 1205 · 12월 5일 → 날짜) · `fmtPhone()`(어떤 번호든 -) · `phoneTyping()`(치는 동안 - · 자동 010- 떼기). 각 화면은 `const esc = SY.esc` 처럼 받아 씀. **주소 · 날짜 · 전화 규칙을 바꿀 땐 여기 한 곳만** |
+| `js/opslib.js` | 운영보조 공통: `OPS_TYPES`(통화 구분 개인업무 · 분실물 · 사고 · 재고) · `opsApi()` · `opsParse()`(history JSON 읽기) · 반복 업무 계산 `opsOccurs()` · `opsPending()` · `opsRepeatLabel()`. 첫 화면 대시보드 · 단체 화면 나의 할일도 씀 |
+| `js/menu.js` + `css/menu.css` | 모든 화면 헤더 맨 앞 「☰ 메뉴」 · 화면 위에 뜨는 아코디언(묶음 G 배열) · 지금 화면 표시 · 「나의 할일」 버튼이 없는 화면(네이버 · 견적서)에 버튼과 팝업을 붙임. 메뉴 항목은 `G` 배열만 고치면 됨 |
+| `js/mypop.js` + `css/mypop.css` | 「나의 할일」 팝업 (`group.html?my=1&embed=1` 을 iframe 으로). 팝업 안에서 과업을 누르면 `postMessage({type:'sy-my', ev:'go', url})` 로 바깥 화면이 이동 |
+| `js/timepick.js` | 시각 칸 `data-tp="1"`(한 시각) · `data-tp="range"`(시간대)에 스크롤 시 · 분 고르기 (24시간 · 5분). 고르면 input · change · focusout 을 보내서 각 칸의 원래 저장 처리가 돌아감. 새 시각 칸은 이 속성만 붙이면 됨 |
+| `js/ime.js` | 한글 먼저 입력 (`data-ime="ko"` 칸 · 헤더 「한/A」 `#ko-toggle`). 버튼이 없는 화면은 아무것도 안 함 |
+| `js/keepsize.js` | 메모 칸(textarea) 크기를 늘리면 기억 (`sy_ta_size`) |
+
+### 14-3. `js/group.js` 안 구역 지도 (위에서 아래로, 파일에서 `// =====` 로 찾기)
+
+| 구역 | 내용 |
+|---|---|
+| 필드 정의 | `FIELDS` [묶음, 키, 이름, 엑셀 열, 칸 모양, 물어볼 말] · `CFIELDS`(담당자 성함 · 연락처 · 이메일 · 메모) · `KEYS` · `LABEL` · 프로그램 딸린 칸(`stf_` 담당 · `tm_` 시간대 · `crs_` 코스 · `plc_` 장소) · `PROG_SRC`(프로그램 → 견적서 품목) |
+| 상태 | `rec`(지금 예약 칸 값) · `touched` · `tasks` · `hist` · `editingId` · `contactsOf()` · `REQUIRED()` · `MEMO_PARTS`(비고 칸에 모아 저장하는 값 목록) · `TBD_KEYS`(미정) |
+| 칸 렌더 | `fieldHTML()` · `renderForm()` · `paintFields()`(값 · 빨강/노랑/초록 색) · 날짜 칸 · 시각 · 전화 입력 처리 · **글자 칸은 `repaintSoon()` 으로 멈춘 뒤 다시 그림** |
+| 예약 항목 줄 | `itemRows` · `itemRowHTML()` · `renderItems()` · `paintItemPrices()`(할인 버튼 · 특별할인 · 할인액) · `setItemQty()` · `syncPeopleFromArea()`(관람 인원 자동) |
+| 품목마다 특별 할인 | `rec.isp` · `openSp()` · `spBtnHTML()` |
+| 그날 예약 현황 · 예약 목록 창 · 예약 현황 공유 | `bookRows()` · `openBook()` · `?book=` 페이지 |
+| 복사 · 저장 | `copy()` · `store`(list · put · del) · `pending` 대기열 · `flush()` · `pull()` · `merged()`(시트 + 대기 + 개인고객 화면 최신본) |
+| 수정 기록 · 자동 저장 | `snap()` · `diffSnap()` · `save()` · `scheduleAuto()`(30초) · `paintDirty()`(노란 점) · `guardLeave()` |
+| 추후 과업 | `AUTO_TASKS` · `syncAutoTasks()`(조건으로 생기고 빠짐) · `autoDue()`(마감) · `renderTasks()` · `taskAuto()`(전산 비고 · 일정 전달 등 문구) · 사전답사 `tourNote()` |
+| 가격표 · 할인 | `quoteBlocks()`(견적서 블록 · 할인 줄 · `b.gN`) · `blockMoney()` · `groupRate()`(19명까지 5% · 20명부터 10%) · `followDiscBand()` · `SPECIAL` · 특별 할인 편집(`spdisc` 줄) |
+| 전산 내역 | `parseErp()` · `erpFields()` · `erpCompare()` · `erpMissing()` · `erpCheck()` · `erpNote()`(전산 비고 문구) |
+| 견적서 · 단계 · 단체상담 입력 · 엑셀 · 삭제 · 목록 | `openQuote()`(`sy_intake_handoff`) · `STAGES` · `parseConsult()` · 목록 창 |
+| 나의 할일 | `renderMy()`(탭 전체 · 개인 · 단체 · 기타) · `myPersonalOpen()` · `myEtcOpen()` |
+| 잠금 · 동시 수정 · 마감 알림 · 미정 기한 · 화면 기억 | `lockOwner` · `acquireEdit()` · `checkDue` · `tbdLimit()` · `sayuwon_view` |
+| 비고 멘트 · 사전답사 팝업 · 삭제 확인 · 기타 개인 업무 | `#noteModal` · `#tourModal` · `askDelete()` · `etcSection()` |
+
+다른 JS 파일도 같은 모양입니다: `personal.js`(공유 기록 → 날짜 칸 → 칸 · 과업 → 구분 · 보고 → 저장 · 자동 저장 → 목록 · 통화 기록 전체 · 삭제 → 마감 알림 · 나의 할일 숫자 · 보고 글자 미리보기 · 삭제 확인 · 노란 점) · `portal.js`(로그인 → 멤버관리 → 품목관리 → 대시보드) · `ops.js`(화면별 칸 `BOARDS` → 공유 기록 → 목록 → 추가 · 고치기 → 세부 과업).
+
+### 14-4. 데이터 (공유 시트 `calls` 한 줄 = 한 기록)
+
+- **열**: `apps-script/group-intake.gs` 의 `COLS` (id · 저장 일시 · 통화 시작 · 받은 사람 · **통화 구분** · 요약 · 방문일 · 업체 · 담당 · 결제 · … · 고객 담당자 · 연락처 · 이메일 · 입장 · 퇴장 · … · **비고(memo)** · 통화 메모(note) · 수정 일시 · 삭제 · **수정 기록(history)**). 열에 없는 값은 비고 · 수정 기록 칸에 넣습니다
+- **통화 구분(callType)으로 종류를 나눔**: `예약상담` · `예약접수`(예전 `단체예약` · `상담` · `가예약` · `공식예약`) = 단체 / `개인고객` / `개인업무` · `분실물` · `사고` · `재고` = 운영보조 / 특별한 줄: `mabangdb`(몽몽마방 목록) · `bookdb`(예약 현황 직접 추가) · `pcats`(개인 구분, `개인구분`) · `spdisc`(특별 할인 종류, `특별할인설정`)
+- **비고 칸(memo)** = `이름 값 / 이름 값 / …` (칸 구분은 ` / `). `MEMO_PARTS` 목록 + 특별 할인 · 추가 프로그램 · 프로그램 담당/시간대/코스/장소 · 담당자 메모(`담당자 메모 0=… ¦ 1=…`). 읽기는 `unpackExtra()`, 쓰기는 `packExtra()` — **새 값을 저장하려면 `FIELDS`(숨은 칸 `굿즈` 묶음) + `MEMO_PARTS` 에 한 줄씩**
+- **수정 기록 칸(history, JSON)**: 단체 `{h:[수정 기록], tasks:[과업], erp:[전산 내역], memos:[담당자에게 메모]}` · 개인고객 `{h, tasks, cat, reportTo, reserved}` · 운영보조 `{kind, d:{내용}, log:[]}`
+- **과업 하나**: `{id, title, done, doneAt, doneBy, due, dueSet, memo, at, subs:{생성:true…}, xsubs:[{id,title,done}], custom, removed, manualDone, noteEdit}` — 자동 과업 id 는 `AUTO_TASKS` 의 키, 직접 추가는 `custom:true`, 지운 자동 과업은 `removed:1`(다시 안 생김)
+- **Apps Script 를 고치면** 사용자가 새 버전으로 배포해야 합니다. 화면만 고칠 땐 필요 없음
+
+### 14-5. 브라우저 저장소 (localStorage) 이름
+
+| 이름 | 내용 |
+|---|---|
+| `sy_user` · `sayuwon_owner` · `sy_sender` | 로그인 이름 · 사번 / 단체 영업 담당 / 견적서 담당 |
+| `sayuwon_intake_key` | 팀 비밀번호 |
+| `sayuwon_intake_pending` · `sayuwon_intake_cache` · `sayuwon_intake_v1` | 단체: 올릴 대기열 · 마지막으로 받은 목록 · (공유 주소가 없을 때) 이 브라우저 저장 |
+| `sayuwon_personal_pending` · `sayuwon_personal_cache` | 개인고객: 대기열 · 받은 목록 |
+| `sy_ops_cache_task · lost · accident · stock` | 운영보조 화면별 받은 목록 |
+| `sy_dash_cache` | 첫 화면 대시보드 (바로 그리기용, 로그아웃하면 지움) |
+| `sayuwon_quote_cat` · `sy_catalog_shared` | 견적서 품목 목록 |
+| `sayuwon_intake_admin` | 관리자 사이트 사담 · 마방 현황 |
+| `sayuwon_view` · `sayuwon_my_tab` · `sayuwon_list_sort` · `sy_menu_acc` · `sy_ta_size` | 보던 화면 · 나의 할일 탭 · 목록 정렬 · 메뉴 펼침 · 메모 칸 크기 |
+| `sy_intake_handoff` · `sy_intake_docs` | 단체 → 견적서로 넘기는 예약 · 견적서가 돌려주는 파일 링크 |
+| `sayuwon_task_slot` · `sayuwon_task_snooze` · `sayuwon_paycheck_seen` | 마감 알림 · 입금 확인 알림을 본 시각 |
+| 그 밖 | `sayuwon_pcats`(개인 구분) · `sayuwon_member_names` · `sayuwon_db_time` · `sy_edit_sid` · `sayuwon_prep_state` · `sy_history_*`(견적서 발급 내역) · `sy_senders` |
+
+### 14-6. 자주 하는 수정 (어디를 고치나)
+
+- **메뉴 항목 추가 · 이름 변경**: `js/menu.js` 의 `G`
+- **단체 예약 칸 추가**: `FIELDS` 에 한 줄 (시트 열이 없으면 `MEMO_PARTS` 에도) → `README` 5절
+- **자동 과업 추가**: `AUTO_TASKS`(이름) · `syncAutoTasks()`(생기는 조건) · `autoDue()`(마감) · `ORDER`(순서) · `SUB`(설명) · 필요하면 `taskAuto()`(복사 문구)
+- **전산 비고 문구**: `erpNote()` · 사전답사 `tourNote()`
+- **할인 규칙**: `groupRate()` · `quoteBlocks()` · `SPECIAL`
+- **운영보조 화면의 칸**: `js/ops.js` 의 `BOARDS` (칸 종류 text · tel · num · date · time · select · textarea · repeat · dows · dom · subs)
+- **대시보드**: `js/portal.js` 의 `dashRecs()`(무엇을 모으나) · `renderDash()`(어떻게 보이나)
+- **날짜 · 전화 · 공유 주소**: `js/common.js`
+- 고친 뒤: HTML 의 `?v=` 바꾸기 → 로컬에서 가짜 `callApi` · `store.put` 으로 확인 → README 고치기 → 올리기

@@ -1,4 +1,5 @@
 // ===== 단체고객 전화응대 (group.html) =====
+// 구역 지도 · 데이터 모양 · 자주 하는 수정은 README 14절. 공통 도구(SY: 주소 · 날짜 · 전화 · esc)는 js/common.js
 // 예약 칸 · 예약 내역(가격 · 할인) · 추후 과업 · 전산 내역 · 예약 현황 · 단체예약 목록 · 나의 할일 · 잠금 · 메모 · 알림
 
 // ===================== 필드 정의 (엑셀 메인 시트 열 기준) =====================
@@ -128,11 +129,11 @@ CFIELDS.forEach(([f,l])=>{ for(let i=0;i<10;i++) LABEL[`c${i}_${f}`]= i? `${l}($
 const SPECIAL_LABEL = { dKansong:'간송 할인', dMerit:'국가유공자 할인', dGunwi:'군위 주민 할인', dClergy:'대구대교구', dStaff:'직원 할인' }; Object.assign(LABEL, SPECIAL_LABEL);
 Object.assign(LABEL, { teaMed:'티하우스 명상', gayageum:'가야금', cabin:'유루 캐빈' });
 try{ addCatalogProgs(JSON.parse(localStorage.getItem('sayuwon_quote_cat'))); }catch(_){}   // 마지막으로 받은 견적서 품목으로 (새로 받으면 그때 다시)
-const DOW = '일월화수목금토';
+const DOW = SY.DOW;   // 공통 도구 (js/common.js)
 const $ = s => document.querySelector(s);
-const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const isCKey = k => /^c\d+_(name|phone|email)$/.test(k);
+const esc = SY.esc;
+const ymd = SY.ymd;
+const isCKey = k => /^c\d+_(name|phone|email|memo)$/.test(k);   // 담당자 칸 (시트에는 담당자 · 연락처 · 이메일 열에 " / "로 모아서, 메모는 비고 칸에)
 
 // ===================== 상태 =====================
 let rec, touched, startedAt, editingId, nContacts;
@@ -404,12 +405,12 @@ function itemRowHTML(k, rows){
       + `<span class="it-s none"><input disabled placeholder="담당 없음"></span><span></span><div class="it-money" data-ip="view"></div><div class="it-extra">${note}<span class="it-amt" data-iamt="view"></span></div></div>`; }
   // 몽몽마방: 시작 시각 → 끝나는 시각(시작을 넣으면 1시간 뒤로 자동) → 결제방식(새로 넣으면 미정) → 비고. 저장은 예전처럼 mabangTime "12:00~13:00"
   const mbt = t==='mb' ? mbTimes() : null;
-  const extra = t==='mb' ? `<label class="it-xl">시작 <input class="it-x" data-ix="mbS" data-tp="1" readonly placeholder="12:00" title="몽몽마방 시작 시각 (24시간 · 1200 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 1시간 뒤로" value="${esc(mbt[0])}"></label>`
-      + `<label class="it-xl">끝 <input class="it-x" data-ix="mbE" data-tp="1" readonly placeholder="13:00" title="몽몽마방 끝나는 시각 (시작 시각을 넣으면 1시간 뒤로 자동)" value="${esc(mbt[1])}"></label>`
+  const extra = t==='mb' ? `<label class="it-xl">시작 <input class="it-x" data-ix="mbS" data-tp="1" readonly title="몽몽마방 시작 시각 (24시간 · 1200 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 1시간 뒤로" value="${esc(mbt[0])}"></label>`
+      + `<label class="it-xl">끝 <input class="it-x" data-ix="mbE" data-tp="1" readonly title="몽몽마방 끝나는 시각 (시작 시각을 넣으면 1시간 뒤로 자동)" value="${esc(mbt[1])}"></label>`
       + `<label class="it-xl${rec.mabangPay==='미정'?' tbd':''}">결제 <select class="it-x" data-ix="mabangPay" title="몽몽마방 결제방식 · 미정이면 미정 항목 '몽몽마방 결제'로 (고객님께 여쭤 보기)">${rec.mabangPay?'':'<option value="" selected>선택</option>'}${MB_PAYS.map(x=>`<option${rec.mabangPay===x?' selected':''}>${x}</option>`).join('')}</select></label>` + note
     : t==='prog' ? (()=>{ const [s,en]=tmTimes(k);   // 개별 · 시간 프로그램: 시작 → 끝(시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤) → 비고 (도슨트는 코스도). 저장은 예전처럼 tm_키 "13:00~14:00"
-        return `<label class="it-xl">시작 <input class="it-x" data-ix="tmS:${esc(k)}" data-tp="1" readonly placeholder="13:00" title="프로그램 시작 시각 (24시간 · 1300 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 자동" value="${esc(s)}"></label>`
-          + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:${esc(k)}" data-tp="1" readonly placeholder="14:00" title="프로그램 끝나는 시각 (시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤로 자동)" value="${esc(en)}"></label>`
+        return `<label class="it-xl">시작 <input class="it-x" data-ix="tmS:${esc(k)}" data-tp="1" readonly title="프로그램 시작 시각 (24시간 · 1300 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 자동" value="${esc(s)}"></label>`
+          + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:${esc(k)}" data-tp="1" readonly title="프로그램 끝나는 시각 (시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤로 자동)" value="${esc(en)}"></label>`
           + (FIELDS.some(f=>f[1]==='plc_'+k) ? (()=>{ const pv=rec['plc_'+k]||''; return `<label class="it-xl">장소 <select class="it-x" data-ix="plc_${esc(k)}" title="세미나 도슨트 장소">${pv?'':'<option value="" selected>선택</option>'}${[...PLC_OPTS, ...(pv && !PLC_OPTS.includes(pv) ? [pv] : [])].map(x=>`<option${pv===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`; })() : '')   // 세미나 도슨트: 장소 (몽몽차방 · 당두봉갈 · 기타) → 비고
           + (FIELDS.some(f=>f[1]==='crs_'+k) ? (()=>{ const cv=rec['crs_'+k]||'', on=cv===CRS_DEFAULT;   // 도슨트: 코스 = 「앵당삼거리 시작」 토글 또는 직접 입력 → 비고 (2026-11-17)
               return `<label class="it-xl it-crs">코스 <button type="button" class="crs-tg${on?' on':''}" data-crstg="${esc(k)}" aria-pressed="${on}" title="누르면 코스 = ${CRS_DEFAULT} (다시 누르면 직접 입력)">${CRS_DEFAULT}</button>${on?'':`<input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="또는 직접 입력" value="${esc(cv)}">`}</label>`; })() : '')
@@ -682,39 +683,21 @@ function fmtTime(v){ v=String(v||'').trim(); let m=v.match(/^(\d{1,2}):?(\d{2})$
   if(m){ h=+m[1]; mi=+(m[2]||0); } else { m=v.match(/(\d{1,2})\s*(?:시|:)\s*(\d{1,2})?/); if(!m) return ''; h=+m[1]; mi=+(m[2]||0); if(/오후|저녁|pm/i.test(v) && h<12) h+=12; }
   return h<=23 && mi<=59 ? `${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}` : ''; }
 // 방문일: 칸에는 "2026-12-05 (토)"처럼 요일까지. 직접 칠 때는 2026-12-05 · 2026.12.5 · 20261205 · 12/5 · 1205 · 12월 5일 (연도 없으면 올해, 지났으면 내년)
-const dateDisp = v => { if(!v) return ''; const t=new Date(v+'T00:00'); return isNaN(t) ? v : `${v} (${'일월화수목금토'[t.getDay()]})`; };
+const dateDisp = SY.dateDisp;   // 공통 (js/common.js)
 // 날짜 칸 (마감일 · 미정 항목 답변일): 방문일처럼 칸 안에 "2026-11-14 (금)". 누르면 달력, 고르는 즉시 요일도 바뀜
 const dboxHTML = (attrs, v) => `<span class="dbox"><input class="dtxt" readonly value="${esc(dateDisp(v))}" placeholder="날짜 고르기"><input type="date" class="dpick" ${attrs} value="${esc(v||'')}" tabindex="-1" aria-hidden="true"></span>`;
 const dboxOpen = t => { const p=t.parentElement.querySelector('.dpick'); if(!p) return; try{ p.showPicker(); }catch(_){ p.focus(); p.click(); } };
 document.addEventListener('click', e=>{ const t=e.target.closest?.('.dtxt'); if(t){ e.preventDefault(); dboxOpen(t); } });
 document.addEventListener('keydown', e=>{ const t=e.target.closest?.('.dtxt'); if(t && (e.key==='Enter' || e.key===' ' || e.key==='ArrowDown')){ e.preventDefault(); dboxOpen(t); } });
 ['input','change'].forEach(ev=>document.addEventListener(ev, e=>{ const p=e.target; if(!p.classList?.contains('dpick')) return; const t=p.parentElement.querySelector('.dtxt'); if(t) t.value=dateDisp(p.value); }, true));
-function parseDateText(s){
-  s=String(s||'').replace(/\([^)]*\)\s*$/,'').trim(); if(!s) return '';
-  let y, m, d, x;
-  if((x=s.match(/^(\d{4})\s*[-./년 ]?\s*(\d{1,2})\s*[-./월 ]?\s*(\d{1,2})\s*일?$/))){ y=+x[1]; m=+x[2]; d=+x[3]; }
-  else if((x=s.match(/^(\d{1,2})\s*[-./월 ]\s*(\d{1,2})\s*일?$/)) || (x=s.match(/^(\d{2})(\d{2})$/))){
-    m=+x[1]; d=+x[2]; const now=new Date(); y=now.getFullYear(); const t=new Date(y,m-1,d); now.setHours(0,0,0,0); if(t<now) y++; }
-  else return null;
-  const t=new Date(y,m-1,d); if(t.getFullYear()!==y || t.getMonth()!==m-1 || t.getDate()!==d) return null;
-  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-}
+function parseDateText(s){ return SY.parseDateText(s); }   // 공통 (js/common.js)
 const NUM_ONLY = { people:/[^\d+]/g, vehicle:/[^\d]/g, mabangPrice:/[^\d]/g, mabangTime:/[^\d:~]/g };   // 관람 인원은 42+2 처럼 + 허용
 FIELDS.forEach(f=>{ if(/^tm_/.test(f[1])) NUM_ONLY[f[1]]=/[^\d:~]/g; });   // 도슨트 시간대도 숫자 · : · ~ 만
 // 연락처: 빈 칸을 누르면 010- 이 들어가고, 숫자를 치면 - 가 자동 (어떤 번호든 자릿수에 맞춰, 2026-11-18)
 //  휴대폰 010-1234-5678 · 010-123-4567(예전 10자리) · 서울 02-123-4567 / 02-1234-5678 · 지역 · 070 031-123-4567 / 031-1234-5678
 //  0505 등 050X-123-4567 · 대표번호 1588-1234 · 그 밖 1234-5678. 010- 이 자동으로 들어간 칸에 0 으로 시작하는 번호(02 · 031 …)를 치면 010 은 뗌
 const PHONE = k => /^c\d+_phone$/.test(k);
-function fmtPhone(v){
-  const d=String(v||'').replace(/\D/g,'').slice(0,12);
-  if(!d) return '';
-  const g=a=>d.length<=a ? d : d.length<=a+4 ? `${d.slice(0,a)}-${d.slice(a)}` : `${d.slice(0,a)}-${d.slice(a,d.length-4)}-${d.slice(-4)}`;   // 앞자리 a개 - 가운데 - 끝 4자리 (가운데는 칠수록 늘어남)
-  if(/^02/.test(d))   return g(2);
-  if(/^050\d/.test(d)) return g(4);   // 0505 · 0507 등 안심번호
-  if(/^0\d\d/.test(d)) return g(3);   // 010 · 011 · 031 · 070 …
-  if(/^1[5-9]\d\d/.test(d) && d.length<=8) return d.length<=4 ? d : `${d.slice(0,4)}-${d.slice(4)}`;   // 대표번호 1588-1234
-  return d.length<=4 ? d : `${d.slice(0,d.length-4)}-${d.slice(-4)}`;   // 내선 등 (1234, 123-4567)
-}
+function fmtPhone(v){ return SY.fmtPhone(v); }   // 공통 (js/common.js)
 const VTYPES = ['버스','승용','혼합','미정'];
 // 차량 값: "버스 2대" · "승용 3대" · "혼합 (버스 1대 + 승용 2대)" · "미정"
 function vehParts(v){ v=String(v||'');
@@ -807,10 +790,7 @@ function buildForm(){
     const k=e.target.dataset.k; if(!k) return;
     if(PHONE(k) && !e.isComposing){
       const el=e.target, atEnd=el.selectionStart===el.value.length;
-      const del = e.inputType && e.inputType.startsWith('delete');
-      if(el.dataset.autop==='1'){ const dg=el.value.replace(/\D/g,''); if(/^0100/.test(dg)) el.value=dg.slice(3); else if(dg.length>4) delete el.dataset.autop; }   // 자동으로 넣은 010- 뒤에 0 으로 시작하는 번호(02 · 031 …)를 치면 010 을 뗌
-      let f=fmtPhone(el.value);
-      if(del && el.value.endsWith('-') && f===el.value.replace(/-$/,'')) f=el.value.replace(/-$/,'');   // 지우는 중에는 끝 - 를 다시 붙이지 않음
+      const f=SY.phoneTyping(el, e.inputType);   // 자릿수에 맞춰 - · 자동 010- 뒤 02 · 031 … 이면 010 뗌 · 지우는 중엔 끝 - 안 붙임 (js/common.js)
       if(f!==el.value){ el.value=f; if(atEnd) el.setSelectionRange(f.length,f.length); }
     }
     if(TIME_KEYS[k] && !e.isComposing){   // 숫자만 치면 : 자동 (1330 → 13:30)
@@ -1217,8 +1197,8 @@ function paintBookAdd(){
   const inp=(id,ph,v,cls='')=>`<input id="${id}" class="${cls}" placeholder="${ph}"${id==='baTm'?' data-tp="range" readonly':''} value="${esc(v==null?'':v)}" autocomplete="off"${/Org|Staff|Note|Item/.test(id)?' data-ime="ko"':''}>`;
   const sel=(id,opts,v)=>`<select id="${id}">${opts.map(o=>`<option${o===v?' selected':''}>${esc(o)}</option>`).join('')}${v && !opts.includes(v)?`<option selected>${esc(v)}</option>`:''}</select>`;
   const f = c==='mb'
-    ? [`<label>시간 ${inp('baTm','12:00~13:00',x.tm,'t')}</label>`, `<label>예약자 · 업체 ${inp('baOrg','',x.org)}</label>`, `<label>인원 ${inp('baPpl','명',x.ppl,'n')}</label>`, `<label>메뉴 ${sel('baItem', mbMenus().map(m=>m.name), x.item||'')}</label>`]
-    : [`<label>업체 ${inp('baOrg','',x.org)}</label>`, `<label>${c==='coupon'?'매수':'인원'} ${inp('baPpl',c==='coupon'?'장':'명',x.ppl,'n')}</label>`, `<label>시간 ${inp('baTm','13:00~14:00',x.tm,'t')}</label>`,
+    ? [`<label>시간 ${inp('baTm','',x.tm,'t')}</label>`, `<label>예약자 · 업체 ${inp('baOrg','',x.org)}</label>`, `<label>인원 ${inp('baPpl','명',x.ppl,'n')}</label>`, `<label>메뉴 ${sel('baItem', mbMenus().map(m=>m.name), x.item||'')}</label>`]
+    : [`<label>업체 ${inp('baOrg','',x.org)}</label>`, `<label>${c==='coupon'?'매수':'인원'} ${inp('baPpl',c==='coupon'?'장':'명',x.ppl,'n')}</label>`, `<label>시간 ${inp('baTm','',x.tm,'t')}</label>`,
        c==='rent' ? `<label>장소 ${sel('baPlace', PLACE_OPTS, x.place||'')}</label>` : c==='docent' ? `<label>종류 ${sel('baKind', KIND_OPTS, x.kind||'')}</label>` : c==='coupon' ? `<label>쿠폰 종류 ${sel('baItem', COUPON_OPTS, x.item||'')}</label>` : `<label>프로그램 항목 ${inp('baItem','',x.item)}</label>`,
        `<label>담당자 이름 ${inp('baStaff','',x.staff)}</label>`, `<label class="wide">비고사항 ${inp('baNote','',x.note)}</label>`];
   box.innerHTML = `<div class="ba-h"><b>${bookEdit?'예약 고치기':'＋ 직접 추가'}</b> <span class="hint" style="margin:0">${c==='mb'?'몽몽마방':BOOK_CATS[c]} 예약 한 건</span></div>`
@@ -1322,7 +1302,6 @@ async function mbDbSave(rows, msg){
   await store.put(item); const ci=cache.findIndex(x=>x.id===MBDB_ID); if(ci>=0) cache[ci]=item; else cache.push(item);
   if(!$('#bookModal').hidden) paintBook(); renderDayAll(); toast(msg);
 }
-function openMbDb(){ openBook('mb'); }   // 몽몽마방 예약 목록 = 예약 목록 창의 '몽몽마방' 탭
 $('#mbdbBody').addEventListener('click', e=>{ const i=e.target.dataset.mbdel; if(i==null) return; const r=mbDb().rows[+i]; if(!r) return;
   if(!confirm(`${dateLabel(r.d)} ${r.t} ${r.n} 몽몽마방 예약을 목록에서 뺄까요?`)) return;
   mbDbSave(mbDb().rows.filter((_,k)=>k!==+i), '몽몽마방 예약을 목록에서 뺐습니다.'); });
@@ -1436,10 +1415,10 @@ $('#readDone').addEventListener('change', e=>{ rec.readDone = e.target.checked ?
 
 // ===================== 저장: 구글 시트(Apps Script) → 주소가 비어 있으면 이 브라우저 =====================
 // SHARED_URL: group-intake.gs 를 웹 앱으로 배포한 주소 (README 참고). 비밀번호는 코드에 넣지 않고 각자 브라우저에 기억
-const SHARED_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";
-const LKEY='sayuwon_intake_v1', KEY_LS='sayuwon_intake_key', PEND_LS='sayuwon_intake_pending', CACHE_LS='sayuwon_intake_cache';
-const readJSON=(k,d)=>{ try{ const v=JSON.parse(localStorage.getItem(k)); return v==null?d:v; }catch(_){ return d; } };
-const writeJSON=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){} };
+const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
+const LKEY='sayuwon_intake_v1', KEY_LS=SY.KEY_LS, PEND_LS='sayuwon_intake_pending', CACHE_LS='sayuwon_intake_cache';
+const readJSON=SY.readJSON;
+const writeJSON=SY.writeJSON;
 let pending = readJSON(PEND_LS,[]);        // 아직 시트에 못 올린 저장·삭제 [{action:'put',item}|{action:'del',id}]
 let serverItems = readJSON(CACHE_LS,[]);   // 마지막으로 받은 시트 내용 (바로 띄우기용)
 const ADMIN_LS='sayuwon_intake_admin';
@@ -1580,7 +1559,6 @@ function diffSnap(a,b){
 }
 // 시트 '수정 기록' 칸: {h:[수정 기록], tasks:[추후 과업]} (예전 기록은 배열만)
 function parseHist(r){ try{ const j=JSON.parse(r.history||'[]'); return Array.isArray(j) ? {h:j, tasks:[], erp:[], memos:[]} : {h:j.h||[], tasks:j.tasks||[], erp:j.erp||[], memos:j.memos||[]}; }catch(_){ return {h:[], tasks:[], erp:[], memos:[]}; } }   // memos: 담당이 아닌 사람이 남긴 메모 [{id,t,by,text,seen,seenAt}]
-const histOf = r => parseHist(r).h;
 // ---- 바뀐 값의 흐름 (ch): {칸: [처음 값, 다음 값, …]} → "관람 인원 20 → 22 → 25". 자동 저장이 여러 번이어도 한 줄에 모든 변경이 남고, 되돌리기에도 씀
 const fmtTime_ = t => dtLabel(t);
 function chText(k, c){
@@ -2312,7 +2290,6 @@ function applySpd(){ try{
   SPECIAL.forEach(s=>{ const b=SPECIAL_BASE.find(x=>x.k===s.k); SPECIAL_LABEL[s.k] = b && b.short===s.short ? SPECIAL_LABEL_BASE[s.k] : s.short+' 할인'; LABEL[s.k]=SPECIAL_LABEL[s.k]; if(!SP_KEYS.includes(s.k)) SP_KEYS.push(s.k); });
   if(typeof spKey!=='undefined' && spKey!=null && !$('#spModal').hidden && $('#spEdit').hidden) openSp(spKey);   // 다른 직원이 바꾼 목록을 받으면 열린 팝업도
   return true; }catch(_){ return false; } }
-const spdRate = s => s.rate>=1 ? '무료' : Math.round(s.rate*100)+'%';
 function spdRowHTML(s){ return `<tr data-spdk="${esc(s.k)}"${s.off?' class="off"':''}><td><input class="spd-short" value="${esc(s.short)}" data-ime="ko" maxlength="20"></td>`
   + `<td><input class="spd-rate" value="${s.rate>=1?100:Math.round((s.rate||0)*100)||''}" inputmode="numeric" maxlength="3" placeholder="30">%</td>`
   + `<td><input class="spd-proof" value="${esc(s.proof)}" data-ime="ko" placeholder="방문 때 지참"></td>`
@@ -2345,14 +2322,7 @@ document.addEventListener('click', e=>{
 document.addEventListener('change', e=>{ if(e.target.classList?.contains('spd-offck')) e.target.closest('tr').classList.toggle('off', e.target.checked); });
 applySpd();
 function groupRate(n){ return !n ? 0 : n>=20 ? .10 : .05; }   // 20명부터 단체예약 10% (2026-11-17, 견적서와 같게)
-function groupLabel(n){ return !n ? '' : n>=20 ? '단체예약 10%' : '사전예약 5%'; }
 function specialCounts(r){ return SPECIAL.map(s=>({...s, n: Math.max(0, parseInt(r[s.k])||0)})).filter(s=>s.n>0); }
-// 할인 대상 품목의 합계: 특별 할인 인원은 각자 큰 할인, 나머지는 단체 할인
-function discTotal(price, n, r){
-  const g=groupRate(n), sp=specialCounts(r); let left=n, sum=0;
-  sp.forEach(s=>{ const c=Math.min(s.n,left); left-=c; sum += c*price*(1-Math.max(s.rate,g)); });
-  return Math.round(sum + left*price*(1-g));
-}
 // 선택한 항목 예상 금액 (견적서 발급과 같은 계산) + 전체 가격표(버튼으로)
 const discPct = name => (/관람/.test(name) && !/\(관람,/.test(name)) || /사담\s*런치/.test(name);
 function blockAmount(b, price){
