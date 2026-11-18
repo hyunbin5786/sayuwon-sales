@@ -27,7 +27,7 @@ const FIELDS = [
   ['몽몽마방','mabangMenu','메뉴','','w4',null],
   // 프로그램(개별): 인원 단위 · 프로그램(시간): 1시간 단위. 견적서 품목 리스트에 단체(개별)·단체(시간) 품목이 새로 생기면 아래에 자동으로 붙음
   ['프로그램(개별)','yoga','요가','R','',null],
-  ['프로그램(개별)','gaga','음료쿠폰','S','',null],
+  ['프로그램(개별)','gaga','음료쿠폰(가가빈빈)','S','',null],
   ['프로그램(개별)','sound','사운드워킹','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에
   ['프로그램(개별)','scent','사유의 향','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에
   ['프로그램(개별)','haeorum','새벽 해오름 산책','','',null],   // 시트 열 없음 → 비고 칸 '추가 프로그램'에. 금 120,000 · 토/일(공휴일) 139,000, 관람료 포함(관람권 따로 없음) · 할인 없음
@@ -69,11 +69,12 @@ const progSrc = (k, r) => k==='haeorum' && r && r.date && isRedDay(r.date) ? HAE
 // 지금 견적서 품목 리스트에 있는 단체 품목 (이것 말고 새로 추가된 것만 프로그램 칸으로 붙임)
 const PROG_KNOWN = ['사유원 새벽 해오름 산책(주말)','대관','세미나','해설사도슨트(수정)','임원도슨트(수정)','사운드워킹','사유의 향','요가프로그램(단체)','음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)','사유의 밥상(단체)','당두봉갈 대관'];
 const PROG_GRP = { geach:'프로그램(개별)', gtime:'프로그램(시간)' };
-const UNIT = k => /^seminar2?$/.test(k) ? '회' : (FIELDS.find(f=>f[1]===k)||[])[0]==='프로그램(시간)' ? '시간' : '명';   // 세미나 도슨트는 회 (2026-11-18)
+const UNIT = k => /^seminar2?$/.test(k) ? '회' : COUPON_IN_GOODS.includes(k) ? '개' : (FIELDS.find(f=>f[1]===k)||[])[0]==='프로그램(시간)' ? '시간' : '명';   // 세미나 도슨트는 회 (2026-11-18)
 // 세미나 도슨트 수량 2 = 두 번(두 장소): 두 번째의 시작 · 끝 · 장소 · 비고는 예전 「세미나 도슨트(2)」 칸(tm_seminar2 · plc_seminar2 · 비고 seminar2)에 둠 (2026-11-18)
 const sem2On = r => numOf(r.seminar)>=2 || !!r.seminar2;
 const SEM2_IX = ['tm_seminar2','plc_seminar2'];
 const COUPON_IN_GOODS = ['gaga'];   // 음료쿠폰: 품목 고르기에서 굿즈 묶음에 · 줄에는 시작 · 끝 없이 비고만 (저장은 예전 칸 gaga 그대로, 2026-11-18)
+const goodsKeyOf = src => COUPON_IN_GOODS.find(c=>normSrc(PROG_SRC[c])===normSrc(src)) || '';   // 품목 관리 굿즈 품목 → 예전 전용 칸 (음료쿠폰(가가빈빈) → gaga)
 const PROG_KEYS = () => FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1])).map(f=>f[1]);
 const STF_KEYS = () => FIELDS.filter(f=>isSub(f[1])).map(f=>f[1]);   // 담당 · 시간대 · 코스
 // 프로그램은 들어갔는데 담당이 빈 것 (차방 · 당두봉갈 제외)
@@ -396,7 +397,9 @@ function itemSelectHTML(k, rows){
   [['프로그램(개별)','개별 프로그램'],['프로그램(시간)','시간 프로그램']].forEach(([g,l])=>{
     h+=`<optgroup label="${l}">${FIELDS.filter(f=>f[0]===g && !isSub(f[1]) && f[1]!=='haeorum' && !COUPON_IN_GOODS.includes(f[1]) && (f[1]!=='seminar2' || k==='seminar2')).map(f=>opt(f[1], f[2]+pr(progSrc(f[1], rec)), used.has(f[1]), k===f[1])).join('')}</optgroup>`; });
   const gi=goodsItems();
-  h+=`<optgroup label="굿즈">${COUPON_IN_GOODS.filter(c=>FIELDS.some(f=>f[1]===c)).map(c=>opt(c, LABEL[c]||c, used.has(c), k===c)).join("")}${gi.map(it=>opt('g:'+it.src, (String(it.name||'').trim()||it.src), used.has('g:'+it.src), k==='g:'+it.src)).join('')}${itemKind(k)==='goods' && !gi.some(it=>'g:'+it.src===k) ? opt(k, k.slice(2), false, true) : ''}</optgroup>`;
+  // 굿즈 = 품목 관리에서 구분이 굿즈인 품목 (품목 관리 품명 그대로). 예전 전용 칸이 있는 품목(음료쿠폰(가가빈빈) = gaga)은 그 칸으로 한 번만 (2026-11-18)
+  const gk = it => goodsKeyOf(it.src), gv = it => gk(it) || 'g:'+it.src;
+  h+=`<optgroup label="굿즈">${COUPON_IN_GOODS.filter(c=>FIELDS.some(f=>f[1]===c) && !gi.some(it=>gk(it)===c) && (k===c || rec[c])).map(c=>opt(c, LABEL[c]||c, used.has(c), k===c)).join("")}${gi.map(it=>opt(gv(it), (String(it.name||'').trim()||it.src), used.has(gv(it)), k===gv(it))).join('')}${itemKind(k)==='goods' && !gi.some(it=>'g:'+it.src===k) ? opt(k, k.slice(2), false, true) : ''}</optgroup>`;
   return `<select class="it-sel" data-isel="${esc(k)}" aria-label="항목">${h}</select>`;
 }
 function itemRowHTML(k, rows){
@@ -1153,6 +1156,8 @@ function bookRows0(){
         tm:x['tm_'+k]||'', staff:String(x['stf_'+k]||'').trim()||x.owner||'', note:[notes[k], x['crs_'+k]&&`코스 ${x['crs_'+k]}`].filter(Boolean).join(' · ') });
       if(k==='seminar' && numOf(v)>=2 && !x.seminar2){ const o=out[out.length-1]; out.push({...o, place:x.plc_seminar2||'', tm:x.tm_seminar2||'', note:[notes.seminar2].filter(Boolean).join(' · ')}); }   // 세미나 도슨트 수량 2: 두 번째도 현황에 한 줄 (2026-11-18)
     });
+    // 굿즈로 넣은 음료쿠폰(예: 음료쿠폰(몽몽차방))도 예약 현황 「음료쿠폰」에 (2026-11-18)
+    goodsParse(x.goods).filter(g=>/음료쿠폰/.test(g.src)).forEach(g=>out.push({ cat:'coupon', id:r.id, me:!!me, d:x.date, org:x.org||x.contact||'(업체 미정)', ppl:g.qty||0, hrs:0, place:'', kind:'', item:goodsName(g.src), tm:'', staff:String(x.stf_goods||'').trim()||x.owner||'', note:notes['g:'+g.src]||'' }));
   });
   return out.sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99')));
 }
@@ -2212,6 +2217,7 @@ function openRecord(r){
     if(!rec.pay) rec.pay='미정';   // 결제를 안 고른 예전 기록은 미정으로
     if(!rec.gate) rec.gate='미정';   // 입장문을 안 고른 예전 기록도 미정으로
     if(rec.seminar2){ rec.seminar=String((numOf(rec.seminar)||1)+(numOf(rec.seminar2)||1)); rec.seminar2=''; }   // 예전 「세미나 도슨트(2)」 줄 → 세미나 도슨트 수량 2 (시간 · 장소 · 비고는 두 번째 칸 그대로, 2026-11-18)
+    { const gl=goodsParse(rec.goods), mv=gl.filter(g=>goodsKeyOf(g.src)); if(mv.length){ mv.forEach(g=>{ const c=goodsKeyOf(g.src); rec[c]=String((numOf(rec[c])||0)+(g.qty||0)); }); rec.goods=goodsJoin(gl.filter(g=>!goodsKeyOf(g.src))); } }   // 굿즈로 넣은 음료쿠폰(가가빈빈) → 예전 칸 gaga 한 줄로 (같은 품목이 두 줄이 되지 않게, 2026-11-18)
     syncPayTbd(rec);   // 결제가 미정이면 미정 항목 '결제 방법'
     if(/^adm/.test(r.id) && !rec.erp) rec.erp='관리자 예약';   // 관리자 사이트에서 온 예약은 이미 전산에 있음
     rec.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(rec) ? normStage(r.callType) : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
@@ -2255,7 +2261,7 @@ $('#newBtn').onclick=async()=>{   // 새 통화: 고치던 내용이 있으면 �
 const QUOTE_PAGE = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/index.html';   // 견적서 사이트 (이 사이트 안 document/ · 예전 주소 sayuwon-invoice-quotation 도 그대로)
 const QUOTE_DATA = (/github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/') + 'js/document.js';   // 품목 목록(CATALOG_RAW · 굿즈 · 단체 프로그램 · TAX_SPLIT)이 들어 있는 견적서 코드
 const QUOTE_SHARED_URL = "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec";
-const PRICE_EXCLUDE = /쉐프\s*특선|^음료쿠폰\(몽몽차방\)$|^네이버/;   // 가격표에서 뺀 품목
+const PRICE_EXCLUDE = /쉐프\s*특선|^네이버/;   // 가격표에서 뺀 품목 (음료쿠폰(몽몽차방)은 품목 관리에서 굿즈가 되어 가격표에도 보임, 2026-11-18)
 let quoteCat = readJSON('sayuwon_quote_cat', null), priceLoaded = null;
 const normSrc = s => String(s||'').replace(/\s/g,'');
 function parseQuotePage(html){

@@ -90,7 +90,7 @@ const fmtT = v => { const m=String(v||'').match(/(\d{1,2})\s*:?\s*(\d{2})/); ret
 const toMin = t => { const m=fmtT(t).match(/(\d\d):(\d\d)/); return m ? +m[1]*60 + +m[2] : null; };
 function vehicleText(v){ const s=String(v||''); const b=s.match(/버스\D*(\d+)/); if(b) return {txt:b[1], bus:+b[1]}; const c=s.match(/(\d+)\s*대/); if(/승용|자차|개별|소형|승합/.test(s)) return {txt:`개별${c?c[1]+'대':''}`, bus:0}; return {txt:s.replace(/\s*\(.*\)$/,''), bus:0}; }
 const MEAL_COLS = [['sadam1','런치1부'],['sadam2','런치2부'],['sadamD','디너'],['mabangL','마방 식사']];
-const PROG_COLS = [['chabang','몽몽차방 대관'],['dangdu','당두봉갈 대관'],['donghaeng','동행 도슨트'],['yoga','요가'],['gaga','음료쿠폰'],['teaMed','티하우스 명상'],['gayageum','가야금'],['cabin','유루 캐빈']];
+const PROG_COLS = [['chabang','몽몽차방 대관'],['dangdu','당두봉갈 대관'],['donghaeng','동행 도슨트'],['yoga','요가'],['gaga','음료쿠폰(가가빈빈)'],['teaMed','티하우스 명상'],['gayageum','가야금'],['cabin','유루 캐빈']];
 function recNote(r){
   const memo=String(r.memo||''), parts=[];
   MEAL_COLS.forEach(([k,l])=>{ if(r[k]) parts.push(k==='mabangL' && r.mabangTime ? `${l} ${r.mabangTime}` : l); });   // 식사 (사담 · 마방)
