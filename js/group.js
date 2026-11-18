@@ -396,7 +396,7 @@ function itemSelectHTML(k, rows){
 }
 function itemRowHTML(k, rows){
   const t=itemKind(k), stf=itemHasStaff(k), sv=stf ? String(rec[itemStfKey(k)]||'') : '';
-  const note = t==='new' ? '' : `<input class="it-x it-note" data-inote="${esc(k)}" data-ime="ko" placeholder="비고 (예: ${t==='view'?'인솔자 2명 포함':t==='goods'?'선물 포장':t==='sadam'||t==='mb'?'창가 자리 · 알레르기':'준비물 · 장소'})" value="${esc(itemNote(k))}">`;
+  const note = t==='new' ? '' : `<input class="it-x it-note" data-inote="${esc(k)}" data-ime="ko" placeholder="비고" value="${esc(itemNote(k))}">`;
   if(t==='view'){ const vs=viewSrcOf(rec), vi=viewItems(rec).filter(it=>!/\(\d\d:00~18:00\)/.test(it.src) || normSrc(it.src)===normSrc(vs));   // 시간대 관람권은 입장 시각으로 정해진 것만
     const opts = vi.length ? vi.map(it=>`<option value="${esc(it.src)}"${normSrc(it.src)===normSrc(vs)?' selected':''}>${esc(viewLabel(it.src))}</option>`).join('') : `<option>관람 (관람 인원)</option>`;
     return `<div class="it-row it-view" data-irow="view"><select class="it-sel" data-iview aria-label="관람 품목" title="관람 품목 (관람 인원 = 수량)">${opts}</select><span class="it-p" data-iup="view"></span>`
@@ -404,12 +404,12 @@ function itemRowHTML(k, rows){
       + `<span class="it-s none"><input disabled placeholder="담당 없음"></span><span></span><div class="it-money" data-ip="view"></div><div class="it-extra">${note}<span class="it-amt" data-iamt="view"></span></div></div>`; }
   // 몽몽마방: 시작 시각 → 끝나는 시각(시작을 넣으면 1시간 뒤로 자동) → 결제방식(새로 넣으면 미정) → 비고. 저장은 예전처럼 mabangTime "12:00~13:00"
   const mbt = t==='mb' ? mbTimes() : null;
-  const extra = t==='mb' ? `<label class="it-xl">시작 <input class="it-x" data-ix="mbS" inputmode="numeric" data-ime="num" placeholder="12:00" title="몽몽마방 시작 시각 (24시간 · 1200 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 1시간 뒤로" value="${esc(mbt[0])}"></label>`
-      + `<label class="it-xl">끝 <input class="it-x" data-ix="mbE" inputmode="numeric" data-ime="num" placeholder="13:00" title="몽몽마방 끝나는 시각 (시작 시각을 넣으면 1시간 뒤로 자동)" value="${esc(mbt[1])}"></label>`
+  const extra = t==='mb' ? `<label class="it-xl">시작 <input class="it-x" data-ix="mbS" data-tp="1" readonly placeholder="12:00" title="몽몽마방 시작 시각 (24시간 · 1200 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 1시간 뒤로" value="${esc(mbt[0])}"></label>`
+      + `<label class="it-xl">끝 <input class="it-x" data-ix="mbE" data-tp="1" readonly placeholder="13:00" title="몽몽마방 끝나는 시각 (시작 시각을 넣으면 1시간 뒤로 자동)" value="${esc(mbt[1])}"></label>`
       + `<label class="it-xl${rec.mabangPay==='미정'?' tbd':''}">결제 <select class="it-x" data-ix="mabangPay" title="몽몽마방 결제방식 · 미정이면 미정 항목 '몽몽마방 결제'로 (고객님께 여쭤 보기)">${rec.mabangPay?'':'<option value="" selected>선택</option>'}${MB_PAYS.map(x=>`<option${rec.mabangPay===x?' selected':''}>${x}</option>`).join('')}</select></label>` + note
     : t==='prog' ? (()=>{ const [s,en]=tmTimes(k);   // 개별 · 시간 프로그램: 시작 → 끝(시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤) → 비고 (도슨트는 코스도). 저장은 예전처럼 tm_키 "13:00~14:00"
-        return `<label class="it-xl">시작 <input class="it-x" data-ix="tmS:${esc(k)}" inputmode="numeric" data-ime="num" placeholder="13:00" title="프로그램 시작 시각 (24시간 · 1300 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 자동" value="${esc(s)}"></label>`
-          + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:${esc(k)}" inputmode="numeric" data-ime="num" placeholder="14:00" title="프로그램 끝나는 시각 (시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤로 자동)" value="${esc(en)}"></label>`
+        return `<label class="it-xl">시작 <input class="it-x" data-ix="tmS:${esc(k)}" data-tp="1" readonly placeholder="13:00" title="프로그램 시작 시각 (24시간 · 1300 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 자동" value="${esc(s)}"></label>`
+          + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:${esc(k)}" data-tp="1" readonly placeholder="14:00" title="프로그램 끝나는 시각 (시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤로 자동)" value="${esc(en)}"></label>`
           + (FIELDS.some(f=>f[1]==='plc_'+k) ? (()=>{ const pv=rec['plc_'+k]||''; return `<label class="it-xl">장소 <select class="it-x" data-ix="plc_${esc(k)}" title="세미나 도슨트 장소">${pv?'':'<option value="" selected>선택</option>'}${[...PLC_OPTS, ...(pv && !PLC_OPTS.includes(pv) ? [pv] : [])].map(x=>`<option${pv===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`; })() : '')   // 세미나 도슨트: 장소 (몽몽차방 · 당두봉갈 · 기타) → 비고
           + (FIELDS.some(f=>f[1]==='crs_'+k) ? (()=>{ const cv=rec['crs_'+k]||'', on=cv===CRS_DEFAULT;   // 도슨트: 코스 = 「앵당삼거리 시작」 토글 또는 직접 입력 → 비고 (2026-11-17)
               return `<label class="it-xl it-crs">코스 <button type="button" class="crs-tg${on?' on':''}" data-crstg="${esc(k)}" aria-pressed="${on}" title="누르면 코스 = ${CRS_DEFAULT} (다시 누르면 직접 입력)">${CRS_DEFAULT}</button>${on?'':`<input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="또는 직접 입력" value="${esc(cv)}">`}</label>`; })() : '')
@@ -615,6 +615,12 @@ function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은
   document.querySelectorAll('#itemsInfo .dayinfo').forEach(el=>{ el.hidden = !kinds.has(el.id.replace('info_','')); });
   const dn=$('#dayNone'); if(dn) dn.hidden = [...document.querySelectorAll('#itemsInfo .dayinfo')].some(el=>!el.hidden);
 }
+// 글자를 치는 칸(메모 · 이름 · 이메일 · 비고 · 담당 등): 칠 때마다 화면 전체를 다시 그리면 느려서, 값은 바로 넣고 다시 그리기는 멈추고 0.35초 뒤 한 번 (칸을 나가면 바로)
+const isTypingEl = el => !!el && (el.tagName==='TEXTAREA' || (el.tagName==='INPUT' && /^(text|email|tel|search|)$/.test(el.getAttribute('type')||'')));
+let repaintT=0;
+function repaintSoon(){ clearTimeout(repaintT); repaintT=setTimeout(()=>{ repaintT=0; paintFields(); renderSide(); }, 350); }
+function repaintNow(){ if(!repaintT) return; clearTimeout(repaintT); repaintT=0; paintFields(); renderSide(); }
+document.addEventListener('focusout', e=>{ if(e.target.closest?.('#form, #itemsBox')) setTimeout(repaintNow, 0); });
 function itemChanged(structural, keepStaff){ if(!keepStaff) staffDefaults(); startTimer();   // 담당을 직접 지울 때는 다시 채우지 않음
   paintFields(); renderSide(); if(structural) renderItems(true); }
 document.addEventListener('change', e=>{ const v=e.target.closest?.('#itemsBox [data-iview]'); if(!v) return; rec.viewSrc=v.value; touched.add('viewSrc'); itemChanged(false, true); });   // 관람 품목 고르기
@@ -633,8 +639,8 @@ document.addEventListener('change', e=>{
 document.addEventListener('input', e=>{
   const el=e.target; if(!el.closest?.('#itemsBox')) return;
   if(el.dataset.iq!=null){ const k=el.dataset.iq, c=el.value.replace(/[^\d+]/g,''), was=itemQty(k); if(c!==el.value) el.value=c; setItemQty(k, el.value); itemChanged(false, !!was); }   // 담당 기본값은 수량을 처음 넣을 때만
-  else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); itemChanged(false, true); }   // 항목 비고
-  else if(el.dataset.is!=null){ const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); itemChanged(false, true); }
+  else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); startTimer(); repaintSoon(); }   // 항목 비고 (치는 동안은 다시 그리지 않음)
+  else if(el.dataset.is!=null){ const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); repaintSoon(); }   // 담당 이름 (치는 동안은 다시 그리지 않음)
   else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^tm[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
   else if(el.dataset.ix!=null && el.tagName==='INPUT'){ rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix); itemChanged(false, true); }
 });
@@ -723,16 +729,16 @@ function vehJoin(t,n,bus,car){
 const vehRead = () => vehJoin($('#f_vtype').value, $('#f_vehicle').value, $('#f_vbus').value, $('#f_vcar').value);
 function fieldHTML(k,label,col,cls,req){
   let extra = DATE_KEYS.has(k) && k!=='date' ? ' type="date"' : '';
-  if(k==='date') extra+=' readonly inputmode="numeric" data-ime="num" placeholder="누르면 달력" title="누르면 달력 · 한 번 더 누르면 직접 입력 (예: 2026-12-05, 12/5)"';
+  if(k==='date') extra+=' readonly inputmode="numeric" data-ime="num" placeholder="누르면 달력" title="누르면 달력 · 한 번 더 누르면 직접 입력"';
   if(k==='owner') extra+=' list="owners"';
   if(KO_FIRST(k)) extra+=' data-ime="ko"';
   if(EN_ONLY(k))  extra+=' data-ime="en" inputmode="email" lang="en" autocapitalize="off" spellcheck="false"';
   if(PHONE(k))    extra+=' data-ime="num" inputmode="tel" placeholder="010-0000-0000"';
   if(NUM_ONLY[k]) extra+=' inputmode="numeric" data-ime="num"';
-  if(TIME_KEYS[k]) extra+=` inputmode="numeric" data-ime="num" maxlength="5" title="24시간 표시 (예: 13:30)"`;
+  if(TIME_KEYS[k]) extra+=` data-tp="1" readonly title="누르면 시각 고르기 (24시간)"`;   // 입장 · 퇴장: 스크롤로 고르기 (js/timepick.js)
   if(k==='mabangTime') extra+=' placeholder="12:00~13:00" title="24시간 · 숫자만 쳐도 됨 (12001300)"';
   if(k==='mabangPrice') extra+=' placeholder="1인 단가"';
-  if(k==='mabangNote') extra+=' data-ime="ko" placeholder="예) 20% 할인, 2인 이상 주문"';
+  if(k==='mabangNote') extra+=' data-ime="ko"';
   const input = k==='goods'
     ? `<div class="goods-box" id="f_goods"></div>`   /* 굿즈 구매: 품목 + 수량 */
     : k==='mabangMenu'
@@ -756,7 +762,7 @@ function fieldHTML(k,label,col,cls,req){
     : /^tm_/.test(k)
     ? `<input id="f_${k}" data-k="${k}" inputmode="numeric" data-ime="num" placeholder="13:00~15:00" title="24시간 · 숫자만 쳐도 됨 (13001500)" autocomplete="off">`
     : /^crs_/.test(k)
-    ? `<input id="f_${k}" data-k="${k}" data-ime="ko" placeholder="예) 정원 코스" autocomplete="off">`
+    ? `<input id="f_${k}" data-k="${k}" data-ime="ko" autocomplete="off">`
     : `<input id="f_${k}" data-k="${k}"${extra}${/^프로그램/.test(GROUP_OF[k]||'') ? ` placeholder="${UNIT(k)}"` : ''}>`;
   const tbdBox = k!=='vehicle' && k!=='pay' && k!=='mabangPay' && TBD_KEYS.some(([tk])=>tk===k) ? `<label class="tbdck" title="아직 안 정해졌으면 체크"><input type="checkbox" data-tbd="${k}">미정</label>` : "";
   return `<div class="f ${cls}${req?' req':''}${tbdBox?' has-tbd':''}" id="w_${k}"><label for="f_${k}"><span>${label}</span></label><div class="inbox">${input}${tbdBox}</div></div>`;
@@ -821,7 +827,7 @@ function buildForm(){
     if(k==='mabangPay' && rec.mabangPay==='기타') openPayGuide('기타', '몽몽마방');   // 결제 방식을 고르면 그 안내를 바로 팝업으로
     if(k==='vehicle' && e.target.id==='f_vtype'){ const s=tbdSet(rec); rec.vehicle==='미정' ? s.add('vehicle') : s.delete('vehicle'); rec.tbd=TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', '); if(!s.size){ rec.tbdDate=''; rec.tbdLate=''; tbdAuto=false; } touched.add('tbd'); }   // 차종 '미정' = 차량 미정 체크
     if(k==='date') renderInfo();
-    startTimer(); paintFields(); renderSide();
+    startTimer(); if(isTypingEl(e.target)) repaintSoon(); else { paintFields(); renderSide(); }   // 글자를 치는 칸은 멈춘 뒤 한 번만 다시 그림 (빠르게, 2026-11-18)
   });
   // 식사 칸을 누르면 비어 있을 때 방문 인원을 먼저 넣고 전체 선택 (그대로 두거나 바로 고쳐 쓰기)
   $('#form').addEventListener('click', e=>{ const el=e.target, k=el.dataset?.k;
@@ -890,7 +896,7 @@ function renderContacts(){
   }
   h = h.replace('<div class="crow">', `<label class="ctbd-ck" title="담당자가 아직 안 정해졌으면 체크 → 추후 과업 「담당자 확정」"><input type="checkbox" id="cTbdCk"${rec.cTbd?' checked':''}> 담당자 미정</label><div class="crow">`);   // 첫 담당자 줄: 미정 (2026-11-18)
   $('#contacts').innerHTML=h;
-  for(let i=0;i<nContacts;i++) CFIELDS.forEach(([f])=>{ const k=`c${i}_${f}`, el=document.getElementById('f_'+k); el.value=rec[k]||''; if(f==='memo') el.placeholder='예) 인솔 교사 · 오후에만 통화 가능'; });
+  for(let i=0;i<nContacts;i++) CFIELDS.forEach(([f])=>{ const k=`c${i}_${f}`, el=document.getElementById('f_'+k); el.value=rec[k]||''; });
   paintFields();
 }
 function paintFields(changed=[]){
@@ -1031,7 +1037,7 @@ const PAY_GUIDE = {
   '세금계산서': ['세금계산서 발행을 위해 사업자등록증을 보내주시겠어요?', '세금계산서 받으실 이메일 주소가 어떻게 되실까요?', '세금계산서 발행일은 언제로 해 드릴까요?'],
   '결제링크':   ['결제링크 보내드리면 언제쯤 결제하실 수 있을까요?', '현장에서 법인카드로 다시 결제하실 계획도 있으실까요?'],
   '현장 결제':  ['현장 결제로 하시면 당일 인원 변경이 어려운 점 양해 부탁드립니다.', '인원은 언제까지 확정해 주실 수 있을까요?'],
-  '기타':       ['고객님께 어떻게 결제하실지 여쭤 보세요.', '정한 결제 방법을 「통화 메모」에 꼭 남겨 주세요. (예: 법인카드 현장 결제 + 일부 계좌이체)'],
+  '기타':       ['고객님께 어떻게 결제하실지 여쭤 보세요.', '정한 결제 방법을 「통화 메모」에 꼭 남겨 주세요.'],
 };
 let pgMemo=false;   // 기타 결제 안내를 닫으면 통화 메모 칸으로
 function openPayGuide(pay, what){ pgMemo = pay==='기타';
@@ -1208,13 +1214,13 @@ function paintBookAdd(){
   let x = {};
   if(bookEdit && bookEdit.mb!=null){ const r=mbDb().rows[bookEdit.mb]; if(r) x={d:r.d, tm:r.t, org:r.n, ppl:r.p, item:r.m}; }
   else if(bookEdit && bookEdit.id) x = bkDb().rows.find(r=>r.id===bookEdit.id) || {};
-  const inp=(id,ph,v,cls='')=>`<input id="${id}" class="${cls}" placeholder="${ph}" value="${esc(v==null?'':v)}" autocomplete="off"${/Org|Staff|Note|Item/.test(id)?' data-ime="ko"':''}>`;
+  const inp=(id,ph,v,cls='')=>`<input id="${id}" class="${cls}" placeholder="${ph}"${id==='baTm'?' data-tp="range" readonly':''} value="${esc(v==null?'':v)}" autocomplete="off"${/Org|Staff|Note|Item/.test(id)?' data-ime="ko"':''}>`;
   const sel=(id,opts,v)=>`<select id="${id}">${opts.map(o=>`<option${o===v?' selected':''}>${esc(o)}</option>`).join('')}${v && !opts.includes(v)?`<option selected>${esc(v)}</option>`:''}</select>`;
   const f = c==='mb'
-    ? [`<label>시간 ${inp('baTm','12:00~13:00',x.tm,'t')}</label>`, `<label>예약자 · 업체 ${inp('baOrg','예) 도레이첨단소재',x.org)}</label>`, `<label>인원 ${inp('baPpl','명',x.ppl,'n')}</label>`, `<label>메뉴 ${sel('baItem', mbMenus().map(m=>m.name), x.item||'')}</label>`]
-    : [`<label>업체 ${inp('baOrg','예) 도레이첨단소재',x.org)}</label>`, `<label>${c==='coupon'?'매수':'인원'} ${inp('baPpl',c==='coupon'?'장':'명',x.ppl,'n')}</label>`, `<label>시간 ${inp('baTm','13:00~14:00',x.tm,'t')}</label>`,
-       c==='rent' ? `<label>장소 ${sel('baPlace', PLACE_OPTS, x.place||'')}</label>` : c==='docent' ? `<label>종류 ${sel('baKind', KIND_OPTS, x.kind||'')}</label>` : c==='coupon' ? `<label>쿠폰 종류 ${sel('baItem', COUPON_OPTS, x.item||'')}</label>` : `<label>프로그램 항목 ${inp('baItem','예) 요가',x.item)}</label>`,
-       `<label>담당자 이름 ${inp('baStaff','예) 김선영 팀장',x.staff)}</label>`, `<label class="wide">비고사항 ${inp('baNote','예) 앵당삼거리 시작',x.note)}</label>`];
+    ? [`<label>시간 ${inp('baTm','12:00~13:00',x.tm,'t')}</label>`, `<label>예약자 · 업체 ${inp('baOrg','',x.org)}</label>`, `<label>인원 ${inp('baPpl','명',x.ppl,'n')}</label>`, `<label>메뉴 ${sel('baItem', mbMenus().map(m=>m.name), x.item||'')}</label>`]
+    : [`<label>업체 ${inp('baOrg','',x.org)}</label>`, `<label>${c==='coupon'?'매수':'인원'} ${inp('baPpl',c==='coupon'?'장':'명',x.ppl,'n')}</label>`, `<label>시간 ${inp('baTm','13:00~14:00',x.tm,'t')}</label>`,
+       c==='rent' ? `<label>장소 ${sel('baPlace', PLACE_OPTS, x.place||'')}</label>` : c==='docent' ? `<label>종류 ${sel('baKind', KIND_OPTS, x.kind||'')}</label>` : c==='coupon' ? `<label>쿠폰 종류 ${sel('baItem', COUPON_OPTS, x.item||'')}</label>` : `<label>프로그램 항목 ${inp('baItem','',x.item)}</label>`,
+       `<label>담당자 이름 ${inp('baStaff','',x.staff)}</label>`, `<label class="wide">비고사항 ${inp('baNote','',x.note)}</label>`];
   box.innerHTML = `<div class="ba-h"><b>${bookEdit?'예약 고치기':'＋ 직접 추가'}</b> <span class="hint" style="margin:0">${c==='mb'?'몽몽마방':BOOK_CATS[c]} 예약 한 건</span></div>`
     + `<div class="ba-row"><label>날짜 ${dboxHTML('id="baDate"', x.d||rec.date||'')}</label>${f.join('')}`
     + `<span class="ba-btns">${bookEdit?'<button type="button" class="btn" id="baCancel">취소</button>':''}<button type="button" class="btn primary" id="baSave">${bookEdit?'고치기':'추가'}</button></span></div>`
@@ -2307,9 +2313,9 @@ function applySpd(){ try{
   if(typeof spKey!=='undefined' && spKey!=null && !$('#spModal').hidden && $('#spEdit').hidden) openSp(spKey);   // 다른 직원이 바꾼 목록을 받으면 열린 팝업도
   return true; }catch(_){ return false; } }
 const spdRate = s => s.rate>=1 ? '무료' : Math.round(s.rate*100)+'%';
-function spdRowHTML(s){ return `<tr data-spdk="${esc(s.k)}"${s.off?' class="off"':''}><td><input class="spd-short" value="${esc(s.short)}" data-ime="ko" maxlength="20" placeholder="예) 직원"></td>`
+function spdRowHTML(s){ return `<tr data-spdk="${esc(s.k)}"${s.off?' class="off"':''}><td><input class="spd-short" value="${esc(s.short)}" data-ime="ko" maxlength="20"></td>`
   + `<td><input class="spd-rate" value="${s.rate>=1?100:Math.round((s.rate||0)*100)||''}" inputmode="numeric" maxlength="3" placeholder="30">%</td>`
-  + `<td><input class="spd-proof" value="${esc(s.proof)}" data-ime="ko" placeholder="방문 때 지참 (예: 사원증)"></td>`
+  + `<td><input class="spd-proof" value="${esc(s.proof)}" data-ime="ko" placeholder="방문 때 지참"></td>`
   + `<td><label class="spd-off" title="빼면 팝업에 안 보임 (이미 넣은 예약은 그대로)"><input type="checkbox" class="spd-offck"${s.off?' checked':''}> 빼기</label></td></tr>`; }
 function openSpd(){ $('#spEditBody').innerHTML = SPECIAL.map(spdRowHTML).join(''); $('#spEdit').hidden=false; $('#spMain').hidden=true; $('#spEditBtn').hidden=true;
   $('#spEditMsg').textContent = (()=>{ const r=(cache||[]).find(x=>x.id===SPD_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return j.at ? `마지막 수정 ${fmt(j.at)}${j.by?' · '+j.by:''}` : ''; })(); }
@@ -3174,7 +3180,7 @@ function paintLock(){
     box.className='owner-memo lock-ok'; box.hidden=false;
     box.innerHTML = `<div class="om-h">🔒 ${esc(lockOwner)}님 담당 예약입니다 · 고칠 수 없습니다</div><div class="hint" style="margin:0">바꿀 내용이나 전할 말은 아래에 메모로 남겨 주세요. ${esc(lockOwner)}님 화면에 「메모를 확인하세요」 알림이 뜹니다.</div>`
       + (list.length ? `<ul>${list.map(m=>memoLi(m,false)).join('')}</ul>` : '')
-      + `<div class="om-add"><textarea id="omText" data-ime="ko" placeholder="예) 고객님이 인원 30 → 35명으로 바꾸고 싶다고 전화 주셨어요"></textarea><button type="button" class="btn primary" id="omSend">메모 남기기</button></div>`;
+      + `<div class="om-add"><textarea id="omText" data-ime="ko"></textarea><button type="button" class="btn primary" id="omSend">메모 남기기</button></div>`;
   } else if(editingId && memos.length){
     const unseen=memos.filter(m=>!m.seen && m.by!==me).length;
     box.className='owner-memo mine lock-ok'; box.hidden=false;

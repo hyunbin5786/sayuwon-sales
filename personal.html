@@ -37,13 +37,13 @@
       </div>
       <div class="sub-h">고객 · 방문</div>
       <div class="row">
-        <div class="f"><label for="fName">고객 이름</label><input id="fName" lang="ko" data-ime="ko" autocomplete="off" placeholder="예) 홍길동"></div>
+        <div class="f"><label for="fName">고객 이름</label><input id="fName" lang="ko" data-ime="ko" autocomplete="off"></div>
         <div class="f"><label for="fPhone">연락처</label><input id="fPhone" inputmode="tel" placeholder="010-0000-0000"></div>
         <div class="f"><label for="fDate">방문 희망일 / 예약일</label><input id="fDate" type="date"></div>
         <div class="f"><label for="fPeople">인원</label><input id="fPeople" inputmode="numeric" placeholder="명"></div>
       </div>
       <div class="sub-h">문의 내용</div>
-      <div class="f w4"><textarea id="fNote" lang="ko" placeholder="예) 11/27 금요일 2명 사담 런치 1부 가능한지 · 주차 문의"></textarea></div>
+      <div class="f w4"><textarea id="fNote" lang="ko"></textarea></div>
       <div class="btns">
         <span class="state" id="state"></span>
       </div>
@@ -55,7 +55,7 @@
   <div class="col">
     <section class="panel">
       <h2>추후 과업 <small>체크리스트 · 과업마다 메모</small></h2>
-      <form class="task-add" id="taskAdd"><input id="taskAddIn" lang="ko" data-ime="ko" placeholder="과업 직접 추가 (예: 사담 자리 확인 후 연락)" autocomplete="off"><button class="btn" type="submit">추가</button></form>
+      <form class="task-add" id="taskAdd"><input id="taskAddIn" lang="ko" data-ime="ko" placeholder="과업 직접 추가" autocomplete="off"><button class="btn" type="submit">추가</button></form>
       <ul class="tasks" id="taskList"></ul>
       <p class="hint" id="taskHint" style="margin-top:8px"></p>
     </section>

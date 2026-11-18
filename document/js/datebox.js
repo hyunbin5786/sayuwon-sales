@@ -16,7 +16,7 @@ function parseDateText(s){
 function makeDateBox(pick){
   if(!pick || pick.dataset.dbox) return; pick.dataset.dbox='1';
   const box=document.createElement('span'); box.className='dbox'; pick.parentNode.insertBefore(box, pick);
-  const txt=document.createElement('input'); txt.className='dtxt'; txt.readOnly=true; txt.placeholder=pick.dataset.ph||'누르면 달력'; txt.title='누르면 달력 · 한 번 더 누르면 직접 입력 (예: 2026-12-05, 12/5)'; txt.setAttribute('inputmode','numeric');
+  const txt=document.createElement('input'); txt.className='dtxt'; txt.readOnly=true; txt.placeholder=pick.dataset.ph||'누르면 달력'; txt.title='누르면 달력 · 한 번 더 누르면 직접 입력'; txt.setAttribute('inputmode','numeric');
   box.appendChild(txt); box.appendChild(pick); pick.classList.add('dpick'); pick.tabIndex=-1;
   const paint=()=>{ if(!txt.dataset.editing) txt.value=dateDisp(pick.value); };
   const set=v=>{ pick.value=v; pick.dispatchEvent(new Event('input',{bubbles:true})); pick.dispatchEvent(new Event('change',{bubbles:true})); paint(); };

@@ -59,11 +59,11 @@
           </div>
           <div class="field">
             <label for="f-client">수신 (거래처명)</label>
-            <input id="f-client" type="text" placeholder="예: 동구정신건강복지센터">
+            <input id="f-client" type="text">
           </div>
           <div class="field">
             <label for="f-clientmgr">수신 담당자</label>
-            <input id="f-clientmgr" type="text" placeholder="예: 권혁신">
+            <input id="f-clientmgr" type="text">
             <span class="hint">이름만 넣으면 '○○○ 담당자님', 비워두면 '담당자님'으로 표기됩니다</span>
           </div>
           <div class="grid2">
@@ -78,7 +78,7 @@
           </div>
           <div class="field">
             <label for="f-sender">발신 담당자</label>
-            <input id="f-sender" type="text" placeholder="예: 김선영 차장" list="sender-list" autocomplete="off">
+            <input id="f-sender" type="text" list="sender-list" autocomplete="off">
             <datalist id="sender-list"></datalist>
             <span class="hint">입력한 이름은 이 브라우저에 저장되어 다음에 목록에서 고를 수 있습니다</span>
           </div>
@@ -139,7 +139,7 @@
           <h2>하단 안내문구 (선택)</h2>
           <div class="body">
             <div class="field">
-              <textarea id="f-footnote" placeholder="예: 상기 금액은 발행일 기준이며, 인원 변동 시 금액이 조정될 수 있습니다."></textarea>
+              <textarea id="f-footnote"></textarea>
               <span class="hint">비워두면 견적서에 인쇄되지 않습니다</span>
             </div>
           </div>
@@ -251,7 +251,7 @@
       <p class="cathint" style="margin:0">외부용 합계가 내부용보다 적습니다. 이대로 출력하려면 <b>사유</b>를 적어 주세요. 사유는 발급 내역에 함께 남습니다.</p>
       <div class="field">
         <label for="gap-note">사유 (필수)</label>
-        <textarea id="gap-note" rows="3" placeholder="예: 기관 예산 한도에 맞춰 외부용 금액을 낮춰 달라는 요청"></textarea>
+        <textarea id="gap-note" rows="3"></textarea>
       </div>
       <div class="gapacts">
         <button class="btn" type="button" id="gap-cancel">돌아가서 고치기</button>

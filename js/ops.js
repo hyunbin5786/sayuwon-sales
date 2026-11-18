@@ -13,7 +13,7 @@ function toast(m){ const t=$('#toast'); t.textContent=m; t.hidden=false; clearTi
 const LOST_ST = ['보관중','찾는 중','반환 완료','폐기'], ACC_ST = ['접수','처리 중','완료'];
 const BOARDS = {
   task: { title:'기타 개인 업무', add:'업무 추가', hint:'직접 추가하는 내 업무 · 매일 / 매주(요일) / 매달(일자) 반복',
-    fields:[ {k:'title', l:'업무', type:'text', req:1, ph:'예) 사무실 비품 주문', w:2},
+    fields:[ {k:'title', l:'업무', type:'text', req:1, w:2},
       {k:'repeat', l:'반복', type:'repeat'}, {k:'dows', l:'요일', type:'dows', show:d=>d.repeat==='weekly'}, {k:'dom', l:'매달 날짜', type:'dom', show:d=>d.repeat==='monthly'},
       {k:'due', l:'날짜', type:'date', show:d=>!d.repeat || d.repeat==='none', def:()=>opsToday()},
       {k:'start', l:'시작일', type:'date', show:d=>d.repeat && d.repeat!=='none', def:()=>opsToday()},
@@ -21,8 +21,8 @@ const BOARDS = {
     summary:d=>`${d.title} · ${opsRepeatLabel(d)}` },
   lost: { title:'분실물 찾기', add:'분실물 접수', hint:'습득물 보관 · 분실 신고 · 반환까지',
     fields:[ {k:'kind', l:'구분', type:'select', opts:['습득','분실 신고'], def:()=>'습득'}, {k:'date', l:'접수일', type:'date', def:()=>opsToday()},
-      {k:'item', l:'물품', type:'text', req:1, ph:'예) 검은색 장우산'}, {k:'feature', l:'특징', type:'text', ph:'색 · 브랜드 · 안에 든 것'},
-      {k:'place', l:'발견 · 분실 장소', type:'text'}, {k:'storage', l:'보관 위치', type:'text', ph:'예) 안내소 서랍 2'},
+      {k:'item', l:'물품', type:'text', req:1}, {k:'feature', l:'특징', type:'text', ph:'색 · 브랜드 · 안에 든 것'},
+      {k:'place', l:'발견 · 분실 장소', type:'text'}, {k:'storage', l:'보관 위치', type:'text'},
       {k:'person', l:'습득자 / 신고자', type:'text'}, {k:'phone', l:'연락처', type:'tel'},
       {k:'status', l:'상태', type:'select', opts:LOST_ST, def:()=>'보관중'}, {k:'returnDate', l:'반환일', type:'date', show:d=>d.status==='반환 완료'},
       {k:'returnTo', l:'반환 받은 분', type:'text', show:d=>d.status==='반환 완료'}, {k:'memo', l:'메모', type:'textarea', w:2} ],
@@ -37,7 +37,7 @@ const BOARDS = {
     cols:[['date','날짜',(v,d)=>`${opsDateLabel(v)}${d.time?' '+d.time:''}`],['type','유형'],['place','장소'],['what','내용',v=>String(v||'').split('\n')[0].slice(0,40)],['status','상태'],['staff','담당']],
     status:'status', open:['접수','처리 중'], summary:d=>`${d.type||''} ${d.place||''} · ${d.status||''}` },
   stock: { title:'재고확인', add:'품목 추가', hint:'품목별 수량 · 최소 수량 아래면 빨강',
-    fields:[ {k:'name', l:'품목', type:'text', req:1}, {k:'cat', l:'분류', type:'text', ph:'예) 굿즈 · 사무용품'}, {k:'place', l:'위치', type:'text'},
+    fields:[ {k:'name', l:'품목', type:'text', req:1}, {k:'cat', l:'분류', type:'text'}, {k:'place', l:'위치', type:'text'},
       {k:'qty', l:'수량', type:'num', def:()=>'0'}, {k:'unit', l:'단위', type:'text', def:()=>'개'}, {k:'min', l:'최소 수량', type:'num', ph:'이 아래면 부족'}, {k:'memo', l:'메모', type:'textarea', w:2} ],
     summary:d=>`${d.name||''} ${d.qty||0}${d.unit||''}` },
 };
@@ -162,7 +162,7 @@ function fieldHTML(f){
   if(f.type==='subs') return lab+`<ul class="esubs">${(form.subs||[]).map(s=>`<li><span>${esc(s.title)}</span><button type="button" class="x" data-subdel="${esc(s.id)}" title="빼기">×</button></li>`).join('')}</ul><div class="esub-add"><input id="e_subAdd" data-ime="ko" placeholder="세부 과업 (적고 Enter)"><button type="button" class="btn sm" id="e_subAddBtn">추가</button></div>`;
   if(f.type==='textarea') return lab+`<textarea id="${id}" data-k="${f.k}" data-ime="ko" rows="3">${esc(v)}</textarea>`;
   if(f.type==='date') return lab+`<span class="dbox"><input class="dtxt" id="${id}" data-dt="${f.k}" readonly value="${esc(dateDisp(v))}" placeholder="누르면 달력"><input type="date" class="dpick" data-dp="${f.k}" value="${esc(v)}" tabindex="-1" aria-hidden="true"></span>`;
-  return lab+`<input id="${id}" data-k="${f.k}" value="${esc(v)}"${f.ph?` placeholder="${esc(f.ph)}"`:''}${f.type==='num'||f.type==='time'?' inputmode="numeric" data-ime="num"':f.type==='tel'?' inputmode="tel" data-ime="num"':' data-ime="ko"'}>`;
+  return lab+`<input id="${id}" data-k="${f.k}" value="${esc(v)}"${f.ph?` placeholder="${esc(f.ph)}"`:''}${f.type==='time'?' data-tp="1" readonly':f.type==='num'?' inputmode="numeric" data-ime="num"':f.type==='tel'?' inputmode="tel" data-ime="num"':' data-ime="ko"'}>`;
 }
 function paintForm(){ $('#eFields').innerHTML = B.fields.filter(f=>!f.show || f.show(form)).map(f=>`<div class="ef${f.w===2?' w2':''}">${fieldHTML(f)}</div>`).join(''); }
 $('#eFields').addEventListener('input', e=>{ const k=e.target.dataset.k; if(!k) return; let v=e.target.value; if(B.fields.find(f=>f.k===k)?.type==='num'){ v=v.replace(/[^\d.]/g,''); e.target.value=v; } form[k]=v; });

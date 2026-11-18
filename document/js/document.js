@@ -924,7 +924,7 @@
     var on = isDiscRow(r), lab = card.querySelector("[data-notelabel]"), inp = card.querySelector('[data-f="note"]');
     lab.textContent = on ? "내부용 비고 (외부용에는 안 나옴)" : "비고";
     lab.classList.toggle("innote", on);
-    inp.placeholder = on ? "내부용 문서에만 찍힐 글씨 (예: 현장 협의 할인)" : "비고";
+    inp.placeholder = on ? "내부용 문서에만 찍힐 글씨" : "비고";
   }
   function rowCard(r){
     var form = r.form;

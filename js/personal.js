@@ -77,7 +77,7 @@ function parseDateText(s){
 function makeDateBox(pick){
   if(!pick || pick.dataset.dbox) return; pick.dataset.dbox='1';
   const box=document.createElement('span'); box.className='dbox'; pick.parentNode.insertBefore(box, pick);
-  const txt=document.createElement('input'); txt.className='dtxt'; txt.readOnly=true; txt.placeholder=pick.dataset.ph||'누르면 달력'; txt.title='누르면 달력 · 한 번 더 누르면 직접 입력 (예: 2026-12-05, 12/5)'; txt.setAttribute('inputmode','numeric');
+  const txt=document.createElement('input'); txt.className='dtxt'; txt.readOnly=true; txt.placeholder=pick.dataset.ph||'누르면 달력'; txt.title='누르면 달력 · 한 번 더 누르면 직접 입력'; txt.setAttribute('inputmode','numeric');
   box.appendChild(txt); box.appendChild(pick); pick.classList.add('dpick'); pick.tabIndex=-1;
   const paint=()=>{ if(!txt.dataset.editing) txt.value=dateDisp(pick.value); };
   const set=v=>{ pick.value=v; pick.dispatchEvent(new Event('input',{bubbles:true})); pick.dispatchEvent(new Event('change',{bubbles:true})); paint(); };
@@ -118,7 +118,7 @@ function paintForm(force){
 // 이 통화의 추후 과업: 안 끝난 것(마감일 순) → 끝난 것
 const isDirty = () => JSON.stringify(form)!==saved;
 const fmtPhone = v => { const d=String(v||'').replace(/\D/g,''); if(/^01\d{8,9}$/.test(d)) return d.length===10?`${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}`:`${d.slice(0,3)}-${d.slice(3,7)}-${d.slice(7)}`; if(/^0\d{8,10}$/.test(d)) return d.replace(/^(02|0\d{2})(\d{3,4})(\d{4})$/,'$1-$2-$3'); return v; };
-FIELDS.forEach(([id,k])=>{ $('#'+id).addEventListener('input', e=>{ let v=e.target.value; if(k==='people'){ v=v.replace(/[^\d+]/g,''); e.target.value=v; } if(k==='phone') v=phoneTyping(e); form[k]=v; touch(); }); });
+FIELDS.forEach(([id,k])=>{ $('#'+id).addEventListener('input', e=>{ let v=e.target.value; if(k==='people'){ v=v.replace(/[^\d+]/g,''); e.target.value=v; } if(k==='phone') v=phoneTyping(e); form[k]=v; touchSoon(); }); });
 // 연락처를 치는 동안 010-0000-0000 모양으로: 010- 다음 숫자 4개를 치면 바로 - (지울 때는 - 를 다시 붙이지 않음, 글자 중간을 고칠 때는 그대로)
 function phoneTyping(e){ const el=e.target, v=el.value; if(el.selectionStart!==v.length) return v;
   const del=/^delete/.test(e.inputType||''), d=v.replace(/\D/g,'').slice(0,11); let out=d.slice(0,3);
@@ -128,7 +128,11 @@ function phoneTyping(e){ const el=e.target, v=el.value; if(el.selectionStart!==v
 // 연락처: 빈 칸을 누르면 010- 부터 (커서는 끝), 아무것도 안 치고 나가면 다시 비움 (단체 화면과 같음)
 $('#fPhone').addEventListener('focus', e=>{ const el=e.target; if(!el.value){ el.value='010-'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} },0); } });
 $('#fPhone').addEventListener('blur', e=>{ if(/^010-?$/.test(e.target.value)){ e.target.value=''; if(form.phone){ form.phone=''; touch(); } return; } const v=fmtPhone(e.target.value); if(v!==form.phone){ form.phone=v; e.target.value=v; touch(); } });
-function touch(){ if(!startedAt && !cur) startedAt=new Date(); paintForm(); if(typeof scheduleAuto==='function') scheduleAuto(); }
+function touch(){ if(!startedAt && !cur) startedAt=new Date(); clearTimeout(touchT); touchT=0; paintForm(); if(typeof scheduleAuto==='function') scheduleAuto(); }
+// 글자를 칠 때(문의 내용 · 이름 · 과업 메모 등): 값은 바로 넣고, 화면 다시 그리기는 멈추고 0.35초 뒤 한 번 (빠르게 · 칸을 나가면 바로, 2026-11-18)
+let touchT=0;
+function touchSoon(){ if(!startedAt && !cur) startedAt=new Date(); $('#state').textContent='저장하지 않은 내용이 있습니다 (30초 뒤 자동 저장)'; clearTimeout(touchT); touchT=setTimeout(()=>{ touchT=0; touch(); }, 350); }
+document.addEventListener('focusout', e=>{ if(touchT && e.target.closest?.('#callForm, #taskList')) setTimeout(()=>{ if(touchT) touch(); }, 0); });
 // 과업 추가 · 체크 · 마감일 · 빼기
 // ===================== 추후 과업 (단체 화면과 같은 모양 · 동작) =====================
 // 순서: 마감일이 빠른 순, 같으면 최근에 추가한 것이 위. 직접 옮긴 과업(ordSet)은 그 순서 그대로, 끝난 과업은 맨 아래 한 줄로(자세히 ▾)
@@ -190,7 +194,7 @@ $('#taskList').addEventListener('click', e=>{ const b=e.target.closest('button')
 });
 $('#taskList').addEventListener('keydown', e=>{ if(e.target.dataset.tttl!==undefined){ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); e.target.blur(); } else if(e.key==='Escape'){ const t=(typeof taskOf==='function'?taskOf:(id=>tasks.find(x=>x.id===id)))(e.target.dataset.tttl); if(t) e.target.value=t.title; e.target.blur(); } } });   // 과업 제목: Enter = 확정, Esc = 되돌리기
 $('#taskList').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing && e.target.dataset.xadd!==undefined){ e.preventDefault(); addXsub(e.target.dataset.xadd); } });   // 세부 과제: 적고 Enter
-$('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=taskOf(id); if(t){ t.memo=e.target.value; delete t.memoAuto; touch(); } });   // 메모를 직접 고치면 문의 내용을 더 따라가지 않음
+$('#taskList').addEventListener('input', e=>{ const id=e.target.dataset.tm; if(!id) return; const t=taskOf(id); if(t){ t.memo=e.target.value; delete t.memoAuto; touchSoon(); } });   // 메모를 직접 고치면 문의 내용을 더 따라가지 않음
 $('#taskList').addEventListener('focusout', e=>{ if(e.target.dataset.tm!==undefined) setTimeout(()=>{ taskSave(); paintForm(); },0); });   // 메모는 칸을 벗어나면 저장
 // 끌어서 순서 바꾸기 (⠿ 를 잡고)
 let dragId=null;
@@ -244,7 +248,7 @@ $('#catChips').addEventListener('click', e=>{
   if(x){ e.stopPropagation(); const c=x.dataset.catdel; if(!confirm(`'${c}' 구분을 삭제할까요?\n모든 사람의 구분 목록에서 빠집니다. (이미 저장된 통화의 구분은 그대로 남습니다)`)) return;
     savePcats(pcats().filter(v=>v!==c), `'${c}' 삭제`); paintChips(); toast(`구분 '${c}'을(를) 삭제했습니다.`); return; }
   const b=e.target.closest('button'); if(!b) return;
-  if(b.dataset.catadd!==undefined){ const v=(prompt('추가할 구분 이름 (예: 단체 문의). 추가하면 모든 사람에게 보입니다.')||'').trim().replace(/\s+/g,' ').slice(0,20); if(!v) return;
+  if(b.dataset.catadd!==undefined){ const v=(prompt('추가할 구분 이름. 추가하면 모든 사람에게 보입니다.')||'').trim().replace(/\s+/g,' ').slice(0,20); if(!v) return;
     if(!pcats().includes(v)){ savePcats([...pcats(), v], `'${v}' 추가`); toast(`구분 '${v}'을(를) 추가했습니다. 모든 사람에게 보입니다.`); } form.cat=v; touch(); return; }
   form.cat = form.cat===b.dataset.cat ? '' : b.dataset.cat; touch(); });
 $('#rtChips').addEventListener('click', e=>{ const b=e.target.closest('button[data-rt]'); if(!b) return; form.reportTo = form.reportTo===b.dataset.rt ? '' : b.dataset.rt; touch(); });
