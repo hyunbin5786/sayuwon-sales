@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261119z">
+<link rel="stylesheet" href="css/group.css?v=20261120h">
 <link rel="stylesheet" href="css/menu.css?v=20261119h">
 </head>
 <body>
@@ -225,21 +225,19 @@
   <section class="panel form-col">
     <div class="owner-memo lock-ok" id="ownerMemo" hidden></div>
     <div class="form-head"><h2>예약 내용</h2>
+      <!-- 예약 단계: 「예약 내용」 제목 옆 (2026-11-18) -->
+      <span class="stage-head"><span class="stage-l">예약 단계</span>
+      <span class="seg" id="stageSeg"><button type="button" data-s="예약상담">예약상담</button><button type="button" data-s="가예약">가예약</button><button type="button" data-s="예약확정">예약확정</button><button type="button" data-s="예약취소">예약취소</button></span></span>
       <label class="tbd-date" id="w_tbdDate" title="방문일 전주 목요일 (이미 지났으면 방문일 전날)">미정 항목 답변일 <span class="dbox"><input class="dtxt" id="tbdTxt" readonly placeholder="날짜 고르기"><input type="date" class="dpick" id="f_tbdDate" data-k="tbdDate" tabindex="-1" aria-hidden="true"></span></label>
     </div>
-    <div class="stage-bar">
-      <span class="stage-l">예약 단계</span>
-      <div class="seg" id="stageSeg">
-        <button type="button" data-s="예약상담">예약상담</button><button type="button" data-s="가예약">가예약</button>
-        <button type="button" data-s="예약확정">예약확정</button><button type="button" data-s="예약취소">예약취소</button>
-      </div>
+    <div class="stage-bar">   <!-- 회색 줄: 사전답사 · 견적서 · 거래명세서 · 텍스트 복사 · 비고멘트 … 저장은 맨 오른쪽 (2026-11-18) -->
       <div class="act-bar">
-      <button class="btn primary" id="saveBtn">저장<kbd>Ctrl+S</kbd></button>
       <span class="doc-pair"><label class="doc-ck" title="체크 = 사전답사 있음 (추후 과업 '사전답사 전산 예약'이 생깁니다) · 풀면 답사 정보를 지움"><input type="checkbox" id="ckTour"></label><button class="btn" id="tourBtn" title="사전답사 정보 (성명 · 연락처 · 일자 · 인원 · 시간)">사전답사</button></span>
       <span class="doc-pair"><label class="doc-ck" title="체크하면 추후 과업에 '견적서 발급'이 생깁니다"><input type="checkbox" id="ckQuote" data-want="wantQuote"></label><button class="btn" id="quoteBtn" title="견적서 발급">견적서</button></span>
       <span class="doc-pair"><label class="doc-ck" title="체크하면 추후 과업에 '거래명세서 발급'이 생깁니다"><input type="checkbox" id="ckStmt" data-want="wantStmt"></label><button class="btn" id="stmtBtn" title="거래명세서 발급">거래명세서</button></span>
       <button class="btn" id="copyTextBtn" title="내용 텍스트 복사 (카카오톡 보고용)">텍스트 복사</button>
       <button class="btn" id="noteRegenBtn" title="지금 예약 내용으로 전산 비고 멘트를 다시 만들어 보여 줍니다 (복사 가능)">비고멘트</button>
+      <button class="btn primary save-r" id="saveBtn">저장<kbd>Ctrl+S</kbd></button>
       </div>
     </div>
     <form id="form" autocomplete="off"></form>

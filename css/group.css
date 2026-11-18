@@ -796,3 +796,8 @@ html.book-guest #bookBody tr{cursor:default}
 .modal .list tr.cancel td{color:var(--muted)}
 .stage-sum{font-size:12.5px;font-weight:700;color:var(--pine);margin-right:4px}
 .tag.tbd-tag{background:var(--amber-soft);color:var(--amber)}   /* 미정 항목 (노랑) */
+/* 예약 단계는 「예약 내용」 제목 옆 · 회색 줄은 버튼만, 저장은 맨 오른쪽 (2026-11-18) */
+.stage-head{display:inline-flex;align-items:center;gap:6px;margin-left:6px}
+.stage-head #stageSeg{display:inline-flex;background:var(--bg)}
+.stage-bar .act-bar{margin-left:0;flex:1 1 auto;flex-wrap:wrap;align-items:center}
+.stage-bar .act-bar .save-r{margin-left:auto;min-width:72px}
