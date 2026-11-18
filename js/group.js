@@ -427,7 +427,6 @@ function itemRowHTML(k, rows){
   return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}<span class="it-p" data-iup="${esc(k)}"></span>`
     + `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`
     + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="굿즈 담당 (기본 = 영업 담당 · 고칠 수 있음 · 굿즈 모두 같은 담당)"></span>`
-      : stf && k==='seminar' && sem2On(rec) ? `<span class="it-s2"><span class="it-s${sv.trim()?'':' missing'}"><input data-is="seminar" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="세미나 도슨트 담당"></span><span class="it-s"><input data-is="seminar2" data-ime="ko" placeholder="담당자 2 (선택)" value="${esc(String(rec.stf_seminar2||''))}" title="두 번째 세미나 도슨트 담당이 다르면 (선택 · 비우면 첫 담당이 함께)"></span></span>`   // 세미나 도슨트 수량 2: 담당 2명까지 (2026-11-18)
       : stf ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="프로그램 담당"></span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
     + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
     + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div><div class="it-extra">${extra}${spBtnHTML(k)}<span class="it-amt" data-iamt="${esc(k)}"></span></div>`) + `</div>`;   // 둘째 줄: 할인(할인 대상만) · 셋째 줄: 비고 (할인이 없으면 바로 비고, 금액은 그 줄 끝)
@@ -657,7 +656,7 @@ document.addEventListener('change', e=>{
 document.addEventListener('input', e=>{
   const el=e.target; if(!el.closest?.('#itemsBox')) return;
   if(el.dataset.iq!=null){ const k=el.dataset.iq, c=el.value.replace(/[^\d+]/g,''), was=itemQty(k); if(c!==el.value) el.value=c; setItemQty(k, el.value);
-    if(k==='seminar' && (numOf(was)>=2)!==(numOf(el.value)>=2)){ itemChanged(true, !!was); const q=document.querySelector('#itemsBox [data-iq="seminar"]'); if(q){ q.focus(); const n=q.value.length; try{ q.setSelectionRange(n,n); }catch(_){} } return; }   // 세미나 도슨트 수량 2 ↔ 1: 두 번째 시작 · 끝 · 장소 · 비고 줄을 넣고 빼기
+    if(k==='seminar' && (numOf(was)>=2)!==(numOf(el.value)>=2)){ itemChanged(true, !!was); const q=document.querySelector('#itemsBox [data-iq="seminar"]'); if(q){ q.focus(); const n=q.value.length; try{ q.setSelectionRange(n,n); }catch(_){} } if(numOf(el.value)>=2) openSemGuide(); return; }   // 세미나 도슨트 수량 2 ↔ 1: 두 번째 시작 · 끝 · 장소 · 비고 줄을 넣고 빼기
     if(itemKind(k)==='prog' && itemUnit(k)==='시간' && numOf(el.value) && numOf(el.value)!==numOf(was)){ const [s]=tmTimes(k); if(s && fmtTime(s)){ const en=plusH(s, progHours(k)); rec['tm_'+k]=`${s}~${en}`; touched.add('tm_'+k); const b=el.closest('.it-row')?.querySelector(`[data-ix="tmE:${CSS.escape(k)}"]`); if(b) b.value=en; paintTmMissing(); } }   // 시간 프로그램(대관 등): 수량(시간)을 바꾸면 끝 = 시작 + 그 시간 (2026-11-18)
     itemChanged(false, !!was); }   // 담당 기본값은 수량을 처음 넣을 때만
   else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); startTimer(); repaintSoon(); }   // 항목 비고 (치는 동안은 다시 그리지 않음)
@@ -1038,19 +1037,24 @@ const PAY_GUIDE = {
   '현장 결제':  ['현장 결제로 하시면 당일 인원 변경이 어려운 점 양해 부탁드립니다.', '인원은 언제까지 확정해 주실 수 있을까요?'],
   '기타':       ['고객님께 어떻게 결제하실지 여쭤 보세요.', '정한 결제 방법을 「통화 메모」에 꼭 남겨 주세요.'],
 };
-let pgMemo=false;   // 기타 결제 안내를 닫으면 통화 메모 칸으로
-function openPayGuide(pay, what){ pgMemo = pay==='기타';
+let pgMemo=false, pgStf=false;   // 기타 결제 안내를 닫으면 통화 메모 칸으로 · 세미나 2회 안내를 닫으면 담당 칸으로
+// 세미나 도슨트를 2회로 바꾼 순간 안내 (결제 안내 팝업을 같이 씀, 2026-11-18)
+function openSemGuide(){ pgMemo=false; pgStf=true; $('#pgModal .hint').hidden=true;
+  $('#pgTitle').textContent = '세미나 도슨트 2회';
+  $('#pgBody').innerHTML = ['담당자 이름을 모두 입력해 주세요.', '비고에 각 장소의 담당자 이름도 적어 주세요.'].map(g=>`<li>${esc(g)}</li>`).join('');
+  $('#pgModal').hidden = false; setTimeout(()=>$('#pgOk').focus(), 0); }
+function openPayGuide(pay, what){ pgMemo = pay==='기타'; pgStf=false; $('#pgModal .hint').hidden=false;
   $('#pgTitle').textContent = pay==='기타' ? `[${what?what+' ':''}기타 결제] 통화 메모에 결제 방법을 남겨 주세요` : `[${pay} 안내] 고객님께 말씀드리세요`;
   $('#pgBody').innerHTML = PAY_GUIDE[pay].map(g=>`<li>${esc(g)}</li>`).join('');
   $('#pgModal').hidden = false; setTimeout(()=>$('#pgOk').focus(), 0);
 }
-$('#pgOk').onclick = () => { $('#pgModal').hidden = true; if(pgMemo){ pgMemo=false; const m=$('#memoBox'); if(m){ m.scrollIntoView({block:'center'}); m.focus(); } } };
+$('#pgOk').onclick = () => { $('#pgModal').hidden = true; if(pgStf){ pgStf=false; const s=document.querySelector('#itemsBox [data-is="seminar"]'); if(s){ s.focus(); const n=s.value.length; try{ s.setSelectionRange(n,n); }catch(_){} } return; } if(pgMemo){ pgMemo=false; const m=$('#memoBox'); if(m){ m.scrollIntoView({block:'center'}); m.focus(); } } };
 $('#pgModal').addEventListener('click', e=>{ if(e.target.id==='pgModal') $('#pgModal').hidden = true; });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#pgModal').hidden){ e.preventDefault(); $('#pgModal').hidden = true; } });
 // 프로그램 입력 내용: "요가 20명", "차방 대관 2시간" (grp 를 주면 그 묶음만)
 // staff 를 주면 "동행 도슨트 2시간 (담당:사공유빈)" (차방 · 당두봉갈은 담당을 적었을 때만)
 // staff 이면 도슨트 시간대 · 코스도: "동행 도슨트 2시간 13:00~15:00 (코스:정원 코스) (담당:사공유빈)"
-const progList = (r, grp, staff) => FIELDS.filter(f=>(grp ? f[0]===grp : /^프로그램/.test(f[0])) && !isSub(f[1]) && r[f[1]]).map(f=>{ const v=String(r[f[1]]), sub=p=>String(r[`${p}_${f[1]}`]||'').trim(), who=[...new Set([sub('stf'), f[1]==='seminar' && numOf(r.seminar)>=2 ? String(r.stf_seminar2||'').trim() : ''].filter(Boolean))].join(', ');   // 세미나 도슨트 담당 2명이면 「A, B」
+const progList = (r, grp, staff) => FIELDS.filter(f=>(grp ? f[0]===grp : /^프로그램/.test(f[0])) && !isSub(f[1]) && r[f[1]]).map(f=>{ const v=String(r[f[1]]), sub=p=>String(r[`${p}_${f[1]}`]||'').trim(), who=sub('stf');   // 담당이 여러 명이면 한 칸에 「문현빈, 김선영」
   const tag = !staff ? '' : (sub('tm') ? ` ${sub('tm')}` : '') + (sub('crs') ? ` (코스:${sub('crs')})` : '') + (sub('plc') ? ` (장소:${sub('plc')})` : '') + (f[1]==='seminar' ? sem2Tag(r) : '') + (who ? ` (담당:${who})` : needsStaff(f[1]) ? ' (담당:미정)' : '');
   return `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? v+UNIT(f[1]) : v}${tag}`; });
 // 세미나 도슨트 수량 2일 때 두 번째: " · 두 번째 14:00~14:30 (장소:당두봉갈)"
@@ -1145,7 +1149,7 @@ function bookRows0(){
         ppl: (cat==='prog' || cat==='coupon') && unit!=='시간' ? (numOf(v)||numOf(x.people)) : numOf(x.people),
         hrs: unit==='시간' ? (numOf(v)||1) : 0, place:RENT_PLACE[k]||x['plc_'+k]||'', kind:DOCENT_KIND[k]||(cat==='docent'?LABEL[k]:''), item:LABEL[k]||k,
         tm:x['tm_'+k]||'', staff:String(x['stf_'+k]||'').trim()||x.owner||'', note:[notes[k], x['crs_'+k]&&`코스 ${x['crs_'+k]}`].filter(Boolean).join(' · ') });
-      if(k==='seminar' && numOf(v)>=2 && !x.seminar2){ const o=out[out.length-1]; out.push({...o, place:x.plc_seminar2||'', tm:x.tm_seminar2||'', staff:String(x.stf_seminar2||'').trim()||o.staff, note:[notes.seminar2].filter(Boolean).join(' · ')}); }   // 세미나 도슨트 수량 2: 두 번째도 현황에 한 줄 (2026-11-18)
+      if(k==='seminar' && numOf(v)>=2 && !x.seminar2){ const o=out[out.length-1]; out.push({...o, place:x.plc_seminar2||'', tm:x.tm_seminar2||'', note:[notes.seminar2].filter(Boolean).join(' · ')}); }   // 세미나 도슨트 수량 2: 두 번째도 현황에 한 줄 (2026-11-18)
     });
   });
   return out.sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99')));
@@ -1818,7 +1822,7 @@ const onsiteMsg = r => `안녕하세요, 사유원입니다. ${r.org?`<${r.org}>
 function staffMsg(r){
   const by={}, add=(who,s)=>{ who=String(who||'').trim()||'(담당 미정)'; (by[who] ||= []).push(s); };
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]]).forEach(f=>{ const k=f[1], v=String(r[k]), sub=p=>String(r[`${p}_${k}`]||'').trim();
-    const s2who = k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 ? String(r.stf_seminar2||'').trim() : '', split = s2who && s2who!==sub('stf');   // 세미나 도슨트 두 번째 담당이 다르면 그 사람에게 따로
+    const s2who = k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 ? '' : '', split = s2who && s2who!==sub('stf');   // 세미나 도슨트 두 번째 담당이 다르면 그 사람에게 따로
     const s2note = r===rec && itemNote('seminar2') ? ` (비고:${itemNote('seminar2')})` : '';
     add(sub('stf'), `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? (split ? '1'+UNIT(k) : v+UNIT(k)) : v}${sub('tm')?' '+sub('tm'):''}${sub('crs')?` (코스:${sub('crs')})`:''}${sub('plc')?` (장소:${sub('plc')})`:''}${r===rec && itemNote(k)?` (비고:${itemNote(k)})`:''}${k==='seminar' && !split ? sem2Tag(r)+(sem2Tag(r) ? s2note : '') : ''}`);
     if(split){ const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); add(s2who, `${f[2]} 1${UNIT(k)}${t?' '+t:''}${p?` (장소:${p})`:''}${s2note}`); } });
