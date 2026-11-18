@@ -469,6 +469,7 @@ function mergePriceLayout(){
 }
 // 줄마다 금액 (가격표 계산과 같은 것): 금액 굵게, 아래에 단가 · 할인
 let priceInfo = null;   // { 품목: {qty, p, a} } (renderPrice가 채움, 전산 내역이 있으면 null)
+const PRICE_RETRIED = new Map();   // 금액 계산이 늦은 줄을 다시 계산한 시각 (같은 품목 · 수량 · 날짜 · 인원은 2초에 한 번만 → 끝없이 돌지 않게)
 function itemSrc(k){ const t=itemKind(k), DAY=rec.date && isRedDay(rec.date) ? '주말/공휴일' : '평일';
   if(t==='view') return viewSrcOf(rec);
   if(t==='varea') return daySrc(k.slice(2), rec);
@@ -574,12 +575,16 @@ function paintItemPrices(){
         if(mi) amt = cell('금액', mi.atMabang ? `<s>${won(mi.m.amount)}</s> <small>마방에서 결제</small>` : `<b>${won(mi.m.amount)}</b>`, 'amt'); }
       else h = erpDiscBtns(k, x, ex) + `<span class="im dams" title="${esc(x.notes.map(cleanErpNote).join(' · ')||'전산 할인')}">${ex.fTf>0?damIn(k,'tf', ex.dTf, ex.fTf):''}${ex.fTx>0?damIn(k,'tx', ex.dTx, ex.fTx):''}</span>`;   // 전산 내역 줄: 할인만 (과세 · 비과세 할인액은 고칠 수 있음)
       }
-    else if(!priceInfo) h='';
+    // 금액을 아직 계산할 수 없을 때도 할인 줄은 늘 같은 모양 (할인 버튼 · 특별할인 · 오른쪽 금액 자리) — 처음 추가할 때 예전 모양이 잠깐 보이지 않게 (2026-11-18)
+    else if(!priceInfo || !(src && priceInfo[normSrc(src)]) && !(k==='view')){
+      const unitW=itemUnit(k)==='명'?'인원':'수량', known = src && priceOf(src)!=null, q=numOf(itemQty(k));
+      const tryKey = k+'|'+q+'|'+rec.date+'|'+rec.people, retry = known && q && priceInfo && Date.now()-(PRICE_RETRIED.get(tryKey)||0) > 2000;
+      const msg = !rec.date || !numOf(rec.people) && !effViewN(rec) ? `<small>방문일 · 관람 인원을 넣으면 계산</small>` : !known ? '가격 없음' : !q ? `<small>${unitW}을 넣으면 계산</small>` : retry ? '<small>계산 중…</small>' : '가격 없음';
+      if(retry){ PRICE_RETRIED.set(tryKey, Date.now()); setTimeout(()=>{ renderSide(); paintItemPrices(); }, 0); }   // 가격 · 수량은 있는데 계산이 한 박자 늦은 것 → 한 번만 바로 다시 계산 (그래도 없으면 가격 없음)
+      h = `<span class="im dsel" title="${unitW}을 넣으면 할인을 고를 수 있습니다">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${v==='none'?' on':''}" disabled>${l}</button>`).join('')}${spBtnHTML(k)}</span>` + `<span class="im amt${known?'':' warn'}"><i>금액</i>${msg}</span>`; }
     else { const x=src ? priceInfo[normSrc(src)] : null;
       if(k==='view' && !x) h=cell('관람권', numOf(rec.people)?'0명 (모두 관람 포함 품목으로 계산)':'인원 입력');
-      else if(!x){ const wait = src && priceOf(src)!=null && !numOf(itemQty(k));
-        amt = wait ? cell('금액', `<small>${itemUnit(k)==='명'?'인원':'수량'}을 넣으면 계산</small>`) : cell('금액', '가격 없음', 'warn');   // 가격은 있는데 인원 · 수량이 아직 없으면 (가격 없음이 아님)
-        if(wait) h = `<span class="im dsel" title="${itemUnit(k)==='명'?'인원':'수량'}을 넣으면 할인을 고를 수 있습니다">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${v==='none'?' on':''}" disabled>${l}</button>`).join('')}${spBtnHTML(k)}</span>` + amt.replace('class="im ', 'class="im amt '); if(wait) amt=''; }   // 수량을 넣기 전에도 할인 줄은 같은 모양으로 · 금액은 그 줄 오른쪽 (2026-11-18)
+      else if(!x){ amt = cell('금액', '가격 없음', 'warn'); }
       else if(seen.has(src)) amt=cell('금액', '위 줄과 합산');   // 같은 견적서 품목(예: 대관)은 한 줄로 계산
       else { seen.add(src); const m=x.m;
         const money = cell('금액', `<b>${m?won(m.amount):'가격 없음'}</b>`, 'amt');
@@ -694,7 +699,7 @@ document.addEventListener('click', e=>{
     // 관람권이 아직 없으면 먼저 관람권 줄을 자동으로: 입장시각 13시 이후면 13~18시, 아니면 9~18시 · 인원 = 관람 인원 − 관람 포함 품목(사담 등) 인원
     if(!viewsParse(rec.views).some(x=>/관람\(\d\d:00~18:00\)/.test(x.src)) && numOf(rec.people)){ const src=timedViewSrc(rec), q=Math.max(0, numOf(rec.people)-areaOthers(rec));
       if(q){ setItemQty('v:'+src, String(q)); if(!itemRows.includes('v:'+src)) itemRows.unshift('v:'+src); toast(`관람권(${/13:00/.test(src)?'13~18시':'9~18시'}) ${q}명을 넣었습니다.`); } }
-    const k='new:'+Date.now().toString(36); itemRows.push(k); itemPend.add(k); renderItems(true); document.querySelector(`#itemsBox [data-isel="${k}"]`)?.focus(); return; }
+    const k='new:'+Date.now().toString(36); itemRows.push(k); itemPend.add(k); itemChanged(true); document.querySelector(`#itemsBox [data-isel="${k}"]`)?.focus(); return; }   // 금액도 바로 다시 계산 (자동으로 넣은 관람권 줄이 처음부터 할인 · 금액으로 보이게, 2026-11-18)
   const d=e.target.closest?.('#itemsBox [data-idel]'); if(d){ const k=d.dataset.idel; clearItem(k); itemRows=itemRows.filter(x=>x!==k); itemChanged(true); }
 });
 // "12001300" · "12-13" · "12:00~13:00" → "12:00~13:00"
