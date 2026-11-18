@@ -7,7 +7,7 @@
 <script>/* 단체 · 견적서 화면이 팝업 안에서 이 주소(#catalog)를 부르면 품목 관리 창으로 바로 바꿈 (닫기 · 저장 알림이 바로 그 화면에 가도록) */
 if(window.parent!==window && location.hash==='#catalog') location.replace((/github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/index.html') + '?catalog=1&t=' + Date.now());</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/portal.css?v=20261118c">
+<link rel="stylesheet" href="css/portal.css?v=20261118d">
 <link rel="stylesheet" href="css/mypop.css?v=20261116">
 <link rel="stylesheet" href="css/menu.css?v=20261118c">
 </head>
@@ -46,7 +46,7 @@ if(window.parent!==window && location.hash==='#catalog') location.replace((/gith
         </div>
       </section>
       <section class="dash need-login" id="dash" aria-label="모든 사용자의 나의 할일">
-        <div class="dash-h"><h3>모두의 할일</h3><span class="hint" id="dashSum"></span><button type="button" class="btn-sm" id="dashReload" title="다시 불러오기">↻</button></div>
+        <div class="dash-h"><input id="dashQ" type="search" placeholder="검색: 전화번호 · 단체명 · 이름" autocomplete="off" data-ime="ko"><span class="hint" id="dashSum" hidden></span><button type="button" class="btn-sm" id="dashReload" hidden>↻</button></div>
         <div id="dashKey" class="keybox" hidden>
           <p>모든 사용자의 할일을 보려면 팀 비밀번호가 필요합니다 (단체 화면과 같은 비밀번호, 이 브라우저에 기억).</p>
           <form id="dashKeyForm" class="inline"><input id="dashKeyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn-sm primary" type="submit">연결</button></form>
@@ -85,7 +85,7 @@ if(window.parent!==window && location.hash==='#catalog') location.replace((/gith
 <div class="catwrap" id="catWrap" hidden><iframe id="catFrame" title="품목관리"></iframe></div>
 
 <script src="js/opslib.js?v=20261118"></script>
-<script src="js/portal.js?v=20261118c"></script>
+<script src="js/portal.js?v=20261118d"></script>
 <!-- 나의 할일 팝업 (메뉴 8번 페이지 group.html?my=1 을 그대로 띄움) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
 <script src="js/mypop.js?v=20261118"></script>

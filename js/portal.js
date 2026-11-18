@@ -25,7 +25,7 @@ function paint(){
       : u.setup==='old' ? '공유 저장소(Apps Script)가 아직 예전 버전이라 이름 · 사번을 확인하지 못했습니다. 새 버전으로 배포하면 확인합니다.' : '';
     if(location.hash==='#catalog') openCatalog();
     if(view==='members') loadMembers();
-    if(view==='menu') setTimeout(()=>{ if(!dashData) loadDash(); }, 0);   // 대시보드 (스크립트를 다 읽은 뒤)
+    if(view==='menu') setTimeout(()=>loadDash(), 0);   // 대시보드: 저장해 둔 것을 바로 그리고 새로 받음 (스크립트를 다 읽은 뒤)
   } else setTimeout(()=>$('#inName').focus(), 0);
 }
 const esc = s => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -61,7 +61,7 @@ $('#loginForm').addEventListener('submit', async e=>{
 });
 $('#logoutBtn').onclick=()=>{
   if(!confirm('로그아웃할까요? 다음 사람이 이름과 사번으로 다시 로그인합니다.')) return;
-  [USER_KEY,'sayuwon_owner','sy_sender'].forEach(k=>setLS(k,null));
+  [USER_KEY,'sayuwon_owner','sy_sender','sy_dash_cache'].forEach(k=>setLS(k,null));
   $('#inName').value=''; $('#inEmp').value=''; view='menu'; history.replaceState(null,'',location.pathname); paint();
 };
 // 메뉴
@@ -124,7 +124,7 @@ paint();
 // 이미 로그인한 브라우저도 첫 화면을 열 때 다시 확인: 멤버에서 빠졌거나 이름 · 사번이 다르면 로그아웃
 (async()=>{ const u=getUser(); if(!u) return; let j=null; try{ j=await callApi({action:'login', name:u.name, emp:u.emp}); }catch(_){ return; }
   if(!j || !j.ok) return;   // 연결 안 됨 · 예전 버전이면 그대로 둠
-  if(!j.member){ [USER_KEY,'sayuwon_owner','sy_sender'].forEach(k=>setLS(k,null)); view='menu'; paint(); $('#loginErr').textContent='등록된 멤버가 아니어서 로그아웃했습니다. 이름과 사번을 다시 확인해 주세요.'; return; }
+  if(!j.member){ [USER_KEY,'sayuwon_owner','sy_sender','sy_dash_cache'].forEach(k=>setLS(k,null)); view='menu'; paint(); $('#loginErr').textContent='등록된 멤버가 아니어서 로그아웃했습니다. 이름과 사번을 다시 확인해 주세요.'; return; }
   const setup = j.empty ? 'empty' : ''; if((u.setup||'')!==setup){ u.setup=setup; setLS(USER_KEY, JSON.stringify(u)); paint(); } })();
 
 // ===================== 아코디언 메뉴: 펼친 묶음을 이 브라우저에 기억 =====================
@@ -141,61 +141,81 @@ const GROUP_TYPES = ['단체예약','예약상담','예약접수','상담','가�
 const histTasks = r => { try{ const j=JSON.parse(r.history||'{}'); return Array.isArray(j.tasks) ? j.tasks : []; }catch(_){ return []; } };
 const dueOf = (t, r) => t.due || (t.at ? opsYmd(t.at) : r.saved ? opsYmd(r.saved) : opsToday());
 let dashOpen = new Set();
-async function loadDash(){
-  if(!getUser()) return;
-  if(!getKey()){ $('#dashKey').hidden=false; $('#dashBody').innerHTML=''; $('#dashSum').textContent=''; return; }
-  $('#dashKey').hidden=true;
-  let items=[], names=[];
-  try{ const j=await callApi({action:'list'}); if(!j.ok){ if(j.error==='bad_key'){ $('#dashKey').hidden=false; $('#dashBody').innerHTML='<p class="err">팀 비밀번호가 맞지 않습니다.</p>'; return; } throw new Error(j.error); } items=j.items||[]; }
-  catch(e){ $('#dashBody').innerHTML='<p class="err">불러오지 못했습니다. 잠시 뒤 ↻ 를 눌러 주세요.</p>'; return; }
-  try{ const m=await callApi({action:'members'}); if(m.ok) names=(m.members||[]).map(x=>String(x.name||'').trim()).filter(Boolean); }catch(_){}
-  const today=opsToday(), by={};
-  const add = (who, o) => { who=String(who||'').trim()||'(담당 없음)'; (by[who] ||= []).push(o); };
+// 첫 화면 = 대시보드만 (2026-11-18): ① 개인고객 전화 ② 단체고객 전화 ③ 기타 개인 할일 ④ 개인 할일 보기(1행 1명 · 숫자)
+//  ①② 줄 = 예약 · 통화 하나: 단체명 / 접수자 이름 (없으면 전화번호) → 아래 회색으로 오늘까지(기한 지난 것 포함) 할 과업. 「내일 마감도 보기」면 내일 것도
+//  ③ 줄 = 업무 하나 · ④ 이름을 누르면 ①②③을 그 사람 것만 · 위 검색: 전화번호 · 단체명 · 이름
+//  빠르게: 마지막으로 받은 내용을 이 브라우저에 두고(sy_dash_cache) 바로 그린 뒤 새로 받아 다시 그림
+const DASH_LS = 'sy_dash_cache';
+let dashData = (()=>{ try{ const c=JSON.parse(localStorage.getItem(DASH_LS)||'null'); return c && c.recs ? c : null; }catch(_){ return null; } })();
+let dashTomorrow = new Set(), dashWho = '', dashLoading = false;
+function dashRecs(items){
+  const recs=[];
   items.forEach(r=>{
     const ct=r.callType||'단체예약';
     if(GROUP_TYPES.includes(ct)){
-      if(r.date && (new Date(today) - new Date(r.date))/864e5 > 30) return;
+      if(r.date && (new Date(opsToday()) - new Date(r.date))/864e5 > 30) return;
       const consult = ct==='예약상담' || ct==='상담';
-      histTasks(r).filter(t=>!t.done && !t.removed && (!consult || ['tour','ctbd','clergy'].includes(t.id) || t.custom))
-        .forEach(t=>add(r.owner||r.takenBy, {kind:'단체', title:t.title, due:dueOf(t,r), who:r.org||r.contact||'(업체 미정)', href:'group.html?open='+encodeURIComponent(r.id)}));
+      const ts=histTasks(r).filter(t=>!t.done && !t.removed && (!consult || ['tour','ctbd','clergy'].includes(t.id) || t.custom)).map(t=>({title:t.title, due:dueOf(t,r)}));
+      if(ts.length) recs.push({kind:'단체', owner:(r.owner||r.takenBy||'').trim(), name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:ts, href:'group.html?open='+encodeURIComponent(r.id)});
     } else if(ct==='개인고객'){
-      histTasks(r).filter(t=>!t.done).forEach(t=>add(r.owner||r.takenBy, {kind:'개인', title:t.title, due:dueOf(t,r), who:r.contact||'(이름 없음)', href:'personal.html?open='+encodeURIComponent(r.id)}));
+      const ts=histTasks(r).filter(t=>!t.done).map(t=>({title:t.title, due:dueOf(t,r)}));
+      if(ts.length) recs.push({kind:'개인', owner:(r.owner||r.takenBy||'').trim(), name:r.contact||r.phone||'(이름 없음)', q:[r.contact,r.phone].join(' '), tasks:ts, href:'personal.html?open='+encodeURIComponent(r.id)});
     } else if(ct===OPS_TYPES.task){
-      const j=opsParse(r); if(!j) return; const d=j.d||{};
-      opsPending(d, today).forEach(day=>add(d.owner||r.takenBy, {kind:'기타', title:d.title, due:day, who:opsRepeatLabel(d), href:'ops.html?p=task'}));
-      { const tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const t2=opsYmd(tm); if(opsOccurs(d, t2) && !(d.done||{})[t2]) add(d.owner||r.takenBy, {kind:'기타', title:d.title, due:t2, who:opsRepeatLabel(d), href:'ops.html?p=task'}); }   // 내일 할 것 (「내일 마감도 보기」)
+      const j=opsParse(r); if(!j) return; const d=j.d||{}, today=opsToday(), tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const t2=opsYmd(tm);
+      const days=opsPending(d, today); if(opsOccurs(d, t2) && !(d.done||{})[t2]) days.push(t2);
+      const subs=d.subs||[], subTxt = day => subs.length ? `세부 과업 ${subs.filter(s=>((d.subDone||{})[day]||{})[s.id]).length}/${subs.length}` : opsRepeatLabel(d);
+      if(days.length) recs.push({kind:'기타', owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({title:subTxt(day), due:day})), href:'ops.html?p=task'});
     }
   });
-  dashData={by, names, today}; renderDash();
+  return recs;
 }
-let dashData=null;
-// 대시보드 4열 (2026-11-18): ① 개인고객 전화 ② 단체고객 전화 ③ 기타 개인 할일 — 오늘 마감(기한 지난 것 포함)만, 「내일 마감도 보기」를 누르면 내일 것도
-//  ④ 개인 할일 보기 — 사람 이름을 누르면 그 사람의 남은 과업 전부 (마감 순)
-let dashTomorrow = new Set(), dashWho = '';
-function renderDash(){ if(!dashData) return; const {by, names, today}=dashData;
-  const me=(getUser()||{}).name||'', tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const tomorrow=opsYmd(tm);
-  const all=Object.entries(by).flatMap(([owner,L])=>L.map(o=>({...o, owner})));
-  const dueTag = o => o.due<today ? `<em class="late">지남 ${esc(opsDateLabel(o.due))}</em>` : o.due===today ? '<em class="today">오늘</em>' : `<em>${o.due===tomorrow?'내일':esc(opsDateLabel(o.due))}</em>`;
-  const row = (o, showOwner=true) => `<li class="${o.due<today?'late':o.due===today?'today':''}"><a href="${o.href}">${dueTag(o)}<b>${esc(o.title)}</b><small>${esc(o.who)}</small>${showOwner?`<span class="downer${o.owner===me?' me':''}">${esc(o.owner)}</span>`:''}</a></li>`;
-  const col = (kind, title) => { const withT=dashTomorrow.has(kind), L=all.filter(o=>o.kind===kind && (o.due<=today || (withT && o.due===tomorrow))).sort((a,b)=>a.due.localeCompare(b.due) || a.owner.localeCompare(b.owner));
-    const nT=all.filter(o=>o.kind===kind && o.due===tomorrow).length, nLate=L.filter(o=>o.due<today).length;
-    return `<div class="dcol"><div class="dcol-h"><b>${title}</b><span class="dn">${L.length}${nLate?` · <span class="late">지남 ${nLate}</span>`:''}</span></div>`
+async function loadDash(){
+  if(!getUser()) return;
+  if(!getKey()){ $('#dashKey').hidden=false; $('#dashBody').innerHTML=''; return; }
+  $('#dashKey').hidden=true;
+  if(dashData) renderDash(); else $('#dashBody').innerHTML='<p class="hint">불러오는 중…</p>';
+  if(dashLoading) return; dashLoading=true;
+  try{
+    const [j, m] = await Promise.all([callApi({action:'list'}), callApi({action:'members'}).catch(()=>null)]);   // 목록 · 멤버를 함께 받음
+    if(!j.ok){ if(j.error==='bad_key'){ $('#dashKey').hidden=false; $('#dashBody').innerHTML='<p class="err">팀 비밀번호가 맞지 않습니다.</p>'; return; } throw new Error(j.error); }
+    const names = m && m.ok ? (m.members||[]).map(x=>String(x.name||'').trim()).filter(Boolean) : ((dashData && dashData.names)||[]);
+    dashData = {recs:dashRecs(j.items||[]), names, at:Date.now()};
+    try{ localStorage.setItem(DASH_LS, JSON.stringify(dashData)); }catch(_){}
+    renderDash();
+  }catch(e){ if(!dashData) $('#dashBody').innerHTML='<p class="err">불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.</p>'; }
+  finally{ dashLoading=false; }
+}
+function renderDash(){ if(!dashData) return;
+  const today=opsToday(), tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const tomorrow=opsYmd(tm), me=(getUser()||{}).name||'';
+  const q=(($('#dashQ')||{}).value||'').trim().toLowerCase(), qd=q.replace(/\D/g,'');
+  const hit = r => !q || r.q.toLowerCase().includes(q) || (qd.length>=3 && r.q.replace(/\D/g,'').includes(qd));   // 전화번호는 - 없이도
+  const who = r => r.owner || '(담당 없음)';
+  const recs = dashData.recs.filter(r=>hit(r) && (!dashWho || who(r)===dashWho));
+  const dl = d => d<today ? `<span class="late">지남 ${esc(opsDateLabel(d))}</span>` : d===today ? '오늘' : d===tomorrow ? '내일' : esc(opsDateLabel(d));
+  const first = r => r.due.reduce((m,t)=>t.due<m?t.due:m, '9999');
+  const col = (kind, title) => { const withT=dashTomorrow.has(kind), lim=withT?tomorrow:today;
+    const L=recs.filter(r=>r.kind===kind).map(r=>({...r, due:r.tasks.filter(t=>t.due<=lim)})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name));
+    const nT=recs.filter(r=>r.kind===kind && r.tasks.some(t=>t.due===tomorrow)).length;
+    return `<div class="dcol"><div class="dcol-h"><b>${title}</b><span class="dn">${L.length}</span></div>`
       + `<button type="button" class="dtm${withT?' on':''}" data-dtm="${kind}">${withT?'오늘까지만 보기':`내일 마감도 보기${nT?` (${nT})`:''}`}</button>`
-      + (L.length ? `<ul class="dlist">${L.map(o=>row(o)).join('')}</ul>` : `<p class="hint dempty">${withT?'오늘 · 내일 마감인 과업이 없습니다.':'오늘 마감인 과업이 없습니다.'}</p>`) + `</div>`; };
-  const people=[...new Set([...names, ...Object.keys(by)])].sort((a,b)=>(b===me)-(a===me) || (by[b]||[]).length-(by[a]||[]).length || a.localeCompare(b));
-  const mine = dashWho ? (by[dashWho]||[]).map(o=>({...o, owner:dashWho})).sort((a,b)=>a.due.localeCompare(b.due)) : [];
-  const col4 = `<div class="dcol"><div class="dcol-h"><b>개인 할일 보기</b></div><div class="dpeople">${people.map(n=>{ const L=by[n]||[], lt=L.filter(o=>o.due<today).length;
-      return `<button type="button" class="dperson${n===dashWho?' on':''}${n===me?' me':''}" data-dwho="${esc(n)}">${esc(n)}${n===me?' (나)':''} <small>${L.length}${lt?` · <span class="late">지남 ${lt}</span>`:''}</small></button>`; }).join('')}</div>`
-    + (dashWho ? `<div class="dwho-h">${esc(dashWho)} · 남은 과업 ${mine.length}개</div>` + (mine.length ? `<ul class="dlist">${mine.map(o=>`<li class="${o.due<today?'late':o.due===today?'today':''}"><a href="${o.href}">${dueTag(o)}<span class="dk k-${o.kind}">${o.kind}</span><b>${esc(o.title)}</b><small>${esc(o.who)}</small></a></li>`).join('')}</ul>` : '<p class="hint dempty">남은 과업이 없습니다.</p>') : '<p class="hint dempty">이름을 누르면 그 사람의 할일이 보입니다.</p>')
-    + `</div>`;
-  const todayAll=all.filter(o=>o.due<=today);
-  $('#dashSum').textContent = `오늘 마감 ${todayAll.filter(o=>o.due===today).length}개 · 기한 지남 ${todayAll.filter(o=>o.due<today).length}개`;
+      + (L.length ? `<ul class="dlist">${L.map(r=>{ const late=r.due.some(t=>t.due<today);
+          return `<li class="drec${late?' late':''}"><a href="${r.href}"><span class="dr-h"><b>${esc(r.name)}</b><span class="downer${r.owner===me?' me':''}">${esc(r.owner||'담당 없음')}</span></span>`
+            + r.due.slice().sort((a,b)=>a.due.localeCompare(b.due)).map(t=>`<span class="dr-t">${dl(t.due)} · ${esc(t.title)}</span>`).join('') + `</a></li>`; }).join('')}</ul>`
+        : `<p class="hint dempty">${q?'검색에 맞는 것이 없습니다.':withT?'오늘 · 내일까지 할 것이 없습니다.':'오늘까지 할 것이 없습니다.'}</p>`) + `</div>`; };
+  // ④ 개인 할일 보기: 1행 1명, 오늘까지 할 것(기한 지난 것 포함)이 있는 예약 · 통화 · 업무 수 — 개인고객 전화 · 단체고객 전화 · 기타
+  const all=dashData.recs.filter(hit), cnt=(n,k)=>all.filter(r=>who(r)===n && r.kind===k && r.tasks.some(t=>t.due<=today)).length, lateN=n=>all.filter(r=>who(r)===n && r.tasks.some(t=>t.due<today)).length;
+  const people=[...new Set([...dashData.names, ...dashData.recs.map(who)])].map(n=>({n, a:cnt(n,'개인'), b:cnt(n,'단체'), c:cnt(n,'기타'), l:lateN(n)}))
+    .sort((x,y)=>(y.n===me)-(x.n===me) || (y.a+y.b+y.c)-(x.a+x.b+x.c) || x.n.localeCompare(y.n));
+  const num = v => v ? `<td>${v}</td>` : '<td class="z">0</td>';
+  const col4 = `<div class="dcol"><div class="dcol-h"><b>개인 할일 보기</b><span class="dn">오늘까지</span></div>${dashWho?`<p class="pfilter">${esc(dashWho)} 것만 보는 중 · 다시 누르면 모두</p>`:''}`
+    + `<div class="ptbl-wrap"><table class="ptbl"><thead><tr><th>이름</th><th>개인고객</th><th>단체고객</th><th>기타</th></tr></thead><tbody>${people.map(p=>`<tr class="${p.n===dashWho?'on':''}${p.n===me?' me':''}" data-dwho="${esc(p.n)}"><td>${esc(p.n)}${p.l?`<span class="late"> 지남 ${p.l}</span>`:''}</td>${num(p.a)}${num(p.b)}${num(p.c)}</tr>`).join('')}</tbody></table></div></div>`;
   $('#dashBody').innerHTML = `<div class="dcols">${col('개인','개인고객 전화')}${col('단체','단체고객 전화')}${col('기타','기타 개인 할일')}${col4}</div>`;
 }
 document.addEventListener('click', e=>{
   const t=e.target.closest('[data-dtm]'); if(t){ const k=t.dataset.dtm; dashTomorrow.has(k) ? dashTomorrow.delete(k) : dashTomorrow.add(k); renderDash(); return; }
   const w=e.target.closest('[data-dwho]'); if(w){ dashWho = dashWho===w.dataset.dwho ? '' : w.dataset.dwho; renderDash(); }
 });
+if($('#dashQ')) $('#dashQ').addEventListener('input', ()=>renderDash());
 let dashTimer=null, dashLast=0;
 function loadDashCached(){ renderDash(); }
 $('#dashReload').onclick = () => loadDash();
