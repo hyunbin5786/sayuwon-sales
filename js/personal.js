@@ -252,11 +252,11 @@ async function loadMembers(){ if(!getKey()) return; try{ const j=await callApi({
 setTimeout(loadMembers, 500); setInterval(loadMembers, 2*60e3); window.addEventListener('focus', loadMembers);   // 새 멤버는 2분마다 · 이 창으로 돌아올 때 다시 받아 자동으로 추가
 // 예약 여부 칸은 없앰 (2026-11-18 · 안 씀). 예전 통화에 적힌 값은 기록에만 남음
 // ===================== 카카오톡 보고용 글자 복사 =====================
-// [구분] 담당자 -> 보고전달자 / 고객 이름 / 연락처 / 방문 희망일/예약일 / 인원 / 문의내용
+// [구분] / 고객 이름 / 연락처 / 일시 / 인원 / 문의내용 (비어 있는 줄은 뺌)
 function reportText(){ const f=form, who=(cur && cur.takenBy) || user.name || '';
   // 비어 있는 항목은 줄째 빼고 (첫 줄은 늘)
   const phone = /^010-?$/.test(String(f.phone||'').trim()) ? '' : f.phone;
-  return [`[${f.cat||'구분 없음'}] ${who}${f.reportTo ? ` -> ${f.reportTo}` : ''}`,
+  return [`[${f.cat||CAT_DEFAULT}]`,   // 첫 줄은 [구분]만 (받은 사람 이름 · 보고전달자는 넣지 않음, 2026-11-18)
     f.name && `고객 이름 : ${f.name}`, phone && `연락처 : ${phone}`, f.date && `일시 : ${dLabel(f.date)}`,
     f.people && `인원 : ${f.people}${/^\d+$/.test(f.people)?'명':''}`, String(f.note||'').trim() && `문의내용 : ${f.note}`].filter(Boolean).join('\n'); }
 async function copyText(s){ try{ await navigator.clipboard.writeText(s); return true; }catch(_){ const t=document.createElement('textarea'); t.value=s; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(__){} t.remove(); return ok; } }
