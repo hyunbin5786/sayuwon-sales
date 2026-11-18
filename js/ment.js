@@ -7,6 +7,11 @@
 //  - 로그인하지 않아도 보고 복사할 수 있음 (팀 비밀번호는 필요). 추가 · 수정 · 삭제는 로그인한 사람만
 //  - 처음(아직 아무것도 없을 때)은 기본 멘트 [홈페이지링크] 하나
 (function(){
+  // 새 버전이 나오면 스스로 새로 불러옴 (2026-11-18): 휴대폰 · 컴퓨터 브라우저가 이 화면을 10분까지 기억해서 예전 코드(예전 즐겨찾기 방식 등)가 돌던 것
+  (function(){ try{ const me=[...document.scripts].map(s=>s.src).find(s=>/js\/ment\.js\?v=/.test(s)), cur=me && me.split('?v=')[1];
+    if(!cur || sessionStorage.getItem('sy_ment_fresh')===cur) return;
+    fetch('ment.html?nc='+Date.now(), {cache:'no-store'}).then(r=>r.text()).then(t=>{ const m=t.match(/js\/ment\.js\?v=([\w-]+)/); if(m && m[1]!==cur && sessionStorage.getItem('sy_ment_fresh')!==m[1]){ sessionStorage.setItem('sy_ment_fresh', m[1]);   /* 한 번만 (끝없이 돌지 않게) */ location.replace(location.pathname+'?v='+m[1]); } }).catch(()=>{});
+  }catch(_){} })();
   const $=s=>document.querySelector(s), esc=SY.esc;
   const ID='mentdb', TYPE='응대멘트', CACHE_LS='sy_ment_cache', FAV_LS='sy_ment_fav';
   const LOCAL_FAVS=SY.readJSON(FAV_LS, []);   // 예전(이 브라우저만) 즐겨찾기 → 공유로 옮길 때 씀 (2026-11-18)
@@ -15,7 +20,7 @@
   const canEdit = () => logged && !isMobile();   // 추가 · 수정 · 삭제 · 즐겨찾기 바꾸기는 컴퓨터에서 로그인한 사람만
   const DEFAULT=[{ id:'home', title:'홈페이지링크', body:'안녕하세요.\n사유원입니다.\n\n공식 홈페이지 링크 보내드립니다.\nhttps://sayuwon.com/\n\n감사합니다.' }];
   const user=SY.user(), logged=!!user;
-  let failed=false, loaded=!!SY.readJSON(CACHE_LS, null);   // 이 기기에서 공유 멘트를 한 번이라도 받았는지 (못 받았으면 기본 멘트 대신 팀 비밀번호 안내)
+  let pushing=false, failed=false, loaded=!!SY.readJSON(CACHE_LS, null);   // 이 기기에서 공유 멘트를 한 번이라도 받았는지 (못 받았으면 기본 멘트 대신 팀 비밀번호 안내)
   let row=null, items=SY.readJSON(CACHE_LS, null)||DEFAULT.slice(), edit=null, draftImgs=[], uploading=0;   // edit = 고치는 멘트 id ('new' = 새로) · draftImgs = 고치는 중 이미지
   const imgCache={}, imgWait={};   // 이미지 id → data URL (이 창에서만)
   $('#me').textContent = logged ? '👤 '+user.name : '';
@@ -34,6 +39,7 @@
     // 예전에 이 컴퓨터에서만 해 둔 즐겨찾기 → 공유 즐겨찾기로 한 번 옮김 (아직 아무 멘트도 즐겨찾기가 없을 때만)
     if(canEdit() && LOCAL_FAVS.length && r && !items.some(x=>x.fav)){ items=items.map(x=>LOCAL_FAVS.includes(x.id) ? {...x, fav:true} : x); try{ localStorage.removeItem(FAV_LS); }catch(_){} LOCAL_FAVS.length=0; if(items.some(x=>x.fav)) push('이 컴퓨터의 즐겨찾기를 휴대폰에도 보이게 옮겼습니다.'); } };
   async function pull(){
+    if(pushing) return;   // 저장 중에는 다시 읽지 않음 (저장 전 내용으로 덮어쓰지 않게)
     setSync('불러오는 중…');
     try{ const j=await api({action:'mentList'}); applyRow(j.ment||null); return; }
     catch(e){
@@ -46,8 +52,8 @@
     const item={...(row||{}), id:ID, callType:TYPE, saved:(row&&row.saved)||now, takenBy:user.name, summary:`전화응대 멘트 ${items.length}개`, history:JSON.stringify({items, at:now, by:user.name})};
     delete item.date; delete item.org;
     SY.writeJSON(CACHE_LS, items); render(); setSync('저장 중…');
-    try{ await api({action:'put', item}); row=item; setSync(''); toast(what); return true; }
-    catch(e){ setSync('저장 못 함'); if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('고친 내용을 저장하려면 팀 비밀번호가 필요합니다. 위 칸에 넣어 주세요.', 4000); } else toast('저장하지 못했습니다: '+(e.code||e.message)); return false; }   // 고치기만 비밀번호 필요
+    pushing=true; try{ await api({action:'put', item}); row=item; pushing=false; setSync(''); toast(what); return true; }
+    catch(e){ pushing=false; setSync('저장 못 함'); if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('고친 내용을 저장하려면 팀 비밀번호가 필요합니다. 위 칸에 넣어 주세요.', 4000); } else toast('저장하지 못했습니다: '+(e.code||e.message)); return false; }   // 고치기만 비밀번호 필요
   }
 
   // ---------- 이미지 ----------
@@ -145,7 +151,14 @@
         toast(needDeploy(err) || (isMobile() ? '그림을 보내지 못했습니다. 잠시 뒤 다시 눌러 주세요 (그림을 받는 중일 수 있습니다).' : '이미지를 복사하지 못했습니다. 크롬 · 엣지에서 해 주세요.'), 4000); } return; }
     if(e.target.closest('[data-mfav]') && m){   // 즐겨찾기: 멘트에 저장 → 휴대폰 · 컴퓨터 · 모든 사람에게 같은 순서 (바꾸기는 컴퓨터에서 로그인한 사람만)
       if(!canEdit()){ toast(isMobile() ? '즐겨찾기는 컴퓨터에서 바꿀 수 있습니다.' : '로그인하면 즐겨찾기를 바꿀 수 있습니다.'); return; }
-      items=items.map(x=>x.id===id ? {...x, fav:!x.fav} : x); await push(!m.fav ? `「${m.title}」 즐겨찾기 · 위로 올렸습니다 (휴대폰에도).` : `「${m.title}」 즐겨찾기를 뺐습니다.`); return; }
+      const want=!m.fav; items=items.map(x=>x.id===id ? {...x, fav:want} : x);
+      const ok=await push(want ? `「${m.title}」 즐겨찾기 저장 중…` : `「${m.title}」 즐겨찾기 빼는 중…`);
+      if(!ok){ items=items.map(x=>x.id===id ? {...x, fav:m.fav} : x); SY.writeJSON(CACHE_LS, items); render(); return; }   // 저장 못 하면 되돌림 (팀 비밀번호 칸이 뜸)
+      // 공유 기록에 정말 들어갔는지 다시 읽어서 확인 (휴대폰과 같은 길로)
+      try{ const j=await api({action:'mentList'}); let h={}; try{ h=JSON.parse((j.ment||{}).history||'{}'); }catch(_){}
+        const s=(h.items||[]).find(x=>x.id===id); toast(s && !!s.fav===want ? (want ? `「${m.title}」 즐겨찾기 · 휴대폰에도 맨 위에 보입니다.` : `「${m.title}」 즐겨찾기를 뺐습니다 (휴대폰에도).`) : '즐겨찾기가 공유 기록에 저장되지 않았습니다. 잠시 뒤 다시 눌러 주세요.', 3500); }
+      catch(_){ toast('저장은 했지만 확인하지 못했습니다. 휴대폰에서 새로고침해 보세요.', 3500); }
+      return; }
     const dl=e.target.closest('[data-imgdel]'); if(dl){ draftImgs.splice(+dl.dataset.imgdel, 1); paintDraft(); return; }
     if((e.target.closest('[data-medit]') || e.target.closest('[data-msave]') || e.target.closest('[data-mdel]')) && !canEdit()){ toast('멘트 추가 · 수정은 컴퓨터에서 할 수 있습니다.'); return; }   // 휴대폰에서는 복사만
     if(e.target.closest('[data-medit]')){ edit=id; draftImgs=[...((m&&m.imgs)||[])]; render(); box.scrollIntoView?.({block:'nearest'}); return; }
