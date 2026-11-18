@@ -169,7 +169,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['etcDiscTx','기타할인 과세'],['etcDiscTf','기타할인 비과세'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['idisc','항목 할인'],['idamt','항목 할인액'],['isp','항목 특별 할인'],['linkSent','결제링크 전송'],['paidAt','입금 확인'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원']];
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['etcDiscTx','기타할인 과세'],['etcDiscTf','기타할인 비과세'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['idisc','항목 할인'],['idamt','항목 할인액'],['isp','항목 특별 할인'],['linkSent','결제링크 전송'],['paidAt','입금 확인'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원'],['cancelWhy','취소 사유']];
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
@@ -2174,7 +2174,7 @@ async function renderList(){
   document.querySelectorAll('#stageFilter button').forEach(b=>b.classList.toggle('dim', !!q));   // 검색 중에는 단계 버튼이 적용 안 됨
   document.querySelectorAll('#sortSeg button').forEach(b=>b.classList.toggle('on', b.dataset.o===listSort));
   listView = { shown, stageOf, erpOf };   // 엑셀로 내려받기에 씀
-  const stageTag = r => { const s=stageOf(r); return `<span class="tag st-${s}">${s}</span>`; };
+  const stageTag = r => { const s=stageOf(r), cw=s==="예약취소" ? unpackExtra(r).cancelWhy : ""; return `<span class="tag st-${s}"${cw?` title="취소 사유: ${esc(cw)}"`:""}>${s}</span>`; };   // 예약취소는 마우스를 올리면 사유
   // 방문일 순: 오늘부터 가까운 날 → 날짜 없음 → 지난 예약(최근 방문부터, 흐리게)
   const order = listSort==='date' ? (a,b)=>{ const pa=isPast(a), pb=isPast(b); if(pa!==pb) return pa?1:-1; return pa ? String(b.date).localeCompare(String(a.date)) : listOrder(a,b); } : listOrder;
   $('#listBody').innerHTML=shown.slice().sort(order).map(r=>`<tr class="r${isPast(r)?' past':''}${stageOf(r)==='예약취소'?' cancel':''}" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td class="acts">${del(r.id)}</td></tr>`).join('')
@@ -2833,9 +2833,26 @@ function renderStage(){
   const s=effStage(rec), manual=STAGES.includes(rec.stage);
   document.querySelectorAll('#stageSeg button').forEach(b=>{ b.classList.toggle('on', b.dataset.s===s && manual); b.classList.toggle('guess', b.dataset.s===s && !manual);
     if(b.dataset.s==='예약취소'){ const base=rec.stage==='예약취소' ? '' : s; b.disabled = base==='예약상담'; b.title = b.disabled ? '예약취소는 가예약 · 예약확정에서만' : '예약 취소 (회색 · 추후 과업 없음)'; } });
+  { const cw=$('#cancelWhyTxt'); if(cw){ const on=s==='예약취소' && !!rec.cancelWhy; cw.hidden=!on; cw.textContent=on ? '사유: '+rec.cancelWhy : ''; cw.title='눌러서 사유 고치기'; } }   // 예약취소 사유를 버튼 옆에
   const lbl = $('#saveBtn').firstChild; if(lbl) lbl.textContent = '저장'; $('#saveBtn').title = `${s}으로 저장 (Ctrl+S)`;   // 단계는 왼쪽 버튼에 보이므로 글자는 짧게
 }
-document.querySelectorAll('#stageSeg button').forEach(b=>b.onclick=()=>{ rec.stage = rec.stage===b.dataset.s ? '' : b.dataset.s; touched.add('stage'); renderSide(); });
+// 단계 버튼: 같은 버튼을 다시 누르면 자동으로 · 예약취소는 사유를 받은 뒤 (2026-11-18) · 다른 단계로 바꾸면 취소 사유는 지움
+const CANCEL_REASONS = ['일정 변경','인원 부족','다른 곳 이용','날씨','단체 사정','기타'];
+function setStage(s){ rec.stage=s; touched.add('stage'); if(s!=='예약취소' && rec.cancelWhy){ rec.cancelWhy=''; touched.add('cancelWhy'); } renderSide(); }
+document.querySelectorAll('#stageSeg button').forEach(b=>b.onclick=()=>{
+  const s=b.dataset.s;
+  if(s==='예약취소' && rec.stage!=='예약취소'){ openCancel(); return; }
+  setStage(rec.stage===s ? '' : s); });
+function openCancel(){
+  $('#cancelChips').innerHTML = CANCEL_REASONS.map(c=>`<button type="button" class="chip" data-cr="${esc(c)}">${esc(c)}</button>`).join('');
+  $('#cancelWhy').value = rec.cancelWhy||''; $('#cancelModal').hidden=false; setTimeout(()=>$('#cancelWhy').focus(), 0); }
+$('#cancelChips').addEventListener('click', e=>{ const c=e.target.closest('[data-cr]'); if(!c) return; const t=$('#cancelWhy'); t.value = c.dataset.cr==='기타' ? t.value : (t.value.trim() ? t.value.trim()+' · ' : '')+c.dataset.cr; t.focus(); });
+$('#cancelNo').onclick=()=>{ $('#cancelModal').hidden=true; };
+$('#cancelOk').onclick=()=>{ const v=$('#cancelWhy').value.trim().replace(/\s*\n+\s*/g,' · ');
+  if(!v){ toast('취소 사유를 적어 주세요.'); $('#cancelWhy').focus(); return; }
+  $('#cancelModal').hidden=true; rec.cancelWhy=v.replace(/\s\/\s/g,' · '); touched.add('cancelWhy'); setStage('예약취소');
+  if(editingId) save({auto:true}); toast(`예약취소로 바꿨습니다 · 사유: ${rec.cancelWhy}`); };
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#cancelModal').hidden){ e.preventDefault(); $('#cancelModal').hidden=true; } });
 LABEL.stage='예약 단계'; LABEL.erp='전산 등록';
 
 // ===================== 단체상담 입력: "항목<탭>값" 줄을 칸으로 =====================
@@ -3658,3 +3675,4 @@ document.addEventListener('change', async e=>{
 });
 // 예약 현황 아래 그날 목록: 단체 예약에서 온 줄을 누르면 그 예약 열기 (고치던 것은 openRecordG 가 먼저 물어봄)
 document.addEventListener('click', e=>{ const li=e.target.closest?.('#dayAll li[data-bopen]'); if(!li || !li.dataset.bopen) return; const r=cache.find(x=>x.id===li.dataset.bopen); if(r) openRecordG(r); });
+$('#cancelWhyTxt')?.addEventListener('click', openCancel);   // 사유를 누르면 고치기

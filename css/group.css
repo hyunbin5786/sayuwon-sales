@@ -805,3 +805,11 @@ html.book-guest #bookBody tr{cursor:default}
 .it-money .im.dsel{margin-right:auto}
 .it-money .im-r{margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:4px 14px;text-align:right}
 .it-money .im-r .im.amt{margin-left:0}
+/* 예약 단계 버튼: 「예약 내용」과 같은 줄 오른쪽 (2026-11-18) · 미정 항목 답변일은 그 앞 · 예약취소 사유는 버튼 옆 */
+.form-head h2{order:0;margin-right:auto}
+.form-head .tbd-date{order:1;margin-left:0}
+.form-head .stage-head{order:2;margin-left:8px}
+.cancel-why{font-size:12px;color:var(--muted);max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+#cancelChips{display:flex;flex-wrap:wrap;gap:6px}
+#cancelChips .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 12px;font:13px var(--sans);cursor:pointer}
+#cancelChips .chip:hover{border-color:var(--pine);color:var(--pine)}
