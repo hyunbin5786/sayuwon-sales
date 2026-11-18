@@ -678,8 +678,8 @@ html.book-guest #bookBody tr{cursor:default}
 .f.got input:not([type=checkbox]),.f.got select,.f.got .dtxt{border-color:#9db394;background:#f3f8ef}
 .f.tbd input:not([type=checkbox]),.f.tbd select,.f.tbd .dtxt{border-color:var(--amber);background:var(--amber-soft)}
 /* 결제링크 전송 · 입금 확인 · 인원 변경 · 현장 재결제 등 체크 칸: 체크되면 검정 계열 */
-.ckf:has(input:checked){background:#3b3a36;border-color:#3b3a36;color:#fff;font-weight:700}
-.ckf:has(input:checked) input{accent-color:#fff}
+.ckf:has(input:checked){background:#ecebe7;border-color:#c9c6be;color:#55534d;font-weight:700}   /* 체크되면 연한 회색 (2026-11-18) */
+.ckf:has(input:checked) input{accent-color:#8a877f}
 /* 담당자 미정 */
 .ctbd-ck{display:inline-flex;align-items:center;gap:5px;margin:0 0 6px;padding:3px 10px;border:1px solid var(--line);border-radius:14px;background:#fff;font-size:12.5px;cursor:pointer;color:var(--muted)}
 .ctbd-ck:has(input:checked){background:var(--amber-soft);border-color:var(--amber);color:var(--amber);font-weight:700}
