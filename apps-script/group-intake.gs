@@ -63,6 +63,15 @@ function doPost(e) {
   catch (err) { return json_({ ok: false, error: "bad_json" }); }
   // 로그인 확인 (팀 비밀번호 없이): 이름 + 사번이 멤버 목록에 있는지만 알려 준다 (목록은 돌려주지 않음)
   if (req.action === "login") return json_(memberLogin_(req.name, req.emp));
+  // 전화응대 멘트는 팀 비밀번호 없이 읽기만 (주로 휴대폰에서 봄, 2026-11-18): 멘트 목록(mentdb 한 줄의 내용) · 멘트 이미지. 고치기(put)는 그대로 비밀번호 필요
+  if (req.action === "mentList") {
+    try { return json_({ ok: true, ment: mentRow_() }); }
+    catch (err) { return json_({ ok: false, error: "mentlist: " + String(err && err.message || err) }); }
+  }
+  if (req.action === "mentImgGet") {
+    try { return json_({ ok: true, file: mentImgGet_(String(req.id || "")) }); }
+    catch (err) { return json_({ ok: false, error: "mentimg: " + String(err && err.message || err) }); }
+  }
   var pc = passcode_();
   if (!pc || String(req.key || "") !== pc) return json_({ ok: false, error: "bad_key" });
 
@@ -89,10 +98,6 @@ function doPost(e) {
   // 전화응대 멘트 이미지 (2026-11-18): 드라이브 '사유원 단체예약 서류' 안 '응대멘트 이미지' 폴더에만 올리고 · 그 폴더 파일만 돌려줌
   if (req.action === "mentImgPut") {
     try { return json_({ ok: true, file: mentImgPut_(req) }); }
-    catch (err) { return json_({ ok: false, error: "mentimg: " + String(err && err.message || err) }); }
-  }
-  if (req.action === "mentImgGet") {
-    try { return json_({ ok: true, file: mentImgGet_(String(req.id || "")) }); }
     catch (err) { return json_({ ok: false, error: "mentimg: " + String(err && err.message || err) }); }
   }
   if (req.action === "syncAdmin") {
@@ -326,6 +331,16 @@ function mentImgPut_(req) {
   var name = String(req.name || "멘트 이미지").replace(/[\/:*?"<>|\r\n]+/g, " ").trim().slice(0, 60) || "멘트 이미지";
   var file = mentImgFolder_().createFile(Utilities.newBlob(bytes, mime, name));
   return { id: file.getId(), name: name, at: new Date().toISOString() };
+}
+// 멘트 목록 한 줄(id mentdb)의 내용만 (다른 기록은 돌려주지 않음)
+function mentRow_() {
+  var s = sheet_(), n = s.getLastRow(); if (n < 2) return null;
+  var idCol = KEYS.indexOf("id") + 1, hCol = KEYS.indexOf("history") + 1, sCol = KEYS.indexOf("saved") + 1, dCol = KEYS.indexOf("deleted") + 1;
+  var cell = s.getRange(2, idCol, n - 1, 1).createTextFinder("mentdb").matchEntireCell(true).findNext();
+  if (!cell) return null;
+  var r = cell.getRow();
+  if (dCol > 0 && s.getRange(r, dCol).getDisplayValue()) return null;
+  return { history: s.getRange(r, hCol).getValue(), saved: sCol > 0 ? s.getRange(r, sCol).getDisplayValue() : "" };
 }
 function mentImgGet_(id) {
   if (!id) throw new Error("no_id");

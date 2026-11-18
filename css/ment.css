@@ -41,3 +41,16 @@ main{max-width:1760px}
 @media (max-width:1100px){ .ment-list{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:700px){ .ment-list{grid-template-columns:1fr} }
 .need-key{grid-column:1/-1;margin:0;padding:16px;border:1px dashed var(--line);border-radius:10px;background:#fffdf2;font-size:14px;line-height:1.7}
+/* 휴대폰 (2026-11-18): 제목과 복사 버튼만 (글 내용 · 검색 줄 설명은 숨김) — 데스크탑은 그대로 */
+@media (max-width:700px){
+  main{padding:12px 10px 40px}
+  .ment-list{gap:8px}
+  .ment{padding:10px 12px;gap:0}
+  .m-body-v{display:none}
+  .m-head b{flex:1 1 calc(100% - 34px);font-size:15px;margin-bottom:6px;order:-1}
+  .m-head .m-star{order:-2}
+  .m-head .sp{display:none}
+  .m-head .btn.sm{height:34px;padding:0 14px;font-size:13px}
+  .m-head [data-medit]{display:none}
+  #guestHint,#addBtn{display:none}
+}

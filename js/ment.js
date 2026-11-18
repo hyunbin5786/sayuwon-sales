@@ -12,7 +12,7 @@
   let favs=new Set(SY.readJSON(FAV_LS, []));   // 즐겨찾기 (이 브라우저 · 사람마다 따로, 로그인 안 해도 됨)
   const DEFAULT=[{ id:'home', title:'홈페이지링크', body:'안녕하세요.\n사유원입니다.\n\n공식 홈페이지 링크 보내드립니다.\nhttps://sayuwon.com/\n\n감사합니다.' }];
   const user=SY.user(), logged=!!user;
-  let loaded=!!SY.readJSON(CACHE_LS, null);   // 이 기기에서 공유 멘트를 한 번이라도 받았는지 (못 받았으면 기본 멘트 대신 팀 비밀번호 안내)
+  let failed=false, loaded=!!SY.readJSON(CACHE_LS, null);   // 이 기기에서 공유 멘트를 한 번이라도 받았는지 (못 받았으면 기본 멘트 대신 팀 비밀번호 안내)
   let row=null, items=SY.readJSON(CACHE_LS, null)||DEFAULT.slice(), edit=null, draftImgs=[], uploading=0;   // edit = 고치는 멘트 id ('new' = 새로) · draftImgs = 고치는 중 이미지
   const imgCache={}, imgWait={};   // 이미지 id → data URL (이 창에서만)
   $('#me').textContent = logged ? '👤 '+user.name : '';
@@ -25,15 +25,15 @@
     const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j;
   }
   const needDeploy = e => e && e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 이미지를 쓸 수 있습니다 (apps-script/group-intake.gs).' : '';
+  // 불러오기: 팀 비밀번호 없이 (Apps Script mentList · 2026-11-18, 주로 휴대폰). 예전 배포면 비밀번호가 있는 기기만 전체 목록에서
+  const applyRow = r => { row = r ? {...(row||{}), ...r} : row; let h=null; try{ h=r ? JSON.parse(r.history||'{}') : null; }catch(_){}
+    items = h && Array.isArray(h.items) ? h.items : DEFAULT.slice(); SY.writeJSON(CACHE_LS, items); loaded=true; failed=false; setSync(''); if(!edit) render(); };
   async function pull(){
-    if(!SY.getKey()){ $('#keyBox').hidden=false; render(); return; }
     setSync('불러오는 중…');
-    try{ const j=await api({action:'list'}); $('#keyBox').hidden=true;
-      row=(j.items||[]).find(r=>r.id===ID)||null;
-      let h=null; try{ h=row ? JSON.parse(row.history||'{}') : null; }catch(_){}
-      items = h && Array.isArray(h.items) ? h.items : DEFAULT.slice();
-      SY.writeJSON(CACHE_LS, items); loaded=true; setSync(''); if(!edit) render();
-    }catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; $('#keyErr').textContent='비밀번호가 맞지 않습니다.'; } setSync('연결 안 됨 · 잠시 뒤 다시'); }
+    try{ const j=await api({action:'mentList'}); applyRow(j.ment||null); return; }
+    catch(e){
+      if(SY.getKey()){ try{ const j=await api({action:'list'}); applyRow((j.items||[]).find(r=>r.id===ID)||null); return; } catch(_){} }
+      failed=true; setSync('연결 안 됨 · 잠시 뒤 다시'); if(!loaded && !edit) render(); }
   }
   async function push(what){
     if(!logged){ toast('로그인한 사람만 고칠 수 있습니다.'); return false; }
@@ -42,7 +42,7 @@
     delete item.date; delete item.org;
     SY.writeJSON(CACHE_LS, items); render(); setSync('저장 중…');
     try{ await api({action:'put', item}); row=item; setSync(''); toast(what); return true; }
-    catch(e){ setSync('저장 못 함'); toast('저장하지 못했습니다: '+(e.code||e.message)); return false; }
+    catch(e){ setSync('저장 못 함'); if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('고친 내용을 저장하려면 팀 비밀번호가 필요합니다. 위 칸에 넣어 주세요.', 4000); } else toast('저장하지 못했습니다: '+(e.code||e.message)); return false; }   // 고치기만 비밀번호 필요
   }
 
   // ---------- 이미지 ----------
@@ -91,8 +91,8 @@
   }
 
   function render(){
-    // 이 기기에서 아직 공유 멘트를 못 받았으면(팀 비밀번호 없음 등) 예전 기본 멘트 대신 안내 (2026-11-18: 휴대폰에 옛 멘트만 보이던 것)
-    if(!loaded && !edit){ $('#sum').textContent=''; $('#list').innerHTML='<p class="need-key">이 기기에서는 아직 공유 멘트를 받지 못했습니다.<br><b>위 칸에 팀 비밀번호</b>(단체 화면과 같은 비밀번호)를 넣고 「연결」을 누르면 모든 멘트가 보입니다. 한 번 넣으면 이 기기에 기억됩니다.</p>'; return; }
+    // 이 기기에서 아직 멘트를 못 받았으면 예전 기본 멘트 대신 「불러오는 중」 · 「불러오지 못함」 (팀 비밀번호는 필요 없음, 2026-11-18)
+    if(!loaded && !edit){ $('#sum').textContent=''; $('#list').innerHTML = failed ? '<p class="need-key">멘트를 불러오지 못했습니다. 인터넷 연결을 확인하고 잠시 뒤 다시 열어 주세요.</p>' : '<p class="need-key">멘트를 불러오는 중…</p>'; return; }
     const q=$('#q').value.trim().replace(/\s/g,'').toLowerCase();
     const list=items.filter(m=>!q || (m.title+m.body).replace(/\s/g,'').toLowerCase().includes(q))
       .map((m,i)=>({m,i})).sort((a,b)=>(favs.has(b.m.id)-favs.has(a.m.id)) || a.i-b.i).map(o=>o.m);   // 즐겨찾기한 멘트가 위로 (그 안에서는 원래 순서)
@@ -149,7 +149,7 @@
   $('#askNo').onclick=()=>{ $('#askModal').hidden=true; };
   $('#addBtn').onclick=()=>{ if(!logged) return; edit='new'; draftImgs=[]; $('#q').value=''; render(); };
   $('#q').addEventListener('input', ()=>{ if(!edit) render(); });
-  $('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(SY.KEY_LS, v); }catch(_){} $('#keyIn').value=''; $('#keyErr').textContent=''; pull(); });
+  $('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(SY.KEY_LS, v); }catch(_){} $('#keyIn').value=''; $('#keyErr').textContent=''; $('#keyBox').hidden=true; toast('팀 비밀번호를 넣었습니다. 다시 저장해 주세요.'); pull(); });
   window.addEventListener('focus', ()=>{ if(!edit) pull(); });
   render(); pull();
 })();
