@@ -55,3 +55,4 @@ header:has(> .smenu-btn) [data-mypop]:hover,header:has(> .smenu-btn) #myOpenBtn:
 .smenu.dock .sm-panel{position:fixed;top:var(--sm-top,50px);left:0;bottom:0;width:300px;z-index:20;box-shadow:none;border-right:1px solid #dfdace;animation:none}
 html.smenu-dock body > main{margin-left:300px !important}
 @media (max-width:760px){ .smenu.dock .sm-panel{width:min(300px,88vw);box-shadow:4px 0 24px rgba(0,0,0,.18)} html.smenu-dock body > main{margin-left:auto !important} }
+.smenu .sm-top{padding-left:26px}   /* 「메뉴」 글자를 묶음 제목(예약보조 등)과 같은 줄에 맞춤 (2026-11-18) */
