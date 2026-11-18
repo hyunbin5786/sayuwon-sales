@@ -212,6 +212,7 @@ function fromItem(r){ let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_
 // ===================== 구분 · 예약 여부 (하나 고르기, 다시 누르면 해제) =====================
 // 구분: 처음엔 기본(예약취소 · 결제링크 · 기타문의). ＋로 추가 · 칩의 ×로 삭제(기본도 삭제 가능) → 공유 기록 한 줄(id pcats, 통화 구분 '개인구분')에 전체 목록으로 저장 → 모든 사람 화면에 같게
 //  (예전 저장 모양 {cats:[추가한 것]} 은 기본 + 추가로 읽음, 새 모양은 {cats:[전체], full:true})
+const CAT_DEFAULT='문의';   // 구분을 고르지 않고 저장하면 이 구분으로
 const PCATS_ID='pcats', PCATS_TYPE='개인구분', PCAT_DEF=['예약취소','결제링크','기타문의'], RES_OPTS=['예약함','예약 안 함'], PCATS_LS='sayuwon_pcats';
 let pcatRec = readJSON(PCATS_LS, null);
 const pcatList = r => { let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} const l=Array.isArray(j.cats) ? j.cats : []; return j.full ? [...new Set(l)] : [...new Set([...PCAT_DEF, ...l])]; };
@@ -224,11 +225,9 @@ function savePcats(list, what){
 }
 function paintChips(){
   const list=pcats(), cats=[...list]; if(form.cat && !cats.includes(form.cat)) cats.push(form.cat);   // 삭제된 구분이어도 이 통화에 고른 것은 보이게
-  $('#catChips').innerHTML = cats.map(c=>`<button type="button" data-cat="${esc(c)}" class="${form.cat===c?'on':''}${list.includes(c)?'':' gone'}" aria-pressed="${form.cat===c}">${esc(c)}${list.includes(c)?`<span class="x" data-catdel="${esc(c)}" title="'${esc(c)}' 구분 삭제 (모든 사람에게서)">×</span>`:''}</button>`).join('') + `<button type="button" class="add" data-catadd title="구분 추가 (모든 사람에게 보임)">＋</button>`;
-  // 보고전달자: 멤버관리에 등록된 사람 모두 중 하나 (안 골라도 됨). 새로 등록된 멤버는 2분마다 · 창으로 돌아올 때 받아서 자동으로 추가
-  const mem=[...memberNames];
-  if(form.reportTo && !mem.includes(form.reportTo)) mem.push(form.reportTo);   // 예전에 적어 둔 이름도 보이게
-  $('#rtChips').innerHTML = mem.length ? mem.map(n=>`<button type="button" data-rt="${esc(n)}" class="${form.reportTo===n?'on':''}" aria-pressed="${form.reportTo===n}">${esc(n)}</button>`).join('') : '<span class="hint" style="margin:0">멤버 목록을 불러오는 중…</span>';
+  // 구분 칩은 끌어서 순서를 바꿈 (모든 사람 목록 순서, 2026-11-18)
+  $('#catChips').innerHTML = cats.map(c=>`<button type="button"${list.includes(c)?' draggable="true"':''} data-cat="${esc(c)}" class="${form.cat===c?'on':''}${list.includes(c)?'':' gone'}" aria-pressed="${form.cat===c}" title="누르면 고르기 · 끌어서 순서 바꾸기">${esc(c)}${list.includes(c)?`<span class="x" data-catdel="${esc(c)}" title="'${esc(c)}' 구분 삭제 (모든 사람에게서)">×</span>`:''}</button>`).join('') + `<button type="button" class="add" data-catadd title="구분 추가 (모든 사람에게 보임)">＋</button>`;
+  // 보고전달자 칸은 없앰 (2026-11-18). 예전 통화에 적힌 보고전달자는 기록에만 남음
   $('#resChips').innerHTML = RES_OPTS.map(c=>`<button type="button" data-res="${esc(c)}" class="${form.reserved===c?'on':''}" aria-pressed="${form.reserved===c}">${esc(c)}</button>`).join('');
 }
 $('#catChips').addEventListener('click', e=>{
@@ -239,7 +238,14 @@ $('#catChips').addEventListener('click', e=>{
   if(b.dataset.catadd!==undefined){ const v=(prompt('추가할 구분 이름. 추가하면 모든 사람에게 보입니다.')||'').trim().replace(/\s+/g,' ').slice(0,20); if(!v) return;
     if(!pcats().includes(v)){ savePcats([...pcats(), v], `'${v}' 추가`); toast(`구분 '${v}'을(를) 추가했습니다. 모든 사람에게 보입니다.`); } form.cat=v; touch(); return; }
   form.cat = form.cat===b.dataset.cat ? '' : b.dataset.cat; touch(); });
-$('#rtChips').addEventListener('click', e=>{ const b=e.target.closest('button[data-rt]'); if(!b) return; form.reportTo = form.reportTo===b.dataset.rt ? '' : b.dataset.rt; touch(); });
+// 구분 순서 바꾸기: 칩을 끌어다 다른 칩 위에 놓으면 그 자리로 (모든 사람 목록 순서로 저장)
+let catDrag=null;
+$('#catChips').addEventListener('dragstart', e=>{ const b=e.target.closest('button[data-cat][draggable]'); if(!b) return; catDrag=b.dataset.cat; b.classList.add('dragging'); try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', catDrag); }catch(_){} });
+$('#catChips').addEventListener('dragover', e=>{ if(!catDrag) return; const b=e.target.closest('button[data-cat][draggable]'); if(!b || b.dataset.cat===catDrag) return; e.preventDefault(); document.querySelectorAll('#catChips .drop-to').forEach(x=>x.classList.remove('drop-to')); b.classList.add('drop-to'); });
+$('#catChips').addEventListener('drop', e=>{ if(!catDrag) return; const b=e.target.closest('button[data-cat][draggable]'); e.preventDefault(); if(!b || b.dataset.cat===catDrag){ catDrag=null; paintChips(); return; }
+  const list=pcats().filter(c=>c!==catDrag), at=list.indexOf(b.dataset.cat), from=pcats().indexOf(catDrag), to=pcats().indexOf(b.dataset.cat);
+  list.splice(from<to ? at+1 : at, 0, catDrag); const moved=catDrag; catDrag=null; savePcats(list, `순서 바꿈 ('${moved}')`); paintChips(); toast(`구분 순서를 바꿨습니다. 모든 사람에게 같은 순서로 보입니다.`); });
+$('#catChips').addEventListener('dragend', ()=>{ catDrag=null; document.querySelectorAll('#catChips .dragging, #catChips .drop-to').forEach(x=>x.classList.remove('dragging','drop-to')); });
 // 멤버 이름 (멤버관리 · 공유 시트 members 탭): 이 브라우저에 기억해 두고 열 때마다 새로
 const MEMBERS_LS='sayuwon_member_names';
 let memberNames = readJSON(MEMBERS_LS, []);
@@ -252,7 +258,7 @@ function reportText(){ const f=form, who=(cur && cur.takenBy) || user.name || ''
   // 비어 있는 항목은 줄째 빼고 (첫 줄은 늘)
   const phone = /^010-?$/.test(String(f.phone||'').trim()) ? '' : f.phone;
   return [`[${f.cat||'구분 없음'}] ${who}${f.reportTo ? ` -> ${f.reportTo}` : ''}`,
-    f.name && `고객 이름 : ${f.name}`, phone && `연락처 : ${phone}`, f.date && `방문 희망일/예약일 : ${dLabel(f.date)}`,
+    f.name && `고객 이름 : ${f.name}`, phone && `연락처 : ${phone}`, f.date && `일시 : ${dLabel(f.date)}`,
     f.people && `인원 : ${f.people}${/^\d+$/.test(f.people)?'명':''}`, String(f.note||'').trim() && `문의내용 : ${f.note}`].filter(Boolean).join('\n'); }
 async function copyText(s){ try{ await navigator.clipboard.writeText(s); return true; }catch(_){ const t=document.createElement('textarea'); t.value=s; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(__){} t.remove(); return ok; } }
 // 보고 글자 복사 → 미리보기 팝업 (글자를 고칠 수 있음) → 「복사하기」로 복사. 고친 글자는 이 팝업에서만 (통화 기록은 그대로)
@@ -271,9 +277,10 @@ function save(auto){
   // 그 메모 = 문의 내용 (메모를 직접 고치기 전까지는 문의 내용을 고치면 같이 바뀜)
   if(!cur && !form.tasks.some(t=>t.id==='inqcheck')) form.tasks.push({id:'inqcheck', title:'문의 처리 현황 점검', done:false, memo:'', memoAuto:1, at:new Date().toISOString(), due:todayYmd(), by:user.name||'', auto:1});
   { const ic=form.tasks.find(t=>t.id==='inqcheck' && t.memoAuto); if(ic) ic.memo=form.note.trim(); }
+  if(!form.cat){ form.cat=CAT_DEFAULT; if(!pcats().includes(CAT_DEFAULT)) savePcats([CAT_DEFAULT, ...pcats()], `'${CAT_DEFAULT}' 추가 (구분 없이 저장)`); paintChips(); }   // 구분을 안 고르고 저장하면 '문의' (2026-11-18)
   const item=toItem(); put(item); cur=item; saved=JSON.stringify(form); startedAt=null;
   lastAuto = auto ? Date.now() : null; paintForm(); if(!auto) toast('저장했습니다.');
-  if(!auto && form.reportTo && form.reportTo!==reportShown){ reportShown=form.reportTo; $('#copyBtn').click(); }   // 보고전달자가 정해지고 저장을 누르면 보고 글자 미리보기 (같은 보고전달자로는 한 번만)
+  // 보고전달자 칸을 없애서 저장할 때 보고 글자 팝업은 자동으로 띄우지 않음 (위 「보고 글자 복사」 버튼으로, 2026-11-18)
 }
 // 자동 저장 (단체 화면처럼): 마지막으로 고친 뒤 30초가 지나면 · 다른 창으로 가면 바로. 저장 버튼 · Ctrl+S 도 그대로
 
@@ -329,8 +336,8 @@ const MANUAL_URL = 'https://happyyy-monkeyyy.notion.site/3d645f859824807090f1df4
 $('#manualOpen').href = MANUAL_URL;   // 문의 매뉴얼은 헤더의 링크로만 (새 창)
 // ===================== 통화 기록 전체 (모든 직원이 받은 개인고객 통화) =====================
 // 삭제된 통화 (Apps Script 'deleted', 보기 전용): 같은 창에서 「삭제된 통화」 ↔ 「← 통화 기록 전체」
-const ALL_HEAD = '<tr><th>저장</th><th>고객</th><th>연락처</th><th>방문 희망일 / 예약일</th><th>인원</th><th>문의 내용</th><th>남은 과업</th><th></th><th class="owner">받은 사람</th></tr>';
-const TRASH_HEAD = '<tr><th>삭제 일시</th><th>삭제한 사람</th><th>사유</th><th>고객</th><th>연락처</th><th>방문 희망일 / 예약일</th><th>문의 내용</th><th class="owner">받은 사람</th></tr>';
+const ALL_HEAD = '<tr><th>저장</th><th>고객</th><th>연락처</th><th>일시</th><th>인원</th><th>문의 내용</th><th>남은 과업</th><th></th><th class="owner">받은 사람</th></tr>';
+const TRASH_HEAD = '<tr><th>삭제 일시</th><th>삭제한 사람</th><th>사유</th><th>고객</th><th>연락처</th><th>일시</th><th>문의 내용</th><th class="owner">받은 사람</th></tr>';
 let allTrash=false, trashItems=null, trashErr='';
 function renderTrash(q, qd){
   if(trashItems==null){ $('#allCount').textContent=''; $('#allBody').innerHTML=`<tr><td colspan="8" class="empty">${trashErr?esc(trashErr):'불러오는 중…'}</td></tr>`; return; }
