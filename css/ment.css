@@ -18,3 +18,15 @@
 .m-star{border:0;background:none;cursor:pointer;font-size:18px;line-height:1;color:#c9c3b5;padding:0 2px}
 .m-star:hover,.m-star.on{color:#d4a017}
 .ment.fav{border-color:#e8d36a;background:#fffdf2}
+/* 이미지 (2026-11-18): 고치는 칸 · 카드의 작은 그림 + 이미지 복사 */
+.m-imgs{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
+.m-img{position:relative;display:inline-flex;flex-direction:column;gap:4px;align-items:center}
+.m-img img{width:120px;height:90px;object-fit:cover;border:1px solid var(--line);border-radius:8px;background:#faf8f3;display:block}
+.m-imgs.view .m-img img{width:140px;height:105px;cursor:zoom-in}
+.m-img.err img{object-fit:contain;font-size:11px;color:var(--muted)}
+.m-imgx{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0}
+.m-imgx:hover{color:var(--red,#a4442c);border-color:var(--red,#a4442c)}
+.m-imgadd{display:inline-flex;align-items:center;height:90px;padding:0 14px;border-style:dashed}
+.ment-edit.drop{box-shadow:0 0 0 3px #9db394}
+.m-zoom{position:fixed;inset:0;z-index:50;background:rgba(30,30,25,.75);display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
+.m-zoom img{max-width:100%;max-height:100%;border-radius:8px;background:#fff}

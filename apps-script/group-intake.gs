@@ -86,6 +86,15 @@ function doPost(e) {
     try { return json_({ ok: true, file: upload_(req) }); }
     catch (err) { return json_({ ok: false, error: "upload: " + String(err && err.message || err) }); }
   }
+  // 전화응대 멘트 이미지 (2026-11-18): 드라이브 '사유원 단체예약 서류' 안 '응대멘트 이미지' 폴더에만 올리고 · 그 폴더 파일만 돌려줌
+  if (req.action === "mentImgPut") {
+    try { return json_({ ok: true, file: mentImgPut_(req) }); }
+    catch (err) { return json_({ ok: false, error: "mentimg: " + String(err && err.message || err) }); }
+  }
+  if (req.action === "mentImgGet") {
+    try { return json_({ ok: true, file: mentImgGet_(String(req.id || "")) }); }
+    catch (err) { return json_({ ok: false, error: "mentimg: " + String(err && err.message || err) }); }
+  }
   if (req.action === "syncAdmin") {
     try { return json_({ ok: true, result: syncAdmin(), admin: readAdmin_() }); }
     catch (err) { return json_({ ok: false, error: "admin_sync: " + String(err && err.message || err) }); }
@@ -302,6 +311,30 @@ function upload_(req) {
 }
 // 처음 한 번: 함수 목록에서 setupUpload 실행 → 드라이브 권한 승인 + 폴더 생성
 function setupUpload() { Logger.log("폴더: " + uploadFolder_().getUrl()); }
+// ===== 전화응대 멘트 이미지 (2026-11-18) =====
+// 사진만 (5MB 이하) · '응대멘트 이미지' 폴더 (처음 올릴 때 만듦). 불러오기도 이 폴더 안 파일만 (단체 서류는 돌려주지 않음)
+function mentImgFolder_() {
+  var parent = uploadFolder_(), it = parent.getFoldersByName("응대멘트 이미지");
+  return it.hasNext() ? it.next() : parent.createFolder("응대멘트 이미지");
+}
+function mentImgPut_(req) {
+  var mime = String(req.mime || "");
+  if (!/^image\/(jpeg|png|gif|webp)$/.test(mime)) throw new Error("사진만 올릴 수 있습니다");
+  var bytes = Utilities.base64Decode(String(req.data || ""));
+  if (!bytes.length) throw new Error("빈 파일");
+  if (bytes.length > 5 * 1024 * 1024) throw new Error("5MB 이하만 올릴 수 있습니다");
+  var name = String(req.name || "멘트 이미지").replace(/[\/:*?"<>|\r\n]+/g, " ").trim().slice(0, 60) || "멘트 이미지";
+  var file = mentImgFolder_().createFile(Utilities.newBlob(bytes, mime, name));
+  return { id: file.getId(), name: name, at: new Date().toISOString() };
+}
+function mentImgGet_(id) {
+  if (!id) throw new Error("no_id");
+  var f = DriveApp.getFileById(id), folderId = mentImgFolder_().getId(), ok = false, ps = f.getParents();
+  while (ps.hasNext()) { if (ps.next().getId() === folderId) { ok = true; break; } }
+  if (!ok) throw new Error("not_allowed");
+  var b = f.getBlob();
+  return { id: id, mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
+}
 
 function json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
