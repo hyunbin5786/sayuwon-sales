@@ -40,3 +40,4 @@ main{max-width:1760px}
 .ment-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 @media (max-width:1100px){ .ment-list{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:700px){ .ment-list{grid-template-columns:1fr} }
+.need-key{grid-column:1/-1;margin:0;padding:16px;border:1px dashed var(--line);border-radius:10px;background:#fffdf2;font-size:14px;line-height:1.7}

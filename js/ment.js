@@ -12,6 +12,7 @@
   let favs=new Set(SY.readJSON(FAV_LS, []));   // 즐겨찾기 (이 브라우저 · 사람마다 따로, 로그인 안 해도 됨)
   const DEFAULT=[{ id:'home', title:'홈페이지링크', body:'안녕하세요.\n사유원입니다.\n\n공식 홈페이지 링크 보내드립니다.\nhttps://sayuwon.com/\n\n감사합니다.' }];
   const user=SY.user(), logged=!!user;
+  let loaded=!!SY.readJSON(CACHE_LS, null);   // 이 기기에서 공유 멘트를 한 번이라도 받았는지 (못 받았으면 기본 멘트 대신 팀 비밀번호 안내)
   let row=null, items=SY.readJSON(CACHE_LS, null)||DEFAULT.slice(), edit=null, draftImgs=[], uploading=0;   // edit = 고치는 멘트 id ('new' = 새로) · draftImgs = 고치는 중 이미지
   const imgCache={}, imgWait={};   // 이미지 id → data URL (이 창에서만)
   $('#me').textContent = logged ? '👤 '+user.name : '';
@@ -25,13 +26,13 @@
   }
   const needDeploy = e => e && e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 이미지를 쓸 수 있습니다 (apps-script/group-intake.gs).' : '';
   async function pull(){
-    if(!SY.getKey()){ $('#keyBox').hidden=false; return; }
+    if(!SY.getKey()){ $('#keyBox').hidden=false; render(); return; }
     setSync('불러오는 중…');
     try{ const j=await api({action:'list'}); $('#keyBox').hidden=true;
       row=(j.items||[]).find(r=>r.id===ID)||null;
       let h=null; try{ h=row ? JSON.parse(row.history||'{}') : null; }catch(_){}
       items = h && Array.isArray(h.items) ? h.items : DEFAULT.slice();
-      SY.writeJSON(CACHE_LS, items); setSync(''); if(!edit) render();
+      SY.writeJSON(CACHE_LS, items); loaded=true; setSync(''); if(!edit) render();
     }catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; $('#keyErr').textContent='비밀번호가 맞지 않습니다.'; } setSync('연결 안 됨 · 잠시 뒤 다시'); }
   }
   async function push(what){
@@ -90,6 +91,8 @@
   }
 
   function render(){
+    // 이 기기에서 아직 공유 멘트를 못 받았으면(팀 비밀번호 없음 등) 예전 기본 멘트 대신 안내 (2026-11-18: 휴대폰에 옛 멘트만 보이던 것)
+    if(!loaded && !edit){ $('#sum').textContent=''; $('#list').innerHTML='<p class="need-key">이 기기에서는 아직 공유 멘트를 받지 못했습니다.<br><b>위 칸에 팀 비밀번호</b>(단체 화면과 같은 비밀번호)를 넣고 「연결」을 누르면 모든 멘트가 보입니다. 한 번 넣으면 이 기기에 기억됩니다.</p>'; return; }
     const q=$('#q').value.trim().replace(/\s/g,'').toLowerCase();
     const list=items.filter(m=>!q || (m.title+m.body).replace(/\s/g,'').toLowerCase().includes(q))
       .map((m,i)=>({m,i})).sort((a,b)=>(favs.has(b.m.id)-favs.has(a.m.id)) || a.i-b.i).map(o=>o.m);   // 즐겨찾기한 멘트가 위로 (그 안에서는 원래 순서)
