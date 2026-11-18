@@ -6,8 +6,8 @@
 <title>예약 현황 공유 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261119b1">
-<link rel="stylesheet" href="css/status.css?v=20261119a8">
+<link rel="stylesheet" href="css/prep.css?v=20261119b2">
+<link rel="stylesheet" href="css/status.css?v=20261119b2">
 <link rel="stylesheet" href="css/menu.css?v=20261120t">
 </head>
 <body>
@@ -18,9 +18,11 @@
 </header>
 <main class="st-main">
   <section class="panel">
-    <h2>방문자내역 엑셀 넣기 <small>전산 → 방문자내역 엑셀 · 날짜마다 한 파일 · 여러 개를 한 번에 넣어도 됨</small></h2>
-    <label class="drop" id="drop"><input type="file" id="file" accept=".xls,.html,.htm" multiple hidden>
+    <h2>엑셀 넣기 <small>① 전산 방문자내역(.xls · 날짜마다 한 파일) ② 네이버 예약자관리(.xlsx) · 두 가지를 함께 넣어도 됨</small></h2>
+    <label class="drop" id="drop"><input type="file" id="file" accept=".xls,.xlsx,.html,.htm" multiple hidden>
       <b>여기에 엑셀 파일을 끌어다 놓거나 눌러서 고르세요</b><br><span class="hint">파일은 이 브라우저 안에서만 읽습니다 (어디에도 올리지 않음) · 같은 날짜 파일을 다시 넣으면 그 날짜만 새로</span></label>
+    <div class="nv-pw"><label>네이버 엑셀 비밀번호 <input type="password" id="nvPw" autocomplete="off"></label><label class="chk"><input type="checkbox" id="nvKeep" checked> 이 컴퓨터에 기억</label>
+      <span class="hint">네이버 인원은 네이버 이관 2단계와 같은 방식 (전액환불은 빼고, 일부 환불은 환불금액만큼 인원을 뺌)</span></div>
     <p class="err" id="fileErr"></p>
     <div class="st-bar" id="stBar" hidden>
       <label>제목 <input id="stTitle" data-ime="ko"></label>
@@ -30,7 +32,7 @@
     </div>
     <div class="keybox" id="keyBox" hidden><span class="hint">단체 예약 이름을 가져오려면 팀 비밀번호가 필요합니다 (다른 화면과 같은 비밀번호).</span><input id="keyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn primary" id="keyBtn">연결</button></div>
   </section>
-  <p class="hint st-help" id="stHelp" hidden>아래 표의 숫자 · 글자를 눌러 바로 고칠 수 있습니다. <b>네이버 확정 인원은 엑셀에 없어서 직접</b> 넣으세요. 줄 추가 · 빼기는 줄 끝 버튼, 고친 내용은 이 브라우저에 기억됩니다.</p>
+  <p class="hint st-help" id="stHelp" hidden>아래 표의 숫자 · 글자를 눌러 바로 고칠 수 있습니다. 네이버 인원은 <b>네이버 예약자관리 엑셀</b>을 넣으면 오전 · 오후 입장에 들어갑니다 (직접 고쳐도 됨). 줄 추가 · 빼기는 줄 끝 버튼, 고친 내용은 이 브라우저에 기억됩니다.</p>
   <div id="stEdit"></div>
 </main>
 <div class="toast" id="toast"></div>
@@ -38,7 +40,9 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/common.js?v=20261118"></script>
-<script src="js/status.js?v=20261119a8"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/naverxl.js?v=20261119b2"></script>
+<script src="js/status.js?v=20261119b2"></script>
 <script src="js/ime.js?v=20261118r"></script>
 <script src="js/menu.js?v=20261119a8"></script>
 </body>

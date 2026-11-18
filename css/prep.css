@@ -122,3 +122,9 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 @media print{.gsrc.auto,.gsrc.hand{display:none}}
 .lg-gap{width:14px}
 .g.fx{box-shadow:0 0 0 2px #2f5d4a}
+/* 팀 비밀번호 줄: 안내 · 칸 · 연결 버튼을 한 줄로 (2026-11-19) */
+.keybox{flex-wrap:nowrap}
+.keybox .hint{flex:1 1 auto;min-width:0}
+.keybox input{flex:0 0 120px;width:120px}
+.keybox .btn{flex:none}
+@media (max-width:560px){.keybox{flex-wrap:wrap}}

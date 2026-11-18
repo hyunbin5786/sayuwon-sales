@@ -2,7 +2,7 @@
 // 방문자내역 엑셀(전산 → 방문자내역, 하루 한 파일 · 여러 날 함께) → 날짜마다 표:
 //   구분(오전입장 · 오후입장 · 사담 런치 1부 · 2부 · 디너 · 몽몽마방 사유의 밥상 · 그 밖의 상품) · 인원 · 세부(홈페이지 · 네이버) · 단체 예약 포함
 //  - 홈페이지 인원 = 엑셀의 상품 줄 인원(어른 + 학생) 합. 사유의 밥상(단체)는 뺌 (관람 인원은 그대로)
-//  - 네이버 확정 인원은 엑셀에 없어서 직접 넣음 (기본 0)
+//  - 네이버 인원: 네이버 예약자관리 엑셀(.xlsx · 비밀번호)을 함께 넣으면 날짜마다 오전 · 오후 입장의 「네이버」 칸에 (js/naverxl.js · 네이버 이관 2단계와 같은 환불 계산), 직접 고쳐도 됨
 //  - 단체 예약 포함 = 할인이 「단체관람」이거나 그날 단체예약(공유 기록)과 연락처 · 이름이 맞는 예약 → 「단체명(담당자) n명」을 그 구분 칸에
 //  - 모든 칸은 화면에서 바로 고칠 수 있고(이 브라우저에 기억), 「사진으로 저장」은 아래 미리보기를 그대로 PNG 로
 (function(){
@@ -71,20 +71,47 @@
     ORDER.forEach(c=>{ if(c==='오전입장' || c==='오후입장') row(c); });   // 입장은 0명이어도 줄
     const rows=Object.values(map).sort((a,b)=>{ const ia=ORDER.indexOf(a.cat), ib=ORDER.indexOf(b.cat); return (ia<0?99:ia)-(ib<0?99:ib) || a.cat.localeCompare(b.cat,'ko'); })
       .filter(r=>r.home>0 || ORDER.slice(0,2).includes(r.cat)).map(r=>({cat:r.cat, home:r.home, naver:0, groups:r.groups.join('\n')}));
-    return {date:v.date, rows};
+    return applyNaver({date:v.date, rows});
   }
+  // ---------- 네이버 예약자관리 엑셀 (2026-11-19): 날짜마다 오전 · 오후 인원 → 그 날짜의 오전입장 · 오후입장 줄 「네이버」 칸 ----------
+  st.naver ||= {};   // { 'YYYY-MM-DD': {am, pm, n, full, partial, check:[]} } · 방문자내역을 나중에 넣어도 들어감
+  function applyNaver(day){
+    const nv=st.naver[day.date]; if(!nv) return day;
+    [['오전입장','am'],['오후입장','pm']].forEach(([c,k])=>{ let r=day.rows.find(x=>x.cat===c); if(!r){ r={cat:c, home:0, naver:0, groups:''}; day.rows.splice(k==='am'?0:1, 0, r); } r.naver=nv[k]; });
+    return day;
+  }
+  const PW_LS='sayuwon.xlsxPassword';   // 네이버 이관 화면과 같은 곳에 기억
+  try{ $('#nvPw').value=localStorage.getItem(PW_LS)||''; }catch(_){}
+  let pendingNaver=[];   // 비밀번호가 없어서 못 읽은 파일 → 비밀번호를 넣으면 다시
+  const isNaverFile = h => (h[0]===0x50 && h[1]===0x4b) || (h[0]===0xd0 && h[1]===0xcf);   // .xlsx (비밀번호 걸린 것 포함)
   async function readFiles(files){
-    $('#fileErr').textContent=''; const got=[];
+    $('#fileErr').textContent=''; const got=[], errs=[], nvGot=[];
     for(const f of files){
       try{ const buf=await f.arrayBuffer(), h=new Uint8Array(buf.slice(0,4));
-        if(h[0]===0x50 && h[1]===0x4b) throw new Error('.xlsx 파일입니다. 전산 방문자내역에서 내려받은 .xls 파일을 그대로 넣어 주세요.');
+        if(isNaverFile(h)){
+          if(!window.NaverXL || !window.XLSX) throw new Error('엑셀 도구를 불러오는 중입니다. 잠시 뒤 다시 넣어 주세요.');
+          const pw=$('#nvPw').value;
+          try{ const days=await NaverXL.read(f, pw); $('.nv-pw').classList.remove('need');
+            if(pw) try{ $('#nvKeep').checked ? localStorage.setItem(PW_LS, pw) : localStorage.removeItem(PW_LS); }catch(_){}
+            Object.entries(days).forEach(([date,v])=>{ st.naver[date]=v; nvGot.push(date); const d=st.days.find(x=>x.date===date); if(d) applyNaver(d); });
+            pendingNaver=pendingNaver.filter(x=>x!==f);
+          }catch(e){ if(e.code==='need_pw' || /비밀번호/.test(e.message)){ if(!pendingNaver.includes(f)) pendingNaver.push(f); $('.nv-pw').classList.add('need'); $('#nvPw').focus(); } throw e; }
+          continue;
+        }
         const v=parse(new TextDecoder('utf-8').decode(buf)); const day=buildDay(v);
         st.days=st.days.filter(d=>d.date!==day.date); st.days.push(day); got.push(dLab(day.date)); }
-      catch(e){ $('#fileErr').textContent = `${f.name}: ${e.message||'읽지 못했습니다.'}`; }
+      catch(e){ errs.push(`${f.name}: ${e.message||'읽지 못했습니다.'}`); }
     }
+    $('#fileErr').textContent=errs.join(' · ');
     st.days.sort((a,b)=>a.date.localeCompare(b.date)); save(); render();
-    if(got.length) toast(`${got.join(' · ')} 예약 현황을 만들었습니다. 네이버 인원을 넣고 확인하세요.`);
+    const nvShown=nvGot.filter(d=>st.days.some(x=>x.date===d)).sort(), nvWait=nvGot.filter(d=>!st.days.some(x=>x.date===d)).sort();
+    const msg=[ got.length ? `${got.join(' · ')} 예약 현황을 만들었습니다` : '',
+      nvShown.length ? `네이버 인원을 넣었습니다 (${nvShown.map(dLab).join(' · ')})` : '',
+      nvWait.length ? `네이버 ${nvWait.map(dLab).join(' · ')}: 그 날짜 방문자내역을 넣으면 들어갑니다` : '' ].filter(Boolean);
+    if(msg.length) toast(msg.join(' · '));
   }
+  $('#nvPw').addEventListener('keydown', e=>{ if(e.key==='Enter' && pendingNaver.length){ e.preventDefault(); readFiles(pendingNaver.slice()); } });
+  $('#nvPw').addEventListener('change', ()=>{ if(pendingNaver.length && $('#nvPw').value) readFiles(pendingNaver.slice()); });
   $('#file').addEventListener('change', e=>{ if(e.target.files.length) readFiles([...e.target.files]); e.target.value=''; });
   const drop=$('#drop');
   ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('over'); }));
@@ -105,9 +132,15 @@
           + `</tbody></table></div>`; }).join('')
       + `<div class="sh-foot">${esc(st.foot)}</div></div>`;
   }
+  // 날짜 아래 네이버 엑셀 요약 (몇 건 · 전액환불 · 일부 환불 · 확인할 것)
+  const naverSum = date => { const v=st.naver[date];
+    if(!v) return `<p class="nv-sum">네이버: 예약자관리 엑셀을 아직 넣지 않음 (넣거나 「네이버」 칸에 직접)</p>`;
+    return `<p class="nv-sum">네이버 엑셀: 예약 ${v.n}건 → 오전 <b>${v.am}</b>명 · 오후 <b>${v.pm}</b>명${v.full?` · 전액환불 ${v.full}건 뺌`:''}${v.partial?` · 일부 환불 ${v.partial}건 인원 뺌`:''}`
+      + (v.check||[]).map(c=>`<span class="warn">⚠ ${esc(c)}</span>`).join('') + `</p>`; };
   function editHTML(){
     return st.days.map((d,di)=>{ const home=sum(d,'home'), nav=sum(d,'naver');
       return `<div class="ed-day" data-di="${di}"><div class="ed-h"><b>${esc(dLab(d.date))}</b><span class="hint">홈페이지 ${home} · 네이버 ${nav} · 합계 ${home+nav}명</span><span class="sp"></span><button type="button" class="btn sm" data-addrow="${di}">＋ 줄 추가</button><button type="button" class="btn sm" data-delday="${di}">이 날짜 빼기</button></div>`
+        + naverSum(d.date)
         + `<table class="ed-t"><thead><tr><th>구분</th><th>홈페이지</th><th>네이버</th><th>인원</th><th>단체 예약 포함 (한 줄에 하나)</th><th></th></tr></thead><tbody>`
         + d.rows.map((r,ri)=>`<tr><td><input data-f="${di}|${ri}|cat" data-ime="ko" value="${esc(r.cat)}"></td><td><input class="n" inputmode="numeric" data-f="${di}|${ri}|home" value="${+r.home||0}"></td><td><input class="n nv" inputmode="numeric" data-f="${di}|${ri}|naver" value="${+r.naver||0}"></td><td class="tot">${(+r.home||0)+(+r.naver||0)}명</td><td><textarea data-f="${di}|${ri}|groups" data-ime="ko" rows="1">${esc(r.groups||'')}</textarea></td><td><button type="button" class="ed-x" data-delrow="${di}|${ri}" title="이 줄 빼기">×</button></td></tr>`).join('')
         + `</tbody></table></div>`; }).join('')
@@ -135,7 +168,7 @@
     const x=e.target.closest('[data-delrow]'); if(x){ const [di,ri]=x.dataset.delrow.split('|').map(Number); st.days[di].rows.splice(ri,1); save(); render(); return; }
     const dd=e.target.closest('[data-delday]'); if(dd){ const d=st.days[+dd.dataset.delday]; if(!confirm(`${dLab(d.date)} 예약 현황을 뺄까요?`)) return; st.days.splice(+dd.dataset.delday,1); save(); render(); return; }
   });
-  $('#stClear').onclick=()=>{ if(!confirm('만든 예약 현황과 고친 내용을 모두 지울까요?')) return; st={ title:st.title||'사유원 예약 현황', foot:FOOT_DEF, days:[] }; save(); render(); };
+  $('#stClear').onclick=()=>{ if(!confirm('만든 예약 현황과 고친 내용을 모두 지울까요?')) return; st={ title:st.title||'사유원 예약 현황', foot:FOOT_DEF, days:[], naver:{} }; save(); render(); };
   // 사진으로 저장: 미리보기와 같은 표를 화면 밖에 원래 크기로 그려 PNG 로
   $('#stPng').onclick=async()=>{
     if(!st.days.length) return; if(!window.html2canvas){ toast('잠시 뒤 다시 눌러 주세요.'); return; }

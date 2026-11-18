@@ -54,3 +54,11 @@ main.st-main > .panel{margin-bottom:14px}
 .sh-card .c3{width:26%;color:#5b6670;font-size:10.5px}
 .sh-card .c4{color:#5b6670;font-size:10.5px}
 .sh-foot{font-size:10.5px;color:#6b7680;margin-top:6px}
+/* 네이버 예약자관리 엑셀 (2026-11-19) */
+.nv-pw{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:var(--muted)}
+.nv-pw label{display:flex;align-items:center;gap:6px}
+.nv-pw input[type=password]{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;width:150px}
+.nv-pw.need input[type=password]{border-color:var(--red);box-shadow:0 0 0 2px var(--red-soft)}
+.nv-sum{font-size:12px;color:var(--muted);margin:-4px 0 8px}
+.nv-sum b{color:#1f8a4c}
+.nv-sum .warn{display:block;color:var(--amber)}
