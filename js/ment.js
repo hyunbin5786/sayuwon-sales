@@ -102,7 +102,7 @@
       + `<div class="m-imgs"></div>`
       + `<div class="row-btns">${m.id==='new'?'':'<button type="button" class="btn" data-mdel>삭제</button>'}<span class="sp"></span><button type="button" class="btn" data-mcancel>취소</button><button type="button" class="btn primary" data-msave>저장</button></div></div>`;
     // 카드에는 그림 미리보기 없이 「글 복사」 옆에 「이미지 복사」 버튼만 (여러 장이면 이미지 1 · 2 …, 2026-11-18)
-    const imgBtns = m => (m.imgs||[]).map((x,i,a)=>`<button type="button" class="btn sm" data-imgcopy="${esc(x.id)}" title="${esc(x.name||'이미지')} · 그림을 복사 → 카톡에 Ctrl+V">이미지${a.length>1?' '+(i+1):''} 복사</button>`).join('');
+    const imgBtns = m => (m.imgs||[]).map((x,i,a)=>`<button type="button" class="btn sm" data-imgcopy="${esc(x.id)}" title="${esc(x.name||'이미지')} · 그림을 복사 → 카톡에 Ctrl+V">이미지${a.length>1?(i+1):''}<span class="cp"> 복사</span></button>`).join('');
     const imgsHTML = () => '';
     const card = m => edit===m.id ? form(m) : `<div class="ment${favs.has(m.id)?' fav':''}" data-id="${esc(m.id)}"><div class="m-head"><button type="button" class="m-star${favs.has(m.id)?' on':''}" data-mfav title="${favs.has(m.id)?'즐겨찾기 빼기':'즐겨찾기 (위로)'}" aria-pressed="${favs.has(m.id)}">${favs.has(m.id)?'★':'☆'}</button><b>${esc(m.title||'멘트')}</b><span class="sp"></span>`
       + `<button type="button" class="btn primary sm" data-mcopy title="제목과 글을 복사">${(m.imgs||[]).length?'글 복사':'복사'}</button>${imgBtns(m)}${logged?'<button type="button" class="btn sm" data-medit>수정</button>':''}</div><div class="m-body-v">${esc(m.body)}</div>${imgsHTML(m)}</div>`;

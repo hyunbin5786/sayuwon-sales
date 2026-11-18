@@ -54,3 +54,11 @@ main{max-width:1760px}
   .m-head [data-medit]{display:none}
   #guestHint,#addBtn{display:none}
 }
+/* 휴대폰: 별 · 제목 · 복사 버튼을 한 줄에 (제목이 길면 … 으로 줄임 · 이미지 버튼은 「이미지1」처럼 짧게, 2026-11-18) */
+@media (max-width:700px){
+  .m-head{flex-wrap:nowrap;gap:4px}
+  .m-head b{flex:1 1 auto;min-width:0;margin:0;order:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m-head .m-star{order:0;flex:none}
+  .m-head .btn.sm{flex:none;height:32px;padding:0 9px;font-size:12.5px}
+  .m-head .cp{display:none}
+}
