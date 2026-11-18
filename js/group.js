@@ -73,6 +73,7 @@ const UNIT = k => /^seminar2?$/.test(k) ? '회' : (FIELDS.find(f=>f[1]===k)||[])
 // 세미나 도슨트 수량 2 = 두 번(두 장소): 두 번째의 시작 · 끝 · 장소 · 비고는 예전 「세미나 도슨트(2)」 칸(tm_seminar2 · plc_seminar2 · 비고 seminar2)에 둠 (2026-11-18)
 const sem2On = r => numOf(r.seminar)>=2 || !!r.seminar2;
 const SEM2_IX = ['tm_seminar2','plc_seminar2'];
+const COUPON_IN_GOODS = ['gaga'];   // 음료쿠폰: 품목 고르기에서 굿즈 묶음에 · 줄에는 시작 · 끝 없이 비고만 (저장은 예전 칸 gaga 그대로, 2026-11-18)
 const PROG_KEYS = () => FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1])).map(f=>f[1]);
 const STF_KEYS = () => FIELDS.filter(f=>isSub(f[1])).map(f=>f[1]);   // 담당 · 시간대 · 코스
 // 프로그램은 들어갔는데 담당이 빈 것 (차방 · 당두봉갈 제외)
@@ -393,9 +394,9 @@ function itemSelectHTML(k, rows){
     + `${FIELDS.some(f=>f[1]==='haeorum') ? opt('haeorum', '새벽 해오름 산책 (관람료 포함)'+pr(progSrc('haeorum', rec)), used.has('haeorum'), k==='haeorum') : ''}</optgroup>`;
   h+=`<optgroup label="몽몽마방">${mbMenus().map(m=>opt('mb:'+m.name, `몽몽마방 ${m.name}`, mbUsed, k==='mb' && cur && cur.name===m.name)).join('')}${k==='mb' && !cur ? opt('mb:', rec.mabangMenu ? `몽몽마방 ${rec.mabangMenu} (예전 메뉴 · 다시 고르기)` : '몽몽마방 (메뉴 고르기)', false, true) : ''}</optgroup>`;
   [['프로그램(개별)','개별 프로그램'],['프로그램(시간)','시간 프로그램']].forEach(([g,l])=>{
-    h+=`<optgroup label="${l}">${FIELDS.filter(f=>f[0]===g && !isSub(f[1]) && f[1]!=='haeorum' && (f[1]!=='seminar2' || k==='seminar2')).map(f=>opt(f[1], f[2]+pr(progSrc(f[1], rec)), used.has(f[1]), k===f[1])).join('')}</optgroup>`; });
+    h+=`<optgroup label="${l}">${FIELDS.filter(f=>f[0]===g && !isSub(f[1]) && f[1]!=='haeorum' && !COUPON_IN_GOODS.includes(f[1]) && (f[1]!=='seminar2' || k==='seminar2')).map(f=>opt(f[1], f[2]+pr(progSrc(f[1], rec)), used.has(f[1]), k===f[1])).join('')}</optgroup>`; });
   const gi=goodsItems();
-  h+=`<optgroup label="굿즈">${gi.map(it=>opt('g:'+it.src, (String(it.name||'').trim()||it.src), used.has('g:'+it.src), k==='g:'+it.src)).join('')}${itemKind(k)==='goods' && !gi.some(it=>'g:'+it.src===k) ? opt(k, k.slice(2), false, true) : ''}</optgroup>`;
+  h+=`<optgroup label="굿즈">${COUPON_IN_GOODS.filter(c=>FIELDS.some(f=>f[1]===c)).map(c=>opt(c, LABEL[c]||c, used.has(c), k===c)).join("")}${gi.map(it=>opt('g:'+it.src, (String(it.name||'').trim()||it.src), used.has('g:'+it.src), k==='g:'+it.src)).join('')}${itemKind(k)==='goods' && !gi.some(it=>'g:'+it.src===k) ? opt(k, k.slice(2), false, true) : ''}</optgroup>`;
   return `<select class="it-sel" data-isel="${esc(k)}" aria-label="항목">${h}</select>`;
 }
 function itemRowHTML(k, rows){
@@ -411,7 +412,7 @@ function itemRowHTML(k, rows){
   const extra = t==='mb' ? `<label class="it-xl">시작 <input class="it-x" data-ix="mbS" data-tp="1" readonly title="몽몽마방 시작 시각 (24시간 · 1200 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 1시간 뒤로" value="${esc(mbt[0])}"></label>`
       + `<label class="it-xl">끝 <input class="it-x" data-ix="mbE" data-tp="1" readonly title="몽몽마방 끝나는 시각 (시작 시각을 넣으면 1시간 뒤로 자동)" value="${esc(mbt[1])}"></label>`
       + `<label class="it-xl${rec.mabangPay==='미정'?' tbd':''}">결제 <select class="it-x" data-ix="mabangPay" title="몽몽마방 결제방식 · 미정이면 미정 항목 '몽몽마방 결제'로 (고객님께 여쭤 보기)">${rec.mabangPay?'':'<option value="" selected>선택</option>'}${MB_PAYS.map(x=>`<option${rec.mabangPay===x?' selected':''}>${x}</option>`).join('')}</select></label>` + note
-    : t==='prog' ? (()=>{ const [s,en]=tmTimes(k);   // 개별 · 시간 프로그램: 시작 → 끝(시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤) → 비고 (도슨트는 코스도). 저장은 예전처럼 tm_키 "13:00~14:00"
+    : t==='prog' && !COUPON_IN_GOODS.includes(k) ? (()=>{ const [s,en]=tmTimes(k);   // 개별 · 시간 프로그램: 시작 → 끝(시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤) → 비고 (도슨트는 코스도). 저장은 예전처럼 tm_키 "13:00~14:00"
         return `<label class="it-xl">시작 <input class="it-x" data-ix="tmS:${esc(k)}" data-tp="1" readonly title="프로그램 시작 시각 (24시간 · 1300 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 자동" value="${esc(s)}"></label>`
           + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:${esc(k)}" data-tp="1" readonly title="프로그램 끝나는 시각 (시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤로 자동)" value="${esc(en)}"></label>`
           + (FIELDS.some(f=>f[1]==='plc_'+k) ? (()=>{ const pv=rec['plc_'+k]||''; return `<label class="it-xl">장소 <select class="it-x" data-ix="plc_${esc(k)}" title="세미나 도슨트 장소">${pv?'':'<option value="" selected>선택</option>'}${[...PLC_OPTS, ...(pv && !PLC_OPTS.includes(pv) ? [pv] : [])].map(x=>`<option${pv===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`; })() : '')   // 세미나 도슨트: 장소 (몽몽차방 · 당두봉갈 · 기타) → 비고
