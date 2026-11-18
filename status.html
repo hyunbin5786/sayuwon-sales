@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>예약 현황 공유 · 사유원 운영 보조 시스템</title>
+<script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/prep.css?v=20261119a7">
+<link rel="stylesheet" href="css/status.css?v=20261119a8">
+<link rel="stylesheet" href="css/menu.css?v=20261120t">
+</head>
+<body>
+<!-- 고객 응대 보조 · 예약 현황 공유 (2026-11-18): 방문자내역 엑셀(하루에 한 파일, 여러 날 함께 가능) → 날짜마다 「구분 · 인원 · 세부 · 단체 예약 포함」 표 → 직접 고친 뒤 사진(PNG)으로 저장해 공지 -->
+<header>
+  <a class="sys-brand" href="./" title="메뉴로">사유원 운영 보조 시스템</a><span class="sys-crumb">예약 현황 공유</span>
+  <span class="me" id="me"></span>
+</header>
+<main class="st-main">
+  <section class="panel">
+    <h2>방문자내역 엑셀 넣기 <small>전산 → 방문자내역 엑셀 · 날짜마다 한 파일 · 여러 개를 한 번에 넣어도 됨</small></h2>
+    <label class="drop" id="drop"><input type="file" id="file" accept=".xls,.html,.htm" multiple hidden>
+      <b>여기에 엑셀 파일을 끌어다 놓거나 눌러서 고르세요</b><br><span class="hint">파일은 이 브라우저 안에서만 읽습니다 (어디에도 올리지 않음) · 같은 날짜 파일을 다시 넣으면 그 날짜만 새로</span></label>
+    <p class="err" id="fileErr"></p>
+    <div class="st-bar" id="stBar" hidden>
+      <label>제목 <input id="stTitle" data-ime="ko"></label>
+      <span class="sp"></span>
+      <button class="btn" id="stClear" type="button">모두 지우기</button>
+      <button class="btn primary" id="stPng" type="button">사진으로 저장</button>
+    </div>
+    <div class="keybox" id="keyBox" hidden><span class="hint">단체 예약 이름을 가져오려면 팀 비밀번호가 필요합니다 (다른 화면과 같은 비밀번호).</span><input id="keyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn primary" id="keyBtn">연결</button></div>
+  </section>
+  <p class="hint st-help" id="stHelp" hidden>아래 표의 숫자 · 글자를 눌러 바로 고칠 수 있습니다. <b>네이버 확정 인원은 엑셀에 없어서 직접</b> 넣으세요. 줄 추가 · 빼기는 줄 끝 버튼, 고친 내용은 이 브라우저에 기억됩니다.</p>
+  <div id="stEdit"></div>
+</main>
+<div class="toast" id="toast"></div>
+<div id="stShot" class="st-shot" aria-hidden="true"></div><!-- 사진으로 저장할 때만 그리는 표 (화면 밖) -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="js/common.js?v=20261118"></script>
+<script src="js/status.js?v=20261119a8"></script>
+<script src="js/ime.js?v=20261118r"></script>
+<script src="js/menu.js?v=20261119a8"></script>
+</body>
+</html>
