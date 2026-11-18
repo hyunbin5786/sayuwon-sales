@@ -3026,7 +3026,7 @@ function dueTasks(){   // 마감이 오늘이거나 지난 해결 안 된 과업
 }
 // 개인고객 통화 (personal.html, 통화 구분 '개인고객')의 추후 과업: 내가 받은(저장한) 통화의 안 끝난 과업
 const isPersonalRec = r => r && r.callType==='개인고객';
-let myTab = (()=>{ const q=new URLSearchParams(location.search).get('tab'); if(['all','personal','group'].includes(q)) return q; try{ return localStorage.getItem('sayuwon_my_tab')||'all'; }catch(_){ return 'all'; } })();   // 나의 할일 탭: all · personal · group (개인고객 화면에서 열면 ?tab=personal → 개인부터)
+let myTab = (()=>{ const q=new URLSearchParams(location.search).get('tab'); if(['all','personal','group','etc'].includes(q)) return q; try{ return localStorage.getItem('sayuwon_my_tab')||'all'; }catch(_){ return 'all'; } })();   // 나의 할일 탭: all · personal · group (개인고객 화면에서 열면 ?tab=personal → 개인부터)
 const MY_ONLY = new URLSearchParams(location.search).get('my')==='1';   // 나의 할일 단독 페이지 (mypage.html → group.html?my=1)
 function myPersonalOpen(){
   const me=savedOwner(); if(!me) return [];
@@ -3086,6 +3086,7 @@ function renderMy(){
         return `<li class="r" data-popen="${esc(r.id)}"><span class="who"><b>${esc(r.contact||'(이름 없음)')}</b>${r.phone?` · ${esc(r.phone)}`:''}${r.date?` · ${esc(dateLabel(String(r.date).slice(0,10)))}`:''}<br><small class="hint" style="margin:0">${esc(fmt(r.saved))}${r.note?` · ${esc(String(r.note).split(/\n/)[0].slice(0,50))}`:''}${left?` · 남은 과업 ${left}개`:''}</small></span></li>`; }).join('')}</ul>` : none('내가 받은 개인고객 통화가 없습니다.'));
     $('#myBody').innerHTML = `<div class="my-cols two"><div class="my-col">${p1}</div><div class="my-col">${p2}</div></div>`; return;
   }
+  if(myTab==='etc'){ const n=myEtcOpen().length; $('#mySum').textContent = `기타 개인 업무 남은 것 ${n}개`; $('#myBody').innerHTML = `<div class="my-cols one"><div class="my-col">${etcSection(true)}</div></div>`; return; }   // 기타 개인 업무 (ops.html?p=task)
   if(myTab==='group'){
     $('#mySum').textContent = `담당 단체 예약 ${mine.length}건 · 방문 예정(예약접수) ${ahead.filter(booked).length}건 · 미정 ${tbdAll.length}건 · 남은 과업 ${nG}개`;
     const g2 = `<h3 class="my-h">추후 과업 (단체) <small>${nG}개${lateOf(open)?` · <b class="late">기한 지남 ${lateOf(open)}개</b>`:''}</small></h3>` + taskList(open, '해결 안 된 단체 과업이 없습니다.');
@@ -3094,7 +3095,7 @@ function renderMy(){
   // 전체: ① 개인 추후 과업 ② 단체 추후 과업 (다른 사람이 수정한 내 예약 칸은 2026-11-14에 없앰)
   const a1 = `<h3 class="my-h">추후 과업 (개인) <small>${nP}개${lateOf(persAll)?` · <b class="late">기한 지남 ${lateOf(persAll)}개</b>`:''}</small></h3>` + taskList(persAll.map(o=>({...o, personal:true})), '해결 안 된 개인고객 과업이 없습니다.');
   const a2 = `<h3 class="my-h">추후 과업 (단체) <small>${nG}개${lateOf(open)?` · <b class="late">기한 지남 ${lateOf(open)}개</b>`:''}</small></h3>` + taskList(open, '해결 안 된 단체 과업이 없습니다.');
-  $('#myBody').innerHTML = `<div class="my-cols two"><div class="my-col">${a1}</div><div class="my-col">${a2}</div></div>`;
+  $('#myBody').innerHTML = `<div class="my-cols three"><div class="my-col">${a1}</div><div class="my-col">${a2}</div><div class="my-col">${etcSection()}</div></div>`;   // 전체: 개인 · 단체 · 기타 개인 업무 (2026-11-18)
 }
 function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
   const mm=myNewMemos().length, t=[n&&`과업 ${n}`, mm&&`메모 ${mm}`].filter(Boolean).join(' · ');   // 수정 표시는 없앰 · 내 예약에 확인 안 한 메모 수
@@ -3409,3 +3410,20 @@ document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [d
 function taskSubsDone(t){ const ds=DOC_SUBS[t.id]; return (!ds || !t.subs || ds.every(([k])=>t.subs[k])) && (t.xsubs||[]).every(x=>x.done); }
 // 담당자 미정 체크 → rec.cTbd · 추후 과업 「담당자 확정」, 칸 색은 노랑
 document.addEventListener('change', e=>{ if(e.target.id!=='cTbdCk') return; rec.cTbd = e.target.checked ? '1' : ''; touched.add('cTbd'); startTimer(); paintFields(); renderSide(); renderTasks(); if(window.__autoReady) scheduleAuto(); });
+
+// ===== 나의 할일 · 기타 개인 업무 (ops.html?p=task, 통화 구분 '개인업무') =====
+// 내 업무 중 오늘 할 것 + 지난 것 (반복은 최근 7일). 체크하면 그날 완료 (세부 과업이 있으면 ops 화면에서), 줄을 누르면 기타 개인 업무 화면
+function myEtcOpen(){ const me=savedOwner(); if(!me || typeof opsParse!=='function') return []; const today=opsToday(), out=[];
+  (cache||[]).filter(r=>r.callType==='개인업무').forEach(r=>{ const j=opsParse(r); if(!j) return; const d=j.d||{}; if((d.owner||r.takenBy||'')!==me) return; opsPending(d, today).forEach(day=>out.push({r, d, day})); });
+  return out.sort((a,b)=>a.day.localeCompare(b.day)); }
+function etcSection(){ const today=ymd(new Date()), list=myEtcOpen(), late=list.filter(o=>o.day<today).length;
+  return `<h3 class="my-h">기타 개인 업무 <small>${list.length}개${late?` · <b class="late">지남 ${late}개</b>`:''} · <a href="ops.html?p=task" data-etcgo="1">업무 추가 · 전체 보기 ›</a></small></h3>`
+    + (list.length ? `<ul class="pc-list">${list.map(o=>{ const subs=o.d.subs||[], m=((o.d.subDone||{})[o.day])||{}, n=subs.filter(s=>m[s.id]).length;
+        return `<li class="r my-etc${o.day<today?' late':''}"><label class="etc-ck" title="체크하면 그날 완료"><input type="checkbox" data-etcdone="${esc(o.r.id)}|${o.day}"></label><span class="who" data-etcgo="1"><b>${esc(o.d.title)}</b> <small class="hint" style="margin:0">${esc(opsRepeatLabel(o.d))}${subs.length?` · 세부 과업 ${n}/${subs.length}`:''}</small><br><span class="my-task${o.day<today?' late':o.day===today?' today':''}">${o.day<today?'지남 · ':''}${esc(opsDateLabel(o.day))}</span></span></li>`; }).join('')}</ul>`
+      : '<p class="hint">오늘 할 기타 업무가 없습니다.</p>'); }
+document.addEventListener('change', async e=>{ const v=e.target.dataset?.etcdone; if(!v) return; const [id,day]=v.split('|'), r=(cache||[]).find(x=>x.id===id), j=r && opsParse(r); if(!j) return;
+  const me=savedOwner()||'', now=new Date().toISOString(), d={...j.d, done:{...(j.d.done||{}), [day]:{at:now, by:me}}};
+  const item={...r, saved:r.saved||now, history:JSON.stringify({...j, d, log:[...(j.log||[]), {at:now, by:me, what:`${day} 완료 (나의 할일)`}].slice(-60)})};
+  e.target.disabled=true; await store.put(item); const i=cache.findIndex(x=>x.id===id); if(i>=0) cache[i]=item; renderMy(); if(typeof paintMyCount==='function') paintMyCount(); toast(`「${d.title}」 완료로 표시했습니다.`); });
+document.addEventListener('click', e=>{ const g=e.target.closest?.('[data-etcgo]'); if(!g || e.target.closest('.etc-ck')) return; e.preventDefault();
+  if(MY_EMBED){ window.parent.postMessage({type:'sy-my', ev:'go', url:'ops.html?p=task'}, '*'); return; } guardLeave(()=>{ location.href='ops.html?p=task'; }); });

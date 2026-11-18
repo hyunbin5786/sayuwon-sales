@@ -1,0 +1,32 @@
+/* ===== 전체 메뉴 (모든 화면 공통, js/menu.js): ☰ 버튼 + 화면 위에 뜨는 메뉴 (뒤는 회색) ===== */
+header .smenu-btn{flex:none;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.12);color:#f3f1ec;border-radius:7px;font:600 13px "Noto Sans KR",system-ui,sans-serif;cursor:pointer;margin-right:2px}
+header .smenu-btn:hover,header .smenu-btn.on{background:rgba(255,255,255,.25)}
+.smenu{position:fixed;inset:0;z-index:1000}
+.smenu[hidden]{display:none}
+.smenu .sm-bg{position:absolute;inset:0;background:rgba(40,40,36,.45)}
+.smenu .sm-panel{position:absolute;top:0;left:0;bottom:0;width:min(340px,88vw);background:#f3f1ec;box-shadow:4px 0 24px rgba(0,0,0,.18);overflow-y:auto;padding:0 12px 16px;display:flex;flex-direction:column;gap:10px;font:14px/1.6 "Noto Sans KR",system-ui,sans-serif;color:#262620;animation:smIn .16s ease-out}
+@keyframes smIn{from{transform:translateX(-24px);opacity:.4}to{transform:none;opacity:1}}
+.smenu .sm-top{position:sticky;top:0;display:flex;align-items:center;gap:8px;margin:0 -12px;padding:12px 14px;background:#3f5236}
+.smenu .sm-home{color:#f3f1ec;text-decoration:none;font:600 16px "Noto Serif KR",serif;flex:1}
+.smenu .sm-x{border:0;background:none;color:#f3f1ec;font-size:22px;line-height:1;cursor:pointer;padding:0 4px}
+.smenu .sm-g{background:#fffefb;border:1px solid #dfdace;border-radius:12px;overflow:hidden}
+.smenu .sm-g > summary{list-style:none;cursor:pointer;padding:11px 14px;font:600 15px "Noto Serif KR",serif;color:#3f5236;display:flex;justify-content:space-between;align-items:center}
+.smenu .sm-g > summary::-webkit-details-marker{display:none}
+.smenu .sm-g > summary::after{content:"▾";font:400 12px "Noto Sans KR",sans-serif;color:#77736a;transition:transform .15s}
+.smenu .sm-g:not([open]) > summary::after{transform:rotate(-90deg)}
+.smenu .sm-g[open] > summary{border-bottom:1px solid #dfdace}
+.smenu .sm-g > :not(summary){margin-left:8px;margin-right:8px}
+.smenu .sm-g > :last-child{margin-bottom:8px}
+.smenu .sm-sub{font-size:11.5px;color:#77736a;font-weight:700;margin-top:8px;padding:0 6px}
+.smenu .sm-i{display:block;margin-top:4px;padding:8px 10px;border-radius:8px;text-decoration:none;color:#262620}
+.smenu .sm-i:hover{background:#e4eadf}
+.smenu .sm-i.on{background:#e4eadf;box-shadow:inset 3px 0 0 #3f5236}
+.smenu .sm-i b{display:block;font-size:14px}
+.smenu .sm-i span{display:block;font-size:12px;color:#77736a}
+.smenu .sm-chips{display:flex;flex-wrap:wrap;gap:6px;padding:6px 6px 2px}
+.smenu .sm-chip{border:1px solid #dfdace;border-radius:999px;padding:3px 12px;font-size:13px;color:#262620;text-decoration:none;background:#fff}
+.smenu .sm-chip:hover{border-color:#3f5236;color:#3f5236}
+.smenu .sm-note{font-size:12.5px;color:#77736a;margin:0 4px}
+html.smenu-open{overflow:hidden}
+@media (max-width:520px){header .smenu-btn span{display:none}}
+.smenu .sm-g,.smenu .sm-top{flex:none}   /* 묶음이 줄어들어 잘리지 않게 (패널이 스크롤) */

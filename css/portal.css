@@ -135,3 +135,11 @@ main{max-width:1400px}
 .dk.k-단체{background:#e4eadf;color:var(--pine)}
 .dk.k-개인{background:#f3ead9;color:#8a5a00}
 @media (max-width:860px){.home{grid-template-columns:1fr}.acc{position:static}}
+/* 메뉴가 ☰ (화면 위에 뜨는 메뉴)로 옮겨 가서 첫 화면은 대시보드만 (2026-11-18) */
+.home{display:block}
+.guest-only{display:none}
+.guest .guest-only{display:block}
+.guest .dash{display:none}
+.gshare{max-width:380px;margin:0 auto}
+.gshare h3{margin:0 0 6px;font:600 16px var(--serif);color:var(--pine)}
+.gshare h3 small{font:400 12px var(--sans);color:var(--muted);margin-left:6px}

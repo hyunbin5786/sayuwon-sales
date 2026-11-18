@@ -685,3 +685,12 @@ html.book-guest #bookBody tr{cursor:default}
 .ctbd-ck:has(input:checked){background:var(--amber-soft);border-color:var(--amber);color:var(--amber);font-weight:700}
 .ctbd-ck input{margin:0;accent-color:var(--amber)}
 .ctbd-ck{justify-self:start;align-self:start;width:max-content;grid-column:1/-1}
+/* 나의 할일: 전체 = 개인 · 단체 · 기타 3열, 기타 탭 = 1열 */
+.my-cols.three{grid-template-columns:1fr 1fr 1fr}
+.my-cols.one{grid-template-columns:1fr}
+.my-etc{display:flex;align-items:flex-start;gap:8px}
+.my-etc .etc-ck{padding-top:2px}
+.my-etc .etc-ck input{width:16px;height:16px;accent-color:var(--pine);cursor:pointer}
+.my-etc .who{cursor:pointer;flex:1}
+.my-h a[data-etcgo]{color:var(--pine);font-weight:700;text-decoration:none}
+@media (max-width:1100px){.my-cols.three{grid-template-columns:1fr 1fr}}
