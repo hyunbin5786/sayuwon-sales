@@ -3423,8 +3423,43 @@ function taskSubsDone(t){ const ds=DOC_SUBS[t.id]; return (!ds || !t.subs || ds.
 function myEtcOpen(){ const me=savedOwner(); if(!me || typeof opsParse!=='function') return []; const today=opsToday(), out=[];
   (cache||[]).filter(r=>r.callType==='개인업무').forEach(r=>{ const j=opsParse(r); if(!j) return; const d=j.d||{}; if((d.owner||r.takenBy||'')!==me) return; opsPending(d, today).forEach(day=>out.push({r, d, day})); });
   return out.sort((a,b)=>a.day.localeCompare(b.day)); }
+// 나의 할일에서 바로 추가 (2026-11-18): 추후 과업의 「과업 직접 추가」와 같은 모양 + 반복(없음 · 매일 · 매주 요일 · 매달 일자)
+// 저장 모양은 운영보조 기타 개인 업무(ops.html?p=task)와 같음 → 그 화면에도 그대로 보임
+let etcForm = {repeat:'none', dows:[], dom:'', due:''};
+function etcAddHTML(){
+  const f=etcForm, rep=[['none','반복 없음'],['daily','매일'],['weekly','매주'],['monthly','매달']];
+  const extra = f.repeat==='none' ? `<label class="etc-due">마감 ${dboxHTML('id="etcDue"', f.due||todayYmd())}</label>`
+    : f.repeat==='weekly' ? `<span class="etc-dows">${[1,2,3,4,5,6,0].map(i=>`<button type="button" class="${f.dows.includes(i)?'on':''}" data-etcdow="${i}">${DOW[i]}</button>`).join('')}</span>`
+    : f.repeat==='monthly' ? `<select id="etcDom" title="매달 날짜">${Array.from({length:31},(_,i)=>i+1).map(n=>`<option value="${n}"${String(f.dom||new Date().getDate())===String(n)?' selected':''}>${n===31?'말일':n+'일'}</option>`).join('')}</select>` : '';
+  return `<form class="task-add etc-add" id="etcAdd"><input id="etcAddIn" data-ime="ko" placeholder="업무 직접 추가" autocomplete="off"><button class="btn" type="submit">추가</button></form>`
+    + `<div class="etc-rep"><span class="seg">${rep.map(([k,l])=>`<button type="button" class="${f.repeat===k?'on':''}" data-etcrep="${k}">${l}</button>`).join('')}</span>${extra}</div>`;
+}
+const etcRepaint = () => { const v=$('#etcAddIn')?.value||'', foc=document.activeElement?.id==='etcAddIn'; renderMy(); const i=$('#etcAddIn'); if(i){ i.value=v; if(foc) i.focus(); } };
+document.addEventListener('click', e=>{
+  const r=e.target.closest?.('[data-etcrep]'); if(r){ e.preventDefault(); etcForm.repeat=r.dataset.etcrep; if(etcForm.repeat==='weekly' && !etcForm.dows.length) etcForm.dows=[new Date().getDay()]; etcRepaint(); return; }
+  const w=e.target.closest?.('[data-etcdow]'); if(w){ e.preventDefault(); const i=+w.dataset.etcdow; etcForm.dows = etcForm.dows.includes(i) ? etcForm.dows.filter(x=>x!==i) : [...etcForm.dows, i]; etcRepaint(); }
+});
+document.addEventListener('change', e=>{ if(e.target.id==='etcDue') etcForm.due=e.target.value; if(e.target.id==='etcDom') etcForm.dom=e.target.value; });
+document.addEventListener('submit', async e=>{
+  if(e.target.id!=='etcAdd') return; e.preventDefault();
+  const inp=$('#etcAddIn'), title=inp.value.trim(); if(!title){ inp.focus(); return; }
+  const me=savedOwner(); if(!me){ toast('이름이 있어야 추가할 수 있습니다.'); return; }
+  const f=etcForm, today=todayYmd();
+  if(f.repeat==='weekly' && !f.dows.length){ toast('요일을 하나 이상 골라 주세요.'); return; }
+  const d={title, repeat:f.repeat, owner:me, memo:'', subs:[]};
+  if(f.repeat==='none') d.due=f.due||today; else d.start=today;
+  if(f.repeat==='weekly') d.dows=f.dows.slice();
+  if(f.repeat==='monthly') d.dom=String(f.dom||new Date().getDate());
+  const now=new Date().toISOString(), item={id:opsId(), callType:'개인업무', saved:now, takenBy:me, owner:me, summary:`${title} · ${opsRepeatLabel(d)}`.slice(0,120),
+    history:JSON.stringify({kind:'task', d, log:[{at:now, by:me, what:'추가 (나의 할일)'}]})};
+  inp.disabled=true;
+  try{ await store.put(item); if(!cache.some(x=>x.id===item.id)) cache.push(item); etcForm={repeat:'none', dows:[], dom:'', due:''}; renderMy(); if(typeof paintMyCount==='function') paintMyCount(); $('#etcAddIn')?.focus();
+    toast(`「${title}」 추가했습니다 · ${opsRepeatLabel(d)}${d.due && d.due!==today ? ` · ${mdLabel(d.due)}` : ''}`); }
+  catch(err){ inp.disabled=false; toast('추가하지 못했습니다: '+(err.code||err.message)); }
+});
 function etcSection(){ const today=ymd(new Date()), list=myEtcOpen(), late=list.filter(o=>o.day<today).length;
-  return `<h3 class="my-h">기타 개인 업무 <small>${list.length}개${late?` · <b class="late">지남 ${late}개</b>`:''} · <a href="ops.html?p=task" data-etcgo="1">업무 추가 · 전체 보기 ›</a></small></h3>`
+  return `<h3 class="my-h">기타 개인 업무 <small>${list.length}개${late?` · <b class="late">지남 ${late}개</b>`:''} · <a href="ops.html?p=task" data-etcgo="1">전체 보기 ›</a></small></h3>`
+    + etcAddHTML()
     + (list.length ? `<ul class="pc-list">${list.map(o=>{ const subs=o.d.subs||[], m=((o.d.subDone||{})[o.day])||{}, n=subs.filter(s=>m[s.id]).length;
         return `<li class="r my-etc${o.day<today?' late':''}"><label class="etc-ck" title="체크하면 그날 완료"><input type="checkbox" data-etcdone="${esc(o.r.id)}|${o.day}"></label><span class="who" data-etcgo="1"><b>${esc(o.d.title)}</b> <small class="hint" style="margin:0">${esc(opsRepeatLabel(o.d))}${subs.length?` · 세부 과업 ${n}/${subs.length}`:''}</small><br><span class="my-task${o.day<today?' late':o.day===today?' today':''}">${o.day<today?'지남 · ':''}${esc(opsDateLabel(o.day))}</span></span></li>`; }).join('')}</ul>`
       : '<p class="hint">오늘 할 기타 업무가 없습니다.</p>'); }
