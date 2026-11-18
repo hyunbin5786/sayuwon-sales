@@ -680,11 +680,6 @@ html.book-guest #bookBody tr{cursor:default}
 /* 결제링크 전송 · 입금 확인 · 인원 변경 · 현장 재결제 등 체크 칸: 체크되면 검정 계열 */
 .ckf:has(input:checked){background:#ecebe7;border-color:#c9c6be;color:#55534d;font-weight:700}   /* 체크되면 연한 회색 (2026-11-18) */
 .ckf:has(input:checked) input{accent-color:#8a877f}
-/* 담당자 미정 */
-.ctbd-ck{display:inline-flex;align-items:center;gap:5px;margin:0 0 6px;padding:3px 10px;border:1px solid var(--line);border-radius:14px;background:#fff;font-size:12.5px;cursor:pointer;color:var(--muted)}
-.ctbd-ck:has(input:checked){background:var(--amber-soft);border-color:var(--amber);color:var(--amber);font-weight:700}
-.ctbd-ck input{margin:0;accent-color:var(--amber)}
-.ctbd-ck{justify-self:start;align-self:start;width:max-content;grid-column:1/-1}
 /* 나의 할일: 전체 = 개인 · 단체 · 기타 3열, 기타 탭 = 1열 */
 .my-cols.three{grid-template-columns:1fr 1fr 1fr}
 .my-cols.one{grid-template-columns:1fr}

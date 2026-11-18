@@ -149,7 +149,7 @@ function dashRecs(items){
     if(GROUP_TYPES.includes(ct)){
       if(r.date && (new Date(opsToday()) - new Date(r.date))/864e5 > 30) return;
       const consult = ct==='예약상담' || ct==='상담';
-      const ts=histTasks(r).filter(t=>!t.done && !t.removed && (!consult || ['tour','ctbd','clergy'].includes(t.id) || t.custom)).map(t=>({title:t.title, due:dueOf(t,r)}));
+      const ts=histTasks(r).filter(t=>!t.done && !t.removed && (!consult || ['tour','clergy'].includes(t.id) || t.custom)).map(t=>({title:t.title, due:dueOf(t,r)}));
       if(ts.length) recs.push({kind:'단체', owner:(r.owner||r.takenBy||'').trim(), name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:ts, href:'group.html?open='+encodeURIComponent(r.id)});
     } else if(ct==='개인고객'){
       const ts=histTasks(r).filter(t=>!t.done).map(t=>({title:t.title, due:dueOf(t,r)}));
