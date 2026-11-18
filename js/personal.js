@@ -273,10 +273,13 @@ function save(auto){
   clearTimeout(autoT);
   if(!hasContent()){ if(!auto) toast('문의 내용이나 고객 정보를 넣어 주세요.'); return; }
   if(!auto && $('#taskAddIn').value.trim()) $('#taskAdd').requestSubmit();   // 과업 칸에 적어 두고 추가를 안 누른 것도
-  // 개인고객 문의는 처리가 필요한 것만 남기므로, 처음 저장할 때 추후 과업 「문의 처리 현황 점검」(마감 오늘, 처리되면 체크). 지우면 다시 저장해도 다시 생기지 않음
-  // 그 메모 = 문의 내용 (메모를 직접 고치기 전까지는 문의 내용을 고치면 같이 바뀜)
-  if(!cur && !form.tasks.some(t=>t.id==='inqcheck')) form.tasks.push({id:'inqcheck', title:'문의 처리 현황 점검', done:false, memo:'', memoAuto:1, at:new Date().toISOString(), due:todayYmd(), by:user.name||'', auto:1});
-  { const ic=form.tasks.find(t=>t.id==='inqcheck' && t.memoAuto); if(ic) ic.memo=form.note.trim(); }
+  // 개인고객 문의는 처리가 필요한 것만 남기므로, 처음 저장할 때 추후 과업 하나(마감 오늘, 처리되면 체크). 지우면 다시 저장해도 다시 생기지 않음
+  // 과업 이름 = 문의 내용 그대로 (2026-11-18 · 예전: 「문의 처리 현황 점검」 + 메모에 문의 내용). 과업 이름을 직접 고치기 전까지는 문의 내용을 고치면 같이 바뀜
+  const inqTitle = () => form.note.trim().replace(/\s*\n+\s*/g,' / ') || '문의 처리 현황 점검';
+  if(!cur && !form.tasks.some(t=>t.id==='inqcheck')) form.tasks.push({id:'inqcheck', title:inqTitle(), done:false, memo:'', titleAuto:1, at:new Date().toISOString(), due:todayYmd(), by:user.name||'', auto:1});
+  { const ic=form.tasks.find(t=>t.id==='inqcheck');
+    if(ic && ic.memoAuto){ if(ic.memo.trim()===form.note.trim() && !ic.titleSet){ ic.memo=''; ic.titleAuto=1; } delete ic.memoAuto; }   // 예전 모양(메모 = 문의 내용) → 이름 = 문의 내용
+    if(ic && ic.titleAuto && !ic.titleSet) ic.title=inqTitle(); }
   if(!form.cat){ form.cat=CAT_DEFAULT; if(!pcats().includes(CAT_DEFAULT)) savePcats([CAT_DEFAULT, ...pcats()], `'${CAT_DEFAULT}' 추가 (구분 없이 저장)`); paintChips(); }   // 구분을 안 고르고 저장하면 '문의' (2026-11-18)
   const item=toItem(); put(item); cur=item; saved=JSON.stringify(form); startedAt=null;
   lastAuto = auto ? Date.now() : null; paintForm(); if(!auto) toast('저장했습니다.');
