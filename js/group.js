@@ -618,8 +618,12 @@ document.addEventListener('click', async e=>{ const b=e.target.closest('#itemsBo
   renderSide(); paintItemPrices();
   const k=erpKeyOf(x.product); if(k){ setItemQty(k, String(numOf(itemQty(k)) + (x.people||0))); if(!itemRows.includes(k)) itemRows.push(k); itemChanged(true); }   // 그대로 예약 내역 줄로
 });
+// 차방 대관 · 당두봉갈 대관: 시작 · 끝 시각이 비면 담당처럼 빨간 칸 (2026-11-18)
+const TM_REQ = ['chabang','dangdu'];
+function paintTmMissing(){ TM_REQ.forEach(k=>['S','E'].forEach(x=>{ const el=document.querySelector(`#itemsBox [data-ix="tm${x}:${k}"]`); if(el) el.closest('.it-xl').classList.toggle('missing', !el.value.trim()); })); }
 function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은 넣은 묶음만
   document.querySelectorAll('#itemsBox [data-is]').forEach(el=>el.closest('.it-s').classList.toggle('missing', !el.value.trim()));
+  paintTmMissing();
   const kinds=new Set(itemRows.map(k=>{ const t=itemKind(k); return t==='sadam'?'sadam':t==='mb'?'mabang':t==='prog'?(OPT[GROUP_OF[k]]||{}).id:''; }));
   document.querySelectorAll('#itemsInfo .dayinfo').forEach(el=>{ el.hidden = !kinds.has(el.id.replace('info_','')); });
   const dn=$('#dayNone'); if(dn) dn.hidden = [...document.querySelectorAll('#itemsInfo .dayinfo')].some(el=>!el.hidden);
@@ -649,6 +653,7 @@ document.addEventListener('input', e=>{
   const el=e.target; if(!el.closest?.('#itemsBox')) return;
   if(el.dataset.iq!=null){ const k=el.dataset.iq, c=el.value.replace(/[^\d+]/g,''), was=itemQty(k); if(c!==el.value) el.value=c; setItemQty(k, el.value);
     if(k==='seminar' && (numOf(was)>=2)!==(numOf(el.value)>=2)){ itemChanged(true, !!was); const q=document.querySelector('#itemsBox [data-iq="seminar"]'); if(q){ q.focus(); const n=q.value.length; try{ q.setSelectionRange(n,n); }catch(_){} } return; }   // 세미나 도슨트 수량 2 ↔ 1: 두 번째 시작 · 끝 · 장소 · 비고 줄을 넣고 빼기
+    if(itemKind(k)==='prog' && itemUnit(k)==='시간' && numOf(el.value) && numOf(el.value)!==numOf(was)){ const [s]=tmTimes(k); if(s && fmtTime(s)){ const en=plusH(s, progHours(k)); rec['tm_'+k]=`${s}~${en}`; touched.add('tm_'+k); const b=el.closest('.it-row')?.querySelector(`[data-ix="tmE:${CSS.escape(k)}"]`); if(b) b.value=en; paintTmMissing(); } }   // 시간 프로그램(대관 등): 수량(시간)을 바꾸면 끝 = 시작 + 그 시간 (2026-11-18)
     itemChanged(false, !!was); }   // 담당 기본값은 수량을 처음 넣을 때만
   else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); startTimer(); repaintSoon(); }   // 항목 비고 (치는 동안은 다시 그리지 않음)
   else if(el.dataset.is!=null){ const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); repaintSoon(); }   // 담당 이름 (치는 동안은 다시 그리지 않음)
@@ -671,7 +676,7 @@ document.addEventListener('focusout', e=>{ const el=e.target, ix=el.dataset?.ix|
   if(isS){ if(v===s){ el.value=v; return; } s=v; if(v && fmtTime(v)) en=plusH(v, progHours(k)); } else { if(v===en){ el.value=v; return; } en=v; }
   rec['tm_'+k] = s||en ? `${s}~${en}` : ''; touched.add('tm_'+k);
   const row=el.closest('.it-row'); if(row){ const a=row.querySelector(`[data-ix="tmS:${CSS.escape(k)}"]`), b=row.querySelector(`[data-ix="tmE:${CSS.escape(k)}"]`); if(a) a.value=s; if(b) b.value=en; }
-  itemChanged(false, true); });
+  itemChanged(false, true); paintTmMissing(); });
 document.addEventListener('focusout', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.ix==null || el.tagName!=='INPUT' || !el.value) return;
   if(/^(mabangTime|tm_)/.test(el.dataset.ix)){ const f=fmtRange(el.value); if(f && f!==el.value){ el.value=f; rec[el.dataset.ix]=f; touched.add(el.dataset.ix); itemChanged(false); } } });   // 12001300 → 12:00~13:00
 document.addEventListener('focusin', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.iq==null) return; const k=el.dataset.iq, t=itemKind(k); renderInfo(t==='mb' ? 'mabangL' : ['sadam','prog'].includes(t) ? k : null); });   // 그날 같은 항목 예약 현황
