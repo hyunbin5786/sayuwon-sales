@@ -9,7 +9,10 @@
 (function(){
   const $=s=>document.querySelector(s), esc=SY.esc;
   const ID='mentdb', TYPE='응대멘트', CACHE_LS='sy_ment_cache', FAV_LS='sy_ment_fav';
-  let favs=new Set(SY.readJSON(FAV_LS, []));   // 즐겨찾기 (이 브라우저 · 사람마다 따로, 로그인 안 해도 됨)
+  const LOCAL_FAVS=SY.readJSON(FAV_LS, []);   // 예전(이 브라우저만) 즐겨찾기 → 공유로 옮길 때 씀 (2026-11-18)
+  const isFav = m => !!(m && m.fav);   // 즐겨찾기 = 멘트에 함께 저장 (공유 기록 · 휴대폰 · 컴퓨터 · 모든 사람 같음)
+  const isMobile = () => matchMedia('(max-width:700px)').matches;
+  const canEdit = () => logged && !isMobile();   // 추가 · 수정 · 삭제 · 즐겨찾기 바꾸기는 컴퓨터에서 로그인한 사람만
   const DEFAULT=[{ id:'home', title:'홈페이지링크', body:'안녕하세요.\n사유원입니다.\n\n공식 홈페이지 링크 보내드립니다.\nhttps://sayuwon.com/\n\n감사합니다.' }];
   const user=SY.user(), logged=!!user;
   let failed=false, loaded=!!SY.readJSON(CACHE_LS, null);   // 이 기기에서 공유 멘트를 한 번이라도 받았는지 (못 받았으면 기본 멘트 대신 팀 비밀번호 안내)
@@ -27,7 +30,9 @@
   const needDeploy = e => e && e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 이미지를 쓸 수 있습니다 (apps-script/group-intake.gs).' : '';
   // 불러오기: 팀 비밀번호 없이 (Apps Script mentList · 2026-11-18, 주로 휴대폰). 예전 배포면 비밀번호가 있는 기기만 전체 목록에서
   const applyRow = r => { row = r ? {...(row||{}), ...r} : row; let h=null; try{ h=r ? JSON.parse(r.history||'{}') : null; }catch(_){}
-    items = h && Array.isArray(h.items) ? h.items : DEFAULT.slice(); SY.writeJSON(CACHE_LS, items); loaded=true; failed=false; setSync(''); if(!edit) render(); };
+    items = h && Array.isArray(h.items) ? h.items : DEFAULT.slice(); SY.writeJSON(CACHE_LS, items); loaded=true; failed=false; setSync(''); if(!edit) render();
+    // 예전에 이 컴퓨터에서만 해 둔 즐겨찾기 → 공유 즐겨찾기로 한 번 옮김 (아직 아무 멘트도 즐겨찾기가 없을 때만)
+    if(canEdit() && LOCAL_FAVS.length && r && !items.some(x=>x.fav)){ items=items.map(x=>LOCAL_FAVS.includes(x.id) ? {...x, fav:true} : x); try{ localStorage.removeItem(FAV_LS); }catch(_){} LOCAL_FAVS.length=0; if(items.some(x=>x.fav)) push('이 컴퓨터의 즐겨찾기를 휴대폰에도 보이게 옮겼습니다.'); } };
   async function pull(){
     setSync('불러오는 중…');
     try{ const j=await api({action:'mentList'}); applyRow(j.ment||null); return; }
@@ -95,7 +100,7 @@
     if(!loaded && !edit){ $('#sum').textContent=''; $('#list').innerHTML = failed ? '<p class="need-key">멘트를 불러오지 못했습니다. 인터넷 연결을 확인하고 잠시 뒤 다시 열어 주세요.</p>' : '<p class="need-key">멘트를 불러오는 중…</p>'; return; }
     const q=$('#q').value.trim().replace(/\s/g,'').toLowerCase();
     const list=items.filter(m=>!q || (m.title+m.body).replace(/\s/g,'').toLowerCase().includes(q))
-      .map((m,i)=>({m,i})).sort((a,b)=>(favs.has(b.m.id)-favs.has(a.m.id)) || a.i-b.i).map(o=>o.m);   // 즐겨찾기한 멘트가 위로 (그 안에서는 원래 순서)
+      .map((m,i)=>({m,i})).sort((a,b)=>(isFav(b.m)-isFav(a.m)) || a.i-b.i).map(o=>o.m);   // 즐겨찾기한 멘트가 위로 (그 안에서는 원래 순서)
     $('#sum').textContent = `${items.length}개${q?` · 찾은 ${list.length}개`:''}`;
     const form = m => `<div class="ment ment-edit" data-id="${esc(m.id)}"><input class="m-title" data-ime="ko" placeholder="멘트 이름" value="${esc(m.title)}">`
       + `<textarea class="m-body" data-ime="ko" rows="8" placeholder="멘트 내용">${esc(m.body)}</textarea>`
@@ -104,8 +109,8 @@
     // 카드에는 그림 미리보기 없이 「글 복사」 옆에 「이미지 복사」 버튼만 (여러 장이면 이미지 1 · 2 …, 2026-11-18)
     const imgBtns = m => (m.imgs||[]).map((x,i,a)=>`<button type="button" class="btn sm" data-imgcopy="${esc(x.id)}" title="${esc(x.name||'이미지')} · 그림을 복사 → 카톡에 Ctrl+V">이미지${a.length>1?(i+1):''}<span class="cp"> 복사</span></button>`).join('');
     const imgsHTML = () => '';
-    const card = m => edit===m.id ? form(m) : `<div class="ment${favs.has(m.id)?' fav':''}" data-id="${esc(m.id)}"><div class="m-head"><button type="button" class="m-star${favs.has(m.id)?' on':''}" data-mfav title="${favs.has(m.id)?'즐겨찾기 빼기':'즐겨찾기 (위로)'}" aria-pressed="${favs.has(m.id)}">${favs.has(m.id)?'★':'☆'}</button><b>${esc(m.title||'멘트')}</b><span class="sp"></span>`
-      + `<button type="button" class="btn primary sm" data-mcopy title="제목과 글을 복사">${(m.imgs||[]).length?'글 복사':'복사'}</button>${imgBtns(m)}${logged?'<button type="button" class="btn sm" data-medit>수정</button>':''}</div><div class="m-body-v">${esc(m.body)}</div>${imgsHTML(m)}</div>`;
+    const card = m => edit===m.id ? form(m) : `<div class="ment${isFav(m)?' fav':''}" data-id="${esc(m.id)}"><div class="m-head"><button type="button" class="m-star${isFav(m)?' on':''}" data-mfav title="${isFav(m)?'즐겨찾기 빼기':'즐겨찾기 (위로)'}" aria-pressed="${isFav(m)}">${isFav(m)?'★':'☆'}</button><b>${esc(m.title||'멘트')}</b><span class="sp"></span>`
+      + `<button type="button" class="btn primary sm" data-mcopy title="제목과 글을 복사">${(m.imgs||[]).length?'글 복사':'복사'}</button>${imgBtns(m)}${canEdit()?'<button type="button" class="btn sm" data-medit>수정</button>':''}</div><div class="m-body-v">${esc(m.body)}</div>${imgsHTML(m)}</div>`;
     $('#list').innerHTML = (edit==='new' ? form({id:'new', title:'', body:''}) : '')
       + (list.length ? list.map(card).join('') : `<p class="hint">${q?'찾은 멘트가 없습니다.':'멘트가 없습니다.'}</p>`);
     paintDraft(); paintImgs();
@@ -120,8 +125,11 @@
     if(e.target.closest('[data-mcopy]') && m){ await copy(`[${m.title}]\n${m.body}`); toast((m.imgs||[]).length ? `「${m.title}」 글을 복사했습니다. 붙여 넣은 뒤 「이미지 복사」로 그림도 붙여 넣으세요.` : `「${m.title}」 멘트를 제목과 함께 복사했습니다.`, 3200); return; }   // 제목도 함께
     const ic=e.target.closest('[data-imgcopy]'); if(ic){ ic.disabled=true; try{ await copyImg(ic.dataset.imgcopy); toast('이미지를 복사했습니다. 카톡 · 문자에 붙여 넣으세요 (Ctrl+V).'); }
       catch(err){ toast(needDeploy(err) || '이미지를 복사하지 못했습니다. 크롬 · 엣지에서 해 주세요 (그림을 오른쪽 클릭 → 이미지 복사도 됩니다).', 4000); } finally{ ic.disabled=false; } return; }
-    if(e.target.closest('[data-mfav]') && m){ favs.has(id) ? favs.delete(id) : favs.add(id); SY.writeJSON(FAV_LS, [...favs]); render(); toast(favs.has(id) ? `「${m.title}」 즐겨찾기 · 위로 올렸습니다.` : `「${m.title}」 즐겨찾기를 뺐습니다.`); return; }
+    if(e.target.closest('[data-mfav]') && m){   // 즐겨찾기: 멘트에 저장 → 휴대폰 · 컴퓨터 · 모든 사람에게 같은 순서 (바꾸기는 컴퓨터에서 로그인한 사람만)
+      if(!canEdit()){ toast(isMobile() ? '즐겨찾기는 컴퓨터에서 바꿀 수 있습니다.' : '로그인하면 즐겨찾기를 바꿀 수 있습니다.'); return; }
+      items=items.map(x=>x.id===id ? {...x, fav:!x.fav} : x); await push(!m.fav ? `「${m.title}」 즐겨찾기 · 위로 올렸습니다 (휴대폰에도).` : `「${m.title}」 즐겨찾기를 뺐습니다.`); return; }
     const dl=e.target.closest('[data-imgdel]'); if(dl){ draftImgs.splice(+dl.dataset.imgdel, 1); paintDraft(); return; }
+    if((e.target.closest('[data-medit]') || e.target.closest('[data-msave]') || e.target.closest('[data-mdel]')) && !canEdit()){ toast('멘트 추가 · 수정은 컴퓨터에서 할 수 있습니다.'); return; }   // 휴대폰에서는 복사만
     if(e.target.closest('[data-medit]')){ edit=id; draftImgs=[...((m&&m.imgs)||[])]; render(); box.scrollIntoView?.({block:'nearest'}); return; }
     if(e.target.closest('[data-mcancel]')){ edit=null; draftImgs=[]; render(); return; }
     if(e.target.closest('[data-msave]')){
@@ -147,7 +155,7 @@
   $('#list').addEventListener('click', e=>{ const im=e.target.closest('.m-imgs.view img'); if(!im || !im.src) return; const z=document.createElement('div'); z.className='m-zoom'; z.innerHTML='<img alt="">'; z.firstChild.src=im.src; z.onclick=()=>z.remove(); document.body.appendChild(z); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelector('.m-zoom')?.remove(); });
   $('#askNo').onclick=()=>{ $('#askModal').hidden=true; };
-  $('#addBtn').onclick=()=>{ if(!logged) return; edit='new'; draftImgs=[]; $('#q').value=''; render(); };
+  $('#addBtn').onclick=()=>{ if(!canEdit()){ toast('멘트 추가는 컴퓨터에서 할 수 있습니다.'); return; } edit='new'; draftImgs=[]; $('#q').value=''; render(); };
   $('#q').addEventListener('input', ()=>{ if(!edit) render(); });
   $('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(SY.KEY_LS, v); }catch(_){} $('#keyIn').value=''; $('#keyErr').textContent=''; $('#keyBox').hidden=true; toast('팀 비밀번호를 넣었습니다. 다시 저장해 주세요.'); pull(); });
   window.addEventListener('focus', ()=>{ if(!edit) pull(); });

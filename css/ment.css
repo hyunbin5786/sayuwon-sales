@@ -62,3 +62,5 @@ main{max-width:1760px}
   .m-head .btn.sm{flex:none;height:32px;padding:0 9px;font-size:12.5px}
   .m-head .cp{display:none}
 }
+/* 휴대폰: 즐겨찾기는 ★ 만 보임 (바꾸기는 컴퓨터에서, 2026-11-18) */
+@media (max-width:700px){ .m-star:not(.on){visibility:hidden} .m-star{pointer-events:none} }
