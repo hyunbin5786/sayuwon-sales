@@ -9,10 +9,10 @@
   const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const I = (href, b, s, go) => ({href:base+href, b, s, go});
   const G = [
-    {k:'book', t:'예약보조', login:1, items:[ {sub:'고객응대 접수'}, I('personal.html','개인고객 전화응대','개인 문의 통화 기록 · 보고 · 추후 과업'), I('group.html','단체고객 전화응대','단체 예약 접수 · 가격 · 할인 · 전산 · 추후 과업'),
-      {sub:'고객 응대 보조'}, I('naver.html','네이버 예약 → 사유원 전산 이관','네이버 예약 엑셀을 전산 입력용으로 바꾸기'), I('prep.html','다음날 고객 응대 준비','방문자내역 엑셀로 다음날 단체 응대표 만들기'), I('document/','견적서 / 거래명세서 발급','사유원 · 신라철강 견적서 · 거래명세서 PDF · 엑셀') ]},
+    {k:'book', t:'예약보조', login:1, items:[ {sub:'고객응대 접수'}, I('personal.html','개인고객 전화응대'), I('group.html','단체고객 전화응대'),
+      {sub:'고객 응대 보조'}, I('naver.html','네이버 예약 → 사유원 전산 이관'), I('prep.html','다음날 고객 응대 준비'), I('document/','견적서 / 거래명세서 발급') ]},
     {k:'ops', t:'운영보조', items:[ {sub:'예약현황 공유'}, {chips:[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']]},
-      {...I('ops.html?p=lost','분실물 찾기','습득 · 분실 신고 · 보관 · 반환'), login:1}, {...I('ops.html?p=accident','사고현황 접수','부상 · 파손 등 · 조치 · 처리 상태'), login:1}, {...I('ops.html?p=stock','재고확인','품목별 수량 · 부족 표시'), login:1}, {...I('ops.html?p=ship','스마트스토어 발송 보고','엑셀 불러오기 · 발송 현황 · 달마다 보고'), login:1} ]},
+      {...I('ops.html?p=lost','분실물 찾기'), login:1}, {...I('ops.html?p=accident','사고현황 접수'), login:1}, {...I('ops.html?p=stock','재고확인'), login:1}, {...I('ops.html?p=ship','스마트스토어 발송 보고'), login:1} ]},
     {k:'set', t:'기타 설정', login:1, items:[ I('./#catalog','품목관리','', 'catalog'), I('./#members','멤버관리','', 'members') ]},
   ];
   let st={}; try{ st=JSON.parse(localStorage.getItem('sy_menu_acc')||'{}')||{}; }catch(_){}
@@ -21,13 +21,14 @@
   const isHere = href => { const [p,q]=href.replace(/^(\.\.\/)?/,'').split('?'); if((p||'index.html')!==herePath) return false;
     if(!q) return p!=='group.html' || (!hereQ.get('my') && !hereQ.get('book'));
     return [...new URLSearchParams(q)].every(([k,v])=>hereQ.get(k)===v); };
+  const isHomePg = herePath==='index.html';   // 첫 화면: 메뉴를 고르러 오는 곳 → 로그인했으면 메뉴를 펼친 채로 (묶음도 모두 펼침)
   const itemHTML = it => it.sub ? `<div class="sm-sub">${esc(it.sub)}</div>`
     : it.chips ? `<div class="sm-chips">${it.chips.map(([k,l])=>`<a class="sm-chip" href="${base}group.html?book=${k}">${esc(l)}</a>`).join('')}</div>`
     : (it.login && !logged) ? ''
-    : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}</b>${it.s?`<span>${esc(it.s)}</span>`:''}</a>`;
+    : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}</b></a>`;   // 메뉴 아래 회색 설명은 없앰 (2026-11-18)
   const wrap=document.createElement('div'); wrap.className='smenu'; wrap.id='smenu'; wrap.hidden=true;
-  wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"><div class="sm-top"><a class="sm-home" href="${base || './'}">사유원 운영 보조 시스템</a><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
-    + G.filter(g=>logged || !g.login).map(g=>`<details class="sm-g" data-acc="${g.k}"${(g.k in st ? st[g.k] : g.k!=='set')?' open':''}><summary>${esc(g.t)}</summary>${g.items.map(itemHTML).join('')}</details>`).join('')
+  wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"><div class="sm-top"><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
+    + G.filter(g=>logged || !g.login).map(g=>`<details class="sm-g" data-acc="${g.k}"${(isHomePg || (g.k in st ? st[g.k] : g.k!=='set'))?' open':''}><summary>${esc(g.t)}</summary>${g.items.map(itemHTML).join('')}</details>`).join('')
     + (logged ? '' : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>`) + `</nav>`;
   document.body.appendChild(wrap);
   const btn=document.createElement('button'); btn.type='button'; btn.className='smenu-btn'; btn.title='메뉴 열기 / 닫기'; btn.setAttribute('aria-label','메뉴'); btn.innerHTML='☰ <span>메뉴</span>';
@@ -51,6 +52,7 @@
     mb.addEventListener('click', ()=>window.openMyPop());
   }
   btn.addEventListener('click', ()=>open(wrap.hidden));
+  if(isHomePg && logged) open(true);
   wrap.addEventListener('click', e=>{ if(e.target.closest('[data-smclose]')) open(false); else if(e.target.closest('a')) setTimeout(()=>open(false), 0); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !wrap.hidden){ e.preventDefault(); e.stopImmediatePropagation(); open(false); } }, true);
   wrap.querySelectorAll('details[data-acc]').forEach(d=>d.addEventListener('toggle', ()=>{ st[d.dataset.acc]=d.open; try{ localStorage.setItem('sy_menu_acc', JSON.stringify(st)); }catch(_){} }));

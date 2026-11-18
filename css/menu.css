@@ -42,3 +42,7 @@ header:has(> .smenu-btn) .me,header:has(> .smenu-btn) .sys-me,header:has(> .smen
 header:has(> .smenu-btn) .who{margin-left:0 !important}
 header:has(> .smenu-btn) [data-mypop],header:has(> .smenu-btn) #myOpenBtn,header:has(> .smenu-btn) .smenu-my{margin-left:0 !important;height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.12);color:#f3f1ec;border-radius:7px;font:600 13px "Noto Sans KR",sans-serif;cursor:pointer}
 header:has(> .smenu-btn) [data-mypop]:hover,header:has(> .smenu-btn) #myOpenBtn:hover,header:has(> .smenu-btn) .smenu-my:hover{background:rgba(255,255,255,.25)}
+/* 메뉴 위 제목 없앰 (2026-11-18): 맨 위 줄은 × 만 오른쪽에 */
+.smenu .sm-top{justify-content:flex-end;background:#f3f1ec;padding:8px 10px 0}
+.smenu .sm-x{color:#77736a}
+.smenu .sm-x:hover{color:#262620}
