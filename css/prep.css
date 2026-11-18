@@ -112,3 +112,13 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 .src.have{background:var(--pine-soft);color:var(--pine)}
 .src.new{background:var(--amber-soft);color:var(--amber)}
 .out-legend{font-size:12px;color:var(--muted);margin:0 0 8px;display:flex;gap:12px;flex-wrap:wrap}
+/* 입장문: 예약 고정(단체예약에서 정함) · 추천 · 직접 구분 (2026-11-19) */
+.gate.src-fixed{border:2px solid var(--pine)}
+.gate.src-auto{border:1.5px dashed var(--muted)}
+.gsrc{display:inline-block;margin-left:5px;font:700 10.5px var(--sans);padding:1px 6px;border-radius:999px;vertical-align:1px;white-space:nowrap}
+.gsrc.fixed{background:var(--pine);color:#fff}
+.gsrc.auto{background:transparent;color:var(--muted);border:1px dashed var(--muted)}
+.gsrc.hand{background:var(--amber-soft);color:var(--amber)}
+@media print{.gsrc.auto,.gsrc.hand{display:none}}
+.lg-gap{width:14px}
+.g.fx{box-shadow:0 0 0 2px #2f5d4a}

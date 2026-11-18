@@ -17,11 +17,13 @@ const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
 const KEY_LS=SY.KEY_LS, GROUP_CACHE_LS='sayuwon_intake_cache';
 const getKey = SY.getKey;
 async function callApi(body){ const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})}); const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j; }
-const GROUP_TYPES=['단체예약','예약상담','가예약','예약확정','예약접수','상담','공식예약'];   // 예약취소는 빼고 (2026-11-18 4단계)
-let groups = (()=>{ try{ return (JSON.parse(localStorage.getItem(GROUP_CACHE_LS)||'[]')||[]).filter(r=>GROUP_TYPES.includes(r.callType||'단체예약')); }catch(_){ return []; } })();
+const GROUP_TYPES=['예약확정','예약접수','공식예약'];   // 연결은 예약확정만 (2026-11-18 · 예약상담 · 가예약 · 예약취소는 가져오지 않음 · 예약접수 · 공식예약 = 예전 이름)
+const isConfirmed = r => GROUP_TYPES.includes(r.callType) || (/^adm/.test(r.id||'') && (r.callType||'단체예약')==='단체예약');   // 관리자 사이트에서 온 예약도 확정
+const memoVal = (r, label) => { const p=String(r.memo||'').split(' / ').map(s=>s.trim()).find(s=>s.startsWith(label+' ')); return p ? p.slice(label.length+1).trim() : ''; };   // 비고 칸 「입장문 치허문」 등
+let groups = (()=>{ try{ return (JSON.parse(localStorage.getItem(GROUP_CACHE_LS)||'[]')||[]).filter(isConfirmed); }catch(_){ return []; } })();
 async function loadGroups(){
   if(!getKey()){ $('#keyBox').hidden=false; return; }
-  try{ const j=await callApi({action:'list'}); groups=(j.items||[]).filter(r=>GROUP_TYPES.includes(r.callType||'단체예약')); $('#keyBox').hidden=true; if(state) build(false); }
+  try{ const j=await callApi({action:'list'}); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true; if(state) build(false); }
   catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('팀 비밀번호가 맞지 않습니다.'); } else toast('단체예약을 불러오지 못했습니다. 마지막으로 받은 목록으로 보여 줍니다.'); }
 }
 $('#keyBtn').onclick=()=>{ const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(KEY_LS, v); }catch(_){} $('#keyIn').value=''; loadGroups(); };
@@ -137,7 +139,7 @@ function build(fresh){
       time: e.time ?? fmtT(r&&r.tin) ?? '', timeHint: pmT, vehicle: e.vehicle ?? v.txt, bus: v.bus,
       phone: e.phone ?? (x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || ''),
       note: e.note ?? [ [...new Set(prods)].join(' · '), r ? recNote(r) : '', x && x.note && x.note!=='-' ? x.note.slice(0,60) : '' ].filter(Boolean).join(' / '),
-      gate: e.gate || '', gateWhy:'', recGate: r && /문/.test(r.gate||'') ? r.gate : '', missing: !x, stage: r ? (r.callType||'') : '', prods: x ? x.items.map(i=>`${i.p} ${i.n}명`).join('\n') : '', pay: (x&&x.pay)||'' };
+      gate: e.gate || '', gateWhy:'', recGate: (()=>{ const rg=r ? (memoVal(r,'입장문')||r.gate||'') : ''; return /^(치허문|곡신문)$/.test(rg) ? rg : ''; })(),   /* 단체예약에서 정한 입장문 (비고 칸 「입장문 …」 · 미정이면 없음) */ missing: !x, stage: r ? (r.callType||'') : '', prods: x ? x.items.map(i=>`${i.p} ${i.n}명`).join('\n') : '', pay: (x&&x.pay)||'' };
   });
   recommendGates(false);
   render();
@@ -154,9 +156,12 @@ function recommendGates(force){
     else if(toMin(r.time)==null){ why='도착 시간 미정 → 치허문'; }
     else if(bigNear.length){ g='곡신문'; why=`${bigNear.map(o=>o.name).slice(0,2).join(' · ')} 와 시간 겹침 → 곡신문`; }
     else why='시간 안 겹침 → 치허문';
-    r.recGateAuto=g; r.gateWhy=why + (r.recGate && r.recGate!==g ? ` (예약에는 ${r.recGate})` : '');
-    const e=(state.edit[r.key] ||= {}); if(force) delete e.gate;
-    r.gate = e.gate || g;
+    // 단체예약에서 입장문을 정해 두었으면(고정) 그대로 · 아니면 추천 · 여기서 바꾸면 직접 (2026-11-19)
+    const base = r.recGate || g;
+    r.recGateAuto=base; r.gateWhy = r.recGate ? `단체예약에서 ${r.recGate}으로 정함` + (r.recGate!==g ? ` (추천은 ${g})` : '') : why;
+    const e=(state.edit[r.key] ||= {}); if(force || e.gate===base) delete e.gate;
+    r.gate = e.gate || base;
+    r.gateSrc = e.gate ? 'hand' : r.recGate ? 'fixed' : 'auto';
   });
 }
 // ===================== 화면 =====================
@@ -177,7 +182,7 @@ function render(){
   $('#outHead').innerHTML = `${yy}(${DOW[new Date(s.date+'T00:00').getDay()]||''})<br>${total}명+@`;
   $('#outBody').innerHTML = list.map(r=>`<tr><td class="name${r.group?'':' ind'}"><span class="src ${r.group?'have':'new'} no-print" title="${r.group?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.group?'목록':'새로 조사'}</span>${esc(r.name)}</td><td class="num">${r.ppl}</td>`
     + `<td><input class="t" data-e="${esc(r.key)}|time" value="${esc(r.time)}" placeholder="${esc(r.timeHint||'시간')}"></td>`
-    + `<td><select class="gate ${esc(r.gate)}" data-e="${esc(r.key)}|gate"><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select><span class="why no-print">${esc(r.gateWhy)}${r.gate!==r.recGateAuto?' · 직접 바꿈':''}</span></td>`
+    + `<td><select class="gate ${esc(r.gate)} src-${r.gateSrc}" data-e="${esc(r.key)}|gate"><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select><span class="gsrc ${r.gateSrc}" title="${{fixed:'단체예약 화면에서 이 입장문으로 정해 둔 것',auto:'방문 인원 · 도착 시간을 보고 이 화면이 추천한 것',hand:'이 화면에서 직접 바꾼 것'}[r.gateSrc]}">${{fixed:'예약 고정',auto:'추천',hand:'직접'}[r.gateSrc]}</span><span class="why no-print">${esc(r.gateWhy)}${r.gateSrc==='hand'?` · ${r.recGate?'고정':'추천'}은 ${esc(r.recGateAuto)}`:''}</span></td>`
     + `<td><input class="v" data-e="${esc(r.key)}|vehicle" value="${esc(r.vehicle)}"></td><td><input class="p" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
     + `<td class="note"><textarea data-e="${esc(r.key)}|note" rows="1">${esc(r.note)}</textarea></td></tr>`).join('');
   const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
@@ -186,14 +191,14 @@ function render(){
   $('#outFoot').innerHTML = `<tr><td class="g">단체</td><td class="g num">${gSum}</td><td></td><td></td><td class="bus">버스 ${bus}대+</td><td colspan="2" class="ind">개인고객 ${ind}명</td></tr>`
     + `<tr><td>현장결제건</td><td colspan="6" style="text-align:left">${esc(onsite.join(', ')||'-')}</td></tr>`
     + `<tr><td>해오름 산책</td><td colspan="6" style="text-align:left">${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</td></tr>`;
-  $('#p4Sum').textContent = `${list.length}팀 (목록 ${list.filter(r=>r.group).length} · 새로 조사 ${list.filter(r=>!r.group).length}) · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length}`;
+  $('#p4Sum').textContent = `${list.length}팀 (목록 ${list.filter(r=>r.group).length} · 새로 조사 ${list.filter(r=>!r.group).length}) · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length} · 입장문 예약 고정 ${list.filter(r=>r.gateSrc==='fixed').length}`;
   document.querySelectorAll('.out textarea').forEach(t=>{ t.style.height='auto'; t.style.height=t.scrollHeight+'px'; });
 }
 document.addEventListener('change', e=>{ const t=e.target;
   if(t.dataset.sel){ state.sel[t.dataset.sel]=t.checked; saveState(); build(false); return; }
   if(t.dataset.link!=null){ const k=t.dataset.link; if(t.value) state.link[k]=t.value; else delete state.link[k]; delete state.edit[k]; saveState(); build(false); return; }
   if(t.id==='minPpl'){ build(true); saveState(); return; }
-  if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; saveState(); if(f==='time') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } render(); } }
+  if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; saveState(); if(f==='time') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } if(f==='gate') recommendGates(false); render(); } }
 });
 document.addEventListener('input', e=>{ const t=e.target; if(t.tagName==='TEXTAREA' && t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; const r=rows.find(x=>x.key===k); if(r) r[f]=t.value; saveState(); t.style.height='auto'; t.style.height=t.scrollHeight+'px'; } });
 document.addEventListener('click', e=>{ if(e.target.id==='clearBtn'){ if(!confirm('읽은 엑셀과 고친 내용을 지울까요?')) return; state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); } });
@@ -225,7 +230,7 @@ $('#pngBtn').onclick=async()=>{
   const box=$('#shot');
   box.innerHTML = `<div class="sh-h"><b>${esc(dLab(s.date))} 고객 응대</b><span>방문 ${total}명+@ · ${list.length}팀</span></div>`
     + `<table><thead><tr><th>단체 · 고객</th><th>인원</th><th>도착</th><th>입장문</th><th>차량</th></tr></thead><tbody>`
-    + list.map(r=>`<tr><td class="nm${r.group?'':' ind'}"><b>${esc(r.name)}</b>${r.phone?`<small>${esc(r.phone)}</small>`:''}</td><td class="c">${r.ppl}</td><td class="c">${esc(r.time||r.timeHint||'')}</td><td class="c"><span class="g ${esc(r.gate)}">${esc(r.gate)}</span></td><td class="c">${esc(r.vehicle||'')}</td></tr>`
+    + list.map(r=>`<tr><td class="nm${r.group?'':' ind'}"><b>${esc(r.name)}</b>${r.phone?`<small>${esc(r.phone)}</small>`:''}</td><td class="c">${r.ppl}</td><td class="c">${esc(r.time||r.timeHint||'')}</td><td class="c"><span class="g ${esc(r.gate)}${r.gateSrc==='fixed'?' fx':''}">${esc(r.gate)}${r.gateSrc==='fixed'?' · 고정':''}</span></td><td class="c">${esc(r.vehicle||'')}</td></tr>`
       + (r.note ? `<tr class="nt"><td colspan="5">${esc(r.note)}</td></tr>` : '')).join('')
     + `</tbody></table>`
     + `<div class="sh-f"><span class="g1">단체 ${gSum}명</span><span class="g2">버스 ${bus}대+</span><span class="g3">개인고객 ${ind}명</span></div>`
