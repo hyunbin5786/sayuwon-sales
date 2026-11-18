@@ -725,3 +725,6 @@ html.book-guest #bookBody tr{cursor:default}
 .etc-rep select{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:13px var(--sans);background:#fff}
 .etc-due{display:inline-flex;align-items:center;gap:6px}
 .etc-due .dbox .dtxt{height:30px;width:140px}
+/* 세미나 도슨트 수량 2: 두 번째 시작 · 끝 · 장소 · 비고 (2026-11-18) */
+.it-extra .it-sem2{order:9;flex:1 1 100%;display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-top:6px;border-top:1px dashed var(--line)}
+.it-extra .it-semn{font-size:12px;color:var(--pine);white-space:nowrap}
