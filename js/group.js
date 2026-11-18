@@ -2114,6 +2114,9 @@ async function renderList(){
   const order = (!q && listStage==='past' && listSort==='date') ? (a,b)=>String(b.date||'').localeCompare(String(a.date||'')) : listOrder;   // 지난 예약은 최근 방문부터
   $('#listBody').innerHTML=shown.slice().sort(order).map(r=>`<tr class="r" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td class="acts">${del(r.id)}</td></tr>`).join('')
     || `<tr><td colspan="12" class="hint">${q ? `'${esc(q)}'(으)로 찾은 예약이 없습니다.` : all.length?'이 구분에 해당하는 예약이 없습니다.':'저장한 단체예약이 없습니다.'}</td></tr>`;
+  // 캘린더 보기: 같은 탭 · 검색으로 고른 예약을 달력에 (예약상담 · 예약접수 · 전산 미등록 탭도 지난 날짜까지 보여 줌)
+  const calList = q ? shown : all.filter(r=> listStage==='all' ? true : listStage==='past' ? isPast(r) : listStage==='noerp' ? (stageOf(r)!=='예약상담' && !erpOf(r)) : stageOf(r)===listStage);
+  paintListView(); if(listViewMode==='cal') renderListCal(calList, stageOf, erpOf, needCall);
   document.querySelectorAll('#listBody tr.r').forEach(tr=>tr.onclick=async e=>{
     if(e.target.dataset.del){ e.stopPropagation(); openDel(e.target.dataset.del); return; }
     if(e.target.dataset.fix){ e.stopPropagation(); openFix(e.target.dataset.fix); return; }
@@ -2122,6 +2125,32 @@ async function renderList(){
   });
   renderInfo(curInfoKey);
 }
+// ---- 단체예약 목록 · 캘린더 보기 (2026-11-18): 표 / 캘린더 버튼, 고른 보기는 이 브라우저에 기억 ----
+let listViewMode = (()=>{ try{ return localStorage.getItem('sayuwon_list_view')==='cal' ? 'cal' : 'table'; }catch(_){ return 'table'; } })();
+let calMonth = todayYmd().slice(0,7);   // 보고 있는 달 YYYY-MM
+function paintListView(){
+  document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on', b.dataset.v===listViewMode));
+  $('#listModal .tw').hidden = listViewMode==='cal'; $('#listCal').hidden = listViewMode!=='cal';
+  $('#sortSeg').style.visibility = listViewMode==='cal' ? 'hidden' : '';   // 캘린더는 날짜 순이라 정렬이 필요 없음
+}
+document.addEventListener('click', e=>{ const b=e.target.closest('#viewSeg button'); if(!b) return; listViewMode=b.dataset.v; try{ localStorage.setItem('sayuwon_list_view', listViewMode); }catch(_){} renderList(); });
+function renderListCal(list, stageOf, erpOf, needCall){
+  const [Y,M]=calMonth.split('-').map(Number), first=new Date(Y,M-1,1), days=new Date(Y,M,0).getDate(), lead=first.getDay(), today=todayYmd();
+  const byDay={}; list.forEach(r=>{ if(r.date && r.date.slice(0,7)===calMonth) (byDay[r.date]=byDay[r.date]||[]).push(r); });
+  const nMonth=Object.values(byDay).reduce((a,x)=>a+x.length,0), noDate=list.filter(r=>!r.date).length;
+  const ev = r => { const s=stageOf(r), noE = s!=='예약상담' && !erpOf(r);
+    return `<button type="button" class="lc-ev st-${esc(s)}${noE?' noerp':''}" data-cid="${esc(r.id)}" title="${esc([r.org||r.contact, s, noE?'전산 미등록':'', r.people?r.people+'명':'', r.tin?'입장 '+r.tin+(r.tout?'~'+r.tout:''):'', r.owner||r.takenBy].filter(Boolean).join(' · '))}">${r.tin?`<i>${esc(r.tin)}</i>`:''}${needCall(r)?'☎ ':''}${esc(r.org||r.contact||'(업체 미정)')}${r.people?` <em>${esc(r.people)}명</em>`:''}</button>`; };
+  let cells=''; for(let i=0;i<lead;i++) cells+='<div class="lc-d lc-off"></div>';
+  for(let d=1; d<=days; d++){ const k=`${calMonth}-${String(d).padStart(2,'0')}`, dow=new Date(Y,M-1,d).getDay(), evs=(byDay[k]||[]).sort((a,b)=>String(a.tin||'99').localeCompare(String(b.tin||'99')));
+    cells+=`<div class="lc-d${k===today?' lc-today':''}${k<today?' lc-past':''}"><div class="lc-n${dow===0?' sun':dow===6?' sat':''}">${d}${evs.length>1?`<small>${evs.length}건</small>`:''}</div>${evs.map(ev).join('')}</div>`; }
+  const tail=(7-(lead+days)%7)%7; for(let i=0;i<tail;i++) cells+='<div class="lc-d lc-off"></div>';
+  $('#listCal').innerHTML = `<div class="lc-bar"><button type="button" class="btn" data-cm="-1" title="이전 달">‹</button><b>${Y}년 ${M}월</b><button type="button" class="btn" data-cm="1" title="다음 달">›</button><button type="button" class="btn" data-cm="0">이번 달</button><small class="hint">이 달 ${nMonth}건${noDate?` · 방문일 없는 예약 ${noDate}건은 표에서`:''} · 초록 = 예약접수 · 회색 = 예약상담 · 왼쪽 빨간 줄 = 전산 미등록 · 누르면 예약 열기</small></div>`
+    + `<div class="lc-grid">${[...DOW].map((w,i)=>`<div class="lc-h${i===0?' sun':i===6?' sat':''}">${w}</div>`).join('')}${cells}</div>`;
+}
+$('#listCal').addEventListener('click', e=>{
+  const m=e.target.closest('[data-cm]'); if(m){ const v=+m.dataset.cm; if(!v) calMonth=todayYmd().slice(0,7); else { const [y,mo]=calMonth.split('-').map(Number), d=new Date(y, mo-1+v, 1); calMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; } renderList(); return; }
+  const c=e.target.closest('[data-cid]'); if(c){ const r=cache.find(x=>x.id===c.dataset.cid); if(r) openRecordG(r); }
+});
 // 저장된 예약 하나를 칸에 불러오기
 function openRecord(r){
     newCall(false);

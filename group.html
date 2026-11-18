@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261118s">
+<link rel="stylesheet" href="css/group.css?v=20261118z">
 <link rel="stylesheet" href="css/menu.css?v=20261118y">
 </head>
 <body>
@@ -320,8 +320,11 @@
     <input id="listSearch" class="list-search" type="search" data-ime="ko" placeholder="검색: 업체명 · 담당자 · 전화번호 (전체에서)" autocomplete="off">
     <div class="seg" id="sortSeg" style="display:inline-flex;background:var(--bg)" title="목록 정렬">
       <button type="button" data-o="date">방문일 순</button><button type="button" data-o="saved" title="최근에 접수(저장)한 예약부터">접수 순</button>
+    </div><div class="seg" id="viewSeg" style="display:inline-flex;background:var(--bg)" title="표 · 캘린더로 보기">
+      <button type="button" data-v="table">표</button><button type="button" data-v="cal">캘린더</button>
     </div><button type="button" class="btn" id="trashBtn" style="padding:4px 10px;font-size:12px" title="삭제한 단체 예약 (삭제 일시 · 삭제한 사람 · 사유)">삭제된 예약</button></div>
     <div class="tw"><table><thead><tr><th>방문일</th><th>단계</th><th>업체</th><th>담당자</th><th>인원</th><th>입퇴장</th><th>식사</th><th>견적서</th><th>거래명세서</th><th class="owner">영업 담당</th><th>접수</th><th class="acts">수정 · 삭제</th></tr></thead><tbody id="listBody"></tbody></table></div>
+    <div class="lcal" id="listCal" hidden></div>
   </section>
 </div>
 
@@ -363,7 +366,7 @@
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
 <script src="js/common.js?v=20261118"></script>
 <script src="js/opslib.js?v=20261118t"></script>
-<script src="js/group.js?v=20261118s"></script>
+<script src="js/group.js?v=20261119a"></script>
 <script src="js/ime.js?v=20261118r"></script>
 <script src="js/keepsize.js?v=20261117"></script>
 <script src="js/menu.js?v=20261118y"></script>

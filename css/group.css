@@ -691,3 +691,26 @@ html.book-guest #bookBody tr{cursor:default}
 @media (max-width:1100px){.my-cols.three{grid-template-columns:1fr 1fr}}
 .crow .f:nth-child(4){flex-grow:1.6}   /* 담당자 메모 (2026-11-18) */
 @media (max-width:900px){.crow{flex-wrap:wrap}.crow .f{flex-basis:45%}}
+/* ===== 단체예약 목록 · 캘린더 보기 (2026-11-18) ===== */
+.lcal{overflow:auto;flex:1;min-height:0}
+.lcal[hidden]{display:none}
+.lc-bar{display:flex;align-items:center;gap:8px;margin:2px 0 8px;flex-wrap:wrap}
+.lc-bar b{font:600 17px var(--serif,"Noto Serif KR",serif);min-width:110px;text-align:center}
+.lc-bar .btn{height:30px;padding:0 12px}
+.lc-bar .hint{margin:0 0 0 6px}
+.lc-grid{display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line);min-width:780px}
+.lc-h{padding:5px 8px;font-size:12px;color:var(--muted);font-weight:700;background:#faf8f3;border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-align:center}
+.lc-d{min-height:96px;padding:4px 5px 6px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:3px;background:var(--card)}
+.lc-d.lc-off{background:#f6f4ef}
+.lc-d.lc-past{background:#fbfaf7}
+.lc-d.lc-past .lc-ev{opacity:.7}
+.lc-d.lc-today{box-shadow:inset 0 0 0 2px var(--pine)}
+.lc-n{font-size:12.5px;font-weight:700;color:var(--ink);display:flex;justify-content:space-between;align-items:center;padding:0 2px}
+.lc-n small{font-weight:500;color:var(--muted);font-size:11px}
+.sun{color:#a4442c !important}.sat{color:#2f5a8a !important}
+.lc-ev{display:block;width:100%;text-align:left;border:0;border-radius:5px;padding:3px 6px;font:500 12px/1.35 var(--sans);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--pine);color:#fff}
+.lc-ev.st-예약상담{background:#ece9e2;color:var(--ink)}
+.lc-ev.noerp{box-shadow:inset 3px 0 0 var(--red)}
+.lc-ev:hover{filter:brightness(.93)}
+.lc-ev i{font-style:normal;font-variant-numeric:tabular-nums;opacity:.85;margin-right:4px}
+.lc-ev em{font-style:normal;opacity:.85}
