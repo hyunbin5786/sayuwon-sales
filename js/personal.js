@@ -228,7 +228,6 @@ function paintChips(){
   // 구분 칩은 끌어서 순서를 바꿈 (모든 사람 목록 순서, 2026-11-18)
   $('#catChips').innerHTML = cats.map(c=>`<button type="button"${list.includes(c)?' draggable="true"':''} data-cat="${esc(c)}" class="${form.cat===c?'on':''}${list.includes(c)?'':' gone'}" aria-pressed="${form.cat===c}" title="누르면 고르기 · 끌어서 순서 바꾸기">${esc(c)}${list.includes(c)?`<span class="x" data-catdel="${esc(c)}" title="'${esc(c)}' 구분 삭제 (모든 사람에게서)">×</span>`:''}</button>`).join('') + `<button type="button" class="add" data-catadd title="구분 추가 (모든 사람에게 보임)">＋</button>`;
   // 보고전달자 칸은 없앰 (2026-11-18). 예전 통화에 적힌 보고전달자는 기록에만 남음
-  $('#resChips').innerHTML = RES_OPTS.map(c=>`<button type="button" data-res="${esc(c)}" class="${form.reserved===c?'on':''}" aria-pressed="${form.reserved===c}">${esc(c)}</button>`).join('');
 }
 $('#catChips').addEventListener('click', e=>{
   const x=e.target.closest('[data-catdel]');
@@ -251,7 +250,7 @@ const MEMBERS_LS='sayuwon_member_names';
 let memberNames = readJSON(MEMBERS_LS, []);
 async function loadMembers(){ if(!getKey()) return; try{ const j=await callApi({action:'members'}); memberNames=(j.members||[]).map(m=>String(m.name||'').trim()).filter(Boolean); writeJSON(MEMBERS_LS, memberNames); paintChips(); }catch(_){} }
 setTimeout(loadMembers, 500); setInterval(loadMembers, 2*60e3); window.addEventListener('focus', loadMembers);   // 새 멤버는 2분마다 · 이 창으로 돌아올 때 다시 받아 자동으로 추가
-$('#resChips').addEventListener('click', e=>{ const b=e.target.closest('button[data-res]'); if(!b) return; form.reserved = form.reserved===b.dataset.res ? '' : b.dataset.res; touch(); });
+// 예약 여부 칸은 없앰 (2026-11-18 · 안 씀). 예전 통화에 적힌 값은 기록에만 남음
 // ===================== 카카오톡 보고용 글자 복사 =====================
 // [구분] 담당자 -> 보고전달자 / 고객 이름 / 연락처 / 방문 희망일/예약일 / 인원 / 문의내용
 function reportText(){ const f=form, who=(cur && cur.takenBy) || user.name || '';
