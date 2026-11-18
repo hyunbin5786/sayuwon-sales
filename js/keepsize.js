@@ -21,3 +21,36 @@
     new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType===1) applyAll(n); }))).observe(document.body, {childList:true, subtree:true}); };
   if(document.body) start(); else document.addEventListener('DOMContentLoaded', start);
 })();
+
+// ===== 메모 칸 자동 높이 (2026-11-18): 스크롤 없이 줄이 늘면 칸이 아래로 늘어남 · 지금 크기(또는 손으로 맞춰 둔 크기)보다 작아지지는 않음 =====
+//  - 붙여넣기 칸(전산 내역 · 단체상담 입력 · 사전답사 붙여넣기)은 빼고 (NO_GROW)
+//  - 글자를 칠 때 · 프로그램이 값을 넣을 때(예약 열기 등) · 칸이 새로 그려질 때 · 칸에 들어갈 때 맞춤
+(function(){
+  const NO_GROW = new Set(['erpIn','consultBox','baImp']);
+  const ok = el => el && el.tagName==='TEXTAREA' && !NO_GROW.has(el.id) && !el.hasAttribute('data-nogrow');
+  function grow(el){
+    if(!ok(el) || !el.isConnected || !el.offsetParent) return;
+    if(!el.dataset.minh){ const h=el.offsetHeight; if(!h) return; el.dataset.minh=String(h); }   // 처음 크기 = 가장 작은 크기
+    const min=+el.dataset.minh, cs=getComputedStyle(el), border=(parseFloat(cs.borderTopWidth)||0)+(parseFloat(cs.borderBottomWidth)||0);
+    el.style.overflowY='hidden';
+    const keep=el.style.height; el.style.height=min+'px';   // 줄었을 때도 맞추려고 잠깐 가장 작은 크기로
+    const need=el.scrollHeight+border, h=Math.max(min, need);
+    el.style.height=h+'px'; if(keep!==el.style.height){ /* 높이 바뀜 */ }
+  }
+  window.syGrow = grow;
+  const growAll = root => (root.matches && root.matches('textarea') ? [root] : []).concat([...(root.querySelectorAll ? root.querySelectorAll('textarea') : [])]).forEach(el=>requestAnimationFrame(()=>grow(el)));
+  document.addEventListener('input', e=>{ if(e.target.tagName==='TEXTAREA') grow(e.target); }, true);
+  document.addEventListener('focusin', e=>{ if(e.target.tagName==='TEXTAREA') grow(e.target); }, true);
+  // 손으로 크기를 바꾸면 그 크기가 새 가장 작은 크기 (위 크기 기억과 같이)
+  document.addEventListener('pointerup', e=>{ setTimeout(()=>{ const t=document.activeElement; if(t && t.tagName==='TEXTAREA' && ok(t) && t.style.height){ const h=t.offsetHeight; if(h && h!==+t.dataset.minh && h>t.scrollHeight){ t.dataset.minh=String(h); } } }, 0); }, true);
+  // 프로그램이 값을 넣을 때도 (예약 열기 · 새 통화 · 되살리기)
+  const d=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+  if(d && d.set) Object.defineProperty(HTMLTextAreaElement.prototype, 'value', { configurable:true, enumerable:d.enumerable, get(){ return d.get.call(this); }, set(v){ d.set.call(this, v); if(ok(this)) requestAnimationFrame(()=>grow(this)); } });
+  const start = () => { growAll(document.body);
+    new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>{ if(n.nodeType===1) growAll(n); }))).observe(document.body, {childList:true, subtree:true});
+    // 숨어 있다가 보이는 칸(팝업 · 접힌 칸): 화면 크기가 바뀌거나 팝업이 열리면 다시
+    window.addEventListener('resize', ()=>soon());
+    let pend=false; const soon=()=>{ if(pend) return; pend=true; requestAnimationFrame(()=>{ pend=false; growAll(document.body); }); };   // 한 장면에 한 번만
+    new MutationObserver(soon).observe(document.body, {attributes:true, subtree:true, attributeFilter:['hidden','open']}); };
+  if(document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
