@@ -620,12 +620,12 @@ document.addEventListener('click', async e=>{ const b=e.target.closest('#itemsBo
   renderSide(); paintItemPrices();
   const k=erpKeyOf(x.product); if(k){ setItemQty(k, String(numOf(itemQty(k)) + (x.people||0))); if(!itemRows.includes(k)) itemRows.push(k); itemChanged(true); }   // 그대로 예약 내역 줄로
 });
-// 차방 대관 · 당두봉갈 대관: 시작 · 끝 시각이 비면 담당처럼 빨간 칸 (2026-11-18)
-const TM_REQ = ['chabang','dangdu'];
-function paintTmMissing(){ TM_REQ.forEach(k=>{
-  ['S','E'].forEach(x=>{ const el=document.querySelector(`#itemsBox [data-ix="tm${x}:${k}"]`); if(el) el.closest('.it-xl').classList.toggle('missing', !el.value.trim()); });
-  const q=document.querySelector(`#itemsBox [data-iq="${k}"]`); if(q) q.closest('.it-q').classList.toggle('missing', !q.value.trim()); });
-  ['mbS','mbE','mabangPay'].forEach(ix=>{ const el=document.querySelector(`#itemsBox [data-ix="${ix}"]`); if(el) el.closest('.it-xl').classList.toggle('missing', !el.value.trim()); }); }   // 시간(수량)도 · 몽몽마방 시작 · 끝 · 결제도 비면 빨간 칸 (2026-11-18, 결제 미정은 노란 칸)
+// 예약 내역: 품목을 고르면 비고를 뺀 모든 칸(인원 · 수량 · 시작 · 끝 · 장소 · 코스 · 결제 등)이 비었을 때 빨간 칸 — 고객님께 여쭤볼 정보 (2026-11-18)
+// (담당은 paintItemState 에서 · 결제 미정은 노란 칸 · 코스 「앵당삼거리 시작」을 켜면 채운 것)
+function paintTmMissing(){
+  document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-q input').forEach(q=>q.closest('.it-q').classList.toggle('missing', !q.value.trim()));
+  document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-xl').forEach(l=>{ const x=l.querySelector('.it-x'); l.classList.toggle('missing', !!x && !String(x.value||'').trim()); });
+}
 function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은 넣은 묶음만
   document.querySelectorAll('#itemsBox [data-is]:not([data-is="seminar2"])').forEach(el=>el.closest('.it-s').classList.toggle('missing', !el.value.trim()));
   paintTmMissing();
