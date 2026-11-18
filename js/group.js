@@ -362,7 +362,7 @@ const mbTimes = () => { const p=String(rec.mabangTime||'').split('~'); return [p
 const plus1h = t => { const f=fmtTime(t); return f ? `${String(Math.min(+f.slice(0,2)+1,23)).padStart(2,'0')}${f.slice(2)}` : ''; };
 const plusH = (t, h) => { const f=fmtTime(t); if(!f) return ''; const m=+f.slice(0,2)*60 + +f.slice(3,5) + Math.round((h||1)*60), e=Math.min(m, 23*60+59); return `${String(Math.floor(e/60)).padStart(2,'0')}:${String(e%60).padStart(2,'0')}`; };   // 시작 + h시간
 const tmTimes = k => { const p=String(rec['tm_'+k]||'').split('~'); return [p[0]||'', p[1]||'']; };   // 프로그램 시간대 "13:00~15:00" → [시작, 끝]
-const progHours = k => itemUnit(k)==='시간' ? Math.max(1, numOf(itemQty(k))||1) : 1;   // 끝 = 시작 + 1시간 (시간 프로그램은 예약한 시간만큼)
+const progHours = k => /^seminar2?$/.test(k) ? 0.5 : itemUnit(k)==='시간' ? Math.max(1, numOf(itemQty(k))||1) : 1;   // 끝 = 시작 + 1시간 (시간 프로그램은 예약한 시간만큼 · 세미나 도슨트는 30분, 2026-11-18)
 function clearItem(k){ const t=itemKind(k);
   if(ispOf(k)) setItemSp(k, null);   // 그 줄의 특별 할인 · 기타 할인도
   if(itemNote(k)) setItemNote(k, '');
