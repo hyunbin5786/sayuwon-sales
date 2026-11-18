@@ -2166,7 +2166,7 @@ async function renderList(){
   $('#callCount').hidden = !nCall; $('#callCount').textContent = `전화 필요 ${nCall}`; $('#listCount').textContent = counts['가예약']+counts['예약확정'];
   $('#adminHint').textContent = adminData?.updated ? `관리자 사이트 ${fmtAgo(adminData.updated)} 갱신 · ` : '';
   document.querySelectorAll('#stageFilter button').forEach(b=>{ const s=b.dataset.f; b.classList.toggle('on', !!listShow[s]); b.textContent=`${s} ${counts[s]||0}`; b.title=listShow[s] ? '누르면 숨기기' : '누르면 보이기'; });
-  { const ss=$('#stageSum'); if(ss) ss.textContent='보기'; }
+  { const ss=$('#stageSum'); if(ss) ss.textContent=''; }   // 「보기」 글자는 없앰 (2026-11-18)
   // 검색어가 있으면 단계 버튼과 상관없이 모두에서 업체명 · 담당자 이름 · 전화번호(숫자만 비교) · 영업 담당으로 찾음
   const q=String($('#listSearch')?.value||'').trim(), qd=q.replace(/\D/g,''), qs=q.replace(/\s/g,'').toLowerCase();
   const hit = r => { const t=[r.org, r.contact, r.owner, r.takenBy, r.email].join(' ').replace(/\s/g,'').toLowerCase(); return (qs && t.includes(qs)) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd)); };
