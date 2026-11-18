@@ -32,3 +32,6 @@
 .m-zoom img{max-width:100%;max-height:100%;border-radius:8px;background:#fff}
 /* 멘트 글 칸: 크기 고정 (짧으면 빈 채로 · 길면 칸 안에서 스크롤, 2026-11-18) */
 .m-body-v{height:220px;overflow-y:auto;box-sizing:border-box}
+/* 카드 머리: 글 복사 · 이미지 복사 · 수정 (줄이 넘치면 다음 줄로) */
+.m-head{flex-wrap:wrap;row-gap:4px}
+.m-head .btn.sm{height:28px}
