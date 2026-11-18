@@ -1160,7 +1160,23 @@ function renderDayAll(){
   // 예약 현황 = 버튼 5개 (몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰). 누르면 예약 목록 창이 그 구분 탭으로. 방문일이 있으면 그날 건수
   const d=rec.date, rows = d ? [...bookRows(), ...manualRows()].filter(x=>x.d===d) : [], n = c => !d ? 0 : c==='mb' ? mbDbOn(d).length + mbAutoRows().filter(x=>x.d===d).length : rows.filter(x=>x.cat===c).length;
   el.innerHTML = `<div class="da-btns">${[['mb','몽몽마방'], ...Object.entries(BOOK_CATS)].map(([c,t])=>`<button type="button" class="da-btn" data-book="${c}" title="${t} 예약 목록${d?` (${dateLabel(d)} ${n(c)}건)`:''}">${t}${n(c)?` <b>${n(c)}</b>`:''}</button>`).join('')}</div>`
-    + `<div class="none da-note">${d ? `숫자 = ${dateLabel(d)} 예약 건수 · ` : ''}사담은 예약 전산에서 확인하세요.</div>`;
+    + `<div class="none da-note">${d ? `숫자 = ${dateLabel(d)} 예약 건수 · ` : ''}사담은 예약 전산에서 확인하세요.</div>`
+    + dayPicked(d, rows);
+}
+// 방문일 + 예약 내역에 고른 항목(몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰) → 그날 같은 구분의 다른 예약을 예약 현황 아래에 바로 (2026-11-18)
+function dayPicked(d, rows){
+  if(!d || BOOK_ONLY) return '';
+  const cats=[]; (itemRows||[]).forEach(k=>{ const t=itemKind(k), c = t==='mb' ? 'mb' : t==='prog' ? bookCat(k) : ''; if(c && !cats.includes(c)) cats.push(c); });
+  if(!cats.length) return '';
+  const order=['mb','rent','docent','prog','coupon']; cats.sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+  return cats.map(c=>{
+    let li=[];
+    if(c==='mb'){ const list=[...mbDbOn(d), ...mbAutoRows().filter(x=>x.d===d && !x.cur)].sort((a,b)=>String(a.t||'99').localeCompare(String(b.t||'99')));
+      li=list.map(x=>`<li${x.auto?` data-bopen="${esc(x.id)}" class="r"`:''}><span class="dp-t">${esc(x.t||'시간 미정')}</span><b>${esc(x.n||'')}</b>${x.p?` · ${esc(x.p)}명`:''}${x.m?` · ${esc(x.m)}`:''}${x.pay==='마방'?' · 마방 결제':''}</li>`); }
+    else { const list=rows.filter(x=>x.cat===c).sort((a,b)=>String(a.tm||'99').localeCompare(String(b.tm||'99')));
+      li=list.map(x=>`<li${x.manual?'':` data-bopen="${esc(x.id)}" class="r"`}><span class="dp-t">${esc(x.tm||'시간 미정')}</span><b>${esc(x.org||'')}</b>${x.ppl?` · ${x.ppl}${c==='coupon'?'장':'명'}`:''}${c==='rent'||c==='docent' ? [x.place, c==='docent'?x.kind:''].filter(Boolean).map(v=>` · ${esc(v)}`).join('') : x.item?` · ${esc(x.item)}`:''}${x.staff?` <small>(담당 ${esc(x.staff)})</small>`:''}</li>`); }
+    return `<div class="dp-box"><div class="dp-h">${esc(dateLabel(d))} ${c==='mb'?'몽몽마방':BOOK_CATS[c]} <small>${li.length?`다른 예약 ${li.length}건`:'다른 예약 없음'}</small></div>${li.length?`<ul class="dp-list">${li.join('')}</ul>`:''}</div>`;
+  }).join('');
 }
 // ===================== 삭제된 단체 예약 (Apps Script 'deleted', 보기 전용) =====================
 let trashItems=null, trashErr='';
@@ -3502,3 +3518,5 @@ document.addEventListener('change', async e=>{ const v=e.target.dataset?.etcdone
   e.target.disabled=true; await store.put(item); const i=cache.findIndex(x=>x.id===id); if(i>=0) cache[i]=item; renderMy(); if(typeof paintMyCount==='function') paintMyCount(); toast(`「${d.title}」 완료로 표시했습니다.`); });
 document.addEventListener('click', e=>{ const g=e.target.closest?.('[data-etcgo]'); if(!g || e.target.closest('.etc-ck')) return; e.preventDefault();
   if(MY_EMBED){ window.parent.postMessage({type:'sy-my', ev:'go', url:'ops.html?p=task'}, '*'); return; } guardLeave(()=>{ location.href='ops.html?p=task'; }); });
+// 예약 현황 아래 그날 목록: 단체 예약에서 온 줄을 누르면 그 예약 열기 (고치던 것은 openRecordG 가 먼저 물어봄)
+document.addEventListener('click', e=>{ const li=e.target.closest?.('#dayAll li[data-bopen]'); if(!li || !li.dataset.bopen) return; const r=cache.find(x=>x.id===li.dataset.bopen); if(r) openRecordG(r); });
