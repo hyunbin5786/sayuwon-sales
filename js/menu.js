@@ -9,7 +9,6 @@
   const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const I = (href, b, s, go) => ({href:base+href, b, s, go});
   const G = [
-    {k:'my', t:'나의 할일', login:1, items:[ I('group.html?my=1&tab=personal','개인고객','개인고객 통화의 추후 과업'), I('group.html?my=1&tab=group','단체고객','내가 영업 담당인 단체 예약 · 추후 과업'), I('ops.html?p=task','기타 개인 업무','직접 추가 · 매일 / 매주 / 매달 반복') ]},
     {k:'book', t:'예약보조', login:1, items:[ {sub:'고객응대 접수'}, I('personal.html','개인고객 전화응대'), I('group.html','단체고객 전화응대'),
       {sub:'고객 응대 보조'}, I('naver.html','네이버 예약 → 사유원 전산 이관'), I('prep.html','다음날 고객 응대 준비'), I('document/','견적서 / 거래명세서 발급') ]},
     {k:'ops', t:'운영보조', items:[ {sub:'예약현황 공유'}, {chips:[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']]},
@@ -35,6 +34,22 @@
   hd.insertBefore(btn, hd.firstChild);
   const open = v => { wrap.hidden=!v; document.documentElement.classList.toggle('smenu-open', v); btn.classList.toggle('on', v); };
   window.syMenu = open;
+  // 나의 할일: 모든 화면 헤더에 (없는 화면 · 네이버 이관 · 견적서 등은 여기서 버튼과 팝업을 만듦, 2026-11-18). 메뉴에서는 뺌
+  if(logged && !hd.querySelector('[data-mypop], #myOpenBtn')){
+    const mb=document.createElement('button'); mb.type='button'; mb.className='smenu-my'; mb.textContent='나의 할일'; mb.title='단체 예약 · 개인고객 통화 · 기타 개인 업무의 할일을 한눈에 (팝업)';
+    hd.appendChild(mb);
+    if(typeof window.openMyPop!=='function'){
+      if(!document.querySelector('link[href*="mypop.css"]')){ const l=document.createElement('link'); l.rel='stylesheet'; l.href=base+'css/mypop.css?v=20261116'; document.head.appendChild(l); }
+      const pop=document.createElement('div'); pop.className='mypop'; pop.hidden=true; pop.innerHTML='<div class="box"><iframe title="나의 할일"></iframe></div>'; document.body.appendChild(pop);
+      const fr=pop.querySelector('iframe'), closeP=()=>{ pop.hidden=true; fr.src='about:blank'; };
+      window.openMyPop = () => { fr.src=base+'group.html?my=1&embed=1&t='+Date.now(); pop.hidden=false; };
+      window.addEventListener('message', e=>{ if(!e.data || e.data.type!=='sy-my' || e.source!==fr.contentWindow) return; if(e.data.ev==='close') closeP();
+        if(e.data.ev==='go' && (/^(group|personal)\.html\?open=/.test(e.data.url||'') || e.data.url==='ops.html?p=task')){ closeP(); location.href=base+e.data.url; } });
+      pop.addEventListener('click', e=>{ if(e.target===pop) closeP(); });
+      document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !pop.hidden){ e.preventDefault(); closeP(); } });
+    }
+    mb.addEventListener('click', ()=>window.openMyPop());
+  }
   btn.addEventListener('click', ()=>open(wrap.hidden));
   wrap.addEventListener('click', e=>{ if(e.target.closest('[data-smclose]')) open(false); else if(e.target.closest('a')) setTimeout(()=>open(false), 0); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !wrap.hidden){ e.preventDefault(); e.stopImmediatePropagation(); open(false); } }, true);

@@ -30,3 +30,6 @@ header .smenu-btn:hover,header .smenu-btn.on{background:rgba(255,255,255,.25)}
 html.smenu-open{overflow:hidden}
 @media (max-width:520px){header .smenu-btn span{display:none}}
 .smenu .sm-g,.smenu .sm-top{flex:none}   /* 묶음이 줄어들어 잘리지 않게 (패널이 스크롤) */
+/* 나의 할일 버튼 (헤더에 없던 화면에 menu.js가 붙임) */
+header .smenu-my{flex:none;margin-left:auto;height:30px;padding:0 12px;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.12);color:#f3f1ec;border-radius:7px;font:600 13px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
+header .smenu-my:hover{background:rgba(255,255,255,.25)}
