@@ -777,3 +777,7 @@ html.book-guest #bookBody tr{cursor:default}
 .etc-done li .who s{color:var(--muted)}
 .etc-past{border:1px solid #d98b80;background:#fdf1ef;color:var(--red);border-radius:999px;padding:0 8px;font:600 11.5px var(--sans);cursor:pointer;margin-left:4px;height:20px}
 .etc-past:hover{background:var(--red);color:#fff}
+/* 기타 개인 업무 추가 칸: 박스로 묶어 목록과 구분 (2026-11-18) */
+.etc-addbox{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 10px 8px;margin:4px 0 12px}
+.etc-addbox .etc-add{margin:0 0 8px;background:transparent}
+.etc-addbox .etc-rep{margin:0}
