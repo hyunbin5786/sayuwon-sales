@@ -17,7 +17,7 @@ const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
 const KEY_LS=SY.KEY_LS, GROUP_CACHE_LS='sayuwon_intake_cache';
 const getKey = SY.getKey;
 async function callApi(body){ const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})}); const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j; }
-const GROUP_TYPES=['단체예약','예약상담','예약접수','상담','가예약','공식예약'];
+const GROUP_TYPES=['단체예약','예약상담','가예약','예약확정','예약접수','상담','공식예약'];   // 예약취소는 빼고 (2026-11-18 4단계)
 let groups = (()=>{ try{ return (JSON.parse(localStorage.getItem(GROUP_CACHE_LS)||'[]')||[]).filter(r=>GROUP_TYPES.includes(r.callType||'단체예약')); }catch(_){ return []; } })();
 async function loadGroups(){
   if(!getKey()){ $('#keyBox').hidden=false; return; }

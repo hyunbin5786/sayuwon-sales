@@ -781,3 +781,18 @@ html.book-guest #bookBody tr{cursor:default}
 .etc-addbox{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 10px 8px;margin:4px 0 12px}
 .etc-addbox .etc-add{margin:0 0 8px;background:transparent}
 .etc-addbox .etc-rep{margin:0}
+/* ===== 예약 단계 4단계 색 (2026-11-18): 예약상담 연한 초록 · 가예약 중간 초록 · 예약확정 초록 · 예약취소 회색 ===== */
+.tag.st-예약상담,.lc-ev.st-예약상담{background:#e4eadf !important;color:#3f5236 !important}
+.tag.st-가예약,.lc-ev.st-가예약{background:#9db394 !important;color:#fff !important}
+.tag.st-예약확정,.tag.st-예약접수,.lc-ev.st-예약확정,.lc-ev.st-예약접수{background:#3f5236 !important;color:#fff !important}
+.tag.st-예약취소,.lc-ev.st-예약취소{background:#d9d6cf !important;color:#6b6860 !important}
+.lc-ev.st-예약취소{text-decoration:line-through}
+#stageSeg button[data-s="예약상담"].on{background:#e4eadf;color:#3f5236;font-weight:700}
+#stageSeg button[data-s="가예약"].on{background:#9db394;color:#fff}
+#stageSeg button[data-s="예약확정"].on{background:#3f5236;color:#fff}
+#stageSeg button[data-s="예약취소"].on{background:#d9d6cf;color:#55534d}
+#stageSeg button:disabled{opacity:.4;cursor:not-allowed}
+.modal .list tr.past td{opacity:.6}
+.modal .list tr.cancel td{color:var(--muted)}
+.stage-sum{font-size:12.5px;font-weight:700;color:var(--pine);margin-right:4px}
+.tag.tbd-tag{background:var(--amber-soft);color:var(--amber)}   /* 미정 항목 (노랑) */
