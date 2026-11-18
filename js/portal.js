@@ -58,12 +58,12 @@ $('#loginForm').addEventListener('submit', async e=>{
   setLS(USER_KEY, JSON.stringify({name, emp, at:new Date().toISOString(), setup}));
   setLS('sayuwon_owner', name);   // 단체 화면의 영업 담당
   setLS('sy_sender', name);       // 견적서 담당
-  err.textContent=''; view='menu'; paint();
+  err.textContent=''; view='menu'; location.reload();   // 메뉴(☰ · 펼친 메뉴)를 로그인한 상태로 다시 그림
 });
 $('#logoutBtn').onclick=()=>{
   if(!confirm('로그아웃할까요? 다음 사람이 이름과 사번으로 다시 로그인합니다.')) return;
   [USER_KEY,'sayuwon_owner','sy_sender','sy_dash_cache'].forEach(k=>setLS(k,null));
-  $('#inName').value=''; $('#inEmp').value=''; view='menu'; history.replaceState(null,'',location.pathname); paint();
+  $('#inName').value=''; $('#inEmp').value=''; view='menu'; history.replaceState(null,'',location.pathname); location.reload();   // 메뉴도 로그아웃 상태로
 };
 // 메뉴
 document.addEventListener('click', e=>{
@@ -125,7 +125,7 @@ paint();
 // 이미 로그인한 브라우저도 첫 화면을 열 때 다시 확인: 멤버에서 빠졌거나 이름 · 사번이 다르면 로그아웃
 (async()=>{ const u=getUser(); if(!u) return; let j=null; try{ j=await callApi({action:'login', name:u.name, emp:u.emp}); }catch(_){ return; }
   if(!j || !j.ok) return;   // 연결 안 됨 · 예전 버전이면 그대로 둠
-  if(!j.member){ [USER_KEY,'sayuwon_owner','sy_sender','sy_dash_cache'].forEach(k=>setLS(k,null)); view='menu'; paint(); $('#loginErr').textContent='등록된 멤버가 아니어서 로그아웃했습니다. 이름과 사번을 다시 확인해 주세요.'; return; }
+  if(!j.member){ [USER_KEY,'sayuwon_owner','sy_sender','sy_dash_cache'].forEach(k=>setLS(k,null)); view='menu'; paint(); window.syMenu && window.syMenu(false); $('#loginErr').textContent='등록된 멤버가 아니어서 로그아웃했습니다. 이름과 사번을 다시 확인해 주세요.'; return; }
   const setup = j.empty ? 'empty' : ''; if((u.setup||'')!==setup){ u.setup=setup; setLS(USER_KEY, JSON.stringify(u)); paint(); } })();
 
 

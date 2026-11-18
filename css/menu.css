@@ -46,3 +46,12 @@ header:has(> .smenu-btn) [data-mypop]:hover,header:has(> .smenu-btn) #myOpenBtn:
 .smenu .sm-top{justify-content:flex-end;background:#f3f1ec;padding:8px 10px 0}
 .smenu .sm-x{color:#77736a}
 .smenu .sm-x:hover{color:#262620}
+/* 메뉴 맨 위: 초록 띠 없이 베이지 배경에 「메뉴」 (2026-11-18) */
+.smenu .sm-top{justify-content:space-between;padding:12px 6px 4px}
+.smenu .sm-title{font:600 17px "Noto Serif KR",serif;color:#262620}
+/* 첫 화면: 메뉴를 왼쪽에 붙여 펼침 (회색 가림 없음) · 대시보드는 메뉴 너비만큼 옆으로 좁혀짐 */
+.smenu.dock{position:static}
+.smenu.dock .sm-bg{display:none}
+.smenu.dock .sm-panel{position:fixed;top:var(--sm-top,50px);left:0;bottom:0;width:300px;z-index:20;box-shadow:none;border-right:1px solid #dfdace;animation:none}
+html.smenu-dock body > main{margin-left:300px !important}
+@media (max-width:760px){ .smenu.dock .sm-panel{width:min(300px,88vw);box-shadow:4px 0 24px rgba(0,0,0,.18)} html.smenu-dock body > main{margin-left:auto !important} }

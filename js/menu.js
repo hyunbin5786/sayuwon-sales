@@ -27,13 +27,17 @@
     : (it.login && !logged) ? ''
     : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}</b></a>`;   // 메뉴 아래 회색 설명은 없앰 (2026-11-18)
   const wrap=document.createElement('div'); wrap.className='smenu'; wrap.id='smenu'; wrap.hidden=true;
-  wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"><div class="sm-top"><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
+  wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"><div class="sm-top"><b class="sm-title">메뉴</b><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
     + G.filter(g=>logged || !g.login).map(g=>`<details class="sm-g" data-acc="${g.k}"${(isHomePg || (g.k in st ? st[g.k] : g.k!=='set'))?' open':''}><summary>${esc(g.t)}</summary>${g.items.map(itemHTML).join('')}</details>`).join('')
     + (logged ? '' : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>`) + `</nav>`;
   document.body.appendChild(wrap);
   const btn=document.createElement('button'); btn.type='button'; btn.className='smenu-btn'; btn.title='메뉴 열기 / 닫기'; btn.setAttribute('aria-label','메뉴'); btn.innerHTML='☰ <span>메뉴</span>';
   hd.insertBefore(btn, hd.firstChild);
-  const open = v => { wrap.hidden=!v; document.documentElement.classList.toggle('smenu-open', v); btn.classList.toggle('on', v); };
+  // 첫 화면(로그인)은 메뉴를 왼쪽에 붙여 펼쳐 둠: 회색 가림 없이, 대시보드는 메뉴 너비만큼 옆으로 좁혀짐 (html.smenu-dock). × · ☰ 로 접고 펴기
+  const dock = isHomePg && logged;
+  const setTop = () => document.documentElement.style.setProperty('--sm-top', Math.max(0, Math.round(hd.getBoundingClientRect().bottom))+'px');
+  const open = v => { wrap.hidden=!v; document.documentElement.classList.toggle(dock?'smenu-dock':'smenu-open', v); btn.classList.toggle('on', v); if(dock && v) setTop(); };
+  if(dock){ wrap.classList.add('dock'); window.addEventListener('resize', setTop); }
   window.syMenu = open;
   // 나의 할일: 모든 화면 헤더에 (없는 화면 · 네이버 이관 · 견적서 등은 여기서 버튼과 팝업을 만듦, 2026-11-18). 메뉴에서는 뺌
   if(logged && !hd.querySelector('[data-mypop], #myOpenBtn')){
@@ -53,7 +57,7 @@
   }
   btn.addEventListener('click', ()=>open(wrap.hidden));
   if(isHomePg && logged) open(true);
-  wrap.addEventListener('click', e=>{ if(e.target.closest('[data-smclose]')) open(false); else if(e.target.closest('a')) setTimeout(()=>open(false), 0); });
+  wrap.addEventListener('click', e=>{ if(e.target.closest('[data-smclose]')) open(false); else if(e.target.closest('a') && !dock) setTimeout(()=>open(false), 0); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !wrap.hidden){ e.preventDefault(); e.stopImmediatePropagation(); open(false); } }, true);
   wrap.querySelectorAll('details[data-acc]').forEach(d=>d.addEventListener('toggle', ()=>{ st[d.dataset.acc]=d.open; try{ localStorage.setItem('sy_menu_acc', JSON.stringify(st)); }catch(_){} }));
 })();
