@@ -10,7 +10,7 @@
   const I = (href, b, s, go) => ({href:base+href, b, s, go});
   const G = [
     {k:'book', t:'예약보조', login:1, items:[ {sub:'고객응대 접수'}, I('personal.html','개인고객 전화응대'), I('group.html','단체고객 전화응대'),
-      {sub:'고객 응대 보조'}, I('naver.html','네이버 예약 → 사유원 전산 이관'), I('prep.html','다음날 고객 응대 준비'), I('document/','견적서 / 거래명세서 발급') ]},
+      {sub:'고객 응대 보조'}, I('naver.html','네이버 예약 → 사유원 전산 이관'), I('prep.html','다음날 고객 응대 준비'), I('document/','견적서 / 거래명세서 발급'), {...I('ment.html','전화응대 멘트'), guest:1} ]},   // guest: 로그인하지 않아도 보이는 항목 (2026-11-18)
     {k:'ops', t:'운영보조', items:[ {sub:'예약현황 공유'}, {chips:[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']]},
       {...I('ops.html?p=lost','분실물 찾기'), login:1}, {...I('ops.html?p=accident','사고현황 접수'), login:1}, {...I('ops.html?p=stock','재고확인'), login:1}, {...I('ops.html?p=ship','스마트스토어 발송 보고'), login:1} ]},
     {k:'set', t:'기타 설정', login:1, items:[ I('./#catalog','품목관리','', 'catalog'), I('./#members','멤버관리','', 'members') ]},
@@ -28,7 +28,8 @@
     : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}</b></a>`;   // 메뉴 아래 회색 설명은 없앰 (2026-11-18)
   const wrap=document.createElement('div'); wrap.className='smenu'; wrap.id='smenu'; wrap.hidden=true;
   wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"><div class="sm-top"><b class="sm-title">메뉴</b><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
-    + G.filter(g=>logged || !g.login).map(g=>`<details class="sm-g" data-acc="${g.k}"${(isHomePg || (g.k in st ? st[g.k] : g.k!=='set'))?' open':''}><summary>${esc(g.t)}</summary>${g.items.map(itemHTML).join('')}</details>`).join('')
+    + G.filter(g=>logged || !g.login || g.items.some(i=>i.guest)).map(g=>{ const its = logged || !g.login ? g.items : g.items.filter((i,n,a)=>i.guest || (i.sub && a.slice(n+1).find(x=>x.sub || x.guest)?.guest));   // 로그인 안 했으면 로그인 묶음에서는 guest 항목(과 그 소제목)만
+      return `<details class="sm-g" data-acc="${g.k}"${(isHomePg || (g.k in st ? st[g.k] : g.k!=='set'))?' open':''}><summary>${esc(g.t)}</summary>${its.map(itemHTML).join('')}</details>`; }).join('')
     + (logged ? '' : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>`) + `</nav>`;
   document.body.appendChild(wrap);
   const btn=document.createElement('button'); btn.type='button'; btn.className='smenu-btn'; btn.title='메뉴 열기 / 닫기'; btn.setAttribute('aria-label','메뉴'); btn.innerHTML='☰ <span>메뉴</span>';

@@ -1,0 +1,16 @@
+/* ===== 고객 응대 보조 · 전화응대 멘트 (ment.html, 2026-11-18) ===== */
+.b-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.b-head h2{margin:0;font:600 18px var(--serif)}
+.b-tools{margin-left:auto;display:flex;gap:8px;align-items:center}
+.b-tools input{height:34px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font:13px var(--sans);width:200px}
+.ment-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
+.ment{border:1px solid var(--line);border-radius:10px;background:#fff;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.m-head{display:flex;align-items:center;gap:6px}
+.m-head b{font-size:14px;color:var(--pine)}
+.m-head .sp,.ment .row-btns .sp{flex:1}
+.m-body-v{white-space:pre-wrap;font-size:13.5px;line-height:1.65;color:var(--ink);background:#faf8f3;border-radius:8px;padding:10px 12px;word-break:break-all}
+.ment-edit{border-color:var(--pine);box-shadow:0 0 0 2px var(--pine-soft, #e4eadf)}
+.ment-edit .m-title,.ment-edit .m-body{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:13.5px/1.6 var(--sans);color:var(--ink);background:#fff;width:100%;box-sizing:border-box}
+.ment-edit .m-body{resize:vertical;min-height:160px}
+.ment .row-btns{display:flex;gap:6px;align-items:center}
+@media (max-width:600px){ .b-tools{margin-left:0;width:100%} .b-tools input{flex:1;width:auto} }
