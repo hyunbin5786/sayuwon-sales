@@ -735,3 +735,10 @@ html.book-guest #bookBody tr{cursor:default}
 .it-s.missing input,.it-q.missing input,.it-extra .it-xl.missing .it-x{border:1px solid #d98b80 !important;background:#fdf1ef !important;color:var(--ink) !important}
 .it-s.missing input::placeholder{color:var(--muted)}
 .it-extra .it-xl.missing{color:var(--muted)}
+.it-money .dbtn:disabled{cursor:default;opacity:.55}
+.it-money .dbtn:disabled:hover{border-color:var(--line);color:var(--muted)}
+.it-money .dbtn.on:disabled{opacity:.7;color:#fff;border-color:var(--pine)}
+/* 세미나 도슨트 수량 2: 담당 2칸 · 두 번째 줄은 첫 줄과 같은 모양 (2026-11-18) */
+.it-s2{display:flex;flex-direction:column;gap:4px;min-width:0}
+.it-s2 .it-s{display:block}
+.it-extra .it-sem2{border-top:0;padding-top:0}

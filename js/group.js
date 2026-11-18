@@ -329,7 +329,7 @@ document.addEventListener('focusout', e=>{ const el=e.target; if(el.id==='spTf' 
 document.addEventListener('keydown', e=>{ if($('#spModal').hidden) return; if(!$('#spEdit').hidden){ if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); closeSpd(); } else if(e.key==='Enter' && !e.isComposing && e.target.tagName==='INPUT'){ e.preventDefault(); } return; } if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); $('#spModal').hidden=true; spKey=null; } else if(e.key==='Enter' && e.target.closest?.('#spModal')){ e.preventDefault(); spApply(); } }, true);
 function setItemNote(k, v){ const m=inotesMap(); v=String(v||'').replace(/[;=]/g,',').trim(); if(v) m[k]=v; else delete m[k]; rec.inotes=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); touched.add('inotes'); }
 const itemName = k => k==='view' ? '관람' : /^v:/.test(k) ? itemLabel(daySrc(k.slice(2), rec)) : k==='mb' ? '몽몽마방 '+(rec.mabangMenu||'') : /^g:/.test(k) ? goodsName(k.slice(2)) : (SADAM_ITEMS.find(x=>x[0]===k)||[])[1] || LABEL[k] || k;
-const itemNotesText = () => Object.entries(inotesMap()).filter(([k])=>itemKeysFromRec().includes(k) || (k==='seminar2' && rec.seminar && sem2On(rec))).map(([k,v])=>`${k==='seminar2' ? '세미나 도슨트 두 번째' : itemName(k)}: ${v}`);   // 비고가 있는 항목만
+const itemNotesText = () => Object.entries(inotesMap()).filter(([k])=>itemKeysFromRec().includes(k) || (k==='seminar2' && rec.seminar && sem2On(rec))).map(([k,v])=>`${k==='seminar2' ? '세미나 도슨트' : itemName(k)}: ${v}`);   // 비고가 있는 항목만
 const itemUnit = k => itemKind(k)==='goods' ? '개' : itemKind(k)==='prog' ? UNIT(k) : '명';
 const itemHasStaff = k => ['prog','goods'].includes(itemKind(k));
 const itemStfKey = k => itemKind(k)==='goods' ? 'stf_goods' : 'stf_'+k;   // 굿즈 담당은 굿즈 전체 하나
@@ -419,7 +419,7 @@ function itemRowHTML(k, rows){
               return `<label class="it-xl it-crs">코스 <button type="button" class="crs-tg${on?' on':''}" data-crstg="${esc(k)}" aria-pressed="${on}" title="누르면 코스 = ${CRS_DEFAULT} (다시 누르면 직접 입력)">${CRS_DEFAULT}</button>${on?'':`<input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="또는 직접 입력" value="${esc(cv)}">`}</label>`; })() : '')
           + note
           + (k==='seminar' && sem2On(rec) ? (()=>{ const [s2,e2]=tmTimes('seminar2'), pv=rec.plc_seminar2||'';   // 세미나 도슨트 수량 2: 두 번째 시작 · 끝 · 장소 · 비고 (2026-11-18)
-              return `<div class="it-sem2"><b class="it-semn">두 번째</b><label class="it-xl">시작 <input class="it-x" data-ix="tmS:seminar2" data-tp="1" readonly title="두 번째 세미나 도슨트 시작 시각. 넣으면 끝나는 시각이 30분 뒤로" value="${esc(s2)}"></label>`
+              return `<div class="it-sem2"><label class="it-xl">시작 <input class="it-x" data-ix="tmS:seminar2" data-tp="1" readonly title="두 번째 세미나 도슨트 시작 시각. 넣으면 끝나는 시각이 30분 뒤로" value="${esc(s2)}"></label>`
                 + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:seminar2" data-tp="1" readonly title="두 번째 세미나 도슨트 끝나는 시각" value="${esc(e2)}"></label>`
                 + `<label class="it-xl">장소 <select class="it-x" data-ix="plc_seminar2" title="두 번째 세미나 도슨트 장소">${pv?'':'<option value="" selected>선택</option>'}${[...PLC_OPTS, ...(pv && !PLC_OPTS.includes(pv) ? [pv] : [])].map(x=>`<option${pv===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`
                 + `<input class="it-x it-note" data-inote="seminar2" data-ime="ko" placeholder="비고" value="${esc(itemNote('seminar2'))}"></div>`; })() : ''); })()
@@ -427,6 +427,7 @@ function itemRowHTML(k, rows){
   return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}<span class="it-p" data-iup="${esc(k)}"></span>`
     + `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`
     + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="굿즈 담당 (기본 = 영업 담당 · 고칠 수 있음 · 굿즈 모두 같은 담당)"></span>`
+      : stf && k==='seminar' && sem2On(rec) ? `<span class="it-s2"><span class="it-s${sv.trim()?'':' missing'}"><input data-is="seminar" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="세미나 도슨트 담당"></span><span class="it-s"><input data-is="seminar2" data-ime="ko" placeholder="담당자 2 (선택)" value="${esc(String(rec.stf_seminar2||''))}" title="두 번째 세미나 도슨트 담당이 다르면 (선택 · 비우면 첫 담당이 함께)"></span></span>`   // 세미나 도슨트 수량 2: 담당 2명까지 (2026-11-18)
       : stf ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="프로그램 담당"></span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
     + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
     + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div><div class="it-extra">${extra}${spBtnHTML(k)}<span class="it-amt" data-iamt="${esc(k)}"></span></div>`) + `</div>`;   // 둘째 줄: 할인(할인 대상만) · 셋째 줄: 비고 (할인이 없으면 바로 비고, 금액은 그 줄 끝)
@@ -573,7 +574,9 @@ function paintItemPrices(){
     else if(!priceInfo) h='';
     else { const x=src ? priceInfo[normSrc(src)] : null;
       if(k==='view' && !x) h=cell('관람권', numOf(rec.people)?'0명 (모두 관람 포함 품목으로 계산)':'인원 입력');
-      else if(!x) amt = src && priceOf(src)!=null && !numOf(itemQty(k)) ? cell('금액', `<small>${itemUnit(k)==='명'?'인원':'수량'}을 넣으면 계산</small>`) : cell('금액', '가격 없음', 'warn');   // 가격은 있는데 인원 · 수량이 아직 없으면 (가격 없음이 아님)
+      else if(!x){ const wait = src && priceOf(src)!=null && !numOf(itemQty(k));
+        amt = wait ? cell('금액', `<small>${itemUnit(k)==='명'?'인원':'수량'}을 넣으면 계산</small>`) : cell('금액', '가격 없음', 'warn');   // 가격은 있는데 인원 · 수량이 아직 없으면 (가격 없음이 아님)
+        if(wait) h = `<span class="im dsel" title="${itemUnit(k)==='명'?'인원':'수량'}을 넣으면 할인을 고를 수 있습니다">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${v==='none'?' on':''}" disabled>${l}</button>`).join('')}${spBtnHTML(k)}</span>` + amt.replace('class="im ', 'class="im amt '); if(wait) amt=''; }   // 수량을 넣기 전에도 할인 줄은 같은 모양으로 · 금액은 그 줄 오른쪽 (2026-11-18)
       else if(seen.has(src)) amt=cell('금액', '위 줄과 합산');   // 같은 견적서 품목(예: 대관)은 한 줄로 계산
       else { seen.add(src); const m=x.m;
         const money = cell('금액', `<b>${m?won(m.amount):'가격 없음'}</b>`, 'amt');
@@ -624,7 +627,7 @@ function paintTmMissing(){ TM_REQ.forEach(k=>{
   ['S','E'].forEach(x=>{ const el=document.querySelector(`#itemsBox [data-ix="tm${x}:${k}"]`); if(el) el.closest('.it-xl').classList.toggle('missing', !el.value.trim()); });
   const q=document.querySelector(`#itemsBox [data-iq="${k}"]`); if(q) q.closest('.it-q').classList.toggle('missing', !q.value.trim()); }); }   // 시간(수량)도
 function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은 넣은 묶음만
-  document.querySelectorAll('#itemsBox [data-is]').forEach(el=>el.closest('.it-s').classList.toggle('missing', !el.value.trim()));
+  document.querySelectorAll('#itemsBox [data-is]:not([data-is="seminar2"])').forEach(el=>el.closest('.it-s').classList.toggle('missing', !el.value.trim()));
   paintTmMissing();
   const kinds=new Set(itemRows.map(k=>{ const t=itemKind(k); return t==='sadam'?'sadam':t==='mb'?'mabang':t==='prog'?(OPT[GROUP_OF[k]]||{}).id:''; }));
   document.querySelectorAll('#itemsInfo .dayinfo').forEach(el=>{ el.hidden = !kinds.has(el.id.replace('info_','')); });
@@ -1047,11 +1050,11 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#pgModal').
 // 프로그램 입력 내용: "요가 20명", "차방 대관 2시간" (grp 를 주면 그 묶음만)
 // staff 를 주면 "동행 도슨트 2시간 (담당:사공유빈)" (차방 · 당두봉갈은 담당을 적었을 때만)
 // staff 이면 도슨트 시간대 · 코스도: "동행 도슨트 2시간 13:00~15:00 (코스:정원 코스) (담당:사공유빈)"
-const progList = (r, grp, staff) => FIELDS.filter(f=>(grp ? f[0]===grp : /^프로그램/.test(f[0])) && !isSub(f[1]) && r[f[1]]).map(f=>{ const v=String(r[f[1]]), sub=p=>String(r[`${p}_${f[1]}`]||'').trim(), who=sub('stf');
+const progList = (r, grp, staff) => FIELDS.filter(f=>(grp ? f[0]===grp : /^프로그램/.test(f[0])) && !isSub(f[1]) && r[f[1]]).map(f=>{ const v=String(r[f[1]]), sub=p=>String(r[`${p}_${f[1]}`]||'').trim(), who=[...new Set([sub('stf'), f[1]==='seminar' && numOf(r.seminar)>=2 ? String(r.stf_seminar2||'').trim() : ''].filter(Boolean))].join(', ');   // 세미나 도슨트 담당 2명이면 「A, B」
   const tag = !staff ? '' : (sub('tm') ? ` ${sub('tm')}` : '') + (sub('crs') ? ` (코스:${sub('crs')})` : '') + (sub('plc') ? ` (장소:${sub('plc')})` : '') + (f[1]==='seminar' ? sem2Tag(r) : '') + (who ? ` (담당:${who})` : needsStaff(f[1]) ? ' (담당:미정)' : '');
   return `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? v+UNIT(f[1]) : v}${tag}`; });
 // 세미나 도슨트 수량 2일 때 두 번째: " · 두 번째 14:00~14:30 (장소:당두봉갈)"
-const sem2Tag = r => { if(!(numOf(r.seminar)>=2) || r.seminar2) return ''; const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); return t||p ? ` · 두 번째${t?' '+t:''}${p?` (장소:${p})`:''}` : ''; };
+const sem2Tag = r => { if(!(numOf(r.seminar)>=2) || r.seminar2) return ''; const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); return t||p ? ` ·${t?' '+t:''}${p?` (장소:${p})`:''}` : ''; };
 // 조사: 받침에 따라 (으)로 · 은/는 · 이고/고
 const lastJong = s => { const c=String(s).trim().slice(-1).charCodeAt(0)-0xAC00; return c>=0 && c<11172 ? c%28 : (/[0-9]$/.test(s) ? ({0:1,1:8,3:1,6:1,7:8,8:8}[String(s).slice(-1)]||0) : 0); };   // 0 = 받침 없음, 8 = ㄹ
 const ro  = s => { const j=lastJong(s); return !j || j===8 ? '로' : '으로'; };
@@ -1142,7 +1145,7 @@ function bookRows0(){
         ppl: (cat==='prog' || cat==='coupon') && unit!=='시간' ? (numOf(v)||numOf(x.people)) : numOf(x.people),
         hrs: unit==='시간' ? (numOf(v)||1) : 0, place:RENT_PLACE[k]||x['plc_'+k]||'', kind:DOCENT_KIND[k]||(cat==='docent'?LABEL[k]:''), item:LABEL[k]||k,
         tm:x['tm_'+k]||'', staff:String(x['stf_'+k]||'').trim()||x.owner||'', note:[notes[k], x['crs_'+k]&&`코스 ${x['crs_'+k]}`].filter(Boolean).join(' · ') });
-      if(k==='seminar' && numOf(v)>=2 && !x.seminar2){ const o=out[out.length-1]; out.push({...o, place:x.plc_seminar2||'', tm:x.tm_seminar2||'', note:['두 번째', notes.seminar2].filter(Boolean).join(' · ')}); }   // 세미나 도슨트 수량 2: 두 번째도 현황에 한 줄 (2026-11-18)
+      if(k==='seminar' && numOf(v)>=2 && !x.seminar2){ const o=out[out.length-1]; out.push({...o, place:x.plc_seminar2||'', tm:x.tm_seminar2||'', staff:String(x.stf_seminar2||'').trim()||o.staff, note:[notes.seminar2].filter(Boolean).join(' · ')}); }   // 세미나 도슨트 수량 2: 두 번째도 현황에 한 줄 (2026-11-18)
     });
   });
   return out.sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99')));
@@ -1815,7 +1818,10 @@ const onsiteMsg = r => `안녕하세요, 사유원입니다. ${r.org?`<${r.org}>
 function staffMsg(r){
   const by={}, add=(who,s)=>{ who=String(who||'').trim()||'(담당 미정)'; (by[who] ||= []).push(s); };
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]]).forEach(f=>{ const k=f[1], v=String(r[k]), sub=p=>String(r[`${p}_${k}`]||'').trim();
-    add(sub('stf'), `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? v+UNIT(k) : v}${sub('tm')?' '+sub('tm'):''}${sub('crs')?` (코스:${sub('crs')})`:''}${sub('plc')?` (장소:${sub('plc')})`:''}${r===rec && itemNote(k)?` (비고:${itemNote(k)})`:''}${k==='seminar' ? sem2Tag(r)+(r===rec && sem2Tag(r) && itemNote('seminar2') ? ` (비고:${itemNote('seminar2')})` : '') : ''}`); });
+    const s2who = k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 ? String(r.stf_seminar2||'').trim() : '', split = s2who && s2who!==sub('stf');   // 세미나 도슨트 두 번째 담당이 다르면 그 사람에게 따로
+    const s2note = r===rec && itemNote('seminar2') ? ` (비고:${itemNote('seminar2')})` : '';
+    add(sub('stf'), `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? (split ? '1'+UNIT(k) : v+UNIT(k)) : v}${sub('tm')?' '+sub('tm'):''}${sub('crs')?` (코스:${sub('crs')})`:''}${sub('plc')?` (장소:${sub('plc')})`:''}${r===rec && itemNote(k)?` (비고:${itemNote(k)})`:''}${k==='seminar' && !split ? sem2Tag(r)+(sem2Tag(r) ? s2note : '') : ''}`);
+    if(split){ const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); add(s2who, `${f[2]} 1${UNIT(k)}${t?' '+t:''}${p?` (장소:${p})`:''}${s2note}`); } });
   if(r.goods) add(r.stf_goods, '굿즈 '+goodsText(r)+(r===rec ? goodsParse(r.goods).map(g=>itemNote('g:'+g.src)?` (${goodsName(g.src)} 비고:${itemNote('g:'+g.src)})`:'').join('') : ''));
   const head=[r.org&&`<${r.org}>`, r.date&&dateLabel(r.date), r.people&&`${r.people}명`, r.tin&&`입장 ${r.tin}${r.gate&&r.gate!=='미정'?' '+r.gate:''}`].filter(Boolean).join(' · ');
   const c=contactsOf(r)[0]||{};
