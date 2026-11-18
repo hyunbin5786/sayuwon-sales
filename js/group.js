@@ -1897,7 +1897,7 @@ function syncAutoTasks(){
   if((parseInt(rec.dClergy)||0)>0) want.push('clergy');   // 대구대교구 특별 할인 → 대구대교구 정보 기입 (예약자에게 정보 요청 · 대구대교구 시트 기입)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
   const e0=tasks.find(t=>t.id==='erp');
-  if(e0){ e0.done=!!rec.erp; if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
+  if(e0){ e0.done=!!rec.erp; if(e0.done && (!e0.base || e0.base.erpnote==null)) e0.base=erpSnap(); if(!e0.done) delete e0.base; }   // 예전 기준(칸마다)은 지금 비고 문구로 바꿔 둠
   const fixes = e0 && e0.base ? erpDiff(e0.base, erpSnap()) : [];
   if(fixes.length) want.push('erpfix');
   if(rec.tour) want.push('tour');   // 사전 답사가 잡히면 답사도 전산에 예약
@@ -1927,11 +1927,9 @@ function syncAutoTasks(){
   openT.filter(t=>!t.ordSet).sort(byNew).forEach(t=>{ const d=taskDue(t); let i=list.findIndex(x=>x.ordSet && taskDue(x)>=d); if(i<0) i=list.length; list.splice(i,0,t); });
   tasks=[...list, ...doneT];
 }
-// 전산에 들어가는 내용 (이게 바뀌면 전산 예약 수정)
-const ERP_BASE = ['goods','org','date','people','tin','tout','gate','pchg','pay','onsite','sadam1','sadam2','sadamD','mabangTime','mabangL','mabangD','mabangMenu','teaMed','gayageum','cabin','c0_name','c0_phone'];
-const ERP_KEYS_ = () => [...ERP_BASE, ...PROG_KEYS(), ...STF_KEYS()];   // 프로그램은 견적서 품목에 따라 늘어남
-const erpSnap = () => Object.fromEntries(ERP_KEYS_().map(k=>[k, rec[k]||'']));
-const erpDiff = (a,b) => [...new Set([...Object.keys(a),...Object.keys(b)])].filter(k=>(a[k]||'')!==(b[k]||'')).map(k=>{ const x=a[k]||'', y=b[k]||'', l=LABEL[k]||k; return !x?`${l} ${y} 추가`:!y?`${l} ${x} 삭제`:`${l} ${x} → ${y}`; });
+// 전산 예약 수정 (2026-11-18): 전산 비고에 들어가는 문구(erpNote)가 바뀐 경우에만 — 담당자 이름 · 연락처처럼 비고에 안 들어가는 것은 과업을 만들지 않음
+const erpSnap = () => ({erpnote: erpNote(rec)});
+const erpDiff = (a,b) => (a&&a.erpnote!=null ? a.erpnote : null)===null ? [] : (a.erpnote||'')===(b.erpnote||'') ? [] : ['전산 비고 문구가 바뀜 (아래 새 문구로 고치기)'];
 const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
 // 하위 과업 칸: 기본 하위 과업(견적서 · 거래명세서) + 직접 추가한 세부 과제(× 로 빼기) + 추가 입력칸
 function subsHTML(t){
