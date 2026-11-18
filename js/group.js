@@ -2099,7 +2099,7 @@ function duePayChecks(){
     const base = x.linkSent || (ph.tasks.some(y=>y.id==='linksend') ? '' : t.at); return base && ymd(new Date(base))<today ? {r,t} : null; }).filter(Boolean);
 }
 function checkPayPopup(force){
-  if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
+  if(BOOK_ONLY || MY_EMBED) return;   // 예약 현황 공유 페이지 · 나의 할일 팝업 안에서는 안 함
   const today=ymd(new Date()); let seen=''; try{ seen=sessionStorage.getItem('sayuwon_paycheck_seen')||''; }catch(_){}
   if(!force && seen===today) return;
   const due=duePayChecks();
@@ -3282,7 +3282,7 @@ const TASK_SNOOZE_LS='sayuwon_task_snooze', SNOOZE_MS=2*3600e3, TASK_SLOT_LS='sa
 const ALERT_HOURS=[8,11,13,17];   // 추후 과업 마감 알림 시각 (개인고객 화면과 같음)
 const SELF_DONE = new Set(['erp','erpcheck','erpfix','progstaff','mbmenu']);   // erp · erpfix: 전산 내역을 붙여넣어야 완료   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
 function checkTbdPopup(force){
-  if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
+  if(BOOK_ONLY || MY_EMBED) return;   // 예약 현황 공유 페이지 · 나의 할일 팝업 안에서는 안 함
   // 마감 지난 과업: 열 때 · 1분마다 (나중에 = 2시간 뒤). 오늘 마감 과업: 오후 1시, 아직 안 끝났으면 오후 5시에 (시간마다 한 번)
   // 단, 입력(과업이 생기거나 마감을 바꾼 것)한 지 30분이 안 된 과업은 알리지 않음
   // 2026-11-14부터: 오전 8시 · 11시 · 오후 1시 · 5시에 (그 시각이 지나고 처음 화면을 볼 때, 시각마다 한 번) 마감이 오늘이거나 지난 과업을 단체 + 개인고객 함께
@@ -3372,7 +3372,7 @@ window.addEventListener('pagehide', saveView);
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveView(); });
 ['listModal','myModal'].forEach(id=>new MutationObserver(saveViewSoon).observe($('#'+id), {attributes:true, attributeFilter:['hidden']}));
 async function restoreView(){
-  if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
+  if(BOOK_ONLY || MY_ONLY) return;   // 예약 현황 공유 페이지 · 나의 할일(단독 · 팝업)에서는 안 함 — 팝업 안에서 지난번 단체 화면(열어 둔 예약 · 단체예약 목록)이 되살아나지 않게 (2026-11-18)
   let v=null; try{ v=JSON.parse(localStorage.getItem(VIEW_LS)||'null'); }catch(_){}
   if(!v) return;
   restoring=true;
