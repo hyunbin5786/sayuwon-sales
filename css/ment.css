@@ -30,3 +30,5 @@
 .ment-edit.drop{box-shadow:0 0 0 3px #9db394}
 .m-zoom{position:fixed;inset:0;z-index:50;background:rgba(30,30,25,.75);display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
 .m-zoom img{max-width:100%;max-height:100%;border-radius:8px;background:#fff}
+/* 멘트 글 칸: 크기 고정 (짧으면 빈 채로 · 길면 칸 안에서 스크롤, 2026-11-18) */
+.m-body-v{height:220px;overflow-y:auto;box-sizing:border-box}
