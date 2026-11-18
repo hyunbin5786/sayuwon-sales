@@ -128,3 +128,6 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 .keybox input{flex:0 0 120px;width:120px}
 .keybox .btn{flex:none}
 @media (max-width:560px){.keybox{flex-wrap:wrap}}
+/* 새로 조사(단체예약 목록에 없음): 줄 전체를 주황으로 (2026-11-19) */
+.out tbody tr.new td{background:#fdf0dc}
+.shot tr.new td{background:#fdf0dc}

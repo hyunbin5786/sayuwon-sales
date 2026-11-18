@@ -107,6 +107,7 @@ const shortProd = p => { const m=p.match(/\(관람,\s*(.+)\)/); if(m) return m[1
 const isTravel = s => /여행|투어|관광|트래블|tour|travel/i.test(s||'');
 const BIG_NAMES = ['해밀','아너드','군위시티투어'];
 const isBig = s => isTravel(s) || BIG_NAMES.some(b=>norm(s).includes(norm(b)));
+const isGroupName = s => /^[^()]+\(\s*(?!개인|대리)[가-힣A-Za-z ]{2,12}\s*\)\s*$/.test(String(s||'').trim());   // 「산청군청(고영현)」 = 단체명(담당자) → 단체 (2026-11-19)
 const fmtT = v => { const m=String(v||'').match(/(\d{1,2})\s*:?\s*(\d{2})/); return m ? `${String(+m[1]).padStart(2,'0')}:${m[2]}` : ''; };
 const toMin = t => { const m=fmtT(t).match(/(\d\d):(\d\d)/); return m ? +m[1]*60 + +m[2] : null; };
 function vehicleText(v){ const s=String(v||''); const b=s.match(/버스\D*(\d+)/); if(b) return {txt:b[1], bus:+b[1]}; const c=s.match(/(\d+)\s*대/); if(/승용|자차|개별|소형|승합/.test(s)) return {txt:`개별${c?c[1]+'대':''}`, bus:0}; return {txt:s.replace(/\s*\(.*\)$/,''), bus:0}; }
@@ -134,8 +135,8 @@ function build(fresh){
   rows = list.map(o=>{ const k=o.x?o.x.id:'r'+o.rec.id, r=o.rec, x=o.x, v=vehicleText(r&&r.vehicle), e=state.edit[k]||{};
     const prods=x ? x.items.filter(i=>i.n>0 || x.items.length===1).map(i=>shortProd(i.p)) : [];
     const pmT = x && x.items.some(i=>/13:00~18:00/.test(i.p)) && !x.items.some(i=>/09:00~18:00|\(관람,/.test(i.p)) ? '13:00 이후' : '';
-    return { key:k, recId: r ? r.id : '', on: state.sel[k]!==false, group: !!r, travel: isBig((r&&r.org)||(x&&x.name)),
-      name: r ? (r.org||r.contact||'(업체 미정)') : `${x.name}(개인)`, xname:x?x.name:'', ppl: x ? x.ppl : (parseInt(r.people)||0),
+    return { key:k, recId: r ? r.id : '', on: state.sel[k]!==false, group: !!r || isGroupName(x&&x.name), inList: !!r, travel: isBig((r&&r.org)||(x&&x.name)),
+      name: r ? (r.org||r.contact||'(업체 미정)') : isGroupName(x.name) ? x.name : `${x.name}(개인)`, xname:x?x.name:'', ppl: x ? x.ppl : (parseInt(r.people)||0),
       time: e.time ?? fmtT(r&&r.tin) ?? '', timeHint: pmT, vehicle: e.vehicle ?? v.txt, bus: v.bus,
       phone: e.phone ?? (x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || ''),
       note: e.note ?? [ [...new Set(prods)].join(' · '), r ? recNote(r) : '', x && x.note && x.note!=='-' ? x.note.slice(0,60) : '' ].filter(Boolean).join(' / '),
@@ -175,12 +176,12 @@ function render(){
   $('#listBody').innerHTML = rows.map(r=>`<tr class="${r.on?'':'dim'}"><td><input type="checkbox" data-sel="${esc(r.key)}"${r.on?' checked':''}></td><td>${r.group?'<span class="tag grp">단체</span>':'<span class="tag ind">개인</span>'}${r.missing?'<span class="tag warn" title="단체예약에는 있는데 전산 방문자내역에 없음">전산에 없음</span>':''}</td><td>${esc(r.xname||'-')}</td><td>${esc(r.phone)}</td><td class="num">${r.ppl}</td><td style="white-space:pre-line;font-size:12px">${esc(r.prods)}</td><td>${r.missing?esc(r.name):linkOpts(r.key, r.recId)}</td></tr>`).join('')
     || '<tr><td colspan="7" class="hint" style="text-align:center;padding:14px">기준 이상인 예약이 없습니다.</td></tr>';
   const on=rows.filter(r=>r.on);
-  $('#p2Sum').textContent = `${on.length}팀 · ${on.reduce((a,r)=>a+r.ppl,0)}명 · 단체예약 ${dg.length}건 중 연결 ${rows.filter(r=>r.group && !r.missing).length}${rows.some(r=>r.missing)?` · 전산에 없음 ${rows.filter(r=>r.missing).length}`:''}${groups.length?'':' (단체예약을 아직 못 불러옴)'}`;   // ③ 단체예약 정보 넣기는 없애고 여기에 요약 (2026-11-18)
+  $('#p2Sum').textContent = `${on.length}팀 · ${on.reduce((a,r)=>a+r.ppl,0)}명 · 단체예약 ${dg.length}건 중 연결 ${rows.filter(r=>r.inList && !r.missing).length}${rows.some(r=>r.missing)?` · 전산에 없음 ${rows.filter(r=>r.missing).length}`:''}${groups.length?'':' (단체예약을 아직 못 불러옴)'}`;   // ③ 단체예약 정보 넣기는 없애고 여기에 요약 (2026-11-18)
   // ④ 결과 표 (도착 시간 순)
   const list=on.slice().sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999));
   const yy=s.date.slice(2).replace(/-/g,'');
   $('#outHead').innerHTML = `${yy}(${DOW[new Date(s.date+'T00:00').getDay()]||''})<br>${total}명+@`;
-  $('#outBody').innerHTML = list.map(r=>`<tr><td class="name${r.group?'':' ind'}"><span class="src ${r.group?'have':'new'} no-print" title="${r.group?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.group?'목록':'새로 조사'}</span>${esc(r.name)}</td><td class="num">${r.ppl}</td>`
+  $('#outBody').innerHTML = list.map(r=>`<tr class="${r.inList?'':'new'}"><td class="name"><span class="src ${r.inList?'have':'new'} no-print" title="${r.inList?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.inList?'목록':'새로 조사'}</span>${esc(r.name)}</td><td class="num">${r.ppl}</td>`
     + `<td><input class="t" data-e="${esc(r.key)}|time" value="${esc(r.time)}" placeholder="${esc(r.timeHint||'시간')}"></td>`
     + `<td><select class="gate ${esc(r.gate)} src-${r.gateSrc}" data-e="${esc(r.key)}|gate"><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select><span class="gsrc ${r.gateSrc}" title="${{fixed:'단체예약 화면에서 이 입장문으로 정해 둔 것',auto:'방문 인원 · 도착 시간을 보고 이 화면이 추천한 것',hand:'이 화면에서 직접 바꾼 것'}[r.gateSrc]}">${{fixed:'예약 고정',auto:'추천',hand:'직접'}[r.gateSrc]}</span><span class="why no-print">${esc(r.gateWhy)}${r.gateSrc==='hand'?` · ${r.recGate?'고정':'추천'}은 ${esc(r.recGateAuto)}`:''}</span></td>`
     + `<td><input class="v" data-e="${esc(r.key)}|vehicle" value="${esc(r.vehicle)}"></td><td><input class="p" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
@@ -191,7 +192,7 @@ function render(){
   $('#outFoot').innerHTML = `<tr><td class="g">단체</td><td class="g num">${gSum}</td><td></td><td></td><td class="bus">버스 ${bus}대+</td><td colspan="2" class="ind">개인고객 ${ind}명</td></tr>`
     + `<tr><td>현장결제건</td><td colspan="6" style="text-align:left">${esc(onsite.join(', ')||'-')}</td></tr>`
     + `<tr><td>해오름 산책</td><td colspan="6" style="text-align:left">${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</td></tr>`;
-  $('#p4Sum').textContent = `${list.length}팀 (목록 ${list.filter(r=>r.group).length} · 새로 조사 ${list.filter(r=>!r.group).length}) · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length} · 입장문 예약 고정 ${list.filter(r=>r.gateSrc==='fixed').length}`;
+  $('#p4Sum').textContent = `${list.length}팀 (목록 ${list.filter(r=>r.inList).length} · 새로 조사 ${list.filter(r=>!r.inList).length}) · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length} · 입장문 예약 고정 ${list.filter(r=>r.gateSrc==='fixed').length}`;
   document.querySelectorAll('.out textarea').forEach(t=>{ t.style.height='auto'; t.style.height=t.scrollHeight+'px'; });
 }
 document.addEventListener('change', e=>{ const t=e.target;
@@ -230,7 +231,7 @@ $('#pngBtn').onclick=async()=>{
   const box=$('#shot');
   box.innerHTML = `<div class="sh-h"><b>${esc(dLab(s.date))} 고객 응대</b><span>방문 ${total}명+@ · ${list.length}팀</span></div>`
     + `<table><thead><tr><th>단체 · 고객</th><th>인원</th><th>도착</th><th>입장문</th><th>차량</th></tr></thead><tbody>`
-    + list.map(r=>`<tr><td class="nm${r.group?'':' ind'}"><b>${esc(r.name)}</b>${r.phone?`<small>${esc(r.phone)}</small>`:''}</td><td class="c">${r.ppl}</td><td class="c">${esc(r.time||r.timeHint||'')}</td><td class="c"><span class="g ${esc(r.gate)}${r.gateSrc==='fixed'?' fx':''}">${esc(r.gate)}${r.gateSrc==='fixed'?' · 고정':''}</span></td><td class="c">${esc(r.vehicle||'')}</td></tr>`
+    + list.map(r=>`<tr class="${r.inList?'':'new'}"><td class="nm"><b>${esc(r.name)}</b>${r.phone?`<small>${esc(r.phone)}</small>`:''}</td><td class="c">${r.ppl}</td><td class="c">${esc(r.time||r.timeHint||'')}</td><td class="c"><span class="g ${esc(r.gate)}${r.gateSrc==='fixed'?' fx':''}">${esc(r.gate)}${r.gateSrc==='fixed'?' · 고정':''}</span></td><td class="c">${esc(r.vehicle||'')}</td></tr>`
       + (r.note ? `<tr class="nt"><td colspan="5">${esc(r.note)}</td></tr>` : '')).join('')
     + `</tbody></table>`
     + `<div class="sh-f"><span class="g1">단체 ${gSum}명</span><span class="g2">버스 ${bus}대+</span><span class="g3">개인고객 ${ind}명</span></div>`
