@@ -175,7 +175,7 @@ const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
 const TBD_KEYS = [['org','업체'],['date','방문일'],['people','관람 인원'],['tin','입장시각'],['vehicle','차량 대수'],['pay','결제 방법'],['mabangPay','몽몽마방 결제']];   // 결제 미정 = 미정 항목 '결제 방법' · 몽몽마방 결제 미정 = '몽몽마방 결제' (입장문은 전날 전화로 안내하므로 미정 항목 아님)
 const tbdSet = r => { const names=String(r?.tbd||'').split(/\s*,\s*/); return new Set(TBD_KEYS.filter(([k,l])=>names.includes(l) || (k==='tin' && names.includes('입장'))).map(([k])=>k)); };   // 예전 기록의 '입장'도 입장시각으로
-function syncPayTbd(r){ const s=tbdSet(r); r.pay==='미정' ? s.add('pay') : s.delete('pay'); r.mabangPay==='미정' ? s.add('mabangPay') : s.delete('mabangPay'); r.tbd=TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', '); if(!s.size){ r.tbdDate=''; r.tbdLate=''; if(r===rec) tbdAuto=false; } }
+function syncPayTbd(r){ const s=tbdSet(r); r.pay==='미정' ? s.add('pay') : s.delete('pay'); r.mabangPay==='미정' ? s.add('mabangPay') : s.delete('mabangPay'); if(r.vehicle==='미정') s.add('vehicle'); else if(r.vehicle) s.delete('vehicle');   /* 차량: 미정이면 미정 항목, 차종 · 대수를 정했으면 뺌 (2026-11-18) */ r.tbd=TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', '); if(!s.size){ r.tbdDate=''; r.tbdLate=''; if(r===rec) tbdAuto=false; } }
 function packExtra(r){
   const o={};
   o.pay = r.pay;   // 결제 미정의 답변일은 미정 항목 답변일로
@@ -833,7 +833,7 @@ function buildForm(){
     if(k==='date'){ const d=parseDateText(e.target.value); if(d===null) return; }   // 방문일을 치는 중 (날짜가 되기 전엔 그대로)
     rec[k]= e.target.type==='checkbox' ? (e.target.checked?'있음':'') : k==='vehicle' ? vehRead() : k==='date' ? parseDateText(e.target.value) : e.target.value;
     touched.add(k);
-    if(k==='pay' || k==='mabangPay'){ syncPayTbd(rec); touched.add('tbd'); }   // 결제 미정 ↔ 미정 항목 '결제 방법' · '몽몽마방 결제'
+    if(k==='pay' || k==='mabangPay' || k==='vehicle'){ syncPayTbd(rec); touched.add('tbd'); }   // 결제 미정 ↔ 미정 항목 '결제 방법' · '몽몽마방 결제'
     if(k==='pay' && PAY_GUIDE[rec.pay]) openPayGuide(rec.pay);
     if(k==='mabangPay' && rec.mabangPay==='기타') openPayGuide('기타', '몽몽마방');   // 결제 방식을 고르면 그 안내를 바로 팝업으로
     if(k==='vehicle' && e.target.id==='f_vtype'){ const s=tbdSet(rec); rec.vehicle==='미정' ? s.add('vehicle') : s.delete('vehicle'); rec.tbd=TBD_KEYS.filter(([tk])=>s.has(tk)).map(([,tl])=>tl).join(', '); if(!s.size){ rec.tbdDate=''; rec.tbdLate=''; tbdAuto=false; } touched.add('tbd'); }   // 차종 '미정' = 차량 미정 체크
@@ -2223,6 +2223,7 @@ function openRecord(r){
     LEGACY_KEYS.forEach(k=>{ if(r[k]) rec[k]=r[k]; });   // 예전 프로그램 값은 그대로 들고 있다가 다시 저장
     if(r.mabangD) rec.mabangD=r.mabangD;   // 예전 '마방 디너' 값도 그대로
     if(!rec.owner) rec.owner=savedOwner();   // 자동 등록된 예약 등 담당이 비어 있으면 이 컴퓨터의 영업 담당
+    rec.tbd='';   // 새 통화 기본 미정(차량 대수 · 결제 방법)이 저장된 예약에 섞이지 않게 — 그 예약의 미정 항목만 (2026-11-18)
     const ex=unpackExtra(r); Object.assign(rec,ex); Object.keys(ex).forEach(k=>touched.add(k));
     if(!rec.pay) rec.pay='미정';   // 결제를 안 고른 예전 기록은 미정으로
     if(!rec.gate) rec.gate='미정';   // 입장문을 안 고른 예전 기록도 미정으로
