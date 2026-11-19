@@ -340,7 +340,7 @@ $('#manualOpen').href = MANUAL_URL;   // 문의 매뉴얼은 헤더의 링크로
 // 삭제된 통화 (Apps Script 'deleted', 보기 전용): 같은 창에서 「삭제된 통화」 ↔ 「← 통화 기록 전체」
 const ALL_HEAD = '<tr><th>저장</th><th>고객</th><th>연락처</th><th>일시</th><th>인원</th><th>문의 내용</th><th>남은 과업</th><th></th><th class="owner">받은 사람</th></tr>';
 const TRASH_HEAD = '<tr><th>삭제 일시</th><th>삭제한 사람</th><th>사유</th><th>고객</th><th>연락처</th><th>일시</th><th>문의 내용</th><th class="owner">받은 사람</th></tr>';
-let allTrash=false, trashItems=null, trashErr='';
+let allTrash=false, trashItems=null, trashErr='', allOthers=false, allPast=false;   // 통화 기록 전체: 다른 사람 통화도 · 지난 통화도 (기본 = 내가 받은 오늘 통화, 2026-11-19)
 function renderTrash(q, qd){
   if(trashItems==null){ $('#allCount').textContent=''; $('#allBody').innerHTML=`<tr><td colspan="8" class="empty">${trashErr?esc(trashErr):'불러오는 중…'}</td></tr>`; return; }
   const info = r => { let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const e=[...(Array.isArray(h.h)?h.h:[])].reverse().find(x=>/^\[삭제\]/.test(x.what||'')); return { by:e?e.by:'', why:e?String(e.what).replace(/^\[삭제\]\s*/,''):'(사유 기록 없음)' }; };
@@ -353,7 +353,7 @@ function renderTrash(q, qd){
 }
 async function setAllTrash(on){
   allTrash=on; $('#allName').textContent = on ? '삭제된 개인고객 통화' : '개인고객 통화 기록 전체'; $('#allTrash').textContent = on ? '← 통화 기록 전체' : '삭제된 통화';
-  $('#allHead').innerHTML = on ? TRASH_HEAD : ALL_HEAD; $('#allSearch').value=''; renderAll();
+  $('#allHead').innerHTML = on ? TRASH_HEAD : ALL_HEAD; $('#allSearch').value=''; $('#allFlt').hidden=on; renderAll();
   if(on){ trashItems=null; trashErr=''; renderAll();
     try{ const j=await callApi({action:'deleted'}); trashItems=j.items||[]; }
     catch(e){ trashErr = e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 삭제된 통화가 보입니다 (apps-script/group-intake.gs 의 deleted).' : '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
@@ -363,13 +363,18 @@ $('#allTrash').onclick=()=>setAllTrash(!allTrash);
 function renderAll(){
   const q=$('#allSearch').value.trim().replace(/\s/g,'').toLowerCase(), qd=q.replace(/\D/g,'');
   if(allTrash) return renderTrash(q, qd);
+  // 기본 = 내가 받은 오늘 통화 (2026-11-19) · 「다른 사람 통화도 보기」 · 「지난 통화 보기」 · 검색하면 모든 통화에서
+  const me=String(user.name||'').trim(), today=ymd(new Date()), mineOf = r => String(r.takenBy||r.owner||'').trim()===me, dayOf = r => { const x=new Date(r.callStart||r.saved||''); return isNaN(x) ? '' : ymd(x); };
   const all=shown().sort((a,b)=>String(b.saved).localeCompare(String(a.saved)));
+  const inFlt = r => (allOthers || !me || mineOf(r)) && (allPast || dayOf(r)===today);
   const hit = r => !q || [r.contact, r.note, r.takenBy, r.history].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd));
-  const list=all.filter(hit);
-  $('#allCount').textContent = `${all.length}건${q?` · 찾은 ${list.length}건`:''}`;
+  const list = q ? all.filter(hit) : all.filter(inFlt);
+  $('#allPast').textContent = allPast ? '오늘 통화만 보기' : '지난 통화 보기'; $('#allPast').setAttribute('aria-pressed', allPast); $('#allPast').classList.toggle('on', allPast); $('#allOthers').checked=allOthers;
+  $('#allFltHint').textContent = q ? '검색은 모든 통화에서 찾습니다' : `${allOthers?'모든 사람':'내가 받은'} · ${allPast?'모든 날짜':'오늘'} 통화`;
+  $('#allCount').textContent = q ? `전체 ${all.length}건 · 찾은 ${list.length}건` : `${list.length}건 (전체 ${all.length}건)`;
   $('#allBody').innerHTML = list.map(r=>{ const left=tasksOfItem(r).filter(t=>!t.done).length, d=String(r.date||'').slice(0,10);
     return `<tr data-id="${esc(r.id)}"><td>${esc(dtLabel(r.saved))}</td><td>${(c=>c?`<span class="tag">${esc(c)}</span>`:'')(fromItem(r).cat)}<b>${esc(r.contact||'(이름 없음)')}</b></td><td>${esc(r.phone||'')}</td><td>${d?esc(dLabel(d)):''}</td><td>${esc(r.people||'')}</td><td class="note">${esc(String(r.note||'').split(/\n/)[0].slice(0,80))}</td><td>${left?`<span class="tag cb">${left}개</span>`:''}</td><td class="acts"><button type="button" class="btn primary pdel" data-pdel="${esc(r.id)}" title="이 통화 기록 삭제 (사유 필수)">삭제</button></td><td class="owner">${esc(r.takenBy||r.owner||'')}</td></tr>`; }).join('')
-    || `<tr><td colspan="9" class="empty">${q?'찾은 통화가 없습니다.':'저장된 개인고객 통화가 없습니다.'}</td></tr>`;
+    || `<tr><td colspan="9" class="empty">${q?'찾은 통화가 없습니다.':allPast||allOthers?'저장된 개인고객 통화가 없습니다.':'오늘 내가 받은 통화가 없습니다. 「지난 통화 보기」 · 「다른 사람 통화도 보기」로 더 볼 수 있습니다.'}</td></tr>`;
 }
 // 통화 기록 삭제: 사유를 꼭 적어야 함. 사유는 그 기록의 수정 기록에 남긴 뒤 삭제 (시트에서는 줄을 지우지 않고 '삭제' 칸에 일시)
 let pdelId=null;
@@ -400,6 +405,8 @@ $('#allCallsBtn').onclick=openAll;
 $('#allClose').onclick=()=>{ $('#allModal').hidden=true; };
 $('#allModal').addEventListener('mousedown', e=>{ if(e.target.id==='allModal') $('#allModal').hidden=true; });
 $('#allSearch').addEventListener('input', renderAll);
+$('#allOthers').addEventListener('change', e=>{ allOthers=e.target.checked; renderAll(); });
+$('#allPast').onclick=()=>{ allPast=!allPast; renderAll(); };
 $('#allBody').addEventListener('click', e=>{ const del=e.target.closest('[data-pdel]'); if(del){ openPdel(del.dataset.pdel); return; } const tr=e.target.closest('tr[data-id]'); if(!tr) return; $('#allModal').hidden=true; openItem(tr.dataset.id); });
 
 // ===================== 마감이 된 추후 과업 알림: 오전 8시 · 11시 · 오후 1시 · 5시 =====================
