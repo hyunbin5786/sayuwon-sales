@@ -66,7 +66,9 @@
     v.rows.forEach(x=>{
       const rec=find(x); if(rec) used.add(rec.id);
       const isGroup = !!rec || /단체관람/.test(x.disc);
-      const gName = rec ? `${rec.org||x.name}${String(rec.contact||'').split(/\s*\/\s*/)[0] ? `(${String(rec.contact).split(/\s*\/\s*/)[0].trim()})` : ''}` : x.name;
+      // 단체 이름: 단체예약에 담당자가 있으면 「업체(담당자)」, 없으면 엑셀 성명 그대로(「산청군청(고영현)」처럼 괄호가 있으면 그대로, 2026-11-19 · 예전엔 업체명만 「산청군청」)
+      const c0 = String((rec&&rec.contact)||'').split(/\s*\/\s*/)[0].trim();
+      const gName = rec ? (c0 ? `${rec.org||x.name.replace(/\(.*?\)\s*$/,'')}(${c0})` : (/\(.+\)\s*$/.test(x.name) ? x.name.trim() : (rec.org||x.name))) : x.name;
       x.items.forEach(it=>{ const c=catOf(it.p); if(!c || !it.n) return; const r=row(c); r.home+=it.n; if(isGroup) r.groups.push(`${gName} ${it.n}명`); });
     });
     ORDER.forEach(c=>{ if(c==='오전입장' || c==='오후입장') row(c); });   // 입장은 0명이어도 줄
