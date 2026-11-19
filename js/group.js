@@ -3260,7 +3260,7 @@ function dueTasks(){   // 마감이 오늘이거나 지난 해결 안 된 과업
 }
 // 개인고객 통화 (personal.html, 통화 구분 '개인고객')의 추후 과업: 내가 받은(저장한) 통화의 안 끝난 과업
 const isPersonalRec = r => r && r.callType==='개인고객';
-let myTab = (()=>{ const fix=t=>(!t || t==='all' || t==='etc') ? 'main' : t; const q=new URLSearchParams(location.search).get('tab'); if(q) return fix(q); try{ return fix(localStorage.getItem('sayuwon_my_tab')); }catch(_){ return 'main'; } })();   // 2026-11-19: 메인 · personal(개인예약) · group(단체예약) · cat:구분 (예전 all · etc 는 메인)   // 나의 할일 탭: all · personal · group (개인고객 화면에서 열면 ?tab=personal → 개인부터)
+let myTab = (()=>{ const fix=t=>(!t || t==='all' || t==='etc') ? 'main' : t; const q=new URLSearchParams(location.search).get('tab'); return q ? fix(q) : 'main'; })();   // 열 때는 늘 메인 (주소에 tab= 이 있을 때만 그 탭, 2026-11-19)   // 2026-11-19: 메인 · personal(개인예약) · group(단체예약) · cat:구분 (예전 all · etc 는 메인)   // 나의 할일 탭: all · personal · group (개인고객 화면에서 열면 ?tab=personal → 개인부터)
 const MY_ONLY = new URLSearchParams(location.search).get('my')==='1';   // 나의 할일 단독 페이지 (mypage.html → group.html?my=1)
 function myPersonalOpen(){
   const me=savedOwner(); if(!me) return [];
@@ -3346,7 +3346,7 @@ document.addEventListener('change', e=>{ const n=e.target.dataset && e.target.da
 function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
   const mm=myNewMemos().length, t=[n&&`과업 ${n}`, mm&&`메모 ${mm}`].filter(Boolean).join(' · ');   // 수정 표시는 없앰 · 내 예약에 확인 안 한 메모 수
   $('#myCount').hidden=!t; $('#myCount').textContent=t; }
-function openMy(fromGroup){ if(fromGroup===true) myTab='group'; $('#myModal').hidden=false; renderMy();   // 단체 화면의 나의 할일 버튼 = '단체' 탭부터
+function openMy(fromGroup){ myTab='main'; $('#myModal').hidden=false; renderMy();   // 나의 할일 버튼은 어디서든 메인부터 (2026-11-19)
   if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
 // group.html?open=예약ID → 그 예약을 엶 (팝업 나의 할일에서 단체 줄을 누른 경우 · 목록을 받은 뒤)
 let openGId = new URLSearchParams(location.search).get('open');
