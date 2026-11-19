@@ -189,9 +189,9 @@ function dashRecs(items){
   items.forEach(r=>{ const d=String(r.date||'').slice(0,10), o=(r.owner||r.takenBy||'').trim(); if(o && d>=from && d<=to && booked(r)) (byOwner[o] ||= []).push(r); });
   const wl = d => { const x=new Date(d+'T00:00'); return `${x.getMonth()+1}월 ${x.getDate()}일 (${'일월화수목금토'[x.getDay()]})`; };
   Object.entries(byOwner).forEach(([o, list])=>{
-    const w=items.find(r=>r.id==='wk'+hash(o)+thu.replace(/-/g,'')); let done={}; try{ done=(JSON.parse((w||{}).history||'{}').done)||{}; }catch(_){}
+    const w=items.find(r=>r.id==='wk'+hash(o)+thu.replace(/-/g,'')); let done={}, due=thu; try{ const wh=JSON.parse((w||{}).history||'{}')||{}; done=wh.done||{}; if(/^\d{4}-\d{2}-\d{2}$/.test(wh.due||'')) due=wh.due; }catch(_){}   // 바꾼 마감 (2026-11-19)
     const n=list.filter(r=>done[r.id]).length; if(n===list.length) return;
-    recs.push({kind:'단체', owner:o, name:`다음주 예약 점검 · ${wl(from)} ~ ${wl(to)} · ${n}/${list.length}`, q:'다음주 예약 점검 '+list.map(r=>r.org||'').join(' '), tasks:[{title:`내 예약 ${list.length}건 점검 (남은 ${list.length-n}건)`, due:thu}], href:'group.html?my=1&tab=group'});
+    recs.push({kind:'단체', owner:o, name:`다음주 예약 점검 · ${wl(from)} ~ ${wl(to)} · ${n}/${list.length}`, q:'다음주 예약 점검 '+list.map(r=>r.org||'').join(' '), tasks:[{title:`내 예약 ${list.length}건 점검 (남은 ${list.length-n}건)`, due:due}], href:'group.html?my=1&tab=group'});
   });
   return recs;
 }

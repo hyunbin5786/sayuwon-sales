@@ -3921,26 +3921,35 @@ function wkItems(me, thu){ const from=wkAdd(thu,1), to=wkAdd(thu,10);
 // 추후 과업 (단체) 목록 맨 위에 과업 한 줄: 「다음주 예약 점검」 + 예약마다 세부 과업(체크). 다 체크하면 목록에서 빠짐 (2026-11-19 · 따로 칸 만들지 않음)
 function weekTask(){
   const me=savedOwner(); if(!me) return null;
-  const today=ymd(new Date()), thu=wkThu(today), from=wkAdd(thu,1), to=wkAdd(thu,10), items=wkItems(me, thu), done=wkDone(me, thu);
+  const today=ymd(new Date()), thu=wkThu(today), from=wkAdd(thu,1), to=wkAdd(thu,10), items=wkItems(me, thu), done=wkDone(me, thu), due=wkDue(me, thu);
   const n=items.filter(r=>done[r.id]).length; if(!items.length || n===items.length) return null;
-  const late=today>thu, dt = late ? `<b class="late">${daysFromWk(thu, today)}일 지남</b>` : '<b class="late">오늘</b>';
+  const late=today>due, left=daysFromWk(today, due), dt = late ? `<b class="late">${daysFromWk(due, today)}일 지남</b>` : left===0 ? '<b class="late">오늘</b>' : `${left}일 남음`;
+  // 맨 앞 체크 = 모두 점검 (2026-11-19) · 마감은 날짜를 눌러 바꿈 (그 주에만, 기본 = 목요일)
   const html = `<li class="my-tg wk-task"><span class="who"><span class="tag">단체</span> <b>다음주 예약 점검</b> · ${esc(mdLabel(from))} ~ ${esc(mdLabel(to))} · ${n}/${items.length}<br>`
-    + `<span class="my-task${late?' late':' today'}">· 내 예약(가예약 · 예약확정) 점검 <small>마감 ${esc(mdLabel(thu))} (${dt})</small></span></span>`
+    + `<span class="my-task${late?' late':left===0?' today':''}"><label class="my-ck" title="체크하면 이 기간 예약을 모두 점검한 것으로"><input type="checkbox" data-wkall="1"></label> 내 예약(가예약 · 예약확정) 점검 <label class="wk-due" title="눌러서 마감일 바꾸기">마감 ${dboxHTML('data-wkdue="1"', due)} <small>(${dt})</small></label></span></span>`
     + `<div class="etc-subck wk-subs">${items.map(r=>{ const ck=!!done[r.id];
         return `<div class="wk-s${ck?' on':''}"><input type="checkbox" data-wkck="${esc(r.id)}"${ck?' checked':''} title="점검했으면 체크"> <span data-myopen="${esc(r.id)}" class="wk-name" title="눌러서 예약 열기">${esc(r.org||r.contact||'(업체 미정)')}</span> <small class="hint" style="margin:0">${esc(dateLabel(r.date))}${r.people?` · ${esc(r.people)}명`:''}</small></div>`; }).join('')}</div></li>`;
   return {html, late};
 }
 const daysFromWk = (a, b) => Math.round((new Date(b+'T00:00') - new Date(a+'T00:00'))/86400000);
-// 체크 → 저장 (사람 · 주마다 한 줄)
+const wkDue = (me, thu) => { try{ const d=(JSON.parse((wkRec(me, thu)||{}).history||'{}')).due; if(/^\d{4}-\d{2}-\d{2}$/.test(d||'')) return d; }catch(_){} return thu; };   // 마감 (바꿨으면 그 날)
+// 저장 (사람 · 주마다 한 줄): {week, done:{예약ID:시각}, due}
+async function wkSave(mut){
+  const me=savedOwner()||'', thu=wkThu(), old=wkRec(me, thu), now=new Date().toISOString(); let h={}; try{ h=JSON.parse((old||{}).history||'{}')||{}; }catch(_){}
+  const nh=mut({week:thu, done:{...(h.done||{})}, ...(h.due?{due:h.due}:{})}, now);
+  const items=wkItems(me, thu), n=items.filter(r=>nh.done[r.id]).length;
+  const item={...(old||{}), id:wkId(me, thu), callType:'주간점검', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:`다음주 예약 점검 ${mdLabel(wkAdd(thu,1))}~${mdLabel(wkAdd(thu,10))} · ${n}/${items.length}`, history:JSON.stringify(nh)};
+  await store.put(item); const i=cache.findIndex(x=>x.id===item.id); if(i>=0) cache[i]=item; else cache.push(item); renderMy(); if(typeof paintMyCount==='function') paintMyCount();
+  return {n, all:items.length};
+}
 document.addEventListener('change', async e=>{
-  const id=e.target.dataset?.wkck; if(!id) return;
-  const me=savedOwner()||'', thu=wkThu(), old=wkRec(me, thu), now=new Date().toISOString(); let h={}; try{ h=JSON.parse((old||{}).history||'{}'); }catch(_){}
-  const done={...(h.done||{})}; if(e.target.checked) done[id]=now; else delete done[id];
-  const items=wkItems(me, thu), n=items.filter(r=>done[r.id]).length;
-  const item={...(old||{}), id:wkId(me, thu), callType:'주간점검', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:`다음주 예약 점검 ${mdLabel(wkAdd(thu,1))}~${mdLabel(wkAdd(thu,10))} · ${n}/${items.length}`, history:JSON.stringify({week:thu, done})};
+  const id=e.target.dataset?.wkck, all=e.target.dataset?.wkall, due=e.target.dataset?.wkdue; if(!id && !all && !due) return;
   e.target.disabled=true;
-  try{ await store.put(item); const i=cache.findIndex(x=>x.id===item.id); if(i>=0) cache[i]=item; else cache.push(item); renderMy(); if(items.length && n===items.length) toast('다음주 예약 점검을 모두 끝냈습니다.'); }
-  catch(err){ e.target.disabled=false; e.target.checked=!e.target.checked; toast('저장하지 못했습니다: '+(err.code||err.message)); }
+  try{
+    if(due){ if(!e.target.value) return; await wkSave(h=>({...h, due:e.target.value})); toast(`다음주 예약 점검 마감을 ${mdLabel(e.target.value)}로 바꿨습니다.`); return; }
+    if(all){ const items=wkItems(savedOwner()||'', wkThu()); await wkSave((h,now)=>{ items.forEach(r=>{ if(!h.done[r.id]) h.done[r.id]=now; }); return h; }); toast('다음주 예약 점검을 모두 끝냈습니다.'); return; }
+    const r=await wkSave((h,now)=>{ if(e.target.checked) h.done[id]=now; else delete h.done[id]; return h; }); if(r.all && r.n===r.all) toast('다음주 예약 점검을 모두 끝냈습니다.');
+  }catch(err){ e.target.disabled=false; if(e.target.type==='checkbox') e.target.checked=!e.target.checked; toast('저장하지 못했습니다: '+(err.code||err.message)); }
 });
 // 예약 현황 아래 그날 목록: 단체 예약에서 온 줄을 누르면 그 예약 열기 (고치던 것은 openRecordG 가 먼저 물어봄)
 document.addEventListener('click', e=>{ const li=e.target.closest?.('#dayAll li[data-bopen]'); if(!li || !li.dataset.bopen) return; const r=cache.find(x=>x.id===li.dataset.bopen); if(r) openRecordG(r); });
