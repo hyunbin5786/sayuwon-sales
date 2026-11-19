@@ -1837,6 +1837,12 @@ const erpCheckHTML = c => !c.pasted ? '' : c.why ? `<span class="ck bad">대조 
 //  - 금액 · 출입구 미정 · 인원 변경 · 몽몽마방 · 굿즈 · 메모는 넣지 않음. 끝에 항상 (영업 담당 이름)
 const erpShortT = t => { const m=String(t||'').replace(/\s/g,'').match(/^(\d{1,2}):?(\d{2})$/); return m ? (m[2]==='00' ? `${+m[1]}시` : `${+m[1]}:${m[2]}`) : String(t||'').trim(); };
 // 프로그램 이름은 비고 규칙의 말로 (런치 · 디너 · 일출 · 일몰 · 동행도슨트 · PPT세미나 · 자체세미나) — 대관은 자체세미나(장소)
+// 프로그램 시간 (2026-11-19 점검): 정시~정시 범위는 「15-16시」, 그 밖은 시작 시각만 「14:30」 · 「14시」 (규칙 예: 13:30 동행도슨트 / 15-16시 자체세미나)
+const erpProgT = t => { const s=String(t||'').replace(/\s/g,''); const m=s.match(/^(\d{1,2})(?::?(\d{2}))?[~\-–](\d{1,2})(?::?(\d{2}))?/);
+  if(m){ const z=v=>!v||v==='00'; return z(m[2]) && z(m[4]) ? `${+m[1]}-${+m[3]}시` : erpShortT(`${m[1]}:${m[2]||'00'}`); }
+  return erpShortT(s); };
+// 도슨트 코스 (2026-11-19 점검): 「앵당삼거리 시작」 → 「앵당~」 (규칙 예: 동행도슨트(앵당~, 김수정해설사))
+const erpCrs = c => String(c||'').trim().replace(/삼거리/g,'').replace(/\s*(에서\s*)?시작$/,'~').replace(/\s+~$/,'~');
 const ERP_PROG_NAME = { donghaeng:'동행도슨트', seminar:'PPT세미나', seminar2:'PPT세미나', haeorum:'일출', chabang:'자체세미나(차방)', dangdu:'자체세미나(당두)', yoga:'요가', sound:'사운드워킹', scent:'사유의 향' };
 function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문구는 런치 · 디너를 뺌 (2026-11-19)
   const items=[];
@@ -1844,9 +1850,9 @@ function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문�
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]] && f[1]!=='gaga').forEach(f=>{   // 음료쿠폰은 굿즈라 뺌
     const k=f[1], sub=p=>String(r[`${p}_${k}`]||'').trim(), name=ERP_PROG_NAME[k] || String(f[2]).replace(/\s+/g,'');
     const stf=sub('stf') && k==='donghaeng' && !/해설사$/.test(sub('stf')) ? sub('stf')+'해설사' : sub('stf');   // 동행도슨트 담당 = 「김수정해설사」
-    const paren=[sub('crs'), /\(/.test(name) ? '' : sub('plc'), stf].filter(Boolean).join(', ');   // 자체세미나(당두)처럼 이름에 장소가 있으면 장소는 빼고
-    items.push([sub('tm'), /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
-    if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2)) items.push([String(r.tm_seminar2||'').trim(), name+(r.plc_seminar2?`(${String(r.plc_seminar2).trim()})`:'')].filter(Boolean).join(' '));
+    const paren=[erpCrs(sub('crs')), /\(/.test(name) ? '' : sub('plc'), stf].filter(Boolean).join(', ');   // 자체세미나(당두)처럼 이름에 장소가 있으면 장소는 빼고
+    items.push([erpProgT(sub('tm')), /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
+    if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2)) items.push([erpProgT(r.tm_seminar2), name+(r.plc_seminar2?`(${String(r.plc_seminar2).trim()})`:'')].filter(Boolean).join(' '));
   });
   if(r.pay==='현장 결제' || r.onsite) items.push('현장결제');
   { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인`)); if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
