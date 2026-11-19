@@ -933,7 +933,7 @@ $('text2final').onclick = () => {
   state.source = 'text'; state.finalEdits = {};
   state.manual = !body2.length;
   computeFinal(); renderSrc2();
-  go(2); $('res3').scrollIntoView({ behavior: 'smooth' });
+  goStep3();   // 텍스트로 만든 명단은 최종 인원 화면을 거치지 않고 바로 일괄등록 (2026-11-20 · 최대 인원을 넘으면 확인 팝업)
 };
 
 /* ---------- 최종 인원 (1단계 명단 + 환불 결과) ---------- */
