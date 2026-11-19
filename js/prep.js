@@ -24,8 +24,7 @@ let groups = (()=>{ try{ return (JSON.parse(localStorage.getItem(GROUP_CACHE_LS)
 async function loadGroups(){
   if(!getKey()){ $('#keyBox').hidden=false; return; }
   try{ const j=await callApi({action:'list'}); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true;
-    const rr=(j.items||[]).find(r=>r.id===RULES_ID); if(rr){ rulesRow=rr; try{ rules=fixRules(JSON.parse(rr.history||'{}').rules); localStorage.setItem(RULES_LS, JSON.stringify(rules)); }catch(_){} }   // 입장문 추천 규칙 (모두 같게)
-    paintRules(); if(state) build(false); }
+    if(state) build(false); }
   catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('팀 비밀번호가 맞지 않습니다.'); } else toast('단체예약을 불러오지 못했습니다. 마지막으로 받은 목록으로 보여 줍니다.'); }
 }
 $('#keyBtn').onclick=()=>{ const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(KEY_LS, v); }catch(_){} $('#keyIn').value=''; loadGroups(); };
@@ -106,16 +105,6 @@ function autoLink(x, dg, used){
   return (ph.length>=9 && cands.find(r=>recPhones(r).includes(ph))) || cands.find(r=>recNames(r).some(n=>n && (n===nm || (pn && (n.includes(pn)||pn.includes(n)))))) || null;
 }
 const shortProd = p => { const m=p.match(/\(관람,\s*(.+)\)/); if(m) return m[1].replace(/^사담\s*/,'').replace(/^몽몽마방\s*/,'').replace(/\s/g,''); const t=p.match(/관람\((\d\d):00~18:00\)/); return t ? (t[1]==='13'?'오후 관람':'관람') : p; };
-// ===================== 입장문 추천 규칙 (2026-11-19 · 고칠 수 있음) =====================
-// 공유 기록(calls)의 한 줄 id=gaterules (통화 구분 '입장문규칙')에 저장 → 모든 사람 화면에 같게. 이 브라우저에도 기억(sayuwon_gate_rules)
-const RULES_ID='gaterules', RULES_TYPE='입장문규칙', RULES_LS='sayuwon_gate_rules';
-const RULE_DEF = { base:'치허문', alt:'곡신문', win:30, indiv:15, big:['해밀','아너드','군위시티투어'], travel:['여행','투어','관광','트래블','tour','travel'] };
-const fixRules = o => { const r={...RULE_DEF, ...(o||{})}; if(!['치허문','곡신문'].includes(r.base)) r.base=RULE_DEF.base; r.alt = r.base==='치허문' ? '곡신문' : '치허문';
-  r.win=Math.max(0, parseInt(r.win)||0); r.indiv=Math.max(1, parseInt(r.indiv)||RULE_DEF.indiv); ['big','travel'].forEach(k=>{ r[k]=(Array.isArray(r[k])?r[k]:String(r[k]||'').split(/[,\n·]/)).map(s=>String(s).trim()).filter(Boolean); }); return r; };
-let rules = fixRules((()=>{ try{ return JSON.parse(localStorage.getItem(RULES_LS)||'null'); }catch(_){ return null; } })());
-let rulesRow = null;   // 공유 기록의 그 줄 (저장할 때 그대로 덮어씀)
-const isTravel = s => rules.travel.some(w=>String(s||'').toLowerCase().includes(w.toLowerCase()));
-const isBig = s => isTravel(s) || rules.big.some(b=>norm(s).includes(norm(b)));
 const isGroupName = s => /^[^()]+\(\s*(?!개인|대리)[가-힣A-Za-z ]{2,12}\s*\)\s*$/.test(String(s||'').trim());   // 「산청군청(고영현)」 = 단체명(담당자) → 단체 (2026-11-19)
 const fmtT = v => { const m=String(v||'').match(/(\d{1,2})\s*:?\s*(\d{2})/); return m ? `${String(+m[1]).padStart(2,'0')}:${m[2]}` : ''; };
 const toMin = t => { const m=fmtT(t).match(/(\d\d):(\d\d)/); return m ? +m[1]*60 + +m[2] : null; };
@@ -147,38 +136,17 @@ function build(fresh){
     // 처음 값(엑셀 · 단체예약) — 표에서 고친 값(state.edit)과 비교해 「수정 내용 저장」에 씀 (2026-11-19)
     const orig = { name: r ? (r.org||r.contact||'(업체 미정)') : isGroupName(x.name) ? x.name : `${x.name}(개인)`, ppl: x ? x.ppl : (parseInt(r.people)||0),
       time: fmtT(r&&r.tin) || '', vehicle: v.txt, phone: x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || '',
-      note: x && x.note && x.note!=='-' ? x.note : '' };   // 비고 = 전산 방문자내역 엑셀의 비고 그대로 (2026-11-19 · 상품 · 단체예약 내용을 만들어 붙이지 않음)
-    return { key:k, recId: r ? r.id : '', on: state.sel[k]!==false, group: !!r || isGroupName(x&&x.name), inList: !!r, travel: isBig((r&&r.org)||(x&&x.name)), orig,
+      note: x && x.note && x.note!=='-' ? x.note : '',
+      gate: (()=>{ const rg=r ? (memoVal(r,'입장문')||r.gate||'') : ''; return /^(치허문|곡신문)$/.test(rg) ? rg : ''; })() };   // 비고 = 전산 방문자내역 엑셀의 비고 그대로 (2026-11-19 · 상품 · 단체예약 내용을 만들어 붙이지 않음)
+    return { key:k, recId: r ? r.id : '', on: state.sel[k]!==false, group: !!r || isGroupName(x&&x.name), inList: !!r, orig,
       name: e.name ?? orig.name, xname:x?x.name:'', ppl: e.ppl!=null && e.ppl!=='' ? (parseInt(e.ppl)||0) : orig.ppl,
       time: e.time ?? orig.time, timeHint: pmT, vehicle: e.vehicle ?? orig.vehicle, bus: v.bus,
       phone: e.phone ?? orig.phone,
-      note: e.note ?? orig.note,
+      xnote: orig.note, note: e.note ?? '',   // xnote = 엑셀 비고 원문 · note = 표 · 이미지 비고 (간소화, render 에서 채움)
       onsitePay: /현장/.test((r&&r.pay)||''),   // 현장결제건 (단체예약 결제 방법)
-      gate: e.gate || '', gateWhy:'', recGate: (()=>{ const rg=r ? (memoVal(r,'입장문')||r.gate||'') : ''; return /^(치허문|곡신문)$/.test(rg) ? rg : ''; })(),   /* 단체예약에서 정한 입장문 (비고 칸 「입장문 …」 · 미정이면 없음) */ missing: !x, stage: r ? (r.callType||'') : '', prods: x ? x.items.map(i=>`${i.p} ${i.n}명`).join('\n') : '', pay: (x&&x.pay)||'' };
+      gate: e.gate ?? orig.gate, /* 입장문: 추천 없음 (2026-11-19) — 단체예약에서 정해 둔 문이 있으면 그 문, 없으면 빈칸 → 관리하는 사람이 고름 */ missing: !x, stage: r ? (r.callType||'') : '', prods: x ? x.items.map(i=>`${i.p} ${i.n}명`).join('\n') : '', pay: (x&&x.pay)||'' };
   });
-  recommendGates(false);
   render();
-}
-// ===================== ④ 입장문 추천 =====================
-function recommendGates(force){
-  const on=rows.filter(r=>r.on), W=rules.win;
-  const near = (a,b) => { const x=toMin(a.time), y=toMin(b.time); return x!=null && y!=null && Math.abs(x-y)<=W; };
-  on.forEach(r=>{
-    const B=rules.base, A=rules.alt;   // 기본 문 · 겹칠 때 보내는 문 (규칙에서 고침)
-    let g=B, why='';
-    const bigNear = on.filter(o=>o!==r && o.travel && near(o,r)), grpNear = on.filter(o=>o!==r && o.group && near(o,r));
-    if(r.travel){ g=B; why = isTravel(r.name) ? `여행사 → ${B}` : `대형 단체 → ${B}`; }
-    else if(!r.group){ if(r.ppl>=rules.indiv){ g=A; why=`${rules.indiv}명 이상 개인 → ${A}`; } else if(toMin(r.time)==null){ why=`도착 시간 미정 → ${B}`; } else if(grpNear.length || bigNear.length){ g=A; why=`${(bigNear[0]||grpNear[0]).name} 와 시간 겹침 → ${A}`; } else { why=`단체와 안 겹침 → ${B}`; } }
-    else if(toMin(r.time)==null){ why=`도착 시간 미정 → ${B}`; }
-    else if(bigNear.length){ g=A; why=`${bigNear.map(o=>o.name).slice(0,2).join(' · ')} 와 시간 겹침 → ${A}`; }
-    else why=`시간 안 겹침 → ${B}`;
-    // 단체예약에서 입장문을 정해 두었으면(고정) 그대로 · 아니면 추천 · 여기서 바꾸면 직접 (2026-11-19)
-    const base = r.recGate || g;
-    r.recGateAuto=base; r.gateWhy = r.recGate ? `단체예약에서 ${r.recGate}으로 정함` + (r.recGate!==g ? ` (추천은 ${g})` : '') : why;
-    const e=(state.edit[r.key] ||= {}); if(force || e.gate===base) delete e.gate;
-    r.gate = e.gate || base;
-    r.gateSrc = e.gate ? 'hand' : r.recGate ? 'fixed' : 'auto';
-  });
 }
 // ===================== ④ 표에서 고친 것 → 저장 (2026-11-19) =====================
 // 고친 칸 = 처음 값(엑셀 · 단체예약)과 다르고 아직 저장하지 않은 것. 「수정 내용 저장」:
@@ -187,10 +155,8 @@ function recommendGates(force){
 const FIELD_LABEL = { name:'이름', ppl:'인원', time:'도착시간', gate:'입장문', vehicle:'차량', phone:'연락처', note:'비고' };
 function rowChanges(r){
   const e=state.edit[r.key]||{}, sv=(state.saved||{})[r.key]||{}, out=[];
-  ['name','ppl','time','vehicle','phone','note'].forEach(f=>{ if(e[f]==null) return; const to=f==='ppl' ? String(r.ppl) : String(e[f]).trim(), from=String(r.orig[f]??'').trim();
-    if(to!==from && sv[f]!==to) out.push({f, from, to}); });
-  if(r.gateSrc==='hand' && sv.gate!==r.gate) out.push({f:'gate', from:r.recGateAuto, to:r.gate});
-  return out;
+  ['name','ppl','time','gate','vehicle','phone','note'].forEach(f=>{ if(e[f]==null) return; const to=f==='ppl' ? String(r.ppl) : String(e[f]).trim(), from=String(r.orig[f]??'').trim();
+    if(to!==from && sv[f]!==to) out.push({f, from, to}); });  return out;
 }
 const memoSet = (memo, label, val) => { const p=String(memo||'').split(' / ').map(s=>s.trim()).filter(s=>s && !s.startsWith(label+' ')); if(val) p.push(`${label} ${val}`); return p.join(' / '); };
 const vehToGroup = s => { s=String(s||'').trim(); if(/^\d+$/.test(s)) return `버스 ${s}대`; const m=s.match(/^개별\s*(\d+)?/); return m ? `승용${m[1]?` ${m[1]}대`:''}` : s; };   // 표의 「2」 = 버스 2대 · 「개별3대」 = 승용 3대
@@ -245,6 +211,7 @@ function render(){
   $('#p2Sum').textContent = `${on.length}팀 · ${on.reduce((a,r)=>a+r.ppl,0)}명 · 단체예약 ${dg.length}건 중 연결 ${rows.filter(r=>r.inList && !r.missing).length}${rows.some(r=>r.missing)?` · 전산에 없음 ${rows.filter(r=>r.missing).length}`:''}${groups.length?'':' (단체예약을 아직 못 불러옴)'}`;   // ③ 단체예약 정보 넣기는 없애고 여기에 요약 (2026-11-18)
   // ④ 결과 표 (도착 시간 순)
   const list=on.slice().sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999));
+  rows.forEach(r=>{ const e=state.edit[r.key]||{}; r.orig.note=shortNote(r); r.note = e.note ?? r.orig.note; });   // 비고 = 간소화한 글 (이미지와 같음 · 직접 고치면 고친 글)
   rows.forEach(r=>{ r._chg=new Set(rowChanges(r).map(c=>c.f)); });   // 저장 안 한 수정 칸 (노란 테두리)
   { const n=rows.reduce((a,r)=>a+r._chg.size,0), b=$('#saveEdits'); if(b){ b.textContent = n ? `수정 내용 저장 (${n})` : '수정 내용 저장'; b.classList.toggle('dirty', n>0); } }
   const yy=s.date.slice(2).replace(/-/g,'');
@@ -253,16 +220,16 @@ function render(){
     + `<td class="called no-print${(state.edit[r.key]||{}).called?' on':''}"><label title="이 고객에게 연락했는지 (이 브라우저에 기억)"><input type="checkbox" data-call="${esc(r.key)}"${(state.edit[r.key]||{}).called?' checked':''}></label></td>`   // 연락 체크 = 맨 앞 열 (2026-11-19)
     + `<td class="name"><span class="src ${r.inList?'have':'new'} no-print" title="${r.inList?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.inList?'목록':'새로 조사'}</span><input class="nm${r._chg.has('name')?' chg':''}" data-e="${esc(r.key)}|name" value="${esc(r.name)}" data-ime="ko"></td><td class="num"><input class="pp${r._chg.has('ppl')?' chg':''}" data-e="${esc(r.key)}|ppl" value="${r.ppl}" inputmode="numeric"></td>`
     + `<td><input class="t${r._chg.has('time')?' chg':''}" data-e="${esc(r.key)}|time" value="${esc(r.time)}" placeholder="${esc(r.timeHint||'시간')}"></td>`
-    + `<td><select class="gate ${esc(r.gate)} src-${r.gateSrc}${r._chg.has('gate')?' chg':''}" data-e="${esc(r.key)}|gate"><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select><span class="gsrc ${r.gateSrc}" title="${{fixed:'단체예약 화면에서 이 입장문으로 정해 둔 것',auto:'방문 인원 · 도착 시간을 보고 이 화면이 추천한 것',hand:'이 화면에서 직접 바꾼 것'}[r.gateSrc]}">${{fixed:'예약 고정',auto:'추천',hand:'직접'}[r.gateSrc]}</span><span class="why no-print">${esc(r.gateWhy)}${r.gateSrc==='hand'?` · ${r.recGate?'고정':'추천'}은 ${esc(r.recGateAuto)}`:''}</span></td>`
+    + `<td><select class="gate ${esc(r.gate||'none')}${r._chg.has('gate')?' chg':''}" data-e="${esc(r.key)}|gate"><option value=""${r.gate?'':' selected'}>-</option><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select></td>`   // 입장문: 관리하는 사람이 고름 (추천 없음, 2026-11-19)
     + `<td><input class="v${r._chg.has('vehicle')?' chg':''}" data-e="${esc(r.key)}|vehicle" value="${esc(r.vehicle)}"></td><td><input class="p${r._chg.has('phone')?' chg':''}" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
     + `<td class="note"><textarea class="${r._chg.has('note')?'chg':''}" data-e="${esc(r.key)}|note" rows="1">${esc(r.note)}</textarea></td></tr>`).join('');
   const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
-  const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.note)).map(r=>r.name);
+  const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.xnote||'')).map(r=>r.name);
   const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
   $('#outFoot').innerHTML = `<tr><td class="no-print"></td><td class="g">단체</td><td class="g num">${gSum}</td><td></td><td></td><td class="bus">버스 ${bus}대+</td><td colspan="2" class="ind">개인고객 ${ind}명</td></tr>`
     + `<tr><td class="no-print"></td><td>현장결제건</td><td colspan="6" style="text-align:left">${esc(onsite.join(', ')||'-')}</td></tr>`
     + `<tr><td class="no-print"></td><td>해오름 산책</td><td colspan="6" style="text-align:left">${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</td></tr>`;
-  $('#p4Sum').textContent = `${list.length}팀 (목록 ${list.filter(r=>r.inList).length} · 새로 조사 ${list.filter(r=>!r.inList).length}) · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length} · 입장문 예약 고정 ${list.filter(r=>r.gateSrc==='fixed').length} · 연락 ${list.filter(r=>(s.edit[r.key]||{}).called).length}/${list.length}`;
+  $('#p4Sum').textContent = `${list.length}팀 (목록 ${list.filter(r=>r.inList).length} · 새로 조사 ${list.filter(r=>!r.inList).length}) · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length} · 연락 ${list.filter(r=>(s.edit[r.key]||{}).called).length}/${list.length}`;
   document.querySelectorAll('.out textarea').forEach(t=>{ t.style.height='auto'; t.style.height=t.scrollHeight+'px'; });
 }
 document.addEventListener('change', e=>{ const t=e.target;
@@ -270,11 +237,10 @@ document.addEventListener('change', e=>{ const t=e.target;
   if(t.dataset.call){ const e=(state.edit[t.dataset.call] ||= {}); if(t.checked) e.called=new Date().toISOString(); else delete e.called; saveState(); render(); return; }   // 연락 체크
   if(t.dataset.link!=null){ const k=t.dataset.link; if(t.value) state.link[k]=t.value; else delete state.link[k]; delete state.edit[k]; saveState(); build(false); return; }
   if(t.id==='minPpl'){ build(true); saveState(); return; }
-  if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; saveState(); if(f==='time' || f==='ppl' || f==='name') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } if(f==='gate') recommendGates(false); render(); } }
+  if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; saveState(); if(f==='time' || f==='ppl' || f==='name') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } render(); } }
 });
 document.addEventListener('input', e=>{ const t=e.target; if(t.tagName==='TEXTAREA' && t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; const r=rows.find(x=>x.key===k); if(r) r[f]=t.value; saveState(); t.style.height='auto'; t.style.height=t.scrollHeight+'px'; } });
 document.addEventListener('click', e=>{ if(e.target.id==='clearBtn'){ if(!confirm('읽은 엑셀과 고친 내용을 지울까요?')) return; state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); } });
-$('#reGate').onclick=()=>{ if(!state) return; recommendGates(true); saveState(); render(); toast('입장문을 다시 추천했습니다.'); };
 // 표 내용 (엑셀 · 이미지 공통): 도착 시간 순
 function tableData(){ const s=state, list=rows.filter(r=>r.on).sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999)), total=s.rows.reduce((a,x)=>a+x.ppl,0);
   const head=[`${s.date.slice(2).replace(/-/g,'')}(${DOW[new Date(s.date+'T00:00').getDay()]}) ${total}명+@`,'인원(명)','도착시간','입장문','차량','연락처','비고'];
@@ -299,13 +265,12 @@ $('#xlsxBtn').onclick=async()=>{ if(!state || !window.ExcelJS) return; const d=t
 const PROG_RE = /런치|디너|일출|해오름|일몰|선셋|도슨트|세미나|PPT/i;
 const shortT = t => { const m=fmtT(t).match(/(\d\d):(\d\d)/); return m ? (m[2]==='00' ? `${+m[1]}시` : `${+m[1]}:${m[2]}`) : String(t||'').trim(); };
 function shortNote(r){
-  if((state.edit[r.key]||{}).note!=null) return r.note;   // 직접 고친 비고
   const out=[], add=s=>{ s=String(s||'').trim(); if(s && !out.some(x=>norm(x)===norm(s))) out.push(s); };
   const clean = s => String(s).replace(/사담\s*/g,'').replace(/런치\s*(\d)\s*부/g,'런치$1부').replace(/해오름\s*산책|해오름/g,'일출').replace(/선셋/g,'일몰').replace(/\s+/g,' ').trim();
   String(r.prods||'').split('\n').forEach(p=>{ const m=p.replace(/\s*\d+명$/,''), k=m.match(/\(관람,\s*(.+)\)/); const v=k?k[1]:m; if(PROG_RE.test(v)) add(clean(v)); });   // 상품 (예: (관람, 사담 런치 1부) → 런치1부)
-  String(r.note||'').replace(/\s*\(\s*[가-힣]{2,4}\s*\)\s*$/,'')   // 맨 끝 적은 사람 이름 「(문현빈)」은 뺌
+  String(r.xnote||'').replace(/\s*\(\s*[가-힣]{2,4}\s*\)\s*$/,'')   // 맨 끝 적은 사람 이름 「(문현빈)」은 뺌
     .split(/\s*\/\s*/).forEach(s=>{ if(PROG_RE.test(s) && !/\d[\d,]*\s*원/.test(s)) add(clean(s)); });   // 엑셀 비고의 프로그램 (금액 칸은 빼고)
-  if(r.onsitePay || /현장\s*결제/.test(r.note)) add('현장결제');
+  if(r.onsitePay || /현장\s*결제/.test(r.xnote||'')) add('현장결제');
   const arrive=[r.time ? shortT(r.time) : '', r.gate].filter(Boolean).join(' ');
   // 시간이 적힌 프로그램이 있으면 도착부터 시간 순 (예: 13시 곡신문 / 13:30 동행도슨트 / 15-16시 자체세미나), 없으면 맨 뒤에 도착 (예: 런치1부 / 현장결제 / 10:30 곡신문)
   const startMin = s => { const m=String(s).match(/^(\d{1,2})(?::(\d\d))?(?=시|\s|-|~)/); return m ? +m[1]*60+(+m[2]||0) : null; };
@@ -321,12 +286,12 @@ $('#pngBtn').onclick=async()=>{
   if(!state || !window.html2canvas){ toast('잠시 뒤 다시 눌러 주세요.'); return; }
   const s=state, list=rows.filter(r=>r.on).sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999)), total=s.rows.reduce((a,x)=>a+x.ppl,0);
   const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
-  const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.note)).map(r=>r.name);
+  const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.xnote||'')).map(r=>r.name);
   const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
   const box=$('#shot');
   box.innerHTML = `<div class="sh-h"><b>${esc(dLab(s.date))} 단체현황 · ${list.length}팀</b><span>방문 ${total}명+@</span></div>`
     + `<table><thead><tr><th>단체 · 고객</th><th>인원</th><th>도착</th><th>입장문</th><th>차량</th></tr></thead><tbody>`
-    + list.map(r=>`<tr class="${r.inList?'':'new'}"><td class="nm"><b>${esc(r.name)}</b>${r.phone?`<small>${esc(r.phone)}</small>`:''}</td><td class="c">${r.ppl}</td><td class="c">${esc(r.time||r.timeHint||'')}</td><td class="c"><span class="g ${esc(r.gate)}${r.gateSrc==='fixed'?' fx':''}">${esc(r.gate)}${r.gateSrc==='fixed'?' · 고정':''}</span></td><td class="c">${esc(r.vehicle||'')}</td></tr>`
+    + list.map(r=>`<tr class="${r.inList?'':'new'}"><td class="nm"><b>${esc(r.name)}</b>${r.phone?`<small>${esc(r.phone)}</small>`:''}</td><td class="c">${r.ppl}</td><td class="c">${esc(r.time||r.timeHint||'')}</td><td class="c">${r.gate?`<span class="g ${esc(r.gate)}">${esc(r.gate)}</span>`:''}</td><td class="c">${esc(r.vehicle||'')}</td></tr>`
       + ((n=>n ? `<tr class="nt"><td colspan="5">${esc(n)}</td></tr>` : '')(shortNote(r)))).join('')
     + `</tbody></table>`
     + `<div class="sh-f"><span class="g1">단체 ${gSum}명</span><span class="g2">버스 ${bus}대+</span><span class="g3">개인고객 ${ind}명</span></div>`
@@ -339,37 +304,6 @@ $('#pngBtn').onclick=async()=>{
   }catch(_){ toast('이미지를 만들지 못했습니다.'); }
 };
 
-// ---- 입장문 추천 규칙: 보기(지금 규칙을 글로) · 고치기(팝업) (2026-11-19) ----
-function paintRules(){
-  const R=rules, big=R.big.join(' · ') || '(없음)', tr=R.travel.join(' · ') || '(없음)';
-  $('#rulesList').innerHTML = [
-    `기본은 <b>${R.base}</b>. 여행사(이름에 ${esc(tr)})와 대형 단체(${esc(big)})는 <b>${R.base}</b>`,
-    `여행사 · 대형 단체가 오는 시간(앞뒤 <b>${R.win}분</b>)에 겹치는 <b>다른 개별 단체</b>는 <b>${R.alt}</b>`,
-    `시간이 안 겹치면 단체 예약은 모두 <b>${R.base}</b>으로`,
-    `<b>${R.indiv}명 이상 개인고객</b>은 <b>${R.alt}</b> (단체와 안 겹치게). ${R.indiv}명 미만 개인고객은 단체와 시간이 겹치면 ${R.alt}, 아니면 ${R.base}`,
-    `도착 시간을 모르면 ${R.base} (시간을 넣으면 다시 추천)`,
-    `단체예약에서 입장문을 정해 두었으면 규칙보다 그 문이 먼저 (「예약 고정」)` ].map(s=>`<li>${s}</li>`).join('');
-  $('#rulesWho').textContent = rulesRow && rulesRow.takenBy ? `마지막으로 고친 사람 ${rulesRow.takenBy}${rulesRow.saved?` · ${String(rulesRow.saved).slice(0,10)}`:''}` : '처음 규칙';
-}
-function openRules(){
-  const R=rules; $('#rlBase').value=R.base; $('#rlWin').value=R.win; $('#rlIndiv').value=R.indiv; $('#rlBig').value=R.big.join(', '); $('#rlTravel').value=R.travel.join(', ');
-  $('#rlErr').textContent=''; $('#rulesModal').hidden=false; setTimeout(()=>$('#rlWin').focus(), 0);
-}
-async function saveRules(next){
-  if(!getKey()){ $('#rlErr').textContent='규칙을 모두에게 저장하려면 팀 비밀번호가 필요합니다 (위 칸에 넣고 연결).'; return; }
-  const now=new Date().toISOString(), item={ ...(rulesRow||{}), id:RULES_ID, callType:RULES_TYPE, saved:now, takenBy:user.name||'', summary:`입장문 추천 규칙 (기본 ${next.base} · ${next.win}분 · 개인 ${next.indiv}명)`, history:JSON.stringify({rules:next, at:now, by:user.name||''}) };
-  $('#rlSave').disabled=true;
-  try{ await callApi({action:'put', item}); rulesRow=item; rules=next; try{ localStorage.setItem(RULES_LS, JSON.stringify(rules)); }catch(_){}
-    $('#rulesModal').hidden=true; paintRules(); if(state) build(false); toast('입장문 추천 규칙을 저장했습니다 (모두에게 같게). 직접 바꾼 입장문은 그대로입니다.'); }
-  catch(e){ $('#rlErr').textContent = e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다.' : '저장하지 못했습니다. 잠시 뒤 다시 눌러 주세요.'; }
-  finally{ $('#rlSave').disabled=false; }
-}
-$('#rulesEdit').onclick=openRules;
-$('#rlClose').onclick=()=>{ $('#rulesModal').hidden=true; };
-$('#rlSave').onclick=()=>saveRules(fixRules({ base:$('#rlBase').value, win:$('#rlWin').value, indiv:$('#rlIndiv').value, big:$('#rlBig').value, travel:$('#rlTravel').value }));
-$('#rlReset').onclick=()=>{ const R=RULE_DEF; $('#rlBase').value=R.base; $('#rlWin').value=R.win; $('#rlIndiv').value=R.indiv; $('#rlBig').value=R.big.join(', '); $('#rlTravel').value=R.travel.join(', '); $('#rlErr').textContent='처음 규칙으로 채웠습니다. [저장]을 눌러야 바뀝니다.'; };
-document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#rulesModal').hidden) $('#rulesModal').hidden=true; });
-paintRules();
 $("#saveEdits").onclick=saveEdits;   // ④ 표에서 고친 것 저장 (2026-11-19)
 
 if(state) build(false); else render();
