@@ -139,7 +139,8 @@ function build(fresh){
       name: r ? (r.org||r.contact||'(업체 미정)') : isGroupName(x.name) ? x.name : `${x.name}(개인)`, xname:x?x.name:'', ppl: x ? x.ppl : (parseInt(r.people)||0),
       time: e.time ?? fmtT(r&&r.tin) ?? '', timeHint: pmT, vehicle: e.vehicle ?? v.txt, bus: v.bus,
       phone: e.phone ?? (x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || ''),
-      note: e.note ?? [ [...new Set(prods)].join(' · '), r ? recNote(r) : '', x && x.note && x.note!=='-' ? x.note.slice(0,60) : '' ].filter(Boolean).join(' / '),
+      note: e.note ?? (x && x.note && x.note!=='-' ? x.note : ''),   // 비고 = 전산 방문자내역 엑셀의 비고 그대로 (2026-11-19 · 상품 · 단체예약 내용을 만들어 붙이지 않음)
+      onsitePay: /현장/.test((r&&r.pay)||''),   // 현장결제건 (단체예약 결제 방법)
       gate: e.gate || '', gateWhy:'', recGate: (()=>{ const rg=r ? (memoVal(r,'입장문')||r.gate||'') : ''; return /^(치허문|곡신문)$/.test(rg) ? rg : ''; })(),   /* 단체예약에서 정한 입장문 (비고 칸 「입장문 …」 · 미정이면 없음) */ missing: !x, stage: r ? (r.callType||'') : '', prods: x ? x.items.map(i=>`${i.p} ${i.n}명`).join('\n') : '', pay: (x&&x.pay)||'' };
   });
   recommendGates(false);
@@ -187,7 +188,7 @@ function render(){
     + `<td><input class="v" data-e="${esc(r.key)}|vehicle" value="${esc(r.vehicle)}"></td><td><input class="p" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
     + `<td class="note"><textarea data-e="${esc(r.key)}|note" rows="1">${esc(r.note)}</textarea></td></tr>`).join('');
   const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
-  const onsite=list.filter(r=>/현장/.test(r.note)).map(r=>r.name);
+  const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.note)).map(r=>r.name);
   const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
   $('#outFoot').innerHTML = `<tr><td class="g">단체</td><td class="g num">${gSum}</td><td></td><td></td><td class="bus">버스 ${bus}대+</td><td colspan="2" class="ind">개인고객 ${ind}명</td></tr>`
     + `<tr><td>현장결제건</td><td colspan="6" style="text-align:left">${esc(onsite.join(', ')||'-')}</td></tr>`
@@ -226,7 +227,7 @@ $('#pngBtn').onclick=async()=>{
   if(!state || !window.html2canvas){ toast('잠시 뒤 다시 눌러 주세요.'); return; }
   const s=state, list=rows.filter(r=>r.on).sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999)), total=s.rows.reduce((a,x)=>a+x.ppl,0);
   const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
-  const onsite=list.filter(r=>/현장/.test(r.note)).map(r=>r.name);
+  const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.note)).map(r=>r.name);
   const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
   const box=$('#shot');
   box.innerHTML = `<div class="sh-h"><b>${esc(dLab(s.date))} 고객 응대</b><span>방문 ${total}명+@ · ${list.length}팀</span></div>`
