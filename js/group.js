@@ -51,9 +51,11 @@ const FIELDS = [
 // 프로그램 · 굿즈 담당: 프로그램마다 'stf_키' 칸을 바로 뒤에. 모두 필수, 기본은 영업 담당 (바꿀 수 있음)
 const STAFF_FREE = new Set();   // 예전엔 차방 · 당두봉갈 대관 제외 → 이제 모두 담당 필수
 // 프로그램에 딸린 칸: 담당(stf_) · 도슨트는 시간대(tm_) · 코스(crs_)도. 프로그램을 넣었을 때만 보임
-const SUB_NAME = { stf:'담당', tm:'시간대', crs:'코스', plc:'장소' };   // 장소(plc_) = 세미나 도슨트만 (몽몽차방 · 당두봉갈 · 기타)
+const SUB_NAME = { stf:'담당', tm:'시간대', crs:'출발지', plc:'장소' };   // 장소(plc_) = 세미나 도슨트만 (몽몽차방 · 당두봉갈 · 기타)
 const PLC_OPTS = ['몽몽차방','당두봉갈','기타'];
-const CRS_DEFAULT = '앵당삼거리 시작';   // 도슨트 코스 토글 (아니면 직접 입력)
+const CRS_DEFAULT = '앵당삼거리';   // 도슨트 출발지 기본 (2026-11-19 · 예전 값 「앵당삼거리 시작」도 앵당삼거리로)
+const CRS_OPTS = ['앵당삼거리','치허문','곡신문','사담'];   // 도슨트 출발지 드롭다운
+const crsNorm = v => { const s=String(v||'').trim(); return /^앵당/.test(s) ? '앵당삼거리' : s.replace(/\s*(에서\s*)?시작$/,''); };
 const isSub = k => /^(stf|tm|crs|plc)_/.test(k);
 const baseOf = k => String(k).replace(/^(stf|tm|crs|plc)_/,'');
 const isStf = k => /^stf_/.test(k);
@@ -423,8 +425,8 @@ function itemRowHTML(k, rows){
         return `<label class="it-xl">시작 <input class="it-x" data-ix="tmS:${esc(k)}" data-tp="1" readonly title="프로그램 시작 시각 (24시간 · 1300 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 자동" value="${esc(s)}"></label>`
           + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:${esc(k)}" data-tp="1" readonly title="프로그램 끝나는 시각 (시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤로 자동)" value="${esc(en)}"></label>`
           + (FIELDS.some(f=>f[1]==='plc_'+k) ? (()=>{ const pv=rec['plc_'+k]||''; return `<label class="it-xl">장소 <select class="it-x" data-ix="plc_${esc(k)}" title="세미나 도슨트 장소">${pv?'':'<option value="" selected>선택</option>'}${[...PLC_OPTS, ...(pv && !PLC_OPTS.includes(pv) ? [pv] : [])].map(x=>`<option${pv===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`; })() : '')   // 세미나 도슨트: 장소 (몽몽차방 · 당두봉갈 · 기타) → 비고
-          + (FIELDS.some(f=>f[1]==='crs_'+k) ? (()=>{ const cv=rec['crs_'+k]||'', on=cv===CRS_DEFAULT;   // 도슨트: 코스 = 「앵당삼거리 시작」 토글 또는 직접 입력 → 비고 (2026-11-17)
-              return `<label class="it-xl it-crs">코스 <button type="button" class="crs-tg${on?' on':''}" data-crstg="${esc(k)}" aria-pressed="${on}" title="누르면 코스 = ${CRS_DEFAULT} (다시 누르면 직접 입력)">${CRS_DEFAULT}</button>${on?'':`<input class="it-x" data-ix="crs_${esc(k)}" data-ime="ko" placeholder="또는 직접 입력" value="${esc(cv)}">`}</label>`; })() : '')
+          + (FIELDS.some(f=>f[1]==='crs_'+k) ? (()=>{ const cv=crsNorm(rec['crs_'+k]), opts=[...CRS_OPTS, ...(cv && !CRS_OPTS.includes(cv) ? [cv] : [])];   // 도슨트: 출발지 드롭다운 (앵당삼거리 · 치허문 · 곡신문 · 사담, 2026-11-19 · 예전 코스 칸) → 비고 「동행도슨트(앵당~)」
+              return `<label class="it-xl it-crs">출발지 <select class="it-x" data-ix="crs_${esc(k)}" title="도슨트 출발지"><option value="">선택</option>${opts.map(o=>`<option${o===cv?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`; })() : '')
           + note
           + (k==='seminar' && sem2On(rec) ? (()=>{ const [s2,e2]=tmTimes('seminar2'), pv=rec.plc_seminar2||'';   // 세미나 도슨트 수량 2: 두 번째 시작 · 끝 · 장소 · 비고 (2026-11-18)
               return `<div class="it-sem2"><label class="it-xl">시작 <input class="it-x" data-ix="tmS:seminar2" data-tp="1" readonly title="두 번째 세미나 도슨트 시작 시각. 넣으면 끝나는 시각이 30분 뒤로" value="${esc(s2)}"></label>`
@@ -448,7 +450,7 @@ function renderItems(force){
   const sig=itemRows.join('|') + (rec.seminar && sem2On(rec) ? '|sem2' : '');   // 세미나 도슨트 두 번째 줄이 생기고 없어질 때도 다시 그림
   if(!force && box.dataset.sig===sig && box.contains(document.activeElement)){   // 쓰는 중: 줄은 그대로 두고 값만 맞춤
     box.querySelectorAll('[data-iq],[data-is],[data-ix],[data-inote]').forEach(el=>{ if(el===document.activeElement) return;
-      const v = el.dataset.iq!=null ? itemQty(el.dataset.iq) : el.dataset.is!=null ? String(rec[itemStfKey(el.dataset.is)]||'') : el.dataset.inote!=null ? itemNote(el.dataset.inote) : el.dataset.ix==='mbS' ? mbTimes()[0] : el.dataset.ix==='mbE' ? mbTimes()[1] : /^tm[SE]:/.test(el.dataset.ix) ? tmTimes(el.dataset.ix.slice(4))[el.dataset.ix[2]==='S'?0:1] : String(rec[el.dataset.ix]||''); if(el.value!==v) el.value=v; });
+      const v = el.dataset.iq!=null ? itemQty(el.dataset.iq) : el.dataset.is!=null ? String(rec[itemStfKey(el.dataset.is)]||'') : el.dataset.inote!=null ? itemNote(el.dataset.inote) : el.dataset.ix==='mbS' ? mbTimes()[0] : el.dataset.ix==='mbE' ? mbTimes()[1] : /^tm[SE]:/.test(el.dataset.ix) ? tmTimes(el.dataset.ix.slice(4))[el.dataset.ix[2]==='S'?0:1] : /^crs_/.test(el.dataset.ix) ? crsNorm(rec[el.dataset.ix]) : String(rec[el.dataset.ix]||''); if(el.value!==v) el.value=v; });
     paintItemState(); paintItemPrices(); return;
   }
   box.dataset.sig=sig;
@@ -1075,7 +1077,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#pgModal').
 // staff 를 주면 "동행 도슨트 2시간 (담당:사공유빈)" (차방 · 당두봉갈은 담당을 적었을 때만)
 // staff 이면 도슨트 시간대 · 코스도: "동행 도슨트 2시간 13:00~15:00 (코스:정원 코스) (담당:사공유빈)"
 const progList = (r, grp, staff) => FIELDS.filter(f=>(grp ? f[0]===grp : /^프로그램/.test(f[0])) && !isSub(f[1]) && r[f[1]]).map(f=>{ const v=String(r[f[1]]), sub=p=>String(r[`${p}_${f[1]}`]||'').trim(), who=sub('stf');   // 담당이 여러 명이면 한 칸에 「문현빈, 김선영」
-  const tag = !staff ? '' : (sub('tm') ? ` ${sub('tm')}` : '') + (sub('crs') ? ` (코스:${sub('crs')})` : '') + (sub('plc') ? ` (장소:${sub('plc')})` : '') + (f[1]==='seminar' ? sem2Tag(r) : '') + (who ? ` (담당:${who})` : needsStaff(f[1]) ? ' (담당:미정)' : '');
+  const tag = !staff ? '' : (sub('tm') ? ` ${sub('tm')}` : '') + (sub('crs') ? ` (출발지:${sub('crs')})` : '') + (sub('plc') ? ` (장소:${sub('plc')})` : '') + (f[1]==='seminar' ? sem2Tag(r) : '') + (who ? ` (담당:${who})` : needsStaff(f[1]) ? ' (담당:미정)' : '');
   return `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? v+UNIT(f[1]) : v}${tag}`; });
 // 세미나 도슨트 수량 2일 때 두 번째: " · 두 번째 14:00~14:30 (장소:당두봉갈)"
 const sem2Tag = r => { if(!(numOf(r.seminar)>=2) || r.seminar2) return ''; const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); return t||p ? ` ·${t?' '+t:''}${p?` (장소:${p})`:''}` : ''; };
@@ -1168,7 +1170,7 @@ function bookRows0(){
       out.push({ cat, id:r.id, me:!!me, d:x.date, org:x.org||x.contact||'(업체 미정)',
         ppl: (cat==='prog' || cat==='coupon') && unit!=='시간' ? (numOf(v)||numOf(x.people)) : numOf(x.people),
         hrs: unit==='시간' ? (numOf(v)||1) : 0, place:RENT_PLACE[k]||x['plc_'+k]||'', kind:DOCENT_KIND[k]||(cat==='docent'?LABEL[k]:''), item:LABEL[k]||k,
-        tm:x['tm_'+k]||'', staff:String(x['stf_'+k]||'').trim()||x.owner||'', note:[notes[k], x['crs_'+k]&&`코스 ${x['crs_'+k]}`].filter(Boolean).join(' · ') });
+        tm:x['tm_'+k]||'', staff:String(x['stf_'+k]||'').trim()||x.owner||'', note:[notes[k], x['crs_'+k]&&`출발지 ${crsNorm(x['crs_'+k])}`].filter(Boolean).join(' · ') });
       if(k==='seminar' && numOf(v)>=2 && !x.seminar2){ const o=out[out.length-1]; out.push({...o, place:x.plc_seminar2||'', tm:x.tm_seminar2||'', note:[notes.seminar2].filter(Boolean).join(' · ')}); }   // 세미나 도슨트 수량 2: 두 번째도 현황에 한 줄 (2026-11-18)
     });
     // 굿즈로 넣은 음료쿠폰(예: 음료쿠폰(몽몽차방))도 예약 현황 「음료쿠폰」에 (2026-11-18)
@@ -1842,7 +1844,7 @@ const erpProgT = t => { const s=String(t||'').replace(/\s/g,''); const m=s.match
   if(m){ const z=v=>!v||v==='00'; return z(m[2]) && z(m[4]) ? `${+m[1]}-${+m[3]}시` : erpShortT(`${m[1]}:${m[2]||'00'}`); }
   return erpShortT(s); };
 // 도슨트 코스 (2026-11-19 점검): 「앵당삼거리 시작」 → 「앵당~」 (규칙 예: 동행도슨트(앵당~, 김수정해설사))
-const erpCrs = c => String(c||'').trim().replace(/삼거리/g,'').replace(/\s*(에서\s*)?시작$/,'~').replace(/\s+~$/,'~');
+const erpCrs = c => { const s=crsNorm(c); return s ? s.replace(/삼거리/g,'').replace(/~$/,'')+'~' : ''; };   // 출발지 → 「앵당~」 · 「치허문~」 (2026-11-19)
 const ERP_PROG_NAME = { donghaeng:'동행도슨트', seminar:'PPT세미나', seminar2:'PPT세미나', haeorum:'일출', chabang:'자체세미나(차방)', dangdu:'자체세미나(당두)', yoga:'요가', sound:'사운드워킹', scent:'사유의 향' };
 function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문구는 런치 · 디너를 뺌 (2026-11-19)
   const items=[];
@@ -1878,7 +1880,7 @@ function staffMsg(r){
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]]).forEach(f=>{ const k=f[1], v=String(r[k]), sub=p=>String(r[`${p}_${k}`]||'').trim();
     const s2who = k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 ? '' : '', split = s2who && s2who!==sub('stf');   // 세미나 도슨트 두 번째 담당이 다르면 그 사람에게 따로
     const s2note = r===rec && itemNote('seminar2') ? ` (비고:${itemNote('seminar2')})` : '';
-    add(sub('stf'), `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? (split ? '1'+UNIT(k) : v+UNIT(k)) : v}${sub('tm')?' '+sub('tm'):''}${sub('crs')?` (코스:${sub('crs')})`:''}${sub('plc')?` (장소:${sub('plc')})`:''}${r===rec && itemNote(k)?` (비고:${itemNote(k)})`:''}${k==='seminar' && !split ? sem2Tag(r)+(sem2Tag(r) ? s2note : '') : ''}`);
+    add(sub('stf'), `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? (split ? '1'+UNIT(k) : v+UNIT(k)) : v}${sub('tm')?' '+sub('tm'):''}${sub('crs')?` (출발지:${sub('crs')})`:''}${sub('plc')?` (장소:${sub('plc')})`:''}${r===rec && itemNote(k)?` (비고:${itemNote(k)})`:''}${k==='seminar' && !split ? sem2Tag(r)+(sem2Tag(r) ? s2note : '') : ''}`);
     if(split){ const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); add(s2who, `${f[2]} 1${UNIT(k)}${t?' '+t:''}${p?` (장소:${p})`:''}${s2note}`); } });
   if(r.goods) add(r.stf_goods, '굿즈 '+goodsText(r)+(r===rec ? goodsParse(r.goods).map(g=>itemNote('g:'+g.src)?` (${goodsName(g.src)} 비고:${itemNote('g:'+g.src)})`:'').join('') : ''));
   const head=[r.org&&`<${r.org}>`, r.date&&dateLabel(r.date), r.people&&`${r.people}명`, r.tin&&`입장 ${r.tin}${r.gate&&r.gate!=='미정'?' '+r.gate:''}`].filter(Boolean).join(' · ');
@@ -3617,10 +3619,6 @@ document.getElementById('askNo').onclick = closeAsk;
 document.getElementById('askYes').onclick = () => { const f=askOk; closeAsk(); if(f) f(); };
 document.getElementById('askModal').addEventListener('mousedown', e=>{ if(e.target.id==='askModal') closeAsk(); });
 document.addEventListener('keydown', e=>{ if(document.getElementById('askModal').hidden) return; if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); closeAsk(); } }, true);
-// 도슨트 코스 토글: 「앵당삼거리 시작」 ↔ 직접 입력
-document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-crstg]'); if(!b) return; const k=b.dataset.crstg, key='crs_'+k;
-  const on = rec[key]===CRS_DEFAULT; rec[key] = on ? '' : CRS_DEFAULT; touched.add(key); itemChanged(true);
-  if(on) setTimeout(()=>document.querySelector(`#itemsBox [data-ix="${CSS.escape(key)}"]`)?.focus(), 0); });
 // 과업의 하위 과업(견적서 생성 · 전송 · NAS 등) · 직접 추가한 세부 과제가 모두 체크됐는지 (없으면 true)
 function taskSubsDone(t){ const ds=DOC_SUBS[t.id]; return (!ds || !t.subs || ds.every(([k])=>t.subs[k])) && (t.xsubs||[]).every(x=>x.done); }
 

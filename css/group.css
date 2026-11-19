@@ -668,7 +668,7 @@ html.book-guest #bookBody tr{cursor:default}
 .crs-tg{height:30px;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:15px;padding:0 10px;font:12px var(--sans);cursor:pointer;white-space:nowrap}
 .crs-tg:hover{border-color:var(--pine);color:var(--pine)}
 .crs-tg.on{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:700}
-.it-crs .it-x{min-width:120px}
+.it-crs .it-x{min-width:110px}   /* 도슨트 출발지 드롭다운 (2026-11-19) */
 .tsave.dirty::after{content:"●";color:#ffd27a;font-size:9px;margin-left:3px}   /* 그 과업에 저장 안 한 변경 */
 /* 추후 과업 삭제 = × (2026-11-18) */
 .task-h .del{border:0;background:none;color:var(--muted);cursor:pointer;font:400 18px/1 var(--sans);padding:0 4px;width:auto;height:auto}
