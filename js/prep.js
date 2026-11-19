@@ -249,18 +249,19 @@ function render(){
   { const n=rows.reduce((a,r)=>a+r._chg.size,0), b=$('#saveEdits'); if(b){ b.textContent = n ? `수정 내용 저장 (${n})` : '수정 내용 저장'; b.classList.toggle('dirty', n>0); } }
   const yy=s.date.slice(2).replace(/-/g,'');
   $('#outHead').innerHTML = `${yy}(${DOW[new Date(s.date+'T00:00').getDay()]||''})<br>${total}명+@`;
-  $('#outBody').innerHTML = list.map(r=>`<tr class="${r.inList?'':'new'}"><td class="name"><span class="src ${r.inList?'have':'new'} no-print" title="${r.inList?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.inList?'목록':'새로 조사'}</span><input class="nm${r._chg.has('name')?' chg':''}" data-e="${esc(r.key)}|name" value="${esc(r.name)}" data-ime="ko"></td><td class="num"><input class="pp${r._chg.has('ppl')?' chg':''}" data-e="${esc(r.key)}|ppl" value="${r.ppl}" inputmode="numeric"></td>`
+  $('#outBody').innerHTML = list.map(r=>`<tr class="${r.inList?'':'new'}">`
+    + `<td class="called no-print${(state.edit[r.key]||{}).called?' on':''}"><label title="이 고객에게 연락했는지 (이 브라우저에 기억)"><input type="checkbox" data-call="${esc(r.key)}"${(state.edit[r.key]||{}).called?' checked':''}></label></td>`   // 연락 체크 = 맨 앞 열 (2026-11-19)
+    + `<td class="name"><span class="src ${r.inList?'have':'new'} no-print" title="${r.inList?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.inList?'목록':'새로 조사'}</span><input class="nm${r._chg.has('name')?' chg':''}" data-e="${esc(r.key)}|name" value="${esc(r.name)}" data-ime="ko"></td><td class="num"><input class="pp${r._chg.has('ppl')?' chg':''}" data-e="${esc(r.key)}|ppl" value="${r.ppl}" inputmode="numeric"></td>`
     + `<td><input class="t${r._chg.has('time')?' chg':''}" data-e="${esc(r.key)}|time" value="${esc(r.time)}" placeholder="${esc(r.timeHint||'시간')}"></td>`
     + `<td><select class="gate ${esc(r.gate)} src-${r.gateSrc}${r._chg.has('gate')?' chg':''}" data-e="${esc(r.key)}|gate"><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select><span class="gsrc ${r.gateSrc}" title="${{fixed:'단체예약 화면에서 이 입장문으로 정해 둔 것',auto:'방문 인원 · 도착 시간을 보고 이 화면이 추천한 것',hand:'이 화면에서 직접 바꾼 것'}[r.gateSrc]}">${{fixed:'예약 고정',auto:'추천',hand:'직접'}[r.gateSrc]}</span><span class="why no-print">${esc(r.gateWhy)}${r.gateSrc==='hand'?` · ${r.recGate?'고정':'추천'}은 ${esc(r.recGateAuto)}`:''}</span></td>`
     + `<td><input class="v${r._chg.has('vehicle')?' chg':''}" data-e="${esc(r.key)}|vehicle" value="${esc(r.vehicle)}"></td><td><input class="p${r._chg.has('phone')?' chg':''}" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
-    + `<td class="note"><textarea class="${r._chg.has('note')?'chg':''}" data-e="${esc(r.key)}|note" rows="1">${esc(r.note)}</textarea></td>`
-    + `<td class="called no-print${(state.edit[r.key]||{}).called?' on':''}"><label title="이 고객에게 연락했는지 (이 브라우저에 기억)"><input type="checkbox" data-call="${esc(r.key)}"${(state.edit[r.key]||{}).called?' checked':''}></label></td></tr>`).join('');   // 연락 체크 (2026-11-19)
+    + `<td class="note"><textarea class="${r._chg.has('note')?'chg':''}" data-e="${esc(r.key)}|note" rows="1">${esc(r.note)}</textarea></td></tr>`).join('');
   const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
   const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.note)).map(r=>r.name);
   const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
-  $('#outFoot').innerHTML = `<tr><td class="g">단체</td><td class="g num">${gSum}</td><td></td><td></td><td class="bus">버스 ${bus}대+</td><td colspan="2" class="ind">개인고객 ${ind}명</td><td class="no-print"></td></tr>`
-    + `<tr><td>현장결제건</td><td colspan="6" style="text-align:left">${esc(onsite.join(', ')||'-')}</td><td class="no-print"></td></tr>`
-    + `<tr><td>해오름 산책</td><td colspan="6" style="text-align:left">${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</td><td class="no-print"></td></tr>`;
+  $('#outFoot').innerHTML = `<tr><td class="no-print"></td><td class="g">단체</td><td class="g num">${gSum}</td><td></td><td></td><td class="bus">버스 ${bus}대+</td><td colspan="2" class="ind">개인고객 ${ind}명</td></tr>`
+    + `<tr><td class="no-print"></td><td>현장결제건</td><td colspan="6" style="text-align:left">${esc(onsite.join(', ')||'-')}</td></tr>`
+    + `<tr><td class="no-print"></td><td>해오름 산책</td><td colspan="6" style="text-align:left">${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</td></tr>`;
   $('#p4Sum').textContent = `${list.length}팀 (목록 ${list.filter(r=>r.inList).length} · 새로 조사 ${list.filter(r=>!r.inList).length}) · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length} · 입장문 예약 고정 ${list.filter(r=>r.gateSrc==='fixed').length} · 연락 ${list.filter(r=>(s.edit[r.key]||{}).called).length}/${list.length}`;
   document.querySelectorAll('.out textarea').forEach(t=>{ t.style.height='auto'; t.style.height=t.scrollHeight+'px'; });
 }
@@ -291,6 +292,30 @@ $('#xlsxBtn').onclick=async()=>{ if(!state || !window.ExcelJS) return; const d=t
   const buf=await wb.xlsx.writeBuffer(), a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf])); a.download=`다음날_고객응대_${state.date.slice(2).replace(/-/g,'')}.xlsx`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000); };
 
 
+// 이미지의 비고 = 간소화 (2026-11-19): 「프로그램 / 현장결제 / 도착시간 입장문」
+//  - 도착시간 · 입장문은 꼭 (예: 9시 치허문 · 10:30 곡신문) · 관람만이면 「관람」은 안 씀
+//  - 런치 · 디너 · 일출 · 일몰 · 동행도슨트 · PPT세미나 · 자체세미나가 있으면 (상품 이름 · 엑셀 비고에서, 시간 · 괄호 설명은 그대로)
+//  - 금액 · 출입구 미정 · 입장 시각 · 마방 식사 · 적은 사람 이름 등은 뺌. 표에서 비고를 직접 고쳤으면 고친 글 그대로
+const PROG_RE = /런치|디너|일출|해오름|일몰|선셋|도슨트|세미나|PPT/i;
+const shortT = t => { const m=fmtT(t).match(/(\d\d):(\d\d)/); return m ? (m[2]==='00' ? `${+m[1]}시` : `${+m[1]}:${m[2]}`) : String(t||'').trim(); };
+function shortNote(r){
+  if((state.edit[r.key]||{}).note!=null) return r.note;   // 직접 고친 비고
+  const out=[], add=s=>{ s=String(s||'').trim(); if(s && !out.some(x=>norm(x)===norm(s))) out.push(s); };
+  const clean = s => String(s).replace(/사담\s*/g,'').replace(/런치\s*(\d)\s*부/g,'런치$1부').replace(/해오름\s*산책|해오름/g,'일출').replace(/선셋/g,'일몰').replace(/\s+/g,' ').trim();
+  String(r.prods||'').split('\n').forEach(p=>{ const m=p.replace(/\s*\d+명$/,''), k=m.match(/\(관람,\s*(.+)\)/); const v=k?k[1]:m; if(PROG_RE.test(v)) add(clean(v)); });   // 상품 (예: (관람, 사담 런치 1부) → 런치1부)
+  String(r.note||'').replace(/\s*\(\s*[가-힣]{2,4}\s*\)\s*$/,'')   // 맨 끝 적은 사람 이름 「(문현빈)」은 뺌
+    .split(/\s*\/\s*/).forEach(s=>{ if(PROG_RE.test(s) && !/\d[\d,]*\s*원/.test(s)) add(clean(s)); });   // 엑셀 비고의 프로그램 (금액 칸은 빼고)
+  if(r.onsitePay || /현장\s*결제/.test(r.note)) add('현장결제');
+  const arrive=[r.time ? shortT(r.time) : '', r.gate].filter(Boolean).join(' ');
+  // 시간이 적힌 프로그램이 있으면 도착부터 시간 순 (예: 13시 곡신문 / 13:30 동행도슨트 / 15-16시 자체세미나), 없으면 맨 뒤에 도착 (예: 런치1부 / 현장결제 / 10:30 곡신문)
+  const startMin = s => { const m=String(s).match(/^(\d{1,2})(?::(\d\d))?(?=시|\s|-|~)/); return m ? +m[1]*60+(+m[2]||0) : null; };
+  if(out.some(s=>startMin(s)!=null) && arrive){
+    const timed=out.filter(s=>startMin(s)!=null), rest=out.filter(s=>startMin(s)==null);
+    return [...rest, ...[arrive, ...timed].sort((a,b)=>(startMin(a)??-1)-(startMin(b)??-1))].join(' / ');
+  }
+  add(arrive);
+  return out.join(' / ');
+}
 // 이미지로 저장: 핸드폰에서 보기 좋은 좁은 폭(430px)의 표를 화면 밖에 그려 PNG로 (카카오톡으로 보내기 좋게)
 $('#pngBtn').onclick=async()=>{
   if(!state || !window.html2canvas){ toast('잠시 뒤 다시 눌러 주세요.'); return; }
@@ -299,10 +324,10 @@ $('#pngBtn').onclick=async()=>{
   const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.note)).map(r=>r.name);
   const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
   const box=$('#shot');
-  box.innerHTML = `<div class="sh-h"><b>${esc(dLab(s.date))} 고객 응대</b><span>방문 ${total}명+@ · ${list.length}팀</span></div>`
+  box.innerHTML = `<div class="sh-h"><b>${esc(dLab(s.date))} 단체현황 · ${list.length}팀</b><span>방문 ${total}명+@</span></div>`
     + `<table><thead><tr><th>단체 · 고객</th><th>인원</th><th>도착</th><th>입장문</th><th>차량</th></tr></thead><tbody>`
     + list.map(r=>`<tr class="${r.inList?'':'new'}"><td class="nm"><b>${esc(r.name)}</b>${r.phone?`<small>${esc(r.phone)}</small>`:''}</td><td class="c">${r.ppl}</td><td class="c">${esc(r.time||r.timeHint||'')}</td><td class="c"><span class="g ${esc(r.gate)}${r.gateSrc==='fixed'?' fx':''}">${esc(r.gate)}${r.gateSrc==='fixed'?' · 고정':''}</span></td><td class="c">${esc(r.vehicle||'')}</td></tr>`
-      + (r.note ? `<tr class="nt"><td colspan="5">${esc(r.note)}</td></tr>` : '')).join('')
+      + ((n=>n ? `<tr class="nt"><td colspan="5">${esc(n)}</td></tr>` : '')(shortNote(r)))).join('')
     + `</tbody></table>`
     + `<div class="sh-f"><span class="g1">단체 ${gSum}명</span><span class="g2">버스 ${bus}대+</span><span class="g3">개인고객 ${ind}명</span></div>`
     + `<div class="sh-n">현장결제건: ${esc(onsite.join(', ')||'-')}</div><div class="sh-n">해오름 산책: ${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</div>`;
