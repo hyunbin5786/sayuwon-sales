@@ -3271,6 +3271,8 @@ const personalDueCount = () => { const today=ymd(new Date()); return myPersonalO
 // 개인예약 · 단체예약 구분에 직접 넣은 업무 (나의 할일 개인 업무 입력에서 고른 것, 2026-11-19) — 있을 때만 그 구분 아래에
 const myExtraEtc = c => etcMine().some(o=>etcCatOf(o.d)===c) ? etcSection(false, c).replace('<h3 class="my-h">', '<h3 class="my-h sub">').replace(/<h3 class="my-h sub">[^<]*/, `<h3 class="my-h sub">직접 넣은 업무 `) : '';
 // 설정 (× 옆): 구분 순서 ▲▼ · ＋ 구분 추가
+// 전체 화면으로 보기 (× 옆, 2026-11-19): 다음 탭에 나의 할일 한 페이지 (group.html?my=1)
+document.addEventListener('click', e=>{ if(!e.target.closest?.('#myFullBtn')) return; window.open(new URL('group.html?my=1', location.href).href, '_blank'); });
 let mySetOpen=false;
 function paintMySet(){ const b=$('#mySet'); if(!b) return; b.hidden=!mySetOpen; $('#mySetBtn')?.classList.toggle('on', mySetOpen); if(mySetOpen) b.innerHTML = `<div class="my-set-in">${catManageHTML()}<button type="button" class="btn sm" data-mysetclose>닫기</button></div>`; }
 document.addEventListener('click', e=>{ if(e.target.closest?.('#mySetBtn')){ mySetOpen=!mySetOpen; paintMySet(); return; } if(e.target.closest?.('[data-mysetclose]')){ mySetOpen=false; paintMySet(); } });
@@ -3698,7 +3700,7 @@ const etcDomHTML = (v, id) => `<select id="${id}" title="매달 날짜">${Array.
 function etcAddHTML(presetCat){   // presetCat: 구분 탭에서는 그 구분이 골라져 있음
   const f=etcForm; if(presetCat!==undefined && etcForm.catTab!==presetCat){ etcForm.cat=presetCat; etcForm.catTab=presetCat; }
   const extra = f.repeat==='none' ? `<label class="etc-due">마감 ${dboxHTML('id="etcDue"', f.due||todayYmd())}</label>` : f.repeat==='weekly' ? etcDowsHTML(f.dows, 'data-etcdow') : f.repeat==='monthly' ? etcDomHTML(f.dom, 'etcDom') : '';
-  return `<div class="etc-addbox"><form class="task-add etc-add" id="etcAdd">${etcCatSelHTML('etcCat', f.cat||'')}<input id="etcAddIn" data-ime="ko" placeholder="업무 직접 추가" autocomplete="off"><button class="btn" type="submit">추가</button></form>`
+  return `<div class="etc-addbox"><form class="task-add etc-add" id="etcAdd">${etcCatSelHTML('etcCat', f.cat||'')}<input id="etcAddIn" data-ime="ko" placeholder="업무 직접 추가 (Enter)" autocomplete="off"><button class="btn etc-go" type="submit" title="추가 (Enter)" aria-label="추가">↵</button></form>`
     + `<div class="etc-rep"><span class="seg">${REP_OPTS.map(([k,l])=>`<button type="button" class="${f.repeat===k?'on':''}" data-etcrep="${k}">${l}</button>`).join('')}</span>${extra}</div></div>`;   // 추가 칸은 박스로 묶음 (2026-11-18)
 }
 function etcEditHTML(){
