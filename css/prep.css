@@ -111,8 +111,10 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 .src{display:inline-block;font:700 10.5px var(--sans);padding:1px 6px;border-radius:999px;margin-right:5px;vertical-align:1px;white-space:nowrap}
 .src.have{background:var(--pine-soft);color:var(--pine)}
 .src.new{background:var(--amber-soft);color:var(--amber)}
-.out td.name .more{margin-left:5px;padding:1px 7px;border:1px solid var(--pine);border-radius:5px;background:#fff;color:var(--pine);font:600 11px var(--sans);cursor:pointer;white-space:nowrap;vertical-align:1px}
-.out td.name .more:hover{background:var(--pine-soft)}   /* 「자세히」 = 다음 탭에 단체예약 (2026-11-19) */
+.out td.name .nmw{display:flex;align-items:center;gap:4px}
+.out td.name .nmw input.nm{flex:1;width:auto;min-width:110px}
+.out td.name .more{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--pine);cursor:pointer}
+.out td.name .more:hover{background:var(--pine-soft);border-color:var(--pine)}   /* 돋보기 = 자세히 (다음 탭에 단체예약, 2026-11-19) · 목록 / 새로 조사 표시는 없앰 */
 .out-legend{font-size:12px;color:var(--muted);margin:0 0 8px;display:flex;gap:12px;flex-wrap:wrap}
 /* 입장문: 예약 고정(단체예약에서 정함) · 추천 · 직접 구분 (2026-11-19) */
 .gate.src-fixed{border:2px solid var(--pine)}
