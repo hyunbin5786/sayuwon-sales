@@ -116,6 +116,18 @@
     await navigator.clipboard.write([new ClipboardItem({'image/png': data})]);
     return 'copy';
   }
+  // 휴대폰: 「이미지 저장」 버튼 하나로 그 멘트의 그림을 모두 갤러리에 저장 (2026-11-19)
+  //  - 아이폰 · 아이패드: 공유 창 → 「이미지 n개 저장」(사진 앱) · 사파리는 내려받기를 파일 앱에 넣어서
+  //  - 안드로이드: 내려받기(Download 폴더 → 갤러리 앱에 보임)
+  const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints>1);
+  async function saveImgs(m){
+    const imgs=m.imgs||[], base=(String(m.title||'이미지').replace(/[\/:*?"<>|]+/g,' ').trim()||'이미지');
+    const blobs=imgs.every(x=>pngCache[x.id]) ? imgs.map(x=>pngCache[x.id]) : await Promise.all(imgs.map(x=>pngOf(x.id)));
+    const files=blobs.map((b,i)=>new File([b], `${base}${imgs.length>1?'_'+(i+1):''}.png`, {type:'image/png'}));
+    if(isIOS() && navigator.share && (!navigator.canShare || navigator.canShare({files}))){ await navigator.share({files}); return 'share'; }
+    for(const f of files){ const u=URL.createObjectURL(f), a=document.createElement('a'); a.href=u; a.download=f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u), 4000); await new Promise(r=>setTimeout(r, 400)); }
+    return 'download';
+  }
 
   function render(){
     // 이 기기에서 아직 멘트를 못 받았으면 예전 기본 멘트 대신 「불러오는 중」 · 「불러오지 못함」 (팀 비밀번호는 필요 없음, 2026-11-18)
@@ -129,7 +141,7 @@
       + `<div class="m-imgs"></div>`
       + `<div class="row-btns">${m.id==='new'?'':'<button type="button" class="btn" data-mdel>삭제</button>'}<span class="sp"></span><button type="button" class="btn" data-mcancel>취소</button><button type="button" class="btn primary" data-msave>저장</button></div></div>`;
     // 카드에는 그림 미리보기 없이 「글 복사」 옆에 「이미지 복사」 버튼만 (여러 장이면 이미지 1 · 2 …, 2026-11-18)
-    const imgBtns = m => (m.imgs||[]).map((x,i,a)=>`<button type="button" class="btn sm" data-imgcopy="${esc(x.id)}" title="${esc(x.name||'이미지')} · 그림을 복사 → 카톡에 Ctrl+V">이미지${a.length>1?(i+1):''}<span class="cp"> 복사</span></button>`).join('');
+    const imgBtns = m => !(m.imgs||[]).length ? '' : isMobile() ? `<button type="button" class="btn sm" data-imgsave title="그림을 모두 갤러리에 저장">이미지 저장${m.imgs.length>1?` (${m.imgs.length})`:''}</button>` : (m.imgs||[]).map((x,i,a)=>`<button type="button" class="btn sm" data-imgcopy="${esc(x.id)}" title="${esc(x.name||'이미지')} · 그림을 복사 → 카톡에 Ctrl+V">이미지${a.length>1?(i+1):''}<span class="cp"> 복사</span></button>`).join('');
     const imgsHTML = () => '';
     const card = m => edit===m.id ? form(m) : `<div class="ment${isFav(m)?' fav':''}" data-id="${esc(m.id)}"><div class="m-head"><button type="button" class="m-star${isFav(m)?' on':''}" data-mfav title="${isFav(m)?'즐겨찾기 빼기':'즐겨찾기 (위로)'}" aria-pressed="${isFav(m)}">${isFav(m)?'★':'☆'}</button><b>${esc(m.title||'멘트')}</b><span class="sp"></span>`
       + `<button type="button" class="btn primary sm" data-mcopy title="제목과 글을 복사">${(m.imgs||[]).length?'글 복사':'복사'}</button>${imgBtns(m)}${canEdit()?'<button type="button" class="btn sm" data-medit>수정</button>':''}</div><div class="m-body-v">${esc(m.body)}</div>${imgsHTML(m)}</div>`;
@@ -144,7 +156,10 @@
   }
   $('#list').addEventListener('click', async e=>{
     const box=e.target.closest('.ment'); if(!box) return; const id=box.dataset.id, m=items.find(x=>x.id===id);
-    if(e.target.closest('[data-mcopy]') && m){ await copy(`[${m.title}]\n${m.body}`); toast((m.imgs||[]).length ? `「${m.title}」 글을 복사했습니다. 붙여 넣은 뒤 「이미지 복사」로 그림도 붙여 넣으세요.` : `「${m.title}」 멘트를 제목과 함께 복사했습니다.`, 3200); return; }   // 제목도 함께
+    if(e.target.closest('[data-mcopy]') && m){ await copy(`[${m.title}]\n${m.body}`); toast((m.imgs||[]).length ? (isMobile() ? `「${m.title}」 글을 복사했습니다. 그림은 「이미지 저장」으로 저장해 보내세요.` : `「${m.title}」 글을 복사했습니다. 붙여 넣은 뒤 「이미지 복사」로 그림도 붙여 넣으세요.`) : `「${m.title}」 멘트를 제목과 함께 복사했습니다.`, 3200); return; }   // 제목도 함께
+    if(e.target.closest('[data-imgsave]') && m){   // 휴대폰: 그림 모두 저장
+      try{ const how=await saveImgs(m), n=(m.imgs||[]).length; toast(how==='share' ? '「이미지 저장」을 고르면 사진 앱에 저장됩니다.' : `그림 ${n}장을 저장했습니다 (갤러리 · Download 폴더).`, 3200); }
+      catch(err){ if(err && err.name==='AbortError') return; toast(needDeploy(err) || '그림을 저장하지 못했습니다. 잠시 뒤 다시 눌러 주세요 (그림을 받는 중일 수 있습니다).', 4000); } return; }
     const ic=e.target.closest('[data-imgcopy]'); if(ic){ const nm=(items.find(x=>(x.imgs||[]).some(i=>i.id===ic.dataset.imgcopy))||{}).title||'이미지';
       try{ const how=await copyImg(ic.dataset.imgcopy, nm); toast(how==='share' ? '그림을 보냈습니다.' : isMobile() ? '그림을 복사했습니다. 붙여 넣기가 안 되면 「이미지」를 다시 눌러 공유로 보내세요.' : '이미지를 복사했습니다. 카톡 · 문자에 붙여 넣으세요 (Ctrl+V).', 3200); }
       catch(err){ if(err && err.name==='AbortError') return;   // 공유 창을 닫음
