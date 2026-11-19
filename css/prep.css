@@ -96,7 +96,7 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 /* 준비할 날짜 (2026-11-18): 맨 위 · 방문일 칸 모양 (칸 안에 날짜 (요일), 누르면 달력) */
 .day-pick h2{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0}
 .day-pick .dbox{position:relative;display:inline-flex}
-.day-pick .dtxt{height:34px;width:170px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:600 15px var(--sans);background:#fff;color:var(--ink);cursor:pointer}
+.day-pick .dtxt{height:34px;box-sizing:border-box;width:170px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:600 15px var(--sans);background:#fff;color:var(--ink);cursor:pointer}
 .day-pick .dpick{position:absolute;left:0;bottom:0;width:0;height:0;opacity:0;border:0;padding:0}
 .day-pick small{font:400 12.5px var(--sans);color:var(--muted)}
 .day-pick small.bad{color:var(--red);font-weight:700}
@@ -193,7 +193,7 @@ main > #p0{grid-column:1 / -1}
 .nb-list input{accent-color:var(--pine)}
 .out tfoot tr.notice td{font-size:12.5px}
 /* 지난 기록 (2026-11-19) */
-.hist-sel{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:13px;margin-left:8px;background:#fff}
+.hist-sel{height:34px;box-sizing:border-box;min-width:300px;border:1px solid var(--line);border-radius:7px;padding:0 28px 0 10px;font:400 14px var(--sans);color:var(--ink);margin-left:8px;background-color:#fff}   /* 날짜 칸과 같은 높이 · 끝이 안 잘리게 넓게 (2026-11-19) */
 /* 여행사 등록 (2026-11-19) */
 .ag-t{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
 .ag-t th{font-weight:600;text-align:left;padding:4px;color:var(--muted)}
