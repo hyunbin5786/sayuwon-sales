@@ -271,7 +271,7 @@ function shortNote(r){
   String(r.xnote||'').replace(/\s*\(\s*[가-힣]{2,4}\s*\)\s*$/,'')   // 맨 끝 적은 사람 이름 「(문현빈)」은 뺌
     .split(/\s*\/\s*/).forEach(s=>{ if(PROG_RE.test(s) && !/\d[\d,]*\s*원/.test(s)) add(clean(s)); });   // 엑셀 비고의 프로그램 (금액 칸은 빼고)
   if(r.onsitePay || /현장\s*결제/.test(r.xnote||'')) add('현장결제');
-  const arrive=[r.time ? shortT(r.time) : '', r.gate].filter(Boolean).join(' ');
+  const arrive = r.time ? `${shortT(r.time)} ${r.gate || '입장'}` : (r.gate || '');   // 입장문을 아직 안 골랐으면 「9시 입장」 (2026-11-19)
   // 시간이 적힌 프로그램이 있으면 도착부터 시간 순 (예: 13시 곡신문 / 13:30 동행도슨트 / 15-16시 자체세미나), 없으면 맨 뒤에 도착 (예: 런치1부 / 현장결제 / 10:30 곡신문)
   const startMin = s => { const m=String(s).match(/^(\d{1,2})(?::(\d\d))?(?=시|\s|-|~)/); return m ? +m[1]*60+(+m[2]||0) : null; };
   if(out.some(s=>startMin(s)!=null) && arrive){

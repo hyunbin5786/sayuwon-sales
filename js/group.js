@@ -1828,25 +1828,27 @@ const erpCheckHTML = c => !c.pasted ? '' : c.why ? `<span class="ck bad">대조 
   : `<span class="ck ${c.okDisc?'ok':'bad'}">${c.okDisc?'✓':'✗'} 할인 합계 · 예약 ${won(c.disc)}원 / 전산 ${won(c.eDisc)}원</span><span class="ck ${c.okTot?'ok':'bad'}">${c.okTot?'✓':'✗'} 총 금액 · 예약 ${won(c.tot)}원 / 전산 ${won(c.eTot)}원</span>${c.missing&&c.missing.length?`<span class="ck bad">가격 없는 품목: ${esc(c.missing.join(', '))}</span>`:''}`;
 // 전산 비고에 붙여넣을 문구
 // 2026-11-19 간소화: 「프로그램 / 현장결제 / 도착시간 입장문 (영업 담당)」 — 다음날 고객 응대 준비의 비고와 같은 모양
-//  - 도착시간 · 입장문은 꼭 (9시 치허문 · 10:30 곡신문, 모르면 「시간 미정」 · 「입장문 미정」) · 관람만이면 「관람」은 안 씀
+//  - 도착시간 · 입장문은 꼭 (9시 치허문 · 10:30 곡신문, 입장문을 아직 안 정했으면 「9시 입장」) · 관람만이면 「관람」은 안 씀
 //  - 런치 · 디너 · 일출(해오름) · 프로그램(시간 · 코스 · 장소 · 담당은 괄호로) · 현장결제 · 입장 때 확인할 것(특별 할인 증빙 · 학생)만
 //  - 금액 · 출입구 미정 · 인원 변경 · 몽몽마방 · 굿즈 · 메모는 넣지 않음. 끝에 항상 (영업 담당 이름)
 const erpShortT = t => { const m=String(t||'').replace(/\s/g,'').match(/^(\d{1,2}):?(\d{2})$/); return m ? (m[2]==='00' ? `${+m[1]}시` : `${+m[1]}:${m[2]}`) : String(t||'').trim(); };
-const ERP_PROG_NAME = { donghaeng:'동행도슨트', seminar:'세미나도슨트', seminar2:'세미나도슨트', haeorum:'일출', chabang:'차방 대관', dangdu:'당두 대관', yoga:'요가', sound:'사운드워킹', scent:'사유의 향' };
+// 프로그램 이름은 비고 규칙의 말로 (런치 · 디너 · 일출 · 일몰 · 동행도슨트 · PPT세미나 · 자체세미나) — 대관은 자체세미나(장소)
+const ERP_PROG_NAME = { donghaeng:'동행도슨트', seminar:'PPT세미나', seminar2:'PPT세미나', haeorum:'일출', chabang:'자체세미나(차방)', dangdu:'자체세미나(당두)', yoga:'요가', sound:'사운드워킹', scent:'사유의 향' };
 function erpNote(r){
   const items=[];
   [['sadam1','런치1부'],['sadam2','런치2부'],['sadamD','디너']].forEach(([k,l])=>{ if(r[k]) items.push(l); });
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]] && f[1]!=='gaga').forEach(f=>{   // 음료쿠폰은 굿즈라 뺌
     const k=f[1], sub=p=>String(r[`${p}_${k}`]||'').trim(), name=ERP_PROG_NAME[k] || String(f[2]).replace(/\s+/g,'');
-    const paren=[sub('crs'), sub('plc'), sub('stf')].filter(Boolean).join(', ');
-    items.push([sub('tm'), name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
+    const stf=sub('stf') && k==='donghaeng' && !/해설사$/.test(sub('stf')) ? sub('stf')+'해설사' : sub('stf');   // 동행도슨트 담당 = 「김수정해설사」
+    const paren=[sub('crs'), /\(/.test(name) ? '' : sub('plc'), stf].filter(Boolean).join(', ');   // 자체세미나(당두)처럼 이름에 장소가 있으면 장소는 빼고
+    items.push([sub('tm'), /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
     if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2)) items.push([String(r.tm_seminar2||'').trim(), name+(r.plc_seminar2?`(${String(r.plc_seminar2).trim()})`:'')].filter(Boolean).join(' '));
   });
   if(r.pay==='현장 결제' || r.onsite) items.push('현장결제');
   { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인`)); if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
   { const st=viewsParse(r.views).filter(x=>/학생/.test(x.src)).reduce((a,x)=>a+(+x.qty||0),0); if(st) items.push(`학생 ${st}명 확인 필요`); }
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';
-  const arrive = `${r.tin ? erpShortT(r.tin) : '시간 미정'} ${gate || '입장문 미정'}`;
+  const arrive = r.tin ? `${erpShortT(r.tin)} ${gate || '입장'}` : `입장 시간 미정${gate ? ' '+gate : ''}`;   // 입장문을 아직 안 정했으면 「9시 입장」 (2026-11-19)
   // 시간이 적힌 프로그램이 있으면 도착부터 시간 순 (13시 곡신문 / 13:30 동행도슨트 / 15:00 세미나도슨트), 없으면 맨 뒤에 도착 (런치1부 / 현장결제 / 10:30 곡신문)
   const startMin = s => { const m=String(s).match(/^(\d{1,2})(?::(\d\d))?(?=시|\s|-|~)/); return m ? +m[1]*60+(+m[2]||0) : null; };
   const timed=items.filter(s=>startMin(s)!=null), rest=items.filter(s=>startMin(s)==null);
@@ -1906,7 +1908,7 @@ function syncAutoTasks(){
   if((parseInt(rec.dClergy)||0)>0) want.push('clergy');   // 대구대교구 특별 할인 → 대구대교구 정보 기입 (예약자에게 정보 요청 · 대구대교구 시트 기입)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
   const e0=tasks.find(t=>t.id==='erp');
-  if(e0){ e0.done=!!rec.erp; if(e0.done && (!e0.base || e0.base.erpnote==null || e0.base.v!==2)) e0.base=erpSnap(); if(!e0.done) delete e0.base; }   // 예전 기준(칸마다)은 지금 비고 문구로 바꿔 둠
+  if(e0){ e0.done=!!rec.erp; if(e0.done && (!e0.base || e0.base.erpnote==null || e0.base.v!==3)) e0.base=erpSnap(); if(!e0.done) delete e0.base; }   // 예전 기준(칸마다)은 지금 비고 문구로 바꿔 둠
   const fixes = e0 && e0.base ? erpDiff(e0.base, erpSnap()) : [];
   if(fixes.length) want.push('erpfix');
   if(rec.tour) want.push('tour');   // 사전 답사가 잡히면 답사도 전산에 예약
@@ -1937,8 +1939,8 @@ function syncAutoTasks(){
   tasks=[...list, ...doneT];
 }
 // 전산 예약 수정 (2026-11-18): 전산 비고에 들어가는 문구(erpNote)가 바뀐 경우에만 — 담당자 이름 · 연락처처럼 비고에 안 들어가는 것은 과업을 만들지 않음
-const erpSnap = () => ({erpnote: erpNote(rec), v:2});   // v:2 = 간소화한 비고 문구 (2026-11-19)
-const erpDiff = (a,b) => (a&&a.erpnote!=null && a.v===2 ? a.erpnote : null)===null ? [] : (a.erpnote||'')===(b.erpnote||'') ? [] : ['전산 비고 문구가 바뀜 (아래 새 문구로 고치기)'];
+const erpSnap = () => ({erpnote: erpNote(rec), v:3});   // v:3 = 간소화한 비고 문구 (2026-11-19 · 「9시 입장」 · PPT세미나 · 자체세미나)
+const erpDiff = (a,b) => (a&&a.erpnote!=null && a.v===3 ? a.erpnote : null)===null ? [] : (a.erpnote||'')===(b.erpnote||'') ? [] : ['전산 비고 문구가 바뀜 (아래 새 문구로 고치기)'];
 const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
 // 하위 과업 칸: 기본 하위 과업(견적서 · 거래명세서) + 직접 추가한 세부 과제(× 로 빼기) + 추가 입력칸
 function subsHTML(t){
