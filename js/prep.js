@@ -256,7 +256,8 @@ function render(){
   const total=s.rows.reduce((a,x)=>a+x.ppl,0), dg=dayGroups();
   $('#fileSum').innerHTML = `<span>파일 <b>${esc(s.file)}</b></span><span>방문일 <b>${esc(dLab(s.date))}</b></span><span>예약 <b>${s.rows.length}</b>건</span><span>방문 인원 <b>${total}</b>명</span><button class="btn" id="clearBtn" type="button">지우기</button>`;
   // ② 목록
-  const linkOpts = (k, curId) => `<select class="link-sel" data-link="${esc(k)}"><option value="">자동으로 찾기</option><option value="none"${s.link[k]==='none'?' selected':''}>개인으로 (연결 안 함)</option>${dg.map(r=>`<option value="${esc(r.id)}"${(s.link[k]||curId)===r.id?' selected':''}>${esc(r.org||r.contact||'(업체 미정)')} · ${esc(r.people||'')}명</option>`).join('')}</select>`;
+  // 연결: 「연결 안 함」 하나 + 그날 단체예약 (2026-11-19 · 자동으로 찾기 · 개인으로를 합침). 처음에는 자동으로 찾아 맞는 단체가 있으면 그것이 골라져 있음
+  const linkOpts = (k, curId) => `<select class="link-sel" data-link="${esc(k)}"><option value="none"${s.link[k]==='none' || !curId?' selected':''}>연결 안 함</option>${dg.map(r=>`<option value="${esc(r.id)}"${(s.link[k]||curId)===r.id?' selected':''}>${esc(r.org||r.contact||'(업체 미정)')} · ${esc(r.people||'')}명</option>`).join('')}</select>`;
   $('#listBody').innerHTML = rows.map(r=>`<tr class="${r.on?'':'dim'}"><td><input type="checkbox" data-sel="${esc(r.key)}"${r.on?' checked':''}></td><td>${r.group?'<span class="tag grp">단체</span>':'<span class="tag ind">개인</span>'}${r.missing?'<span class="tag warn" title="단체예약에는 있는데 전산 방문자내역에 없음">전산에 없음</span>':''}</td><td>${esc(r.xname||'-')}</td><td>${esc(r.phone)}</td><td class="num">${r.ppl}</td><td style="white-space:pre-line;font-size:12px">${esc(r.prods)}</td><td>${r.missing?esc(r.name):linkOpts(r.key, r.recId)}</td></tr>`).join('')
     || '<tr><td colspan="7" class="hint" style="text-align:center;padding:14px">기준 이상인 예약이 없습니다.</td></tr>';
   const on=rows.filter(r=>r.on);
