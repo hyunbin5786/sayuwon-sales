@@ -2758,7 +2758,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#erpDiffMod
 function askErpForTask(id){
   erpPendingTask=id;
   $('#erpIn').value=''; $('#erpMsg').textContent='';
-  $('#erpNeed').hidden=false; $('#erpNeed').textContent=`${id==='erp'?'전산 예약':'전산 예약 수정'}을 완료하려면 전산에 등록한 상품 정보를 붙여넣어 주세요. 예약 내용과 맞는지 확인한 뒤 완료됩니다.`;
+  $('#erpNeed').hidden=true;   // 안내 글은 없앰 (2026-11-19)
   $('#erpModal').hidden=false; setTimeout(()=>$('#erpIn').focus(),0);
 }
 $('#erpPasteBtn').onclick=()=>{ erpPendingTask=null; $('#erpNeed').hidden=true; $('#erpIn').value=''; $('#erpMsg').textContent=''; $('#erpModal').hidden=false; setTimeout(()=>$('#erpIn').focus(),0); };
