@@ -3225,7 +3225,7 @@ function renderMy(){
         return `<li class="r" data-popen="${esc(r.id)}"><span class="who"><b>${esc(r.contact||'(이름 없음)')}</b>${r.phone?` · ${esc(r.phone)}`:''}${r.date?` · ${esc(dateLabel(String(r.date).slice(0,10)))}`:''}<br><small class="hint" style="margin:0">${esc(fmt(r.saved))}${r.note?` · ${esc(String(r.note).split(/\n/)[0].slice(0,50))}`:''}${left?` · 남은 과업 ${left}개`:''}</small></span></li>`; }).join('')}</ul>` : none('내가 받은 개인고객 통화가 없습니다.'));
     $('#myBody').innerHTML = `<div class="my-cols two"><div class="my-col">${p1}</div><div class="my-col">${p2}</div></div>`; return;
   }
-  if(myTab==='etc'){ const n=myEtcOpen().length; $('#mySum').textContent = `기타 개인 업무 남은 것 ${n}개`; $('#myBody').innerHTML = `<div class="my-cols one"><div class="my-col">${etcSection(true)}</div></div>`; return; }   // 기타 개인 업무 (ops.html?p=task)
+  if(myTab==='etc'){ const n=myEtcOpen().length; $('#mySum').textContent = `기타 개인 업무 · 오늘 할 일 ${n}개`; $('#myBody').innerHTML = todoHTML(); return; }   // 기타 개인 업무: 할 일 목록 화면 (2026-11-19 · 아래 todoHTML)
   if(myTab==='group'){
     $('#mySum').textContent = `담당 단체 예약 ${mine.length}건 · 방문 예정(가예약 · 예약확정) ${ahead.filter(booked).length}건 · 미정 ${tbdAll.length}건 · 남은 과업 ${nG}개`;
     const g2 = `<h3 class="my-h">추후 과업 (단체) <small>${nG}개${lateOf(open)?` · <b class="late">기한 지남 ${lateOf(open)}개</b>`:''}</small></h3>` + taskList(open, '해결 안 된 단체 과업이 없습니다.');
@@ -3612,7 +3612,7 @@ function etcSection(){
   const item = o => { if(isEd(o.r.id)) return `<li class="my-etc editing">${etcEditHTML()}</li>`;
     const subs=o.d.subs||[], m=((o.d.subDone||{})[o.day])||{}, n=subs.filter(s=>m[s.id]).length;
     return `<li class="r my-etc${o.day<today?' late':''}"><label class="etc-ck" title="체크하면 그날 완료"><input type="checkbox" data-etcdone="${esc(o.r.id)}|${o.day}"></label>`
-      + `<span class="who" data-etcedit="${esc(o.r.id)}" title="눌러서 고치기"><b>${esc(o.d.title)}</b> <small class="hint" style="margin:0">${esc(opsRepeatLabel(o.d))}${subs.length?` · 세부 과업 ${n}/${subs.length}`:''}</small><br><span class="my-task${o.day<today?' late':o.day===today?' today':''}">${o.day<today?'지남 · ':''}${esc(opsDateLabel(o.day))}</span>${o.before.length?` <button type="button" class="etc-past" data-etcpast="${esc(o.r.id)}" title="${esc(o.before.map(opsDateLabel).join(', '))}">지난 ${o.before.length}일 모두 완료</button>`:''}${o.d.memo?`<br><small class="hint" style="margin:0">${esc(String(o.d.memo).split('\n')[0].slice(0,60))}</small>`:''}</span>`
+      + `<span class="who" data-etcedit="${esc(o.r.id)}" title="눌러서 고치기">${etcListBadge(o.d)}<b>${esc(o.d.title)}</b> <small class="hint" style="margin:0">${esc(opsRepeatLabel(o.d))}${subs.length?` · 세부 과업 ${n}/${subs.length}`:''}</small><br><span class="my-task${o.day<today?' late':o.day===today?' today':''}">${o.day<today?'지남 · ':''}${esc(opsDateLabel(o.day))}</span>${o.before.length?` <button type="button" class="etc-past" data-etcpast="${esc(o.r.id)}" title="${esc(o.before.map(opsDateLabel).join(', '))}">지난 ${o.before.length}일 모두 완료</button>`:''}${o.d.memo?`<br><small class="hint" style="margin:0">${esc(String(o.d.memo).split('\n')[0].slice(0,60))}</small>`:''}</span>`
       + (subs.length ? `<div class="etc-subck">${subs.map(s=>`<label><input type="checkbox" data-etcsub="${esc(o.r.id)}|${o.day}|${esc(s.id)}"${m[s.id]?' checked':''}> ${esc(s.title||s.t||'')}</label>`).join('')}</div>` : '') + `</li>`; };
   const shownIds=new Set(list.map(o=>o.r.id));
   return `<h3 class="my-h">기타 개인 업무 <small>할 일 ${list.length}개${late?` · <b class="late">밀린 것 ${late}개</b>`:''}</small></h3>`
@@ -3693,6 +3693,136 @@ document.addEventListener('change', async e=>{
   e.target.disabled=true; await etcPut(o.r, {...o.d, done}, e.target.dataset.etcdone ? `${day} 완료 (나의 할일)` : `${day} 완료 취소 (나의 할일)`);
   toast(e.target.dataset.etcdone ? `「${o.d.title}」 완료로 표시했습니다.` : `「${o.d.title}」 완료를 취소했습니다.`);
 });
+// ===== 나의 할일 › 기타 개인 업무 탭: 할 일 목록 화면 (2026-11-19 · Microsoft To Do 모양) =====
+// 왼쪽 = 목록 (오늘 할 일 · 중요 · 계획된 일정 · 작업(기본) · 내가 만든 목록 · ＋ 새 목록)
+// 가운데 = 그 목록의 업무 (○ 완료 · 이름 · 아래 줄(목록 · 단계 n/m · 날짜 · 반복 · 메모) · ☆ 중요) · 완료됨 접기 · ＋ 작업 추가
+// 오른쪽 = 고른 업무 자세히 (이름 · 단계 추가 · 나의 하루에 추가 · 기한 · 반복 · 목록 · 메모 · 만든 날 · 삭제) — 고치면 바로 저장
+// 저장: 업무 d 에 list(목록 이름) · star(중요) · myDay(나의 하루에 넣은 날) 를 더함. 빈 목록 이름은 공유 기록 한 줄(통화 구분 '개인업무목록', 사람마다 하나)
+const TD_DEF='작업';
+const TD = { view: (()=>{ try{ return localStorage.getItem('sy_td_view')||'today'; }catch(_){ return 'today'; } })(), sel:null, showDone:false, newList:false };
+const tdSetView = v => { TD.view=v; TD.sel=null; try{ localStorage.setItem('sy_td_view', v); }catch(_){} };
+const tdHash = s => { let h=5381; for(const c of String(s)) h=((h*33) ^ c.codePointAt(0))>>>0; return h.toString(36); };
+const tdListRec = () => { const me=savedOwner(); return (cache||[]).find(r=>r.callType==='개인업무목록' && (r.owner||r.takenBy)===me) || null; };
+function tdLists(){ let saved=[]; try{ saved=(JSON.parse((tdListRec()||{}).history||'{}').lists)||[]; }catch(_){}
+  const used=etcMine().map(o=>o.d.list).filter(Boolean); return [...new Set([...saved, ...used])].filter(l=>l!==TD_DEF); }
+async function tdSaveLists(lists){ const me=savedOwner()||'', now=new Date().toISOString(), old=tdListRec();
+  const item={...(old||{}), id: old ? old.id : 'el'+tdHash(me), callType:'개인업무목록', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:`기타 개인 업무 목록 ${lists.join(', ')}`.slice(0,120), history:JSON.stringify({lists})};
+  await store.put(item); const i=cache.findIndex(x=>x.id===item.id); if(i>=0) cache[i]=item; else cache.push(item); }
+const tdIsDone = d => (!d.repeat || d.repeat==='none') ? !!(d.done||{})[d.due||d.start] : !!(d.stop && !etcNext(d, opsToday()));
+const tdDay = d => { const t=opsToday(), p=opsPending(d, t); return p[0] || etcNext(d, t) || d.due || d.start || t; };   // 체크하면 끝내는 날 (밀린 날이 있으면 그날부터)
+const tdInView = (o, v) => { const d=o.d, t=opsToday();
+  if(v==='today') return !tdIsDone(d) && (opsPending(d, t).length>0 || d.myDay===t);
+  if(v==='star') return !!d.star;
+  if(v==='planned') return !tdIsDone(d) && (!!d.due || (d.repeat && d.repeat!=='none'));
+  if(v==='list:'+TD_DEF) return !d.list || d.list===TD_DEF;
+  return v==='list:'+d.list; };
+const TD_SMART = [['today','☀','오늘 할 일'],['star','☆','중요'],['planned','▦','계획된 일정'],['list:'+TD_DEF,'⌂',TD_DEF]];
+const tdViewName = v => (TD_SMART.find(s=>s[0]===v)||[])[2] || v.replace(/^list:/,'');
+function tdRowHTML(o, done){
+  const d=o.d, t=opsToday(), day=tdDay(d), subs=d.subs||[], m=((d.subDone||{})[day])||{}, n=subs.filter(s=>m[s.id]).length, smart=!/^list:/.test(TD.view);
+  const late = !done && day<t, bits=[];
+  if(smart) bits.push(`<span class="td-lb">${esc(d.list||TD_DEF)}</span>`);
+  if(d.myDay===t && TD.view!=='today') bits.push('☀ 나의 하루');
+  if(subs.length) bits.push(`${n}/${subs.length}`);
+  if(!done) bits.push(`<span class="${late?'late':day===t?'today':''}">▦ ${day===t?'오늘':esc(opsDateLabel(day))}${late?' · 지남':''}</span>`);
+  if(d.repeat && d.repeat!=='none') bits.push('↻ '+esc(opsRepeatLabel(d)));
+  if(d.memo) bits.push('✎ 메모');
+  return `<li class="td-row${TD.sel===o.r.id?' on':''}${done?' done':''}" data-tdsel="${esc(o.r.id)}">`
+    + `<button type="button" class="td-ck${done?' on':''}" data-tdck="${esc(o.r.id)}|${done ? (d.due||d.start||'') : day}|${done?'undo':'do'}" title="${done?'완료 취소':'완료'}"></button>`
+    + `<div class="td-main"><div class="td-t">${esc(d.title)}</div>${bits.length?`<div class="td-sub">${bits.join(' · ')}</div>`:''}</div>`
+    + `<button type="button" class="td-star${d.star?' on':''}" data-tdstar="${esc(o.r.id)}" title="중요">${d.star?'★':'☆'}</button></li>`;
+}
+function tdDetailHTML(o){
+  const d=o.d, t=opsToday(), day=tdDay(d), subs=d.subs||[], m=((d.subDone||{})[day])||{}, done=tdIsDone(d), rep=d.repeat||'none', lists=[TD_DEF, ...tdLists()];
+  const made = o.r.saved ? (()=>{ const x=new Date(o.r.saved); return isNaN(x) ? '' : `${x.getMonth()+1}월 ${x.getDate()}일 ${DOW[x.getDay()]}요일에 생성됨`; })() : '';
+  return `<aside class="td-detail"><button type="button" class="td-x" data-tdclose title="닫기">×</button>`
+    + `<div class="td-card td-head"><button type="button" class="td-ck${done?' on':''}" data-tdck="${esc(o.r.id)}|${done?(d.due||d.start||''):day}|${done?'undo':'do'}"></button><textarea id="tdTitle" rows="1" data-ime="ko">${esc(d.title)}</textarea><button type="button" class="td-star${d.star?' on':''}" data-tdstar="${esc(o.r.id)}">${d.star?'★':'☆'}</button></div>`
+    + `<div class="td-card td-steps">${subs.map(s=>`<label class="td-step${m[s.id]?' on':''}"><input type="checkbox" data-etcsub="${esc(o.r.id)}|${day}|${esc(s.id)}"${m[s.id]?' checked':''}><span>${esc(s.title||s.t||'')}</span><button type="button" data-tdsubdel="${esc(s.id)}" title="단계 빼기">×</button></label>`).join('')}`
+    + `<input id="tdStepIn" class="td-addstep" placeholder="＋ 단계 추가" data-ime="ko" autocomplete="off"></div>`
+    + `<button type="button" class="td-card td-opt${d.myDay===t?' on':''}" data-tdmyday>☀ ${d.myDay===t?'나의 하루에 추가됨':'나의 하루에 추가'}</button>`
+    + `<div class="td-card">`
+    + (rep==='none' ? `<label class="td-opt">▦ 기한 <input type="date" id="tdDue" value="${esc(d.due||d.start||'')}"></label>` : `<label class="td-opt">▦ 시작 <input type="date" id="tdStart" value="${esc(d.start||'')}"></label>`)
+    + `<label class="td-opt">↻ 반복 <select id="tdRep">${REP_OPTS.map(([k,l])=>`<option value="${k}"${rep===k?' selected':''}>${l}</option>`).join('')}</select></label>`
+    + (rep==='weekly' ? `<div class="td-opt">${etcDowsHTML(d.dows, 'data-tddow')}</div>` : rep==='monthly' ? `<div class="td-opt">${etcDomHTML(d.dom, 'tdDom')}</div>` : '')
+    + `<label class="td-opt">≡ 목록 <select id="tdList">${lists.map(l=>`<option${(d.list||TD_DEF)===l?' selected':''}>${esc(l)}</option>`).join('')}</select></label></div>`
+    + `<textarea id="tdMemo" class="td-card td-memo" placeholder="메모 추가" data-ime="ko">${esc(d.memo||'')}</textarea>`
+    + `<div class="td-foot"><span>${esc(made)}</span><button type="button" class="btn" data-tddel>삭제</button></div></aside>`;
+}
+function todoHTML(){
+  const mine=etcMine(), lists=tdLists(), v=TD.view;
+  if(/^list:/.test(v) && v!=='list:'+TD_DEF && !lists.includes(v.slice(5))) tdSetView('today');
+  const cnt = vv => mine.filter(o=>tdInView(o, vv) && !tdIsDone(o.d)).length;
+  const navI = (vv, ic, name) => `<button type="button" class="td-nav${TD.view===vv?' on':''}" data-tdview="${esc(vv)}"><i>${ic}</i><span>${esc(name)}</span><b>${cnt(vv)||''}</b></button>`;
+  const inV=mine.filter(o=>tdInView(o, TD.view)), open=inV.filter(o=>!tdIsDone(o.d)), done=inV.filter(o=>tdIsDone(o.d));
+  const sortK = o => (o.d.star?'0':'1') + tdDay(o.d);
+  open.sort((a,b)=>sortK(a).localeCompare(sortK(b)) || String(a.d.title).localeCompare(String(b.d.title),'ko'));
+  const sel = TD.sel ? mine.find(o=>o.r.id===TD.sel) : null; if(TD.sel && !sel) TD.sel=null;
+  return `<div class="td${sel?' has-detail':''}">`
+    + `<nav class="td-side">${TD_SMART.map(s=>navI(...s)).join('')}<hr>${lists.map(l=>navI('list:'+l,'≡',l)).join('')}`
+    + (TD.newList ? `<input id="tdNewListIn" class="td-newin" placeholder="새 목록 이름 (Enter)" data-ime="ko" autocomplete="off">` : `<button type="button" class="td-nav td-newlist" data-tdnewlist><i>＋</i><span>새 목록</span></button>`) + `</nav>`
+    + `<section class="td-mid"><h3 class="td-title">${esc(tdViewName(TD.view))}${TD.view==='today'?` <small>${esc(opsDateLabel(opsToday()))}</small>`:''}</h3>`
+    + `<ul class="td-list">${open.map(o=>tdRowHTML(o,false)).join('') || '<li class="td-empty">할 일이 없습니다.</li>'}</ul>`
+    + (done.length ? `<button type="button" class="td-donebtn" data-tddone>${TD.showDone?'▾':'▸'} 완료됨 ${done.length}</button>${TD.showDone?`<ul class="td-list">${done.map(o=>tdRowHTML(o,true)).join('')}</ul>`:''}` : '')
+    + `<form class="td-add" id="tdAdd"><input id="tdAddIn" placeholder="＋ 작업 추가" data-ime="ko" autocomplete="off"></form></section>`
+    + (sel ? tdDetailHTML(sel) : '') + `</div>`;
+}
+// 바꾸고 바로 저장 (etcPut 이 다시 그림)
+const tdO = id => etcMine().find(x=>x.r.id===id);
+async function tdPut(id, patch, what){ const o=tdO(id); if(!o) return; await etcPut(o.r, {...o.d, ...patch}, what); }
+document.addEventListener('click', async e=>{
+  const t=e.target; if(!t.closest?.('.td')) return;
+  const v=t.closest('[data-tdview]'); if(v){ tdSetView(v.dataset.tdview); TD.newList=false; renderMy(); return; }
+  if(t.closest('[data-tdnewlist]')){ TD.newList=true; renderMy(); $('#tdNewListIn')?.focus(); return; }
+  if(t.closest('[data-tddone]')){ TD.showDone=!TD.showDone; renderMy(); return; }
+  if(t.closest('[data-tdclose]')){ TD.sel=null; renderMy(); return; }
+  const ck=t.closest('[data-tdck]'); if(ck){ e.stopPropagation(); const [id,day,how]=ck.dataset.tdck.split('|'), o=tdO(id); if(!o) return; const done={...(o.d.done||{})};
+    if(how==='do') done[day]={at:new Date().toISOString(), by:savedOwner()||''}; else delete done[day];
+    await tdPut(id, {done}, how==='do' ? `${day} 완료 (나의 할일)` : `${day} 완료 취소 (나의 할일)`); toast(how==='do' ? `「${o.d.title}」 완료했습니다.` : `「${o.d.title}」 완료를 취소했습니다.`); return; }
+  const st=t.closest('[data-tdstar]'); if(st){ e.stopPropagation(); const o=tdO(st.dataset.tdstar); if(o) await tdPut(o.r.id, {star:!o.d.star}, o.d.star?'중요 해제':'중요'); return; }
+  if(t.closest('[data-tdmyday]') && TD.sel){ const o=tdO(TD.sel); if(!o) return; const on=o.d.myDay===opsToday(); await tdPut(o.r.id, {myDay: on ? '' : opsToday()}, on?'나의 하루에서 뺌':'나의 하루에 추가'); return; }
+  const sd=t.closest('[data-tdsubdel]'); if(sd && TD.sel){ e.preventDefault(); const o=tdO(TD.sel); if(o) await tdPut(o.r.id, {subs:(o.d.subs||[]).filter(s=>s.id!==sd.dataset.tdsubdel)}, '단계 빼기'); return; }
+  const dw=t.closest('[data-tddow]'); if(dw && TD.sel){ const o=tdO(TD.sel); if(!o) return; const i=+dw.dataset.tddow, s=o.d.dows||[], dows=s.includes(i) ? s.filter(x=>x!==i) : [...s, i]; if(!dows.length){ toast('요일을 하나 이상 골라 주세요.'); return; } await tdPut(o.r.id, {dows}, '반복 요일'); return; }
+  if(t.closest('[data-tddel]') && TD.sel){ const id=TD.sel, o=tdO(id); if(!o) return;
+    askDelete(`「${o.d.title}」 업무를 삭제할까요? (반복 업무면 앞으로의 날짜도 모두 없어집니다)`, async()=>{ TD.sel=null; await store.del(id); cache=cache.filter(x=>x.id!==id); renderMy(); if(typeof paintMyCount==='function') paintMyCount(); toast(`「${o.d.title}」 삭제했습니다.`); }); return; }
+  const row=t.closest('[data-tdsel]'); if(row){ TD.sel = TD.sel===row.dataset.tdsel ? null : row.dataset.tdsel; renderMy(); return; }
+});
+document.addEventListener('change', async e=>{
+  const t=e.target; if(!t.closest?.('.td-detail') || !TD.sel) return; const o=tdO(TD.sel); if(!o) return;
+  if(t.id==='tdTitle'){ const v=t.value.trim(); if(!v){ t.value=o.d.title; toast('업무 이름을 적어 주세요.'); return; } if(v!==o.d.title) await tdPut(o.r.id, {title:v}, '이름 고침'); }
+  if(t.id==='tdMemo' && t.value!==(o.d.memo||'')) await tdPut(o.r.id, {memo:t.value}, '메모');
+  if(t.id==='tdDue' && t.value) await tdPut(o.r.id, {due:t.value}, '기한');
+  if(t.id==='tdStart' && t.value) await tdPut(o.r.id, {start:t.value}, '시작일');
+  if(t.id==='tdDom') await tdPut(o.r.id, {dom:t.value}, '반복 날짜');
+  if(t.id==='tdList') await tdPut(o.r.id, {list: t.value===TD_DEF ? '' : t.value}, `목록 → ${t.value}`);
+  if(t.id==='tdRep'){ const d={...o.d, repeat:t.value}; if(d.repeat==='weekly' && !(d.dows||[]).length) d.dows=[new Date().getDay()]; if(d.repeat==='monthly' && !d.dom) d.dom=String(new Date().getDate()); if(d.repeat!=='none' && !d.start) d.start=d.due||opsToday(); if(d.repeat==='none' && !d.due) d.due=d.start||opsToday();
+    await etcPut(o.r, d, `반복 ${opsRepeatLabel(d)}`); }
+});
+document.addEventListener('keydown', async e=>{
+  const t=e.target; if(e.key!=='Enter' || e.isComposing) return;
+  if(t.id==='tdStepIn'){ e.preventDefault(); const v=t.value.trim(); if(!v || !TD.sel) return; const o=tdO(TD.sel); if(!o) return; t.value='';
+    await tdPut(o.r.id, {subs:[...(o.d.subs||[]), {id:'s'+Date.now().toString(36), title:v}]}, '단계 추가'); $('#tdStepIn')?.focus(); return; }
+  if(t.id==='tdTitle'){ e.preventDefault(); t.blur(); return; }
+  if(t.id==='tdNewListIn'){ e.preventDefault(); const v=t.value.trim(); if(!v){ TD.newList=false; renderMy(); return; }
+    if(v===TD_DEF || ['오늘 할 일','중요','계획된 일정'].includes(v)){ toast('다른 이름을 적어 주세요.'); return; }
+    const lists=tdLists(); TD.newList=false; if(!lists.includes(v)) await tdSaveLists([...lists, v]); tdSetView('list:'+v); renderMy(); toast(`「${v}」 목록을 만들었습니다.`); $('#tdAddIn')?.focus(); return; }
+});
+document.addEventListener('focusout', e=>{ if(e.target.id==='tdNewListIn' && !e.target.value.trim()){ setTimeout(()=>{ if(TD.newList){ TD.newList=false; renderMy(); } }, 150); } });
+document.addEventListener('submit', async e=>{
+  if(e.target.id!=='tdAdd') return; e.preventDefault();
+  const inp=$('#tdAddIn'), title=inp.value.trim(); if(!title) return;
+  const me=savedOwner(); if(!me){ toast('이름이 있어야 추가할 수 있습니다.'); return; }
+  const today=opsToday(), v=TD.view, d={title, repeat:'none', owner:me, memo:'', subs:[], due:today};
+  if(/^list:/.test(v) && v!=='list:'+TD_DEF) d.list=v.slice(5);
+  if(v==='star') d.star=true;
+  if(v==='today') d.myDay=today;
+  const now=new Date().toISOString(), item={id:opsId(), callType:'개인업무', saved:now, takenBy:me, owner:me, summary:`${title} · ${opsRepeatLabel(d)}`.slice(0,120),
+    history:JSON.stringify({kind:'task', d, log:[{at:now, by:me, what:'추가 (나의 할일)'}]})};
+  inp.disabled=true;
+  try{ await store.put(item); if(!cache.some(x=>x.id===item.id)) cache.push(item); renderMy(); if(typeof paintMyCount==='function') paintMyCount(); $('#tdAddIn')?.focus(); toast(`「${title}」 추가했습니다${d.list?` · ${d.list}`:''}.`); }
+  catch(err){ inp.disabled=false; toast('추가하지 못했습니다: '+(err.code||err.message)); }
+});
+// 전체 탭 등에서 업무 앞에 붙이는 목록 이름
+const etcListBadge = d => `<span class="td-lb">${esc(d.list||TD_DEF)}</span> `;
 // 예약 현황 아래 그날 목록: 단체 예약에서 온 줄을 누르면 그 예약 열기 (고치던 것은 openRecordG 가 먼저 물어봄)
 document.addEventListener('click', e=>{ const li=e.target.closest?.('#dayAll li[data-bopen]'); if(!li || !li.dataset.bopen) return; const r=cache.find(x=>x.id===li.dataset.bopen); if(r) openRecordG(r); });
 $('#cancelWhyTxt')?.addEventListener('click', openCancel);   // 사유를 누르면 고치기
