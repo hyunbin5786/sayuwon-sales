@@ -39,16 +39,12 @@ function parseVisitors(text){
   const cols=[]; const sub=[...(trs[hi+1]||{children:[]}).children].map(td=>td.textContent.trim()); let si=0;
   [...trs[hi].children].forEach(td=>{ const n=+td.getAttribute('colspan')||1, h=td.textContent.replace(/\s/g,''); if(n>1) for(let i=0;i<n;i++) cols.push(h+'·'+(sub[si++]||i)); else cols.push(h); });
   const ix = re => cols.findIndex(c=>re.test(c));
-  const MEAL_UNIT=[[/사유의\s*밥상\(단체\)/,38000],[/몽몽마방\s*런치/,22000],[/몽몽마방\s*단품/,17000]];   // 1인 가격 (견적서 품목과 같음)
-  const C={ kind:ix(/^구분$/), date:ix(/^방문일/), name:ix(/^성명/), phone:ix(/^연락처/), at:ix(/^예약일시/), prog:ix(/^프로그램/), adult:ix(/어른/), student:ix(/학생/), pay:ix(/^결제수단/), note:ix(/^비고/), amt:ix(/^상품금액/) };
+  const C={ kind:ix(/^구분$/), date:ix(/^방문일/), name:ix(/^성명/), phone:ix(/^연락처/), at:ix(/^예약일시/), prog:ix(/^프로그램/), adult:ix(/어른/), student:ix(/학생/), pay:ix(/^결제수단/), note:ix(/^비고/) };
   const title=(doc.querySelector('title')||{}).textContent||'', head=trs.slice(0,hi).map(t=>t.textContent).join(' ');
   const rows=[];
   trs.slice(hi+1).forEach((tr,i)=>{ const tds=[...tr.children]; if(tds.length<cols.length-2 || !tds[C.name]) return; const name=tds[C.name].textContent.trim(); if(!name) return;
     const prods=cellLines(tds[C.prog]).filter(Boolean), ad=cellLines(tds[C.adult]).map(v=>+v||0), st=cellLines(tds[C.student]).map(v=>+v||0);
-    const amt=C.amt>=0 ? cellLines(tds[C.amt]).map(v=>+String(v).replace(/\D/g,'')||0) : [];
-    const items=prods.map((p,k)=>{ let n=(ad[k]||0)+(st[k]||0);
-      if(!n && amt[k]){ const u=MEAL_UNIT.find(([re])=>re.test(p)); if(u) n=Math.round(amt[k]/u[1]); }   // 몽몽마방 식사 줄은 전산에 인원이 0 → 상품금액 ÷ 1인 가격 (2026-11-19)
-      return {p, n}; });
+    const items=prods.map((p,k)=>({p, n:(ad[k]||0)+(st[k]||0)}));
     rows.push({ id:'x'+i, kind:tds[C.kind]?.textContent.trim()||'', date:(tds[C.date]?.textContent.match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/)||[]).slice(1).map((v,j)=>j?v.padStart(2,'0'):v).join('-'),
       name, phone:tds[C.phone]?.textContent.trim()||'', items, ppl: ad.reduce((s,v)=>s+v,0)+st.reduce((s,v)=>s+v,0),
       pay:cellLines(tds[C.pay]).filter(Boolean).join(', '), note:C.note>=0 ? tds[C.note].innerHTML.replace(/<\/p>|<br\s*\/?>/gi,' / ').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').replace(/(\s*\/\s*)+$/,'').trim() : '' });   // 비고: 문단은 ' / '로
