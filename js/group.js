@@ -456,7 +456,7 @@ function renderItems(force){
   box.dataset.sig=sig;
   box.innerHTML = (itemRows.length ? `<div class="it-head"><span>품목</span><span>가격 (1인 · 회당)</span><span>인원 · 수량</span><span>담당</span><span></span></div>` : '')
     + itemRows.map(k=>itemRowHTML(k, itemRows)).join('') + `<div id="erpExtra"></div>`
-    + `<div class="it-foot"><button type="button" class="btn it-add" data-iadd>＋ 항목 추가</button><span class="hint" style="margin:0">${itemRows.length?'':'사담 식사 · 몽몽마방 · 개별 프로그램 · 시간 프로그램 · 굿즈 중에서 고르세요'}</span><button type="button" class="mb-cat" data-open-cat>품목 · 가격 수정</button></div>`;
+    + `<div class="it-foot"><button type="button" class="btn it-add" data-iadd>＋ 항목 추가</button><span class="hint" style="margin:0">${itemRows.length?'':'사담 식사 · 몽몽마방 · 개별 프로그램 · 시간 프로그램 · 굿즈 중에서 고르세요'}</span></div>`;
   paintItemState(); paintItemPrices();
 }
 // 가격표를 예약 내역 아래로 합치고(할인 · 합계 · 전산 내역), 두 번째 열의 가격표 자리는 '그날 예약 현황'으로
@@ -464,7 +464,7 @@ function mergePriceLayout(){
   const dp=$('#dayPanel'), box=$('#itemsBox'); if(!dp || !box || $('#priceWrap')) return;
   const w=document.createElement('div'); w.id='priceWrap'; w.className='price-panel price-wrap';
   ['.disc-box','#selTitle','#priceBox','#erpBox','#priceAll','#priceSrc'].forEach(s=>{ const el=dp.querySelector(s); if(el) w.appendChild(el); });
-  const btns=$('#priceAllBtn')?.parentElement; if(btns) w.insertBefore(btns, $('#erpBox'));
+  const btns=$('#erpPasteBtn')?.parentElement; if(btns) w.insertBefore(btns, $('#erpBox'));
   box.after(w);
   $('#selTitle').textContent='할인 · 합계';
   const ph=$('#priceHint'); if(ph) box.closest('.grp')?.querySelector('.grp-t')?.appendChild(ph);   // "11/27(금) → 평일 가격"
@@ -2493,7 +2493,7 @@ function renderPrice(){
   const useErp = erpList.length>0;
   $('.disc-box').style.display = useErp ? 'none' : '';
   $('#selTitle').hidden = useErp; box.hidden = useErp;
-  $('#erpPasteBtn').textContent = useErp ? '전산 내역 다시 붙여넣기' : '전산 내역 붙여넣기';
+  $('#erpPasteBtn').textContent = '전산 내역 붙여넣기'; $('#erpPasteBtn').parentElement.hidden = useErp;   // 붙여넣은 뒤에는 전산 합계 제목 옆 「전산 내역 다시 붙여넣기」 (2026-11-19)
   priceInfo = null;
   if(useErp){ box.innerHTML=''; $('#priceHint').textContent = '전산 내역 기준'; }
   // 1) 선택한 항목
@@ -2546,7 +2546,7 @@ function fullPriceHTML(day, g){
   return html || '<p class="hint">견적서 사이트 품목을 불러오는 중입니다.</p>';
 }
 // 전체 가격표 보기 / 접기
-$('#priceAllBtn').onclick=()=>{ const a=$('#priceAll'), open=a.hidden; a.hidden=!open; $('#priceAllBtn').textContent = open ? '전체 가격표 접기' : '전체 가격표 보기'; $('#priceAllBtn').setAttribute('aria-expanded', open); renderPrice(); };
+if($('#priceAllBtn')) $('#priceAllBtn').onclick=()=>{ const a=$('#priceAll'), open=a.hidden; a.hidden=!open; $('#priceAllBtn').textContent = open ? '전체 가격표 접기' : '전체 가격표 보기'; $('#priceAllBtn').setAttribute('aria-expanded', open); renderPrice(); };
 // ===================== 전산 내역 붙여넣기 =====================
 // 사유원 전산의 상품 정보를 통째로 붙여넣으면 상품마다 방문일 · 상품 · 인원 · 상품금액 · 할인 · 금액으로 읽어 표로 보여 줌 (예약에 함께 저장)
 const wonNum = s => parseInt(String(s||'').replace(/[^\d]/g,''))||0;
@@ -2621,11 +2621,31 @@ function renderErp(){
   miss.forEach(x=>{ if(x.atMabang) return; tot+=x.m.amount; saw+=x.m.tf; shilla+=x.m.tx; });   // 전산에 없는 품목도 합계에 (품목 관리 가격)
   box.hidden=false;
   const missRows = miss.map(x=>`<tr class="erp-miss"><td colspan="4">${esc(itemName(x.key))} ${x.b.qty}${itemUnit(x.key)} <small class="hint" style="margin:0">전산에 없음 · 품목 관리 가격${x.atMabang?' · 마방에서 결제 (합계 제외)':''}</small>${[x.m.tf>0 && ` · 비과세(사유원) ${won(x.m.tf)}원`, x.m.tx>0 && ` · 과세(신라) ${won(x.m.tx)}원`].filter(Boolean).join('')}</td><td class="tot">${x.atMabang?`<s>${won(x.m.amount)}</s>`:won(x.m.amount)}</td></tr>`).join('');
-  box.innerHTML = `<div class="psec-t">전산 내역 합계 (${erpList.length}건${miss.length?` + 전산에 없는 ${miss.length}건`:''} · 상품별은 위 예약 내역 줄에) <button type="button" class="btn" id="erpClear" style="padding:1px 8px;font-size:11.5px;margin-left:6px" title="전산 내역을 지우면 예약 칸으로 계산한 금액으로 돌아갑니다">지우기</button></div>`
-    + `<table class="ptable sel">${missRows?`<tbody>${missRows}</tbody>`:''}`
-    + `<tfoot><tr><td colspan="4">${miss.length?'합계 (전산 + 전산에 없는 품목)':'전산 합계'}</td><td class="tot">${won(tot)}</td></tr><tr class="split-row"><td colspan="4">└ 사유원 (비과세${pi&&pi.free!=null?' · 전산 면세금액':''}${miss.some(x=>!x.atMabang&&x.m.tf)?' + 전산에 없는 품목':''})</td><td class="tot">${won(saw)}</td></tr><tr class="split-row"><td colspan="4">└ 신라 (과세${pi&&pi.taxable!=null?' · 전산 과세금액':''}${miss.some(x=>!x.atMabang&&x.m.tx)?' + 전산에 없는 품목':''})</td><td class="tot">${won(shilla)}</td></tr>${pi&&pi.total?`<tr class="split-row"><td colspan="4">전산 결제 ${esc([pi.state, pi.method].filter(Boolean).join(' · '))}</td><td class="tot">${won(pi.total)}</td></tr>`:''}</tfoot></table>`;
-  box.insertAdjacentHTML('beforeend', `<div class="erp-ck" title="예약 내용(할인 버튼 % · 기타 할인)으로 계산한 값과 전산 내역 비교">${erpCheckHTML(erpCheck())}</div>`);   // 대조: 할인 합계 · 총 금액
+  // 예약 내용 합계 | 전산 합계 2열로 비교 (2026-11-19 · 예전엔 전산 합계만 + 아래 글씨로 대조) · 「지우기」 대신 「전산 내역 다시 붙여넣기」
+  const c=erpCheck(), r=resTotals(), ok=(a,b)=>Math.abs((a||0)-(b||0))<1;
+  const mark = (a,b) => r ? `<td class="ck ${ok(a,b)?'ok':'bad'}">${ok(a,b)?'✓ 같음':`✗ ${won(Math.abs((a||0)-(b||0)))} 차이`}</td>` : '<td></td>';
+  const cell = v => `<td class="tot">${v==null?'-':won(v)}</td>`;
+  box.innerHTML = `<div class="psec-t">전산 내역 합계 (${erpList.length}건${miss.length?` + 전산에 없는 ${miss.length}건`:''} · 상품별은 위 예약 내역 줄에) <button type="button" class="btn" id="erpRepaste" style="padding:1px 8px;font-size:11.5px;margin-left:6px" title="사유원 전산의 상품 정보를 다시 복사해 붙여넣기">전산 내역 다시 붙여넣기</button></div>`
+    + (missRows ? `<table class="ptable sel"><tbody>${missRows}</tbody></table>` : '')
+    + `<table class="ptable erp-cmp"><thead><tr><th></th><th>예약 내용</th><th>전산</th><th></th></tr></thead><tbody>`
+    + `<tr class="sum"><td>총 금액</td>${cell(r&&r.tot)}${cell(t0.tot)}${mark(r&&r.tot, t0.tot)}</tr>`
+    + `<tr class="split-row"><td>└ 사유원 (비과세)</td>${cell(r&&r.saw)}${cell(t0.saw)}${mark(r&&r.saw, t0.saw)}</tr>`
+    + `<tr class="split-row"><td>└ 신라 (과세)</td>${cell(r&&r.shilla)}${cell(t0.shilla)}${mark(r&&r.shilla, t0.shilla)}</tr>`
+    + `<tr><td>할인 합계</td>${cell(r&&r.disc)}${cell(c.pasted?c.eDisc:null)}${mark(r&&r.disc, c.eDisc)}</tr>`
+    + (pi&&pi.total ? `<tr class="split-row"><td>전산 결제 ${esc([pi.state, pi.method].filter(Boolean).join(' · '))}</td><td></td>${cell(pi.total)}<td></td></tr>` : '')
+    + (miss.some(x=>!x.atMabang) ? `<tr class="split-row"><td>전산 + 전산에 없는 품목</td><td></td>${cell(tot)}<td></td></tr>` : '')
+    + `</tbody></table>`
+    + (!r ? `<p class="hint" style="margin:4px 0 0">예약 내용 합계는 방문일 · 품목 가격이 있어야 계산됩니다${c.why?` (${esc(c.why)})`:''}</p>` : (c.missing||[]).length ? `<p class="hint" style="margin:4px 0 0">예약 내용 합계에서 빠진 품목: ${esc(c.missing.join(', '))}</p>` : '');
 }
+// 예약 내용으로 계산한 합계 · 사유원(비과세) · 신라(과세) · 할인 (erpCheck 와 같은 계산 · 기타 할인 반영)
+function resTotals(){
+  if(!quoteCat || !rec.date) return null;
+  const plain={...rec, idamt:''}, {blocks}=quoteBlocks(rec); let tot=0, saw=0, shilla=0, disc=0;
+  blocks.forEach(b=>{ const m=blockMoney(b, plain); if(!m) return; tot+=m.amount; saw+=m.tf; shilla+=m.tx; disc+=m.full-m.amount; });
+  const es=etcSplit(rec); tot-=es.tx+es.tf; saw-=es.tf; shilla-=es.tx; disc+=es.tx+es.tf;
+  return {tot, saw, shilla, disc};
+}
+document.addEventListener('click', e=>{ if(e.target.id==='erpRepaste') $('#erpPasteBtn').click(); });
 // 전산 내역 → 예약 내용 칸: 관람 · 관람+사담 · 몽몽마방 메뉴 · 프로그램 · 굿즈 · 방문일 · 인원 · 기타 할인 · 특별 할인
 function erpFields(list){
   const o={}, goods=[], views=[], unknown=[], sp={}; let view=0, etc=0, etcTo='';

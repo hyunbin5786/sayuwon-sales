@@ -838,3 +838,12 @@ html.book-guest #bookBody tr{cursor:default}
 .etc-cat-h{font-size:13px;font-weight:700;color:var(--pine);margin:12px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--line)}
 .etc-cat-h small{font-weight:400;color:var(--muted)}
 .etc-cat-empty{margin:0 0 4px;font-size:12.5px}
+/* 전산 내역: 예약 내용 합계 | 전산 합계 비교 (2026-11-19) */
+.erp-cmp{width:100%;margin-top:6px}
+.erp-cmp th{font-size:12px;color:var(--muted);font-weight:600;text-align:right;padding:4px 6px}
+.erp-cmp th:first-child{text-align:left}
+.erp-cmp td{padding:6px;border-top:1px solid #eeebe3}
+.erp-cmp tr.sum td{font-weight:700;font-size:14.5px}
+.erp-cmp td.tot{text-align:right;white-space:nowrap}
+.erp-cmp td.ck{white-space:nowrap;font-size:12.5px;font-weight:700;text-align:right}
+.erp-cmp td.ck.ok{color:var(--pine)}.erp-cmp td.ck.bad{color:#b5442c}
