@@ -131,3 +131,14 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 /* 새로 조사(단체예약 목록에 없음): 줄 전체를 주황으로 (2026-11-19) */
 .out tbody tr.new td{background:#fdf0dc}
 .shot tr.new td{background:#fdf0dc}
+/* 입장문 추천 규칙 고치기 (2026-11-19) */
+.rules-bar{display:flex;align-items:center;gap:8px;margin-top:6px}
+.rules-bar .hint{flex:1;font-size:12px}
+.pmodal .rules-box{max-width:520px}
+.rules-box label{display:block;font-size:13px;font-weight:600;margin:10px 0 0}
+.rules-box label small{font-weight:400;color:var(--muted)}
+.rules-box select,.rules-box textarea,.rules-box input{display:block;margin-top:4px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13px var(--sans);width:100%;box-sizing:border-box}
+.rules-box .rl-n{display:flex;align-items:center;gap:6px;font-weight:400}
+.rules-box .rl-n input{width:90px;margin:4px 0 0;display:inline-block}
+.rules-box textarea{resize:vertical}
+.dm-btns .sp{flex:1}

@@ -23,7 +23,9 @@ const memoVal = (r, label) => { const p=String(r.memo||'').split(' / ').map(s=>s
 let groups = (()=>{ try{ return (JSON.parse(localStorage.getItem(GROUP_CACHE_LS)||'[]')||[]).filter(isConfirmed); }catch(_){ return []; } })();
 async function loadGroups(){
   if(!getKey()){ $('#keyBox').hidden=false; return; }
-  try{ const j=await callApi({action:'list'}); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true; if(state) build(false); }
+  try{ const j=await callApi({action:'list'}); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true;
+    const rr=(j.items||[]).find(r=>r.id===RULES_ID); if(rr){ rulesRow=rr; try{ rules=fixRules(JSON.parse(rr.history||'{}').rules); localStorage.setItem(RULES_LS, JSON.stringify(rules)); }catch(_){} }   // 입장문 추천 규칙 (모두 같게)
+    paintRules(); if(state) build(false); }
   catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('팀 비밀번호가 맞지 않습니다.'); } else toast('단체예약을 불러오지 못했습니다. 마지막으로 받은 목록으로 보여 줍니다.'); }
 }
 $('#keyBtn').onclick=()=>{ const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(KEY_LS, v); }catch(_){} $('#keyIn').value=''; loadGroups(); };
@@ -104,9 +106,16 @@ function autoLink(x, dg, used){
   return (ph.length>=9 && cands.find(r=>recPhones(r).includes(ph))) || cands.find(r=>recNames(r).some(n=>n && (n===nm || (pn && (n.includes(pn)||pn.includes(n)))))) || null;
 }
 const shortProd = p => { const m=p.match(/\(관람,\s*(.+)\)/); if(m) return m[1].replace(/^사담\s*/,'').replace(/^몽몽마방\s*/,'').replace(/\s/g,''); const t=p.match(/관람\((\d\d):00~18:00\)/); return t ? (t[1]==='13'?'오후 관람':'관람') : p; };
-const isTravel = s => /여행|투어|관광|트래블|tour|travel/i.test(s||'');
-const BIG_NAMES = ['해밀','아너드','군위시티투어'];
-const isBig = s => isTravel(s) || BIG_NAMES.some(b=>norm(s).includes(norm(b)));
+// ===================== 입장문 추천 규칙 (2026-11-19 · 고칠 수 있음) =====================
+// 공유 기록(calls)의 한 줄 id=gaterules (통화 구분 '입장문규칙')에 저장 → 모든 사람 화면에 같게. 이 브라우저에도 기억(sayuwon_gate_rules)
+const RULES_ID='gaterules', RULES_TYPE='입장문규칙', RULES_LS='sayuwon_gate_rules';
+const RULE_DEF = { base:'치허문', alt:'곡신문', win:30, indiv:15, big:['해밀','아너드','군위시티투어'], travel:['여행','투어','관광','트래블','tour','travel'] };
+const fixRules = o => { const r={...RULE_DEF, ...(o||{})}; if(!['치허문','곡신문'].includes(r.base)) r.base=RULE_DEF.base; r.alt = r.base==='치허문' ? '곡신문' : '치허문';
+  r.win=Math.max(0, parseInt(r.win)||0); r.indiv=Math.max(1, parseInt(r.indiv)||RULE_DEF.indiv); ['big','travel'].forEach(k=>{ r[k]=(Array.isArray(r[k])?r[k]:String(r[k]||'').split(/[,\n·]/)).map(s=>String(s).trim()).filter(Boolean); }); return r; };
+let rules = fixRules((()=>{ try{ return JSON.parse(localStorage.getItem(RULES_LS)||'null'); }catch(_){ return null; } })());
+let rulesRow = null;   // 공유 기록의 그 줄 (저장할 때 그대로 덮어씀)
+const isTravel = s => rules.travel.some(w=>String(s||'').toLowerCase().includes(w.toLowerCase()));
+const isBig = s => isTravel(s) || rules.big.some(b=>norm(s).includes(norm(b)));
 const isGroupName = s => /^[^()]+\(\s*(?!개인|대리)[가-힣A-Za-z ]{2,12}\s*\)\s*$/.test(String(s||'').trim());   // 「산청군청(고영현)」 = 단체명(담당자) → 단체 (2026-11-19)
 const fmtT = v => { const m=String(v||'').match(/(\d{1,2})\s*:?\s*(\d{2})/); return m ? `${String(+m[1]).padStart(2,'0')}:${m[2]}` : ''; };
 const toMin = t => { const m=fmtT(t).match(/(\d\d):(\d\d)/); return m ? +m[1]*60 + +m[2] : null; };
@@ -148,16 +157,17 @@ function build(fresh){
 }
 // ===================== ④ 입장문 추천 =====================
 function recommendGates(force){
-  const on=rows.filter(r=>r.on), W=30;
+  const on=rows.filter(r=>r.on), W=rules.win;
   const near = (a,b) => { const x=toMin(a.time), y=toMin(b.time); return x!=null && y!=null && Math.abs(x-y)<=W; };
   on.forEach(r=>{
-    let g='치허문', why='';
+    const B=rules.base, A=rules.alt;   // 기본 문 · 겹칠 때 보내는 문 (규칙에서 고침)
+    let g=B, why='';
     const bigNear = on.filter(o=>o!==r && o.travel && near(o,r)), grpNear = on.filter(o=>o!==r && o.group && near(o,r));
-    if(r.travel){ g='치허문'; why = isTravel(r.name) ? '여행사 → 치허문' : '대형 단체 → 치허문'; }
-    else if(!r.group){ if(r.ppl>=15){ g='곡신문'; why='15명 이상 개인 → 곡신문'; } else if(toMin(r.time)==null){ why='도착 시간 미정 → 치허문'; } else if(grpNear.length || bigNear.length){ g='곡신문'; why=`${(bigNear[0]||grpNear[0]).name} 와 시간 겹침 → 곡신문`; } else { why='단체와 안 겹침 → 치허문'; } }
-    else if(toMin(r.time)==null){ why='도착 시간 미정 → 치허문'; }
-    else if(bigNear.length){ g='곡신문'; why=`${bigNear.map(o=>o.name).slice(0,2).join(' · ')} 와 시간 겹침 → 곡신문`; }
-    else why='시간 안 겹침 → 치허문';
+    if(r.travel){ g=B; why = isTravel(r.name) ? `여행사 → ${B}` : `대형 단체 → ${B}`; }
+    else if(!r.group){ if(r.ppl>=rules.indiv){ g=A; why=`${rules.indiv}명 이상 개인 → ${A}`; } else if(toMin(r.time)==null){ why=`도착 시간 미정 → ${B}`; } else if(grpNear.length || bigNear.length){ g=A; why=`${(bigNear[0]||grpNear[0]).name} 와 시간 겹침 → ${A}`; } else { why=`단체와 안 겹침 → ${B}`; } }
+    else if(toMin(r.time)==null){ why=`도착 시간 미정 → ${B}`; }
+    else if(bigNear.length){ g=A; why=`${bigNear.map(o=>o.name).slice(0,2).join(' · ')} 와 시간 겹침 → ${A}`; }
+    else why=`시간 안 겹침 → ${B}`;
     // 단체예약에서 입장문을 정해 두었으면(고정) 그대로 · 아니면 추천 · 여기서 바꾸면 직접 (2026-11-19)
     const base = r.recGate || g;
     r.recGateAuto=base; r.gateWhy = r.recGate ? `단체예약에서 ${r.recGate}으로 정함` + (r.recGate!==g ? ` (추천은 ${g})` : '') : why;
@@ -244,6 +254,38 @@ $('#pngBtn').onclick=async()=>{
     toast('이미지로 저장했습니다.');
   }catch(_){ toast('이미지를 만들지 못했습니다.'); }
 };
+
+// ---- 입장문 추천 규칙: 보기(지금 규칙을 글로) · 고치기(팝업) (2026-11-19) ----
+function paintRules(){
+  const R=rules, big=R.big.join(' · ') || '(없음)', tr=R.travel.join(' · ') || '(없음)';
+  $('#rulesList').innerHTML = [
+    `기본은 <b>${R.base}</b>. 여행사(이름에 ${esc(tr)})와 대형 단체(${esc(big)})는 <b>${R.base}</b>`,
+    `여행사 · 대형 단체가 오는 시간(앞뒤 <b>${R.win}분</b>)에 겹치는 <b>다른 개별 단체</b>는 <b>${R.alt}</b>`,
+    `시간이 안 겹치면 단체 예약은 모두 <b>${R.base}</b>으로`,
+    `<b>${R.indiv}명 이상 개인고객</b>은 <b>${R.alt}</b> (단체와 안 겹치게). ${R.indiv}명 미만 개인고객은 단체와 시간이 겹치면 ${R.alt}, 아니면 ${R.base}`,
+    `도착 시간을 모르면 ${R.base} (시간을 넣으면 다시 추천)`,
+    `단체예약에서 입장문을 정해 두었으면 규칙보다 그 문이 먼저 (「예약 고정」)` ].map(s=>`<li>${s}</li>`).join('');
+  $('#rulesWho').textContent = rulesRow && rulesRow.takenBy ? `마지막으로 고친 사람 ${rulesRow.takenBy}${rulesRow.saved?` · ${String(rulesRow.saved).slice(0,10)}`:''}` : '처음 규칙';
+}
+function openRules(){
+  const R=rules; $('#rlBase').value=R.base; $('#rlWin').value=R.win; $('#rlIndiv').value=R.indiv; $('#rlBig').value=R.big.join(', '); $('#rlTravel').value=R.travel.join(', ');
+  $('#rlErr').textContent=''; $('#rulesModal').hidden=false; setTimeout(()=>$('#rlWin').focus(), 0);
+}
+async function saveRules(next){
+  if(!getKey()){ $('#rlErr').textContent='규칙을 모두에게 저장하려면 팀 비밀번호가 필요합니다 (위 칸에 넣고 연결).'; return; }
+  const now=new Date().toISOString(), item={ ...(rulesRow||{}), id:RULES_ID, callType:RULES_TYPE, saved:now, takenBy:user.name||'', summary:`입장문 추천 규칙 (기본 ${next.base} · ${next.win}분 · 개인 ${next.indiv}명)`, history:JSON.stringify({rules:next, at:now, by:user.name||''}) };
+  $('#rlSave').disabled=true;
+  try{ await callApi({action:'put', item}); rulesRow=item; rules=next; try{ localStorage.setItem(RULES_LS, JSON.stringify(rules)); }catch(_){}
+    $('#rulesModal').hidden=true; paintRules(); if(state) build(false); toast('입장문 추천 규칙을 저장했습니다 (모두에게 같게). 직접 바꾼 입장문은 그대로입니다.'); }
+  catch(e){ $('#rlErr').textContent = e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다.' : '저장하지 못했습니다. 잠시 뒤 다시 눌러 주세요.'; }
+  finally{ $('#rlSave').disabled=false; }
+}
+$('#rulesEdit').onclick=openRules;
+$('#rlClose').onclick=()=>{ $('#rulesModal').hidden=true; };
+$('#rlSave').onclick=()=>saveRules(fixRules({ base:$('#rlBase').value, win:$('#rlWin').value, indiv:$('#rlIndiv').value, big:$('#rlBig').value, travel:$('#rlTravel').value }));
+$('#rlReset').onclick=()=>{ const R=RULE_DEF; $('#rlBase').value=R.base; $('#rlWin').value=R.win; $('#rlIndiv').value=R.indiv; $('#rlBig').value=R.big.join(', '); $('#rlTravel').value=R.travel.join(', '); $('#rlErr').textContent='처음 규칙으로 채웠습니다. [저장]을 눌러야 바뀝니다.'; };
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#rulesModal').hidden) $('#rulesModal').hidden=true; });
+paintRules();
 
 if(state) build(false); else render();
 loadGroups();

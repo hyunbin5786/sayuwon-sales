@@ -6,7 +6,7 @@
 <title>다음날 고객 응대 준비 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261119b3">
+<link rel="stylesheet" href="css/prep.css?v=20261119c3">
 <link rel="stylesheet" href="css/mypop.css?v=20261116">
 <link rel="stylesheet" href="css/menu.css?v=20261119c1">
 </head>
@@ -48,14 +48,9 @@
   <section class="panel off print-me" id="p4">
     <h2><span class="step no-print">4</span>입장문 추천 · 응대 표 <small id="p4Sum"></small>
       <span class="right no-print"><button class="btn" id="reGate" title="추천 규칙으로 입장문을 다시 고름 (직접 바꾼 것도 다시)">입장문 다시 추천</button><button class="btn primary" id="xlsxBtn">엑셀로 내려받기</button><button class="btn primary" id="pngBtn" title="핸드폰에서 보기 좋은 좁은 폭의 그림 파일 (PNG)">이미지로 저장</button></span></h2>
-    <details class="no-print" style="margin:0 0 10px"><summary class="hint" style="cursor:pointer">입장문 추천 규칙 보기</summary>
-      <ul class="rules">
-        <li>기본은 <b>치허문</b>. 여행사(여행 · 투어 · 관광)와 해밀 · 아너드 · 군위시티투어는 <b>치허문</b></li>
-        <li>해밀 · 아너드 · 군위시티투어 · 여행사가 오는 시간(앞뒤 30분)에 겹치는 <b>다른 개별 단체</b>는 <b>곡신문</b></li>
-        <li>시간이 안 겹치면 단체 예약은 모두 <b>치허문</b>으로</li>
-        <li><b>15명 이상 개인고객</b>은 <b>곡신문</b> (단체와 안 겹치게). 15명 미만 개인고객은 단체와 시간이 겹치면 곡신문, 아니면 치허문</li>
-        <li>도착 시간을 모르면 치허문 (시간을 넣으면 다시 추천)</li>
-      </ul>
+    <details class="no-print" style="margin:0 0 10px"><summary class="hint" style="cursor:pointer">입장문 추천 규칙 보기 · 고치기</summary>
+      <ul class="rules" id="rulesList"></ul><!-- 지금 규칙 (js/prep.js paintRules) -->
+      <div class="rules-bar"><span class="hint" id="rulesWho"></span><button class="btn primary" id="rulesEdit" type="button">규칙 고치기</button></div>
     </details>
     <p class="out-legend no-print"><span><span class="src have">목록</span>단체예약 목록에 있는 단체 (예약 정보를 가져옴)</span><span><span class="src new">새로 조사</span>목록에 없음 — 연락처로 업체 · 도착 시간 · 차량 확인</span><span class="lg-gap"></span><span><span class="gsrc fixed">예약 고정</span>단체예약에서 정해 둔 입장문</span><span><span class="gsrc auto">추천</span>인원 · 도착 시간으로 추천</span><span><span class="gsrc hand">직접</span>여기서 바꿈</span></p>
     <div class="tw"><table class="out"><thead><tr><th id="outHead">날짜</th><th>인원(명)</th><th>도착시간</th><th>입장문</th><th>차량</th><th>연락처</th><th>비고</th></tr></thead><tbody id="outBody"></tbody><tfoot id="outFoot"></tfoot></table></div>
@@ -71,6 +66,20 @@
     <div class="dm-btns"><button class="btn" id="dmClose" type="button">닫기</button><button class="btn primary" id="dmPick" type="button">다른 파일 고르기</button></div>
   </section>
 </div>
+<!-- 입장문 추천 규칙 고치기 (2026-11-19 · 공유 기록에 저장 → 모두 같게) -->
+<div class="pmodal" id="rulesModal" hidden>
+  <section class="panel rules-box" role="dialog" aria-modal="true" aria-labelledby="rlTitle">
+    <h2 id="rlTitle">입장문 추천 규칙 고치기</h2>
+    <label>기본 문 <small>(여행사 · 대형 단체 · 안 겹치는 단체가 가는 문 — 겹치면 다른 문으로)</small>
+      <select id="rlBase"><option>치허문</option><option>곡신문</option></select></label>
+    <label>시간이 겹친다고 보는 범위 <small>(도착 시간 앞뒤 몇 분)</small><span class="rl-n"><input id="rlWin" type="number" min="0" step="5" inputmode="numeric">분</span></label>
+    <label>개인고객 기준 인원 <small>(이 인원 이상이면 다른 문)</small><span class="rl-n"><input id="rlIndiv" type="number" min="1" step="1" inputmode="numeric">명 이상</span></label>
+    <label>대형 단체 이름 <small>(쉼표로 나눔 · 이름에 들어 있으면)</small><textarea id="rlBig" rows="2" data-ime="ko"></textarea></label>
+    <label>여행사로 보는 글자 <small>(쉼표로 나눔 · 단체 이름에 들어 있으면 여행사)</small><textarea id="rlTravel" rows="2" data-ime="ko"></textarea></label>
+    <p class="err" id="rlErr"></p>
+    <div class="dm-btns"><button class="btn primary" id="rlReset" type="button">처음 규칙으로</button><span class="sp"></span><button class="btn" id="rlClose" type="button">닫기</button><button class="btn primary" id="rlSave" type="button">저장</button></div>
+  </section>
+</div>
 <div class="toast" id="toast"></div>
 <div id="shot" class="shot" aria-hidden="true"></div><!-- 이미지로 저장할 때만 그리는 좁은 표 (화면 밖) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
@@ -78,7 +87,7 @@
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/common.js?v=20261118"></script>
-<script src="js/prep.js?v=20261119c2"></script>
+<script src="js/prep.js?v=20261119c3"></script>
 <script src="js/mypop.js?v=20261118"></script>
 <script src="js/menu.js?v=20261119c1"></script>
 </body>
