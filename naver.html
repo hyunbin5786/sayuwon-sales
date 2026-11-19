@@ -674,8 +674,10 @@ async function readSheet(file){
     $('in2').value = '';
     runCheck();
   } catch (e) {
-    label.textContent = `⚠️ ${e.message} — 다시 시도해 주세요`;
-    toast(e.message);
+    // 엑셀 오류(비밀번호가 맞지 않음 등)면 바로 텍스트로 하기 단계로 (2026-11-20)
+    label.textContent = `⚠️ 엑셀 오류: ${e.message} — 텍스트로 하기로 넘어갔습니다`;
+    go(1); window.scrollTo(0, 0); setTimeout(() => $('inAll') && $('inAll').focus(), 0);
+    toast(`엑셀 오류 (${e.message}) · 네이버 예약 텍스트를 붙여넣어 명단을 만들어 주세요`);
   }
 }
 
