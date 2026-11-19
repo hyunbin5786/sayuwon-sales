@@ -180,4 +180,6 @@ main > #p0{grid-column:1 / -1}
 .save-st{font:400 12px var(--sans);color:var(--muted);align-self:center;margin-right:4px}
 .save-st.ok{color:var(--pine)}
 .save-st.wait{color:var(--amber)}
+.share-st{font:400 12px var(--sans);color:var(--muted);margin-left:10px}
+.share-st.ok{color:var(--pine)}.share-st.wait{color:var(--amber)}.share-st.bad{color:#b5442c}   /* 팀 공유 상태 (2026-11-19) */
 .save-st.bad{color:var(--red);font-weight:700}

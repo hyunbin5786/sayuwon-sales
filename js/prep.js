@@ -85,7 +85,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#dateModal'
 // 날짜 칸: 누르면 달력, 달력이 열린 뒤 한 번 더 누르면 직접 입력 (다른 화면의 방문일 칸과 같음)
 { const t=$('#prepDateTxt'), p=$('#prepDate'); let pickAt=0;
   t.addEventListener('click', ()=>{ if(!t.readOnly) return; if(Date.now()-pickAt<20000){ t.readOnly=false; t.select(); pickAt=0; return; } pickAt=Date.now(); try{ p.showPicker(); }catch(_){ p.focus(); } });
-  const setD = v => { if(!v) return; prepDate=v; paintPrepDate(); if(state && state.date!==prepDate) showDateModal(`읽어 둔 엑셀의 방문일은 <b>${esc(dLab(state.date))}</b>입니다. 준비할 날짜 <b>${esc(dLab(prepDate))}</b>의 방문자내역 엑셀로 바꿔 주세요.`); };
+  const setD = async v => { if(!v) return; prepDate=v; paintPrepDate(); if(state && state.date===prepDate) return; if(await pullShared(true)) return; if(state && state.date!==prepDate) showDateModal(`읽어 둔 엑셀의 방문일은 <b>${esc(dLab(state.date))}</b>입니다. 준비할 날짜 <b>${esc(dLab(prepDate))}</b>의 방문자내역 엑셀로 바꿔 주세요.`); };
   p.addEventListener('change', ()=>setD(p.value));
   t.addEventListener('blur', ()=>{ if(t.readOnly) return; t.readOnly=true; const v=SY.parseDateText(t.value); if(v) setD(v); else paintPrepDate(); });
   t.addEventListener('keydown', e=>{ if(e.key==='Enter') t.blur(); }); }
@@ -93,7 +93,48 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#dateModal'
 // ===================== 상태 (이 브라우저에만 · 새로고침해도 그대로) =====================
 const STATE_LS='sayuwon_prep_state';
 let state = (()=>{ try{ return JSON.parse(localStorage.getItem(STATE_LS)||'null'); }catch(_){ return null; } })();
-const saveState = () => { try{ localStorage.setItem(STATE_LS, JSON.stringify(state)); }catch(_){} };
+const saveState = () => { try{ localStorage.setItem(STATE_LS, JSON.stringify(state)); }catch(_){} sharePush(); };
+// ===================== 팀 공유 (2026-11-19): 준비할 날짜마다 공유 기록 한 줄 (id prepYYYYMMDD · 통화 구분 「응대준비」) =====================
+// 엑셀 · 고른 줄 · 연결 · 표에서 고친 것 · 연락 체크를 모두 → 누가 열어도 같은 내용. 고칠 때마다 1.5초 뒤 올리고, 30초마다 남이 고친 것을 받아 옴 (마지막에 저장한 것이 이김)
+const PREP_ID = d => 'prep'+String(d||'').replace(/\D/g,'');
+let pushT=null, lastLocalEdit=0, pushing=false;
+const shareSt = (txt, cls) => { const el=$('#shareSt'); if(el){ el.textContent=txt; el.className='share-st '+(cls||''); } };
+// 시트 칸 하나는 5만 자까지 → 엑셀 줄을 짧게 (상품 이름은 한 번만 적고 번호로) 2026-11-19
+function packState(st){ const P=[], pi=p=>{ let i=P.indexOf(p); if(i<0){ i=P.length; P.push(p); } return i; };
+  const R=st.rows.map(x=>[x.id, x.kind||'', x.name||'', x.phone||'', x.items.map(i=>[pi(i.p), i.n]), x.ppl||0, x.pay||'', x.note||'']);
+  const o={...st, rows:undefined, pk:2, P, R}; delete o.rows; return o; }
+function unpackState(o){ if(!o || o.pk!==2) return o; const st={...o}; delete st.pk; delete st.P; delete st.R;
+  st.rows=(o.R||[]).map(a=>({id:a[0], kind:a[1], date:o.date, name:a[2], phone:a[3], items:(a[4]||[]).map(([i,n])=>({p:o.P[i], n})), ppl:a[5], pay:a[6], note:a[7]})); return st; }
+function sharePush(){ if(!state || !getKey()) return; lastLocalEdit=Date.now(); clearTimeout(pushT); shareSt('팀에 올리는 중…', 'wait'); pushT=setTimeout(pushNow, 1500); }
+async function pushNow(){
+  if(!state || !getKey()) return; if(pushing){ pushT=setTimeout(pushNow, 1000); return; }
+  pushing=true; const at=new Date().toISOString(), by=user.name||'';
+  const st={...state, at, by}, body=JSON.stringify(packState(st));
+  if(body.length>48000){ shareSt('너무 커서 팀에 못 올림 (이 PC에만 저장)', 'bad'); pushing=false; return; }
+  try{ await callApi({action:'put', item:{id:PREP_ID(state.date), callType:'응대준비', saved:at, takenBy:by, owner:by, summary:`다음날 고객 응대 준비 ${state.date} · ${state.rows.length}건 · ${by}`.slice(0,120), history:body}});
+    state.at=at; state.by=by; try{ localStorage.setItem(STATE_LS, JSON.stringify(state)); }catch(_){}
+    shareSt(`팀과 공유됨 ${new Date(at).toTimeString().slice(0,5)}`, 'ok'); }
+  catch(e){ shareSt('팀에 못 올림 — 잠시 뒤 다시 올립니다', 'bad'); pushT=setTimeout(pushNow, 15000); }
+  finally{ pushing=false; }
+}
+// 공유된 것 받아 오기: 이 날짜의 공유 기록이 지금 화면 것보다 새로우면 바꿈 (방금 고치는 중이면 기다림)
+async function pullShared(force){
+  if(!getKey()) return false;
+  const d=prepDate; let j; try{ j=await callApi({action:'list'}); }catch(_){ return false; }
+  const r=(j.items||[]).find(x=>x.id===PREP_ID(d)); if(!r) return false;
+  let st=null; try{ st=unpackState(JSON.parse(r.history||'null')); }catch(_){} if(!st || !Array.isArray(st.rows)) return false;
+  const mine = state && state.date===d ? String(state.at||'') : '';
+  if(!force && mine && String(st.at||'')<=mine) return false;
+  if(!force && (Date.now()-lastLocalEdit<8000 || pushing)) return false;   // 고치는 중
+  if(document.activeElement && document.activeElement.closest && document.activeElement.closest('#outBody, #listBody') && !force) return false;
+  const was = state && state.date===d && state.at;
+  state=st; try{ localStorage.setItem(STATE_LS, JSON.stringify(state)); }catch(_){}
+  build(false); paintPrepDate(); shareSt(`팀과 공유됨 · ${st.by||''} ${st.at?new Date(st.at).toTimeString().slice(0,5):''}`, 'ok');
+  if(was && st.by && st.by!==(user.name||'')) toast(`${st.by}님이 고친 내용을 받아 왔습니다.`);
+  return true;
+}
+setInterval(()=>{ if(!document.hidden) pullShared(); }, 30000);
+window.addEventListener('focus', ()=>pullShared());
 
 // ===================== ② · ③ 목록 만들기 + 단체예약 연결 =====================
 const dayGroups = () => state ? groups.filter(r=>String(r.date||'').slice(0,10)===state.date) : [];
@@ -293,7 +334,13 @@ document.addEventListener('change', e=>{ const t=e.target;
   if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); if(f==='bus' || f==='car'){ t.value=t.value.replace(/\D/g,''); if(t.value==='0') t.value=''; }   /* 차량 대수: 숫자만 · 0은 빈칸 */ (state.edit[k] ||= {})[f]=t.value; saveState(); if(f==='time' || f==='ppl' || f==='name') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } render(); } scheduleAuto(); }   // 저장 안 한 수정 알림은 표를 다시 계산한 뒤 (2026-11-19)
 });
 document.addEventListener('input', e=>{ const t=e.target; if(t.tagName==='TEXTAREA' && t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; const r=rows.find(x=>x.key===k); if(r) r[f]=t.value; saveState(); scheduleAuto(); t.style.height='auto'; t.style.height=t.scrollHeight+'px'; } });
-document.addEventListener('click', e=>{ if(e.target.id==='clearBtn'){ if(!confirm('읽은 엑셀과 고친 내용을 지울까요?')) return; state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); } });
+// 지우기 (2026-11-19): 팀이 함께 쓰는 내용이라 바로 지우지 않고 확인 팝업 → 「지우기」를 한 번 더 눌러야 모두의 화면에서 지움
+document.addEventListener('click', e=>{ if(e.target.id==='clearBtn' && state){ $('#clrMsg').innerHTML=`<b>${esc(dLab(state.date))}</b> 엑셀 · 고른 줄 · 표에서 고친 내용 · 연락 체크를 지웁니다.<br>팀이 함께 보는 내용이라 <b>다른 사람 화면에서도 지워집니다.</b> (단체예약에 이미 올린 내용은 그대로)`; $('#clrModal').hidden=false; setTimeout(()=>$('#clrNo').focus(), 0); } });
+$('#clrNo').onclick=()=>{ $('#clrModal').hidden=true; };
+$('#clrYes').onclick=async()=>{ $('#clrModal').hidden=true; if(!state) return; const d=state.date; clearTimeout(pushT);
+  if(getKey()){ try{ await callApi({action:'del', id:PREP_ID(d)}); }catch(_){ toast('팀 공유 내용을 지우지 못했습니다. 잠시 뒤 다시 해 주세요.'); return; } }
+  state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); shareSt('', ''); toast(`${dLab(d)} 내용을 지웠습니다.`); };
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#clrModal').hidden) $('#clrModal').hidden=true; });
 // 표 내용 (엑셀 · 이미지 공통): 도착 시간 순
 function tableData(){ const s=state, list=rows.filter(r=>r.on).sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999)), total=s.rows.reduce((a,x)=>a+x.ppl,0);
   const head=[`${s.date.slice(2).replace(/-/g,'')}(${DOW[new Date(s.date+'T00:00').getDay()]}) ${total}명+@`,'인원(명)','도착시간','입장문','차량','연락처','비고'];
@@ -362,4 +409,4 @@ $("#saveEdits").onclick=onSaveClick;   // ③ 응대 표에서 고친 것 저장
 if(state) build(false); else render();
 loadGroups();
 paintPrepDate();
-if(state && state.date && state.date!==prepDate) showDateModal(`전에 읽어 둔 엑셀은 <b>${esc(dLab(state.date))}</b> 것입니다. 준비할 날짜 <b>${esc(dLab(prepDate))}</b>(내일)의 방문자내역 엑셀로 바꿔 주세요.`);   // 어제 넣은 파일이 남아 있으면
+pullShared(!!(state && state.date!==prepDate)).then(ok=>{ if(!ok && state && state.date && state.date!==prepDate) showDateModal(`전에 읽어 둔 엑셀은 <b>${esc(dLab(state.date))}</b> 것입니다. 준비할 날짜 <b>${esc(dLab(prepDate))}</b>(내일)의 방문자내역 엑셀로 바꿔 주세요.`); });   // 어제 넣은 파일이 남아 있으면 (팀이 이 날짜를 이미 준비해 두었으면 그것을 받아 옴)
