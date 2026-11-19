@@ -2067,7 +2067,7 @@ $('#taskList').addEventListener('change', e=>{
   if(id==='paycheck' && e.target.checked && !rec.linkSent){ e.target.checked=false; toast('결제링크 전송을 먼저 체크해 주세요. (결제링크를 보내기 전에는 입금 확인을 할 수 없습니다)'); return; }   // 결제링크 전송 전에는 입금 확인 불가
   if(id==='linksend' && !e.target.checked && rec.paidAt){ if(!confirm('결제링크 전송을 해제하면 입금 확인도 함께 해제됩니다. 계속할까요?')){ e.target.checked=true; return; } rec.paidAt=''; touched.add('paidAt'); const pc=tasks.find(x=>x.id==='paycheck'); if(pc){ pc.done=false; pc.doneAt=''; delete pc.manualDone; } }   // 결제링크를 다시 보낼 때: 입금 확인도 함께 해제
   t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
-  if(t.done) t.manualDone=1; else { delete t.manualDone; if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=false); (t.xsubs||[]).forEach(x=>x.done=false); }   // 위 체크 = 완료 (아래 하위 과업은 그대로, 다 체크될 때까지 접히지 않음) · 끄면 모두 해제 (2026-11-18)
+  if(t.done) t.manualDone=1; else { delete t.manualDone; if(taskDue(t)<todayYmd()){ t.due=todayYmd(); t.dueSet=1; t.dueSetAt=new Date().toISOString(); }   /* 다시 열면 마감이 지났어도 오늘 마감 (2026-11-19) */ if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=false); (t.xsubs||[]).forEach(x=>x.done=false); }   // 위 체크 = 완료 (아래 하위 과업은 그대로, 다 체크될 때까지 접히지 않음) · 끄면 모두 해제 (2026-11-18)
   if(id==='erp'){ rec.erp = t.done ? ymd(new Date()) : ''; touched.add('erp'); }
   if(id==='linksend' || id==='paycheck'){ const k=id==='linksend'?'linkSent':'paidAt'; rec[k] = t.done ? t.doneAt : ''; touched.add(k); paintFields(); }   // 과업 체크 = 예약 내용 버튼도 (일시 기록)
   if(id==='erpfix' && t.done){ const e=tasks.find(x=>x.id==='erp'); if(e) e.base=erpSnap(); t.changes=[]; }   // 전산에 고친 지금 내용을 기준으로
@@ -3291,7 +3291,27 @@ function todayDueHTML(){
       + `<input class="etc-subadd" data-etcsubadd="${esc(o.r.id)}" data-ime="ko" placeholder="＋ 세부 과업 (적고 Enter)" autocomplete="off"></div></li>`); });
   return `<h3 class="my-h sub">오늘 마감 <small>${rows.length}개</small></h3>` + (rows.length ? `<ul class="pc-list today-due">${rows.join('')}</ul>` : '<p class="hint">오늘 마감인 과업이 없습니다.</p>');
 }
-const myCk = (o, t) => !o.personal && SELF_DONE.has(t.id) ? `<span class="my-ck no" title="예약을 열어 처리하면 완료됩니다">·</span>` : `<label class="my-ck" title="체크하면 완료"><input type="checkbox" data-myck="${o.personal?'p':'g'}|${esc(o.r.id)}|${esc(t.id)}"></label>`;
+const myCk = (o, t) => !o.personal && SELF_DONE.has(t.id) ? `<label class="my-ck self" title="예약을 열어 처리하면 완료됩니다 (체크하면 그 예약을 엶)"><input type="checkbox" data-myopenck="1"></label>` : `<label class="my-ck" title="체크하면 완료"><input type="checkbox" data-myck="${o.personal?'p':'g'}|${esc(o.r.id)}|${esc(t.id)}"></label>`;   // 전산 예약 · 전산 내역 대조 · 담당 입력처럼 예약에서 끝나는 과업도 체크 칸 (체크하면 그 예약을 엶, 2026-11-19)
+document.addEventListener('change', e=>{ if(!(e.target.dataset && e.target.dataset.myopenck)) return; e.target.checked=false; toast('이 과업은 예약을 열어 처리하면 완료됩니다 (전산 내역 붙여넣기 · 칸 채우기).', 3200); e.target.closest('li')?.querySelector('.who')?.click(); });
+// 오늘 완료한 과업 (메인 1열 오늘 마감 아래): 체크를 풀면 다시 열림 — 마감이 지났으면 마감 = 오늘 (2026-11-19)
+function doneTodayHTML(){
+  const today=ymd(new Date()), me=savedOwner(), isToday = s => { const x=new Date(s||''); return !isNaN(x) && ymd(x)===today; }, rows=[];
+  (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).tasks.filter(t=>t.done && !t.removed && !SELF_DONE.has(t.id) && isToday(t.doneAt)).forEach(t=>rows.push(`<li class="r my-tg done" data-myopen="${esc(r.id)}"><span class="who"><span class="my-task"><label class="my-ck" title="체크를 풀면 다시 열림 (마감 = 오늘)"><input type="checkbox" checked data-myunck="g|${esc(r.id)}|${esc(t.id)}"></label> <span class="tag">단체</span> <b>${esc(r.org||r.contact||'(업체 미정)')}</b> · <s>${esc(t.title)}</s></span></span></li>`)));
+  (cache||[]).filter(r=>isPersonalRec(r) && (r.owner||r.takenBy)===me).forEach(r=>{ let ts=[]; try{ ts=(JSON.parse(r.history||'{}').tasks)||[]; }catch(_){} ts.filter(t=>t.done && isToday(t.doneAt)).forEach(t=>rows.push(`<li class="r my-tg done" data-popen="${esc(r.id)}"><span class="who"><span class="my-task"><label class="my-ck" title="체크를 풀면 다시 열림 (마감 = 오늘)"><input type="checkbox" checked data-myunck="p|${esc(r.id)}|${esc(t.id)}"></label> <span class="tag">개인</span> <b>${esc(r.contact||'(이름 없음)')}</b> · <s>${esc(t.title)}</s></span></span></li>`)); });
+  etcMine().forEach(o=>Object.entries(o.d.done||{}).filter(([,v])=>isToday(v&&v.at)).forEach(([day])=>rows.push(`<li class="my-etc done"><span class="who"><span class="my-task"><label class="my-ck" title="체크를 풀면 완료 취소"><input type="checkbox" checked data-etcundo="${esc(o.r.id)}|${day}"></label> <span class="tag">${esc(catLabel(etcCatOf(o.d))||ETC_NOCAT)}</span> <s>${esc(o.d.title)}</s></span></span></li>`)));
+  return rows.length ? `<details class="etc-more done-today"><summary>오늘 완료한 과업 ${rows.length}개 (체크를 풀면 다시 열림)</summary><ul class="pc-list">${rows.join('')}</ul></details>` : '';
+}
+document.addEventListener('change', async e=>{ const v=e.target.dataset && e.target.dataset.myunck; if(!v || e.target.checked) return; const [kind,id,tid]=v.split('|'), today=todayYmd(), now=new Date().toISOString(); e.target.disabled=true;
+  const reopen = t => { t.done=false; t.doneAt=''; delete t.manualDone; delete t.doneBy; if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=false); (t.xsubs||[]).forEach(x=>x.done=false); if((t.due||'')<today){ t.due=today; t.dueSet=1; t.dueSetAt=now; } };
+  try{
+    if(kind==='g'){
+      if(editingId===id){ const t=tasks.find(x=>x.id===tid); if(t){ reopen(t); renderTasks(); renderSide(); await save({auto:true}); } }
+      else { const r=cache.find(x=>x.id===id); if(!r) return; const ph=parseHist(r), t=ph.tasks.find(x=>x.id===tid); if(!t) return; reopen(t); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료 취소`});
+        const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item; }
+    } else { const r=cache.find(x=>x.id===id); if(!r) return; let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const t=(h.tasks||[]).find(x=>x.id===tid); if(!t) return; reopen(t);
+      const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item; }
+    toast('다시 열었습니다 (마감 = 오늘).'); paintMyCount(); renderMy();
+  }catch(err){ e.target.disabled=false; e.target.checked=true; toast('되돌리지 못했습니다: '+(err.code||err.message)); } });
 document.addEventListener('change', async e=>{ const v=e.target.dataset && e.target.dataset.myck; if(!v || !e.target.checked) return; const [kind,id,tid]=v.split('|'); e.target.disabled=true;
   try{
     if(kind==='g') await doneTask(id, tid);
@@ -3372,7 +3392,7 @@ function renderMy(){ paintMySet();
   const colSel = (n, v) => `<label class="my-colpick">구분 <select data-mycol="${n}">${order.map(c=>`<option value="${esc(c)}"${c===v?' selected':''}>${esc(catLabel(c))}</option>`).join('')}</select></label>`;
   const v2=pick(2), v3=pick(3);
   $('#mySum').textContent = `개인예약 ${nP} · 단체예약 ${nG} · 기타 개인 업무 ${myEtcOpen().length}개`;
-  $('#myBody').innerHTML = `<div class="my-cols three"><div class="my-col"><h3 class="my-h">개인 업무 입력</h3>${etcAddHTML()}${todayDueHTML()}</div><div class="my-col">${colSel(2, v2)}${secOf(v2)}</div><div class="my-col">${colSel(3, v3)}${secOf(v3)}</div></div>`;
+  $('#myBody').innerHTML = `<div class="my-cols three"><div class="my-col"><h3 class="my-h">개인 업무 입력</h3>${etcAddHTML()}${todayDueHTML()}${doneTodayHTML()}</div><div class="my-col">${colSel(2, v2)}${secOf(v2)}</div><div class="my-col">${colSel(3, v3)}${secOf(v3)}</div></div>`;
 }
 document.addEventListener('change', e=>{ const n=e.target.dataset && e.target.dataset.mycol; if(!n) return; try{ localStorage.setItem('sy_my_col'+n, e.target.value); }catch(_){} renderMy(); });
 function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
@@ -3876,8 +3896,8 @@ document.addEventListener('change', async e=>{
     if(all && !done[day]) done[day]={at:now, by:me, auto:1}; if(!all && done[day] && done[day].auto) delete done[day];
     await etcPut(o.r, {...d, subDone:sd, done}, `${day} 세부 과업 ${e.target.checked?'체크':'해제'}`); if(all) toast(`「${d.title}」 세부 과업을 모두 끝내 그날 완료로 표시했습니다.`); return; }
   const [id,day]=v.split('|'), o=etcMine().find(x=>x.r.id===id); if(!o) return; const done={...(o.d.done||{})};
-  if(e.target.dataset.etcdone) done[day]={at:now, by:me}; else delete done[day];
-  e.target.disabled=true; await etcPut(o.r, {...o.d, done}, e.target.dataset.etcdone ? `${day} 완료 (나의 할일)` : `${day} 완료 취소 (나의 할일)`);
+  let due2=null; if(e.target.dataset.etcdone) done[day]={at:now, by:me}; else { delete done[day]; const t0=opsToday(); if((!o.d.repeat || o.d.repeat==='none') && day<t0) due2=t0; }   // 다시 열면 마감이 지났어도 오늘 (반복 없는 업무, 2026-11-19)
+  e.target.disabled=true; await etcPut(o.r, {...o.d, done, ...(due2 ? {due:due2} : {})}, e.target.dataset.etcdone ? `${day} 완료 (나의 할일)` : `${day} 완료 취소 (나의 할일)`);
   toast(e.target.dataset.etcdone ? `「${o.d.title}」 완료로 표시했습니다.` : `「${o.d.title}」 완료를 취소했습니다.`);
 });
 // 짧은 해시 (주간 점검 기록 id)

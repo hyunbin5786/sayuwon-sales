@@ -169,7 +169,7 @@ $('#taskList').addEventListener('change', e=>{ const d=e.target.dataset;
   if(d.xsub){ const [tid,xid]=d.xsub.split('|'), t=taskOf(tid), x=t&&(t.xsubs||[]).find(s=>s.id===xid); if(!x) return; x.done=e.target.checked;
     const all=(t.xsubs||[]).every(s=>s.done); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=user.name||''; } if(!all && t.done && !t.manualDone){ t.done=false; t.doneAt=''; } taskChanged(); return; }   // 세부 과제가 모두 끝나면 완료 (위 체크로 끝낸 과업은 그대로)
   if(d.tdue){ const t=taskOf(d.tdue); if(t && e.target.value){ t.due=e.target.value; t.dueSet=1; taskChanged(); } return; }
-  if(d.tk){ const t=taskOf(d.tk); if(!t) return; t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():''; t.doneBy=t.done?(user.name||''):''; if(t.done) t.manualDone=1; else { delete t.manualDone; (t.xsubs||[]).forEach(x=>x.done=false); } taskChanged(); }   // 위 체크 = 완료 (세부 과제는 그대로, 다 체크될 때까지 접히지 않음)
+  if(d.tk){ const t=taskOf(d.tk); if(!t) return; t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():''; t.doneBy=t.done?(user.name||''):''; if(t.done) t.manualDone=1; else { delete t.manualDone; if((t.due||'')<todayYmd()){ t.due=todayYmd(); t.dueSetAt=new Date().toISOString(); }   /* 다시 열면 오늘 마감 (2026-11-19) */ (t.xsubs||[]).forEach(x=>x.done=false); } taskChanged(); }   // 위 체크 = 완료 (세부 과제는 그대로, 다 체크될 때까지 접히지 않음)
 });
 $('#taskList').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; const d=b.dataset;
   if(d.tsave){ document.activeElement?.blur(); setTimeout(()=>{ if(cur){ taskSave(); paintForm(); toast('저장했습니다.'); } else save(); },0); return; }   // 과업마다 「저장」 (새 통화면 통화 전체 저장)
