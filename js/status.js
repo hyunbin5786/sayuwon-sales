@@ -134,12 +134,29 @@
     save(); imgRes=null; paintImgBox(); render();
     toast([put.length?`네이버 인원을 넣었습니다 (${put.join(' · ')})`:'', wait.length?`${wait.join(' · ')}: 그 날짜 방문자내역을 넣으면 들어갑니다`:''].filter(Boolean).join(' · ') || '넣을 날짜가 없습니다.');
   });
+  // ---------- 네이버 엑셀을 못 읽으면 (2026-11-19): 팝업에서 날짜마다 오전 · 오후 네이버 인원을 직접 ----------
+  let manRows=[];   // [{date, am, pm}]
+  function openNaverManual(why){
+    const ds=[...new Set(st.days.map(d=>d.date))].sort(); manRows=(ds.length?ds:[SY.ymd(new Date(Date.now()+864e5))]).map(date=>{ const v=st.naver[date]||{}; return {date, am:v.am??'', pm:v.pm??''}; });
+    $('#nvManMsg').textContent = `${why ? `네이버 엑셀을 읽지 못했습니다 (${why}). ` : ''}네이버 예약 화면을 보고 날짜마다 오전 · 오후 확정 인원을 넣으면 그 날짜의 「네이버」 칸에 들어갑니다.`;
+    paintMan(); $('#nvManModal').hidden=false; setTimeout(()=>$('#nvManBody input[data-man$="|am"]')?.focus(), 0); }
+  function paintMan(){ $('#nvManBody').innerHTML = manRows.map((r,i)=>`<tr><td><input type="date" data-man="${i}|date" value="${esc(r.date)}"></td><td><input class="n" inputmode="numeric" data-man="${i}|am" value="${esc(String(r.am))}" placeholder="0"></td><td><input class="n" inputmode="numeric" data-man="${i}|pm" value="${esc(String(r.pm))}" placeholder="0"></td><td>${manRows.length>1?`<button type="button" class="btn sm" data-mandel="${i}" title="이 날짜 빼기">×</button>`:''}</td></tr>`).join(''); }
+  document.addEventListener('input', e=>{ const m=e.target.dataset && e.target.dataset.man; if(!m) return; const [i,f]=m.split('|'); if(f!=='date') e.target.value=e.target.value.replace(/\D/g,''); manRows[+i][f]=e.target.value; });
+  document.addEventListener('click', e=>{ const d=e.target.closest && e.target.closest('[data-mandel]'); if(d){ manRows.splice(+d.dataset.mandel,1); paintMan(); } });
+  $('#nvManAdd').onclick=()=>{ const last=manRows[manRows.length-1]; let nd=SY.ymd(new Date()); if(last && last.date){ const x=new Date(last.date+'T00:00'); x.setDate(x.getDate()+1); nd=SY.ymd(x); } manRows.push({date:nd, am:'', pm:''}); paintMan(); };
+  $('#nvManNo').onclick=()=>{ $('#nvManModal').hidden=true; };
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#nvManModal').hidden) $('#nvManModal').hidden=true; });
+  $('#nvManOk').onclick=()=>{ const put=[], wait=[];
+    manRows.filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.date) && (r.am!=='' || r.pm!=='')).forEach(r=>{ st.naver[r.date]={am:+r.am||0, pm:+r.pm||0, extra:{}, src:'manual'}; const d=st.days.find(x=>x.date===r.date); if(d){ applyNaver(d); put.push(dLab(r.date)); } else wait.push(dLab(r.date)); });
+    if(!put.length && !wait.length){ toast('넣을 인원을 적어 주세요.'); return; }
+    $('#nvManModal').hidden=true; save(); render();
+    toast([put.length?`네이버 인원을 넣었습니다 (${put.join(' · ')})`:'', wait.length?`${wait.join(' · ')}: 그 날짜 방문자내역을 넣으면 들어갑니다`:''].filter(Boolean).join(' · ')); };
   const PW_LS='sayuwon.xlsxPassword';   // 네이버 이관 화면과 같은 곳에 기억
   try{ $('#nvPw').value=localStorage.getItem(PW_LS)||''; }catch(_){}
   let pendingNaver=[];   // 비밀번호가 없어서 못 읽은 파일 → 비밀번호를 넣으면 다시
   const isNaverFile = h => (h[0]===0x50 && h[1]===0x4b) || (h[0]===0xd0 && h[1]===0xcf);   // .xlsx (비밀번호 걸린 것 포함)
   async function readFiles(files){
-    $('#fileErr').textContent=''; const got=[], errs=[], nvGot=[];
+    $('#fileErr').textContent=''; const got=[], errs=[], nvGot=[]; let nvFail='';   // nvFail: 네이버 엑셀을 못 읽은 이유 → 직접 입력 팝업
     for(const f of files){
       try{ const buf=await f.arrayBuffer(), h=new Uint8Array(buf.slice(0,4));
         if(isNaverFile(h)){
@@ -149,7 +166,8 @@
             if(pw) try{ $('#nvKeep').checked ? localStorage.setItem(PW_LS, pw) : localStorage.removeItem(PW_LS); }catch(_){}
             Object.entries(days).forEach(([date,v])=>{ st.naver[date]=v; nvGot.push(date); const d=st.days.find(x=>x.date===date); if(d) applyNaver(d); });
             pendingNaver=pendingNaver.filter(x=>x!==f);
-          }catch(e){ if(e.code==='need_pw' || /비밀번호/.test(e.message)){ if(!pendingNaver.includes(f)) pendingNaver.push(f); $('.in-opts').classList.add('need'); $('#nvPw').focus(); } throw e; }
+          }catch(e){ if(e.code==='need_pw' || /비밀번호/.test(e.message)){ if(!pendingNaver.includes(f)) pendingNaver.push(f); $('.in-opts').classList.add('need'); $('#nvPw').focus(); throw e; }
+            pendingNaver=pendingNaver.filter(x=>x!==f); nvFail=e.message||'알 수 없는 오류'; continue; }   // 비밀번호 말고 다른 오류 → 끝나고 직접 입력 팝업 (2026-11-19)
           continue;
         }
         const v=parse(new TextDecoder('utf-8').decode(buf)); const day=buildDay(v);
@@ -163,6 +181,7 @@
       nvShown.length ? `네이버 인원을 넣었습니다 (${nvShown.map(dLab).join(' · ')})` : '',
       nvWait.length ? `네이버 ${nvWait.map(dLab).join(' · ')}: 그 날짜 방문자내역을 넣으면 들어갑니다` : '' ].filter(Boolean);
     if(msg.length) toast(msg.join(' · '));
+    if(nvFail) openNaverManual(nvFail);
   }
   $('#nvPw').addEventListener('keydown', e=>{ if(e.key==='Enter' && pendingNaver.length){ e.preventDefault(); readFiles(pendingNaver.slice()); } });
   $('#nvPw').addEventListener('change', ()=>{ if(pendingNaver.length && $('#nvPw').value) readFiles(pendingNaver.slice()); });
@@ -189,6 +208,7 @@
   // 날짜 아래 네이버 엑셀 요약 (몇 건 · 전액환불 · 일부 환불 · 확인할 것)
   const naverSum = date => { const v=st.naver[date];
     if(!v) return `<p class="nv-sum">네이버: 예약자관리 엑셀이나 사진을 아직 넣지 않음 (넣거나 「네이버」 칸에 직접)</p>`;
+    if(v.src==='manual') return `<p class="nv-sum">네이버 직접 입력: 오전 <b>${v.am}</b>명 · 오후 <b>${v.pm}</b>명</p>`;
     if(v.src==='img') return `<p class="nv-sum">네이버 사진: 오전 <b>${v.am}</b>명 · 오후 <b>${v.pm}</b>명${Object.entries(v.extra||{}).map(([c,n])=>` · ${esc(c)} <b>${n}</b>명`).join('')} (사진의 확정 인원)</p>`;
     return `<p class="nv-sum">네이버 엑셀: 예약 ${v.n}건 → 오전 <b>${v.am}</b>명 · 오후 <b>${v.pm}</b>명${v.full?` · 전액환불 ${v.full}건 뺌`:''}${v.partial?` · 일부 환불 ${v.partial}건 인원 뺌`:''}`
       + (v.check||[]).map(c=>`<span class="warn">⚠ ${esc(c)}</span>`).join('') + `</p>`; };
