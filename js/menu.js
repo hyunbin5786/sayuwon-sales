@@ -10,7 +10,7 @@
   const I = (href, b, s, go) => ({href:base+href, b, s, go});
   const G = [
     {k:'book', t:'예약보조', login:1, items:[ {sub:'고객응대 접수'}, I('personal.html','개인고객 전화응대'), I('group.html','단체고객 전화응대'),
-      {sub:'고객 응대 보조'}, I('naver.html','네이버 예약 → 사유원 전산 이관'), I('prep.html','다음날 고객 응대 준비'), I('document/','견적서 / 거래명세서 발급'), I('status.html','예약 현황 공유'), {...I('ment.html','전화응대 멘트'), guest:1} ]},   // guest: 로그인하지 않아도 보이는 항목 (2026-11-18)
+      {sub:'고객 응대 보조'}, I('status.html','예약 현황 공유'), I('naver.html','네이버 예약 → 사유원 전산 이관'), {sep:1}, {...I('ment.html','전화응대 멘트'), guest:1}, I('document/','견적서 / 거래명세서 발급'), {sep:1}, I('prep.html','다음날 고객 응대 준비') ]},   // guest: 로그인하지 않아도 보이는 항목 (2026-11-18) · sep: 가로줄 = 아침 · 일과 중 · 하루 마무리에 하는 일 구분 (2026-11-19)
     {k:'ops', t:'운영보조', items:[ {sub:'예약현황 공유'}, {chips:[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']]},
       {...I('ops.html?p=lost','분실물 찾기'), login:1}, {...I('ops.html?p=accident','사고현황 접수'), login:1}, {...I('ops.html?p=stock','재고확인'), login:1}, {...I('ops.html?p=ship','스마트스토어 발송 보고'), login:1} ]},
     {k:'set', t:'기타 설정', login:1, items:[ I('./#catalog','품목관리','', 'catalog'), I('./#members','멤버관리','', 'members') ]},
@@ -22,7 +22,7 @@
     if(!q) return p!=='group.html' || (!hereQ.get('my') && !hereQ.get('book'));
     return [...new URLSearchParams(q)].every(([k,v])=>hereQ.get(k)===v); };
   const isHomePg = herePath==='index.html';   // 첫 화면: 메뉴를 고르러 오는 곳 → 로그인했으면 메뉴를 펼친 채로 (묶음도 모두 펼침)
-  const itemHTML = it => it.sub ? `<div class="sm-sub">${esc(it.sub)}</div>`
+  const itemHTML = it => it.sep ? (logged ? '<hr class="sm-sep">' : '') : it.sub ? `<div class="sm-sub">${esc(it.sub)}</div>`
     : it.chips ? `<div class="sm-chips">${it.chips.map(([k,l])=>`<a class="sm-chip" href="${base}group.html?book=${k}">${esc(l)}</a>`).join('')}</div>`
     : (it.login && !logged) ? ''
     : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}</b></a>`;   // 메뉴 아래 회색 설명은 없앰 (2026-11-18)

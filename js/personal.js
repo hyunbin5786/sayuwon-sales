@@ -447,7 +447,28 @@ paintForm(); renderLists(); paintSync(); tryOpen(); flush();
 
 // ===== 삭제 확인 팝업 (추후 과업 삭제 등): 「정말로 삭제할 건가요?」 → 삭제 · 취소 (Enter = 삭제, Esc = 취소) =====
 let askOk=null;
-function askDelete(msg, ok){ askOk=ok; document.getElementById('askMsg').textContent=msg; document.getElementById('askModal').hidden=false; setTimeout(()=>document.getElementById('askNo').focus(),0); }
+function askDelete(msg, ok, title='삭제 확인', yes='삭제'){ askOk=ok; document.getElementById('askTitle').textContent=title; document.getElementById('askYes').textContent=yes; document.getElementById('askMsg').textContent=msg; document.getElementById('askModal').hidden=false; setTimeout(()=>document.getElementById('askNo').focus(),0); }
+// ===== 단체고객 전화응대로 변경 (2026-11-19): 듣다 보니 단체 문의인 통화 → 같은 기록을 단체 예약(예약상담)으로 바꿔 단체 화면에서 이어서 =====
+// 성함 · 연락처 · 방문일 · 인원 · 문의 내용(메모) · 지금까지 기록은 그대로, 개인고객 자동 과업(문의 처리)은 뺌, 영업 담당 = 바꾼 사람
+async function toGroup(){
+  if(!hasContent()){ toast('문의 내용이나 고객 정보를 넣어 주세요.'); return; }
+  if(!getKey()){ toast('팀 비밀번호를 먼저 넣어 주세요.'); return; }
+  clearTimeout(autoT);
+  const it=toItem(), now=new Date().toISOString();
+  let h={}; try{ h=JSON.parse(it.history||'{}')||{}; }catch(_){}
+  const g={ ...it, callType:'예약상담', owner:user.name||it.takenBy||'', memo:'', pay:'미정', vehicle:'미정',
+    summary:`예약상담 · ${String(it.note||'').split(/\n/)[0].slice(0,60)}`.replace(/ · $/,''),
+    history: JSON.stringify({ h:[...(h.h||[]), {t:now, by:user.name||'', what:'[변경] 개인고객 전화응대 → 단체고객 전화응대 (예약상담)'}], tasks:(h.tasks||[]).filter(t=>t.id!=='inqcheck'), erp:[], memos:[] }) };
+  $('#toGroupBtn').disabled=true; toast('단체고객 전화응대로 바꾸는 중…');
+  try{
+    pending=pending.filter(p=>!(p.item && p.item.id===g.id)); writeJSON(PEND_LS,pending);
+    await callApi({action:'put', item:g});
+    items=items.filter(x=>x.id!==g.id); writeJSON(CACHE_LS, items.slice(-500));
+    saved=JSON.stringify(form=blankForm()); cur=null;   // 떠날 때 「저장하지 않은 내용」 경고가 안 뜨게
+    location.href='group.html?open='+encodeURIComponent(g.id);
+  }catch(e){ $('#toGroupBtn').disabled=false; handleErr(e); toast('바꾸지 못했습니다. 잠시 뒤 다시 눌러 주세요.'); }
+}
+$('#toGroupBtn').onclick=()=>askDelete('이 통화를 단체고객 전화응대로 옮깁니다. 단계는 「예약상담」이 되고, 성함 · 연락처 · 방문일 · 인원 · 문의 내용은 그대로 가져갑니다. 개인고객 목록에서는 빠집니다.', toGroup, '단체고객 전화응대로 변경', '변경');
 const closeAsk = () => { document.getElementById('askModal').hidden=true; askOk=null; };
 document.getElementById('askNo').onclick = closeAsk;
 document.getElementById('askYes').onclick = () => { const f=askOk; closeAsk(); if(f) f(); };

@@ -58,3 +58,4 @@ html.smenu-dock body > main{margin-left:300px !important}
 .smenu .sm-top{padding-left:26px}   /* 「메뉴」 글자를 묶음 제목(예약보조 등)과 같은 줄에 맞춤 (2026-11-18) */
 /* 헤더의 한/A 버튼은 화면에서 숨김 (2026-11-18 · 한글 먼저 입력은 그대로, 한/영 키 · Shift+Space 로 바꿈) */
 header #ko-toggle,header .ko-toggle{display:none !important}
+.smenu .sm-sep{border:0;border-top:1px solid #dfdace;margin:8px 6px 4px}   /* 고객 응대 보조: 아침 · 일과 중 · 하루 마무리 구분 (2026-11-19) */
