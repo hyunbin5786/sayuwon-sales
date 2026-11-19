@@ -24,7 +24,7 @@ let groups = (()=>{ try{ return (JSON.parse(localStorage.getItem(GROUP_CACHE_LS)
 async function loadGroups(){
   if(!getKey()){ $('#keyBox').hidden=false; return; }
   try{ const j=await callApi({action:'list'}); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true;
-    if(state) build(false); }
+    if(state){ build(false); if(hasEdits()) scheduleAuto(); } }   // 저장 못 한 수정이 남아 있으면 (단체예약을 받은 뒤) 곧 자동 저장
   catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('팀 비밀번호가 맞지 않습니다.'); } else toast('단체예약을 불러오지 못했습니다. 마지막으로 받은 목록으로 보여 줍니다.'); }
 }
 $('#keyBtn').onclick=()=>{ const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(KEY_LS, v); }catch(_){} $('#keyIn').value=''; loadGroups(); };
@@ -169,19 +169,24 @@ function rowChanges(r){
 }
 const memoSet = (memo, label, val) => { const p=String(memo||'').split(' / ').map(s=>s.trim()).filter(s=>s && !s.startsWith(label+' ')); if(val) p.push(`${label} ${val}`); return p.join(' / '); };
 const short = s => { s=String(s||''); return s.length>40 ? s.slice(0,40)+'…' : s; };
-// 자동 저장 (2026-11-19 · 다른 화면처럼): 마지막으로 고친 뒤 30초 · 다른 창으로 가면 바로. 버튼은 지금 바로 저장
-const AUTO_SAVE_MS=30000; let autoT=null, saving=false;
+// 자동 저장 (2026-11-19): 고친 뒤 3초 (거의 바로) · 다른 창으로 가거나 「나의 할일」 팝업을 열면 바로. 버튼은 지금 바로 저장
+//  저장 결과는 버튼 옆 글자로 (저장 중 · 저장됨 시각 · 저장 못 함 + 이유)
+const AUTO_SAVE_MS=3000; let autoT=null, saving=false, saveAgain=false;
 const hasEdits = () => !!state && rows.some(r=>rowChanges(r).length);
-function scheduleAuto(){ clearTimeout(autoT); if(hasEdits()) autoT=setTimeout(()=>saveEdits(true), AUTO_SAVE_MS); }
+function scheduleAuto(){ clearTimeout(autoT); if(hasEdits()){ autoT=setTimeout(()=>saveEdits(true), AUTO_SAVE_MS); saveSt('저장 전 (곧 자동 저장)', 'wait'); } }
+const saveSt = (txt, cls) => { const el=$('#saveSt'); if(el){ el.textContent=txt; el.className='save-st '+(cls||''); } };
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden && hasEdits()) saveEdits(true); });
+window.addEventListener('blur', ()=>{ if(hasEdits()) saveEdits(true); });
+document.addEventListener('click', e=>{ if(e.target.closest('[data-mypop], .smenu-my') && hasEdits()) saveEdits(true); }, true);   // 나의 할일 팝업을 열기 전에 저장
 window.addEventListener('beforeunload', e=>{ if(hasEdits()){ e.preventDefault(); e.returnValue=''; } });
 async function saveEdits(auto){
-  if(!state || saving) return;
+  if(!state) return;
+  if(saving){ saveAgain=true; return; }   // 저장 중이면 끝난 뒤 한 번 더
   clearTimeout(autoT);
   const todo=rows.map(r=>({r, ch:rowChanges(r)})).filter(o=>o.ch.length);
   if(!todo.length){ if(!auto) toast('저장할 수정 내용이 없습니다.'); return; }
-  if(!getKey()){ $('#keyBox').hidden=false; toast('저장하려면 팀 비밀번호를 먼저 넣어 주세요.'); return; }
-  saving=true; const btn=$('#saveEdits'); btn.disabled=true; const now=new Date().toISOString(), me=user.name||'';
+  if(!getKey()){ $('#keyBox').hidden=false; saveSt('저장 못 함: 팀 비밀번호가 없습니다', 'bad'); toast('저장하려면 팀 비밀번호를 먼저 넣어 주세요.'); return; }
+  saving=true; saveSt('저장 중…', 'wait'); const btn=$('#saveEdits'); btn.disabled=true; const now=new Date().toISOString(), me=user.name||'';
   const line = (r,c) => `${r.name} · ${FIELD_LABEL[c.f]} ${short(c.from)||'(빈칸)'} → ${short(c.to)||'(빈칸)'}`;
   let nGroup=0;
   try{
@@ -200,7 +205,7 @@ async function saveEdits(auto){
     // ② 고친 사람의 나의 할일(기타 개인 업무) 「전산에 추가」 — 단체명 · 인원 · 도착시각 · 연락처만 (차량 · 입장문 · 비고는 전산에 넣을 필요 없음, 2026-11-19)
     //    준비할 날짜 · 고친 사람마다 업무 하나: 공유 기록에서 그 업무(안 끝난 것)를 찾아 세부 과업만 더함. 예전에 따로 생긴 같은 날짜 업무는 하나로 합침
     const add=todo.flatMap(({r,ch})=>ch.filter(c=>ERP_FIELDS.includes(c.f)).map(c=>line(r,c))), today=SY.ymd(new Date());
-    let merged=false;
+    let merged=false, same=0;
     if(add.length){
       const prefix=`전산에 추가: ${dLab(state.date)} 다음날 고객 응대 수정`;
       const j=await callApi({action:'list'});
@@ -210,7 +215,7 @@ async function saveEdits(auto){
       const keep=mine[0], dup=mine.slice(1), oj=keep ? keep.h : null, old=keep ? keep.x : null;
       const subs=[], seen=new Set(), push=s=>{ const t=String(s.title||s.t||'').trim(); if(t && !seen.has(t)){ seen.add(t); subs.push({id:s.id||('s'+subs.length+Date.now().toString(36)), title:t}); } };
       mine.forEach(o=>(o.h.d.subs||[]).forEach(push));   // 이미 있는 세부 과업 (따로 생긴 업무 것도)
-      add.forEach((s,i)=>push({id:'s'+i+Date.now().toString(36), title:s}));
+      const before=subs.length; add.forEach((s,i)=>push({id:'s'+i+Date.now().toString(36), title:s})); same=add.length-(subs.length-before);   // 같은 글의 세부 과업이 이미 있으면 그대로
       const subDone=Object.assign({}, ...mine.map(o=>o.h.d.subDone||{}));
       const title=`${prefix} ${subs.length}건`;
       const memo=`다음날 고객 응대 준비에서 고친 내용입니다 (단체명 · 인원 · 도착시각 · 연락처). 세부 과업마다 사유원 전산에도 고쳐 주세요. 단체예약과 연결된 줄은 단체예약에는 자동으로 반영했습니다.`;
@@ -225,9 +230,13 @@ async function saveEdits(auto){
     // 저장한 값 기억 (다시 저장되지 않게)
     state.saved ||= {}; todo.forEach(({r,ch})=>{ const s=(state.saved[r.key] ||= {}); ch.forEach(c=>{ s[c.f]=c.to; }); });
     saveState(); build(false);
-    toast(`${auto?'자동 ':''}저장했습니다.${nGroup?` 단체예약 ${nGroup}건에 반영.`:''}${add.length?` 나의 할일 「전산에 추가」에 세부 과업 ${add.length}건${merged?' 더함':''}.`:''}`);
-  }catch(e){ toast(e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다.' : `저장하지 못했습니다${nGroup?` (단체예약 ${nGroup}건까지는 반영됨)`:''}. 잠시 뒤 다시 저장합니다.`); if(e.code!=='bad_key') scheduleAuto(); }
-  finally{ btn.disabled=false; saving=false; }
+    const msg=`${nGroup?`단체예약 ${nGroup}건 반영`:''}${nGroup&&add.length?' · ':''}${add.length?`전산에 추가 세부 과업 ${add.length-same}건`:''}`;
+    saveSt(`저장됨 ${new Date().toTimeString().slice(0,5)}${msg?' · '+msg:''}`, 'ok');
+    toast(`${auto?'자동 ':''}저장했습니다.${nGroup?` 단체예약 ${nGroup}건에 반영.`:''}${add.length?` 나의 할일 「전산에 추가」에 세부 과업 ${add.length-same}건${merged?' 더함':''}${same?` (같은 내용 ${same}건은 이미 있음)`:''}.`:''}`);
+  }catch(e){ const why = e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다' : (e.code || e.message || '연결 오류');
+    saveSt(`저장 못 함: ${why}${nGroup?` (단체예약 ${nGroup}건까지는 반영)`:''}`, 'bad');
+    toast(e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다.' : `저장하지 못했습니다 (${why})${nGroup?` · 단체예약 ${nGroup}건까지는 반영됨`:''}. 잠시 뒤 다시 저장합니다.`); if(e.code!=='bad_key') autoT=setTimeout(()=>saveEdits(true), 15000); }
+  finally{ btn.disabled=false; saving=false; if(saveAgain){ saveAgain=false; if(hasEdits()) setTimeout(()=>saveEdits(true), 300); } }
 }
 // ===================== 화면 =====================
 function render(){
@@ -245,7 +254,7 @@ function render(){
   const list=on.slice().sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999));
   rows.forEach(r=>{ const e=state.edit[r.key]||{}; r.orig.note=shortNote(r); r.note = e.note ?? r.orig.note; });   // 비고 = 간소화한 글 (이미지와 같음 · 직접 고치면 고친 글)
   rows.forEach(r=>{ r._chg=new Set(rowChanges(r).map(c=>c.f)); });   // 저장 안 한 수정 칸 (노란 테두리)
-  { const n=rows.reduce((a,r)=>a+r._chg.size,0), b=$('#saveEdits'); if(b){ b.title = n ? `저장 안 한 수정 ${n}건 (30초 뒤 자동 저장)` : '고친 내용은 30초 뒤 자동 저장 · 누르면 바로 저장'; b.classList.toggle('dirty', n>0); } }
+  { const n=rows.reduce((a,r)=>a+r._chg.size,0), b=$('#saveEdits'); if(b){ b.title = n ? `저장 안 한 수정 ${n}건 (곧 자동 저장)` : '고친 내용은 곧 자동 저장 · 누르면 바로 저장'; b.classList.toggle('dirty', n>0); } }
   const yy=s.date.slice(2).replace(/-/g,'');
   $('#outHead').innerHTML = `${yy}(${DOW[new Date(s.date+'T00:00').getDay()]||''})<br>${total}명+@`;
   $('#outBody').innerHTML = list.map(r=>`<tr class="${r.inList?'':'new'}">`
@@ -269,7 +278,7 @@ document.addEventListener('change', e=>{ const t=e.target;
   if(t.dataset.call){ const e=(state.edit[t.dataset.call] ||= {}); if(t.checked) e.called=new Date().toISOString(); else delete e.called; saveState(); render(); return; }   // 연락 체크
   if(t.dataset.link!=null){ const k=t.dataset.link; if(t.value) state.link[k]=t.value; else delete state.link[k]; delete state.edit[k]; saveState(); build(false); return; }
   if(t.id==='minPpl'){ build(true); saveState(); return; }
-  if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); if(f==='bus' || f==='car'){ t.value=t.value.replace(/\D/g,''); if(t.value==='0') t.value=''; }   /* 차량 대수: 숫자만 · 0은 빈칸 */ (state.edit[k] ||= {})[f]=t.value; saveState(); scheduleAuto(); if(f==='time' || f==='ppl' || f==='name') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } render(); } }
+  if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); if(f==='bus' || f==='car'){ t.value=t.value.replace(/\D/g,''); if(t.value==='0') t.value=''; }   /* 차량 대수: 숫자만 · 0은 빈칸 */ (state.edit[k] ||= {})[f]=t.value; saveState(); if(f==='time' || f==='ppl' || f==='name') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } render(); } scheduleAuto(); }   // 자동 저장 예약은 표를 다시 계산한 뒤 (2026-11-19 · 인원만 고치면 저장이 안 되던 것)
 });
 document.addEventListener('input', e=>{ const t=e.target; if(t.tagName==='TEXTAREA' && t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; const r=rows.find(x=>x.key===k); if(r) r[f]=t.value; saveState(); scheduleAuto(); t.style.height='auto'; t.style.height=t.scrollHeight+'px'; } });
 document.addEventListener('click', e=>{ if(e.target.id==='clearBtn'){ if(!confirm('읽은 엑셀과 고친 내용을 지울까요?')) return; state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); } });

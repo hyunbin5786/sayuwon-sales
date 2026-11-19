@@ -172,3 +172,8 @@ main > #p0{grid-column:1 / -1}
 .day-pick .keybox{margin:0 0 0 auto}
 .day-pick .keybox[hidden]{display:none}
 .day-pick .keybox .hint{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 저장 상태 글자 (2026-11-19) */
+.save-st{font:400 12px var(--sans);color:var(--muted);align-self:center;margin-right:4px}
+.save-st.ok{color:var(--pine)}
+.save-st.wait{color:var(--amber)}
+.save-st.bad{color:var(--red);font-weight:700}

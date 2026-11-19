@@ -6,7 +6,7 @@
 <title>다음날 고객 응대 준비 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261119e3">
+<link rel="stylesheet" href="css/prep.css?v=20261119e4">
 <link rel="stylesheet" href="css/mypop.css?v=20261116">
 <link rel="stylesheet" href="css/menu.css?v=20261119c1">
 </head>
@@ -47,7 +47,7 @@
   <!-- ④ 응대 표 (입장문은 관리하는 사람이 고름 · 추천 없앰 2026-11-19) -->
   <section class="panel off print-me" id="p4">
     <h2><span class="step no-print">3</span>응대 표 <small id="p4Sum"></small>
-      <span class="right no-print"><button class="btn line-g" id="xlsxBtn">엑셀로 내려받기</button><button class="btn line-g" id="pngBtn" title="핸드폰에서 보기 좋은 좁은 폭의 그림 파일 (PNG)">이미지로 저장</button><button class="btn primary" id="saveEdits" type="button" title="표에서 고친 내용을 저장: 연결된 단체예약에 반영하고, 나의 할일(기타 개인 업무)에 「전산에 추가」로 넣음 · 30초 뒤 자동 저장">수정 내용 저장</button></span></h2>
+      <span class="right no-print"><span class="save-st" id="saveSt"></span><button class="btn line-g" id="xlsxBtn">엑셀로 내려받기</button><button class="btn line-g" id="pngBtn" title="핸드폰에서 보기 좋은 좁은 폭의 그림 파일 (PNG)">이미지로 저장</button><button class="btn primary" id="saveEdits" type="button" title="표에서 고친 내용을 저장: 연결된 단체예약에 반영하고, 나의 할일(기타 개인 업무)에 「전산에 추가」로 넣음 · 고친 뒤 3초면 자동 저장">수정 내용 저장</button></span></h2>
     <p class="out-legend no-print"><span><span class="src have">목록</span>단체예약 목록에 있는 단체 (예약 정보를 가져옴)</span><span><span class="src new">새로 조사</span>목록에 없음 — 연락처로 업체 · 도착 시간 · 차량 확인</span></p>
     <div class="tw"><table class="out"><thead><tr><th class="no-print" title="연락했으면 체크">연락</th><th id="outHead">날짜</th><th>인원(명)</th><th>도착시간</th><th>입장문</th><th>차량</th><th>연락처</th><th>비고</th></tr></thead><tbody id="outBody"></tbody><tfoot id="outFoot"></tfoot></table></div>
   </section>
@@ -69,7 +69,7 @@
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/common.js?v=20261118"></script>
-<script src="js/prep.js?v=20261119e2"></script>
+<script src="js/prep.js?v=20261119e6"></script>
 <script src="js/mypop.js?v=20261118"></script>
 <script src="js/menu.js?v=20261119c1"></script>
 </body>
