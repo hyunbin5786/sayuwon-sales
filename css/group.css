@@ -873,3 +873,15 @@ html.my-only #myFullBtn{display:none}
 .etc-addbox .etc-dows{gap:2px}
 .etc-addbox .etc-dows button{min-width:0;width:26px;padding:0}
 .etc-addbox .etc-rep > .etc-due, .etc-addbox .etc-rep > .etc-dows, .etc-addbox .etc-rep > select{margin-left:auto}   /* 마감(· 요일 · 날짜)은 오른쪽 끝 (2026-11-19) */
+/* 나의 할일: 과업 체크 · 세부 과업 그 자리에서 · 오늘 마감 (2026-11-19) */
+.my-ck{display:inline-flex;align-items:center;margin-right:3px;vertical-align:-2px}
+.my-ck input{width:15px;height:15px;accent-color:var(--pine);cursor:pointer;margin:0}
+.my-ck.no{width:15px;justify-content:center;color:var(--muted)}
+.etc-subrow{display:flex;align-items:center;gap:4px}
+.etc-subrow label{flex:1}
+.etc-subx{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;opacity:.5}
+.etc-subrow:hover .etc-subx{opacity:1}
+.etc-subadd{height:28px;border:1px dashed var(--line);border-radius:5px;padding:0 8px;font:inherit;font-size:12.5px;background:transparent;margin-top:2px;max-width:280px}
+.etc-subadd:focus{border-style:solid;border-color:var(--pine);background:#fff;outline:none}
+.today-due .my-task{display:inline}
+.my-extra > ul.pc-list{margin-top:4px}
