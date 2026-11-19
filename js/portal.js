@@ -180,9 +180,9 @@ function dashRecs(items){
       if(days.length) recs.push({kind:'기타', owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({title:subTxt(day), due:day})), href:'group.html?my=1&tab=etc'});
     }
   });
-  // 다음주 예약 점검 (매주 목요일, 2026-11-19 · 나의 할일 group.js weekTask 와 같은 기준): 영업 담당마다 금~다음 목 내 예약(가예약 · 예약확정) 중 아직 체크 안 한 것이 있으면 한 줄
+  // 다음주 예약 점검 (매주 목요일, 2026-11-19 · 나의 할일 group.js weekTask 와 같은 기준): 영업 담당마다 금~다음주 일 내 예약(가예약 · 예약확정) 중 아직 체크 안 한 것이 있으면 한 줄
   const today=opsToday(), td=new Date(today+'T00:00'); td.setDate(td.getDate()-((td.getDay()-4+7)%7)); const thu=opsYmd(td);
-  const addD = n => { const x=new Date(thu+'T00:00'); x.setDate(x.getDate()+n); return opsYmd(x); }, from=addD(1), to=addD(7);
+  const addD = n => { const x=new Date(thu+'T00:00'); x.setDate(x.getDate()+n); return opsYmd(x); }, from=addD(1), to=addD(10);   // 금 ~ 다음주 일요일 (2026-11-19 · 예전 다음 목요일까지)
   const hash = s => { let h=5381; for(const c of String(s)) h=((h*33) ^ c.codePointAt(0))>>>0; return h.toString(36); };
   const booked = r => ['가예약','예약확정','예약접수','공식예약'].includes(r.callType) || (/^adm/.test(r.id||'') && (r.callType||'단체예약')==='단체예약');
   const byOwner = {};
