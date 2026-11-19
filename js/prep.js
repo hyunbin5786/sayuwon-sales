@@ -159,9 +159,9 @@ function build(fresh){
 // ===================== ④ 표에서 고친 것 → 저장 (2026-11-19) =====================
 // 고친 칸 = 처음 값(엑셀 · 단체예약)과 다르고 아직 저장하지 않은 것. 「수정 내용 저장」:
 //  ① 단체예약과 연결된 줄 → 그 단체예약에 바로 반영 (업체명 · 관람 인원 · 입장시각 · 차량 · 연락처 · 입장문, 비고는 기록에만) + 수정 기록 한 줄
-//  ② 고친 사람의 기타 개인 업무(나의 할일)에 「전산에 추가」 업무 하나 (세부 과업 = 고친 내용 하나씩 · 메모에 전체)
+//  ② 고친 사람의 기타 개인 업무(나의 할일)에 「전산내용 재반영」 업무 하나 (세부 과업 = 고친 내용 하나씩 · 메모에 전체)
 const FIELD_LABEL = { name:'이름', ppl:'인원', time:'도착시간', gate:'입장문', bus:'버스', car:'승용', phone:'연락처', note:'비고' };
-const ERP_FIELDS = ['name','ppl','time','phone'];   // 전산에도 고쳐야 하는 것 (나의 할일 「전산에 추가」 세부 과업) · 차량 · 입장문 · 비고는 단체예약에만
+const ERP_FIELDS = ['name','ppl','time','gate','phone','note'];   // 전산에도 다시 반영할 것 (나의 할일 「전산내용 재반영」 세부 과업, 2026-11-19 · 차량만 빼고 모두)
 function rowChanges(r){
   const e=state.edit[r.key]||{}, sv=(state.saved||{})[r.key]||{}, out=[];
   ['name','ppl','time','gate','bus','car','phone','note'].forEach(f=>{ if(e[f]==null) return; const to=f==='ppl' ? String(r.ppl) : String(e[f]).trim(), from=String(r.orig[f]??'').trim();
@@ -170,7 +170,7 @@ function rowChanges(r){
 const memoSet = (memo, label, val) => { const p=String(memo||'').split(' / ').map(s=>s.trim()).filter(s=>s && !s.startsWith(label+' ')); if(val) p.push(`${label} ${val}`); return p.join(' / '); };
 const short = s => { s=String(s||''); return s.length>40 ? s.slice(0,40)+'…' : s; };
 // 저장은 「수정 내용 저장」 버튼으로만 (2026-11-19 · 자동 저장 없앰). 고친 것이 있으면 버튼에 노란 ● · 버튼 옆에 「저장 안 한 수정 n건」
-//  저장 결과는 버튼 옆 글자로 (저장 중 · 저장됨 시각 · 저장 못 함 + 이유). 저장하면 고친 단체예약을 새 탭(단체고객 전화응대)으로 띄움
+//  저장 결과는 버튼 옆 글자로 (저장 중 · 저장됨 시각 · 저장 못 함 + 이유). 새 탭은 안 띄움 (「자세히」 버튼으로)
 let autoT=null, saving=false, saveAgain=false;
 const hasEdits = () => !!state && rows.some(r=>rowChanges(r).length);
 const saveSt = (txt, cls) => { const el=$('#saveSt'); if(el){ el.textContent=txt; el.className='save-st '+(cls||''); } };
@@ -201,15 +201,15 @@ async function saveEdits(auto, wins){
       await callApi({action:'put', item:it}); nGroup++;
       const gi=groups.findIndex(g=>g.id===it.id); if(gi>=0) groups[gi]=it;
     }
-    // ② 고친 사람의 나의 할일(기타 개인 업무) 「전산에 추가」 — 단체명 · 인원 · 도착시각 · 연락처만 (차량 · 입장문 · 비고는 전산에 넣을 필요 없음, 2026-11-19)
+    // ② 고친 사람의 나의 할일(기타 개인 업무) 「전산내용 재반영」 — 차량 말고 고친 것 모두 (ERP_FIELDS)
     //    준비할 날짜 · 고친 사람마다 업무 하나: 공유 기록에서 그 업무(안 끝난 것)를 찾아 세부 과업만 더함. 예전에 따로 생긴 같은 날짜 업무는 하나로 합침
     const add=todo.flatMap(({r,ch})=>ch.filter(c=>ERP_FIELDS.includes(c.f)).map(c=>line(r,c))), today=SY.ymd(new Date());
     let merged=false, same=0;
     if(add.length){
-      const prefix=`전산에 추가: ${dLab(state.date)} 다음날 고객 응대 수정`;
+      const prefix=`전산내용 재반영: ${dLab(state.date)} 다음날 고객 응대 수정`, oldPrefix=`전산에 추가: ${dLab(state.date)} 다음날 고객 응대 수정`;   // 예전 이름(전산에 추가) 업무도 찾아서 합침
       const j=await callApi({action:'list'});
       const mine=(j.items||[]).filter(x=>x.callType==='개인업무' && (x.owner||x.takenBy)===me).map(x=>{ let h=null; try{ h=JSON.parse(x.history||'{}'); }catch(_){} return {x, h}; })
-        .filter(o=>o.h && o.h.d && String(o.h.d.title||'').startsWith(prefix) && !Object.keys(o.h.d.done||{}).length)   // 안 끝난 같은 날짜 업무
+        .filter(o=>o.h && o.h.d && [prefix, oldPrefix].some(p=>String(o.h.d.title||'').startsWith(p)) && !Object.keys(o.h.d.done||{}).length)   // 안 끝난 같은 날짜 업무
         .sort((a,b)=>String(a.x.saved||'').localeCompare(String(b.x.saved||'')));
       const keep=mine[0], dup=mine.slice(1), oj=keep ? keep.h : null, old=keep ? keep.x : null;
       const subs=[], seen=new Set(), push=s=>{ const t=String(s.title||s.t||'').trim(); if(t && !seen.has(t)){ seen.add(t); subs.push({id:s.id||('s'+subs.length+Date.now().toString(36)), title:t}); } };
@@ -217,7 +217,7 @@ async function saveEdits(auto, wins){
       const before=subs.length; add.forEach((s,i)=>push({id:'s'+i+Date.now().toString(36), title:s})); same=add.length-(subs.length-before);   // 같은 글의 세부 과업이 이미 있으면 그대로
       const subDone=Object.assign({}, ...mine.map(o=>o.h.d.subDone||{}));
       const title=`${prefix} ${subs.length}건`;
-      const memo=`다음날 고객 응대 준비에서 고친 내용입니다 (단체명 · 인원 · 도착시각 · 연락처). 세부 과업마다 사유원 전산에도 고쳐 주세요. 단체예약과 연결된 줄은 단체예약에는 자동으로 반영했습니다.`;
+      const memo=`다음날 고객 응대 준비에서 고친 내용입니다 (단체명 · 인원 · 도착시간 · 입장문 · 연락처 · 비고). 세부 과업마다 사유원 전산에도 다시 반영해 주세요. 단체예약과 연결된 줄은 단체예약에는 자동으로 반영했습니다.`;
       const d={ ...(oj?oj.d:{}), title, repeat:'none', due:(oj&&oj.d.due)||today, start:(oj&&oj.d.start)||today, owner:me, memo, subs, done:{}, subDone };
       const task={ ...(old||{}), id: old ? old.id : Date.now().toString(36)+Math.random().toString(36).slice(2,7), callType:'개인업무', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:`${title} · 반복 없음`.slice(0,120),
         history:JSON.stringify({kind:'task', d, log:[...((oj&&oj.log)||[]), {at:now, by:me, what: old ? `다음날 고객 응대 준비에서 세부 과업 ${add.length}건 더함${dup.length?` · 따로 생긴 업무 ${dup.length}개를 합침`:''}` : '다음날 고객 응대 준비에서 만듦'}].slice(-60)}) };
@@ -229,25 +229,19 @@ async function saveEdits(auto, wins){
     // 저장한 값 기억 (다시 저장되지 않게)
     state.saved ||= {}; todo.forEach(({r,ch})=>{ const s=(state.saved[r.key] ||= {}); ch.forEach(c=>{ s[c.f]=c.to; }); });
     saveState(); build(false);
-    const msg=`${nGroup?`단체예약 ${nGroup}건 반영`:''}${nGroup&&add.length?' · ':''}${add.length?`전산에 추가 세부 과업 ${add.length-same}건`:''}`;
+    const msg=`${nGroup?`단체예약 ${nGroup}건 반영`:''}${nGroup&&add.length?' · ':''}${add.length?`전산내용 재반영 세부 과업 ${add.length-same}건`:''}`;
     saveSt(`저장됨 ${new Date().toTimeString().slice(0,5)}${msg?' · '+msg:''}`, 'ok');
-    // 고친 단체예약을 새 탭(단체고객 전화응대)으로 — 버튼을 누를 때 미리 열어 둔 탭에 주소를 넣음 (팝업 차단 피하기). 바뀐 칸은 그 화면에서 표시(hl)
-    const blocked=[];
-    (wins||[]).forEach(o=>{ const url=`group.html?open=${encodeURIComponent(o.id)}&hl=${encodeURIComponent(o.keys.join(','))}`; if(o.w && !o.w.closed) o.w.location.href=url; else blocked.push(o.name); });
-    toast(`${auto?'자동 ':''}저장했습니다.${nGroup?` 단체예약 ${nGroup}건에 반영${(wins||[]).length-blocked.length?' (새 탭에 띄움)':''}.`:''}${add.length?` 나의 할일 「전산에 추가」에 세부 과업 ${add.length-same}건${merged?' 더함':''}${same?` (같은 내용 ${same}건은 이미 있음)`:''}.`:''}${blocked.length?` 새 탭이 막혀 못 띄움: ${blocked.join(', ')} (주소창 오른쪽 팝업 허용)`:''}`);
+    // 저장 뒤 새 탭 띄우기는 없앰 (2026-11-19) — 단체예약은 표의 「자세히」 버튼으로 엶
+    toast(`저장했습니다.${nGroup?` 단체예약 ${nGroup}건에 반영.`:''}${add.length?` 나의 할일 「전산내용 재반영」에 세부 과업 ${add.length-same}건${merged?' 더함':''}${same?` (같은 내용 ${same}건은 이미 있음)`:''}.`:''}`);
   }catch(e){ const why = e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다' : (e.code || e.message || '연결 오류');
-    (wins||[]).forEach(o=>{ try{ if(o.w && !o.w.closed) o.w.close(); }catch(_){} });
     saveSt(`저장 못 함: ${why}${nGroup?` (단체예약 ${nGroup}건까지는 반영)`:''} — 다시 눌러 주세요`, 'bad');
     toast(e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다.' : `저장하지 못했습니다 (${why})${nGroup?` · 단체예약 ${nGroup}건까지는 반영됨`:''}. 「수정 내용 저장」을 다시 눌러 주세요.`); }
   finally{ btn.disabled=false; saving=false; if(saveAgain){ saveAgain=false; } }
 }
-// 「수정 내용 저장」: 누르는 순간 고친 단체예약 수만큼 빈 탭을 열어 두고(팝업 차단 피하기), 저장이 끝나면 그 탭에 단체고객 전화응대를 띄움
-function onSaveClick(){
-  if(!state || saving) return;
-  const by={}; rows.forEach(r=>{ const ch=rowChanges(r).filter(c=>GROUP_KEY[c.f]); if(r.recId && ch.length && getKey()){ const o=(by[r.recId] ||= {id:r.recId, name:r.name, keys:new Set()}); ch.forEach(c=>o.keys.add(GROUP_KEY[c.f])); } });
-  const wins=Object.values(by).map(o=>{ let w=null; try{ w=window.open('', '_blank'); if(w) w.document.write('<p style="font:15px sans-serif;padding:20px">저장 중… 잠시 뒤 단체고객 전화응대가 열립니다.</p>'); }catch(_){} return {...o, keys:[...o.keys], w}; });
-  saveEdits(false, wins);
-}
+// 「수정 내용 저장」 (새 탭은 띄우지 않음, 2026-11-19)
+function onSaveClick(){ if(!state || saving) return; saveEdits(false); }
+// 「자세히」: 목록에서 가져온 단체(단체예약 연결) → 다음 탭에 그 예약 (단체고객 전화응대)
+document.addEventListener('click', e=>{ const b=e.target.closest?.('[data-open-rec]'); if(!b) return; e.preventDefault(); window.open(`group.html?open=${encodeURIComponent(b.dataset.openRec)}`, '_blank'); });
 // ===================== 화면 =====================
 function render(){
   const s=state; [ '#p2','#p4' ].forEach(id=>$(id).classList.toggle('off', !s)); paintPrepDate();
@@ -269,7 +263,7 @@ function render(){
   $('#outHead').innerHTML = `${yy}(${DOW[new Date(s.date+'T00:00').getDay()]||''})<br>${total}명+@`;
   $('#outBody').innerHTML = list.map(r=>`<tr class="${r.inList?'':'new'}">`
     + `<td class="called no-print${(state.edit[r.key]||{}).called?' on':''}"><label title="이 고객에게 연락했는지 (이 브라우저에 기억)"><input type="checkbox" data-call="${esc(r.key)}"${(state.edit[r.key]||{}).called?' checked':''}></label></td>`   // 연락 체크 = 맨 앞 열 (2026-11-19)
-    + `<td class="name"><span class="src ${r.inList?'have':'new'} no-print" title="${r.inList?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.inList?'목록':'새로 조사'}</span><input class="nm${r._chg.has('name')?' chg':''}" data-e="${esc(r.key)}|name" value="${esc(r.name)}" data-ime="ko"></td><td class="num"><input class="pp${r._chg.has('ppl')?' chg':''}" data-e="${esc(r.key)}|ppl" value="${r.ppl}" inputmode="numeric"></td>`
+    + `<td class="name"><span class="src ${r.inList?'have':'new'} no-print" title="${r.inList?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.inList?'목록':'새로 조사'}</span><input class="nm${r._chg.has('name')?' chg':''}" data-e="${esc(r.key)}|name" value="${esc(r.name)}" data-ime="ko">${r.recId?`<button type="button" class="more no-print" data-open-rec="${esc(r.recId)}" title="다음 탭에 이 단체예약 열기 (단체고객 전화응대)">자세히</button>`:''}</td><td class="num"><input class="pp${r._chg.has('ppl')?' chg':''}" data-e="${esc(r.key)}|ppl" value="${r.ppl}" inputmode="numeric"></td>`
     + `<td><input class="t${r._chg.has('time')?' chg':''}" data-e="${esc(r.key)}|time" value="${esc(r.time)}" placeholder="${esc(r.timeHint||'시간')}"></td>`
     + `<td><select class="gate ${esc(r.gate||'none')}${r._chg.has('gate')?' chg':''}" data-e="${esc(r.key)}|gate"><option value=""${r.gate?'':' selected'}>미정</option><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select></td>`   // 입장문: 관리하는 사람이 고름 (추천 없음, 2026-11-19)
     + `<td class="veh${!r.bus && !r.car ? ' tbd' : ''}"><label>버스<input class="vn${r._chg.has('bus')?' chg':''}" data-e="${esc(r.key)}|bus" value="${esc(r.bus)}" inputmode="numeric" placeholder="-">대</label><label>승용<input class="vn${r._chg.has('car')?' chg':''}" data-e="${esc(r.key)}|car" value="${esc(r.car)}" inputmode="numeric" placeholder="-">대</label></td><td><input class="p${r._chg.has('phone')?' chg':''}" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
