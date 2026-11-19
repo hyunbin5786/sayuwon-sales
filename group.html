@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261119j9">
+<link rel="stylesheet" href="css/group.css?v=20261119k1">
 <link rel="stylesheet" href="css/menu.css?v=20261119d2">
 </head>
 <body>
@@ -34,11 +34,12 @@
   </form>
 </div>
 <!-- 나의 할일: 내가 영업 담당인 예약 -->
+<!-- 나의 할일 설정 팝업 (2026-11-19): 구분 순서 ▲▼ · ＋ 구분 추가 -->
+<div class="modal" id="mySetModal" hidden><section class="panel set-pop" role="dialog" aria-modal="true" aria-labelledby="mySetTitle"><h2 id="mySetTitle">나의 할일 설정</h2><div id="mySet"></div><div class="row-btns"><span class="sp"></span><button type="button" class="btn primary" data-mysetclose>닫기</button></div></section></div>
 <div class="modal" id="myModal" hidden>
   <section class="list panel" role="dialog" aria-modal="true" aria-labelledby="myTitle">
     <h2><span id="myTitle">나의 할일</span> <span class="seg my-tabs" id="myTabs"></span> <small id="mySum"></small>
-      <span class="row-btns"><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="myPast"> 지난 방문도 보기</label><button type="button" class="btn" id="mySetBtn" title="구분 순서 바꾸기 · 구분 추가">설정</button><button type="button" class="btn" id="myFullBtn" title="나의 할일을 다음 탭에 한 페이지로">전체 화면으로 보기</button><button type="button" class="btn list-x" id="myCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
-    <div class="my-set" id="mySet" hidden></div>
+      <span class="row-btns"><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="myPast"> 지난 방문도 보기</label><button type="button" class="btn" id="mySetBtn" title="구분 순서 바꾸기 · 구분 추가">설정</button><button type="button" class="btn" id="myFullBtn" title="나의 할일을 옆 탭에 전체 화면(한 페이지)으로">전체 보기</button><button type="button" class="btn list-x" id="myCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <div class="my-body" id="myBody"></div>
   </section>
 </div>
@@ -374,7 +375,7 @@
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
 <script src="js/common.js?v=20261118"></script>
 <script src="js/opslib.js?v=20261118t"></script>
-<script src="js/group.js?v=20261119j9"></script>
+<script src="js/group.js?v=20261119k1"></script>
 <script src="js/ime.js?v=20261118r"></script>
 <script src="js/keepsize.js?v=20261120g"></script>
 <script src="js/menu.js?v=20261119c4"></script>

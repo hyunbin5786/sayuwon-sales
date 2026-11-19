@@ -887,3 +887,7 @@ html.my-only #myFullBtn{display:none}
 .my-extra > ul.pc-list{margin-top:4px}
 .today-due .etc-ttl{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.today-due .etc-ttl:hover{color:var(--pine)}
 .my-ck.self input{accent-color:#b9b2a2}.done-today{margin-top:8px}.done-today li.done s{color:var(--muted)}
+/* 나의 할일 설정 팝업 (2026-11-19) */
+#mySetModal{z-index:26}
+#mySetModal .set-pop{width:min(420px,100%);margin-top:8vh}
+#mySetModal .cat-manage{margin:0;border:0;padding:0}

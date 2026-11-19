@@ -3274,7 +3274,9 @@ const myExtraEtc = c => { if(!etcMine().some(o=>etcCatOf(o.d)===c)) return ''; c
 // 전체 화면으로 보기 (× 옆, 2026-11-19): 다음 탭에 나의 할일 한 페이지 (group.html?my=1)
 document.addEventListener('click', e=>{ if(!e.target.closest?.('#myFullBtn')) return; window.open(new URL('group.html?my=1', location.href).href, '_blank'); });
 let mySetOpen=false;
-function paintMySet(){ const b=$('#mySet'); if(!b) return; b.hidden=!mySetOpen; $('#mySetBtn')?.classList.toggle('on', mySetOpen); if(mySetOpen) b.innerHTML = `<div class="my-set-in">${catManageHTML()}<button type="button" class="btn sm" data-mysetclose>닫기</button></div>`; }
+function paintMySet(){ const m=$('#mySetModal'), b=$('#mySet'); if(!m || !b) return; m.hidden=!mySetOpen; $('#mySetBtn')?.classList.toggle('on', mySetOpen); if(mySetOpen) b.innerHTML = catManageHTML(); }   // 설정 = 팝업 (2026-11-19)
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && mySetOpen){ e.stopImmediatePropagation(); mySetOpen=false; paintMySet(); } }, true);
+document.addEventListener('mousedown', e=>{ if(e.target.id==='mySetModal'){ mySetOpen=false; paintMySet(); } });
 document.addEventListener('click', e=>{ if(e.target.closest?.('#mySetBtn')){ mySetOpen=!mySetOpen; paintMySet(); return; } if(e.target.closest?.('[data-mysetclose]')){ mySetOpen=false; paintMySet(); } });
 // 나의 할일의 개인예약 · 단체예약 과업을 그 자리에서 체크해 완료 (2026-11-19) — 전산 내역을 붙여넣거나 칸을 채워야 끝나는 과업은 체크 대신 「열기」 안내
 // 메인 1열 개인 업무 입력 아래: 오늘 마감인 과업 모두 (단체예약 · 개인예약 · 기타 업무) — 그 자리에서 체크해 완료 (2026-11-19)
