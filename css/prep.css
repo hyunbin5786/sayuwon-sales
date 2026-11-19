@@ -155,3 +155,10 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 .out input:not([type=checkbox]):hover,.out textarea:hover,.out select.gate:hover,.out input:not([type=checkbox]):focus,.out textarea:focus,.out select.gate:focus{border-color:#8f8a7d;outline:none}
 .out .chg,.out .chg:hover,.out .chg:focus{border:1.5px solid #e0a52a;background:#fff7e0}
 @media print{.out input,.out textarea,.out select.gate{border-color:transparent;background:transparent}}
+/* 차량: 버스 · 승용 대수 두 칸 (2026-11-19) */
+.out td.veh{white-space:nowrap;font-size:12px;color:var(--muted)}
+.out td.veh label{display:inline-flex;align-items:center;gap:2px;margin:0 3px}
+.out td.veh input.vn{width:34px;padding:3px 2px}
+.out td.veh .vtbd{display:block;font-style:normal;font-size:11.5px;color:var(--amber);font-weight:700;margin-top:2px}
+.shot .g.tbd{background:#eee;color:#777}
+.out select.gate.none{color:var(--amber);font-weight:700}

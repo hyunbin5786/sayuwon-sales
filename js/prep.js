@@ -108,7 +108,13 @@ const shortProd = p => { const m=p.match(/\(관람,\s*(.+)\)/); if(m) return m[1
 const isGroupName = s => /^[^()]+\(\s*(?!개인|대리)[가-힣A-Za-z ]{2,12}\s*\)\s*$/.test(String(s||'').trim());   // 「산청군청(고영현)」 = 단체명(담당자) → 단체 (2026-11-19)
 const fmtT = v => { const m=String(v||'').match(/(\d{1,2})\s*:?\s*(\d{2})/); return m ? `${String(+m[1]).padStart(2,'0')}:${m[2]}` : ''; };
 const toMin = t => { const m=fmtT(t).match(/(\d\d):(\d\d)/); return m ? +m[1]*60 + +m[2] : null; };
-function vehicleText(v){ const s=String(v||''); const b=s.match(/버스\D*(\d+)/); if(b) return {txt:b[1], bus:+b[1]}; const c=s.match(/(\d+)\s*대/); if(/승용|자차|개별|소형|승합/.test(s)) return {txt:`개별${c?c[1]+'대':''}`, bus:0}; return {txt:s.replace(/\s*\(.*\)$/,''), bus:0}; }
+// 차량 (2026-11-19): 버스 · 승용 대수를 따로. 단체예약 값 「버스 2대」 · 「승용 3대」 · 「혼합 (버스 1대 + 승용 2대)」 · 「미정」 ↔ {bus:'2', car:''}
+function vehSplit(v){ const s=String(v||''); if(!s || /^미정/.test(s)) return {bus:'', car:''};
+  const b=(s.match(/버스\D*?(\d+)/)||[])[1]||'', c=(s.match(/(?:승용|자차|개별|승합)\D*?(\d+)/)||[])[1]||'';
+  if(!b && !c && /^\d+$/.test(s.trim())) return {bus:s.trim(), car:''};   // 예전 표의 「2」 = 버스 2대
+  return {bus:b, car:c}; }
+const vehJoinG = (bus, car) => bus && car ? `혼합 (버스 ${bus}대 + 승용 ${car}대)` : bus ? `버스 ${bus}대` : car ? `승용 ${car}대` : '미정';   // 단체예약에 넣는 모양
+const vehLabel = (bus, car) => [bus && `버스${bus}`, car && `승용${car}`].filter(Boolean).join(' · ') || '미정';   // 이미지 · 엑셀
 const MEAL_COLS = [['sadam1','런치1부'],['sadam2','런치2부'],['sadamD','디너'],['mabangL','마방 식사']];
 const PROG_COLS = [['chabang','몽몽차방 대관'],['dangdu','당두봉갈 대관'],['donghaeng','동행 도슨트'],['yoga','요가'],['gaga','음료쿠폰(가가빈빈)'],['teaMed','티하우스 명상'],['gayageum','가야금'],['cabin','유루 캐빈']];
 function recNote(r){
@@ -130,17 +136,19 @@ function build(fresh){
   const list = base.filter(o=>o.rec || o.x.ppl>=min);
   dg.filter(r=>!used.has(r.id) && !base.some(o=>o.rec===r)).forEach(r=>list.push({x:null, rec:r}));   // 전산 명단에 없는 단체예약도
   if(fresh) list.forEach(o=>{ const k=o.x?o.x.id:'r'+o.rec.id; if(state.sel[k]==null) state.sel[k]=true; });
-  rows = list.map(o=>{ const k=o.x?o.x.id:'r'+o.rec.id, r=o.rec, x=o.x, v=vehicleText(r&&r.vehicle), e=state.edit[k]||{};
+  rows = list.map(o=>{ const k=o.x?o.x.id:'r'+o.rec.id, r=o.rec, x=o.x, v=vehSplit(r&&r.vehicle), e=state.edit[k]||{};
+    if(e.vehicle!=null && e.bus==null && e.car==null){ const o2=vehSplit(e.vehicle); e.bus=o2.bus; e.car=o2.car; delete e.vehicle; }   // 예전에 한 칸으로 고친 차량
     const prods=x ? x.items.filter(i=>i.n>0 || x.items.length===1).map(i=>shortProd(i.p)) : [];
     const pmT = x && x.items.some(i=>/13:00~18:00/.test(i.p)) && !x.items.some(i=>/09:00~18:00|\(관람,/.test(i.p)) ? '13:00 이후' : '';
     // 처음 값(엑셀 · 단체예약) — 표에서 고친 값(state.edit)과 비교해 「수정 내용 저장」에 씀 (2026-11-19)
     const orig = { name: r ? (r.org||r.contact||'(업체 미정)') : isGroupName(x.name) ? x.name : `${x.name}(개인)`, ppl: x ? x.ppl : (parseInt(r.people)||0),
-      time: fmtT(r&&r.tin) || '', vehicle: v.txt, phone: x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || '',
+      time: fmtT(r&&r.tin) || '', bus: v.bus, car: v.car, phone: x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || '',
       note: x && x.note && x.note!=='-' ? x.note : '',
       gate: (()=>{ const rg=r ? (memoVal(r,'입장문')||r.gate||'') : ''; return /^(치허문|곡신문)$/.test(rg) ? rg : ''; })() };   // 비고 = 전산 방문자내역 엑셀의 비고 그대로 (2026-11-19 · 상품 · 단체예약 내용을 만들어 붙이지 않음)
     return { key:k, recId: r ? r.id : '', on: state.sel[k]!==false, group: !!r || isGroupName(x&&x.name), inList: !!r, orig,
       name: e.name ?? orig.name, xname:x?x.name:'', ppl: e.ppl!=null && e.ppl!=='' ? (parseInt(e.ppl)||0) : orig.ppl,
-      time: e.time ?? orig.time, timeHint: pmT, vehicle: e.vehicle ?? orig.vehicle, bus: v.bus,
+      time: e.time ?? orig.time, timeHint: pmT, bus: e.bus ?? orig.bus, car: e.car ?? orig.car,
+      get vehicle(){ return vehLabel(this.bus, this.car); },
       phone: e.phone ?? orig.phone,
       xnote: orig.note, note: e.note ?? '',   // xnote = 엑셀 비고 원문 · note = 표 · 이미지 비고 (간소화, render 에서 채움)
       onsitePay: /현장/.test((r&&r.pay)||''),   // 현장결제건 (단체예약 결제 방법)
@@ -152,14 +160,13 @@ function build(fresh){
 // 고친 칸 = 처음 값(엑셀 · 단체예약)과 다르고 아직 저장하지 않은 것. 「수정 내용 저장」:
 //  ① 단체예약과 연결된 줄 → 그 단체예약에 바로 반영 (업체명 · 관람 인원 · 입장시각 · 차량 · 연락처 · 입장문, 비고는 기록에만) + 수정 기록 한 줄
 //  ② 고친 사람의 기타 개인 업무(나의 할일)에 「전산에 추가」 업무 하나 (세부 과업 = 고친 내용 하나씩 · 메모에 전체)
-const FIELD_LABEL = { name:'이름', ppl:'인원', time:'도착시간', gate:'입장문', vehicle:'차량', phone:'연락처', note:'비고' };
+const FIELD_LABEL = { name:'이름', ppl:'인원', time:'도착시간', gate:'입장문', bus:'버스', car:'승용', phone:'연락처', note:'비고' };
 function rowChanges(r){
   const e=state.edit[r.key]||{}, sv=(state.saved||{})[r.key]||{}, out=[];
-  ['name','ppl','time','gate','vehicle','phone','note'].forEach(f=>{ if(e[f]==null) return; const to=f==='ppl' ? String(r.ppl) : String(e[f]).trim(), from=String(r.orig[f]??'').trim();
+  ['name','ppl','time','gate','bus','car','phone','note'].forEach(f=>{ if(e[f]==null) return; const to=f==='ppl' ? String(r.ppl) : String(e[f]).trim(), from=String(r.orig[f]??'').trim();
     if(to!==from && sv[f]!==to) out.push({f, from, to}); });  return out;
 }
 const memoSet = (memo, label, val) => { const p=String(memo||'').split(' / ').map(s=>s.trim()).filter(s=>s && !s.startsWith(label+' ')); if(val) p.push(`${label} ${val}`); return p.join(' / '); };
-const vehToGroup = s => { s=String(s||'').trim(); if(/^\d+$/.test(s)) return `버스 ${s}대`; const m=s.match(/^개별\s*(\d+)?/); return m ? `승용${m[1]?` ${m[1]}대`:''}` : s; };   // 표의 「2」 = 버스 2대 · 「개별3대」 = 승용 3대
 const short = s => { s=String(s||''); return s.length>40 ? s.slice(0,40)+'…' : s; };
 async function saveEdits(){
   if(!state) return;
@@ -174,7 +181,7 @@ async function saveEdits(){
     for(const {r, ch} of todo){
       const rec = r.recId && groups.find(g=>g.id===r.recId); if(!rec) continue;
       const it={...rec}; delete it._localAt;
-      ch.forEach(c=>{ if(c.f==='name') it.org=c.to; else if(c.f==='ppl') it.people=c.to; else if(c.f==='time') it.tin=fmtT(c.to)||c.to; else if(c.f==='vehicle') it.vehicle=vehToGroup(c.to);
+      ch.forEach(c=>{ if(c.f==='name') it.org=c.to; else if(c.f==='ppl') it.people=c.to; else if(c.f==='time') it.tin=fmtT(c.to)||c.to; else if(c.f==='bus' || c.f==='car') it.vehicle=vehJoinG(r.bus, r.car);
         else if(c.f==='phone'){ const p=String(rec.phone||'').split(/\s*\/\s*/); p[0]=c.to; it.phone=p.filter((x,i)=>x || i===0).join(' / '); } else if(c.f==='gate') it.memo=memoSet(it.memo, '입장문', c.to); });
       let h={}; try{ const j=JSON.parse(rec.history||'{}'); h = Array.isArray(j) ? {h:j} : (j||{}); }catch(_){}
       h.h=[...(h.h||[]), {t:now, by:me, what:`[다음날 고객 응대 준비] ${ch.map(c=>`${FIELD_LABEL[c.f]} ${short(c.from)||'(빈칸)'} → ${short(c.to)||'(빈칸)'}`).join(', ')}`}];
@@ -220,10 +227,10 @@ function render(){
     + `<td class="called no-print${(state.edit[r.key]||{}).called?' on':''}"><label title="이 고객에게 연락했는지 (이 브라우저에 기억)"><input type="checkbox" data-call="${esc(r.key)}"${(state.edit[r.key]||{}).called?' checked':''}></label></td>`   // 연락 체크 = 맨 앞 열 (2026-11-19)
     + `<td class="name"><span class="src ${r.inList?'have':'new'} no-print" title="${r.inList?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.inList?'목록':'새로 조사'}</span><input class="nm${r._chg.has('name')?' chg':''}" data-e="${esc(r.key)}|name" value="${esc(r.name)}" data-ime="ko"></td><td class="num"><input class="pp${r._chg.has('ppl')?' chg':''}" data-e="${esc(r.key)}|ppl" value="${r.ppl}" inputmode="numeric"></td>`
     + `<td><input class="t${r._chg.has('time')?' chg':''}" data-e="${esc(r.key)}|time" value="${esc(r.time)}" placeholder="${esc(r.timeHint||'시간')}"></td>`
-    + `<td><select class="gate ${esc(r.gate||'none')}${r._chg.has('gate')?' chg':''}" data-e="${esc(r.key)}|gate"><option value=""${r.gate?'':' selected'}>-</option><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select></td>`   // 입장문: 관리하는 사람이 고름 (추천 없음, 2026-11-19)
-    + `<td><input class="v${r._chg.has('vehicle')?' chg':''}" data-e="${esc(r.key)}|vehicle" value="${esc(r.vehicle)}"></td><td><input class="p${r._chg.has('phone')?' chg':''}" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
+    + `<td><select class="gate ${esc(r.gate||'none')}${r._chg.has('gate')?' chg':''}" data-e="${esc(r.key)}|gate"><option value=""${r.gate?'':' selected'}>미정</option><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select></td>`   // 입장문: 관리하는 사람이 고름 (추천 없음, 2026-11-19)
+    + `<td class="veh${!r.bus && !r.car ? ' tbd' : ''}"><label>버스<input class="vn${r._chg.has('bus')?' chg':''}" data-e="${esc(r.key)}|bus" value="${esc(r.bus)}" inputmode="numeric" placeholder="-">대</label><label>승용<input class="vn${r._chg.has('car')?' chg':''}" data-e="${esc(r.key)}|car" value="${esc(r.car)}" inputmode="numeric" placeholder="-">대</label>${!r.bus && !r.car ? '<em class="vtbd">미정</em>' : ''}</td><td><input class="p${r._chg.has('phone')?' chg':''}" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
     + `<td class="note"><textarea class="${r._chg.has('note')?'chg':''}" data-e="${esc(r.key)}|note" rows="1">${esc(r.note)}</textarea></td></tr>`).join('');
-  const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
+  const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.bus||0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
   const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.xnote||'')).map(r=>r.name);
   const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
   $('#outFoot').innerHTML = `<tr><td class="no-print"></td><td class="g">단체</td><td class="g num">${gSum}</td><td></td><td></td><td class="bus">버스 ${bus}대+</td><td colspan="2" class="ind">개인고객 ${ind}명</td></tr>`
@@ -237,14 +244,14 @@ document.addEventListener('change', e=>{ const t=e.target;
   if(t.dataset.call){ const e=(state.edit[t.dataset.call] ||= {}); if(t.checked) e.called=new Date().toISOString(); else delete e.called; saveState(); render(); return; }   // 연락 체크
   if(t.dataset.link!=null){ const k=t.dataset.link; if(t.value) state.link[k]=t.value; else delete state.link[k]; delete state.edit[k]; saveState(); build(false); return; }
   if(t.id==='minPpl'){ build(true); saveState(); return; }
-  if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; saveState(); if(f==='time' || f==='ppl' || f==='name') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } render(); } }
+  if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); if(f==='bus' || f==='car'){ t.value=t.value.replace(/\D/g,''); if(t.value==='0') t.value=''; }   /* 차량 대수: 숫자만 · 0은 빈칸 */ (state.edit[k] ||= {})[f]=t.value; saveState(); if(f==='time' || f==='ppl' || f==='name') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } render(); } }
 });
 document.addEventListener('input', e=>{ const t=e.target; if(t.tagName==='TEXTAREA' && t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; const r=rows.find(x=>x.key===k); if(r) r[f]=t.value; saveState(); t.style.height='auto'; t.style.height=t.scrollHeight+'px'; } });
 document.addEventListener('click', e=>{ if(e.target.id==='clearBtn'){ if(!confirm('읽은 엑셀과 고친 내용을 지울까요?')) return; state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); } });
 // 표 내용 (엑셀 · 이미지 공통): 도착 시간 순
 function tableData(){ const s=state, list=rows.filter(r=>r.on).sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999)), total=s.rows.reduce((a,x)=>a+x.ppl,0);
   const head=[`${s.date.slice(2).replace(/-/g,'')}(${DOW[new Date(s.date+'T00:00').getDay()]}) ${total}명+@`,'인원(명)','도착시간','입장문','차량','연락처','비고'];
-  return [head, ...list.map(r=>[r.name, r.ppl, r.time||r.timeHint||'', r.gate, r.vehicle, r.phone, r.note])]; }
+  return [head, ...list.map(r=>[r.name, r.ppl, r.time||r.timeHint||'', r.gate||'미정', r.vehicle, r.phone, r.note])]; }
 // 엑셀로 내려받기 (예전 표 모양: 머리 초록 · 입장문 색 · 아래 합계)
 $('#xlsxBtn').onclick=async()=>{ if(!state || !window.ExcelJS) return; const d=tableData(), wb=new ExcelJS.Workbook(), ws=wb.addWorksheet('다음날 고객 응대');
   ws.columns=[{width:16},{width:6},{width:8},{width:8},{width:7},{width:13},{width:24}];   // 핸드폰에서 보기 좋게 좁게 (비고는 줄바꿈)
@@ -252,7 +259,7 @@ $('#xlsxBtn').onclick=async()=>{ if(!state || !window.ExcelJS) return; const d=t
   d.forEach((r,i)=>{ const row=ws.addRow(r); row.eachCell(c=>{ c.alignment={horizontal:'center', vertical:'middle', wrapText:true}; c.border={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}}; });
     if(!i) row.eachCell(c=>{ c.font={bold:true, color:{argb:'FFFFFFFF'}}; c.fill={type:'pattern', pattern:'solid', fgColor:{argb:'FF5A6B4F'}}; });
     else { const g=row.getCell(4); g.fill={type:'pattern', pattern:'solid', fgColor:{argb: r[3]==='곡신문' ? 'FFDBE7F7' : 'FFDCEFD8'}}; } });
-  const on=rows.filter(r=>r.on), total=state.rows.reduce((a,x)=>a+x.ppl,0), gSum=on.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=on.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-on.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
+  const on=rows.filter(r=>r.on), total=state.rows.reduce((a,x)=>a+x.ppl,0), gSum=on.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=on.reduce((a,r)=>a+(+r.bus||0),0), ind=total-on.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
   const f=ws.addRow(['단체', gSum, '', '', `버스 ${bus}대+`, `개인고객 ${ind}명`, '']); ws.mergeCells(f.number,6,f.number,7);
   [[1,'FFD9EAD3'],[2,'FFD9EAD3'],[5,'FFF6C26B'],[6,'FFFFF200']].forEach(([c,col])=>{ const x=f.getCell(c); x.fill={type:'pattern', pattern:'solid', fgColor:{argb:col}}; x.font={bold:true}; x.alignment={horizontal:'center'}; });
   const buf=await wb.xlsx.writeBuffer(), a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf])); a.download=`다음날_고객응대_${state.date.slice(2).replace(/-/g,'')}.xlsx`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000); };
@@ -285,13 +292,13 @@ function shortNote(r){
 $('#pngBtn').onclick=async()=>{
   if(!state || !window.html2canvas){ toast('잠시 뒤 다시 눌러 주세요.'); return; }
   const s=state, list=rows.filter(r=>r.on).sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999)), total=s.rows.reduce((a,x)=>a+x.ppl,0);
-  const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
+  const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.bus||0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
   const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.xnote||'')).map(r=>r.name);
   const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
   const box=$('#shot');
   box.innerHTML = `<div class="sh-h"><b>${esc(dLab(s.date))} 단체현황 · ${list.length}팀</b><span>방문 ${total}명+@</span></div>`
     + `<table><thead><tr><th>단체 · 고객</th><th>인원</th><th>도착</th><th>입장문</th><th>차량</th></tr></thead><tbody>`
-    + list.map(r=>`<tr class="${r.inList?'':'new'}"><td class="nm"><b>${esc(r.name)}</b>${r.phone?`<small>${esc(r.phone)}</small>`:''}</td><td class="c">${r.ppl}</td><td class="c">${esc(r.time||r.timeHint||'')}</td><td class="c">${r.gate?`<span class="g ${esc(r.gate)}">${esc(r.gate)}</span>`:''}</td><td class="c">${esc(r.vehicle||'')}</td></tr>`
+    + list.map(r=>`<tr class="${r.inList?'':'new'}"><td class="nm"><b>${esc(r.name)}</b>${r.phone?`<small>${esc(r.phone)}</small>`:''}</td><td class="c">${r.ppl}</td><td class="c">${esc(r.time||r.timeHint||'')}</td><td class="c">${r.gate?`<span class="g ${esc(r.gate)}">${esc(r.gate)}</span>`:'<span class="g tbd">미정</span>'}</td><td class="c">${esc(r.vehicle||'')}</td></tr>`
       + ((n=>n ? `<tr class="nt"><td colspan="5">${esc(n)}</td></tr>` : '')(shortNote(r)))).join('')
     + `</tbody></table>`
     + `<div class="sh-f"><span class="g1">단체 ${gSum}명</span><span class="g2">버스 ${bus}대+</span><span class="g3">개인고객 ${ind}명</span></div>`
