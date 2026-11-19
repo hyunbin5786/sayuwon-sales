@@ -1914,7 +1914,8 @@ function syncAutoTasks(){
   const e0=tasks.find(t=>t.id==='erp');
   if(e0){ e0.done=!!rec.erp;
     if(e0.done && e0.base && e0.base.v!==5){ const f0=tasks.find(t=>t.id==='erpfix'); const T=[e0.doneAt, f0&&f0.done&&f0.doneAt, /^\d{4}-\d{2}-\d{2}$/.test(rec.erp||'') ? rec.erp+'T23:59:59' : ''].filter(Boolean).sort().pop() || ''; e0.base = T ? erpBaseUp(e0.base, T) : erpSnap(); }   // 예전 기준(v:3 · v:4) → 수정 기록으로 되살림
-    if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
+    if(e0.done && !e0.base){ const f0=tasks.find(t=>t.id==='erpfix' && !t.done && (t.changes||[]).length && t.at); e0.base = f0 ? erpBaseUp({v:0}, new Date(new Date(f0.at).getTime()-1).toISOString()) : erpSnap(); }   // 기준이 없는데 (다음날 고객 응대 준비 등에서 생긴) 전산 예약 수정이 열려 있으면 그 전 내용을 기준으로
+    if(!e0.done) delete e0.base; }
   tasks.forEach(t=>{ if(t.noteEdit && /출입구\s*미정/.test(t.noteEdit)) t.noteEdit=t.noteEdit.split(/\s+\/\s+/).filter(p=>!/^출입구\s*미정$/.test(p.trim())).join(' / ').replace(/\s*출입구\s*미정\s*\/?\s*/g,' ').trim(); });   // 예전 문구의 「출입구 미정」은 안 씀 (2026-11-19)
   tasks.forEach(t=>{ if(t.id==='erpfix' && t.noteEdit && /런치|디너/.test(t.noteEdit)) t.noteEdit=t.noteEdit.split(/\s+\/\s+/).filter(p=>!/^(런치\s*[12]부|디너)$/.test(p.trim())).join(' / '); });   // 전산 예약 수정 문구엔 런치 · 디너 안 씀
   const fixes = e0 && e0.base ? erpDiff(e0.base, erpSnap()) : [];
@@ -1924,7 +1925,7 @@ function syncAutoTasks(){
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec)}); });   // 사전 답사 과업 메모 = 답사 정보
   tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } if(!t.due) t.due=taskDue(t); });
   const fx=tasks.find(t=>t.id==='erpfix');
-  if(fx && !fx.removed){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; fx.v=4; } else if(!fx.done){ fx.changes=[]; if(!(fx.xsubs||[]).length){ fx.done=true; fx.doneAt=new Date().toISOString(); fx.autoDone=true; } } }   // 예약 내용이 전산에 올린 때와 같아지면 저절로 완료 (2026-11-19)
+  if(fx && !fx.removed){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; fx.v=4; } else if(!fx.done && e0 && e0.base){ fx.changes=[]; if(!(fx.xsubs||[]).length){ fx.done=true; fx.doneAt=new Date().toISOString(); fx.autoDone=true; } } }   // 예약 내용이 전산에 올린 때와 같아지면 저절로 완료 (2026-11-19)
   // 하위 과업: 견적서 · 거래명세서는 기본 3개(생성 · 전송 · NAS 업로드) + 누구나 직접 추가한 세부 과제(xsubs). 하위 과업이 있으면 모두 체크될 때 완료
   // (전산 예약 · 프로그램 담당 · 몽몽마방 메뉴처럼 칸을 채우면 끝나는 과업은 하위 과업과 상관없이 그 조건으로)
   tasks.forEach(t=>{ if(t.removed) return; const ds=DOC_SUBS[t.id]; if(ds && !t.subs) t.subs=Object.fromEntries(ds.map(([k])=>[k, !!t.done]));   // 삭제한 과업은 그대로
@@ -1957,7 +1958,7 @@ function erpBaseUp(b, T){ if(!b || b.v===5) return b;
   const s={...snap()}; for(let j=hist.length-1;j>=0;j--){ const h=hist[j]; if(!h || !(String(h.t||'')>T)) break; Object.entries(h.ch||{}).forEach(([k,c])=>{ if(Array.isArray(c)) s[k]=c[0]||''; }); }
   return {v:5, s:contentSnap(s)}; }
 const erpDiff = (a,b) => { if(!a || a.v!==5 || !a.s) return [];
-  return [...new Set([...Object.keys(a.s), ...Object.keys(b.s)])].filter(k=>(a.s[k]||'')!==(b.s[k]||'')).map(k=>{ const l=LABEL[k]||k, x=a.s[k]||'', y=b.s[k]||''; return !x ? `${l} ${y} 입력` : !y ? `${l} ${x} 지움` : `${l} ${x} → ${y}`; }); };
+  return [...new Set([...Object.keys(a.s), ...Object.keys(b.s)])].filter(k=>(a.s[k]||'')!==(b.s[k]||'')).map(k=>{ const l=LABEL[k]||k, x=a.s[k]||'', y=b.s[k]||''; if(k==='views') return '관람 품목 · 인원이 바뀜'; return !x ? `${l} ${y} 입력` : !y ? `${l} ${x} 지움` : `${l} ${x} → ${y}`; }); };
 const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
 // 하위 과업 칸: 기본 하위 과업(견적서 · 거래명세서) + 직접 추가한 세부 과제(× 로 빼기) + 추가 입력칸
 function subsHTML(t){
