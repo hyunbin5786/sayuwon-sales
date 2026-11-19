@@ -444,9 +444,13 @@ const shortT = t => { const m=fmtT(t).match(/(\d\d):(\d\d)/); return m ? (m[2]==
 function shortNote(r){
   const out=[], add=s=>{ s=String(s||'').trim(); if(s && !out.some(x=>norm(x)===norm(s))) out.push(s); };
   const clean = s => String(s).replace(/사담\s*/g,'').replace(/런치\s*(\d)\s*부/g,'런치$1부').replace(/해오름\s*산책|해오름/g,'일출').replace(/선셋/g,'일몰').replace(/\s+/g,' ').trim();
-  String(r.prods||'').split('\n').forEach(p=>{ const m=p.replace(/\s*\d+명$/,''), k=m.match(/\(관람,\s*(.+)\)/); const v=k?k[1]:m; if(PROG_RE.test(v)) add(clean(v)); });   // 상품 (예: (관람, 사담 런치 1부) → 런치1부)
-  String(r.xnote||'').replace(/\s*\(\s*[가-힣]{2,4}\s*\)\s*$/,'')   // 맨 끝 적은 사람 이름 「(문현빈)」은 뺌
-    .split(/\s*\/\s*/).forEach(s=>{ if(PROG_RE.test(s) && !/\d[\d,]*\s*원/.test(s)) add(clean(s)); });   // 엑셀 비고의 프로그램 (금액 칸은 빼고)
+  // 엑셀 비고의 프로그램 (금액 칸은 빼고) — 먼저 모아 두고, 같은 프로그램(도슨트 · 세미나 · 런치 …)이 비고에 이미 있으면 상품 이름(「해설사도슨트(수정)」 등)은 안 씀 (2026-11-19)
+  const xs=[]; String(r.xnote||'').replace(/\s*\(\s*[가-힣]{2,4}\s*\)\s*$/,'')   // 맨 끝 적은 사람 이름 「(문현빈)」은 뺌
+    .split(/\s*\/\s*/).forEach(s=>{ if(PROG_RE.test(s) && !/\d[\d,]*\s*원/.test(s)) xs.push(clean(s)); });
+  const kw = s => (String(s).match(new RegExp(PROG_RE.source, 'gi'))||[]).map(k=>k.toLowerCase());
+  const xk = new Set(xs.flatMap(kw));
+  String(r.prods||'').split('\n').forEach(p=>{ const m=p.replace(/\s*\d+명$/,''), k=m.match(/\(관람,\s*(.+)\)/); const v=k?k[1]:m; if(PROG_RE.test(v) && !kw(clean(v)).some(w=>xk.has(w))) add(clean(v)); });   // 상품 (예: (관람, 사담 런치 1부) → 런치1부)
+  xs.forEach(add);
   if(r.agMemo) add(r.agMemo);   // 여행사 등록 메모 (2026-11-19)
   if(r.onsitePay || /현장\s*결제/.test(r.xnote||'')) add('현장결제');
   const arrive = r.time ? `${shortT(r.time)} ${r.gate || '입장'}` : (r.gate || '');   // 입장문을 아직 안 골랐으면 「9시 입장」 (2026-11-19)
