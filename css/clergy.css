@@ -1,0 +1,20 @@
+/* 대구대교구 무료입장 명부 (2026-11-19) */
+.cl-main{max-width:1200px}
+.keybox-panel .keybox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cl-tools{display:flex;gap:12px;align-items:center;margin:8px 0 10px}
+.cl-tools input[type=search]{height:34px;min-width:260px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit;font-size:14px}
+.cl-tools label{display:inline-flex;gap:4px;align-items:center}
+.cl-t{width:100%;border-collapse:collapse;font-size:13.5px}
+.cl-t th{background:#f4f2ec;font-weight:600;text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.cl-t td{padding:6px 8px;border-bottom:1px solid #eeebe3;vertical-align:middle}
+.cl-t td.nw{white-space:nowrap}
+.cl-t td.nm{font-weight:600}
+.cl-t .cnt{display:inline-block;font-size:12px;padding:0 7px;border-radius:999px;background:var(--pine-soft);color:var(--pine);font-weight:700}
+.cl-t .cnt.full{background:#fbe3dd;color:#b5442c}
+.cl-add{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;border:1px solid var(--pine);border-radius:8px;padding:10px;margin:0 0 10px;background:#f7faf5}
+.cl-add label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+.cl-add input{height:32px;border:1px solid #c9c4b8;border-radius:5px;padding:0 8px;font:inherit;font-size:13.5px;color:var(--ink);width:140px}
+.cl-add input[type=date]{width:150px}
+.cl-add-btns{display:flex;gap:6px;margin-left:auto}
+.cl-add .hint{flex:1 1 100%;margin:0}
+.cl-add .bad{color:#b5442c}

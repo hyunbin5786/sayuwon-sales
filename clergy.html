@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>대구대교구 무료입장 명부 · 사유원 운영 보조 시스템</title>
+<script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/prep.css?v=20261119j2">
+<link rel="stylesheet" href="css/clergy.css?v=20261119a">
+<link rel="stylesheet" href="css/menu.css?v=20261119c1">
+</head>
+<body>
+<!-- 고객 응대 보조 · 대구대교구 무료입장 명부 (2026-11-19): 천주교 대구대교구 수녀 · 신부 · 신학생 무료입장(연 2회) 명부.
+     공유 기록(calls)에 통화 구분 「무료입장명부」로 나눠 저장 (id clergy0, clergy1 … 한 줄에 4만 자까지) — 명부 내용은 이 저장소(GitHub)에는 없음 -->
+<header>
+  <a class="sys-brand" href="./" title="메뉴로">사유원 운영 보조 시스템</a><span class="sys-crumb">대구대교구 무료입장 명부</span>
+  <span class="me" id="me"></span>
+</header>
+<main class="cl-main">
+  <section class="panel keybox-panel" id="keyBox" hidden>
+    <div class="keybox"><span class="hint">명부를 보려면 팀 비밀번호가 필요합니다 (다른 화면과 같은 비밀번호, 이 브라우저에 기억).</span><input id="keyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn primary" id="keyBtn" type="button">연결</button></div>
+  </section>
+  <section class="panel">
+    <h2>대구대교구 무료입장 명부 <small id="sum"></small>
+      <span class="right"><span class="save-st" id="st"></span><button class="btn line-g" id="xlBtn" type="button" title="명부 엑셀(사유원_천주교_무료입장 명부)을 넣으면 그 내용으로 명부를 바꿈">엑셀 불러오기</button><input type="file" id="xlFile" accept=".xlsx,.xls" hidden><button class="btn primary" id="addBtn" type="button">＋ 새로 추가</button></span></h2>
+    <p class="hint">수녀 · 신부 · 신학생 무료입장 (연 2회) · 소속 확인: <a href="https://www.daegu-archdiocese.or.kr/page/org.html?srl=inst&amp;kind=f" target="_blank" rel="noopener">천주교 대구대교구 기관 검색</a> · 팀이 함께 봅니다</p>
+    <div class="cl-tools"><input id="q" type="search" placeholder="이름 · 소속 · 연락처로 찾기" data-ime="ko" autocomplete="off"><label class="hint"><input type="checkbox" id="onlyYear"> 올해만</label></div>
+    <div id="addBox" hidden></div>
+    <div class="tw"><table class="cl-t"><thead><tr><th>방문일</th><th>소속</th><th>이름</th><th>직책</th><th>연락처</th><th>비고</th><th>회차</th><th title="같은 이름 · 연락처의 올해 방문 횟수">올해</th><th></th></tr></thead><tbody id="body"></tbody></table></div>
+  </section>
+</main>
+
+<!-- 삭제 · 엑셀로 바꾸기 확인 -->
+<div class="pmodal" id="askModal" hidden>
+  <section class="panel" role="dialog" aria-modal="true" aria-labelledby="askTitle">
+    <h2 id="askTitle">확인</h2>
+    <p id="askMsg"></p>
+    <div class="dm-btns"><button class="btn" id="askNo" type="button">취소</button><button class="btn primary" id="askYes" type="button">확인</button></div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/common.js?v=20261118"></script>
+<script src="js/clergy.js?v=20261119a"></script>
+<script src="js/menu.js?v=20261119c3"></script>
+</body>
+</html>
