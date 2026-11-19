@@ -180,6 +180,19 @@ function dashRecs(items){
       if(days.length) recs.push({kind:'기타', owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({title:subTxt(day), due:day})), href:'group.html?my=1&tab=etc'});
     }
   });
+  // 다음주 예약 점검 (매주 목요일, 2026-11-19 · 나의 할일 group.js weekTask 와 같은 기준): 영업 담당마다 금~다음 목 내 예약(가예약 · 예약확정) 중 아직 체크 안 한 것이 있으면 한 줄
+  const today=opsToday(), td=new Date(today+'T00:00'); td.setDate(td.getDate()-((td.getDay()-4+7)%7)); const thu=opsYmd(td);
+  const addD = n => { const x=new Date(thu+'T00:00'); x.setDate(x.getDate()+n); return opsYmd(x); }, from=addD(1), to=addD(7);
+  const hash = s => { let h=5381; for(const c of String(s)) h=((h*33) ^ c.codePointAt(0))>>>0; return h.toString(36); };
+  const booked = r => ['가예약','예약확정','예약접수','공식예약'].includes(r.callType) || (/^adm/.test(r.id||'') && (r.callType||'단체예약')==='단체예약');
+  const byOwner = {};
+  items.forEach(r=>{ const d=String(r.date||'').slice(0,10), o=(r.owner||r.takenBy||'').trim(); if(o && d>=from && d<=to && booked(r)) (byOwner[o] ||= []).push(r); });
+  const wl = d => { const x=new Date(d+'T00:00'); return `${x.getMonth()+1}월 ${x.getDate()}일 (${'일월화수목금토'[x.getDay()]})`; };
+  Object.entries(byOwner).forEach(([o, list])=>{
+    const w=items.find(r=>r.id==='wk'+hash(o)+thu.replace(/-/g,'')); let done={}; try{ done=(JSON.parse((w||{}).history||'{}').done)||{}; }catch(_){}
+    const n=list.filter(r=>done[r.id]).length; if(n===list.length) return;
+    recs.push({kind:'단체', owner:o, name:`다음주 예약 점검 · ${wl(from)} ~ ${wl(to)} · ${n}/${list.length}`, q:'다음주 예약 점검 '+list.map(r=>r.org||'').join(' '), tasks:[{title:`내 예약 ${list.length}건 점검 (남은 ${list.length-n}건)`, due:thu}], href:'group.html?my=1&tab=group'});
+  });
   return recs;
 }
 async function loadDash(){
