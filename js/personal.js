@@ -423,9 +423,9 @@ function checkDue(){
   try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), key].join(',')); }catch(_){}
   due.sort((a,b)=>a.t.due.localeCompare(b.t.due));
   $('#dueList').innerHTML = due.map(({r,t,personal})=>{ const late=t.due<today;
-    return `<li class="${late?'late':''}"><span class="who"><span class="tag">${personal?'개인':'단체'}</span> <b>${esc(personal ? (r.contact||'(이름 없음)') : (r.org||r.contact||'(업체 미정)'))}</b>${personal&&r.phone?` · ${esc(r.phone)}`:''}${!personal&&r.date?` · 방문 ${esc(dLabel(r.date))}`:''}<br><b class="t">${esc(t.title)}</b> <small class="hint" style="display:inline">마감 ${esc(dLabel(t.due))} ${late?'(지남)':'(오늘)'}</small></span>`
+    return `<li class="${late?'late':'today'}"><span class="who"><span class="tag">${personal?'개인':'단체'}</span> <b>${esc(personal ? (r.contact||'(이름 없음)') : (r.org||r.contact||'(업체 미정)'))}</b>${personal&&r.phone?` · ${esc(r.phone)}`:''}${!personal&&r.date?` · 방문 ${esc(dLabel(r.date))}`:''}<br><b class="t">${esc(t.title)}</b> <small class="hint" style="display:inline">마감 ${esc(dLabel(t.due))} ${late?'(지남)':'(오늘)'}</small></span>`
       + (personal ? `<button class="btn primary" data-ddone="${esc(r.id)}|${esc(t.id)}">완료</button><button class="btn" data-dopen="${esc(r.id)}">열기</button>` : `<button class="btn" data-gopen="${esc(r.id)}">열기</button>`) + `</li>`; }).join('');
-  $('#dueTitle').innerHTML = `마감이 된 추후 과업 <small>${due.length}개 · 단체 + 개인 · 알림은 오전 8시 · 11시 · 오후 1시 · 5시</small>`;
+  $('#dueTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b> · 단체 + 개인 · 알림은 오전 8시 · 11시 · 오후 1시 · 5시</small>`;
   $('#dueModal').hidden=false;
 }
 $('#dueClose').onclick=()=>{ $('#dueModal').hidden=true; };

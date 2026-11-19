@@ -6,7 +6,7 @@
 <title>개인고객 전화응대 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/personal.css?v=20261120d">
+<link rel="stylesheet" href="css/personal.css?v=20261119f2">
 <link rel="stylesheet" href="css/mypop.css?v=20261116">
 <link rel="stylesheet" href="css/menu.css?v=20261119c1">
 </head>
@@ -104,10 +104,10 @@
     <div class="row-btns" style="margin-top:12px;justify-content:flex-end;display:flex;gap:6px"><button type="button" class="btn" id="pdelCancel">취소</button><button type="button" class="btn primary" id="pdelOk">삭제</button></div>
   </section>
 </div>
-<!-- 마감이 된 추후 과업 알림 (오전 8시 · 11시 · 오후 1시 · 5시, 단체 화면과 같은 기록이라 한 시각에 한 번) -->
+<!-- 과업 알림 (마감이 오늘이거나 지난 추후 과업) (오전 8시 · 11시 · 오후 1시 · 5시, 단체 화면과 같은 기록이라 한 시각에 한 번) -->
 <div class="modal" id="dueModal" hidden>
   <section class="panel wide" role="dialog" aria-modal="true" aria-labelledby="dueTitle">
-    <h2 id="dueTitle">마감이 된 추후 과업</h2>
+    <h2 id="dueTitle">과업 알림</h2>
     <ul class="due-list" id="dueList"></ul>
     <div class="btns" style="justify-content:flex-end"><button class="btn" id="dueClose" title="다음 알림 시각(8 · 11 · 13 · 17시)에 다시">닫기</button></div>
   </section>
@@ -115,7 +115,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="js/common.js?v=20261118"></script>
-<script src="js/personal.js?v=20261119c1"></script>
+<script src="js/personal.js?v=20261119f2"></script>
 <!-- 나의 할일 팝업 (메뉴 8번 페이지 group.html?my=1 을 그대로 띄움) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
 <script src="js/mypop.js?v=20261118"></script>

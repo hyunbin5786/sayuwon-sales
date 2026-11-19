@@ -878,3 +878,8 @@ button.td-opt.on{font-weight:700}
 @media (max-width:900px){ .td,.td.has-detail{grid-template-columns:1fr} .td-side{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)} .td-nav{width:auto} .td-side hr{display:none} }
 /* 전체 탭: 업무 앞 목록 이름 */
 .my-etc .td-lb{margin-right:4px}
+/* 과업 알림 (2026-11-19): 기한 지난 것 = 빨강 · 오늘까지 = 노랑 */
+#tbdList li.late{background:#fbe3dd;border-color:#e3a596;box-shadow:inset 4px 0 0 #b5442c}
+#tbdList li.today{background:#fff6d6;border-color:#e8d36a;box-shadow:inset 4px 0 0 #d9a91f}
+#tbdList li.late > .who > b:nth-of-type(2), #tbdList li.late b.late{color:#b5442c}
+#tbdTitle .cnt-late{color:#b5442c}#tbdTitle .cnt-today{color:#a87b00}
