@@ -197,18 +197,30 @@ async function saveEdits(auto, wins){
   const line = (r,c) => `${r.name} · ${FIELD_LABEL[c.f]} ${short(c.from)||'(빈칸)'} → ${short(c.to)||'(빈칸)'}`;
   let nGroup=0;
   try{
-    // ① 단체예약에 반영
+    // ① 단체예약에 반영 (2026-11-19 다시): 이 화면이 받아 둔 목록이 아니라 저장하는 순간 공유 기록의 최신 내용 위에 고친 칸만 바꿔 넣고, 저장 뒤 다시 받아 확인
+    const latest = todo.some(o=>o.r.recId) ? ((await callApi({action:'list'})).items||[]) : [];
+    const failed=[];
     for(const {r, ch} of todo){
-      const rec = r.recId && groups.find(g=>g.id===r.recId); if(!rec) continue;
-      const it={...rec}; delete it._localAt;
-      ch.forEach(c=>{ if(c.f==='name') it.org=c.to; else if(c.f==='ppl'){ it.people=c.to; fitViewMemo(it); } else if(c.f==='time') it.tin=fmtT(c.to)||c.to; else if(c.f==='bus' || c.f==='car') it.vehicle=vehJoinG(r.bus, r.car);
+      if(!r.recId) continue;
+      const rec = latest.find(g=>g.id===r.recId) || groups.find(g=>g.id===r.recId); if(!rec) { failed.push(r.name+' (단체예약을 못 찾음)'); continue; }
+      const it={...rec}; delete it._localAt; delete it._pending;
+      ch.forEach(c=>{ if(c.f==='name') it.org=c.to; else if(c.f==='ppl'){ it.people=String(parseInt(c.to)||0); fitViewMemo(it); } else if(c.f==='time') it.tin=fmtT(c.to)||c.to; else if(c.f==='bus' || c.f==='car') it.vehicle=vehJoinG(r.bus, r.car);
         else if(c.f==='phone'){ const p=String(rec.phone||'').split(/\s*\/\s*/); p[0]=c.to; it.phone=p.filter((x,i)=>x || i===0).join(' / '); } else if(c.f==='gate') it.memo=memoSet(it.memo, '입장문', c.to); });
+      // 단체 화면 수정 기록과 같은 모양 (ch = 칸마다 [전, 후]) → 되돌리기 · 전산 예약 수정 기준에 씀
+      const chg={}; [['org','org'],['people','people'],['tin','tin'],['vehicle','vehicle'],['phone','phone']].forEach(([k])=>{ if(String(rec[k]||'')!==String(it[k]||'')) chg[k]=[String(rec[k]||''), String(it[k]||'')]; });
+      { const gOld=memoVal(rec,'입장문'), gNew=memoVal(it,'입장문'); if(gOld!==gNew) chg.gate=[gOld, gNew]; const vOld=memoVal(rec,'관람 품목'), vNew=memoVal(it,'관람 품목'); if(vOld!==vNew) chg.views=[vOld, vNew]; }
       let h={}; try{ const j=JSON.parse(rec.history||'{}'); h = Array.isArray(j) ? {h:j} : (j||{}); }catch(_){}
-      h.h=[...(h.h||[]), {t:now, by:me, what:`[다음날 고객 응대 준비] ${ch.map(c=>`${FIELD_LABEL[c.f]} ${short(c.from)||'(빈칸)'} → ${short(c.to)||'(빈칸)'}`).join(', ')}`}];
+      h.h=[...(h.h||[]), {t:now, by:me, what:`[다음날 고객 응대 준비] ${ch.map(c=>`${FIELD_LABEL[c.f]} ${short(c.from)||'(빈칸)'} → ${short(c.to)||'(빈칸)'}`).join(', ')}`, ...(Object.keys(chg).length?{ch:chg}:{})}];
       it.history=JSON.stringify(h);
+      it.saved=now;
       await callApi({action:'put', item:it}); nGroup++;
-      const gi=groups.findIndex(g=>g.id===it.id); if(gi>=0) groups[gi]=it;
+      const gi=groups.findIndex(g=>g.id===it.id); if(gi>=0) groups[gi]=it; else groups.push(it);
     }
+    // 저장 확인: 다시 받아서 바꾼 칸이 정말 들어갔는지
+    if(nGroup){ const chk=((await callApi({action:'list'})).items||[]);
+      todo.forEach(({r, ch})=>{ if(!r.recId) return; const g=chk.find(x=>x.id===r.recId); if(!g) return; const bad=ch.filter(c=>(c.f==='ppl' && String(parseInt(g.people)||0)!==String(parseInt(c.to)||0)) || (c.f==='name' && String(g.org||'')!==c.to) || (c.f==='time' && fmtT(g.tin)!==fmtT(c.to))); if(bad.length) failed.push(`${r.name} (${bad.map(c=>FIELD_LABEL[c.f]).join(' · ')})`); });
+      groups = chk.filter(isConfirmed).length ? chk.filter(isConfirmed) : groups; }
+    if(failed.length) throw Object.assign(new Error('단체예약에 반영되지 않음: '+failed.join(', ')), {code:'단체예약에 반영되지 않음: '+failed.join(', ')});
     // ② 고친 사람의 나의 할일(기타 개인 업무) 「전산내용 재반영」 — 차량 말고 고친 것 모두 (ERP_FIELDS)
     //    준비할 날짜 · 고친 사람마다 업무 하나: 공유 기록에서 그 업무(안 끝난 것)를 찾아 세부 과업만 더함. 예전에 따로 생긴 같은 날짜 업무는 하나로 합침
     const add=todo.flatMap(({r,ch})=>ch.filter(c=>ERP_FIELDS.includes(c.f)).map(c=>line(r,c))), today=SY.ymd(new Date());

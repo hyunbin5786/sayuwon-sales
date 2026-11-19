@@ -146,6 +146,7 @@ let hist=[], baseSnap=null, tasks=[], erpList=[], openDone=new Set(), memos=[], 
 const FRESH_KEYS = ['org','people','date','tin','phone','vehicle','pay','sadam1','sadam2','sadamD','mabangL','memo','contact'];   // 견적서 · 거래명세서 · 사전답사 전에 공유 기록이 다른 곳에서 바뀌었는지 (freshRec)
 const rawPick = r => JSON.stringify(FRESH_KEYS.map(k=>String((r||{})[k]??'').trim()));
 let openedRaw = '';   // 이 화면이 마지막으로 불러오거나 저장한 공유 기록
+let openedObj = null;   // 그때의 칸 값 (liveVals) — 다른 곳에서 바뀐 칸만 골라 받기 (liveSync)
    // openDone: 펼쳐 본 끝난 과업   // erpList: 붙여넣은 전산 예약 내역   // 수정 기록 · 추후 과업
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
 function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; o.gate='미정'; o.vehicle='미정'; o.tbd='차량 대수, 결제 방법'; return o; }   // 결제 · 입장문 · 차량은 기본 미정 (차량 2026-11-18)   // 결제는 기본 미정
@@ -1570,7 +1571,7 @@ async function pull(inFlush){
     serverItems=j.items||[]; writeJSON(CACHE_LS,serverItems.slice(-1000));
     if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
     dbTime.pulled=new Date().toISOString(); writeJSON(DBT_LS, dbTime);
-    syncState='ok'; lastSyncErr=''; syncErrN=0; $('#keyMsg').textContent=''; paintSync(); renderList(); tryOpenG(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); checkMemoPopup(); if(editingId){ const cr=cache.find(x=>x.id===editingId); if(cr){ memos=mergeMemos(memos, parseHist(cr).memos); paintLock(); } } if(!$("#myModal").hidden && !(typeof etcEdit!=="undefined" && etcEdit && document.activeElement?.closest?.(".etc-edit"))) renderMy(); }
+    syncState='ok'; lastSyncErr=''; syncErrN=0; $('#keyMsg').textContent=''; paintSync(); renderList(); tryOpenG(); liveSync(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); checkMemoPopup(); if(editingId){ const cr=cache.find(x=>x.id===editingId); if(cr){ memos=mergeMemos(memos, parseHist(cr).memos); paintLock(); } } if(!$("#myModal").hidden && !(typeof etcEdit!=="undefined" && etcEdit && document.activeElement?.closest?.(".etc-edit"))) renderMy(); }
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
 const store={
@@ -1706,7 +1707,7 @@ async function save(opt){
   Object.keys(item).forEach(k=>{ if(isCKey(k)) delete item[k]; });
   delete item.tbd; delete item.stage; delete item.erp; delete item.tbdDate; delete item.tbdLate; delete item.payContact;
   saving=true;
-  try{ await store.put(item); editingId=item.id; openedRaw=rawPick(item); hist=newHist; baseSnap=cur;
+  try{ await store.put(item); editingId=item.id; openedRaw=rawPick(item); openedObj=liveVals(item); hist=newHist; baseSnap=cur;
     if(auto) lastAuto=now; renderHist(); paintDirty(); await renderList();
     if(!auto) toast(quiet ? `저장했습니다.` : `${item.callType}으로 저장했습니다.${changes.length?' 수정 기록에 반영했습니다.':' (바뀐 내용 없음)'}${needsErp(rec)&&!rec.erp?' 전산 등록을 잊지 마세요.':''}`);
     if(!auto) SID=Math.random().toString(36).slice(2);   // 저장 버튼 = 이 줄 확정, 다음 변경은 새 줄
@@ -2260,7 +2261,7 @@ function openRecord(r){
     if(/^adm/.test(r.id) && !rec.erp) rec.erp='관리자 예약';   // 관리자 사이트에서 온 예약은 이미 전산에 있음
     rec.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(rec) ? normStage(r.callType) : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
-    nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; openedRaw=rawPick(r); $('#memoBox').value=r.note||'';
+    nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; openedRaw=rawPick(r); openedObj=liveVals(r); $('#memoBox').value=r.note||'';
     const ph=parseHist(r); hist=ph.h; tasks=ph.tasks; erpList=ph.erp||[]; memos=ph.memos||[];
     { const o=(r.owner||r.takenBy||'').trim(), me=savedOwner(); lockOwner = o && me && o!==me ? o : ''; } paintLock(); acquireEdit(r.id);   // 남이 담당인 예약: 잠금 (메모만)
     renderContacts(); renderForm(); resetWarn(true); baseSnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
@@ -2832,6 +2833,23 @@ function fitViewToPeople(r){ const n=numOf(r.people); if(!n) return false;
   list[i].qty=q; r.views=goodsJoin(list); return true; }
 function fitViewNow(){ if(!fitViewToPeople(rec)) return false; touched.add('views'); if(typeof renderItems==='function') renderItems(true); renderSide(); return true; }
 document.addEventListener('change', e=>{ if(e.target && e.target.id==='f_people') setTimeout(()=>{ if(fitViewNow()) toast(`관람 인원에 맞춰 예약 내역의 관람 줄 인원을 바꿨습니다 (${viewsParse(rec.views).map(x=>`${viewLabel(daySrc(x.src, rec))} ${x.qty}명`).join(', ')}).`, 3600); }, 0); });
+// 열어 둔 예약이 다른 곳(다음날 고객 응대 준비 · 다른 PC)에서 바뀌면 (2026-11-19): 30초마다 받아 올 때 확인
+//  고치던 것이 없으면 그 예약을 새로 불러오고, 고치는 중이면 내가 안 고친 칸만 받아 넣음 → 옛 내용으로 저장해 덮어쓰지 않게
+const liveVals = r => { const x=unpackExtra(r||{}), o={}; ['org','people','date','tin','phone','vehicle','sadam1','sadam2','sadamD','mabangL'].forEach(k=>{ o[k]=String((r||{})[k]??'').trim(); }); o.gate=String(x.gate||'').trim(); o.views=String(x.views||'').trim(); return o; };
+function liveSync(){
+  try{
+    if(!editingId || !openedObj || saving || lockOwner) return;
+    const r=merged().find(x=>x.id===editingId); if(!r || r._pending || rawPick(r)===openedRaw) return;
+    const nv=liveVals(r), keys=Object.keys(nv).filter(k=>nv[k]!==openedObj[k]);
+    openedRaw=rawPick(r); if(!keys.length) return;
+    const lab=k=>k==='views'?'관람 품목':(LABEL[k]||k), what=keys.map(k=>k==='views'?'관람 품목':`${lab(k)} ${openedObj[k]||'없음'} → ${nv[k]||'없음'}`).join(', ');
+    if(!isDirty() && $('#listModal').hidden){ const y=window.scrollY; openRecord(r); window.scrollTo(0,y); toast(`다른 곳에서 바뀐 내용을 받아 왔습니다: ${what}`, 5000); return; }
+    const took=keys.filter(k=>String(rec[k]??'').trim()===String(openedObj[k]??'').trim());
+    took.forEach(k=>{ rec[k]=nv[k]; touched.add(k); });
+    openedObj=nv;
+    if(took.length){ renderForm(); if(typeof renderItems==='function') renderItems(true); renderSide(); toast(`다른 곳에서 바뀐 내용을 받아 넣었습니다: ${took.map(k=>k==='views'?'관람 품목':`${lab(k)} → ${nv[k]||'없음'}`).join(', ')}`, 5000); }
+  }catch(e){ console.warn('liveSync', e); }
+}
 // 견적서 · 거래명세서 · 사전답사 버튼: 넘기기 전에 공유 기록의 최신 내용(다른 화면 · 다음날 고객 응대 준비에서 고친 것)으로 다시 불러옴 (2026-11-19)
 //  이 화면에서 고치던 것이 있으면 그것이 지금 내용 → 그대로
 async function freshRec(){
