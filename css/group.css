@@ -847,3 +847,12 @@ html.book-guest #bookBody tr{cursor:default}
 .erp-cmp td.tot{text-align:right;white-space:nowrap}
 .erp-cmp td.ck{white-space:nowrap;font-size:12.5px;font-weight:700;text-align:right}
 .erp-cmp td.ck.ok{color:var(--pine)}.erp-cmp td.ck.bad{color:#b5442c}
+/* 나의 할일 메인 · 구분 (2026-11-19) */
+.cat-manage{margin-top:16px;border-top:1px solid var(--line);padding-top:10px;font-size:13px}
+.cat-ord{list-style:none;margin:6px 0 8px;padding:0;display:flex;flex-direction:column;gap:3px}
+.cat-ord li{display:flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:#fff}
+.cat-ord li span{flex:1}
+.cat-ord button{border:1px solid var(--line);background:#fff;border-radius:4px;width:26px;height:24px;cursor:pointer;color:var(--pine);font-size:11px;padding:0}
+.cat-ord button:disabled{opacity:.3;cursor:default}
+.my-colpick{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin:0 0 8px}
+.my-colpick select{height:32px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:13.5px;background:#fff;color:var(--ink);min-width:140px}
