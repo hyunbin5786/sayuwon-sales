@@ -62,3 +62,14 @@ main.st-main > .panel{margin-bottom:14px}
 .nv-sum{font-size:12px;color:var(--muted);margin:-4px 0 8px}
 .nv-sum b{color:#1f8a4c}
 .nv-sum .warn{display:block;color:var(--amber)}
+/* 네이버 예약 달력 사진 (2026-11-19) */
+.nv-img{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.nv-img .hint{flex:1;min-width:240px;font-size:12.5px}
+.nv-imgbox{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff}
+.ni-grid{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.ni-pic img{max-height:260px;max-width:260px;border:1px solid var(--line);border-radius:6px;display:block}
+.ni-tbl{flex:1;min-width:280px}
+.ni-tbl table{margin-top:8px}
+.ni-tbl input[type=date]{font:13px var(--sans);border:1px solid var(--line);border-radius:5px;padding:2px 4px}
+.ni-tbl select{font:13px var(--sans);margin-left:6px}
+.ni-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
