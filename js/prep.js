@@ -330,9 +330,9 @@ const allProds = () => { const m=new Map(); (state?state.rows:[]).forEach(x=>x.i
 function noticeLists(){ return allProds().filter(([p])=>noticeOn(p)).map(([p])=>{ const ppl=state.rows.map(x=>{ const n=x.items.filter(i=>i.p===p).reduce((a,i)=>a+i.n,0); return n ? `${x.name}(${n}명${x.phone?', '+x.phone:''})` : ''; }).filter(Boolean);
   return [p, ppl.join(', ') + (/해오름/.test(p) && ppl.length ? ' · 고객 도착 AM 6:00' : '')]; }).filter(([,t])=>t); }
 const noticeLabel = p => String(p).replace(/^(평일|주말\/공휴일)\s*/,'').replace(/^\((.*)\)$/,'$1').replace(/^관람,\s*/,'');   // 「평일(관람, 선셋디너)」 → 「선셋디너」
-function noticeBoxHTML(){ const ps=allProds(); if(!ps.length) return '';
-  return `<div class="notice-box"><b>안내 명단 상품</b> <small class="hint">체크한 상품을 예약한 고객은 ③ 표 아래 · 이미지 · 엑셀에 「이름(명수, 전화번호)」로 (팀 공유 · 다음 날에도 그대로)</small><div class="nb-list">`
-    + ps.map(([p,n])=>`<label class="${noticeOn(p)?'on':''}"><input type="checkbox" data-notice="${esc(p)}"${noticeOn(p)?' checked':''}> ${esc(p)} <small>${n}명</small></label>`).join('') + `</div></div>`; }
+function noticeBoxHTML(){ const ps=allProds().sort((a,b)=>(noticeOn(b[0])-noticeOn(a[0])) || String(a[0]).localeCompare(String(b[0]),'ko')); if(!ps.length) return '';   // 체크한 것이 위 · 명수는 체크한 것만 (2026-11-19)
+  return `<div class="notice-box"><b>안내 명단 상품</b> <small class="hint">체크한 상품을 예약한 고객은 위 표 아래 · 이미지 · 엑셀에 「이름(명수, 전화번호)」로 (팀 공유 · 다음 날에도 그대로)</small><div class="nb-list">`
+    + ps.map(([p,n])=>`<label class="${noticeOn(p)?'on':''}"><input type="checkbox" data-notice="${esc(p)}"${noticeOn(p)?' checked':''}> ${esc(p)}${noticeOn(p)?` <small>${n}명</small>`:''}</label>`).join('') + `</div></div>`; }
 async function noticeSave(){ try{ localStorage.setItem(NOTICE_LS, JSON.stringify(noticeSel)); }catch(_){}
   if(!getKey()) return; try{ await callApi({action:'put', item:{id:NOTICE_ID, callType:'응대준비설정', saved:new Date().toISOString(), takenBy:user.name||'', owner:user.name||'', summary:'다음날 고객 응대 준비 · 안내 명단 상품', history:JSON.stringify({sel:noticeSel})}}); }catch(_){ toast('안내 명단 상품 고른 것을 팀에 올리지 못했습니다.'); } }
 function noticeFrom(items){ const r=(items||[]).find(x=>x.id===NOTICE_ID); if(!r) return; try{ const j=JSON.parse(r.history||'{}'); if(j && j.sel){ noticeSel=j.sel; try{ localStorage.setItem(NOTICE_LS, JSON.stringify(noticeSel)); }catch(_){} } }catch(_){} }
