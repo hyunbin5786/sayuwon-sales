@@ -856,3 +856,11 @@ html.book-guest #bookBody tr{cursor:default}
 .cat-ord button:disabled{opacity:.3;cursor:default}
 .my-colpick{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin:0 0 8px}
 .my-colpick select{height:32px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:13.5px;background:#fff;color:var(--ink);min-width:140px}
+/* 나의 할일 설정 (× 옆, 2026-11-19) */
+#mySetBtn.on{background:var(--pine);border-color:var(--pine);color:#fff}
+.my-set{border:1px solid var(--line);border-radius:8px;background:#faf9f6;padding:10px 12px;margin:0 0 10px}
+.my-set[hidden]{display:none}
+.my-set-in{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.my-set .cat-manage{margin:0;border:0;padding:0;min-width:260px}
+.my-set .cat-ord{max-width:320px}
+.my-h.sub{font-size:13.5px;margin-top:14px}
