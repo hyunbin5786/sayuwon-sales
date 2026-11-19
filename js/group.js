@@ -1911,7 +1911,10 @@ function syncAutoTasks(){
   if((parseInt(rec.dClergy)||0)>0) want.push('clergy');   // 대구대교구 특별 할인 → 대구대교구 정보 기입 (예약자에게 정보 요청 · 대구대교구 시트 기입)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
   const e0=tasks.find(t=>t.id==='erp');
-  if(e0){ e0.done=!!rec.erp; if(e0.done && e0.base && e0.base.v===3) e0.base=erpBaseUp(e0.base); if(e0.done && (!e0.base || e0.base.erpnote==null || e0.base.v!==4)) e0.base=erpSnap(); if(!e0.done) delete e0.base; }   // 예전 기준(칸마다)은 지금 비고 문구로 바꿔 둠
+  if(e0){ e0.done=!!rec.erp;
+    if(e0.done && e0.base && e0.base.v!==5){ const f0=tasks.find(t=>t.id==='erpfix'); const T=[e0.doneAt, f0&&f0.done&&f0.doneAt, /^\d{4}-\d{2}-\d{2}$/.test(rec.erp||'') ? rec.erp+'T23:59:59' : ''].filter(Boolean).sort().pop() || ''; e0.base = T ? erpBaseUp(e0.base, T) : erpSnap(); }   // 예전 기준(v:3 · v:4) → 수정 기록으로 되살림
+    if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
+  tasks.forEach(t=>{ if(t.noteEdit && /출입구\s*미정/.test(t.noteEdit)) t.noteEdit=t.noteEdit.split(/\s+\/\s+/).filter(p=>!/^출입구\s*미정$/.test(p.trim())).join(' / ').replace(/\s*출입구\s*미정\s*\/?\s*/g,' ').trim(); });   // 예전 문구의 「출입구 미정」은 안 씀 (2026-11-19)
   const fixes = e0 && e0.base ? erpDiff(e0.base, erpSnap()) : [];
   if(fixes.length) want.push('erpfix');
   if(rec.tour) want.push('tour');   // 사전 답사가 잡히면 답사도 전산에 예약
@@ -1919,7 +1922,7 @@ function syncAutoTasks(){
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec)}); });   // 사전 답사 과업 메모 = 답사 정보
   tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } if(!t.due) t.due=taskDue(t); });
   const fx=tasks.find(t=>t.id==='erpfix');
-  if(fx && !fx.removed){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; fx.v=4; } else if(!fx.done) fx.changes=[]; }
+  if(fx && !fx.removed){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; fx.v=4; } else if(!fx.done){ fx.changes=[]; if(!(fx.xsubs||[]).length){ fx.done=true; fx.doneAt=new Date().toISOString(); fx.autoDone=true; } } }   // 예약 내용이 전산에 올린 때와 같아지면 저절로 완료 (2026-11-19)
   // 하위 과업: 견적서 · 거래명세서는 기본 3개(생성 · 전송 · NAS 업로드) + 누구나 직접 추가한 세부 과제(xsubs). 하위 과업이 있으면 모두 체크될 때 완료
   // (전산 예약 · 프로그램 담당 · 몽몽마방 메뉴처럼 칸을 채우면 끝나는 과업은 하위 과업과 상관없이 그 조건으로)
   tasks.forEach(t=>{ if(t.removed) return; const ds=DOC_SUBS[t.id]; if(ds && !t.subs) t.subs=Object.fromEntries(ds.map(([k])=>[k, !!t.done]));   // 삭제한 과업은 그대로
@@ -1941,20 +1944,18 @@ function syncAutoTasks(){
   openT.filter(t=>!t.ordSet).sort(byNew).forEach(t=>{ const d=taskDue(t); let i=list.findIndex(x=>x.ordSet && taskDue(x)>=d); if(i<0) i=list.length; list.splice(i,0,t); });
   tasks=[...list, ...doneT];
 }
-// 전산 예약 수정 (2026-11-18): 전산 비고에 들어가는 문구(erpNote)가 바뀐 경우에만 — 담당자 이름 · 연락처처럼 비고에 안 들어가는 것은 과업을 만들지 않음
-// v:4 (2026-11-19): 비고 문구 + 전산 예약에 들어가는 인원 · 날짜 · 식사 수 (관람 인원이 바뀌어도 전산 예약 수정이 안 생기던 것)
-const ERP_SNAP_KEYS = [['date','방문일'],['people','관람 인원'],['sadam1','런치1부'],['sadam2','런치2부'],['sadamD','디너'],['mabangL','몽몽마방'],['views','관람 품목']];
-const erpSnap = () => { const o={erpnote: erpNote(rec), v:4}; ERP_SNAP_KEYS.forEach(([k])=>{ o[k]=String(rec[k]||'').trim(); }); return o; };
-// 예전 기준(v:3 = 비고 문구만)에는 인원 · 날짜가 없음 → 붙여 넣은 전산 내역(erpList)에서: 방문일 · 관람이 들어간 상품 인원 합 (없으면 지금 값)
-function erpBaseUp(b){ if(!b || b.v!==3) return b; const o={...b, v:4}, cur=erpSnap();
-  ERP_SNAP_KEYS.forEach(([k])=>{ o[k]=cur[k]; });
-  if(erpList.length){ const d=(erpList.find(x=>x.date)||{}).date; if(d) o.date=d; const vp=erpList.filter(x=>/관람/.test(x.product)).reduce((s,x)=>s+(+x.people||0),0); if(vp) o.people=String(vp); }
-  return o; }
-const erpDiff = (a,b) => { if(!a || a.erpnote==null || a.v!==4) return [];
-  const out=ERP_SNAP_KEYS.filter(([k])=>k!=='views' && String(a[k]||'')!==String(b[k]||'')).map(([k,l])=>`${l} ${a[k]||'없음'} → ${b[k]||'없음'}`);
-  if(String(a.views||'')!==String(b.views||'') && !out.some(s=>/^관람 인원/.test(s))) out.push('관람 품목 · 인원이 바뀜');
-  if((a.erpnote||'')!==(b.erpnote||'')) out.push('전산 비고 문구가 바뀜 (아래 새 문구로 고치기)');
-  return out; };
+// 전산 예약 수정 (2026-11-19 v:5): 전산 등록(또는 전산 내역 다시 붙여넣기)을 마친 뒤 「예약 내용」이 하나라도 바뀌면 생김 (관람 인원 · 날짜 · 시간 · 식사 · 프로그램 · 결제 · 차량 …)
+//  기준 = 전산에 올린 때의 예약 내용(erp 과업 base.s). 지금 내용이 기준과 같아지면(되돌리면) 전산 내역을 다시 붙여 넣지 않아도 저절로 완료
+//  담당자 · 통화 메모 · 과업 · 전산 내역 · 미정 체크 · 견적서 요청 · 결제링크 · 사전답사처럼 전산 예약과 상관없는 칸은 보지 않음
+const ERP_SKIP = /^(task|tmemo|tadd|tfile|tsub|tnote|tdue|tttl):|^(note|taskOrder|readDone|erp|erpList|tbd|tbdLate|tbdDate|stage|owner|wantQuote|wantStmt|linkSent|paidAt|tour|payContact|etcDiscWhy|inotes)$/;
+const contentSnap = s => Object.fromEntries(Object.entries(s||{}).filter(([k,v])=>!ERP_SKIP.test(k) && !isCKey(k) && String(v??'').trim()!=='').map(([k,v])=>[k, String(v).trim()]));
+const erpSnap = () => ({v:5, s:contentSnap(snap())});
+// 예전 기준(v:3 · v:4)은 수정 기록으로 되살림: 전산에 올린 때(T) 뒤의 기록을 거꾸로 되돌린 내용
+function erpBaseUp(b, T){ if(!b || b.v===5) return b;
+  const s={...snap()}; for(let j=hist.length-1;j>=0;j--){ const h=hist[j]; if(!h || !(String(h.t||'')>T)) break; Object.entries(h.ch||{}).forEach(([k,c])=>{ if(Array.isArray(c)) s[k]=c[0]||''; }); }
+  return {v:5, s:contentSnap(s)}; }
+const erpDiff = (a,b) => { if(!a || a.v!==5 || !a.s) return [];
+  return [...new Set([...Object.keys(a.s), ...Object.keys(b.s)])].filter(k=>(a.s[k]||'')!==(b.s[k]||'')).map(k=>{ const l=LABEL[k]||k, x=a.s[k]||'', y=b.s[k]||''; return !x ? `${l} ${y} 입력` : !y ? `${l} ${x} 지움` : `${l} ${x} → ${y}`; }); };
 const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
 // 하위 과업 칸: 기본 하위 과업(견적서 · 거래명세서) + 직접 추가한 세부 과제(× 로 빼기) + 추가 입력칸
 function subsHTML(t){
