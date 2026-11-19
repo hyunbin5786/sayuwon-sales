@@ -1838,9 +1838,9 @@ const erpCheckHTML = c => !c.pasted ? '' : c.why ? `<span class="ck bad">대조 
 const erpShortT = t => { const m=String(t||'').replace(/\s/g,'').match(/^(\d{1,2}):?(\d{2})$/); return m ? (m[2]==='00' ? `${+m[1]}시` : `${+m[1]}:${m[2]}`) : String(t||'').trim(); };
 // 프로그램 이름은 비고 규칙의 말로 (런치 · 디너 · 일출 · 일몰 · 동행도슨트 · PPT세미나 · 자체세미나) — 대관은 자체세미나(장소)
 const ERP_PROG_NAME = { donghaeng:'동행도슨트', seminar:'PPT세미나', seminar2:'PPT세미나', haeorum:'일출', chabang:'자체세미나(차방)', dangdu:'자체세미나(당두)', yoga:'요가', sound:'사운드워킹', scent:'사유의 향' };
-function erpNote(r){
+function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문구는 런치 · 디너를 뺌 (2026-11-19)
   const items=[];
-  [['sadam1','런치1부'],['sadam2','런치2부'],['sadamD','디너']].forEach(([k,l])=>{ if(r[k]) items.push(l); });
+  if(!noMeal) [['sadam1','런치1부'],['sadam2','런치2부'],['sadamD','디너']].forEach(([k,l])=>{ if(r[k]) items.push(l); });
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]] && f[1]!=='gaga').forEach(f=>{   // 음료쿠폰은 굿즈라 뺌
     const k=f[1], sub=p=>String(r[`${p}_${k}`]||'').trim(), name=ERP_PROG_NAME[k] || String(f[2]).replace(/\s+/g,'');
     const stf=sub('stf') && k==='donghaeng' && !/해설사$/.test(sub('stf')) ? sub('stf')+'해설사' : sub('stf');   // 동행도슨트 담당 = 「김수정해설사」
@@ -1880,7 +1880,7 @@ function staffMsg(r){
   const c=contactsOf(r)[0]||{};
   return `[단체 일정 전달] ${head}\n` + Object.entries(by).map(([w,l])=>`- ${w}: ${l.join(', ')}`).join('\n') + (c.name||c.phone ? `\n고객 담당: ${[c.name,c.phone].filter(Boolean).join(' ')}` : '') + `\n영업 담당: ${(r.owner||savedOwner()||'').trim()||'-'}`;
 }
-const taskAuto = t =>(t.id==='erp'||t.id==='erpfix') ? erpNote(rec) : t.id==='staffbrief' ? staffMsg(rec) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : '';   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장결제 필요)   // 자동으로 만든 문구
+const taskAuto = t => t.id==='erp' ? erpNote(rec) : t.id==='erpfix' ? erpNote(rec, true) : t.id==='staffbrief' ? staffMsg(rec) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : '';   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장결제 필요)   // 자동으로 만든 문구
 const taskText = t => taskAuto(t) ? (t.noteEdit || taskAuto(t)) : '';   // 직접 고쳤으면 그 글 (전산 비고 등)
 // 과업 기한(due): 생기면 그날이 기본, 각자 바꿀 수 있음(dueSet). 미정 항목 연락 = 답변일, 현장 결제 인원 확인 = 전주 목요일(지났으면 전날), 결제 확인 = 다음날
 const todayYmd = () => ymd(new Date());
@@ -1916,6 +1916,7 @@ function syncAutoTasks(){
     if(e0.done && e0.base && e0.base.v!==5){ const f0=tasks.find(t=>t.id==='erpfix'); const T=[e0.doneAt, f0&&f0.done&&f0.doneAt, /^\d{4}-\d{2}-\d{2}$/.test(rec.erp||'') ? rec.erp+'T23:59:59' : ''].filter(Boolean).sort().pop() || ''; e0.base = T ? erpBaseUp(e0.base, T) : erpSnap(); }   // 예전 기준(v:3 · v:4) → 수정 기록으로 되살림
     if(e0.done && !e0.base) e0.base=erpSnap(); if(!e0.done) delete e0.base; }
   tasks.forEach(t=>{ if(t.noteEdit && /출입구\s*미정/.test(t.noteEdit)) t.noteEdit=t.noteEdit.split(/\s+\/\s+/).filter(p=>!/^출입구\s*미정$/.test(p.trim())).join(' / ').replace(/\s*출입구\s*미정\s*\/?\s*/g,' ').trim(); });   // 예전 문구의 「출입구 미정」은 안 씀 (2026-11-19)
+  tasks.forEach(t=>{ if(t.id==='erpfix' && t.noteEdit && /런치|디너/.test(t.noteEdit)) t.noteEdit=t.noteEdit.split(/\s+\/\s+/).filter(p=>!/^(런치\s*[12]부|디너)$/.test(p.trim())).join(' / '); });   // 전산 예약 수정 문구엔 런치 · 디너 안 씀
   const fixes = e0 && e0.base ? erpDiff(e0.base, erpSnap()) : [];
   if(fixes.length) want.push('erpfix');
   if(rec.tour) want.push('tour');   // 사전 답사가 잡히면 답사도 전산에 예약
