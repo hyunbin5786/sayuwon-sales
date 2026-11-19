@@ -26,7 +26,7 @@
       if(!j.ok){ if(j.error==='bad_key') $('#keyBox').hidden=false; return; }
       groups=(j.items||[]).filter(r=>GROUP_TYPES.includes(r.callType||'단체예약')); $('#keyBox').hidden=true; }catch(_){}
   }
-  $('#keyBtn').onclick=()=>{ const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(SY.KEY_LS, v); }catch(_){} $('#keyIn').value=''; loadGroups().then(()=>toast('연결했습니다. 엑셀을 다시 넣으면 단체 이름이 들어갑니다.')); };
+  if($('#keyBtn')) $('#keyBtn').onclick=()=>{ const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(SY.KEY_LS, v); }catch(_){} $('#keyIn').value=''; loadGroups().then(()=>toast('연결했습니다. 엑셀을 다시 넣으면 단체 이름이 들어갑니다.')); };
 
   // ---------- 엑셀 읽기 (전산 방문자내역: HTML 표 모양의 .xls) ----------
   const cellLines = td => td ? td.innerHTML.split(/<br\s*\/?>/i).map(h=>{ const d=document.createElement('div'); d.innerHTML=h; return d.textContent.replace(/\s+/g,' ').trim(); }).filter((s,i,a)=>s!=='' || i<a.length-1) : [];
@@ -57,19 +57,13 @@
     return s;
   }
   function buildDay(v){
-    const dg=groups.filter(r=>String(r.date||'').slice(0,10)===v.date), used=new Set();
-    const find = x => { const ph=digits(x.phone), nm=norm(x.name.replace(/\(.*?\)/g,''));
-      return dg.find(r=>!used.has(r.id) && ph.length>=9 && String(r.phone||'').split(/\s*\/\s*/).map(digits).includes(ph))
-        || dg.find(r=>!used.has(r.id) && [r.org, ...String(r.contact||'').split(/\s*\/\s*/)].map(norm).filter(Boolean).some(n=>n===nm)) || null; };
+    // 2026-11-19: 단체예약 등 다른 기록과 연결하지 않고 엑셀 표 그대로 — 단체 = 할인 「단체관람」이거나 10명 이상, 이름 = 엑셀 성명 그대로
     const map={};
     const row = c => map[c] ||= {cat:c, home:0, naver:0, groups:[]};
     v.rows.forEach(x=>{
-      const rec=find(x); if(rec) used.add(rec.id);
       const ppl = x.items.reduce((a,it)=>a+(+it.n||0),0);
-      const isGroup = !!rec || /단체관람/.test(x.disc) || ppl>=10;   // 10명 이상이면 단체예약에 없어도 단체 (2026-11-19 · 예: 김천의료원 25명)
-      // 단체 이름: 단체예약에 담당자가 있으면 「업체(담당자)」, 없으면 엑셀 성명 그대로(「산청군청(고영현)」처럼 괄호가 있으면 그대로, 2026-11-19 · 예전엔 업체명만 「산청군청」)
-      const c0 = String((rec&&rec.contact)||'').split(/\s*\/\s*/)[0].trim();
-      const gName = rec ? (c0 ? `${rec.org||x.name.replace(/\(.*?\)\s*$/,'')}(${c0})` : (/\(.+\)\s*$/.test(x.name) ? x.name.trim() : (rec.org||x.name))) : x.name;
+      const isGroup = /단체관람/.test(x.disc) || ppl>=10;
+      const gName = String(x.name||'').trim();
       x.items.forEach(it=>{ const c=catOf(it.p); if(!c || !it.n) return; const r=row(c); r.home+=it.n; if(isGroup) r.groups.push(`${gName} ${it.n}명`); });
     });
     ORDER.forEach(c=>{ if(c==='오전입장' || c==='오후입장') row(c); });   // 입장은 0명이어도 줄
@@ -257,5 +251,5 @@
       a.href=URL.createObjectURL(blob); a.download=`사유원_예약현황_${nm}.png`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000); toast('사진으로 저장했습니다.'); }
     catch(_){ toast('사진을 만들지 못했습니다.'); }
   };
-  render(); loadGroups();
+  render();   // 단체예약 목록은 안 받음 (2026-11-19 · 엑셀 표 그대로)
 })();
