@@ -883,3 +883,10 @@ button.td-opt.on{font-weight:700}
 #tbdList li.today{background:#fff6d6;border-color:#e8d36a;box-shadow:inset 4px 0 0 #d9a91f}
 #tbdList li.late > .who > b:nth-of-type(2), #tbdList li.late b.late{color:#b5442c}
 #tbdTitle .cnt-late{color:#b5442c}#tbdTitle .cnt-today{color:#a87b00}
+/* 다음주 예약 점검 (매주 목요일, 2026-11-19) */
+.wk-list{margin-bottom:12px}
+.wk-list .wk-row{display:flex;align-items:center;gap:8px}
+.wk-list .wk-row .who{cursor:pointer;flex:1}
+.wk-list .wk-row.on .who{opacity:.55;text-decoration:line-through}
+.wk-list.wk-today .wk-row:not(.on){background:#fff6d6;border-color:#e8d36a}
+.wk-list.wk-late .wk-row:not(.on){background:#fbe3dd;border-color:#e3a596}

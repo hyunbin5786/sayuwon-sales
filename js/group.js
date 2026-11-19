@@ -3228,12 +3228,12 @@ function renderMy(){
   if(myTab==='etc'){ const n=myEtcOpen().length; $('#mySum').textContent = `기타 개인 업무 · 오늘 할 일 ${n}개`; $('#myBody').innerHTML = todoHTML(); return; }   // 기타 개인 업무: 할 일 목록 화면 (2026-11-19 · 아래 todoHTML)
   if(myTab==='group'){
     $('#mySum').textContent = `담당 단체 예약 ${mine.length}건 · 방문 예정(가예약 · 예약확정) ${ahead.filter(booked).length}건 · 미정 ${tbdAll.length}건 · 남은 과업 ${nG}개`;
-    const g2 = `<h3 class="my-h">추후 과업 (단체) <small>${nG}개${lateOf(open)?` · <b class="late">기한 지남 ${lateOf(open)}개</b>`:''}</small></h3>` + taskList(open, '해결 안 된 단체 과업이 없습니다.');
+    const g2 = weekCheckHTML() + `<h3 class="my-h">추후 과업 (단체) <small>${nG}개${lateOf(open)?` · <b class="late">기한 지남 ${lateOf(open)}개</b>`:''}</small></h3>` + taskList(open, '해결 안 된 단체 과업이 없습니다.');
     $('#myBody').innerHTML = `<div class="my-cols two"><div class="my-col">${c1}</div><div class="my-col">${g2}</div></div>`; return;
   }
   // 전체: ① 개인 추후 과업 ② 단체 추후 과업 (다른 사람이 수정한 내 예약 칸은 2026-11-14에 없앰)
   const a1 = `<h3 class="my-h">추후 과업 (개인) <small>${nP}개${lateOf(persAll)?` · <b class="late">기한 지남 ${lateOf(persAll)}개</b>`:''}</small></h3>` + taskList(persAll.map(o=>({...o, personal:true})), '해결 안 된 개인고객 과업이 없습니다.');
-  const a2 = `<h3 class="my-h">추후 과업 (단체) <small>${nG}개${lateOf(open)?` · <b class="late">기한 지남 ${lateOf(open)}개</b>`:''}</small></h3>` + taskList(open, '해결 안 된 단체 과업이 없습니다.');
+  const a2 = weekCheckHTML() + `<h3 class="my-h">추후 과업 (단체) <small>${nG}개${lateOf(open)?` · <b class="late">기한 지남 ${lateOf(open)}개</b>`:''}</small></h3>` + taskList(open, '해결 안 된 단체 과업이 없습니다.');
   $('#myBody').innerHTML = `<div class="my-cols three"><div class="my-col">${a1}</div><div class="my-col">${a2}</div><div class="my-col">${etcSection()}</div></div>`;   // 전체: 개인 · 단체 · 기타 개인 업무 (2026-11-18)
 }
 function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
@@ -3823,6 +3823,38 @@ document.addEventListener('submit', async e=>{
 });
 // 전체 탭 등에서 업무 앞에 붙이는 목록 이름
 const etcListBadge = d => `<span class="td-lb">${esc(d.list||TD_DEF)}</span> `;
+// ===== 매주 목요일: 다음주 예약 점검 (2026-11-19) =====
+// 영업 담당마다, 가장 가까운 지난 목요일(오늘이 목요일이면 오늘)에 그다음 날부터 7일(금~다음 목)의 내 예약(가예약 · 예약확정)을 점검
+// 나의 할일 › 단체 · 전체 탭의 단체 칸 맨 위에 카드. 예약마다 세부 과업(체크) — 예약 이름을 누르면 그 예약 열기
+// 체크는 공유 기록 한 줄(통화 구분 「주간점검」, 사람 · 주마다 하나)에 { week, done:{예약ID:시각} }
+const wkThu = (today=ymd(new Date())) => { const d=new Date(today+'T00:00'); d.setDate(d.getDate()-((d.getDay()-4+7)%7)); return ymd(d); };
+const wkAdd = (ymdS, n) => { const d=new Date(ymdS+'T00:00'); d.setDate(d.getDate()+n); return ymd(d); };
+const wkId = (me, thu) => 'wk'+tdHash(me)+thu.replace(/-/g,'');
+const wkRec = (me, thu) => (cache||[]).find(r=>r.id===wkId(me, thu)) || null;
+const wkDone = (me, thu) => { try{ return (JSON.parse((wkRec(me, thu)||{}).history||'{}').done)||{}; }catch(_){ return {}; } };
+function wkItems(me, thu){ const from=wkAdd(thu,1), to=wkAdd(thu,7);
+  return (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me && r.date && r.date>=from && r.date<=to && isBooked(stageOfRec(r))).sort((a,b)=>String(a.date).localeCompare(String(b.date)) || String(a.org||'').localeCompare(String(b.org||''),'ko')); }
+function weekCheckHTML(){
+  const me=savedOwner(); if(!me) return '';
+  const today=ymd(new Date()), thu=wkThu(today), from=wkAdd(thu,1), to=wkAdd(thu,7), items=wkItems(me, thu), done=wkDone(me, thu);
+  const n=items.filter(r=>done[r.id]).length, all=items.length && n===items.length, late=today>thu && !all;
+  const head = `<h3 class="my-h">다음주 예약 점검 <small>${esc(mdLabel(from))} ~ ${esc(mdLabel(to))} · 마감 ${esc(mdLabel(thu))} · ${n}/${items.length}${all?' · 완료':late?' · <b class="late">기한 지남</b>':''}</small></h3>`;
+  if(!items.length) return head + `<p class="hint">이 기간에 내 예약(가예약 · 예약확정)이 없습니다.</p>`;
+  return head + `<ul class="pc-list wk-list${all?' wk-done':late?' wk-late':' wk-today'}">${items.map(r=>{ const st=stageOfRec(r), ck=!!done[r.id];
+    return `<li class="wk-row${ck?' on':''}"><label class="etc-ck" title="점검했으면 체크"><input type="checkbox" data-wkck="${esc(r.id)}"${ck?' checked':''}></label>`
+      + `<span class="who" data-myopen="${esc(r.id)}" title="눌러서 예약 열기"><b>${esc(dateLabel(r.date))}</b> <span class="tag st-${st}">${st}</span> <b>${esc(r.org||r.contact||'(업체 미정)')}</b>${r.people?` · ${esc(r.people)}명`:''}${r.tin?` · ${esc(r.tin)}`:''}</span></li>`; }).join('')}</ul>`;
+}
+// 체크 → 저장 (사람 · 주마다 한 줄)
+document.addEventListener('change', async e=>{
+  const id=e.target.dataset?.wkck; if(!id) return;
+  const me=savedOwner()||'', thu=wkThu(), old=wkRec(me, thu), now=new Date().toISOString(); let h={}; try{ h=JSON.parse((old||{}).history||'{}'); }catch(_){}
+  const done={...(h.done||{})}; if(e.target.checked) done[id]=now; else delete done[id];
+  const items=wkItems(me, thu), n=items.filter(r=>done[r.id]).length;
+  const item={...(old||{}), id:wkId(me, thu), callType:'주간점검', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:`다음주 예약 점검 ${mdLabel(wkAdd(thu,1))}~${mdLabel(wkAdd(thu,7))} · ${n}/${items.length}`, history:JSON.stringify({week:thu, done})};
+  e.target.disabled=true;
+  try{ await store.put(item); const i=cache.findIndex(x=>x.id===item.id); if(i>=0) cache[i]=item; else cache.push(item); renderMy(); if(items.length && n===items.length) toast('다음주 예약 점검을 모두 끝냈습니다.'); }
+  catch(err){ e.target.disabled=false; e.target.checked=!e.target.checked; toast('저장하지 못했습니다: '+(err.code||err.message)); }
+});
 // 예약 현황 아래 그날 목록: 단체 예약에서 온 줄을 누르면 그 예약 열기 (고치던 것은 openRecordG 가 먼저 물어봄)
 document.addEventListener('click', e=>{ const li=e.target.closest?.('#dayAll li[data-bopen]'); if(!li || !li.dataset.bopen) return; const r=cache.find(x=>x.id===li.dataset.bopen); if(r) openRecordG(r); });
 $('#cancelWhyTxt')?.addEventListener('click', openCancel);   // 사유를 누르면 고치기
