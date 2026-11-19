@@ -1846,11 +1846,10 @@ const erpCrs = c => String(c||'').trim().replace(/삼거리/g,'').replace(/\s*(�
 const ERP_PROG_NAME = { donghaeng:'동행도슨트', seminar:'PPT세미나', seminar2:'PPT세미나', haeorum:'일출', chabang:'자체세미나(차방)', dangdu:'자체세미나(당두)', yoga:'요가', sound:'사운드워킹', scent:'사유의 향' };
 function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문구는 런치 · 디너를 뺌 (2026-11-19)
   const items=[];
-  if(!noMeal) [['sadam1','런치1부'],['sadam2','런치2부'],['sadamD','디너']].forEach(([k,l])=>{ if(r[k]) items.push(l); });
+  // 런치 · 디너는 비고에 안 씀 (2026-11-19 · 상품으로 전산에 있음). noMeal 은 예전 호출 그대로 둠
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]] && f[1]!=='gaga').forEach(f=>{   // 음료쿠폰은 굿즈라 뺌
     const k=f[1], sub=p=>String(r[`${p}_${k}`]||'').trim(), name=ERP_PROG_NAME[k] || String(f[2]).replace(/\s+/g,'');
-    const stf=sub('stf') && k==='donghaeng' && !/해설사$/.test(sub('stf')) ? sub('stf')+'해설사' : sub('stf');   // 동행도슨트 담당 = 「김수정해설사」
-    const paren=[erpCrs(sub('crs')), /\(/.test(name) ? '' : sub('plc'), stf].filter(Boolean).join(', ');   // 자체세미나(당두)처럼 이름에 장소가 있으면 장소는 빼고
+    const paren=[erpCrs(sub('crs')), /\(/.test(name) ? '' : sub('plc')].filter(Boolean).join(', ');   // 괄호 = 도슨트 출발 위치 · 장소만 (담당자는 안 씀, 2026-11-19) · 자체세미나(당두)처럼 이름에 장소가 있으면 장소는 빼고
     items.push([erpProgT(sub('tm')), /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
     if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2)) items.push([erpProgT(r.tm_seminar2), name+(r.plc_seminar2?`(${String(r.plc_seminar2).trim()})`:'')].filter(Boolean).join(' '));
   });
