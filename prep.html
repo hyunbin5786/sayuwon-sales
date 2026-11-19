@@ -6,7 +6,7 @@
 <title>다음날 고객 응대 준비 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261119c4">
+<link rel="stylesheet" href="css/prep.css?v=20261119c5">
 <link rel="stylesheet" href="css/mypop.css?v=20261116">
 <link rel="stylesheet" href="css/menu.css?v=20261119c1">
 </head>
@@ -47,7 +47,7 @@
   <!-- ④ 입장문 추천 · 결과 표 -->
   <section class="panel off print-me" id="p4">
     <h2><span class="step no-print">4</span>입장문 추천 · 응대 표 <small id="p4Sum"></small>
-      <span class="right no-print"><button class="btn" id="reGate" title="추천 규칙으로 입장문을 다시 고름 (직접 바꾼 것도 다시)">입장문 다시 추천</button><button class="btn primary" id="xlsxBtn">엑셀로 내려받기</button><button class="btn primary" id="pngBtn" title="핸드폰에서 보기 좋은 좁은 폭의 그림 파일 (PNG)">이미지로 저장</button></span></h2>
+      <span class="right no-print"><button class="btn primary" id="saveEdits" type="button" title="표에서 고친 내용을 저장: 연결된 단체예약에 반영하고, 나의 할일(기타 개인 업무)에 「전산에 추가」로 넣음">수정 내용 저장</button><button class="btn" id="reGate" title="추천 규칙으로 입장문을 다시 고름 (직접 바꾼 것도 다시)">입장문 다시 추천</button><button class="btn primary" id="xlsxBtn">엑셀로 내려받기</button><button class="btn primary" id="pngBtn" title="핸드폰에서 보기 좋은 좁은 폭의 그림 파일 (PNG)">이미지로 저장</button></span></h2>
     <details class="no-print" style="margin:0 0 10px"><summary class="hint" style="cursor:pointer">입장문 추천 규칙 보기 · 고치기</summary>
       <ul class="rules" id="rulesList"></ul><!-- 지금 규칙 (js/prep.js paintRules) -->
       <div class="rules-bar"><span class="hint" id="rulesWho"></span><button class="btn primary" id="rulesEdit" type="button">규칙 고치기</button></div>
@@ -87,7 +87,7 @@
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/common.js?v=20261118"></script>
-<script src="js/prep.js?v=20261119c4"></script>
+<script src="js/prep.js?v=20261119c5"></script>
 <script src="js/mypop.js?v=20261118"></script>
 <script src="js/menu.js?v=20261119c1"></script>
 </body>

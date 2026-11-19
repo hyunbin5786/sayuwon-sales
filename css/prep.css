@@ -143,3 +143,9 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 .out td.called{text-align:center;width:44px}
 .out td.called input{width:18px;height:18px;cursor:pointer;accent-color:var(--pine)}
 .out td.called.on{background:var(--pine-soft)}
+/* ④ 표 직접 고치기 · 저장 안 한 칸 표시 (2026-11-19) */
+.out input.nm{font-weight:600;text-align:left;min-width:120px;width:calc(100% - 60px);display:inline-block}
+.out input.pp{width:48px}
+.out .chg,.out .chg:hover,.out .chg:focus{border:1.5px solid #e0a52a;background:#fff7e0}
+#saveEdits.dirty{box-shadow:0 0 0 3px #f6d68a}
+@media print{.out input.nm{width:100%}}

@@ -144,11 +144,15 @@ function build(fresh){
   rows = list.map(o=>{ const k=o.x?o.x.id:'r'+o.rec.id, r=o.rec, x=o.x, v=vehicleText(r&&r.vehicle), e=state.edit[k]||{};
     const prods=x ? x.items.filter(i=>i.n>0 || x.items.length===1).map(i=>shortProd(i.p)) : [];
     const pmT = x && x.items.some(i=>/13:00~18:00/.test(i.p)) && !x.items.some(i=>/09:00~18:00|\(관람,/.test(i.p)) ? '13:00 이후' : '';
-    return { key:k, recId: r ? r.id : '', on: state.sel[k]!==false, group: !!r || isGroupName(x&&x.name), inList: !!r, travel: isBig((r&&r.org)||(x&&x.name)),
-      name: r ? (r.org||r.contact||'(업체 미정)') : isGroupName(x.name) ? x.name : `${x.name}(개인)`, xname:x?x.name:'', ppl: x ? x.ppl : (parseInt(r.people)||0),
-      time: e.time ?? fmtT(r&&r.tin) ?? '', timeHint: pmT, vehicle: e.vehicle ?? v.txt, bus: v.bus,
-      phone: e.phone ?? (x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || ''),
-      note: e.note ?? (x && x.note && x.note!=='-' ? x.note : ''),   // 비고 = 전산 방문자내역 엑셀의 비고 그대로 (2026-11-19 · 상품 · 단체예약 내용을 만들어 붙이지 않음)
+    // 처음 값(엑셀 · 단체예약) — 표에서 고친 값(state.edit)과 비교해 「수정 내용 저장」에 씀 (2026-11-19)
+    const orig = { name: r ? (r.org||r.contact||'(업체 미정)') : isGroupName(x.name) ? x.name : `${x.name}(개인)`, ppl: x ? x.ppl : (parseInt(r.people)||0),
+      time: fmtT(r&&r.tin) || '', vehicle: v.txt, phone: x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || '',
+      note: x && x.note && x.note!=='-' ? x.note : '' };   // 비고 = 전산 방문자내역 엑셀의 비고 그대로 (2026-11-19 · 상품 · 단체예약 내용을 만들어 붙이지 않음)
+    return { key:k, recId: r ? r.id : '', on: state.sel[k]!==false, group: !!r || isGroupName(x&&x.name), inList: !!r, travel: isBig((r&&r.org)||(x&&x.name)), orig,
+      name: e.name ?? orig.name, xname:x?x.name:'', ppl: e.ppl!=null && e.ppl!=='' ? (parseInt(e.ppl)||0) : orig.ppl,
+      time: e.time ?? orig.time, timeHint: pmT, vehicle: e.vehicle ?? orig.vehicle, bus: v.bus,
+      phone: e.phone ?? orig.phone,
+      note: e.note ?? orig.note,
       onsitePay: /현장/.test((r&&r.pay)||''),   // 현장결제건 (단체예약 결제 방법)
       gate: e.gate || '', gateWhy:'', recGate: (()=>{ const rg=r ? (memoVal(r,'입장문')||r.gate||'') : ''; return /^(치허문|곡신문)$/.test(rg) ? rg : ''; })(),   /* 단체예약에서 정한 입장문 (비고 칸 「입장문 …」 · 미정이면 없음) */ missing: !x, stage: r ? (r.callType||'') : '', prods: x ? x.items.map(i=>`${i.p} ${i.n}명`).join('\n') : '', pay: (x&&x.pay)||'' };
   });
@@ -176,6 +180,57 @@ function recommendGates(force){
     r.gateSrc = e.gate ? 'hand' : r.recGate ? 'fixed' : 'auto';
   });
 }
+// ===================== ④ 표에서 고친 것 → 저장 (2026-11-19) =====================
+// 고친 칸 = 처음 값(엑셀 · 단체예약)과 다르고 아직 저장하지 않은 것. 「수정 내용 저장」:
+//  ① 단체예약과 연결된 줄 → 그 단체예약에 바로 반영 (업체명 · 관람 인원 · 입장시각 · 차량 · 연락처 · 입장문, 비고는 기록에만) + 수정 기록 한 줄
+//  ② 고친 사람의 기타 개인 업무(나의 할일)에 「전산에 추가」 업무 하나 (세부 과업 = 고친 내용 하나씩 · 메모에 전체)
+const FIELD_LABEL = { name:'이름', ppl:'인원', time:'도착시간', gate:'입장문', vehicle:'차량', phone:'연락처', note:'비고' };
+function rowChanges(r){
+  const e=state.edit[r.key]||{}, sv=(state.saved||{})[r.key]||{}, out=[];
+  ['name','ppl','time','vehicle','phone','note'].forEach(f=>{ if(e[f]==null) return; const to=f==='ppl' ? String(r.ppl) : String(e[f]).trim(), from=String(r.orig[f]??'').trim();
+    if(to!==from && sv[f]!==to) out.push({f, from, to}); });
+  if(r.gateSrc==='hand' && sv.gate!==r.gate) out.push({f:'gate', from:r.recGateAuto, to:r.gate});
+  return out;
+}
+const memoSet = (memo, label, val) => { const p=String(memo||'').split(' / ').map(s=>s.trim()).filter(s=>s && !s.startsWith(label+' ')); if(val) p.push(`${label} ${val}`); return p.join(' / '); };
+const vehToGroup = s => { s=String(s||'').trim(); if(/^\d+$/.test(s)) return `버스 ${s}대`; const m=s.match(/^개별\s*(\d+)?/); return m ? `승용${m[1]?` ${m[1]}대`:''}` : s; };   // 표의 「2」 = 버스 2대 · 「개별3대」 = 승용 3대
+const short = s => { s=String(s||''); return s.length>40 ? s.slice(0,40)+'…' : s; };
+async function saveEdits(){
+  if(!state) return;
+  const todo=rows.map(r=>({r, ch:rowChanges(r)})).filter(o=>o.ch.length);
+  if(!todo.length){ toast('저장할 수정 내용이 없습니다.'); return; }
+  if(!getKey()){ $('#keyBox').hidden=false; toast('저장하려면 팀 비밀번호를 먼저 넣어 주세요.'); return; }
+  const btn=$('#saveEdits'); btn.disabled=true; const now=new Date().toISOString(), me=user.name||'';
+  const line = (r,c) => `${r.name} · ${FIELD_LABEL[c.f]} ${short(c.from)||'(빈칸)'} → ${short(c.to)||'(빈칸)'}`;
+  let nGroup=0;
+  try{
+    // ① 단체예약에 반영
+    for(const {r, ch} of todo){
+      const rec = r.recId && groups.find(g=>g.id===r.recId); if(!rec) continue;
+      const it={...rec}; delete it._localAt;
+      ch.forEach(c=>{ if(c.f==='name') it.org=c.to; else if(c.f==='ppl') it.people=c.to; else if(c.f==='time') it.tin=fmtT(c.to)||c.to; else if(c.f==='vehicle') it.vehicle=vehToGroup(c.to);
+        else if(c.f==='phone'){ const p=String(rec.phone||'').split(/\s*\/\s*/); p[0]=c.to; it.phone=p.filter((x,i)=>x || i===0).join(' / '); } else if(c.f==='gate') it.memo=memoSet(it.memo, '입장문', c.to); });
+      let h={}; try{ const j=JSON.parse(rec.history||'{}'); h = Array.isArray(j) ? {h:j} : (j||{}); }catch(_){}
+      h.h=[...(h.h||[]), {t:now, by:me, what:`[다음날 고객 응대 준비] ${ch.map(c=>`${FIELD_LABEL[c.f]} ${short(c.from)||'(빈칸)'} → ${short(c.to)||'(빈칸)'}`).join(', ')}`}];
+      it.history=JSON.stringify(h);
+      await callApi({action:'put', item:it}); nGroup++;
+      const gi=groups.findIndex(g=>g.id===it.id); if(gi>=0) groups[gi]=it;
+    }
+    // ② 고친 사람의 기타 개인 업무: 전산에 추가
+    const all=todo.flatMap(({r,ch})=>ch.map(c=>line(r,c))), today=SY.ymd(new Date());
+    const title=`전산에 추가: ${dLab(state.date)} 다음날 고객 응대 수정 ${all.length}건`;
+    const memo=[`다음날 고객 응대 준비에서 고친 내용입니다. 사유원 전산에도 추가해 주세요.${nGroup?` (단체예약 ${nGroup}건에는 자동으로 반영함)`:''}`, ...all.map(s=>'· '+s)].join('\n');
+    const d={ title, repeat:'none', due:today, start:today, owner:me, memo, subs:all.map((s,i)=>({id:'s'+i+Date.now().toString(36), title:s})), done:{}, subDone:{} };
+    const task={ id:Date.now().toString(36)+Math.random().toString(36).slice(2,7), callType:'개인업무', saved:now, takenBy:me, owner:me, summary:`${title} · 반복 없음`.slice(0,120),
+      history:JSON.stringify({kind:'task', d, log:[{at:now, by:me, what:'다음날 고객 응대 준비에서 만듦'}]}) };
+    await callApi({action:'put', item:task});
+    // 저장한 값 기억 (다시 저장되지 않게)
+    state.saved ||= {}; todo.forEach(({r,ch})=>{ const s=(state.saved[r.key] ||= {}); ch.forEach(c=>{ s[c.f]=c.to; }); });
+    saveState(); build(false);
+    toast(`저장했습니다. ${nGroup?`단체예약 ${nGroup}건에 반영 · `:''}나의 할일(기타 개인 업무)에 「전산에 추가」 ${all.length}건을 넣었습니다.`);
+  }catch(e){ toast(e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다.' : `저장하지 못했습니다${nGroup?` (단체예약 ${nGroup}건까지는 반영됨)`:''}. 잠시 뒤 다시 눌러 주세요.`); }
+  finally{ btn.disabled=false; }
+}
 // ===================== 화면 =====================
 function render(){
   const s=state; [ '#p2','#p4' ].forEach(id=>$(id).classList.toggle('off', !s)); paintPrepDate();
@@ -190,13 +245,15 @@ function render(){
   $('#p2Sum').textContent = `${on.length}팀 · ${on.reduce((a,r)=>a+r.ppl,0)}명 · 단체예약 ${dg.length}건 중 연결 ${rows.filter(r=>r.inList && !r.missing).length}${rows.some(r=>r.missing)?` · 전산에 없음 ${rows.filter(r=>r.missing).length}`:''}${groups.length?'':' (단체예약을 아직 못 불러옴)'}`;   // ③ 단체예약 정보 넣기는 없애고 여기에 요약 (2026-11-18)
   // ④ 결과 표 (도착 시간 순)
   const list=on.slice().sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999));
+  rows.forEach(r=>{ r._chg=new Set(rowChanges(r).map(c=>c.f)); });   // 저장 안 한 수정 칸 (노란 테두리)
+  { const n=rows.reduce((a,r)=>a+r._chg.size,0), b=$('#saveEdits'); if(b){ b.textContent = n ? `수정 내용 저장 (${n})` : '수정 내용 저장'; b.classList.toggle('dirty', n>0); } }
   const yy=s.date.slice(2).replace(/-/g,'');
   $('#outHead').innerHTML = `${yy}(${DOW[new Date(s.date+'T00:00').getDay()]||''})<br>${total}명+@`;
-  $('#outBody').innerHTML = list.map(r=>`<tr class="${r.inList?'':'new'}"><td class="name"><span class="src ${r.inList?'have':'new'} no-print" title="${r.inList?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.inList?'목록':'새로 조사'}</span>${esc(r.name)}</td><td class="num">${r.ppl}</td>`
-    + `<td><input class="t" data-e="${esc(r.key)}|time" value="${esc(r.time)}" placeholder="${esc(r.timeHint||'시간')}"></td>`
-    + `<td><select class="gate ${esc(r.gate)} src-${r.gateSrc}" data-e="${esc(r.key)}|gate"><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select><span class="gsrc ${r.gateSrc}" title="${{fixed:'단체예약 화면에서 이 입장문으로 정해 둔 것',auto:'방문 인원 · 도착 시간을 보고 이 화면이 추천한 것',hand:'이 화면에서 직접 바꾼 것'}[r.gateSrc]}">${{fixed:'예약 고정',auto:'추천',hand:'직접'}[r.gateSrc]}</span><span class="why no-print">${esc(r.gateWhy)}${r.gateSrc==='hand'?` · ${r.recGate?'고정':'추천'}은 ${esc(r.recGateAuto)}`:''}</span></td>`
-    + `<td><input class="v" data-e="${esc(r.key)}|vehicle" value="${esc(r.vehicle)}"></td><td><input class="p" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
-    + `<td class="note"><textarea data-e="${esc(r.key)}|note" rows="1">${esc(r.note)}</textarea></td>`
+  $('#outBody').innerHTML = list.map(r=>`<tr class="${r.inList?'':'new'}"><td class="name"><span class="src ${r.inList?'have':'new'} no-print" title="${r.inList?'단체예약 목록에 있는 단체 (예약 정보를 가져옴)':'단체예약 목록에 없음 — 새로 조사 (연락처로 업체 · 도착 시간 · 차량 확인)'}">${r.inList?'목록':'새로 조사'}</span><input class="nm${r._chg.has('name')?' chg':''}" data-e="${esc(r.key)}|name" value="${esc(r.name)}" data-ime="ko"></td><td class="num"><input class="pp${r._chg.has('ppl')?' chg':''}" data-e="${esc(r.key)}|ppl" value="${r.ppl}" inputmode="numeric"></td>`
+    + `<td><input class="t${r._chg.has('time')?' chg':''}" data-e="${esc(r.key)}|time" value="${esc(r.time)}" placeholder="${esc(r.timeHint||'시간')}"></td>`
+    + `<td><select class="gate ${esc(r.gate)} src-${r.gateSrc}${r._chg.has('gate')?' chg':''}" data-e="${esc(r.key)}|gate"><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select><span class="gsrc ${r.gateSrc}" title="${{fixed:'단체예약 화면에서 이 입장문으로 정해 둔 것',auto:'방문 인원 · 도착 시간을 보고 이 화면이 추천한 것',hand:'이 화면에서 직접 바꾼 것'}[r.gateSrc]}">${{fixed:'예약 고정',auto:'추천',hand:'직접'}[r.gateSrc]}</span><span class="why no-print">${esc(r.gateWhy)}${r.gateSrc==='hand'?` · ${r.recGate?'고정':'추천'}은 ${esc(r.recGateAuto)}`:''}</span></td>`
+    + `<td><input class="v${r._chg.has('vehicle')?' chg':''}" data-e="${esc(r.key)}|vehicle" value="${esc(r.vehicle)}"></td><td><input class="p${r._chg.has('phone')?' chg':''}" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
+    + `<td class="note"><textarea class="${r._chg.has('note')?'chg':''}" data-e="${esc(r.key)}|note" rows="1">${esc(r.note)}</textarea></td>`
     + `<td class="called no-print${(state.edit[r.key]||{}).called?' on':''}"><label title="이 고객에게 연락했는지 (이 브라우저에 기억)"><input type="checkbox" data-call="${esc(r.key)}"${(state.edit[r.key]||{}).called?' checked':''}></label></td></tr>`).join('');   // 연락 체크 (2026-11-19)
   const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
   const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.note)).map(r=>r.name);
@@ -212,7 +269,7 @@ document.addEventListener('change', e=>{ const t=e.target;
   if(t.dataset.call){ const e=(state.edit[t.dataset.call] ||= {}); if(t.checked) e.called=new Date().toISOString(); else delete e.called; saveState(); render(); return; }   // 연락 체크
   if(t.dataset.link!=null){ const k=t.dataset.link; if(t.value) state.link[k]=t.value; else delete state.link[k]; delete state.edit[k]; saveState(); build(false); return; }
   if(t.id==='minPpl'){ build(true); saveState(); return; }
-  if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; saveState(); if(f==='time') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } if(f==='gate') recommendGates(false); render(); } }
+  if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; saveState(); if(f==='time' || f==='ppl' || f==='name') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } if(f==='gate') recommendGates(false); render(); } }
 });
 document.addEventListener('input', e=>{ const t=e.target; if(t.tagName==='TEXTAREA' && t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; const r=rows.find(x=>x.key===k); if(r) r[f]=t.value; saveState(); t.style.height='auto'; t.style.height=t.scrollHeight+'px'; } });
 document.addEventListener('click', e=>{ if(e.target.id==='clearBtn'){ if(!confirm('읽은 엑셀과 고친 내용을 지울까요?')) return; state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); } });
@@ -288,6 +345,7 @@ $('#rlSave').onclick=()=>saveRules(fixRules({ base:$('#rlBase').value, win:$('#r
 $('#rlReset').onclick=()=>{ const R=RULE_DEF; $('#rlBase').value=R.base; $('#rlWin').value=R.win; $('#rlIndiv').value=R.indiv; $('#rlBig').value=R.big.join(', '); $('#rlTravel').value=R.travel.join(', '); $('#rlErr').textContent='처음 규칙으로 채웠습니다. [저장]을 눌러야 바뀝니다.'; };
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#rulesModal').hidden) $('#rulesModal').hidden=true; });
 paintRules();
+$("#saveEdits").onclick=saveEdits;   // ④ 표에서 고친 것 저장 (2026-11-19)
 
 if(state) build(false); else render();
 loadGroups();
