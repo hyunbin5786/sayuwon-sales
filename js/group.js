@@ -3243,7 +3243,15 @@ function openMy(fromGroup){ if(fromGroup===true) myTab='group'; $('#myModal').hi
   if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
 // group.html?open=예약ID → 그 예약을 엶 (팝업 나의 할일에서 단체 줄을 누른 경우 · 목록을 받은 뒤)
 let openGId = new URLSearchParams(location.search).get('open');
-async function tryOpenG(){ if(!openGId) return; const list = await store.list(); const r=(list||[]).find(x=>x.id===openGId); if(!r) return; openGId=null; history.replaceState(null,'','group.html'); openRecordG(r); }
+// &hl=people,tin… : 다음날 고객 응대 준비에서 바꾼 칸 → 열고 나서 노랗게 표시 · 그 칸으로 스크롤 (2026-11-19)
+const openHl = (new URLSearchParams(location.search).get('hl')||'').split(',').filter(Boolean);
+function showHl(){ if(!openHl.length) return; let first=null;
+  openHl.forEach(k=>{ const el=document.getElementById('f_'+k) || document.querySelector(`[data-k="${k}"]`); if(!el) return; const box=el.closest('.fld, .field, .f, label, td, .vrow') || el; box.classList.add('hl-prep'); el.classList.add('hl-prep-in'); first ||= box; });
+  if(first) first.scrollIntoView({block:'center', behavior:'smooth'});
+  const names={org:'업체', people:'관람 인원', tin:'입장시각', vehicle:'차량', phone:'연락처', gate:'입장문'};
+  if(typeof toast==='function') toast(`다음날 고객 응대 준비에서 바꾼 칸: ${openHl.map(k=>names[k]||k).join(' · ')}`);
+  setTimeout(()=>document.querySelectorAll('.hl-prep, .hl-prep-in').forEach(x=>x.classList.remove('hl-prep','hl-prep-in')), 12000); }
+async function tryOpenG(){ if(!openGId) return; const list = await store.list(); const r=(list||[]).find(x=>x.id===openGId); if(!r) return; openGId=null; history.replaceState(null,'','group.html'); openRecordG(r); setTimeout(showHl, 900); }
 setTimeout(tryOpenG, 400);
 const MY_EMBED = MY_ONLY && window.parent!==window;   // 다른 화면이 팝업으로 띄운 나의 할일
 function closeMy(){ if(MY_EMBED){ window.parent.postMessage({type:'sy-my', ev:'close'}, '*'); return; } if(MY_ONLY && document.documentElement.classList.contains('my-only')){ location.href='./'; return; } $('#myModal').hidden=true; }   // 팝업 = 바깥 화면이 닫음, 단독 페이지 = 메뉴로
