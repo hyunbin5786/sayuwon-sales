@@ -183,3 +183,14 @@ main > #p0{grid-column:1 / -1}
 .share-st{font:400 12px var(--sans);color:var(--muted);margin-left:10px}
 .share-st.ok{color:var(--pine)}.share-st.wait{color:var(--amber)}.share-st.bad{color:#b5442c}   /* 팀 공유 상태 (2026-11-19) */
 .save-st.bad{color:var(--red);font-weight:700}
+/* 안내 명단 상품 (2026-11-19): ② 위 · 체크한 상품을 예약한 고객은 ③ 표 아래에 */
+.notice-box{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:0 0 10px;background:#fbfaf6;font-size:13px}
+.notice-box .hint{margin:0}
+.nb-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.nb-list label{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:#fff;cursor:pointer;font-size:12.5px}
+.nb-list label.on{border-color:var(--pine);background:var(--pine-soft);color:var(--pine);font-weight:600}
+.nb-list label small{color:var(--muted);font-weight:400}
+.nb-list input{accent-color:var(--pine)}
+.out tfoot tr.notice td{font-size:12.5px}
+/* 지난 기록 (2026-11-19) */
+.hist-sel{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:13px;margin-left:8px;background:#fff}

@@ -23,7 +23,7 @@ const memoVal = (r, label) => { const p=String(r.memo||'').split(' / ').map(s=>s
 let groups = (()=>{ try{ return (JSON.parse(localStorage.getItem(GROUP_CACHE_LS)||'[]')||[]).filter(isConfirmed); }catch(_){ return []; } })();
 async function loadGroups(){
   if(!getKey()){ $('#keyBox').hidden=false; return; }
-  try{ const j=await callApi({action:'list'}); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true;
+  try{ const j=await callApi({action:'list'}); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true; noticeFrom(j.items); paintHist(j.items);
     if(state){ build(false); if(hasEdits()) scheduleAuto(); } }   // 저장 안 한 수정이 남아 있으면 버튼 옆에 알림
   catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('팀 비밀번호가 맞지 않습니다.'); } else toast('단체예약을 불러오지 못했습니다. 마지막으로 받은 목록으로 보여 줍니다.'); }
 }
@@ -121,6 +121,7 @@ async function pushNow(){
 async function pullShared(force){
   if(!getKey()) return false;
   const d=prepDate; let j; try{ j=await callApi({action:'list'}); }catch(_){ return false; }
+  noticeFrom(j.items); paintHist(j.items);   // 안내 명단 상품 · 지난 기록 목록도
   const r=(j.items||[]).find(x=>x.id===PREP_ID(d)); if(!r) return false;
   let st=null; try{ st=unpackState(JSON.parse(r.history||'null')); }catch(_){} if(!st || !Array.isArray(st.rows)) return false;
   const mine = state && state.date===d ? String(state.at||'') : '';
@@ -134,6 +135,13 @@ async function pullShared(force){
   return true;
 }
 setInterval(()=>{ if(!document.hidden) pullShared(); }, 30000);
+// 지난 기록 (2026-11-19): 팀이 준비해 둔 날짜(공유 기록 prepYYYYMMDD)를 골라 그날 내용 보기 · 고치기
+function paintHist(items){ const sel=$('#histSel'); if(!sel) return;
+  const ds=(items||[]).filter(x=>x.callType==='응대준비' && /^prep\d{8}$/.test(x.id||'')).map(x=>{ const d=x.id.slice(4); return {d:`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`, by:x.takenBy||''}; })
+    .sort((a,b)=>b.d.localeCompare(a.d));
+  sel.innerHTML = `<option value="">지난 기록 (${ds.length})</option>` + ds.map(o=>`<option value="${esc(o.d)}"${o.d===prepDate?' selected':''}>${esc(dLab(o.d))}${o.by?` · ${esc(o.by)}`:''}</option>`).join('');
+  sel.hidden = !ds.length; }
+$('#histSel')?.addEventListener('change', async e=>{ const v=e.target.value; if(!v || v===prepDate && state && state.date===v) return; prepDate=v; paintPrepDate(); const ok=await pullShared(true); if(!ok) toast('그날 기록을 불러오지 못했습니다.'); else toast(`${dLab(v)} 기록을 불러왔습니다.`); });
 window.addEventListener('focus', ()=>pullShared());
 
 // ===================== ② · ③ 목록 만들기 + 단체예약 연결 =====================
@@ -290,9 +298,35 @@ async function saveEdits(auto){
 function onSaveClick(){ if(!state || saving) return; saveEdits(false); }
 // 「자세히」: 목록에서 가져온 단체(단체예약 연결) → 다음 탭에 그 예약 (단체고객 전화응대)
 document.addEventListener('click', e=>{ const b=e.target.closest?.('[data-open-rec]'); if(!b) return; e.preventDefault(); window.open(`group.html?open=${encodeURIComponent(b.dataset.openRec)}`, '_blank'); });
+// ===================== 안내 명단 (2026-11-19): 해오름 산책 · 선셋디너처럼 고객님께 따로 알려야 하는 상품 =====================
+// ② 티켓 발권 대상 위에 그날 엑셀의 상품 이름을 모두 띄우고 체크 → 체크한 상품을 예약한 고객을 ③ 표 아래 · 이미지 · 엑셀에 「이름(n명, 전화번호)」
+// 기본: 관람만(네이버 포함) · 사담 런치 · 디너 · 몽몽마방 사유의 밥상 · 해오름 산책은 빼고 나머지(관람+식사 중 그 밖 · 선셋 등)는 체크
+// 고른 것은 팀 공유(공유 기록 id prepnotice, 모든 날짜 공통) — 한 번 바꾸면 다음 날에도 그대로
+const NOTICE_ID='prepnotice', NOTICE_LS='sayuwon_prep_notice';
+let noticeSel = (()=>{ try{ return JSON.parse(localStorage.getItem(NOTICE_LS)||'{}')||{}; }catch(_){ return {}; } })();
+const noticeDefault = p => { const s=String(p||'');
+  if(/네이버/.test(s)) return false;
+  if(/^(평일|주말\/공휴일|주말|공휴일)?\s*관람\s*\(/.test(s.replace(/\s/g,' ')) && !/,/.test(s)) return false;   // 관람권만 (9~18 · 13~18 · 학생 등)
+  if(/사담\s*(런치|디너)/.test(s) || /몽몽마방\s*사유의\s*밥상/.test(s)) return false;
+  if(/해오름/.test(s)) return false;   // 해오름 산책도 기본은 안 나옴 — 고를 때만 (2026-11-19)
+  return true; };
+const noticeOn = p => noticeSel[p]!=null ? !!noticeSel[p] : noticeDefault(p);
+const allProds = () => { const m=new Map(); (state?state.rows:[]).forEach(x=>x.items.forEach(i=>{ if(i.n>0) m.set(i.p, (m.get(i.p)||0)+i.n); })); return [...m.entries()].sort((a,b)=>String(a[0]).localeCompare(String(b[0]),'ko')); };
+// 체크한 상품마다 [상품, 「이름(n명, 전화번호)」 목록]
+function noticeLists(){ return allProds().filter(([p])=>noticeOn(p)).map(([p])=>{ const ppl=state.rows.map(x=>{ const n=x.items.filter(i=>i.p===p).reduce((a,i)=>a+i.n,0); return n ? `${x.name}(${n}명${x.phone?', '+x.phone:''})` : ''; }).filter(Boolean);
+  return [p, ppl.join(', ') + (/해오름/.test(p) && ppl.length ? ' · 고객 도착 AM 6:00' : '')]; }).filter(([,t])=>t); }
+const noticeLabel = p => String(p).replace(/^(평일|주말\/공휴일)\s*/,'').replace(/^\((.*)\)$/,'$1').replace(/^관람,\s*/,'');   // 「평일(관람, 선셋디너)」 → 「선셋디너」
+function noticeBoxHTML(){ const ps=allProds(); if(!ps.length) return '';
+  return `<div class="notice-box"><b>안내 명단 상품</b> <small class="hint">체크한 상품을 예약한 고객은 ③ 표 아래 · 이미지 · 엑셀에 「이름(명수, 전화번호)」로 (팀 공유 · 다음 날에도 그대로)</small><div class="nb-list">`
+    + ps.map(([p,n])=>`<label class="${noticeOn(p)?'on':''}"><input type="checkbox" data-notice="${esc(p)}"${noticeOn(p)?' checked':''}> ${esc(p)} <small>${n}명</small></label>`).join('') + `</div></div>`; }
+async function noticeSave(){ try{ localStorage.setItem(NOTICE_LS, JSON.stringify(noticeSel)); }catch(_){}
+  if(!getKey()) return; try{ await callApi({action:'put', item:{id:NOTICE_ID, callType:'응대준비설정', saved:new Date().toISOString(), takenBy:user.name||'', owner:user.name||'', summary:'다음날 고객 응대 준비 · 안내 명단 상품', history:JSON.stringify({sel:noticeSel})}}); }catch(_){ toast('안내 명단 상품 고른 것을 팀에 올리지 못했습니다.'); } }
+function noticeFrom(items){ const r=(items||[]).find(x=>x.id===NOTICE_ID); if(!r) return; try{ const j=JSON.parse(r.history||'{}'); if(j && j.sel){ noticeSel=j.sel; try{ localStorage.setItem(NOTICE_LS, JSON.stringify(noticeSel)); }catch(_){} } }catch(_){} }
+document.addEventListener('change', e=>{ const p=e.target.dataset && e.target.dataset.notice; if(p==null) return; noticeSel[p]=e.target.checked; render(); noticeSave(); });
 // ===================== 화면 =====================
 function render(){
   const s=state; [ '#p2','#p4' ].forEach(id=>$(id).classList.toggle('off', !s)); paintPrepDate();
+  $('#noticeBox').innerHTML = s ? noticeBoxHTML() : '';   // 안내 명단 상품 (2026-11-19)
   if(!s){ $('#fileSum').innerHTML=''; $('#listBody').innerHTML=''; $('#outBody').innerHTML=''; $('#outFoot').innerHTML=''; return; }
   const total=s.rows.reduce((a,x)=>a+x.ppl,0), dg=dayGroups();
   $('#fileSum').innerHTML = `<span>파일 <b>${esc(s.file)}</b></span><span>방문일 <b>${esc(dLab(s.date))}</b></span><span>예약 <b>${s.rows.length}</b>건</span><span>방문 인원 <b>${total}</b>명</span><button class="btn" id="clearBtn" type="button">지우기</button>`;
@@ -319,10 +353,9 @@ function render(){
     + `<td class="note"><textarea class="${r._chg.has('note')?'chg':''}" data-e="${esc(r.key)}|note" rows="1">${esc(r.note)}</textarea></td></tr>`).join('');
   const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.bus||0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
   const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.xnote||'')).map(r=>r.name);
-  const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
   $('#outFoot').innerHTML = `<tr><td class="no-print"></td><td class="g">단체</td><td class="g num">${gSum}</td><td></td><td></td><td class="bus">버스 ${bus}대+</td><td colspan="2" class="ind">개인고객 ${ind}명</td></tr>`
     + `<tr><td class="no-print"></td><td>현장결제건</td><td colspan="6" style="text-align:left">${esc(onsite.join(', ')||'-')}</td></tr>`
-    + `<tr><td class="no-print"></td><td>해오름 산책</td><td colspan="6" style="text-align:left">${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</td></tr>`;
+    + noticeLists().map(([p,t])=>`<tr class="notice"><td class="no-print"></td><td>${esc(noticeLabel(p))}</td><td colspan="6" style="text-align:left">${esc(t)}</td></tr>`).join('');   // 안내 명단 (고른 상품만 · 해오름 산책도 고를 때만, 2026-11-19)
   $('#p4Sum').textContent = `${list.length}팀 · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length} · 연락 ${list.filter(r=>(s.edit[r.key]||{}).called).length}/${list.length}`;
   document.querySelectorAll('.out textarea').forEach(t=>{ t.style.height='auto'; t.style.height=t.scrollHeight+'px'; });
 }
@@ -355,6 +388,8 @@ $('#xlsxBtn').onclick=async()=>{ if(!state || !window.ExcelJS) return; const d=t
   const on=rows.filter(r=>r.on), total=state.rows.reduce((a,x)=>a+x.ppl,0), gSum=on.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=on.reduce((a,r)=>a+(+r.bus||0),0), ind=total-on.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
   const f=ws.addRow(['단체', gSum, '', '', `버스 ${bus}대+`, `개인고객 ${ind}명`, '']); ws.mergeCells(f.number,6,f.number,7);
   [[1,'FFD9EAD3'],[2,'FFD9EAD3'],[5,'FFF6C26B'],[6,'FFFFF200']].forEach(([c,col])=>{ const x=f.getCell(c); x.fill={type:'pattern', pattern:'solid', fgColor:{argb:col}}; x.font={bold:true}; x.alignment={horizontal:'center'}; });
+  { const os=rows.filter(r=>r.on && (r.onsitePay || /현장/.test(r.xnote||''))).map(r=>r.name);   // 현장결제건 · 안내 명단 (2026-11-19)
+    [['현장결제건', os.join(', ')||'-'], ...noticeLists().map(([p,t])=>[noticeLabel(p), t])].forEach(([l,t])=>{ const x=ws.addRow([l, t]); ws.mergeCells(x.number,2,x.number,7); x.getCell(1).font={bold:true}; x.getCell(1).alignment={vertical:'middle'}; x.getCell(2).alignment={wrapText:true, vertical:'middle'}; }); }
   const buf=await wb.xlsx.writeBuffer(), a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf])); a.download=`다음날_고객응대_${state.date.slice(2).replace(/-/g,'')}.xlsx`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000); };
 
 
@@ -387,7 +422,6 @@ $('#pngBtn').onclick=async()=>{
   const s=state, list=rows.filter(r=>r.on).sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999)), total=s.rows.reduce((a,x)=>a+x.ppl,0);
   const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.bus||0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
   const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.xnote||'')).map(r=>r.name);
-  const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
   const box=$('#shot');
   box.innerHTML = `<div class="sh-h"><b>${esc(dLab(s.date))} 단체현황 · ${list.length}팀</b><span>방문 ${total}명+@</span></div>`
     + `<table><thead><tr><th>단체 · 고객</th><th>인원</th><th>도착</th><th>입장문</th><th>차량</th></tr></thead><tbody>`
@@ -395,7 +429,8 @@ $('#pngBtn').onclick=async()=>{
       + ((n=>n ? `<tr class="nt"><td colspan="5">${esc(n)}</td></tr>` : '')(shortNote(r)))).join('')
     + `</tbody></table>`
     + `<div class="sh-f"><span class="g1">단체 ${gSum}명</span><span class="g2">버스 ${bus}대+</span><span class="g3">개인고객 ${ind}명</span></div>`
-    + `<div class="sh-n">현장결제건: ${esc(onsite.join(', ')||'-')}</div><div class="sh-n">해오름 산책: ${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</div>`;
+    + `<div class="sh-n">현장결제건: ${esc(onsite.join(', ')||'-')}</div>`
+    + noticeLists().map(([p,t])=>`<div class="sh-n">${esc(noticeLabel(p))}: ${esc(t)}</div>`).join('');
   try{
     const cv=await html2canvas(box, {scale:2, backgroundColor:'#ffffff'});
     const blob=await new Promise(ok=>cv.toBlob(ok, 'image/png')), a=document.createElement('a');
