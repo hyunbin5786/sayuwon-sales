@@ -90,3 +90,13 @@ main.st-main > .panel{margin-bottom:14px}
 .in-opts .keybox .hint{flex:none}
 .in-opts .keybox input{width:120px}
 @media (max-width:640px){.in-grid{grid-template-columns:1fr}}
+/* 2열 (2026-11-19): 1열 = 넣는 칸 + 고치는 표 · 2열 = 미리보기 (위에 사진으로 저장) */
+.st-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.st-cols .st-left > .panel{margin-bottom:14px}
+.st-main > .st-cols .panel:first-child{max-width:none}
+.st-right{position:sticky;top:12px}
+.st-right[hidden]{display:none}
+.pv-top{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.pv-top .pv-h{flex:1;margin:0}
+.st-bar .hint{font-size:12px}
+@media (max-width:1100px){ .st-cols{grid-template-columns:1fr} .st-right{position:static} }

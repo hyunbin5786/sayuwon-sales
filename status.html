@@ -7,7 +7,7 @@
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="css/prep.css?v=20261119d1">
-<link rel="stylesheet" href="css/status.css?v=20261119c8">
+<link rel="stylesheet" href="css/status.css?v=20261119d2">
 <link rel="stylesheet" href="css/menu.css?v=20261119c1">
 </head>
 <body>
@@ -17,6 +17,8 @@
   <span class="me" id="me"></span>
 </header>
 <main class="st-main">
+  <div class="st-cols"><!-- 1열: 넣는 칸 + 고치는 표 · 2열: 미리보기 (2026-11-19) -->
+  <div class="st-left">
   <section class="panel">
     <!-- 2026-11-19 간단하게: 왼쪽 엑셀(방문자내역 · 네이버) · 오른쪽 네이버 사진, 아래 한 줄에 비밀번호 -->
     <div class="in-grid">
@@ -30,15 +32,16 @@
     </div>
     <div id="nvImgBox" class="nv-imgbox" hidden></div>
     <p class="err" id="fileErr"></p>
-    <div class="st-bar" id="stBar" hidden>
-      <label>제목 <input id="stTitle" data-ime="ko"></label>
-      <span class="sp"></span>
-      <button class="btn" id="stClear" type="button">모두 지우기</button>
-      <button class="btn primary" id="stPng" type="button">사진으로 저장</button>
-    </div>
+    <div class="st-bar" id="stBar" hidden><span class="hint">표의 숫자 · 글자는 눌러서 바로 고칠 수 있고, 이 브라우저에 기억됩니다.</span><span class="sp"></span><button class="btn" id="stClear" type="button">모두 지우기</button></div>
   </section>
-  <p class="hint st-help" id="stHelp" hidden>표의 숫자 · 글자는 눌러서 바로 고칠 수 있고, 이 브라우저에 기억됩니다.</p>
   <div id="stEdit"></div>
+  </div>
+  <!-- 오른쪽 열: 미리보기 (사진과 같음) + 위에 「사진으로 저장」 (2026-11-19 · 제목은 「사유원 예약 현황」 고정) -->
+  <aside class="st-right" id="stRight" hidden>
+    <div class="pv-top"><span class="pv-h">미리보기 (사진과 같음)</span><button class="btn primary" id="stPng" type="button">사진으로 저장</button></div>
+    <div class="pv-box"><div id="stPrev" class="st-shot-view"></div></div>
+  </aside>
+  </div>
 </main>
 <div class="toast" id="toast"></div>
 <div id="stShot" class="st-shot" aria-hidden="true"></div><!-- 사진으로 저장할 때만 그리는 표 (화면 밖) -->
@@ -48,7 +51,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/naverxl.js?v=20261119b2"></script>
 <script src="js/naverimg.js?v=20261119c6"></script>
-<script src="js/status.js?v=20261119c8"></script>
+<script src="js/status.js?v=20261119d2"></script>
 <script src="js/ime.js?v=20261118r"></script>
 <script src="js/menu.js?v=20261119c1"></script>
 </body>

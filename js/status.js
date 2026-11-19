@@ -10,7 +10,8 @@
   const user=SY.user()||{}; $('#me').innerHTML = user.name ? `👤 <b>${esc(user.name)}</b>` : '';
   let toastT; const toast = m => { const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), 2600); };
   const LS='sy_status_v1', FOOT_DEF='집계 기준 | 홈페이지 예약 + 네이버 확정 인원 · 사유의 밥상(단체) 제외 · 단체 예약 인원은 해당 상품 인원에 포함';
-  let st = SY.readJSON(LS, null) || { title:'사유원 예약 현황', foot:FOOT_DEF, days:[] };
+  const TITLE='사유원 예약 현황';   // 제목은 고정 (2026-11-19 · 제목 칸 없앰)
+  let st = SY.readJSON(LS, null) || { title:TITLE, foot:FOOT_DEF, days:[] };
   const save = () => SY.writeJSON(LS, st);
   const digits = s => String(s||'').replace(/\D/g,''), norm = s => String(s||'').replace(/\s/g,'').toLowerCase();
   const dLab = d => { const t=new Date(d+'T00:00'); return isNaN(t) ? d : `${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; };
@@ -192,14 +193,13 @@
   }
   function paintShot(){ $('#stPrev').innerHTML=shotHTML(); }
   function render(){
-    const has=st.days.length>0; $('#stBar').hidden=!has; $('#stHelp').hidden=!has; $('#stTitle').value=st.title;
-    $('#stEdit').innerHTML = has ? `<div class="st-grid"><div class="st-ed">${editHTML()}</div><div class="st-pv"><div class="pv-h">미리보기 (사진과 같음)</div><div class="pv-box"><div id="stPrev" class="st-shot-view"></div></div></div></div>` : '';
+    const has=st.days.length>0; $('#stBar').hidden=!has; $('#stRight').hidden=!has; st.title=TITLE;
+    $('#stEdit').innerHTML = has ? `<div class="st-ed">${editHTML()}</div>` : '';
     if(has) paintShot();
     document.querySelectorAll('.ed-t textarea').forEach(t=>{ t.style.height='auto'; t.style.height=t.scrollHeight+'px'; });
   }
   // 고치기 (칠 때마다 미리보기 · 합계만 다시)
   document.addEventListener('input', e=>{ const t=e.target;
-    if(t.id==='stTitle'){ st.title=t.value; save(); paintShot(); return; }
     if(t.hasAttribute('data-foot')){ st.foot=t.value; save(); paintShot(); return; }
     const f=t.dataset.f; if(!f) return; const [di,ri,k]=f.split('|'), r=st.days[+di].rows[+ri];
     r[k] = k==='home'||k==='naver' ? (t.value=t.value.replace(/\D/g,''), +t.value||0) : t.value;
