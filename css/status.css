@@ -75,7 +75,7 @@ main.st-main > .panel{margin-bottom:14px}
 .ni-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 /* 넣는 칸 간단하게 (2026-11-19): 엑셀 · 네이버 사진 두 칸 + 아래 한 줄 */
 .st-main > .panel:first-child{max-width:980px}
-.in-grid{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.in-grid{display:grid;grid-template-columns:1fr;gap:10px}   /* 네이버 사진 칸 없앰 (2026-11-19) */
 .in-grid .drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:16px 12px;min-height:74px;font:inherit;color:inherit}
 .in-grid .drop b{font-size:14.5px}
 .in-grid .drop .hint{font-size:12px}

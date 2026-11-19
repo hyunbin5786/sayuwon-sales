@@ -117,9 +117,9 @@
       paintImgBox(); toast('사진을 읽었습니다. 날짜 · 숫자를 확인하고 [넣기]를 누르세요.'); }
     catch(e){ msg.remove(); if(!imgRes){ box.hidden=true; box.innerHTML=''; } else if(!box.innerHTML) box.innerHTML=keep; $('#fileErr').textContent = e.message||'사진을 읽지 못했습니다.'; }
   }
-  $('#nvImgBtn').onclick=()=>$('#nvImgFile').click();
-  $('#nvImgFile').addEventListener('change', e=>{ const fs=[...e.target.files]; e.target.value=''; (async()=>{ for(const f of fs) await readImg(f); })(); });   // 여러 장 한 번에 (토 · 일)
-  document.addEventListener('paste', e=>{ const it=[...(e.clipboardData||{}).items||[]].find(i=>/^image\//.test(i.type)); if(!it) return; e.preventDefault(); readImg(it.getAsFile()); });   // 캡처 → Ctrl+V
+  // 네이버 사진 올리기는 없앰 (2026-11-19) — 네이버 엑셀이 안 되면 직접 입력 팝업
+  if($('#nvImgFile')) $('#nvImgFile').addEventListener('change', e=>{ const fs=[...e.target.files]; e.target.value=''; (async()=>{ for(const f of fs) await readImg(f); })(); });   // 여러 장 한 번에 (토 · 일)
+  if($('#nvImgFile')) document.addEventListener('paste', e=>{ const it=[...(e.clipboardData||{}).items||[]].find(i=>/^image\//.test(i.type)); if(!it) return; e.preventDefault(); readImg(it.getAsFile()); });   // 캡처 → Ctrl+V
   document.addEventListener('change', e=>{ const t=e.target; if(!imgRes) return;
     if(t.dataset.imgcat!=null){ imgRes.cats[+t.dataset.imgcat]=t.value; SY.writeJSON(IMG_MAP_LS, imgRes.cats); }
     if(t.dataset.imgdate!=null) imgRes.dates[+t.dataset.imgdate]=t.value;
@@ -138,7 +138,8 @@
   let manRows=[];   // [{date, am, pm}]
   function openNaverManual(why){
     const ds=[...new Set(st.days.map(d=>d.date))].sort(); manRows=(ds.length?ds:[SY.ymd(new Date(Date.now()+864e5))]).map(date=>{ const v=st.naver[date]||{}; return {date, am:v.am??'', pm:v.pm??''}; });
-    $('#nvManMsg').textContent = `${why ? `네이버 엑셀을 읽지 못했습니다 (${why}). ` : ''}네이버 예약 화면을 보고 날짜마다 오전 · 오후 확정 인원을 넣으면 그 날짜의 「네이버」 칸에 들어갑니다.`;
+    $('#nvManTitle').textContent = why ? '네이버 엑셀 오류 · 직접 입력' : '네이버 인원을 직접 넣어 주세요';
+    $('#nvManMsg').textContent = `${why ? (why==='네이버 엑셀 오류' ? '네이버 엑셀 오류입니다. ' : `네이버 엑셀 오류입니다 (${why}). `) : ''}네이버 예약 화면을 보고 날짜마다 오전 · 오후 확정 인원을 넣으면 그 날짜의 「네이버」 칸에 들어갑니다.`;
     paintMan(); $('#nvManModal').hidden=false; setTimeout(()=>$('#nvManBody input[data-man$="|am"]')?.focus(), 0); }
   function paintMan(){ $('#nvManBody').innerHTML = manRows.map((r,i)=>`<tr><td><input type="date" data-man="${i}|date" value="${esc(r.date)}"></td><td><input class="n" inputmode="numeric" data-man="${i}|am" value="${esc(String(r.am))}" placeholder="0"></td><td><input class="n" inputmode="numeric" data-man="${i}|pm" value="${esc(String(r.pm))}" placeholder="0"></td><td>${manRows.length>1?`<button type="button" class="btn sm" data-mandel="${i}" title="이 날짜 빼기">×</button>`:''}</td></tr>`).join(''); }
   document.addEventListener('input', e=>{ const m=e.target.dataset && e.target.dataset.man; if(!m) return; const [i,f]=m.split('|'); if(f!=='date') e.target.value=e.target.value.replace(/\D/g,''); manRows[+i][f]=e.target.value; });
@@ -166,7 +167,8 @@
             if(pw) try{ $('#nvKeep').checked ? localStorage.setItem(PW_LS, pw) : localStorage.removeItem(PW_LS); }catch(_){}
             Object.entries(days).forEach(([date,v])=>{ st.naver[date]=v; nvGot.push(date); const d=st.days.find(x=>x.date===date); if(d) applyNaver(d); });
             pendingNaver=pendingNaver.filter(x=>x!==f);
-          }catch(e){ if(e.code==='need_pw' || /비밀번호/.test(e.message)){ if(!pendingNaver.includes(f)) pendingNaver.push(f); $('.in-opts').classList.add('need'); $('#nvPw').focus(); throw e; }
+          }catch(e){ if(e.code!=='need_pw' && /비밀번호/.test(e.message)){ if(!pendingNaver.includes(f)) pendingNaver.push(f); nvFail='네이버 엑셀 오류'; continue; }   // 비밀번호가 맞지 않음 → 오류 글 대신 직접 입력 팝업 (2026-11-19 · 맞는 비밀번호를 넣으면 다시 읽음)
+            if(e.code==='need_pw'){ if(!pendingNaver.includes(f)) pendingNaver.push(f); $('.in-opts').classList.add('need'); $('#nvPw').focus(); throw e; }
             pendingNaver=pendingNaver.filter(x=>x!==f); nvFail=e.message||'알 수 없는 오류'; continue; }   // 비밀번호 말고 다른 오류 → 끝나고 직접 입력 팝업 (2026-11-19)
           continue;
         }

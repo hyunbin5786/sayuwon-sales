@@ -7,7 +7,7 @@
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="css/prep.css?v=20261119e4">
-<link rel="stylesheet" href="css/status.css?v=20261119e2">
+<link rel="stylesheet" href="css/status.css?v=20261119e3">
 <link rel="stylesheet" href="css/menu.css?v=20261119d2">
 </head>
 <body>
@@ -20,11 +20,10 @@
   <div class="st-cols"><!-- 1열: 넣는 칸 + 고치는 표 · 2열: 미리보기 (2026-11-19) -->
   <div class="st-left">
   <section class="panel">
-    <!-- 2026-11-19 간단하게: 왼쪽 엑셀(방문자내역 · 네이버) · 오른쪽 네이버 사진, 아래 한 줄에 비밀번호 -->
+    <!-- 2026-11-19 간단하게: 엑셀(방문자내역 · 네이버) 한 칸, 아래 한 줄에 비밀번호 · 네이버 사진은 없앰 (네이버 엑셀이 안 되면 직접 입력 팝업) -->
     <div class="in-grid">
       <label class="drop" id="drop" title="전산 방문자내역(.xls · 날짜마다 한 파일)과 네이버 예약자관리(.xlsx)를 함께 넣어도 됩니다. 이 브라우저 안에서만 읽고, 같은 날짜를 다시 넣으면 그 날짜만 새로"><input type="file" id="file" accept=".xls,.xlsx,.html,.htm" multiple hidden>
         <b>엑셀 넣기</b><span class="hint">방문자내역 · 네이버 예약자관리 — 끌어다 놓거나 눌러서 고르기</span></label>
-      <button class="drop drop-img" id="nvImgBtn" type="button" title="네이버 엑셀이 안 될 때: 네이버 예약 달력 화면 캡처의 파란 「확정」 숫자를 읽어 확인 표로 보여 줌"><b>네이버 사진</b><span class="hint">캡처 후 Ctrl+V · 눌러서 고르기</span></button><input type="file" id="nvImgFile" accept="image/*" multiple hidden>
     </div>
     <div class="in-opts">
       <label title="네이버 인원은 네이버 이관 2단계와 같은 방식 (전액환불은 빼고, 일부 환불은 환불금액만큼 인원을 뺌)">네이버 엑셀 비밀번호 <input type="password" id="nvPw" autocomplete="off"></label><label class="chk"><input type="checkbox" id="nvKeep" checked> 기억</label>
@@ -60,7 +59,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/naverxl.js?v=20261119b2"></script>
 <script src="js/naverimg.js?v=20261119d3"></script>
-<script src="js/status.js?v=20261119e1"></script>
+<script src="js/status.js?v=20261119e3"></script>
 <script src="js/ime.js?v=20261118r"></script>
 <script src="js/menu.js?v=20261119c4"></script>
 </body>
