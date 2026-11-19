@@ -161,6 +161,7 @@ function build(fresh){
 //  ① 단체예약과 연결된 줄 → 그 단체예약에 바로 반영 (업체명 · 관람 인원 · 입장시각 · 차량 · 연락처 · 입장문, 비고는 기록에만) + 수정 기록 한 줄
 //  ② 고친 사람의 기타 개인 업무(나의 할일)에 「전산에 추가」 업무 하나 (세부 과업 = 고친 내용 하나씩 · 메모에 전체)
 const FIELD_LABEL = { name:'이름', ppl:'인원', time:'도착시간', gate:'입장문', bus:'버스', car:'승용', phone:'연락처', note:'비고' };
+const ERP_FIELDS = ['name','ppl','time','phone'];   // 전산에도 고쳐야 하는 것 (나의 할일 「전산에 추가」 세부 과업) · 차량 · 입장문 · 비고는 단체예약에만
 function rowChanges(r){
   const e=state.edit[r.key]||{}, sv=(state.saved||{})[r.key]||{}, out=[];
   ['name','ppl','time','gate','bus','car','phone','note'].forEach(f=>{ if(e[f]==null) return; const to=f==='ppl' ? String(r.ppl) : String(e[f]).trim(), from=String(r.orig[f]??'').trim();
@@ -196,26 +197,35 @@ async function saveEdits(auto){
       await callApi({action:'put', item:it}); nGroup++;
       const gi=groups.findIndex(g=>g.id===it.id); if(gi>=0) groups[gi]=it;
     }
-    // ② 고친 사람의 기타 개인 업무: 전산에 추가 — 같은 날짜(준비할 날짜)는 업무 하나에 모음 (자동 저장으로 여러 번 저장해도 업무가 늘지 않게)
-    const add=todo.flatMap(({r,ch})=>ch.map(c=>line(r,c))), today=SY.ymd(new Date());
-    state.taskIds ||= {};
-    let old=null; const tid=state.taskIds[state.date+'|'+me];
-    if(tid){ try{ const j=await callApi({action:'list'}); old=(j.items||[]).find(x=>x.id===tid)||null; }catch(_){ old=null; } }
-    let oj=null; try{ oj=old ? JSON.parse(old.history||'{}') : null; }catch(_){ oj=null; }
-    if(oj && oj.d && Object.keys(oj.d.done||{}).length) oj=null;   // 이미 끝낸 업무면 새로
-    const prevSubs = oj ? (oj.d.subs||[]) : [];
-    const subs=[...prevSubs, ...add.map((s,i)=>({id:'s'+i+Date.now().toString(36), title:s}))];
-    const title=`전산에 추가: ${dLab(state.date)} 다음날 고객 응대 수정 ${subs.length}건`;
-    const memo=[`다음날 고객 응대 준비에서 고친 내용입니다. 사유원 전산에도 추가해 주세요. (단체예약과 연결된 줄은 단체예약에 자동으로 반영함)`, ...subs.map(s=>'· '+s.title)].join('\n');
-    const d={ ...(oj?oj.d:{}), title, repeat:'none', due:(oj&&oj.d.due)||today, start:(oj&&oj.d.start)||today, owner:me, memo, subs, done:(oj&&oj.d.done)||{}, subDone:(oj&&oj.d.subDone)||{} };
-    const task={ ...(oj?old:{}), id: oj ? old.id : Date.now().toString(36)+Math.random().toString(36).slice(2,7), callType:'개인업무', saved:(oj&&old.saved)||now, takenBy:me, owner:me, summary:`${title} · 반복 없음`.slice(0,120),
-      history:JSON.stringify({kind:'task', d, log:[...((oj&&oj.log)||[]), {at:now, by:me, what: oj ? `다음날 고객 응대 준비에서 ${add.length}건 더함` : '다음날 고객 응대 준비에서 만듦'}].slice(-60)}) };
-    await callApi({action:'put', item:task});
-    state.taskIds[state.date+'|'+me]=task.id;
+    // ② 고친 사람의 나의 할일(기타 개인 업무) 「전산에 추가」 — 단체명 · 인원 · 도착시각 · 연락처만 (차량 · 입장문 · 비고는 전산에 넣을 필요 없음, 2026-11-19)
+    //    준비할 날짜 · 고친 사람마다 업무 하나: 공유 기록에서 그 업무(안 끝난 것)를 찾아 세부 과업만 더함. 예전에 따로 생긴 같은 날짜 업무는 하나로 합침
+    const add=todo.flatMap(({r,ch})=>ch.filter(c=>ERP_FIELDS.includes(c.f)).map(c=>line(r,c))), today=SY.ymd(new Date());
+    let merged=false;
+    if(add.length){
+      const prefix=`전산에 추가: ${dLab(state.date)} 다음날 고객 응대 수정`;
+      const j=await callApi({action:'list'});
+      const mine=(j.items||[]).filter(x=>x.callType==='개인업무' && (x.owner||x.takenBy)===me).map(x=>{ let h=null; try{ h=JSON.parse(x.history||'{}'); }catch(_){} return {x, h}; })
+        .filter(o=>o.h && o.h.d && String(o.h.d.title||'').startsWith(prefix) && !Object.keys(o.h.d.done||{}).length)   // 안 끝난 같은 날짜 업무
+        .sort((a,b)=>String(a.x.saved||'').localeCompare(String(b.x.saved||'')));
+      const keep=mine[0], dup=mine.slice(1), oj=keep ? keep.h : null, old=keep ? keep.x : null;
+      const subs=[], seen=new Set(), push=s=>{ const t=String(s.title||s.t||'').trim(); if(t && !seen.has(t)){ seen.add(t); subs.push({id:s.id||('s'+subs.length+Date.now().toString(36)), title:t}); } };
+      mine.forEach(o=>(o.h.d.subs||[]).forEach(push));   // 이미 있는 세부 과업 (따로 생긴 업무 것도)
+      add.forEach((s,i)=>push({id:'s'+i+Date.now().toString(36), title:s}));
+      const subDone=Object.assign({}, ...mine.map(o=>o.h.d.subDone||{}));
+      const title=`${prefix} ${subs.length}건`;
+      const memo=`다음날 고객 응대 준비에서 고친 내용입니다 (단체명 · 인원 · 도착시각 · 연락처). 세부 과업마다 사유원 전산에도 고쳐 주세요. 단체예약과 연결된 줄은 단체예약에는 자동으로 반영했습니다.`;
+      const d={ ...(oj?oj.d:{}), title, repeat:'none', due:(oj&&oj.d.due)||today, start:(oj&&oj.d.start)||today, owner:me, memo, subs, done:{}, subDone };
+      const task={ ...(old||{}), id: old ? old.id : Date.now().toString(36)+Math.random().toString(36).slice(2,7), callType:'개인업무', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:`${title} · 반복 없음`.slice(0,120),
+        history:JSON.stringify({kind:'task', d, log:[...((oj&&oj.log)||[]), {at:now, by:me, what: old ? `다음날 고객 응대 준비에서 세부 과업 ${add.length}건 더함${dup.length?` · 따로 생긴 업무 ${dup.length}개를 합침`:''}` : '다음날 고객 응대 준비에서 만듦'}].slice(-60)}) };
+      delete task._localAt;
+      await callApi({action:'put', item:task});
+      for(const o of dup) await callApi({action:'del', id:o.x.id});   // 합친 업무는 지움 (휴지통)
+      merged=!!old;
+    }
     // 저장한 값 기억 (다시 저장되지 않게)
     state.saved ||= {}; todo.forEach(({r,ch})=>{ const s=(state.saved[r.key] ||= {}); ch.forEach(c=>{ s[c.f]=c.to; }); });
     saveState(); build(false);
-    toast(`${auto?'자동 ':''}저장했습니다. ${nGroup?`단체예약 ${nGroup}건에 반영 · `:''}나의 할일 「전산에 추가」에 ${add.length}건${oj?' 더함':''}.`);
+    toast(`${auto?'자동 ':''}저장했습니다.${nGroup?` 단체예약 ${nGroup}건에 반영.`:''}${add.length?` 나의 할일 「전산에 추가」에 세부 과업 ${add.length}건${merged?' 더함':''}.`:''}`);
   }catch(e){ toast(e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다.' : `저장하지 못했습니다${nGroup?` (단체예약 ${nGroup}건까지는 반영됨)`:''}. 잠시 뒤 다시 저장합니다.`); if(e.code!=='bad_key') scheduleAuto(); }
   finally{ btn.disabled=false; saving=false; }
 }
