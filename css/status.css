@@ -35,26 +35,26 @@ main.st-main > .panel{margin-bottom:14px}
 .st-shot{position:absolute;left:-9999px;top:0}
 /* 사진 모양 (미리보기 · 저장 공통) */
 .sh-wrap{width:800px;box-sizing:border-box;padding:24px 20px 20px;background:#f3f6f9;font-family:"Noto Sans KR",system-ui,sans-serif;color:#223}
-.sh-title{font:700 26px "Noto Sans KR",sans-serif;color:#22303a}
-.sh-range{font-size:13px;color:#6b7680;margin:2px 0 14px}
+.sh-title{font:700 32px "Noto Sans KR",sans-serif;color:#22303a}
+.sh-range{font-size:16px;color:#6b7680;margin:2px 0 14px}
 .sh-card{background:#fff;border:1px solid #d6dee5;border-radius:12px;margin-bottom:14px;overflow:hidden}
 .sh-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px}
-.sh-head > b{font:700 18px "Noto Sans KR",sans-serif}
+.sh-head > b{font:700 22px "Noto Sans KR",sans-serif}
 .sh-total{display:flex;align-items:center;gap:16px;border-radius:9px;padding:6px 12px}
 .sh-total span{display:flex;flex-direction:column;line-height:1.35}
-.sh-total span b{font-size:11px}
-.sh-total small{font-size:10.5px;color:#6b7680}
-.sh-total em{font:700 22px "Noto Sans KR",sans-serif;font-style:normal}
-.sh-card table{width:100%;border-collapse:collapse;font-size:11.5px}
+.sh-total span b{font-size:14px}
+.sh-total small{font-size:13.5px;color:#6b7680}
+.sh-total em{font:700 28px "Noto Sans KR",sans-serif;font-style:normal}
+.sh-card table{width:100%;border-collapse:collapse;font-size:15.5px}   /* 사진 글씨 크게 (2026-11-20) */
 .sh-card th{font-weight:700;color:#2b3640;padding:8px 6px;border-top:1px solid #d6dee5;border-bottom:1px solid #d6dee5}
 .sh-card td{border-bottom:1px solid #e3e8ed;padding:9px 8px;vertical-align:middle;line-height:1.55}
 .sh-card td + td,.sh-card th + th{border-left:1px solid #e3e8ed}
 .sh-card tbody tr:nth-child(even) td:not(.c2){background:#f8fafc}
 .sh-card .c1{width:22%;font-weight:700;color:#2b3640}
-.sh-card .c2{width:10%;text-align:center;font:700 14px "Noto Sans KR",sans-serif}
-.sh-card .c3{width:26%;color:#5b6670;font-size:10.5px}
-.sh-card .c4{color:#5b6670;font-size:10.5px}
-.sh-foot{font-size:10.5px;color:#6b7680;margin-top:6px}
+.sh-card .c2{width:11%;text-align:center;font:700 19px "Noto Sans KR",sans-serif}
+.sh-card .c3{width:26%;color:#5b6670;font-size:14px}
+.sh-card .c4{color:#5b6670;font-size:14px}
+.sh-foot{font-size:13.5px;color:#6b7680;margin-top:6px}
 /* 네이버 예약자관리 엑셀 (2026-11-19) */
 .nv-pw{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:var(--muted)}
 .nv-pw label{display:flex;align-items:center;gap:6px}
