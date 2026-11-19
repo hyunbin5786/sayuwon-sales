@@ -1863,7 +1863,7 @@ function erpNote(r){
 // 세금계산서 발행 요청 문구
 function taxMsg(r){
   const m=moneySplit(r), email=(contactsOf(r).find(c=>c.email)||{}).email;
-  return `[세금계산서] ${r.org||'(단체명)'}\n1. 금액\n- 사유원 : ${m?won(m.saw):'      '}원\n- 신라 : ${m?won(m.shilla):'      '}원\n2. 사업자 등록증 : 파일 첨부\n3. 이메일 : ${email||'(담당자 이메일)'}\n4. 발행일 : ${r.date?r.date.replace(/-/g,'.')+' '+dowTag(r.date):'(방문일자)'}\n감사합니다~`;
+  return `[세금계산서] ${r.org||'(단체명)'}\n1. 금액\n- 사유원 : ${m?won(m.saw):'      '}원\n- 신라 : ${m?won(m.shilla):'      '}원\n2. 사업자 등록증 : 파일 첨부\n3. 이메일 : ${email||'(담당자 이메일)'}\n4. 발행일 : ${r.date?r.date.replace(/-/g,'.')+' '+dowTag(r.date):'(방문일자)'}\n5. 실제 방문일 : ${r.date?r.date.replace(/-/g,'.')+' '+dowTag(r.date):'(방문일자)'}\n감사합니다~`;   // 5. 실제 방문일 (2026-11-19)
 }
 // 현장 결제 인원 확인 연락: 전주 목요일에 읽을 문구
 const onsiteMsg = r => `안녕하세요, 사유원입니다. ${r.org?`<${r.org}> `:''}${r.date?mdLabel(r.date)+' ':''}방문 건으로 연락드렸습니다.\n최종 인원이 ${r.people?`총 ${r.people}명`:'몇 분'} 맞으신가요?\n현장 결제로 진행되기 때문에 당일에는 인원 변경이 어려운 점 다시 한번 안내드립니다.\n변경이 있으시면 지금 말씀해 주세요. 감사합니다.`;
