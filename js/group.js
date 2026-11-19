@@ -3780,7 +3780,7 @@ const tabCat = t => t==='personal' ? CAT_P : t==='group' ? CAT_G : /^cat:/.test(
 // 구분 순서 · 추가 (메인 1열)
 function catManageHTML(){ const o=catOrder();
   return `<div class="cat-manage"><b>구분</b> <small class="hint" style="margin:0">▲▼로 순서 (탭 · 고르기 순서)</small><ul class="cat-ord">${o.map((c,i)=>`<li><span>${esc(catLabel(c))}</span><button type="button" data-catmv="${i}|-1" title="위로"${i?'':' disabled'}>▲</button><button type="button" data-catmv="${i}|1" title="아래로"${i<o.length-1?'':' disabled'}>▼</button></li>`).join('')}</ul>`
-    + (etcCatAdding ? `<input id="etcCatIn" class="etc-catin" data-ime="ko" placeholder="새 구분 이름 (Enter)" autocomplete="off">` : `<button type="button" class="btn sm" data-etccatadd>＋ 구분 추가</button>`) + `</div>`; }
+    + (etcCatAdding ? `<div class="cat-addrow"><input id="etcCatIn" class="etc-catin" data-ime="ko" placeholder="새 구분 이름" autocomplete="off"><button type="button" class="btn primary" data-catok>추가</button></div>` : `<button type="button" class="btn cat-addbtn" data-etccatadd>＋ 구분 추가</button>`) + `</div>`; }   // 추가 버튼도 · 위 구분 줄과 같은 너비 · 높이 (2026-11-19)
 document.addEventListener('click', async e=>{ const b=e.target.closest?.('[data-catmv]'); if(!b) return; e.preventDefault(); const [i,d]=b.dataset.catmv.split('|').map(Number), o=catOrder(), j=i+d; if(j<0 || j>=o.length) return;
   [o[i],o[j]]=[o[j],o[i]]; await etcSaveCats(etcCats(), o); renderMy(); });
 const etcCatOf = d => (d.list && d.list!=='작업') ? d.list : '';
@@ -3791,9 +3791,11 @@ document.addEventListener('change', e=>{
   if(e.target.id==='etcECat' && etcEdit) etcEdit.d.list=e.target.value;
   if(e.target.id==='etcCatFilter'){ etcCatFilter=e.target.value; try{ localStorage.setItem('sy_etc_cat', etcCatFilter); }catch(_){} renderMy(); } });
 document.addEventListener('click', e=>{ if(e.target.closest?.('[data-etccatadd]')){ e.preventDefault(); etcCatAdding=true; etcRepaint(); setTimeout(()=>$('#etcCatIn')?.focus(), 0); } });
-document.addEventListener('keydown', async e=>{ if(e.target.id!=='etcCatIn') return; if(e.key==='Escape'){ etcCatAdding=false; etcRepaint(); return; } if(e.key!=='Enter' || e.isComposing) return; e.preventDefault();
-  const v=e.target.value.trim(); if(!v){ etcCatAdding=false; etcRepaint(); return; } if(v===ETC_NOCAT){ toast('다른 이름을 적어 주세요.'); return; }
-  const cs=etcCats(); etcCatAdding=false; if(!cs.includes(v)) await etcSaveCats([...cs, v]); etcForm.cat=v; etcRepaint(); toast(`구분 「${v}」을 만들었습니다.`); });
+async function catAddFromIn(){ const el=$('#etcCatIn'); if(!el) return; const v=el.value.trim(); if(!v){ etcCatAdding=false; etcRepaint(); return; } if(v===ETC_NOCAT){ toast('다른 이름을 적어 주세요.'); el.focus(); return; }
+  const cs=etcCats(); etcCatAdding=false; if(!cs.includes(v)) await etcSaveCats([...cs, v]); etcForm.cat=v; etcRepaint(); toast(`구분 「${v}」을 만들었습니다.`); }
+document.addEventListener('keydown', async e=>{ if(e.target.id!=='etcCatIn') return; if(e.key==='Escape'){ etcCatAdding=false; etcRepaint(); return; } if(e.key!=='Enter' || e.isComposing) return; e.preventDefault(); await catAddFromIn(); });
+document.addEventListener('mousedown', e=>{ if(e.target.closest?.('[data-catok]')) e.preventDefault(); });   // 칸을 벗어나며 닫히지 않게
+document.addEventListener('click', async e=>{ if(e.target.closest?.('[data-catok]')){ e.preventDefault(); await catAddFromIn(); } });
 document.addEventListener('focusout', e=>{ if(e.target.id==='etcCatIn' && !e.target.value.trim()) setTimeout(()=>{ if(etcCatAdding){ etcCatAdding=false; etcRepaint(); } }, 150); });
 function etcSection(full, oneCat){   // oneCat (2026-11-19 · 나의 할일 구분 탭 · 메인 2 · 3열): 그 구분 업무만 ('' = 구분 없음) · full = 추가 칸도
   const today=ymd(new Date()), cats=etcCats(), one = oneCat!==undefined, cf = !full && !one && (etcCatFilter==='' || etcCatFilter==='__none' || cats.includes(etcCatFilter)) ? etcCatFilter : '';
