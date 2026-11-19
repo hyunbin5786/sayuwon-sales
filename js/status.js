@@ -83,32 +83,42 @@
     return day;
   }
   // ---------- 네이버 예약 달력 사진 (2026-11-19 · 엑셀이 안 될 때): 파란 「확정」 숫자 → 확인 표 → 넣기 ----------
-  const IMG_MAP_LS='sy_status_nvimg_map';   // 줄마다 고른 구분 (다음에도 같게)
-  let imgRes=null;
+  const IMG_MAP_LS='sy_status_nvimg_map2';   // 줄마다 고른 구분 (다음에도 같게) · 기본: 1번째 줄 전체(확인용) · 2번째 오전 · 3번째 오후 (2026-11-19)
+  const IMG_DEF=['전체','오전입장','오후입장'];
+  let imgRes=null;   // {urls:[사진], dates:[날짜], grid:[[줄][날짜]], cats:[줄마다 구분]} — 사진을 더 넣으면 날짜가 옆에 붙음
   const imgCats = () => [...new Set(['오전입장','오후입장', ...ORDER.slice(2), ...st.days.flatMap(d=>d.rows.map(r=>r.cat)).filter(Boolean)])];
   // 사진의 「19」 → 날짜: 넣어 둔 방문자내역 날짜 중 그날이 있으면 그 날짜, 없으면 오늘에서 가까운 그날
   const guessDate = dd => { if(!dd) return ''; const hit=st.days.find(d=>+d.date.slice(8)===dd); if(hit) return hit.date;
     const t=new Date(); t.setHours(0,0,0,0); let c=new Date(t.getFullYear(), t.getMonth(), dd); if(c < new Date(t.getTime()-10*864e5)) c=new Date(t.getFullYear(), t.getMonth()+1, dd); return SY.ymd(c); };
   function paintImgBox(){
     const box=$('#nvImgBox'); if(!imgRes){ box.hidden=true; box.innerHTML=''; return; }
-    const m=SY.readJSON(IMG_MAP_LS, null)||[], cats=imgCats(), R=imgRes;
-    const sel = ri => { const v=R.cats[ri]; return `<select data-imgcat="${ri}"><option value="">(빼기)</option>${cats.map(c=>`<option${c===v?' selected':''}>${esc(c)}</option>`).join('')}</select>`; };
+    const cats=imgCats(), R=imgRes;
+    const sel = ri => { const v=R.cats[ri]; return `<select data-imgcat="${ri}"><option value="">(빼기)</option><option value="전체"${v==='전체'?' selected':''}>전체 (확인용)</option>${cats.map(c=>`<option${c===v?' selected':''}>${esc(c)}</option>`).join('')}</select>`; };
+    // 확인: 전체 = 오전 + 오후 인지 (전체 줄에 숫자가 있을 때만)
+    const ti=R.cats.indexOf('전체'), warn=R.dates.map((d,ci)=>{ if(ti<0) return ''; const tot=R.grid[ti][ci]||0; if(!tot) return ''; const s=R.grid.reduce((a,row,ri)=>a+(/입장$/.test(R.cats[ri]||'') ? (row[ci]||0) : 0),0); return s!==tot ? `전체 ${tot} ≠ 오전 + 오후 ${s}` : ''; });
     box.hidden=false;
-    box.innerHTML = `<div class="ni-grid"><div class="ni-pic"><img src="${R.url}" alt="넣은 사진"></div><div class="ni-tbl"><b>사진에서 읽은 네이버 확정 인원</b> <span class="hint">날짜 · 구분 · 숫자가 맞는지 보고 고친 뒤 [넣기]</span>`
+    box.innerHTML = `<div class="ni-grid"><div class="ni-pic">${R.urls.map(u=>`<img src="${u}" alt="넣은 사진">`).join('')}</div><div class="ni-tbl"><b>사진에서 읽은 네이버 확정 인원</b> <span class="hint">날짜 · 숫자가 맞는지 보고 [넣기] · 토 · 일처럼 화면이 나뉘면 사진을 더 넣으세요 (Ctrl+V · 날짜가 옆에 붙음)</span>`
       + `<table class="ed-t"><thead><tr><th>줄 (위에서부터)</th>${R.dates.map((d,ci)=>`<th><input type="date" data-imgdate="${ci}" value="${esc(d)}"></th>`).join('')}</tr></thead><tbody>`
       + R.grid.map((row,ri)=>`<tr><td>${ri+1}번째 줄 ${sel(ri)}</td>${row.map((n,ci)=>`<td><input class="n" inputmode="numeric" data-imgn="${ri}|${ci}" value="${n}"></td>`).join('')}</tr>`).join('')
+      + (warn.some(Boolean) ? `<tr><td class="ni-warn">확인</td>${warn.map(w=>`<td class="ni-warn">${w?'⚠ '+esc(w):''}</td>`).join('')}</tr>` : '')
       + `</tbody></table><div class="ni-btns"><button type="button" class="btn" id="niClose">닫기</button><button type="button" class="btn primary" id="niApply">넣기</button></div></div></div>`;
   }
   async function readImg(blob){
-    $('#fileErr').textContent=''; const box=$('#nvImgBox'); box.hidden=false; box.innerHTML='<p class="hint">사진을 읽는 중…</p>';
-    try{ const r=await NaverImg.read(blob, s=>{ const p=box.querySelector('p'); if(p) p.textContent=s; });
+    $('#fileErr').textContent=''; const box=$('#nvImgBox'); const keep=box.innerHTML; box.hidden=false;
+    const msg=document.createElement('p'); msg.className='hint'; msg.textContent='사진을 읽는 중…'; if(imgRes) box.prepend(msg); else { box.innerHTML=''; box.appendChild(msg); }
+    try{ const r=await NaverImg.read(blob, s=>{ msg.textContent=s; });
       const m=SY.readJSON(IMG_MAP_LS, null);
-      imgRes={ url:r.url, grid:r.grid, dates:r.days.map(guessDate), cats:r.grid.map((_,i)=>m && m[i]!=null ? m[i] : (['오전입장','오후입장'][i]||'')) };
-      paintImgBox(); toast('사진을 읽었습니다. 날짜 · 구분 · 숫자를 확인하고 [넣기]를 누르세요.'); }
-    catch(e){ imgRes=null; box.hidden=true; $('#fileErr').textContent = e.message||'사진을 읽지 못했습니다.'; }
+      if(!imgRes) imgRes={ urls:[], dates:[], grid:[], cats:[] };
+      const R=imgRes; R.urls.push(r.url);
+      r.grid.forEach((_,ri)=>{ if(!R.grid[ri]){ R.grid[ri]=R.dates.map(()=>0); R.cats[ri] = m && m[ri]!=null ? m[ri] : (IMG_DEF[ri]||''); } });
+      r.days.forEach((dd,ci)=>{ const date=guessDate(dd); let k = date ? R.dates.indexOf(date) : -1;   // 같은 날짜면 덮어씀, 아니면 옆에 붙임
+        if(k<0){ k=R.dates.length; R.dates.push(date); R.grid.forEach(row=>row.push(0)); }
+        R.grid.forEach((row,ri)=>{ row[k] = (r.grid[ri]||[])[ci] || 0; }); });
+      paintImgBox(); toast('사진을 읽었습니다. 날짜 · 숫자를 확인하고 [넣기]를 누르세요.'); }
+    catch(e){ msg.remove(); if(!imgRes){ box.hidden=true; box.innerHTML=''; } else if(!box.innerHTML) box.innerHTML=keep; $('#fileErr').textContent = e.message||'사진을 읽지 못했습니다.'; }
   }
   $('#nvImgBtn').onclick=()=>$('#nvImgFile').click();
-  $('#nvImgFile').addEventListener('change', e=>{ const f=e.target.files[0]; if(f) readImg(f); e.target.value=''; });
+  $('#nvImgFile').addEventListener('change', e=>{ const fs=[...e.target.files]; e.target.value=''; (async()=>{ for(const f of fs) await readImg(f); })(); });   // 여러 장 한 번에 (토 · 일)
   document.addEventListener('paste', e=>{ const it=[...(e.clipboardData||{}).items||[]].find(i=>/^image\//.test(i.type)); if(!it) return; e.preventDefault(); readImg(it.getAsFile()); });   // 캡처 → Ctrl+V
   document.addEventListener('change', e=>{ const t=e.target; if(!imgRes) return;
     if(t.dataset.imgcat!=null){ imgRes.cats[+t.dataset.imgcat]=t.value; SY.writeJSON(IMG_MAP_LS, imgRes.cats); }
@@ -119,7 +129,7 @@
     if(e.target.id!=='niApply' || !imgRes) return;
     const R=imgRes, put=[], wait=[];
     R.dates.forEach((date,ci)=>{ if(!date) return; const v={am:0, pm:0, extra:{}, src:'img'};
-      R.grid.forEach((row,ri)=>{ const c=R.cats[ri], n=row[ci]||0; if(!c) return; if(c==='오전입장') v.am+=n; else if(c==='오후입장') v.pm+=n; else v.extra[c]=(v.extra[c]||0)+n; });
+      R.grid.forEach((row,ri)=>{ const c=R.cats[ri], n=row[ci]||0; if(!c || c==='전체') return;   /* 전체는 확인용 (넣지 않음) */ if(c==='오전입장') v.am+=n; else if(c==='오후입장') v.pm+=n; else v.extra[c]=(v.extra[c]||0)+n; });
       st.naver[date]=v; const d=st.days.find(x=>x.date===date); if(d){ applyNaver(d); put.push(dLab(date)); } else wait.push(dLab(date)); });
     save(); imgRes=null; paintImgBox(); render();
     toast([put.length?`네이버 인원을 넣었습니다 (${put.join(' · ')})`:'', wait.length?`${wait.join(' · ')}: 그 날짜 방문자내역을 넣으면 들어갑니다`:''].filter(Boolean).join(' · ') || '넣을 날짜가 없습니다.');

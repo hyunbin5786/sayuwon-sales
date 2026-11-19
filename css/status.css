@@ -100,3 +100,5 @@ main.st-main > .panel{margin-bottom:14px}
 .pv-top .pv-h{flex:1;margin:0}
 .st-bar .hint{font-size:12px}
 @media (max-width:1100px){ .st-cols{grid-template-columns:1fr} .st-right{position:static} }
+.ni-pic{display:flex;flex-direction:column;gap:6px}
+.ni-warn{color:var(--amber);font-size:12px;font-weight:600}
