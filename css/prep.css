@@ -149,3 +149,9 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 .out .chg,.out .chg:hover,.out .chg:focus{border:1.5px solid #e0a52a;background:#fff7e0}
 #saveEdits.dirty{box-shadow:0 0 0 3px #f6d68a}
 @media print{.out input.nm{width:100%}}
+/* ④ 응대 표: 고칠 수 있는 칸은 늘 회색 테두리 (2026-11-19 · 고칠 수 있는 칸이 잘 보이게) */
+.out input:not([type=checkbox]),.out textarea{border:1px solid #c9c4b8;background:#fff;border-radius:5px}
+.out select.gate{border:1px solid #c9c4b8}
+.out input:not([type=checkbox]):hover,.out textarea:hover,.out select.gate:hover,.out input:not([type=checkbox]):focus,.out textarea:focus,.out select.gate:focus{border-color:#8f8a7d;outline:none}
+.out .chg,.out .chg:hover,.out .chg:focus{border:1.5px solid #e0a52a;background:#fff7e0}
+@media print{.out input,.out textarea,.out select.gate{border-color:transparent;background:transparent}}
