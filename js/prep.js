@@ -168,6 +168,14 @@ function rowChanges(r){
     if(to!==from && sv[f]!==to) out.push({f, from, to}); });  return out;
 }
 const memoSet = (memo, label, val) => { const p=String(memo||'').split(' / ').map(s=>s.trim()).filter(s=>s && !s.startsWith(label+' ')); if(val) p.push(`${label} ${val}`); return p.join(' / '); };
+// 인원을 고치면 단체예약 예약 내역의 시간대 관람권 줄(비고 칸 「관람 품목 … x30」)도 맞춤 — 견적서 · 전산 예약 수정이 바뀐 인원으로 (2026-11-19 · group.js fitViewToPeople 과 같은 기준)
+function fitViewMemo(it){
+  const n=parseInt(it.people)||0, vs=memoVal(it,'관람 품목'); if(!n || !vs || /haeorum|해오름/.test(String(it.memo||''))) return;
+  const list=vs.split(/\s*·\s*/).map(s=>s.match(/^(.+) x(\d+)$/)).filter(Boolean).map(m=>({src:m[1].trim(), qty:+m[2]}));
+  const i=list.findIndex(x=>/관람\((09|13):00~18:00\)/.test(x.src)); if(i<0) return;
+  const cnt=v=>v?(parseInt(v)||n):0, area=cnt(it.sadam1)+cnt(it.sadam2)+cnt(it.sadamD)+list.reduce((s,x)=>s+x.qty,0), q=list[i].qty+(n-area); if(q<=0 || q===list[i].qty) return;
+  list[i].qty=q; it.memo=memoSet(it.memo, '관람 품목', list.filter(x=>x.qty>0).map(x=>`${x.src} x${x.qty}`).join(' · '));
+}
 const short = s => { s=String(s||''); return s.length>40 ? s.slice(0,40)+'…' : s; };
 // 저장은 「수정 내용 저장」 버튼으로만 (2026-11-19 · 자동 저장 없앰). 고친 것이 있으면 버튼에 노란 ● · 버튼 옆에 「저장 안 한 수정 n건」
 //  저장 결과는 버튼 옆 글자로 (저장 중 · 저장됨 시각 · 저장 못 함 + 이유). 새 탭은 안 띄움 (「자세히」 버튼으로)
@@ -193,7 +201,7 @@ async function saveEdits(auto, wins){
     for(const {r, ch} of todo){
       const rec = r.recId && groups.find(g=>g.id===r.recId); if(!rec) continue;
       const it={...rec}; delete it._localAt;
-      ch.forEach(c=>{ if(c.f==='name') it.org=c.to; else if(c.f==='ppl') it.people=c.to; else if(c.f==='time') it.tin=fmtT(c.to)||c.to; else if(c.f==='bus' || c.f==='car') it.vehicle=vehJoinG(r.bus, r.car);
+      ch.forEach(c=>{ if(c.f==='name') it.org=c.to; else if(c.f==='ppl'){ it.people=c.to; fitViewMemo(it); } else if(c.f==='time') it.tin=fmtT(c.to)||c.to; else if(c.f==='bus' || c.f==='car') it.vehicle=vehJoinG(r.bus, r.car);
         else if(c.f==='phone'){ const p=String(rec.phone||'').split(/\s*\/\s*/); p[0]=c.to; it.phone=p.filter((x,i)=>x || i===0).join(' / '); } else if(c.f==='gate') it.memo=memoSet(it.memo, '입장문', c.to); });
       let h={}; try{ const j=JSON.parse(rec.history||'{}'); h = Array.isArray(j) ? {h:j} : (j||{}); }catch(_){}
       h.h=[...(h.h||[]), {t:now, by:me, what:`[다음날 고객 응대 준비] ${ch.map(c=>`${FIELD_LABEL[c.f]} ${short(c.from)||'(빈칸)'} → ${short(c.to)||'(빈칸)'}`).join(', ')}`}];

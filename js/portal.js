@@ -147,7 +147,7 @@ function doneByRec(t, r){
   if(t.id==='paycheck') return memoHas(r,'입금 확인');
   if(t.id==='tbdcall') return !tbdLeft(r).length;   // 미정 항목이 다 정해지면
   if(t.id==='onsitecall') return r.pay!=='현장 결제';   // 현장 결제가 아니면 필요 없음
-  if(t.id==='erpfix') return !(t.changes||[]).some(c=>/전산 비고/.test(c)) && !t.memo && !(t.xsubs||[]).length;
+  if(t.id==='erpfix') return !(t.v===4 && (t.changes||[]).length) && !(t.changes||[]).some(c=>/전산 비고/.test(c)) && !t.memo && !(t.xsubs||[]).length;
   const st=[...Object.values(t.subs||{}).map(Boolean), ...(t.xsubs||[]).map(x=>!!x.done)];
   return st.length>0 && st.every(Boolean);
 }

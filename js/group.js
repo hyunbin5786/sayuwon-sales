@@ -143,6 +143,9 @@ const isCKey = k => /^c\d+_(name|phone|email|memo)$/.test(k);   // 담당자 칸
 let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
 let hist=[], baseSnap=null, tasks=[], erpList=[], openDone=new Set(), memos=[], lockOwner='';   // memos: 이 예약에 남긴 메모 · lockOwner: 남이 담당인 예약을 열었을 때 그 담당 이름 (잠금)
+const FRESH_KEYS = ['org','people','date','tin','phone','vehicle','pay','sadam1','sadam2','sadamD','mabangL','memo','contact'];   // 견적서 · 거래명세서 · 사전답사 전에 공유 기록이 다른 곳에서 바뀌었는지 (freshRec)
+const rawPick = r => JSON.stringify(FRESH_KEYS.map(k=>String((r||{})[k]??'').trim()));
+let openedRaw = '';   // 이 화면이 마지막으로 불러오거나 저장한 공유 기록
    // openDone: 펼쳐 본 끝난 과업   // erpList: 붙여넣은 전산 예약 내역   // 수정 기록 · 추후 과업
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
 function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; o.gate='미정'; o.vehicle='미정'; o.tbd='차량 대수, 결제 방법'; return o; }   // 결제 · 입장문 · 차량은 기본 미정 (차량 2026-11-18)   // 결제는 기본 미정
@@ -1703,7 +1706,7 @@ async function save(opt){
   Object.keys(item).forEach(k=>{ if(isCKey(k)) delete item[k]; });
   delete item.tbd; delete item.stage; delete item.erp; delete item.tbdDate; delete item.tbdLate; delete item.payContact;
   saving=true;
-  try{ await store.put(item); editingId=item.id; hist=newHist; baseSnap=cur;
+  try{ await store.put(item); editingId=item.id; openedRaw=rawPick(item); hist=newHist; baseSnap=cur;
     if(auto) lastAuto=now; renderHist(); paintDirty(); await renderList();
     if(!auto) toast(quiet ? `저장했습니다.` : `${item.callType}으로 저장했습니다.${changes.length?' 수정 기록에 반영했습니다.':' (바뀐 내용 없음)'}${needsErp(rec)&&!rec.erp?' 전산 등록을 잊지 마세요.':''}`);
     if(!auto) SID=Math.random().toString(36).slice(2);   // 저장 버튼 = 이 줄 확정, 다음 변경은 새 줄
@@ -1908,7 +1911,7 @@ function syncAutoTasks(){
   if((parseInt(rec.dClergy)||0)>0) want.push('clergy');   // 대구대교구 특별 할인 → 대구대교구 정보 기입 (예약자에게 정보 요청 · 대구대교구 시트 기입)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
   const e0=tasks.find(t=>t.id==='erp');
-  if(e0){ e0.done=!!rec.erp; if(e0.done && (!e0.base || e0.base.erpnote==null || e0.base.v!==3)) e0.base=erpSnap(); if(!e0.done) delete e0.base; }   // 예전 기준(칸마다)은 지금 비고 문구로 바꿔 둠
+  if(e0){ e0.done=!!rec.erp; if(e0.done && e0.base && e0.base.v===3) e0.base=erpBaseUp(e0.base); if(e0.done && (!e0.base || e0.base.erpnote==null || e0.base.v!==4)) e0.base=erpSnap(); if(!e0.done) delete e0.base; }   // 예전 기준(칸마다)은 지금 비고 문구로 바꿔 둠
   const fixes = e0 && e0.base ? erpDiff(e0.base, erpSnap()) : [];
   if(fixes.length) want.push('erpfix');
   if(rec.tour) want.push('tour');   // 사전 답사가 잡히면 답사도 전산에 예약
@@ -1916,7 +1919,7 @@ function syncAutoTasks(){
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec)}); });   // 사전 답사 과업 메모 = 답사 정보
   tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } if(!t.due) t.due=taskDue(t); });
   const fx=tasks.find(t=>t.id==='erpfix');
-  if(fx && !fx.removed){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; } else if(!fx.done) fx.changes=[]; }
+  if(fx && !fx.removed){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; fx.v=4; } else if(!fx.done) fx.changes=[]; }
   // 하위 과업: 견적서 · 거래명세서는 기본 3개(생성 · 전송 · NAS 업로드) + 누구나 직접 추가한 세부 과제(xsubs). 하위 과업이 있으면 모두 체크될 때 완료
   // (전산 예약 · 프로그램 담당 · 몽몽마방 메뉴처럼 칸을 채우면 끝나는 과업은 하위 과업과 상관없이 그 조건으로)
   tasks.forEach(t=>{ if(t.removed) return; const ds=DOC_SUBS[t.id]; if(ds && !t.subs) t.subs=Object.fromEntries(ds.map(([k])=>[k, !!t.done]));   // 삭제한 과업은 그대로
@@ -1939,8 +1942,19 @@ function syncAutoTasks(){
   tasks=[...list, ...doneT];
 }
 // 전산 예약 수정 (2026-11-18): 전산 비고에 들어가는 문구(erpNote)가 바뀐 경우에만 — 담당자 이름 · 연락처처럼 비고에 안 들어가는 것은 과업을 만들지 않음
-const erpSnap = () => ({erpnote: erpNote(rec), v:3});   // v:3 = 간소화한 비고 문구 (2026-11-19 · 「9시 입장」 · PPT세미나 · 자체세미나)
-const erpDiff = (a,b) => (a&&a.erpnote!=null && a.v===3 ? a.erpnote : null)===null ? [] : (a.erpnote||'')===(b.erpnote||'') ? [] : ['전산 비고 문구가 바뀜 (아래 새 문구로 고치기)'];
+// v:4 (2026-11-19): 비고 문구 + 전산 예약에 들어가는 인원 · 날짜 · 식사 수 (관람 인원이 바뀌어도 전산 예약 수정이 안 생기던 것)
+const ERP_SNAP_KEYS = [['date','방문일'],['people','관람 인원'],['sadam1','런치1부'],['sadam2','런치2부'],['sadamD','디너'],['mabangL','몽몽마방'],['views','관람 품목']];
+const erpSnap = () => { const o={erpnote: erpNote(rec), v:4}; ERP_SNAP_KEYS.forEach(([k])=>{ o[k]=String(rec[k]||'').trim(); }); return o; };
+// 예전 기준(v:3 = 비고 문구만)에는 인원 · 날짜가 없음 → 붙여 넣은 전산 내역(erpList)에서: 방문일 · 관람이 들어간 상품 인원 합 (없으면 지금 값)
+function erpBaseUp(b){ if(!b || b.v!==3) return b; const o={...b, v:4}, cur=erpSnap();
+  ERP_SNAP_KEYS.forEach(([k])=>{ o[k]=cur[k]; });
+  if(erpList.length){ const d=(erpList.find(x=>x.date)||{}).date; if(d) o.date=d; const vp=erpList.filter(x=>/관람/.test(x.product)).reduce((s,x)=>s+(+x.people||0),0); if(vp) o.people=String(vp); }
+  return o; }
+const erpDiff = (a,b) => { if(!a || a.erpnote==null || a.v!==4) return [];
+  const out=ERP_SNAP_KEYS.filter(([k])=>k!=='views' && String(a[k]||'')!==String(b[k]||'')).map(([k,l])=>`${l} ${a[k]||'없음'} → ${b[k]||'없음'}`);
+  if(String(a.views||'')!==String(b.views||'') && !out.some(s=>/^관람 인원/.test(s))) out.push('관람 품목 · 인원이 바뀜');
+  if((a.erpnote||'')!==(b.erpnote||'')) out.push('전산 비고 문구가 바뀜 (아래 새 문구로 고치기)');
+  return out; };
 const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
 // 하위 과업 칸: 기본 하위 과업(견적서 · 거래명세서) + 직접 추가한 세부 과제(× 로 빼기) + 추가 입력칸
 function subsHTML(t){
@@ -2245,7 +2259,7 @@ function openRecord(r){
     if(/^adm/.test(r.id) && !rec.erp) rec.erp='관리자 예약';   // 관리자 사이트에서 온 예약은 이미 전산에 있음
     rec.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(rec) ? normStage(r.callType) : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
-    nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; $('#memoBox').value=r.note||'';
+    nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; openedRaw=rawPick(r); $('#memoBox').value=r.note||'';
     const ph=parseHist(r); hist=ph.h; tasks=ph.tasks; erpList=ph.erp||[]; memos=ph.memos||[];
     { const o=(r.owner||r.takenBy||'').trim(), me=savedOwner(); lockOwner = o && me && o!==me ? o : ''; } paintLock(); acquireEdit(r.id);   // 남이 담당인 예약: 잠금 (메모만)
     renderContacts(); renderForm(); resetWarn(true); baseSnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
@@ -2809,9 +2823,31 @@ function quoteRaw(r, blocks){
   const d = r.date.replace(/-/g,'.');
   return blocks.map(b=>[`방문일자(순번)\t${d} (0)`, `상품정보\t${b.product}`, `방문자정보\t${r.org||''}`, `예약인원\t${b.qty}명`, ...b.notes].join('\n')).join('\n\n');
 }
+// 관람 인원이 바뀌었는데 예약 내역의 관람 줄은 그대로일 때 (2026-11-19): 시간대 관람권 줄(9~18 · 13~18) 인원을 「관람 인원 − 다른 관람 영역」에 맞춤
+//  관람 인원을 고칠 때 · 견적서 · 거래명세서 · 사전답사를 누를 때. 줄이 없거나 맞추면 0명 이하가 되면 그대로
+function fitViewToPeople(r){ const n=numOf(r.people); if(!n) return false;
+  const list=viewsParse(r.views), i=list.findIndex(x=>/관람\((09|13):00~18:00\)/.test(x.src)); if(i<0) return false;
+  const diff=n-areaOthers(r); if(!diff) return false; const q=list[i].qty+diff; if(q<=0) return false;
+  list[i].qty=q; r.views=goodsJoin(list); return true; }
+function fitViewNow(){ if(!fitViewToPeople(rec)) return false; touched.add('views'); if(typeof renderItems==='function') renderItems(true); renderSide(); return true; }
+document.addEventListener('change', e=>{ if(e.target && e.target.id==='f_people') setTimeout(()=>{ if(fitViewNow()) toast(`관람 인원에 맞춰 예약 내역의 관람 줄 인원을 바꿨습니다 (${viewsParse(rec.views).map(x=>`${viewLabel(daySrc(x.src, rec))} ${x.qty}명`).join(', ')}).`, 3600); }, 0); });
+// 견적서 · 거래명세서 · 사전답사 버튼: 넘기기 전에 공유 기록의 최신 내용(다른 화면 · 다음날 고객 응대 준비에서 고친 것)으로 다시 불러옴 (2026-11-19)
+//  이 화면에서 고치던 것이 있으면 그것이 지금 내용 → 그대로
+async function freshRec(){
+  if(!editingId || !SHARED_URL || isDirty()) return false;
+  try{ await pull(); }catch(_){ return false; }
+  const r=(await store.list()||[]).find(x=>x.id===editingId); if(!r) return false;
+  if(!openedRaw || rawPick(r)===openedRaw) return false;
+  openRecord(r); toast('공유 기록의 최신 내용으로 다시 불러왔습니다.', 2400); return true;
+}
 // doc: 'quote'(견적서) | 'statement'(거래명세서). 저장된 예약이면 예약 ID도 넘겨, 견적서 사이트가 출력한 파일을 드라이브에 올리고 이 예약 과업에 링크를 돌려준다
 async function openQuote(doc){
-  if(!rec.date || !numOf(rec.people)){ toast('방문일과 관람 인원을 먼저 넣어 주세요.'); return; }
+  const win=window.open('about:blank', '_blank');   // 누르는 순간 탭을 열어 둠 (불러오는 동안 팝업 차단 피하기)
+  await freshRec(); fitViewNow();   // 최신 내용 + 관람 줄 인원을 관람 인원에 맞춤
+  return openQuote2(doc, win);
+}
+async function openQuote2(doc, win){
+  if(!rec.date || !numOf(rec.people)){ try{ win && win.close(); }catch(_){} toast('방문일과 관람 인원을 먼저 넣어 주세요.'); return; }
   // 버튼을 누르면 요청 체크가 켜지고(추후 과업 '견적서 발급' · '거래명세서 발급') 저장. 출력해서 파일이 돌아오면 하위 과업 '생성'이 체크됨
   const tid = doc==='statement' ? 'stmt' : 'quote';
   rec[tid==='stmt' ? 'wantStmt' : 'wantQuote'] = '있음'; touched.add(tid==='stmt' ? 'wantStmt' : 'wantQuote');
@@ -2820,8 +2856,8 @@ async function openQuote(doc){
   const {blocks, skipped} = quoteBlocks(rec);
   const c = contactsOf(rec)[0] || {};
   const h = { at:Date.now(), raw:quoteRaw(rec, blocks), client:rec.org||'', clientMgr:c.name||'', sender:savedOwner()||rec.owner||'', doc: doc||'quote', recId: editingId||'', org: rec.org||'', date: rec.date||'' };
-  try{ localStorage.setItem('sy_intake_handoff', JSON.stringify(h)); }catch(_){ toast('이 브라우저에서는 넘길 수 없습니다.'); return; }
-  window.open(QUOTE_URL, '_blank');
+  try{ localStorage.setItem('sy_intake_handoff', JSON.stringify(h)); }catch(_){ try{ win && win.close(); }catch(__){} toast('이 브라우저에서는 넘길 수 없습니다.'); return; }
+  if(win && !win.closed) win.location.href=new URL(QUOTE_URL, location.href).href; else window.open(QUOTE_URL, '_blank');
   toast(`${doc==='statement'?'거래명세서':'견적서'} 사이트를 열었습니다 · ${blocks.length}개 상품${skipped.length?` · ${skipped.join(', ')}은(는) 직접 추가`:''} · 출력하면 드라이브에도 저장됩니다`);
 }
 $('#quoteBtn').onclick=()=>openQuote('quote');
@@ -3132,7 +3168,7 @@ function syncSavedTasks(id){
 //  - 견적서 · 거래명세서 등 하위 과업이 모두 체크되면 완료 · 예전 기준(담당자 이름 등)으로 생긴 전산 예약 수정은 빼기
 function settleTasks(list, r, x){
   return (list||[]).filter(t=>!t.removed)
-    .filter(t=>!(t.id==='erpfix' && !t.done && !(t.changes||[]).some(c=>/전산 비고/.test(c)) && !t.memo && !(t.xsubs||[]).length))
+    .filter(t=>!(t.id==='erpfix' && !t.done && !(t.v===4 && (t.changes||[]).length) && !(t.changes||[]).some(c=>/전산 비고/.test(c)) && !t.memo && !(t.xsubs||[]).length))
     .map(t=>{ const u={...t};
       if(u.id==='erp') u.done = !!x.erp || /^adm/.test(r.id);
       else if(u.id==='linksend') u.done = !!x.linkSent;
@@ -3518,7 +3554,8 @@ function syncTourTask(){   // 답사 정보가 바뀌면 과업 메모도 (메�
   if(!t.memo || t.memo===t.memoTour){ t.memo=tourMemo(rec); t.memoTour=t.memo; }
 }
 function paintTourCk(){ const c=$('#ckTour'); if(c) c.checked=!!String(rec.tour||'').trim(); const b=$('#tourBtn'); if(b) b.classList.toggle('on', !!String(rec.tour||'').trim()); }
-function openTour(){
+async function openTour(){
+  await freshRec();   // 최신 내용(단체명 · 담당자 · 연락처)으로 (2026-11-19)
   const o=tourWithDefaults(rec, rec.tour);
   $('#tourName').value=o.name||''; $('#tourPhone').value=o.phone||''; $('#tourPeople').value=String(o.people||'').replace(/\D/g,''); $('#tourTime').value=o.time||'';
   const dv = /^\d{4}-\d{2}-\d{2}$/.test(o.date||'') ? o.date : '';
