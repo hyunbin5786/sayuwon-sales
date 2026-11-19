@@ -826,3 +826,15 @@ html.book-guest #bookBody tr{cursor:default}
 .wk-subs .wk-s.on .wk-name{color:var(--muted);text-decoration:line-through}
 .wk-subs .wk-name{cursor:pointer;color:var(--ink);font-weight:500}
 .wk-subs .wk-name:hover{color:var(--pine);text-decoration:underline}
+/* 기타 개인 업무 구분 (2026-11-19) */
+.etc-catbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 8px}
+.etc-chip{display:inline-block;font-size:12px;padding:2px 9px;border-radius:999px;background:var(--pine-soft);color:var(--pine);font-weight:600}
+.etc-chip.sm{font-size:11px;padding:0 7px;vertical-align:1px}
+.etc-catin{height:28px;border:1px solid var(--pine);border-radius:6px;padding:0 8px;font:inherit;font-size:13px}
+.etc-catpick{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin:0 0 8px}
+.etc-catpick select,.etc-add select.etc-cat,.etc-etop select.etc-cat{height:32px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:13px;background:#fff;max-width:130px}
+.etc-add select.etc-cat{flex:none;margin-right:6px}
+.etc-etop{display:flex;gap:6px;align-items:center}.etc-etop .etc-in{flex:1}
+.etc-cat-h{font-size:13px;font-weight:700;color:var(--pine);margin:12px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--line)}
+.etc-cat-h small{font-weight:400;color:var(--muted)}
+.etc-cat-empty{margin:0 0 4px;font-size:12.5px}

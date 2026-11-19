@@ -3650,7 +3650,7 @@ const etcDomHTML = (v, id) => `<select id="${id}" title="매달 날짜">${Array.
 function etcAddHTML(){
   const f=etcForm;
   const extra = f.repeat==='none' ? `<label class="etc-due">마감 ${dboxHTML('id="etcDue"', f.due||todayYmd())}</label>` : f.repeat==='weekly' ? etcDowsHTML(f.dows, 'data-etcdow') : f.repeat==='monthly' ? etcDomHTML(f.dom, 'etcDom') : '';
-  return `<div class="etc-addbox"><form class="task-add etc-add" id="etcAdd"><input id="etcAddIn" data-ime="ko" placeholder="업무 직접 추가" autocomplete="off"><button class="btn" type="submit">추가</button></form>`
+  return `<div class="etc-addbox"><form class="task-add etc-add" id="etcAdd">${etcCatSelHTML('etcCat', f.cat||'')}<input id="etcAddIn" data-ime="ko" placeholder="업무 직접 추가" autocomplete="off"><button class="btn" type="submit">추가</button></form>`
     + `<div class="etc-rep"><span class="seg">${REP_OPTS.map(([k,l])=>`<button type="button" class="${f.repeat===k?'on':''}" data-etcrep="${k}">${l}</button>`).join('')}</span>${extra}</div></div>`;   // 추가 칸은 박스로 묶음 (2026-11-18)
 }
 function etcEditHTML(){
@@ -3658,14 +3658,37 @@ function etcEditHTML(){
   const when = rep==='none' ? `<label class="etc-due">날짜 ${dboxHTML('id="etcEDue"', d.due||d.start||todayYmd())}</label>`
     : (rep==='weekly' ? etcDowsHTML(d.dows, 'data-eedow') : rep==='monthly' ? etcDomHTML(d.dom, 'etcEDom') : '') + `<label class="etc-due">시작 ${dboxHTML('id="etcEStart"', d.start||todayYmd())}</label>`;
   return `<div class="etc-edit">`
-    + `<input id="etcETitle" class="etc-in" data-ime="ko" placeholder="업무" value="${esc(d.title||'')}">`
+    + `<div class="etc-etop">${etcCatSelHTML('etcECat', etcCatOf(d))}<input id="etcETitle" class="etc-in" data-ime="ko" placeholder="업무" value="${esc(d.title||'')}"></div>`
     + `<div class="etc-rep"><span class="seg">${REP_OPTS.map(([k,l])=>`<button type="button" class="${rep===k?'on':''}" data-eerep="${k}">${l}</button>`).join('')}</span>${when}</div>`
     + `<div class="etc-subs"><b>세부 과업</b>${(d.subs||[]).map((s,i)=>`<span class="etc-sub">${esc(s.title||s.t||'')}<button type="button" data-eesubdel="${i}" title="빼기" aria-label="세부 과업 빼기">×</button></span>`).join('')}<input id="etcESubIn" class="etc-in" data-ime="ko" placeholder="세부 과업 적고 Enter" autocomplete="off"></div>`
     + `<textarea id="etcEMemo" class="etc-in" data-ime="ko" rows="2" placeholder="메모">${esc(d.memo||'')}</textarea>`
     + `<div class="etc-ebtns"><button type="button" class="btn" data-eedel>삭제</button><span class="sp"></span><button type="button" class="btn" data-eecancel>취소</button><button type="button" class="btn primary" data-eesave>저장</button></div></div>`;
 }
-function etcSection(){
-  const today=ymd(new Date()), all=myEtcOpen(), mine=etcMine();
+// ===== 기타 개인 업무 구분 (2026-11-19): 사람마다 구분 목록(공유 기록 한 줄 · 통화 구분 「개인업무목록」, 예전 할 일 목록 화면의 목록 이름도 그대로) · 업무 d.list = 구분 =====
+//  기타 탭: 「＋ 구분 추가」 · 추가 · 고치기 칸에서 구분 고르기 · 오늘 할 일을 구분별로 묶어 보기 / 전체 탭: 구분 고르기(그 구분만)
+const ETC_NOCAT='구분 없음';
+const etcCatRec = () => { const me=savedOwner(); return (cache||[]).find(r=>r.callType==='개인업무목록' && (r.owner||r.takenBy)===me) || null; };
+function etcCats(){ let saved=[]; try{ saved=(JSON.parse((etcCatRec()||{}).history||'{}').lists)||[]; }catch(_){}
+  const used=etcMine().map(o=>o.d.list).filter(Boolean); return [...new Set([...saved, ...used])].filter(c=>c && c!=='작업'); }
+async function etcSaveCats(lists){ const me=savedOwner()||'', now=new Date().toISOString(), old=etcCatRec();
+  const item={...(old||{}), id: old ? old.id : 'el'+tdHash(me), callType:'개인업무목록', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:`기타 개인 업무 구분 ${lists.join(', ')}`.slice(0,120), history:JSON.stringify({lists})};
+  await store.put(item); const i=cache.findIndex(x=>x.id===item.id); if(i>=0) cache[i]=item; else cache.push(item); }
+const etcCatOf = d => (d.list && d.list!=='작업') ? d.list : '';
+let etcCatFilter = (()=>{ try{ return localStorage.getItem('sy_etc_cat')||''; }catch(_){ return ''; } })(), etcCatAdding=false;   // 전체 탭에서 고른 구분 ('' = 모두)
+const etcCatSelHTML = (id, v) => `<select id="${id}" class="etc-cat" title="구분"><option value="">${ETC_NOCAT}</option>${etcCats().map(c=>`<option${c===v?' selected':''}>${esc(c)}</option>`).join('')}</select>`;
+document.addEventListener('change', e=>{
+  if(e.target.id==='etcCat') etcForm.cat=e.target.value;
+  if(e.target.id==='etcECat' && etcEdit) etcEdit.d.list=e.target.value;
+  if(e.target.id==='etcCatFilter'){ etcCatFilter=e.target.value; try{ localStorage.setItem('sy_etc_cat', etcCatFilter); }catch(_){} renderMy(); } });
+document.addEventListener('click', e=>{ if(e.target.closest?.('[data-etccatadd]')){ e.preventDefault(); etcCatAdding=true; etcRepaint(); setTimeout(()=>$('#etcCatIn')?.focus(), 0); } });
+document.addEventListener('keydown', async e=>{ if(e.target.id!=='etcCatIn') return; if(e.key==='Escape'){ etcCatAdding=false; etcRepaint(); return; } if(e.key!=='Enter' || e.isComposing) return; e.preventDefault();
+  const v=e.target.value.trim(); if(!v){ etcCatAdding=false; etcRepaint(); return; } if(v===ETC_NOCAT){ toast('다른 이름을 적어 주세요.'); return; }
+  const cs=etcCats(); etcCatAdding=false; if(!cs.includes(v)) await etcSaveCats([...cs, v]); etcForm.cat=v; etcRepaint(); toast(`구분 「${v}」을 만들었습니다.`); });
+document.addEventListener('focusout', e=>{ if(e.target.id==='etcCatIn' && !e.target.value.trim()) setTimeout(()=>{ if(etcCatAdding){ etcCatAdding=false; etcRepaint(); } }, 150); });
+function etcSection(full){   // full = 기타 탭 (구분 추가 · 구분별로 묶음) · 아니면 전체 탭 (구분 고르기)
+  const today=ymd(new Date()), cats=etcCats(), cf = !full && (etcCatFilter==='' || etcCatFilter==='__none' || cats.includes(etcCatFilter)) ? etcCatFilter : '';
+  const inCat = o => full || !cf ? true : cf==='__none' ? !etcCatOf(o.d) : etcCatOf(o.d)===cf;
+  const all=myEtcOpen().filter(inCat), mine=etcMine().filter(inCat);
   // 업무마다 한 줄: 오늘 할 날(없으면 가장 최근 지난 날) + 그 전에 안 한 날 수 (같은 업무가 날짜마다 여러 줄로 쌓이지 않게)
   const byId={}; all.forEach(o=>{ (byId[o.r.id] ||= []).push(o); });
   const list=Object.values(byId).map(a=>{ const s=a.slice().sort((x,y)=>y.day.localeCompare(x.day)); return {...s[0], before:s.slice(1).map(x=>x.day)}; }).sort((a,b)=>a.day.localeCompare(b.day));
@@ -3675,16 +3698,22 @@ function etcSection(){
   const item = o => { if(isEd(o.r.id)) return `<li class="my-etc editing">${etcEditHTML()}</li>`;
     const subs=o.d.subs||[], m=((o.d.subDone||{})[o.day])||{}, n=subs.filter(s=>m[s.id]).length;
     return `<li class="r my-etc${o.day<today?' late':''}"><label class="etc-ck" title="체크하면 그날 완료"><input type="checkbox" data-etcdone="${esc(o.r.id)}|${o.day}"></label>`
-      + `<span class="who" data-etcedit="${esc(o.r.id)}" title="눌러서 고치기"><b>${esc(o.d.title)}</b> <small class="hint" style="margin:0">${esc(opsRepeatLabel(o.d))}${subs.length?` · 세부 과업 ${n}/${subs.length}`:''}</small><br><span class="my-task${o.day<today?' late':o.day===today?' today':''}">${o.day<today?'지남 · ':''}${esc(opsDateLabel(o.day))}</span>${o.before.length?` <button type="button" class="etc-past" data-etcpast="${esc(o.r.id)}" title="${esc(o.before.map(opsDateLabel).join(', '))}">지난 ${o.before.length}일 모두 완료</button>`:''}${o.d.memo?`<br><small class="hint" style="margin:0">${esc(String(o.d.memo).split('\n')[0].slice(0,60))}</small>`:''}</span>`
+      + `<span class="who" data-etcedit="${esc(o.r.id)}" title="눌러서 고치기">${!full && etcCatOf(o.d)?`<span class="etc-chip sm">${esc(etcCatOf(o.d))}</span> `:''}<b>${esc(o.d.title)}</b> <small class="hint" style="margin:0">${esc(opsRepeatLabel(o.d))}${subs.length?` · 세부 과업 ${n}/${subs.length}`:''}</small><br><span class="my-task${o.day<today?' late':o.day===today?' today':''}">${o.day<today?'지남 · ':''}${esc(opsDateLabel(o.day))}</span>${o.before.length?` <button type="button" class="etc-past" data-etcpast="${esc(o.r.id)}" title="${esc(o.before.map(opsDateLabel).join(', '))}">지난 ${o.before.length}일 모두 완료</button>`:''}${o.d.memo?`<br><small class="hint" style="margin:0">${esc(String(o.d.memo).split('\n')[0].slice(0,60))}</small>`:''}</span>`
       + (subs.length ? `<div class="etc-subck">${subs.map(s=>`<label><input type="checkbox" data-etcsub="${esc(o.r.id)}|${o.day}|${esc(s.id)}"${m[s.id]?' checked':''}> ${esc(s.title||s.t||'')}</label>`).join('')}</div>` : '') + `</li>`; };
   const shownIds=new Set(list.map(o=>o.r.id));
+  // 구분별로 묶기 (기타 탭): 구분 순서대로, 구분 없음은 맨 아래 (2026-11-19)
+  const grouped = () => { const keys=[...cats, '']; const parts=keys.map(c=>({c, a:list.filter(o=>etcCatOf(o.d)===c)})).filter(g=>g.a.length || (g.c && full));
+    return parts.map(g=>`<div class="etc-cat-h">${esc(g.c||ETC_NOCAT)} <small>${g.a.length}개</small></div>` + (g.a.length ? `<ul class="pc-list">${g.a.map(item).join('')}</ul>` : '<p class="hint etc-cat-empty">오늘 할 업무 없음</p>')).join(''); };
+  const catBar = full
+    ? `<div class="etc-catbar">${cats.map(c=>`<span class="etc-chip">${esc(c)}</span>`).join('')}${etcCatAdding ? `<input id="etcCatIn" class="etc-catin" data-ime="ko" placeholder="새 구분 이름 (Enter)" autocomplete="off">` : `<button type="button" class="btn sm" data-etccatadd>＋ 구분 추가</button>`}</div>`
+    : (cats.length ? `<label class="etc-catpick">구분 <select id="etcCatFilter"><option value="">모두</option>${cats.map(c=>`<option${c===cf?' selected':''}>${esc(c)}</option>`).join('')}<option value="__none"${cf==='__none'?' selected':''}>${ETC_NOCAT}</option></select></label>` : '');
   return `<h3 class="my-h">기타 개인 업무 <small>할 일 ${list.length}개${late?` · <b class="late">밀린 것 ${late}개</b>`:''}</small></h3>`
-    + etcAddHTML()
-    + (list.length ? `<ul class="pc-list">${list.map(item).join('')}</ul>` : '<p class="hint">오늘 할 기타 업무가 없습니다.</p>')
+    + catBar + etcAddHTML()
+    + (list.length || (full && cats.length) ? (full && cats.length ? grouped() : `<ul class="pc-list">${list.map(item).join('')}</ul>`) : '<p class="hint">오늘 할 기타 업무가 없습니다.</p>')
     + (doneToday.length ? `<details class="etc-more"${etcOpenDone?' open':''} data-etcfold="done"><summary>오늘 완료한 것 ${doneToday.length}개</summary><ul class="pc-list etc-done">${doneToday.map(o=>`<li class="my-etc"><label class="etc-ck" title="체크를 풀면 완료 취소"><input type="checkbox" checked data-etcundo="${esc(o.r.id)}|${today}"></label><span class="who"><s>${esc(o.d.title)}</s></span></li>`).join('')}</ul></details>` : '')
     + `<details class="etc-more"${etcOpenAll || (etcEdit && !shownIds.has(etcEdit.id))?' open':''} data-etcfold="all"><summary>내 업무 전체 ${mine.length}개</summary>`
     + (mine.length ? `<ul class="pc-list etc-all">${mine.slice().sort((a,b)=>String(a.d.title).localeCompare(String(b.d.title),'ko')).map(o=>{ if(isEd(o.r.id) && !shownIds.has(o.r.id)) return `<li class="my-etc editing">${etcEditHTML()}</li>`; const nx=etcNext(o.d, today);
-        return `<li class="r my-etc"><span class="who" data-etcedit="${esc(o.r.id)}" title="눌러서 고치기"><b>${esc(o.d.title)}</b> <small class="hint" style="margin:0">${esc(opsRepeatLabel(o.d))} · ${nx?'다음 '+esc(opsDateLabel(nx)):'끝남'}</small></span></li>`; }).join('')}</ul>` : '<p class="hint">아직 업무가 없습니다. 위에서 추가하세요.</p>')
+        return `<li class="r my-etc"><span class="who" data-etcedit="${esc(o.r.id)}" title="눌러서 고치기">${etcCatOf(o.d)?`<span class="etc-chip sm">${esc(etcCatOf(o.d))}</span> `:''}<b>${esc(o.d.title)}</b> <small class="hint" style="margin:0">${esc(opsRepeatLabel(o.d))} · ${nx?'다음 '+esc(opsDateLabel(nx)):'끝남'}</small></span></li>`; }).join('')}</ul>` : '<p class="hint">아직 업무가 없습니다. 위에서 추가하세요.</p>')
     + `</details>`;
 }
 // 다시 그리기 (쓰던 칸 · 커서 유지)
@@ -3731,14 +3760,14 @@ document.addEventListener('submit', async e=>{
   const me=savedOwner(); if(!me){ toast('이름이 있어야 추가할 수 있습니다.'); return; }
   const f=etcForm, today=todayYmd();
   if(f.repeat==='weekly' && !f.dows.length){ toast('요일을 하나 이상 골라 주세요.'); return; }
-  const d={title, repeat:f.repeat, owner:me, memo:'', subs:[]};
+  const d={title, repeat:f.repeat, owner:me, memo:'', subs:[]}; if(f.cat) d.list=f.cat;   // 구분 (2026-11-19)
   if(f.repeat==='none') d.due=f.due||today; else d.start=today;
   if(f.repeat==='weekly') d.dows=f.dows.slice();
   if(f.repeat==='monthly') d.dom=String(f.dom||new Date().getDate());
   const now=new Date().toISOString(), item={id:opsId(), callType:'개인업무', saved:now, takenBy:me, owner:me, summary:`${title} · ${opsRepeatLabel(d)}`.slice(0,120),
     history:JSON.stringify({kind:'task', d, log:[{at:now, by:me, what:'추가 (나의 할일)'}]})};
   inp.disabled=true;
-  try{ await store.put(item); if(!cache.some(x=>x.id===item.id)) cache.push(item); etcForm={repeat:'none', dows:[], dom:'', due:''}; renderMy(); if(typeof paintMyCount==='function') paintMyCount(); $('#etcAddIn')?.focus();
+  try{ await store.put(item); if(!cache.some(x=>x.id===item.id)) cache.push(item); etcForm={repeat:'none', dows:[], dom:'', due:'', cat:etcForm.cat||''}; renderMy(); if(typeof paintMyCount==='function') paintMyCount(); $('#etcAddIn')?.focus();
     toast(`「${title}」 추가했습니다 · ${opsRepeatLabel(d)}${d.due && d.due!==today ? ` · ${mdLabel(d.due)}` : ''} · 세부 과업 · 메모는 이름을 눌러서`); }
   catch(err){ inp.disabled=false; toast('추가하지 못했습니다: '+(err.code||err.message)); }
 });
