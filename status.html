@@ -7,7 +7,7 @@
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="css/prep.css?v=20261119c7">
-<link rel="stylesheet" href="css/status.css?v=20261119c6">
+<link rel="stylesheet" href="css/status.css?v=20261119c8">
 <link rel="stylesheet" href="css/menu.css?v=20261119c1">
 </head>
 <body>
@@ -18,13 +18,16 @@
 </header>
 <main class="st-main">
   <section class="panel">
-    <h2>엑셀 넣기 <small>① 전산 방문자내역(.xls · 날짜마다 한 파일) ② 네이버 예약자관리(.xlsx) · 두 가지를 함께 넣어도 됨</small></h2>
-    <label class="drop" id="drop"><input type="file" id="file" accept=".xls,.xlsx,.html,.htm" multiple hidden>
-      <b>여기에 엑셀 파일을 끌어다 놓거나 눌러서 고르세요</b><br><span class="hint">파일은 이 브라우저 안에서만 읽습니다 (어디에도 올리지 않음) · 같은 날짜 파일을 다시 넣으면 그 날짜만 새로</span></label>
-    <div class="nv-pw"><label>네이버 엑셀 비밀번호 <input type="password" id="nvPw" autocomplete="off"></label><label class="chk"><input type="checkbox" id="nvKeep" checked> 이 컴퓨터에 기억</label>
-      <span class="hint">네이버 인원은 네이버 이관 2단계와 같은 방식 (전액환불은 빼고, 일부 환불은 환불금액만큼 인원을 뺌)</span></div>
-    <div class="nv-img"><button class="btn primary" id="nvImgBtn" type="button">네이버 사진으로 넣기</button><input type="file" id="nvImgFile" accept="image/*" hidden>
-      <span class="hint">네이버 엑셀이 안 될 때: 네이버 예약 달력 화면을 캡처해 <b>Ctrl+V</b>로 붙여넣거나 사진 파일을 고르세요. 파란 「확정」 숫자를 읽어 확인 표로 보여 줍니다.</span></div>
+    <!-- 2026-11-19 간단하게: 왼쪽 엑셀(방문자내역 · 네이버) · 오른쪽 네이버 사진, 아래 한 줄에 비밀번호 -->
+    <div class="in-grid">
+      <label class="drop" id="drop" title="전산 방문자내역(.xls · 날짜마다 한 파일)과 네이버 예약자관리(.xlsx)를 함께 넣어도 됩니다. 이 브라우저 안에서만 읽고, 같은 날짜를 다시 넣으면 그 날짜만 새로"><input type="file" id="file" accept=".xls,.xlsx,.html,.htm" multiple hidden>
+        <b>엑셀 넣기</b><span class="hint">방문자내역 · 네이버 예약자관리 — 끌어다 놓거나 눌러서 고르기</span></label>
+      <button class="drop drop-img" id="nvImgBtn" type="button" title="네이버 엑셀이 안 될 때: 네이버 예약 달력 화면 캡처의 파란 「확정」 숫자를 읽어 확인 표로 보여 줌"><b>네이버 사진</b><span class="hint">캡처 후 Ctrl+V · 눌러서 고르기</span></button><input type="file" id="nvImgFile" accept="image/*" hidden>
+    </div>
+    <div class="in-opts">
+      <label title="네이버 인원은 네이버 이관 2단계와 같은 방식 (전액환불은 빼고, 일부 환불은 환불금액만큼 인원을 뺌)">네이버 엑셀 비밀번호 <input type="password" id="nvPw" autocomplete="off"></label><label class="chk"><input type="checkbox" id="nvKeep" checked> 기억</label>
+      <span class="keybox" id="keyBox" hidden title="단체 예약 이름을 가져오려면 팀 비밀번호가 필요합니다 (다른 화면과 같은 비밀번호)"><span class="hint">단체 이름</span><input id="keyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn primary" id="keyBtn">연결</button></span>
+    </div>
     <div id="nvImgBox" class="nv-imgbox" hidden></div>
     <p class="err" id="fileErr"></p>
     <div class="st-bar" id="stBar" hidden>
@@ -33,9 +36,8 @@
       <button class="btn" id="stClear" type="button">모두 지우기</button>
       <button class="btn primary" id="stPng" type="button">사진으로 저장</button>
     </div>
-    <div class="keybox" id="keyBox" hidden><span class="hint">단체 예약 이름을 가져오려면 팀 비밀번호가 필요합니다 (다른 화면과 같은 비밀번호).</span><input id="keyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn primary" id="keyBtn">연결</button></div>
   </section>
-  <p class="hint st-help" id="stHelp" hidden>아래 표의 숫자 · 글자를 눌러 바로 고칠 수 있습니다. 네이버 인원은 <b>네이버 예약자관리 엑셀</b>을 넣으면 오전 · 오후 입장에 들어갑니다 (직접 고쳐도 됨). 줄 추가 · 빼기는 줄 끝 버튼, 고친 내용은 이 브라우저에 기억됩니다.</p>
+  <p class="hint st-help" id="stHelp" hidden>표의 숫자 · 글자는 눌러서 바로 고칠 수 있고, 이 브라우저에 기억됩니다.</p>
   <div id="stEdit"></div>
 </main>
 <div class="toast" id="toast"></div>
@@ -46,7 +48,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/naverxl.js?v=20261119b2"></script>
 <script src="js/naverimg.js?v=20261119c6"></script>
-<script src="js/status.js?v=20261119c6"></script>
+<script src="js/status.js?v=20261119c8"></script>
 <script src="js/ime.js?v=20261118r"></script>
 <script src="js/menu.js?v=20261119c1"></script>
 </body>

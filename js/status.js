@@ -134,11 +134,11 @@
         if(isNaverFile(h)){
           if(!window.NaverXL || !window.XLSX) throw new Error('엑셀 도구를 불러오는 중입니다. 잠시 뒤 다시 넣어 주세요.');
           const pw=$('#nvPw').value;
-          try{ const days=await NaverXL.read(f, pw); $('.nv-pw').classList.remove('need');
+          try{ const days=await NaverXL.read(f, pw); $('.in-opts').classList.remove('need');
             if(pw) try{ $('#nvKeep').checked ? localStorage.setItem(PW_LS, pw) : localStorage.removeItem(PW_LS); }catch(_){}
             Object.entries(days).forEach(([date,v])=>{ st.naver[date]=v; nvGot.push(date); const d=st.days.find(x=>x.date===date); if(d) applyNaver(d); });
             pendingNaver=pendingNaver.filter(x=>x!==f);
-          }catch(e){ if(e.code==='need_pw' || /비밀번호/.test(e.message)){ if(!pendingNaver.includes(f)) pendingNaver.push(f); $('.nv-pw').classList.add('need'); $('#nvPw').focus(); } throw e; }
+          }catch(e){ if(e.code==='need_pw' || /비밀번호/.test(e.message)){ if(!pendingNaver.includes(f)) pendingNaver.push(f); $('.in-opts').classList.add('need'); $('#nvPw').focus(); } throw e; }
           continue;
         }
         const v=parse(new TextDecoder('utf-8').decode(buf)); const day=buildDay(v);
