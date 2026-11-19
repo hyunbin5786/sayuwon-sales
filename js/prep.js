@@ -112,8 +112,8 @@ async function pushNow(){
   const st={...state, at, by}, body=JSON.stringify(packState(st));
   if(body.length>48000){ shareSt('너무 커서 팀에 못 올림 (이 PC에만 저장)', 'bad'); pushing=false; return false; }
   try{ await callApi({action:'put', item:{id:PREP_ID(state.date), callType:'응대준비', saved:at, takenBy:by, owner:by, summary:`다음날 고객 응대 준비 ${state.date} · ${state.rows.length}건 · ${by}`.slice(0,120), history:body}});
-    state.at=at; state.by=by; try{ localStorage.setItem(STATE_LS, JSON.stringify(state)); }catch(_){} histAdd(state.date, by);
-    shareSt(`팀과 공유됨 ${new Date(at).toTimeString().slice(0,5)}`, 'ok'); return true; }
+    state.at=at; state.by=by; try{ localStorage.setItem(STATE_LS, JSON.stringify(state)); }catch(_){} histAdd(state.date, at);
+    shareSt(`팀과 공유됨 · 최종 편집 ${editLab(at)}`, 'ok'); return true; }
   catch(e){ shareSt('팀에 못 올림 — 잠시 뒤 다시 올립니다', 'bad'); pushT=setTimeout(pushNow, 15000); return false; }
   finally{ pushing=false; }
 }
@@ -130,19 +130,20 @@ async function pullShared(force){
   if(document.activeElement && document.activeElement.closest && document.activeElement.closest('#outBody, #listBody') && !force) return false;
   const was = state && state.date===d && state.at;
   state=st; try{ localStorage.setItem(STATE_LS, JSON.stringify(state)); }catch(_){}
-  build(false); paintPrepDate(); shareSt(`팀과 공유됨 · ${st.by||''} ${st.at?new Date(st.at).toTimeString().slice(0,5):''}`, 'ok');
-  if(was && st.by && st.by!==(user.name||'')) toast(`${st.by}님이 고친 내용을 받아 왔습니다.`);
+  build(false); paintPrepDate(); if(st.at) histAdd(d, st.at); shareSt(`팀과 공유됨 · 최종 편집 ${editLab(st.at)}`, 'ok');
+  if(was && st.by && st.by!==(user.name||'')) toast(`다른 곳에서 고친 내용을 받아 왔습니다 (최종 편집 ${editLab(st.at)}).`);
   return true;
 }
 setInterval(()=>{ if(!document.hidden) pullShared(); }, 30000);
 // 지난 기록 (2026-11-19): 팀이 준비해 둔 날짜(공유 기록 prepYYYYMMDD)를 골라 그날 내용 보기 · 고치기 — 늘 보이게 (없으면 「없음」)
 let histItems=[];
-function paintHist(items){ if(items) histItems=items.filter(x=>x.callType==='응대준비' && /^prep\d{8}$/.test(x.id||'')).map(x=>({id:x.id, takenBy:x.takenBy||''}));
+function paintHist(items){ if(items) histItems=items.filter(x=>x.callType==='응대준비' && /^prep\d{8}$/.test(x.id||'')).map(x=>({id:x.id, at:x.saved||''}));
   const sel=$('#histSel'); if(!sel) return;
-  const ds=histItems.map(x=>{ const d=x.id.slice(4); return {d:`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`, by:x.takenBy}; }).sort((a,b)=>b.d.localeCompare(a.d));
-  sel.innerHTML = `<option value="">지난 기록 (${ds.length})</option>` + (ds.length ? ds.map(o=>`<option value="${esc(o.d)}"${o.d===prepDate?' selected':''}>${esc(dLab(o.d))}${o.by?` · ${esc(o.by)}`:''}</option>`).join('') : '<option value="" disabled>아직 팀에 저장된 날이 없습니다</option>');
+  const ds=histItems.map(x=>{ const d=x.id.slice(4); return {d:`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`, at:x.at}; }).sort((a,b)=>b.d.localeCompare(a.d));
+  sel.innerHTML = `<option value="">지난 기록 (${ds.length})</option>` + (ds.length ? ds.map(o=>`<option value="${esc(o.d)}"${o.d===prepDate?' selected':''}>${esc(dLab(o.d))}${o.at?` · 최종 편집 ${esc(editLab(o.at))}`:''}</option>`).join('') : '<option value="" disabled>아직 팀에 저장된 날이 없습니다</option>');
   sel.hidden = false; }
-const histAdd = (d, by) => { const id=PREP_ID(d); const x=histItems.find(h=>h.id===id); if(x) x.takenBy=by; else histItems.push({id, takenBy:by}); paintHist(); };
+const histAdd = (d, at) => { const id=PREP_ID(d); const x=histItems.find(h=>h.id===id); if(x) x.at=at; else histItems.push({id, at}); paintHist(); };
+const editLab = iso => { const x=new Date(iso||''); return isNaN(x) ? '' : `${x.getMonth()+1}/${x.getDate()}(${DOW[x.getDay()]}) ${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`; };   // 최종 편집 시각 (여러 명이 함께 고치므로 이름 대신, 2026-11-19)
 // 준비할 날짜를 바꾸면 (2026-11-19): 하던 날짜는 팀에 저장(이 PC에도 날짜별 사본) → 새 날짜는 팀이 준비해 둔 것이 있으면 그것, 없으면 완전히 빈 화면
 const BAK_LS = d => 'sayuwon_prep_bak_'+String(d||'').replace(/\D/g,'');
 async function switchDate(v){ if(!v) return false;
