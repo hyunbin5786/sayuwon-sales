@@ -1859,12 +1859,13 @@ function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문�
   { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인`)); if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
   { const st=viewsParse(r.views).filter(x=>/학생/.test(x.src)).reduce((a,x)=>a+(+x.qty||0),0); if(st) items.push(`학생 ${st}명 확인 필요`); }
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';
-  const arrive = r.tin ? `${erpShortT(r.tin)} ${gate || '입장'}` : `입장 시간 미정${gate ? ' '+gate : ''}`;   // 입장문을 아직 안 정했으면 「9시 입장」 (2026-11-19)
+  const arrive = r.tin ? `${erpShortT(r.tin)} ${gate || '입장'}` : '';   // 입장문을 아직 안 정했으면 「9시 입장」 · 입장 시간이 미정이면 도착은 안 씀 (2026-11-19)
   // 시간이 적힌 프로그램이 있으면 도착부터 시간 순 (13시 곡신문 / 13:30 동행도슨트 / 15:00 세미나도슨트), 없으면 맨 뒤에 도착 (런치1부 / 현장결제 / 10:30 곡신문)
   const startMin = s => { const m=String(s).match(/^(\d{1,2})(?::(\d\d))?(?=시|\s|-|~)/); return m ? +m[1]*60+(+m[2]||0) : null; };
   const timed=items.filter(s=>startMin(s)!=null), rest=items.filter(s=>startMin(s)==null);
-  const parts = timed.length && r.tin ? [...rest, ...[arrive, ...timed].sort((a,b)=>(startMin(a)??-1)-(startMin(b)??-1))] : [...items, arrive];
+  const parts = timed.length && r.tin ? [...rest, ...[arrive, ...timed].sort((a,b)=>(startMin(a)??-1)-(startMin(b)??-1))] : [...items, arrive].filter(Boolean);
   const who=(r.owner||savedOwner()||'').trim();   // 끝에 항상 (영업 담당 이름)
+  if(!r.tin) return '';   // 입장 시간이 미정이면 전산 비고에 남길 것이 없음 (2026-11-19)
   return parts.join(' / ') + (who ? ` (${who})` : '');
 }
 // 세금계산서 발행 요청 문구
