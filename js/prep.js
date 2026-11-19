@@ -74,7 +74,7 @@ drop.addEventListener('drop', e=>{ const f=e.dataTransfer.files[0]; if(f) readFi
 
 // ===================== 준비할 날짜 (2026-11-18): 맨 위 · 기본 = 내일 · 엑셀의 방문일이 다르면 팝업 =====================
 const tomorrowYmd = () => { const d=new Date(); d.setDate(d.getDate()+1); return SY.ymd(d); };
-let prepDate = tomorrowYmd();
+let prepDate = tomorrowYmd(), dateAuto = true;   // 준비할 날짜 = 늘 내일 (직접 다른 날을 고르기 전까지, 자정이 지나면 저절로 다음 날, 2026-11-19)
 function paintPrepDate(){ $('#prepDateTxt').value = SY.dateDisp(prepDate); $('#prepDate').value = prepDate;
   const h=$('#prepDateHint'), mis = state && state.date && state.date!==prepDate;
   h.className = mis ? 'bad' : ''; h.textContent = mis ? `읽어 둔 엑셀은 ${dLab(state.date)} 것입니다 — 파일을 바꿔 주세요` : prepDate===tomorrowYmd() ? '내일 · 이 날짜의 방문자내역 엑셀을 넣으세요' : '이 날짜의 방문자내역 엑셀을 넣으세요'; }
@@ -85,7 +85,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#dateModal'
 // 날짜 칸: 누르면 달력, 달력이 열린 뒤 한 번 더 누르면 직접 입력 (다른 화면의 방문일 칸과 같음)
 { const t=$('#prepDateTxt'), p=$('#prepDate'); let pickAt=0;
   t.addEventListener('click', ()=>{ if(!t.readOnly) return; if(Date.now()-pickAt<20000){ t.readOnly=false; t.select(); pickAt=0; return; } pickAt=Date.now(); try{ p.showPicker(); }catch(_){ p.focus(); } });
-  const setD = async v => { if(!v || v===prepDate) { paintPrepDate(); return; } await switchDate(v); };   // 날짜를 바꾸면 하던 것은 저장, 새 날짜는 빈 화면 (팀이 준비해 둔 것이 있으면 그것, 2026-11-19)
+  const setD = async v => { if(!v || v===prepDate) { paintPrepDate(); return; } dateAuto = v===tomorrowYmd(); await switchDate(v); };   // 달력에서 날짜를 고르면 그날 마지막으로 저장된 기록   // 날짜를 바꾸면 하던 것은 저장, 새 날짜는 빈 화면 (팀이 준비해 둔 것이 있으면 그것, 2026-11-19)
   p.addEventListener('change', ()=>setD(p.value));
   t.addEventListener('blur', ()=>{ if(t.readOnly) return; t.readOnly=true; const v=SY.parseDateText(t.value); if(v) setD(v); else paintPrepDate(); });
   t.addEventListener('keydown', e=>{ if(e.key==='Enter') t.blur(); }); }
@@ -154,9 +154,11 @@ async function switchDate(v){ if(!v) return false;
   if(await pullShared(true)) return true;
   let bak=null; try{ bak=JSON.parse(localStorage.getItem(BAK_LS(v))||'null'); }catch(_){}
   if(bak && bak.date===v && Array.isArray(bak.rows)){ state=bak; try{ localStorage.setItem(STATE_LS, JSON.stringify(state)); }catch(_){} build(false); paintPrepDate(); return true; }   // 팀에 없으면 이 PC 사본
-  state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); shareSt('', ''); return false; }
+  state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); shareSt('이 날짜는 저장된 기록이 없습니다', ''); return false; }
 $('#histSel')?.addEventListener('change', async e=>{ const v=e.target.value; if(!v || v===prepDate && state && state.date===v) return; const ok=await switchDate(v); toast(ok ? `${dLab(v)} 기록을 불러왔습니다.` : '그날 기록을 불러오지 못했습니다.'); });
-window.addEventListener('focus', ()=>pullShared());
+const keepTomorrow = () => { if(dateAuto && prepDate!==tomorrowYmd()) switchDate(tomorrowYmd()); };   // 켜 둔 채 날짜가 바뀌면 내일로
+window.addEventListener('focus', ()=>{ keepTomorrow(); pullShared(); });
+setInterval(keepTomorrow, 60000);
 
 // ===================== ② · ③ 목록 만들기 + 단체예약 연결 =====================
 const dayGroups = () => state ? groups.filter(r=>String(r.date||'').slice(0,10)===state.date) : [];
