@@ -6,7 +6,7 @@
 <title>다음날 고객 응대 준비 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261119d9">
+<link rel="stylesheet" href="css/prep.css?v=20261119e3">
 <link rel="stylesheet" href="css/mypop.css?v=20261116">
 <link rel="stylesheet" href="css/menu.css?v=20261119c1">
 </head>
@@ -18,12 +18,12 @@
 </header>
 
 <main>
-  <div class="pcol pcol-l">   <!-- 2열 (2026-11-18): 왼쪽 = 날짜 · ① ② · 오른쪽 = ④ (③ 단체예약 정보 넣기는 없애고 늘 자동 연결) -->
-  <!-- 준비할 날짜 (2026-11-18): 맨 위 · 기본 = 내일 (다음날 준비) · 엑셀의 방문일이 다르면 팝업 -->
+  <!-- 준비할 날짜 (2026-11-18): 맨 위 · 기본 = 내일 (다음날 준비) · 엑셀의 방문일이 다르면 팝업. 2026-11-19: 화면 폭 전체 한 줄 (팀 비밀번호도 같은 줄) -->
   <section class="panel day-pick" id="p0">
     <h2>준비할 날짜 <span class="dbox"><input class="dtxt" id="prepDateTxt" readonly title="누르면 달력 · 한 번 더 누르면 직접 입력"><input type="date" class="dpick" id="prepDate" tabindex="-1" aria-hidden="true"></span><small id="prepDateHint"></small></h2>
     <div class="keybox" id="keyBox" hidden><span class="hint">단체예약을 불러오려면 팀 비밀번호가 필요합니다 (다른 화면과 같은 비밀번호, 이 브라우저에 기억).</span><input id="keyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn primary" id="keyBtn">연결</button></div>
   </section>
+  <div class="pcol pcol-l">   <!-- 2열: 왼쪽 = ① 엑셀 · ② 티켓 발권 대상 · 오른쪽 = ③ 응대 표 (①과 같은 높이에서 시작, 2026-11-19) -->
   <!-- ① 엑셀 -->
   <section class="panel" id="p1">
     <h2><span class="step">1</span>엑셀 파일 넣기 <small>전산 → 방문자내역 엑셀</small></h2>
@@ -46,7 +46,7 @@
   <div class="pcol pcol-r">
   <!-- ④ 응대 표 (입장문은 관리하는 사람이 고름 · 추천 없앰 2026-11-19) -->
   <section class="panel off print-me" id="p4">
-    <h2><span class="step no-print">4</span>응대 표 <small id="p4Sum"></small>
+    <h2><span class="step no-print">3</span>응대 표 <small id="p4Sum"></small>
       <span class="right no-print"><button class="btn line-g" id="xlsxBtn">엑셀로 내려받기</button><button class="btn line-g" id="pngBtn" title="핸드폰에서 보기 좋은 좁은 폭의 그림 파일 (PNG)">이미지로 저장</button><button class="btn primary" id="saveEdits" type="button" title="표에서 고친 내용을 저장: 연결된 단체예약에 반영하고, 나의 할일(기타 개인 업무)에 「전산에 추가」로 넣음 · 30초 뒤 자동 저장">수정 내용 저장</button></span></h2>
     <p class="out-legend no-print"><span><span class="src have">목록</span>단체예약 목록에 있는 단체 (예약 정보를 가져옴)</span><span><span class="src new">새로 조사</span>목록에 없음 — 연락처로 업체 · 도착 시간 · 차량 확인</span></p>
     <div class="tw"><table class="out"><thead><tr><th class="no-print" title="연락했으면 체크">연락</th><th id="outHead">날짜</th><th>인원(명)</th><th>도착시간</th><th>입장문</th><th>차량</th><th>연락처</th><th>비고</th></tr></thead><tbody id="outBody"></tbody><tfoot id="outFoot"></tfoot></table></div>
