@@ -196,18 +196,20 @@ function render(){
     + `<td><input class="t" data-e="${esc(r.key)}|time" value="${esc(r.time)}" placeholder="${esc(r.timeHint||'시간')}"></td>`
     + `<td><select class="gate ${esc(r.gate)} src-${r.gateSrc}" data-e="${esc(r.key)}|gate"><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select><span class="gsrc ${r.gateSrc}" title="${{fixed:'단체예약 화면에서 이 입장문으로 정해 둔 것',auto:'방문 인원 · 도착 시간을 보고 이 화면이 추천한 것',hand:'이 화면에서 직접 바꾼 것'}[r.gateSrc]}">${{fixed:'예약 고정',auto:'추천',hand:'직접'}[r.gateSrc]}</span><span class="why no-print">${esc(r.gateWhy)}${r.gateSrc==='hand'?` · ${r.recGate?'고정':'추천'}은 ${esc(r.recGateAuto)}`:''}</span></td>`
     + `<td><input class="v" data-e="${esc(r.key)}|vehicle" value="${esc(r.vehicle)}"></td><td><input class="p" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`
-    + `<td class="note"><textarea data-e="${esc(r.key)}|note" rows="1">${esc(r.note)}</textarea></td></tr>`).join('');
+    + `<td class="note"><textarea data-e="${esc(r.key)}|note" rows="1">${esc(r.note)}</textarea></td>`
+    + `<td class="called no-print${(state.edit[r.key]||{}).called?' on':''}"><label title="이 고객에게 연락했는지 (이 브라우저에 기억)"><input type="checkbox" data-call="${esc(r.key)}"${(state.edit[r.key]||{}).called?' checked':''}></label></td></tr>`).join('');   // 연락 체크 (2026-11-19)
   const gSum=list.filter(r=>r.group).reduce((a,r)=>a+r.ppl,0), bus=list.reduce((a,r)=>a+(+r.vehicle&&r.group?+r.vehicle:0),0), ind=total-list.reduce((a,r)=>a+(r.missing?0:r.ppl),0);
   const onsite=list.filter(r=>r.onsitePay || /현장/.test(r.note)).map(r=>r.name);
   const hae=s.rows.filter(x=>x.items.some(i=>/해오름/.test(i.p))), haeN=hae.reduce((a,x)=>a+x.items.filter(i=>/해오름/.test(i.p)).reduce((b,i)=>b+i.n,0),0);
-  $('#outFoot').innerHTML = `<tr><td class="g">단체</td><td class="g num">${gSum}</td><td></td><td></td><td class="bus">버스 ${bus}대+</td><td colspan="2" class="ind">개인고객 ${ind}명</td></tr>`
-    + `<tr><td>현장결제건</td><td colspan="6" style="text-align:left">${esc(onsite.join(', ')||'-')}</td></tr>`
-    + `<tr><td>해오름 산책</td><td colspan="6" style="text-align:left">${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</td></tr>`;
-  $('#p4Sum').textContent = `${list.length}팀 (목록 ${list.filter(r=>r.inList).length} · 새로 조사 ${list.filter(r=>!r.inList).length}) · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length} · 입장문 예약 고정 ${list.filter(r=>r.gateSrc==='fixed').length}`;
+  $('#outFoot').innerHTML = `<tr><td class="g">단체</td><td class="g num">${gSum}</td><td></td><td></td><td class="bus">버스 ${bus}대+</td><td colspan="2" class="ind">개인고객 ${ind}명</td><td class="no-print"></td></tr>`
+    + `<tr><td>현장결제건</td><td colspan="6" style="text-align:left">${esc(onsite.join(', ')||'-')}</td><td class="no-print"></td></tr>`
+    + `<tr><td>해오름 산책</td><td colspan="6" style="text-align:left">${hae.length?`${hae.length}팀 ${haeN}명 · 고객 도착 AM 6:00`:'-'}</td><td class="no-print"></td></tr>`;
+  $('#p4Sum').textContent = `${list.length}팀 (목록 ${list.filter(r=>r.inList).length} · 새로 조사 ${list.filter(r=>!r.inList).length}) · 치허문 ${list.filter(r=>r.gate==='치허문').length} · 곡신문 ${list.filter(r=>r.gate==='곡신문').length} · 입장문 예약 고정 ${list.filter(r=>r.gateSrc==='fixed').length} · 연락 ${list.filter(r=>(s.edit[r.key]||{}).called).length}/${list.length}`;
   document.querySelectorAll('.out textarea').forEach(t=>{ t.style.height='auto'; t.style.height=t.scrollHeight+'px'; });
 }
 document.addEventListener('change', e=>{ const t=e.target;
   if(t.dataset.sel){ state.sel[t.dataset.sel]=t.checked; saveState(); build(false); return; }
+  if(t.dataset.call){ const e=(state.edit[t.dataset.call] ||= {}); if(t.checked) e.called=new Date().toISOString(); else delete e.called; saveState(); render(); return; }   // 연락 체크
   if(t.dataset.link!=null){ const k=t.dataset.link; if(t.value) state.link[k]=t.value; else delete state.link[k]; delete state.edit[k]; saveState(); build(false); return; }
   if(t.id==='minPpl'){ build(true); saveState(); return; }
   if(t.dataset.e){ const [k,f]=t.dataset.e.split('|'); (state.edit[k] ||= {})[f]=t.value; saveState(); if(f==='time') build(false); else { const r=rows.find(x=>x.key===k); if(r){ r[f]=t.value; } if(f==='gate') recommendGates(false); render(); } }

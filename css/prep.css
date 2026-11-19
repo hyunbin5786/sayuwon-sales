@@ -128,9 +128,6 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 .keybox input{flex:0 0 120px;width:120px}
 .keybox .btn{flex:none}
 @media (max-width:560px){.keybox{flex-wrap:wrap}}
-/* 새로 조사(단체예약 목록에 없음): 줄 전체를 주황으로 (2026-11-19) */
-.out tbody tr.new td{background:#fdf0dc}
-.shot tr.new td{background:#fdf0dc}
 /* 입장문 추천 규칙 고치기 (2026-11-19) */
 .rules-bar{display:flex;align-items:center;gap:8px;margin-top:6px}
 .rules-bar .hint{flex:1;font-size:12px}
@@ -142,3 +139,7 @@ main{max-width:1900px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,
 .rules-box .rl-n input{width:90px;margin:4px 0 0;display:inline-block}
 .rules-box textarea{resize:vertical}
 .dm-btns .sp{flex:1}
+/* 연락 체크 (2026-11-19) */
+.out td.called{text-align:center;width:44px}
+.out td.called input{width:18px;height:18px;cursor:pointer;accent-color:var(--pine)}
+.out td.called.on{background:var(--pine-soft)}
