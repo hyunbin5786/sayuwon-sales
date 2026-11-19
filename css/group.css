@@ -872,3 +872,4 @@ html.book-guest #bookBody tr{cursor:default}
 html.my-only #myFullBtn{display:none}
 .etc-addbox .etc-dows{gap:2px}
 .etc-addbox .etc-dows button{min-width:0;width:26px;padding:0}
+.etc-addbox .etc-rep > .etc-due, .etc-addbox .etc-rep > .etc-dows, .etc-addbox .etc-rep > select{margin-left:auto}   /* 마감(· 요일 · 날짜)은 오른쪽 끝 (2026-11-19) */
