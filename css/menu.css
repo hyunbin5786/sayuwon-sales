@@ -59,3 +59,5 @@ html.smenu-dock body > main{margin-left:300px !important}
 /* 헤더의 한/A 버튼은 화면에서 숨김 (2026-11-18 · 한글 먼저 입력은 그대로, 한/영 키 · Shift+Space 로 바꿈) */
 header #ko-toggle,header .ko-toggle{display:none !important}
 .smenu .sm-sep{border:0;border-top:1px solid #dfdace;margin:8px 6px 4px}   /* 고객 응대 보조: 아침 · 일과 중 · 하루 마무리 구분 (2026-11-19) */
+/* 맨 위 헤더(사유원 운영 보조 시스템 · 메뉴 · 나의 할일)는 스크롤해도 위에 고정 — 모든 화면 (2026-11-19) */
+body > header:first-of-type, header.sys-hd{position:sticky;top:0;z-index:30}
