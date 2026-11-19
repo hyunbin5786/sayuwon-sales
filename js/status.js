@@ -65,7 +65,8 @@
     const row = c => map[c] ||= {cat:c, home:0, naver:0, groups:[]};
     v.rows.forEach(x=>{
       const rec=find(x); if(rec) used.add(rec.id);
-      const isGroup = !!rec || /단체관람/.test(x.disc);
+      const ppl = x.items.reduce((a,it)=>a+(+it.n||0),0);
+      const isGroup = !!rec || /단체관람/.test(x.disc) || ppl>=10;   // 10명 이상이면 단체예약에 없어도 단체 (2026-11-19 · 예: 김천의료원 25명)
       // 단체 이름: 단체예약에 담당자가 있으면 「업체(담당자)」, 없으면 엑셀 성명 그대로(「산청군청(고영현)」처럼 괄호가 있으면 그대로, 2026-11-19 · 예전엔 업체명만 「산청군청」)
       const c0 = String((rec&&rec.contact)||'').split(/\s*\/\s*/)[0].trim();
       const gName = rec ? (c0 ? `${rec.org||x.name.replace(/\(.*?\)\s*$/,'')}(${c0})` : (/\(.+\)\s*$/.test(x.name) ? x.name.trim() : (rec.org||x.name))) : x.name;
