@@ -885,3 +885,4 @@ html.my-only #myFullBtn{display:none}
 .etc-subadd:focus{border-style:solid;border-color:var(--pine);background:#fff;outline:none}
 .today-due .my-task{display:inline}
 .my-extra > ul.pc-list{margin-top:4px}
+.today-due .etc-ttl{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}.today-due .etc-ttl:hover{color:var(--pine)}

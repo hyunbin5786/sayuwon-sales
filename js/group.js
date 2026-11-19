@@ -3280,10 +3280,16 @@ document.addEventListener('click', e=>{ if(e.target.closest?.('#mySetBtn')){ myS
 // 메인 1열 개인 업무 입력 아래: 오늘 마감인 과업 모두 (단체예약 · 개인예약 · 기타 업무) — 그 자리에서 체크해 완료 (2026-11-19)
 function todayDueHTML(){
   const today=ymd(new Date()), rows=[];
-  dueTasks().filter(o=>o.t.due===today).forEach(({r,t})=>rows.push({k:'단체', who:r.org||r.contact||'(업체 미정)', title:t.title, ck:myCk({r, personal:false}, t), open:`data-myopen="${esc(r.id)}"`}));
-  myPersonalOpen().forEach(o=>o.left.filter(t=>t.due===today).forEach(t=>rows.push({k:'개인', who:o.r.contact||'(이름 없음)', title:t.title, ck:myCk({r:o.r, personal:true}, t), open:`data-popen="${esc(o.r.id)}"`})));
-  myEtcOpen().filter(o=>o.day===today).forEach(o=>rows.push({k:catLabel(etcCatOf(o.d))||ETC_NOCAT, who:'', title:o.d.title, ck:`<label class="my-ck" title="체크하면 오늘 완료"><input type="checkbox" data-etcdone="${esc(o.r.id)}|${o.day}"></label>`, open:''}));
-  return `<h3 class="my-h sub">오늘 마감 <small>${rows.length}개</small></h3>` + (rows.length ? `<ul class="pc-list today-due">${rows.map(x=>`<li class="r my-tg"${x.open?' '+x.open:''}><span class="who"><span class="my-task today">${x.ck} <span class="tag">${esc(x.k)}</span>${x.who?` <b>${esc(x.who)}</b> ·`:''} ${esc(x.title)}</span></span></li>`).join('')}</ul>` : '<p class="hint">오늘 마감인 과업이 없습니다.</p>');
+  dueTasks().filter(o=>o.t.due===today).forEach(({r,t})=>rows.push(`<li class="r my-tg" data-myopen="${esc(r.id)}"><span class="who"><span class="my-task today">${myCk({r, personal:false}, t)} <span class="tag">단체</span> <b>${esc(r.org||r.contact||'(업체 미정)')}</b> · ${esc(t.title)}</span></span></li>`));
+  myPersonalOpen().forEach(o=>o.left.filter(t=>t.due===today).forEach(t=>rows.push(`<li class="r my-tg" data-popen="${esc(o.r.id)}"><span class="who"><span class="my-task today">${myCk({r:o.r, personal:true}, t)} <span class="tag">개인</span> <b>${esc(o.r.contact||'(이름 없음)')}</b> · ${esc(t.title)}</span></span></li>`)));
+  // 기타 업무(직접 넣은 것): 이름을 누르면 그 자리에서 고치기 · 세부 과업 체크 · 「＋ 세부 과업」으로 바로 추가 (2026-11-19)
+  myEtcOpen().filter(o=>o.day===today).forEach(o=>{
+    if(etcEdit && etcEdit.id===o.r.id && etcEdit.where==='today'){ rows.push(`<li class="my-etc editing">${etcEditHTML()}</li>`); return; }
+    const subs=o.d.subs||[], m=((o.d.subDone||{})[o.day])||{}, n=subs.filter(s=>m[s.id]).length;
+    rows.push(`<li class="r my-etc"><span class="who"><span class="my-task today"><label class="my-ck" title="체크하면 오늘 완료"><input type="checkbox" data-etcdone="${esc(o.r.id)}|${o.day}"></label> <span class="tag">${esc(catLabel(etcCatOf(o.d))||ETC_NOCAT)}</span> <span class="etc-ttl" data-etcedit="${esc(o.r.id)}" title="눌러서 고치기">${esc(o.d.title)}</span>${subs.length?` <small class="hint" style="margin:0">세부 ${n}/${subs.length}</small>`:''}</span></span>`
+      + `<div class="etc-subck">${subs.map(s=>`<span class="etc-subrow"><label><input type="checkbox" data-etcsub="${esc(o.r.id)}|${o.day}|${esc(s.id)}"${m[s.id]?' checked':''}> ${esc(s.title||s.t||'')}</label><button type="button" class="etc-subx" data-etcsubx="${esc(o.r.id)}|${esc(s.id)}" title="세부 과업 빼기">×</button></span>`).join('')}`
+      + `<input class="etc-subadd" data-etcsubadd="${esc(o.r.id)}" data-ime="ko" placeholder="＋ 세부 과업 (적고 Enter)" autocomplete="off"></div></li>`); });
+  return `<h3 class="my-h sub">오늘 마감 <small>${rows.length}개</small></h3>` + (rows.length ? `<ul class="pc-list today-due">${rows.join('')}</ul>` : '<p class="hint">오늘 마감인 과업이 없습니다.</p>');
 }
 const myCk = (o, t) => !o.personal && SELF_DONE.has(t.id) ? `<span class="my-ck no" title="예약을 열어 처리하면 완료됩니다">·</span>` : `<label class="my-ck" title="체크하면 완료"><input type="checkbox" data-myck="${o.personal?'p':'g'}|${esc(o.r.id)}|${esc(t.id)}"></label>`;
 document.addEventListener('change', async e=>{ const v=e.target.dataset && e.target.dataset.myck; if(!v || !e.target.checked) return; const [kind,id,tid]=v.split('|'); e.target.disabled=true;
@@ -3775,7 +3781,7 @@ function etcSection(full, oneCat){   // oneCat (2026-11-19 · 나의 할일 구�
   const list=Object.values(byId).map(a=>{ const s=a.slice().sort((x,y)=>y.day.localeCompare(x.day)); return {...s[0], before:s.slice(1).map(x=>x.day)}; }).sort((a,b)=>a.day.localeCompare(b.day));
   const late=list.filter(o=>o.day<today || o.before.length).length;
   const doneToday=mine.filter(o=>(o.d.done||{})[today]);
-  const isEd = id => etcEdit && etcEdit.id===id;
+  const isEd = id => etcEdit && etcEdit.id===id && etcEdit.where!=='today';   // 오늘 마감 칸에서 연 것은 그 칸에서 고침
   const item = o => { if(isEd(o.r.id)) return `<li class="my-etc editing">${etcEditHTML()}</li>`;
     const subs=o.d.subs||[], m=((o.d.subDone||{})[o.day])||{}, n=subs.filter(s=>m[s.id]).length;
     return `<li class="r my-etc${o.day<today?' late':''}"><label class="etc-ck" title="체크하면 그날 완료"><input type="checkbox" data-etcdone="${esc(o.r.id)}|${o.day}"></label>`
@@ -3827,7 +3833,7 @@ document.addEventListener('click', async e=>{
     await etcPut(o.r, {...o.d, done}, `밀린 ${days.length-1}일 완료 (나의 할일)`); toast(`「${o.d.title}」 밀린 ${days.length-1}일을 완료로 표시했습니다.`); return; }
   // 고치기 열기
   const ed=t.closest?.('[data-etcedit]'); if(ed){ e.preventDefault(); const o=etcMine().find(x=>x.r.id===ed.dataset.etcedit); if(!o) return;
-    etcEdit={id:o.r.id, d:JSON.parse(JSON.stringify(o.d))}; if(!etcEdit.d.repeat) etcEdit.d.repeat='none'; etcRepaint(); $('#etcETitle')?.focus(); return; }
+    etcEdit={id:o.r.id, d:JSON.parse(JSON.stringify(o.d)), where: ed.closest('.today-due') ? 'today' : ''}; if(!etcEdit.d.repeat) etcEdit.d.repeat='none'; etcRepaint(); $('#etcETitle')?.focus(); return; }
   if(!etcEdit) return;
   const er=t.closest?.('[data-eerep]'); if(er){ const d=etcEdit.d; d.repeat=er.dataset.eerep; if(d.repeat==='weekly' && !(d.dows||[]).length) d.dows=[new Date().getDay()]; if(d.repeat==='monthly' && !d.dom) d.dom=String(new Date().getDate()); if(d.repeat!=='none' && !d.start) d.start=todayYmd(); if(d.repeat==='none' && !d.due) d.due=d.start||todayYmd(); etcRepaint(); return; }
   const ew=t.closest?.('[data-eedow]'); if(ew){ const i=+ew.dataset.eedow, s=etcEdit.d.dows||[]; etcEdit.d.dows = s.includes(i) ? s.filter(x=>x!==i) : [...s, i]; etcRepaint(); return; }
