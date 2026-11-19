@@ -816,68 +816,6 @@ html.book-guest #bookBody tr{cursor:default}
 /* 다음날 고객 응대 준비에서 바꾼 칸 (group.html?open=…&hl=…) — 12초 동안 노랗게 (2026-11-19) */
 .hl-prep{outline:3px solid #f6c26b;outline-offset:2px;border-radius:6px;background:#fff7e0}
 .hl-prep-in{background:#fff3c4 !important}
-/* ===== 나의 할일 › 기타 개인 업무: 할 일 목록 화면 (2026-11-19 · To Do 모양) ===== */
-.td{display:grid;grid-template-columns:210px minmax(0,1fr);gap:0;height:calc(100vh - 190px);min-height:420px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
-.td.has-detail{grid-template-columns:210px minmax(0,1fr) 320px}
-html.my-only .td{height:calc(100vh - 150px)}
-.td-side{background:#faf9f6;border-right:1px solid var(--line);padding:10px 6px;overflow:auto;display:flex;flex-direction:column;gap:2px}
-.td-side hr{border:0;border-top:1px solid var(--line);margin:6px 4px}
-.td-nav{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;padding:8px 10px;border-radius:6px;font:inherit;font-size:14px;color:var(--ink);cursor:pointer;text-align:left}
-.td-nav i{font-style:normal;width:18px;text-align:center;color:var(--pine)}
-.td-nav span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.td-nav b{font-weight:400;font-size:12px;color:var(--muted)}
-.td-nav:hover{background:#efede6}
-.td-nav.on{background:var(--pine-soft);box-shadow:inset 3px 0 0 var(--pine);font-weight:700}
-.td-newlist{color:var(--pine)}
-.td-newin{margin:4px;padding:7px 9px;border:1px solid var(--pine);border-radius:6px;font:inherit;font-size:14px}
-.td-mid{display:flex;flex-direction:column;min-width:0;background:var(--pine);background:linear-gradient(180deg,#4b6142,#5d7552);padding:18px 22px 14px;overflow:hidden}
-.td-title{color:#fff;font:600 24px var(--serif);margin:0 0 12px}
-.td-title small{font:400 13px var(--sans);opacity:.85;margin-left:8px}
-.td-list{list-style:none;margin:0;padding:0;overflow:auto;display:flex;flex-direction:column;gap:3px}
-.td-mid > .td-list:first-of-type{flex:0 1 auto}
-.td-row{display:flex;align-items:center;gap:12px;background:#fff;border-radius:6px;padding:9px 12px;cursor:pointer;box-shadow:0 1px 1px rgba(0,0,0,.08)}
-.td-row:hover{background:#f6f8f3}
-.td-row.on{background:#e9f0e3}
-.td-row.done .td-t{text-decoration:line-through;color:var(--muted)}
-.td-main{flex:1;min-width:0}
-.td-t{font-size:14.5px;color:var(--ink)}
-.td-sub{font-size:12px;color:var(--muted);margin-top:2px}
-.td-sub .late{color:#b5442c;font-weight:700}.td-sub .today{color:var(--pine);font-weight:700}
-.td-lb{display:inline-block;font-size:11px;padding:0 6px;border-radius:999px;background:var(--pine-soft);color:var(--pine);font-weight:700;vertical-align:1px}
-.td-ck{flex:none;width:20px;height:20px;border-radius:50%;border:2px solid #8a9a82;background:#fff;cursor:pointer;padding:0;position:relative}
-.td-ck:hover{border-color:var(--pine)}
-.td-ck:hover::after,.td-ck.on::after{content:"✓";position:absolute;inset:0;font-size:12px;line-height:16px;text-align:center;color:var(--pine)}
-.td-ck.on{background:var(--pine);border-color:var(--pine)}.td-ck.on::after{color:#fff}
-.td-star{flex:none;border:0;background:none;font-size:18px;color:#8a9a82;cursor:pointer;padding:0 2px}
-.td-star.on{color:var(--pine)}
-.td-empty{color:#fff;opacity:.85;padding:10px 4px;font-size:13px}
-.td-donebtn{align-self:flex-start;margin:10px 0 6px;border:0;border-radius:6px;background:rgba(255,255,255,.9);padding:5px 10px;font:inherit;font-size:13px;cursor:pointer}
-.td-add{margin-top:auto;padding-top:10px}
-.td-add input{width:100%;box-sizing:border-box;border:0;border-radius:6px;padding:12px 14px;font:inherit;font-size:14px;background:rgba(255,255,255,.92)}
-.td-add input:focus{outline:2px solid #fff;background:#fff}
-.td-detail{background:#f7f6f2;border-left:1px solid var(--line);padding:12px;overflow:auto;display:flex;flex-direction:column;gap:8px;position:relative}
-.td-x{position:absolute;top:4px;right:6px;border:0;background:none;font-size:20px;color:var(--muted);cursor:pointer}
-.td-card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px}
-.td-head{display:flex;align-items:flex-start;gap:10px;margin-top:18px}
-.td-head textarea{flex:1;border:0;resize:none;font:700 16px var(--sans);color:var(--ink);background:none;padding:0;overflow:hidden;field-sizing:content}
-.td-head textarea:focus{outline:none;border-bottom:1px solid var(--pine)}
-.td-steps{display:flex;flex-direction:column;gap:4px}
-.td-step{display:flex;align-items:center;gap:8px;font-size:13.5px;padding:3px 0;border-bottom:1px solid #f0eee8}
-.td-step span{flex:1}
-.td-step.on span{text-decoration:line-through;color:var(--muted)}
-.td-step button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px}
-.td-addstep{border:0;padding:6px 0;font:inherit;font-size:13.5px;color:var(--pine);background:none}
-.td-addstep:focus{outline:none;color:var(--ink)}
-.td-opt{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink);padding:6px 0;width:100%;text-align:left;font-family:inherit}
-button.td-opt{cursor:pointer;color:var(--pine)}
-button.td-opt.on{font-weight:700}
-.td-opt input,.td-opt select{margin-left:auto;font:inherit;font-size:13px;border:1px solid var(--line);border-radius:5px;padding:3px 6px;background:#fff}
-.td-memo{min-height:90px;resize:vertical;font:inherit;font-size:13.5px}
-.td-foot{margin-top:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px}
-.td-foot span{flex:1}
-@media (max-width:900px){ .td,.td.has-detail{grid-template-columns:1fr} .td-side{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--line)} .td-nav{width:auto} .td-side hr{display:none} }
-/* 전체 탭: 업무 앞 목록 이름 */
-.my-etc .td-lb{margin-right:4px}
 /* 과업 알림 (2026-11-19): 기한 지난 것 = 빨강 · 오늘까지 = 노랑 */
 #tbdList li.late{background:#fbe3dd;border-color:#e3a596;box-shadow:inset 4px 0 0 #b5442c}
 #tbdList li.today{background:#fff6d6;border-color:#e8d36a;box-shadow:inset 4px 0 0 #d9a91f}
