@@ -23,7 +23,7 @@ const memoVal = (r, label) => { const p=String(r.memo||'').split(' / ').map(s=>s
 let groups = (()=>{ try{ return (JSON.parse(localStorage.getItem(GROUP_CACHE_LS)||'[]')||[]).filter(isConfirmed); }catch(_){ return []; } })();
 async function loadGroups(){
   if(!getKey()){ $('#keyBox').hidden=false; return; }
-  try{ const j=await callApi({action:'list'}); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true; noticeFrom(j.items); paintHist(j.items);
+  try{ const j=await callApi({action:'list'}); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true; noticeFrom(j.items); agencyFrom(j.items); paintHist(j.items);
     if(state){ build(false); if(hasEdits()) scheduleAuto(); } }   // 저장 안 한 수정이 남아 있으면 버튼 옆에 알림
   catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('팀 비밀번호가 맞지 않습니다.'); } else toast('단체예약을 불러오지 못했습니다. 마지막으로 받은 목록으로 보여 줍니다.'); }
 }
@@ -121,7 +121,7 @@ async function pushNow(){
 async function pullShared(force){
   if(!getKey()) return false;
   const d=prepDate; let j; try{ j=await callApi({action:'list'}); }catch(_){ return false; }
-  noticeFrom(j.items); paintHist(j.items);   // 안내 명단 상품 · 지난 기록 목록도
+  noticeFrom(j.items); agencyFrom(j.items); paintHist(j.items);   // 안내 명단 상품 · 지난 기록 목록도
   const r=(j.items||[]).find(x=>x.id===PREP_ID(d)); if(!r){ if(state && state.date===d && (state.rows||[]).length && !state.at) sharePush(); return false; }   // 이 PC에만 있던 그날 내용은 팀에 올림 (지난 기록에도 나오게)
   let st=null; try{ st=unpackState(JSON.parse(r.history||'null')); }catch(_){} if(!st || !Array.isArray(st.rows)) return false;
   const mine = state && state.date===d ? String(state.at||'') : '';
@@ -196,19 +196,20 @@ function build(fresh){
   // 연결: 직접 고른 것 먼저, 그다음 자동
   Object.values(state.link).forEach(id=>{ if(id && id!=='none') used.add(id); });
   const base = state.rows.map(x=>{ let rec=null; const l=state.link[x.id]; if(l==='none') rec=null; else if(l) rec=dg.find(r=>r.id===l)||null; else { rec=autoLink(x, dg, used); if(rec) used.add(rec.id); } return {x, rec}; });
-  const list = base.filter(o=>o.rec || o.x.ppl>=min);
+  base.forEach(o=>{ o.ag=agencyOf(o.x); });   // 여행사 등록 목록을 먼저 (2026-11-19)
+  const list = base.filter(o=>o.rec || o.ag || o.x.ppl>=min);
   dg.filter(r=>!used.has(r.id) && !base.some(o=>o.rec===r)).forEach(r=>list.push({x:null, rec:r}));   // 전산 명단에 없는 단체예약도
   if(fresh) list.forEach(o=>{ const k=o.x?o.x.id:'r'+o.rec.id; if(state.sel[k]==null) state.sel[k]=true; });
-  rows = list.map(o=>{ const k=o.x?o.x.id:'r'+o.rec.id, r=o.rec, x=o.x, v=vehSplit(r&&r.vehicle), e=state.edit[k]||{};
+  rows = list.map(o=>{ const k=o.x?o.x.id:'r'+o.rec.id, r=o.rec, x=o.x, ag=o.ag||null, v=vehSplit(r&&r.vehicle), e=state.edit[k]||{};
     if(e.vehicle!=null && e.bus==null && e.car==null){ const o2=vehSplit(e.vehicle); e.bus=o2.bus; e.car=o2.car; delete e.vehicle; }   // 예전에 한 칸으로 고친 차량
     const prods=x ? x.items.filter(i=>i.n>0 || x.items.length===1).map(i=>shortProd(i.p)) : [];
     const pmT = x && x.items.some(i=>/13:00~18:00/.test(i.p)) && !x.items.some(i=>/09:00~18:00|\(관람,/.test(i.p)) ? '13:00 이후' : '';
     // 처음 값(엑셀 · 단체예약) — 표에서 고친 값(state.edit)과 비교해 「수정 내용 저장」에 씀 (2026-11-19)
-    const orig = { name: r ? (r.org||r.contact||'(업체 미정)') : isGroupName(x.name) ? x.name : `${x.name}(개인)`, ppl: x ? x.ppl : (parseInt(r.people)||0),
+    const orig = { name: r ? (r.org||r.contact||'(업체 미정)') : ag || isGroupName(x.name) ? x.name : `${x.name}(개인)`, ppl: x ? x.ppl : (parseInt(r.people)||0),
       time: fmtT(r&&r.tin) || '', bus: v.bus, car: v.car, phone: x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || '',
       note: x && x.note && x.note!=='-' ? x.note : '',
-      gate: (()=>{ const rg=r ? (memoVal(r,'입장문')||r.gate||'') : ''; return /^(치허문|곡신문)$/.test(rg) ? rg : ''; })() };   // 비고 = 전산 방문자내역 엑셀의 비고 그대로 (2026-11-19 · 상품 · 단체예약 내용을 만들어 붙이지 않음)
-    return { key:k, recId: r ? r.id : '', on: state.sel[k]!==false, group: !!r || isGroupName(x&&x.name), inList: !!r, orig,
+      gate: (()=>{ const rg=r ? (memoVal(r,'입장문')||r.gate||'') : ''; return /^(치허문|곡신문)$/.test(rg) ? rg : (ag && ag.gate) || ''; })() };   // 여행사는 등록한 입장문이 기본   // 비고 = 전산 방문자내역 엑셀의 비고 그대로 (2026-11-19 · 상품 · 단체예약 내용을 만들어 붙이지 않음)
+    return { key:k, recId: r ? r.id : '', on: state.sel[k]!==false, group: !!r || !!ag || isGroupName(x&&x.name), inList: !!r, agency: ag ? ag.name : '', agMemo: ag ? (ag.memo||'') : '', orig,
       name: e.name ?? orig.name, xname:x?x.name:'', ppl: e.ppl!=null && e.ppl!=='' ? (parseInt(e.ppl)||0) : orig.ppl,
       time: e.time ?? orig.time, timeHint: pmT, bus: e.bus ?? orig.bus, car: e.car ?? orig.car,
       get vehicle(){ return vehLabel(this.bus, this.car); },
@@ -312,6 +313,31 @@ async function saveEdits(auto){
 function onSaveClick(){ if(!state || saving) return; saveEdits(false); }
 // 「자세히」: 목록에서 가져온 단체(단체예약 연결) → 다음 탭에 그 예약 (단체고객 전화응대)
 document.addEventListener('click', e=>{ const b=e.target.closest?.('[data-open-rec]'); if(!b) return; e.preventDefault(); window.open(`group.html?open=${encodeURIComponent(b.dataset.openRec)}`, '_blank'); });
+// ===================== 여행사 등록 (2026-11-19): 아너드처럼 늘 단체로 들어가는 업체 =====================
+// ② 「여행사 등록」 → 단체명 · 입장문 · 메모 목록 (팀 공유: 공유 기록 id prepagency). 엑셀을 읽으면 이 목록을 먼저 보고,
+// 성명에 등록한 단체명이 들어 있으면 인원과 상관없이 티켓 발권 대상의 단체로 (입장문 기본값 · 메모는 비고에)
+const AGENCY_ID='prepagency', AGENCY_LS='sayuwon_prep_agency';
+let agencies = (()=>{ try{ return JSON.parse(localStorage.getItem(AGENCY_LS)||'[]')||[]; }catch(_){ return []; } })();
+const agencyOf = x => { if(!x) return null; const nm=norm(x.name); return agencies.find(a=>a.name && nm.includes(norm(a.name))) || null; };
+function agencyFrom(items){ const r=(items||[]).find(x=>x.id===AGENCY_ID); if(!r) return; try{ const j=JSON.parse(r.history||'{}'); if(Array.isArray(j.list)){ const was=JSON.stringify(agencies); agencies=j.list; try{ localStorage.setItem(AGENCY_LS, JSON.stringify(agencies)); }catch(_){} if(was!==JSON.stringify(agencies) && state) build(false); } }catch(_){} }
+let agEdit=[];
+function paintAg(){ $('#agBody').innerHTML = agEdit.map((a,i)=>`<tr><td><input data-ag="${i}|name" data-ime="ko" value="${esc(a.name||'')}" placeholder="단체명"></td>`
+  + `<td><select data-ag="${i}|gate"><option value=""${a.gate?'':' selected'}>미정</option><option${a.gate==='치허문'?' selected':''}>치허문</option><option${a.gate==='곡신문'?' selected':''}>곡신문</option></select></td>`
+  + `<td><input data-ag="${i}|memo" data-ime="ko" value="${esc(a.memo||'')}" placeholder="메모"></td><td><button type="button" class="btn sm" data-agdel="${i}" title="빼기">×</button></td></tr>`).join('')
+  || '<tr><td colspan="4" class="hint">등록한 여행사가 없습니다. 「＋ 추가」를 눌러 주세요.</td></tr>'; }
+$('#agBtn').onclick=()=>{ agEdit=agencies.map(a=>({...a})); if(!agEdit.length) agEdit.push({name:'', gate:'', memo:''}); paintAg(); $('#agModal').hidden=false; setTimeout(()=>$('#agBody input')?.focus(), 0); };
+$('#agAdd').onclick=()=>{ agEdit.push({name:'', gate:'', memo:''}); paintAg(); const ins=document.querySelectorAll('#agBody input[data-ag$="|name"]'); ins[ins.length-1]?.focus(); };
+$('#agNo').onclick=()=>{ $('#agModal').hidden=true; };
+document.addEventListener('input', e=>{ const m=e.target.dataset && e.target.dataset.ag; if(!m) return; const [i,f]=m.split('|'); agEdit[+i][f]=e.target.value; });
+document.addEventListener('change', e=>{ const m=e.target.dataset && e.target.dataset.ag; if(!m) return; const [i,f]=m.split('|'); agEdit[+i][f]=e.target.value; });
+document.addEventListener('click', e=>{ const d=e.target.closest && e.target.closest('[data-agdel]'); if(d){ agEdit.splice(+d.dataset.agdel,1); paintAg(); } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#agModal').hidden) $('#agModal').hidden=true; });
+$('#agOk').onclick=async()=>{
+  agencies=agEdit.map(a=>({name:String(a.name||'').trim(), gate:a.gate||'', memo:String(a.memo||'').trim()})).filter(a=>a.name);
+  try{ localStorage.setItem(AGENCY_LS, JSON.stringify(agencies)); }catch(_){}
+  $('#agModal').hidden=true; if(state) build(false); toast(`여행사 ${agencies.length}곳을 저장했습니다.`);
+  if(getKey()) try{ await callApi({action:'put', item:{id:AGENCY_ID, callType:'응대준비설정', saved:new Date().toISOString(), takenBy:user.name||'', owner:user.name||'', summary:`다음날 고객 응대 준비 · 여행사 ${agencies.length}곳`, history:JSON.stringify({list:agencies})}}); }catch(_){ toast('여행사 목록을 팀에 올리지 못했습니다.'); }
+};
 // ===================== 안내 명단 (2026-11-19): 해오름 산책 · 선셋디너처럼 고객님께 따로 알려야 하는 상품 =====================
 // ② 티켓 발권 대상 위에 그날 엑셀의 상품 이름을 모두 띄우고 체크 → 체크한 상품을 예약한 고객을 ③ 표 아래 · 이미지 · 엑셀에 「이름(n명, 전화번호)」
 // 기본: 관람만(네이버 포함) · 사담 런치 · 디너 · 몽몽마방 사유의 밥상 · 해오름 산책은 빼고 나머지(관람+식사 중 그 밖 · 선셋 등)는 체크
@@ -347,7 +373,7 @@ function render(){
   // ② 목록
   // 연결: 「연결 안 함」 하나 + 그날 단체예약 (2026-11-19 · 자동으로 찾기 · 개인으로를 합침). 처음에는 자동으로 찾아 맞는 단체가 있으면 그것이 골라져 있음
   const linkOpts = (k, curId) => `<select class="link-sel" data-link="${esc(k)}"><option value="none"${s.link[k]==='none' || !curId?' selected':''}>연결 안 함</option>${dg.map(r=>`<option value="${esc(r.id)}"${(s.link[k]||curId)===r.id?' selected':''}>${esc(r.org||r.contact||'(업체 미정)')} · ${esc(r.people||'')}명</option>`).join('')}</select>`;
-  $('#listBody').innerHTML = rows.map(r=>`<tr class="${r.on?'':'dim'}"><td><input type="checkbox" data-sel="${esc(r.key)}"${r.on?' checked':''}></td><td>${r.group?'<span class="tag grp">단체</span>':'<span class="tag ind">개인</span>'}${r.missing?'<span class="tag warn" title="단체예약에는 있는데 전산 방문자내역에 없음">전산에 없음</span>':''}</td><td>${esc(r.xname||'-')}</td><td>${esc(r.phone)}</td><td class="num">${r.ppl}</td><td style="white-space:pre-line;font-size:12px">${esc(r.prods)}</td><td>${r.missing?esc(r.name):linkOpts(r.key, r.recId)}</td></tr>`).join('')
+  $('#listBody').innerHTML = rows.map(r=>`<tr class="${r.on?'':'dim'}"><td><input type="checkbox" data-sel="${esc(r.key)}"${r.on?' checked':''}></td><td>${r.group?'<span class="tag grp">단체</span>':'<span class="tag ind">개인</span>'}${r.agency?'<span class="tag ag" title="여행사 등록 목록에 있음">여행사</span>':''}${r.missing?'<span class="tag warn" title="단체예약에는 있는데 전산 방문자내역에 없음">전산에 없음</span>':''}</td><td>${esc(r.xname||'-')}</td><td>${esc(r.phone)}</td><td class="num">${r.ppl}</td><td style="white-space:pre-line;font-size:12px">${esc(r.prods)}</td><td>${r.missing?esc(r.name):linkOpts(r.key, r.recId)}</td></tr>`).join('')
     || '<tr><td colspan="7" class="hint" style="text-align:center;padding:14px">기준 이상인 예약이 없습니다.</td></tr>';
   const on=rows.filter(r=>r.on);
   $('#p2Sum').textContent = `${on.length}팀 · ${on.reduce((a,r)=>a+r.ppl,0)}명 · 단체예약 ${dg.length}건 중 연결 ${rows.filter(r=>r.inList && !r.missing).length}${rows.some(r=>r.missing)?` · 전산에 없음 ${rows.filter(r=>r.missing).length}`:''}${groups.length?'':' (단체예약을 아직 못 불러옴)'}`;   // ③ 단체예약 정보 넣기는 없애고 여기에 요약 (2026-11-18)
@@ -419,6 +445,7 @@ function shortNote(r){
   String(r.prods||'').split('\n').forEach(p=>{ const m=p.replace(/\s*\d+명$/,''), k=m.match(/\(관람,\s*(.+)\)/); const v=k?k[1]:m; if(PROG_RE.test(v)) add(clean(v)); });   // 상품 (예: (관람, 사담 런치 1부) → 런치1부)
   String(r.xnote||'').replace(/\s*\(\s*[가-힣]{2,4}\s*\)\s*$/,'')   // 맨 끝 적은 사람 이름 「(문현빈)」은 뺌
     .split(/\s*\/\s*/).forEach(s=>{ if(PROG_RE.test(s) && !/\d[\d,]*\s*원/.test(s)) add(clean(s)); });   // 엑셀 비고의 프로그램 (금액 칸은 빼고)
+  if(r.agMemo) add(r.agMemo);   // 여행사 등록 메모 (2026-11-19)
   if(r.onsitePay || /현장\s*결제/.test(r.xnote||'')) add('현장결제');
   const arrive = r.time ? `${shortT(r.time)} ${r.gate || '입장'}` : (r.gate || '');   // 입장문을 아직 안 골랐으면 「9시 입장」 (2026-11-19)
   // 시간이 적힌 프로그램이 있으면 도착부터 시간 순 (예: 13시 곡신문 / 13:30 동행도슨트 / 15-16시 자체세미나), 없으면 맨 뒤에 도착 (예: 런치1부 / 현장결제 / 10:30 곡신문)

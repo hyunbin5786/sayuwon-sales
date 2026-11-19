@@ -194,3 +194,11 @@ main > #p0{grid-column:1 / -1}
 .out tfoot tr.notice td{font-size:12.5px}
 /* 지난 기록 (2026-11-19) */
 .hist-sel{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:13px;margin-left:8px;background:#fff}
+/* 여행사 등록 (2026-11-19) */
+.ag-t{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+.ag-t th{font-weight:600;text-align:left;padding:4px;color:var(--muted)}
+.ag-t td{padding:3px 4px}
+.ag-t input,.ag-t select{width:100%;box-sizing:border-box;height:32px;border:1px solid #c9c4b8;border-radius:5px;padding:0 8px;font:inherit}
+.ag-t td:nth-child(2){width:110px}.ag-t td:nth-child(4){width:40px}
+.tag.ag{background:#e6eef8;color:#2f5d8a}
+#agBtn{margin-right:8px}
