@@ -3270,7 +3270,18 @@ function myPersonalOpen(){
 }
 const personalDueCount = () => { const today=ymd(new Date()); return myPersonalOpen().reduce((s,o)=>s+o.left.filter(t=>t.due<=today).length, 0); };
 // 개인예약 · 단체예약 구분에 직접 넣은 업무 (나의 할일 개인 업무 입력에서 고른 것, 2026-11-19) — 있을 때만 그 구분 아래에
-const myExtraEtc = c => { if(!etcMine().some(o=>etcCatOf(o.d)===c)) return ''; const w=document.createElement('div'); w.innerHTML=etcSection(false, c); w.querySelectorAll('h3, p.hint, details[data-etcfold="all"]').forEach(x=>x.remove()); return `<div class="my-extra">${w.innerHTML}</div>`; };   // 직접 넣은 업무도 제목 없이 같은 목록처럼 (2026-11-19)
+// 개인예약 · 단체예약 구분에 직접 넣은 업무 (2026-11-19 고침): 오늘 · 지난 것만이 아니라 앞으로 할 것(예: 12/27 마감)도 추후 과업처럼 마감 순으로 — 예전엔 오늘 할 일만 보여 안 보였음
+function myExtraEtc(c){
+  const today=opsToday(), mDue = d => { const n=daysFromWk(today, d); return n<0 ? `<b class="late">${-n}일 지남</b>` : n===0 ? '<b class="late">오늘</b>' : `${n}일 남음`; };
+  const list=etcMine().filter(o=>etcCatOf(o.d)===c).map(o=>{ const p=opsPending(o.d, today), day=p[0]||etcNext(o.d, today); return day ? {...o, day} : null; }).filter(Boolean).sort((a,b)=>a.day.localeCompare(b.day));
+  if(!list.length) return '';
+  return `<ul class="pc-list my-extra">${list.map(o=>{
+    if(etcEdit && etcEdit.id===o.r.id && etcEdit.where==='extra') return `<li class="my-etc editing">${etcEditHTML()}</li>`;
+    const subs=o.d.subs||[], m=((o.d.subDone||{})[o.day])||{}, n=subs.filter(s=>m[s.id]).length;
+    return `<li class="r my-etc"><span class="who"><span class="my-task${o.day<today?' late':o.day===today?' today':''}"><label class="my-ck" title="체크하면 그날 완료"><input type="checkbox" data-etcdone="${esc(o.r.id)}|${o.day}"></label> <span class="etc-ttl" data-etcedit="${esc(o.r.id)}" title="눌러서 고치기">${esc(o.d.title)}</span> <small>마감 ${esc(mdLabel(o.day))} (${mDue(o.day)})${o.d.repeat&&o.d.repeat!=='none'?' · '+esc(opsRepeatLabel(o.d)):''}${subs.length?` · 세부 ${n}/${subs.length}`:''}</small></span></span>`
+      + `<div class="etc-subck">${subs.map(s=>`<span class="etc-subrow"><label><input type="checkbox" data-etcsub="${esc(o.r.id)}|${o.day}|${esc(s.id)}"${m[s.id]?' checked':''}> ${esc(s.title||s.t||'')}</label><button type="button" class="etc-subx" data-etcsubx="${esc(o.r.id)}|${esc(s.id)}" title="세부 과업 빼기">×</button></span>`).join('')}`
+      + `<input class="etc-subadd" data-etcsubadd="${esc(o.r.id)}" data-ime="ko" placeholder="＋ 세부 과업 (적고 Enter)" autocomplete="off"></div></li>`; }).join('')}</ul>`;
+}
 // 설정 (× 옆): 구분 순서 ▲▼ · ＋ 구분 추가
 // 전체 화면으로 보기 (× 옆, 2026-11-19): 다음 탭에 나의 할일 한 페이지 (group.html?my=1)
 document.addEventListener('click', e=>{ if(!e.target.closest?.('#myFullBtn')) return; window.open(new URL('group.html?my=1', location.href).href, '_blank'); });
@@ -3806,7 +3817,7 @@ function etcSection(full, oneCat){   // oneCat (2026-11-19 · 나의 할일 구�
   const list=Object.values(byId).map(a=>{ const s=a.slice().sort((x,y)=>y.day.localeCompare(x.day)); return {...s[0], before:s.slice(1).map(x=>x.day)}; }).sort((a,b)=>a.day.localeCompare(b.day));
   const late=list.filter(o=>o.day<today || o.before.length).length;
   const doneToday=mine.filter(o=>(o.d.done||{})[today]);
-  const isEd = id => etcEdit && etcEdit.id===id && etcEdit.where!=='today';   // 오늘 마감 칸에서 연 것은 그 칸에서 고침
+  const isEd = id => etcEdit && etcEdit.id===id && !etcEdit.where;   // 오늘 마감 칸에서 연 것은 그 칸에서 고침
   const item = o => { if(isEd(o.r.id)) return `<li class="my-etc editing">${etcEditHTML()}</li>`;
     const subs=o.d.subs||[], m=((o.d.subDone||{})[o.day])||{}, n=subs.filter(s=>m[s.id]).length;
     return `<li class="r my-etc${o.day<today?' late':''}"><label class="etc-ck" title="체크하면 그날 완료"><input type="checkbox" data-etcdone="${esc(o.r.id)}|${o.day}"></label>`
@@ -3858,7 +3869,7 @@ document.addEventListener('click', async e=>{
     await etcPut(o.r, {...o.d, done}, `밀린 ${days.length-1}일 완료 (나의 할일)`); toast(`「${o.d.title}」 밀린 ${days.length-1}일을 완료로 표시했습니다.`); return; }
   // 고치기 열기
   const ed=t.closest?.('[data-etcedit]'); if(ed){ e.preventDefault(); const o=etcMine().find(x=>x.r.id===ed.dataset.etcedit); if(!o) return;
-    etcEdit={id:o.r.id, d:JSON.parse(JSON.stringify(o.d)), where: ed.closest('.today-due') ? 'today' : ''}; if(!etcEdit.d.repeat) etcEdit.d.repeat='none'; etcRepaint(); $('#etcETitle')?.focus(); return; }
+    etcEdit={id:o.r.id, d:JSON.parse(JSON.stringify(o.d)), where: ed.closest('.today-due') ? 'today' : ed.closest('.my-extra') ? 'extra' : ''}; if(!etcEdit.d.repeat) etcEdit.d.repeat='none'; etcRepaint(); $('#etcETitle')?.focus(); return; }
   if(!etcEdit) return;
   const er=t.closest?.('[data-eerep]'); if(er){ const d=etcEdit.d; d.repeat=er.dataset.eerep; if(d.repeat==='weekly' && !(d.dows||[]).length) d.dows=[new Date().getDay()]; if(d.repeat==='monthly' && !d.dom) d.dom=String(new Date().getDate()); if(d.repeat!=='none' && !d.start) d.start=todayYmd(); if(d.repeat==='none' && !d.due) d.due=d.start||todayYmd(); etcRepaint(); return; }
   const ew=t.closest?.('[data-eedow]'); if(ew){ const i=+ew.dataset.eedow, s=etcEdit.d.dows||[]; etcEdit.d.dows = s.includes(i) ? s.filter(x=>x!==i) : [...s, i]; etcRepaint(); return; }
