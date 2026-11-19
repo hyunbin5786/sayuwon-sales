@@ -28,10 +28,10 @@
     <div class="in-opts">
       <label title="네이버 인원은 네이버 이관 2단계와 같은 방식 (전액환불은 빼고, 일부 환불은 환불금액만큼 인원을 뺌)">네이버 엑셀 비밀번호 <input type="password" id="nvPw" autocomplete="off"></label><label class="chk"><input type="checkbox" id="nvKeep" checked> 기억</label>
       <span class="keybox" id="keyBox" hidden title="단체 예약 이름을 가져오려면 팀 비밀번호가 필요합니다 (다른 화면과 같은 비밀번호)"><span class="hint">단체 이름</span><input id="keyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn primary" id="keyBtn">연결</button></span>
+      <button class="btn" id="stClear" type="button" hidden style="margin-left:auto">모두 지우기</button>   <!-- 네이버 엑셀 비밀번호와 같은 줄 (2026-11-19) -->
     </div>
     <div id="nvImgBox" class="nv-imgbox" hidden></div>
     <p class="err" id="fileErr"></p>
-    <div class="st-bar" id="stBar" hidden><span class="hint">표의 숫자 · 글자는 눌러서 바로 고칠 수 있고, 이 브라우저에 기억됩니다.</span><span class="sp"></span><button class="btn" id="stClear" type="button">모두 지우기</button></div>
   </section>
   <div id="stEdit"></div>
   </div>
@@ -59,7 +59,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/naverxl.js?v=20261119b2"></script>
 <script src="js/naverimg.js?v=20261119d3"></script>
-<script src="js/status.js?v=20261119e3"></script>
+<script src="js/status.js?v=20261119e4"></script>
 <script src="js/ime.js?v=20261118r"></script>
 <script src="js/menu.js?v=20261119c4"></script>
 </body>

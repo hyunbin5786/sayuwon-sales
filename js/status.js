@@ -225,7 +225,7 @@
   }
   function paintShot(){ $('#stPrev').innerHTML=shotHTML(); }
   function render(){
-    const has=st.days.length>0; $('#stBar').hidden=!has; $('#stRight').hidden=!has; st.title=TITLE;
+    const has=st.days.length>0; $('#stClear').hidden=!has; $('#stRight').hidden=!has; st.title=TITLE;
     $('#stEdit').innerHTML = has ? `<div class="st-ed">${editHTML()}</div>` : '';
     if(has) paintShot();
     document.querySelectorAll('.ed-t textarea').forEach(t=>{ t.style.height='auto'; t.style.height=t.scrollHeight+'px'; });
