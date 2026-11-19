@@ -284,6 +284,10 @@ async function saveEdits(auto){
       let h={}; try{ const j=JSON.parse(rec.history||'{}'); h = Array.isArray(j) ? {h:j} : (j||{}); }catch(_){}
       h.h=[...(h.h||[]), {t:now, by:me, what:`[다음날 고객 응대 준비] ${lines.join(', ')}`, ch:chg}];
       // 전산에 등록한 예약이면 그 예약의 추후 과업 「전산 예약 수정」 (단체 화면과 같은 과업 · 열면 단체 화면이 전산에 올린 때와 비교해 다시 맞춤)
+      if(chg.people){ const ts=Array.isArray(h.tasks) ? h.tasks : []; let pt=ts.find(t=>t.id==='pplchk');   // 관람 인원이 바뀌면 그 예약의 추후 과업 「예약 내역&전산 내역 확인」 (2026-11-19)
+        if(!pt){ pt={id:'pplchk', title:'예약 내역&전산 내역 확인', custom:true, done:false, at:now, due:today, pplFrom:chg.people[0]}; ts.push(pt); }
+        else if(pt.done){ pt.done=false; pt.doneAt=''; pt.at=now; pt.due=today; delete pt.dueSet; pt.pplFrom=chg.people[0]; }
+        pt.pplTo=chg.people[1]; h.tasks=ts; }
       if(memoVal(rec,'전산 등록') || /^adm/.test(rec.id||'')){
         const ts=Array.isArray(h.tasks) ? h.tasks : []; let fx=ts.find(t=>t.id==='erpfix');
         if(!fx){ fx={id:'erpfix', title:'전산 예약 수정', done:false, at:now, due:today}; ts.push(fx); }

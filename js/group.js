@@ -1964,6 +1964,10 @@ const erpSnap = () => ({v:5, s:contentSnap(snap())});
 function erpBaseUp(b, T){ if(!b || b.v===5) return b;
   const s={...snap()}; for(let j=hist.length-1;j>=0;j--){ const h=hist[j]; if(!h || !(String(h.t||'')>T)) break; Object.entries(h.ch||{}).forEach(([k,c])=>{ if(Array.isArray(c)) s[k]=c[0]||''; }); }
   return {v:5, s:contentSnap(s)}; }
+// 예약 내역(품목 · 인원 · 할인)이 전산에 올린 때와 다른지 (2026-11-19): 다르면 「전산 예약 수정」을 끝낼 때 전산 내역을 다시 붙여넣음, 아니면 체크만
+const ERP_ITEM_KEY = k => ['people','views','viewN','viewSrc','sadam1','sadam2','sadamD','mabangL','mabangD','mabangMenu','goods','idisc','isp','idamt','etcDisc','etcDiscTo','etcDiscTx','etcDiscTf'].includes(k) || PROG_KEYS().includes(k) || SPECIAL.some(s=>s.k===k);
+function erpItemsChanged(){ const e0=tasks.find(t=>t.id==='erp'); if(!e0 || !e0.base || e0.base.v!==5) return true;
+  const a=e0.base.s||{}, b=contentSnap(snap()); return [...new Set([...Object.keys(a), ...Object.keys(b)])].some(k=>ERP_ITEM_KEY(k) && (a[k]||'')!==(b[k]||'')); }
 const erpDiff = (a,b) => { if(!a || a.v!==5 || !a.s) return [];
   return [...new Set([...Object.keys(a.s), ...Object.keys(b.s)])].filter(k=>(a.s[k]||'')!==(b.s[k]||'')).map(k=>{ const l=LABEL[k]||k, x=a.s[k]||'', y=b.s[k]||''; if(k==='views') return '관람 품목 · 인원이 바뀜'; return !x ? `${l} ${y} 입력` : !y ? `${l} ${x} 지움` : `${l} ${x} → ${y}`; }); };
 const nextDay = iso => { const d=new Date(iso); d.setDate(d.getDate()+1); return d; };
@@ -2012,7 +2016,8 @@ function renderTasks(){
       : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 칸: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 · 굿즈 옆 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (개별 · 시간 프로그램 · 굿즈 모두 담당 필수)` : '프로그램 · 굿즈 담당을 모두 넣었습니다.')
       : t.id==='erpcheck' ? (!erpList.length ? '전산에 예약을 넣은 뒤 <b>전산 내역을 붙여 넣어</b> 실제 예약이 이 예약 내용과 같은지 확인하세요. <b>할인 합계</b>와 <b>총 금액</b>이 같으면 저절로 완료됩니다.'
           : `<span class="erp-ck">${erpCheckHTML(erpCheck())}</span><br>${t.done ? '전산 내역과 예약 내용이 같습니다.' : '다른 곳을 전산이나 예약 내용에서 고친 뒤 전산 내역을 다시 붙여 넣으세요 (예약 내역 줄의 할인 · 기타 할인 · 인원 확인).'}`)
-      : t.id==='erpfix' ? ((t.changes||[]).length ? `전산 등록 후 바뀐 내용: <b>${esc(t.changes.join(' · '))}</b><br>전산 예약을 고치고 비고도 새 문구로 바꾼 뒤 체크하세요.` : '전산에 반영했습니다.')
+      : t.id==='erpfix' ? ((t.changes||[]).length ? `전산 등록 후 바뀐 내용: <b>${esc(t.changes.join(' · '))}</b><br>전산 예약을 고치고 비고도 새 문구로 바꾼 뒤 체크하세요.${erpItemsChanged() ? ' <b>예약 내역(품목 · 인원 · 할인)이 바뀌어</b> 체크하면 전산 내역을 다시 붙여넣습니다.' : ''}` : '전산에 반영했습니다.')
+      : t.id==='pplchk' ? `인원수 변경에 따른 예약 내역 확인${t.pplFrom||t.pplTo ? ` (관람 인원 ${esc(t.pplFrom||'?')}명 → ${esc(t.pplTo||'?')}명)` : ''}`
       : SUB[t.id] || '';
     const docBtn = (t.id==='quote'||t.id==='stmt') ? `<div class="tbtn"><button type="button" class="btn" data-tquote="${t.id==='stmt'?'statement':'quote'}">${t.id==='stmt'?'거래명세서 만들기':'견적서 만들기'}</button></div>` : '';
     const files = t.id!=='tax' && (t.files||[]).length ? `<div class="tfiles">${t.files.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}</div>` : '';
@@ -2058,7 +2063,7 @@ $('#taskList').addEventListener('change', e=>{
   if(up){ const t=tasks.find(x=>x.id===up), f=e.target.files[0]; if(t && f) uploadFile(t, f); return; }
   const id=e.target.dataset.tk; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return;
   if(id==='erpcheck'){ e.target.checked=!!t.done; toast('전산 내역을 붙여 넣어 예약 내용과 총 금액 · 할인이 같으면 저절로 완료됩니다.'); if(!erpList.length) $('#erpPasteBtn')?.click(); return; }   // 직접 체크하지 않음
-  if((id==='erp'||id==='erpfix') && e.target.checked){ e.target.checked=false; askErpForTask(id); return; }   // 전산 예약 완료 = 전산 내역을 붙여넣어 예약 내용과 맞는지 확인한 뒤
+  if((id==='erp' || (id==='erpfix' && erpItemsChanged())) && e.target.checked){ e.target.checked=false; askErpForTask(id); return; }   // 전산 예약 완료 = 전산 내역을 붙여넣어 예약 내용과 맞는지 확인한 뒤 · 전산 예약 수정은 예약 내역(품목 · 인원 · 할인)이 바뀐 때만 (2026-11-19, 그 밖엔 체크만)
   if(id==='paycheck' && e.target.checked && !rec.linkSent){ e.target.checked=false; toast('결제링크 전송을 먼저 체크해 주세요. (결제링크를 보내기 전에는 입금 확인을 할 수 없습니다)'); return; }   // 결제링크 전송 전에는 입금 확인 불가
   if(id==='linksend' && !e.target.checked && rec.paidAt){ if(!confirm('결제링크 전송을 해제하면 입금 확인도 함께 해제됩니다. 계속할까요?')){ e.target.checked=true; return; } rec.paidAt=''; touched.add('paidAt'); const pc=tasks.find(x=>x.id==='paycheck'); if(pc){ pc.done=false; pc.doneAt=''; delete pc.manualDone; } }   // 결제링크를 다시 보낼 때: 입금 확인도 함께 해제
   t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
@@ -2861,7 +2866,13 @@ function fitViewToPeople(r){ const n=numOf(r.people); if(!n) return false;
   const diff=n-areaOthers(r); if(!diff) return false; const q=list[i].qty+diff; if(q<=0) return false;
   list[i].qty=q; r.views=goodsJoin(list); return true; }
 function fitViewNow(){ if(!fitViewToPeople(rec)) return false; touched.add('views'); if(typeof renderItems==='function') renderItems(true); renderSide(); return true; }
-document.addEventListener('change', e=>{ if(e.target && e.target.id==='f_people') setTimeout(()=>{ if(fitViewNow()) toast(`관람 인원에 맞춰 예약 내역의 관람 줄 인원을 바꿨습니다 (${viewsParse(rec.views).map(x=>`${viewLabel(daySrc(x.src, rec))} ${x.qty}명`).join(', ')}).`, 3600); }, 0); });
+document.addEventListener('change', e=>{ if(e.target && e.target.id==='f_people') setTimeout(()=>{ pplTask(); if(fitViewNow()) toast(`관람 인원에 맞춰 예약 내역의 관람 줄 인원을 바꿨습니다 (${viewsParse(rec.views).map(x=>`${viewLabel(daySrc(x.src, rec))} ${x.qty}명`).join(', ')}).`, 3600); }, 0); });
+// 저장한 예약의 관람 인원이 바뀌면 추후 과업 「예약 내역&전산 내역 확인」 (설명: 인원수 변경에 따른 예약 내역 확인, 2026-11-19)
+function pplTask(){ const was=String((baseSnap||{}).people||'').trim(), now=String(rec.people||'').trim(); if(!editingId || !was || !now || was===now) return;
+  let t=tasks.find(x=>x.id==='pplchk');
+  if(!t){ t={id:'pplchk', title:'예약 내역&전산 내역 확인', custom:true, done:false, at:new Date().toISOString(), due:todayYmd(), pplFrom:was}; tasks.push(t); }
+  else if(t.done){ t.done=false; t.doneAt=''; t.at=new Date().toISOString(); t.due=todayYmd(); delete t.dueSet; t.pplFrom=was; }
+  t.pplTo=now; renderTasks(); renderSide(); }
 // 열어 둔 예약이 다른 곳(다음날 고객 응대 준비 · 다른 PC)에서 바뀌면 (2026-11-19): 30초마다 받아 올 때 확인
 //  고치던 것이 없으면 그 예약을 새로 불러오고, 고치는 중이면 내가 안 고친 칸만 받아 넣음 → 옛 내용으로 저장해 덮어쓰지 않게
 const liveVals = r => { const x=unpackExtra(r||{}), o={}; ['org','people','date','tin','phone','vehicle','sadam1','sadam2','sadamD','mabangL'].forEach(k=>{ o[k]=String((r||{})[k]??'').trim(); }); o.gate=String(x.gate||'').trim(); o.views=String(x.views||'').trim(); return o; };
