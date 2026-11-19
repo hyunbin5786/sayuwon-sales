@@ -43,6 +43,7 @@ apps-script/
 - **CSS · JS를 고치면 HTML의 `?v=날짜` 를 바꿔 주세요** (예: `js/group.js?v=20261114` → `?v=20261115`). 그래야 브라우저가 예전 파일을 쓰지 않습니다
 - 단체 · 개인고객 화면은 품목 · 가격을 `document/js/document.js` 를 읽어서 가져옵니다 (견적서 코드의 `CATALOG_RAW` 등). 견적서 코드를 옮기거나 이름을 바꾸면 `js/group.js` · `js/personal.js` 의 `QUOTE_DATA` 도 같이 바꿉니다
 - 예전 견적서 사이트(https://hyunbin5786.github.io/sayuwon-invoice-quotation/, 저장소 `sayuwon-invoice-quotation`)도 그대로 열리지만, 이 시스템은 `document/` 를 씁니다
+- **수정발행 메일 문구** (2026-11-19, `document.js` `mailFill` · `lastRevise`): 수정발행으로 출력했으면(발급 내역의 「수정발행」, 또는 같은 문서가 앞서 있어 수정발행으로 남은 출력) 메일 제목 「[사유원] OO님 수정 견적서 송부드립니다.」, 본문에 「수정된 견적서 … 앞서 보내드린 견적서에서 내용이 변경되어 수정본으로 다시 보내드립니다」
 
 ## 2. 공통 규칙
 

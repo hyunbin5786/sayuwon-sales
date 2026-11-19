@@ -1803,6 +1803,7 @@
     defaultState();
     editMode = "edit";
     setIssueMeta(null);   // 새 예약으로 시작하면 수정발행 아님
+    lastRevise = false;
     setMailReady(false);
     closeStart();
     document.getElementById("f-raw").value = keepRaw;
@@ -2186,11 +2187,15 @@
   // ---------- 메일 문구 ----------
   // 출력이 끝나면 자동으로 뜨고, 출력 칸의 "메일 문구" 버튼으로 언제든 다시 연다
   var elMail = document.getElementById("mail-modal"), mailDoc = null;
+  // 수정발행이면 제목 · 본문에 「수정」을 적음 (2026-11-19): 「[사유원] OO님 수정 견적서 송부드립니다.」
   function mailFill(){
     var who = state.client.trim() || "수신";
     var doc = mailDoc || docName();
-    document.getElementById("mail-subject").value = "[사유원] " + who + "님 " + doc + " 송부드립니다.";
-    document.getElementById("mail-text").value = "안녕하세요, 사유원입니다.\n\n" + who + "님 " + doc + " 송부드립니다.\n\n감사합니다.";
+    var rev = lastRevise || !!(issueMeta && issueMeta.kind === "revise");
+    document.getElementById("mail-subject").value = "[사유원] " + who + "님 " + (rev ? "수정 " : "") + doc + " 송부드립니다.";
+    document.getElementById("mail-text").value = rev
+      ? "안녕하세요, 사유원입니다.\n\n" + who + "님 수정된 " + doc + " 송부드립니다.\n앞서 보내드린 " + doc + "에서 내용이 변경되어 수정본으로 다시 보내드립니다. 이전 " + doc + " 대신 이번 " + doc + "를 확인 부탁드립니다.\n\n감사합니다."
+      : "안녕하세요, 사유원입니다.\n\n" + who + "님 " + doc + " 송부드립니다.\n\n감사합니다.";
     var bs = document.querySelectorAll("#mail-doc button");
     for(var i=0;i<bs.length;i++) bs[i].classList.toggle("on", bs[i].getAttribute("data-v") === doc);
     document.getElementById("mail-status").textContent = "";
@@ -2226,6 +2231,7 @@
   function writeArr(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
   var histList = readArr(HIST_CACHE), histPending = readArr(HIST_PENDING), histServer = null, histBusy = false;
   var issueMeta = null;   // { kind:"reissue"|"revise", parent:id, label }
+  var lastRevise = false;   // 마지막 출력이 수정발행이었는지 (메일 제목 · 문구, 2026-11-19)
   var elHist = document.getElementById("history-modal");
 
   function setIssueMeta(m){
@@ -2291,6 +2297,7 @@
   }
   async function recordIssue(files){
     var meta = issueMeta;
+    lastRevise = !!(meta && meta.kind === "revise");   // 메일 문구에 「수정」 (mailFill)
     var h = { id: histId(), at: new Date().toISOString(),
       kind: meta ? meta.kind : "new", parent: meta ? meta.parent : "",
       doc: docName(), client: state.client.trim(), useDate: state.useDate, issueDate: issueDate(),
@@ -2302,7 +2309,7 @@
     if(!meta){
       try { await Promise.race([flushHistory().then(loadHistory), new Promise(function(r){ setTimeout(r, 4000); })]); } catch(e){}
       var same = findSameIssue(h);
-      if(same){ h.kind = "revise"; h.parent = same.id; }
+      if(same){ h.kind = "revise"; h.parent = same.id; lastRevise = true; if(elMail && !elMail.hidden) mailFill(); }   // 같은 문서가 앞서 있으면 수정발행 → 메일 문구도
     }
     histPending.push(h); writeArr(HIST_PENDING, histPending);
     flushHistory();
