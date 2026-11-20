@@ -1876,6 +1876,17 @@
     } else setCat(id, "hidden", true);
   }
 
+  // 가격 칸: 화살표 없는 글자 칸 + 쉼표 (2026-11-20). 저장은 숫자만
+  function moneyIn(v){ return v == null || v === "" ? "" : Number(v).toLocaleString("ko-KR"); }
+  function moneyFormat(el){
+    var pos = el.selectionStart == null ? el.value.length : el.selectionStart;
+    var before = el.value.slice(0, pos).replace(/\D/g, "").length, digits = el.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+    var out = digits ? Number(digits).toLocaleString("ko-KR") : "";
+    if(out === el.value) return;
+    el.value = out;
+    var i = 0, n = 0; while(i < out.length && n < before){ if(/\d/.test(out[i])) n++; i++; }   // 커서를 같은 숫자 뒤로
+    try { el.setSelectionRange(i, i); } catch(e){}
+  }
   function taxSplitNote(it){
     if(it.taxable == null && it.taxfree == null) return "";
     var s = (Number(it.taxable) || 0) + (Number(it.taxfree) || 0);
@@ -1896,11 +1907,11 @@
       '<td><input type="text" data-f="name" value="' + esc(it.name) + '">' + (u != null ? '<span class="sub">식사 단가 ' + won(u) + '원</span>' : '') + '</td>' +
       '<td>' + kindSel + '</td>' +
       '<td>' + formSel + '</td>' +
-      '<td><input class="num" type="number" min="0" step="100" data-f="price" value="' + (it.price == null ? "" : it.price) + '" title="성인 가격"></td>' +
-      '<td><input class="num" type="number" min="0" step="100" data-f="sprice" value="' + (it.sprice == null ? "" : it.sprice) + '" placeholder="-" title="학생 가격 (없으면 비움)"></td>' +   // 학생 가격 (2026-11-20)
+      '<td><input class="num money" type="text" inputmode="numeric" autocomplete="off" data-f="price" value="' + moneyIn(it.price) + '" title="성인 가격"></td>' +
+      '<td><input class="num money" type="text" inputmode="numeric" autocomplete="off" data-f="sprice" value="' + moneyIn(it.sprice) + '" placeholder="-" title="학생 가격 (없으면 비움)"></td>' +   // 학생 가격 (2026-11-20)
       // 과세 · 비과세: 정상가를 나눠 적는 품목만 (예: 새벽 해오름 산책). 합이 정상가와 다르면 알림
       ['taxable','taxfree'].map(function(f){
-        return '<td><input class="num" type="number" min="0" step="100" data-f="' + f + '" value="' + (it[f] == null ? "" : it[f]) + '"></td>';
+        return '<td><input class="num money" type="text" inputmode="numeric" autocomplete="off" data-f="' + f + '" value="' + moneyIn(it[f]) + '"></td>';
       }).join("").replace(/<\/td>$/, taxSplitNote(it) + '</td>') +
       '<td style="text-align:center"><input type="checkbox" data-f="disc"' + (it.disc ? ' checked' : '') + '></td>' +
       '<td><button class="btn small danger" type="button" data-act="del">삭제</button></td>' +
@@ -1953,7 +1964,7 @@
     if(!f || !tr) return;
     var id = tr.getAttribute("data-id");
     var num = f === "price" || f === "sprice" || f === "taxable" || f === "taxfree";
-    var v = f === "disc" ? el.checked : num ? (el.value === "" ? null : Number(el.value)) : el.value;
+    var v = f === "disc" ? el.checked : num ? (el.value.replace(/\D/g, "") === "" ? null : Number(el.value.replace(/\D/g, ""))) : el.value;   // 가격 칸은 쉼표를 빼고 숫자로
     setCat(id, f, v);
     // 과세 + 비과세 합이 정상가와 다르면 알림
     if(num){
@@ -1992,6 +2003,7 @@
     renderCatalog();
   });
   document.getElementById("cat-body").addEventListener("input", function(e){
+    if(e.target.classList.contains("money")) moneyFormat(e.target);   // 치는 동안 쉼표 (2026-11-20)
     if(e.target.type === "text" || e.target.type === "number") onCatEdit(e);
   });
   document.getElementById("cat-body").addEventListener("click", function(e){
