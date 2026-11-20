@@ -2611,11 +2611,11 @@ function erpSplit(x){
 }
 // 전산 내역 합계 · 사유원 / 신라 (결제 정보가 있으면 면세 = 사유원, 과세 = 신라)
 const erpUnit = x => goodsItems().some(g=>normSrc(g.src)===normSrc(x.product)) ? '개' : '명';   // 굿즈는 개
-function erpTotals(list=erpList){
+function erpTotals(list=erpList, raw){   // raw: 붙여넣은 전산 금액 그대로 (예약 내역 줄에서 고친 할인은 반영 안 함 · 예약 내용 / 전산 비교의 「전산」 열, 2026-11-20)
   let tot=0, saw=0, shilla=0; list.forEach(x=>{ const s=erpSplit(x); tot+=x.amount; saw+=s.saw; shilla+=s.shilla; });
   const pi=(list[0]||{}).payInfo;
   // 예약 내역 줄에서 할인액을 직접 고친 상품이 있으면: 그 줄은 고친 금액으로 다시 더함 (전산 결제 정보보다 우선)
-  const ov=idamtMap(rec), E = list===erpList && Object.keys(ov).length ? erpByKey() : null, keys = E ? Object.keys(E.m).filter(k=>ov[dkey(k)]) : [];
+  const ov=idamtMap(rec), E = !raw && list===erpList && Object.keys(ov).length ? erpByKey() : null, keys = E ? Object.keys(E.m).filter(k=>ov[dkey(k)]) : [];
   if(keys.length){ tot=0; saw=0; shilla=0;
     list.forEach(x=>{ const k=erpKeyOf(x.product); if(k && keys.includes(k)) return; const s=erpSplit(x); tot+=x.amount; saw+=s.saw; shilla+=s.shilla; });
     keys.forEach(k=>{ const m=erpRowMoney(k, E.m[k]); tot+=m.amount; saw+=m.tf; shilla+=m.tx; });
@@ -2634,7 +2634,7 @@ function erpMissing(){
 function renderErp(){
   const box=$('#erpBox'); if(!box) return;
   if(!erpList.length){ box.hidden=true; box.innerHTML=''; return; }
-  const t0=erpTotals(), pi=t0.pi, miss=erpMissing(); let {tot, saw, shilla}=t0;
+  const t0=erpTotals(erpList, true), pi=t0.pi, miss=erpMissing(); let {tot, saw, shilla}=t0;
   miss.forEach(x=>{ if(x.atMabang) return; tot+=x.m.amount; saw+=x.m.tf; shilla+=x.m.tx; });   // 전산에 없는 품목도 합계에 (품목 관리 가격)
   box.hidden=false;
   const missRows = miss.map(x=>`<tr class="erp-miss"><td colspan="4">${esc(itemName(x.key))} ${x.b.qty}${itemUnit(x.key)} <small class="hint" style="margin:0">전산에 없음 · 품목 관리 가격${x.atMabang?' · 마방에서 결제 (합계 제외)':''}</small>${[x.m.tf>0 && ` · 비과세(사유원) ${won(x.m.tf)}원`, x.m.tx>0 && ` · 과세(신라) ${won(x.m.tx)}원`].filter(Boolean).join('')}</td><td class="tot">${x.atMabang?`<s>${won(x.m.amount)}</s>`:won(x.m.amount)}</td></tr>`).join('');
