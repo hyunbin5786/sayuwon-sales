@@ -6,7 +6,7 @@ const $ = s => document.querySelector(s);
 const esc = SY.esc;   // 공통 도구 (js/common.js)
 let user={}; try{ user=JSON.parse(localStorage.getItem('sy_user')||'{}')||{}; }catch(_){}
 $('#me').innerHTML = user.name ? `👤 <b>${esc(user.name)}</b>` : '';
-let toastT; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), 2600); }
+let toastT; function toast(m, ms=2600){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), ms); }
 const DOW = SY.DOW;
 const dLab = d => { const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; };
 const digits = s => String(s||'').replace(/\D/g,'');
@@ -53,16 +53,17 @@ function parseVisitors(text){
   const date = dm ? `${dm[1]}-${dm[2].padStart(2,'0')}-${dm[3].padStart(2,'0')}` : (rows.find(r=>r.date)||{}).date || '';
   return { date, rows };
 }
-// 같은 날 엑셀을 다시 넣을 때 (2026-11-20): 새 엑셀은 새 예약이 생겨서 넣는 것 → 이미 있던 예약 줄은 그대로(줄 번호 · 고친 것 · 고른 것 · 연결 · 연락 체크 유지),
-// 새 엑셀에만 있는 예약만 뒤에 더함. 같은 예약 = 성명 + 연락처(숫자) + 예약일시 (예전 기록엔 예약일시가 없으면 성명 + 연락처 + 상품). 새 엑셀에 없는 예약도 지우지 않음
+// 같은 날 엑셀을 다시 넣을 때 (2026-11-20 · 성명 기준): 예약이 늘거나 취소돼서 새로 받은 엑셀
+//  - 성명이 같은 예약 = 이전 줄 그대로 (줄 번호 · 고친 것 · 고른 것 · 연결 · 연락 체크 유지)
+//  - 새 엑셀에 없는 성명 = 그 줄을 지움 (취소) · 새 엑셀에만 있는 성명 = 새 줄
+//  - 같은 성명이 여러 줄이면 위에서부터 하나씩 짝지음
 function mergeVisitors(old, fresh){
-  const ph=s=>String(s||'').replace(/\D/g,''), pr=x=>(x.items||[]).map(i=>i.p).join('|');
-  const same=(a,b)=> a.name===b.name && ph(a.phone)===ph(b.phone) && (a.at && b.at ? a.at===b.at : pr(a)===pr(b));
-  const used=new Set(), add=[];
-  fresh.forEach(n=>{ const o=old.find(x=>!used.has(x) && same(x,n)); if(o){ used.add(o); if(!o.at && n.at) o.at=n.at; } else add.push(n); });
-  let k=old.reduce((mx,x)=>Math.max(mx, +(String(x.id).match(/^x(\d+)$/)||[])[1]||0), -1)+1;   // 새 줄 번호 = 이어서 (이미 있던 줄의 고친 것과 안 섞이게)
+  const nm=s=>String(s||'').replace(/\s/g,''), used=new Set(), keep=[], add=[];
+  fresh.forEach(n=>{ const o=old.find(x=>!used.has(x) && nm(x.name)===nm(n.name)); if(o){ used.add(o); if(!o.at && n.at) o.at=n.at; keep.push(o); } else add.push(n); });
+  const gone=old.filter(x=>!used.has(x));
+  let k=old.reduce((mx,x)=>Math.max(mx, +(String(x.id).match(/^x(\d+)$/)||[])[1]||0), -1)+1;   // 새 줄 번호 = 이어서 (지운 줄 · 이미 있던 줄의 고친 것과 안 섞이게)
   add.forEach(n=>{ n.id='x'+(k++); });
-  return { rows:[...old, ...add], added:add.length, kept:old.length };
+  return { rows:[...old.filter(x=>used.has(x)), ...add], added:add.length, kept:keep.length, gone };
 }
 async function readFile(f){
   $('#fileErr').textContent='';
@@ -74,9 +75,12 @@ async function readFile(f){
     if(!v.rows.length) throw new Error('예약 줄을 찾지 못했습니다.');
     if(v.date && v.date!==prepDate){ showDateModal(`넣은 엑셀의 방문일은 <b>${esc(dLab(v.date))}</b>인데, 준비할 날짜는 <b>${esc(dLab(prepDate))}</b>입니다.<br>${esc(dLab(prepDate))} 방문자내역 엑셀로 바꿔 주세요.`); return; }   // 다음날(준비할 날짜) 파일이 아니면 읽지 않음 (2026-11-18)
     const d=v.date||prepDate;
-    if(state && state.date===d && Array.isArray(state.rows) && state.rows.length){   // 같은 날 엑셀을 다시 넣으면: 새로 생긴 예약만 더함 (2026-11-20)
+    if(state && state.date===d && Array.isArray(state.rows) && state.rows.length){   // 같은 날 엑셀을 다시 넣으면: 성명이 같으면 유지 · 없어진 성명은 지움 · 새 성명은 추가 (2026-11-20)
       const m=mergeVisitors(state.rows, v.rows); state.rows=m.rows; state.file=f.name;
-      build(true); saveState(); toast(m.added ? `새 예약 ${m.added}건을 더했습니다 (이미 있던 ${m.kept}건 · 고친 내용 · 연락 체크는 그대로)` : `새로 생긴 예약이 없습니다 (이미 있던 ${m.kept}건 그대로)`); return; }
+      m.gone.forEach(x=>{ delete state.sel[x.id]; delete state.link[x.id]; delete state.edit[x.id]; if(state.saved) delete state.saved[x.id]; });   // 지운 줄의 고른 것 · 연결 · 고친 것도
+      build(true); saveState();
+      const parts=[m.added?`새 예약 ${m.added}건 추가`:'', m.gone.length?`없어진 예약 ${m.gone.length}건 삭제 (${m.gone.map(x=>x.name).join(', ')})`:'', `그대로 ${m.kept}건`].filter(Boolean);
+      toast(m.added || m.gone.length ? parts.join(' · ') : `바뀐 예약이 없습니다 (그대로 ${m.kept}건)`, 4000); return; }
     state={ file:f.name, date:d, rows:v.rows, sel:{}, link:{}, edit:{} };
     build(true); saveState(); toast(`${v.rows.length}건을 읽었습니다.`);
   }catch(e){ $('#fileErr').textContent = e.message || '파일을 읽지 못했습니다.'; }
