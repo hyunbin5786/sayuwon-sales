@@ -1888,7 +1888,7 @@ function staffMsg(r){
   const c=contactsOf(r)[0]||{};
   return `[단체 일정 전달] ${head}\n` + Object.entries(by).map(([w,l])=>`- ${w}: ${l.join(', ')}`).join('\n') + (c.name||c.phone ? `\n고객 담당: ${[c.name,c.phone].filter(Boolean).join(' ')}` : '') + `\n영업 담당: ${(r.owner||savedOwner()||'').trim()||'-'}`;
 }
-const taskAuto = t => t.id==='erp' ? erpNote(rec) : t.id==='erpfix' ? erpNote(rec, true) : t.id==='staffbrief' ? staffMsg(rec) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : '';   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장결제 필요)   // 자동으로 만든 문구
+const taskAuto = t => t.id==='erp' ? erpNote(rec) : t.id==='erpfix' ? erpNote(rec, true) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : '';   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장결제 필요)   // 자동으로 만든 문구
 const taskText = t => taskAuto(t) ? (t.noteEdit || taskAuto(t)) : '';   // 직접 고쳤으면 그 글 (전산 비고 등)
 // 과업 기한(due): 생기면 그날이 기본, 각자 바꿀 수 있음(dueSet). 미정 항목 연락 = 답변일, 현장 결제 인원 확인 = 전주 목요일(지났으면 전날), 결제 확인 = 다음날
 const todayYmd = () => ymd(new Date());
