@@ -464,12 +464,13 @@ $('#xlsxBtn').onclick=async()=>{ if(!state || !window.ExcelJS) return; const d=t
 //  - 금액 · 출입구 미정 · 입장 시각 · 마방 식사 · 적은 사람 이름 등은 뺌. 표에서 비고를 직접 고쳤으면 고친 글 그대로
 const PROG_RE = /런치|디너|일출|해오름|일몰|선셋|도슨트|세미나|PPT/i;
 const shortT = t => { const m=fmtT(t).match(/(\d\d):(\d\d)/); return m ? (m[2]==='00' ? `${+m[1]}시` : `${+m[1]}:${m[2]}`) : String(t||'').trim(); };
+const MEAL_ONLY = s => /런치|디너/.test(s) && !/도슨트|세미나|PPT|일출|일몰/i.test(s);   // 식사(상품명)만 적힌 조각: 「런치2부」 「사담 디너」 → 비고에서 뺌
 function shortNote(r){
   const out=[], add=s=>{ s=String(s||'').trim(); if(s && !out.some(x=>norm(x)===norm(s))) out.push(s); };
   const clean = s => String(s).replace(/사담\s*/g,'').replace(/런치\s*(\d)\s*부/g,'런치$1부').replace(/해오름\s*산책|해오름/g,'일출').replace(/선셋/g,'일몰').replace(/\s+/g,' ').trim();
   // 상품 이름은 비고에 안 씀 (2026-11-19 · 상품은 ② 티켓 발권 대상에서 담당자가 확인) — 엑셀 비고의 프로그램(금액 칸은 빼고) · 여행사 메모 · 현장결제 · 도착시간 입장문만
   String(r.xnote||'').replace(/\s*\(\s*[가-힣]{2,4}\s*\)\s*$/,'')   // 맨 끝 적은 사람 이름 「(문현빈)」은 뺌
-    .split(/\s*\/\s*/).forEach(s=>{ if(PROG_RE.test(s) && !/\d[\d,]*\s*원/.test(s)) add(clean(s)); });
+    .split(/\s*\/\s*/).forEach(s=>{ if(PROG_RE.test(s) && !/\d[\d,]*\s*원/.test(s) && !MEAL_ONLY(clean(s))) add(clean(s)); });   // 런치 · 디너(예약 상품명)는 안 씀 (2026-11-20)
   if(r.agMemo) add(r.agMemo);   // 여행사 등록 메모 (2026-11-19)
   if(r.onsitePay || /현장\s*결제/.test(r.xnote||'')) add('현장결제');
   const arrive = r.time ? `${shortT(r.time)} ${r.gate || '입장'}` : (r.gate || '');   // 입장문을 아직 안 골랐으면 「9시 입장」 (2026-11-19)
