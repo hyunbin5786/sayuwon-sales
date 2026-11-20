@@ -45,13 +45,24 @@ function parseVisitors(text){
   trs.slice(hi+1).forEach((tr,i)=>{ const tds=[...tr.children]; if(tds.length<cols.length-2 || !tds[C.name]) return; const name=tds[C.name].textContent.trim(); if(!name) return;
     const prods=cellLines(tds[C.prog]).filter(Boolean), ad=cellLines(tds[C.adult]).map(v=>+v||0), st=cellLines(tds[C.student]).map(v=>+v||0);
     const items=prods.map((p,k)=>({p, n:(ad[k]||0)+(st[k]||0)}));
-    rows.push({ id:'x'+i, kind:tds[C.kind]?.textContent.trim()||'', date:(tds[C.date]?.textContent.match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/)||[]).slice(1).map((v,j)=>j?v.padStart(2,'0'):v).join('-'),
+    rows.push({ id:'x'+i, at:C.at>=0 ? (tds[C.at]?.textContent||'').replace(/\s+/g,' ').trim() : '', kind:tds[C.kind]?.textContent.trim()||'', date:(tds[C.date]?.textContent.match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/)||[]).slice(1).map((v,j)=>j?v.padStart(2,'0'):v).join('-'),
       name, phone:tds[C.phone]?.textContent.trim()||'', items, ppl: ad.reduce((s,v)=>s+v,0)+st.reduce((s,v)=>s+v,0),
       pay:cellLines(tds[C.pay]).filter(Boolean).join(', '), note:C.note>=0 ? tds[C.note].innerHTML.replace(/<\/p>|<br\s*\/?>/gi,' / ').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').replace(/(\s*\/\s*)+$/,'').trim() : '' });   // 비고: 문단은 ' / '로
   });
   const dm=(title+' '+head).match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
   const date = dm ? `${dm[1]}-${dm[2].padStart(2,'0')}-${dm[3].padStart(2,'0')}` : (rows.find(r=>r.date)||{}).date || '';
   return { date, rows };
+}
+// 같은 날 엑셀을 다시 넣을 때 (2026-11-20): 새 엑셀은 새 예약이 생겨서 넣는 것 → 이미 있던 예약 줄은 그대로(줄 번호 · 고친 것 · 고른 것 · 연결 · 연락 체크 유지),
+// 새 엑셀에만 있는 예약만 뒤에 더함. 같은 예약 = 성명 + 연락처(숫자) + 예약일시 (예전 기록엔 예약일시가 없으면 성명 + 연락처 + 상품). 새 엑셀에 없는 예약도 지우지 않음
+function mergeVisitors(old, fresh){
+  const ph=s=>String(s||'').replace(/\D/g,''), pr=x=>(x.items||[]).map(i=>i.p).join('|');
+  const same=(a,b)=> a.name===b.name && ph(a.phone)===ph(b.phone) && (a.at && b.at ? a.at===b.at : pr(a)===pr(b));
+  const used=new Set(), add=[];
+  fresh.forEach(n=>{ const o=old.find(x=>!used.has(x) && same(x,n)); if(o){ used.add(o); if(!o.at && n.at) o.at=n.at; } else add.push(n); });
+  let k=old.reduce((mx,x)=>Math.max(mx, +(String(x.id).match(/^x(\d+)$/)||[])[1]||0), -1)+1;   // 새 줄 번호 = 이어서 (이미 있던 줄의 고친 것과 안 섞이게)
+  add.forEach(n=>{ n.id='x'+(k++); });
+  return { rows:[...old, ...add], added:add.length, kept:old.length };
 }
 async function readFile(f){
   $('#fileErr').textContent='';
@@ -62,7 +73,11 @@ async function readFile(f){
     const text=new TextDecoder('utf-8').decode(buf), v=parseVisitors(text);
     if(!v.rows.length) throw new Error('예약 줄을 찾지 못했습니다.');
     if(v.date && v.date!==prepDate){ showDateModal(`넣은 엑셀의 방문일은 <b>${esc(dLab(v.date))}</b>인데, 준비할 날짜는 <b>${esc(dLab(prepDate))}</b>입니다.<br>${esc(dLab(prepDate))} 방문자내역 엑셀로 바꿔 주세요.`); return; }   // 다음날(준비할 날짜) 파일이 아니면 읽지 않음 (2026-11-18)
-    state={ file:f.name, date:v.date||prepDate, rows:v.rows, sel:{}, link:{}, edit:{} };
+    const d=v.date||prepDate;
+    if(state && state.date===d && Array.isArray(state.rows) && state.rows.length){   // 같은 날 엑셀을 다시 넣으면: 새로 생긴 예약만 더함 (2026-11-20)
+      const m=mergeVisitors(state.rows, v.rows); state.rows=m.rows; state.file=f.name;
+      build(true); saveState(); toast(m.added ? `새 예약 ${m.added}건을 더했습니다 (이미 있던 ${m.kept}건 · 고친 내용 · 연락 체크는 그대로)` : `새로 생긴 예약이 없습니다 (이미 있던 ${m.kept}건 그대로)`); return; }
+    state={ file:f.name, date:d, rows:v.rows, sel:{}, link:{}, edit:{} };
     build(true); saveState(); toast(`${v.rows.length}건을 읽었습니다.`);
   }catch(e){ $('#fileErr').textContent = e.message || '파일을 읽지 못했습니다.'; }
 }
