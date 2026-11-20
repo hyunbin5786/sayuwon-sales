@@ -226,8 +226,9 @@ function build(fresh){
     const prods=x ? x.items.filter(i=>i.n>0 || x.items.length===1).map(i=>shortProd(i.p)) : [];
     const pmT = x && x.items.some(i=>/13:00~18:00/.test(i.p)) && !x.items.some(i=>/09:00~18:00|\(관람,/.test(i.p)) ? '13:00 이후' : '';
     // 처음 값(엑셀 · 단체예약) — 표에서 고친 값(state.edit)과 비교해 「수정 내용 저장」에 씀 (2026-11-19)
-    const orig = { name: r ? (r.org||r.contact||'(업체 미정)') : ag || isGroupName(x.name) ? x.name : `${x.name}(개인)`, ppl: x ? x.ppl : (parseInt(r.people)||0),
-      time: fmtT(r&&r.tin) || '', bus: v.bus, car: v.car, phone: x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || '',
+    const agV = ag && !r ? {bus:String(ag.bus||'').replace(/\D/g,''), car:String(ag.car||'').replace(/\D/g,'')} : {bus:'', car:''};   // 여행사 등록의 차량 (단체예약 기록이 없을 때 · 2026-11-20)
+    const orig = { name: r ? (r.org||r.contact||'(업체 미정)') : x.name, ppl: x ? x.ppl : (parseInt(r.people)||0),   // 개인도 성명 그대로 (「(개인)」 안 붙임, 2026-11-20)
+      time: fmtT(r&&r.tin) || (ag ? fmtT(ag.time) : '') || '', bus: v.bus || (!v.car ? agV.bus : ''), car: v.car || (!v.bus ? agV.car : ''),   // 여행사는 등록한 도착시간 · 차량이 기본 (비워 두면 없음) phone: x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || '',
       note: x && x.note && x.note!=='-' ? x.note : '',
       gate: (()=>{ const rg=r ? (memoVal(r,'입장문')||r.gate||'') : ''; return /^(치허문|곡신문)$/.test(rg) ? rg : (ag && ag.gate) || ''; })() };   // 여행사는 등록한 입장문이 기본   // 비고 = 전산 방문자내역 엑셀의 비고 그대로 (2026-11-19 · 상품 · 단체예약 내용을 만들어 붙이지 않음)
     return { key:k, recId: r ? r.id : '', on: state.sel[k]!==false, group: !!r || !!ag || isGroupName(x&&x.name), inList: !!r, agency: ag ? ag.name : '', agMemo: ag ? (ag.memo||'') : '', orig,
@@ -348,8 +349,10 @@ function agencyFrom(items){ const r=(items||[]).find(x=>x.id===AGENCY_ID); if(!r
 let agEdit=[];
 function paintAg(){ $('#agBody').innerHTML = agEdit.map((a,i)=>`<tr><td><input data-ag="${i}|name" data-ime="ko" value="${esc(a.name||'')}" placeholder="단체명"></td>`
   + `<td><select data-ag="${i}|gate"><option value=""${a.gate?'':' selected'}>미정</option><option${a.gate==='치허문'?' selected':''}>치허문</option><option${a.gate==='곡신문'?' selected':''}>곡신문</option></select></td>`
+  + `<td><input data-ag="${i}|time" value="${esc(a.time||'')}" placeholder="--:--" inputmode="numeric" title="도착시간 (비워 두면 없음)"></td>`
+  + `<td class="ag-veh"><label>버스<input data-ag="${i}|bus" value="${esc(a.bus||'')}" inputmode="numeric" placeholder="-">대</label><label>승용<input data-ag="${i}|car" value="${esc(a.car||'')}" inputmode="numeric" placeholder="-">대</label></td>`
   + `<td><input data-ag="${i}|memo" data-ime="ko" value="${esc(a.memo||'')}" placeholder="메모"></td><td><button type="button" class="btn sm" data-agdel="${i}" title="빼기">×</button></td></tr>`).join('')
-  || '<tr><td colspan="4" class="hint">등록한 여행사가 없습니다. 「＋ 추가」를 눌러 주세요.</td></tr>'; }
+  || '<tr><td colspan="6" class="hint">등록한 여행사가 없습니다. 「＋ 추가」를 눌러 주세요.</td></tr>'; }
 $('#agBtn').onclick=()=>{ agEdit=agencies.map(a=>({...a})); if(!agEdit.length) agEdit.push({name:'', gate:'', memo:''}); paintAg(); $('#agModal').hidden=false; setTimeout(()=>$('#agBody input')?.focus(), 0); };
 $('#agAdd').onclick=()=>{ agEdit.push({name:'', gate:'', memo:''}); paintAg(); const ins=document.querySelectorAll('#agBody input[data-ag$="|name"]'); ins[ins.length-1]?.focus(); };
 $('#agNo').onclick=()=>{ $('#agModal').hidden=true; };
@@ -358,7 +361,8 @@ document.addEventListener('change', e=>{ const m=e.target.dataset && e.target.da
 document.addEventListener('click', e=>{ const d=e.target.closest && e.target.closest('[data-agdel]'); if(d){ agEdit.splice(+d.dataset.agdel,1); paintAg(); } });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#agModal').hidden) $('#agModal').hidden=true; });
 $('#agOk').onclick=async()=>{
-  agencies=agEdit.map(a=>({name:String(a.name||'').trim(), gate:a.gate||'', memo:String(a.memo||'').trim()})).filter(a=>a.name);
+  const num=v=>{ const n=String(v||'').replace(/\D/g,''); return n && +n ? String(+n) : ''; };   // 차량 대수: 숫자만 · 0은 빈칸
+  agencies=agEdit.map(a=>({name:String(a.name||'').trim(), gate:a.gate||'', time:fmtT(a.time), bus:num(a.bus), car:num(a.car), memo:String(a.memo||'').trim()})).filter(a=>a.name);   // 도착시간 · 차량 (2026-11-20, 비워 두면 없음)
   try{ localStorage.setItem(AGENCY_LS, JSON.stringify(agencies)); }catch(_){}
   $('#agModal').hidden=true; if(state) build(false); toast(`여행사 ${agencies.length}곳을 저장했습니다.`);
   if(getKey()) try{ await callApi({action:'put', item:{id:AGENCY_ID, callType:'응대준비설정', saved:new Date().toISOString(), takenBy:user.name||'', owner:user.name||'', summary:`다음날 고객 응대 준비 · 여행사 ${agencies.length}곳`, history:JSON.stringify({list:agencies})}}); }catch(_){ toast('여행사 목록을 팀에 올리지 못했습니다.'); }

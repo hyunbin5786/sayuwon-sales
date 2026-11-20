@@ -6,7 +6,7 @@
 <title>다음날 고객 응대 준비 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261119j2">
+<link rel="stylesheet" href="css/prep.css?v=20261120a">
 <link rel="stylesheet" href="css/mypop.css?v=20261119a">
 <link rel="stylesheet" href="css/menu.css?v=20261119d2">
 </head>
@@ -64,10 +64,10 @@
 </div>
 <!-- 여행사 등록 (2026-11-19 · 팀 공유) -->
 <div class="pmodal" id="agModal" hidden>
-  <section class="panel" role="dialog" aria-modal="true" aria-labelledby="agTitle" style="max-width:620px">
+  <section class="panel" role="dialog" aria-modal="true" aria-labelledby="agTitle" style="max-width:820px">
     <h2 id="agTitle">여행사 등록</h2>
-    <p class="hint">엑셀 성명에 이 단체명이 들어 있으면 인원과 상관없이 티켓 발권 대상의 단체로 넣습니다. 입장문은 기본값, 메모는 비고에 들어갑니다 (팀 공유).</p>
-    <table class="ag-t"><thead><tr><th>단체명</th><th>입장문</th><th>메모</th><th></th></tr></thead><tbody id="agBody"></tbody></table>
+    <p class="hint">엑셀 성명에 이 단체명이 들어 있으면 인원과 상관없이 티켓 발권 대상의 단체로 넣습니다. 입장문 · 도착시간 · 차량은 기본값(비워 두면 없음 · 표에서 고칠 수 있음), 메모는 비고에 들어갑니다 (팀 공유).</p>
+    <table class="ag-t"><thead><tr><th>단체명</th><th>입장문</th><th>도착시간</th><th>차량</th><th>메모</th><th></th></tr></thead><tbody id="agBody"></tbody></table>
     <div class="dm-btns"><button class="btn sm" id="agAdd" type="button">＋ 추가</button><span class="sp"></span><button class="btn" id="agNo" type="button">취소</button><button class="btn primary" id="agOk" type="button">저장</button></div>
   </section>
 </div>
@@ -86,7 +86,7 @@
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="js/common.js?v=20261118"></script>
-<script src="js/prep.js?v=20261120c"></script>
+<script src="js/prep.js?v=20261120d"></script>
 <script src="js/mypop.js?v=20261119a"></script>
 <script src="js/menu.js?v=20261119c4"></script>
 </body>
