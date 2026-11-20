@@ -229,6 +229,20 @@
     "사유원 새벽 해오름 산책(평일)": [70000, 50000],
     "사유원 새벽 해오름 산책(주말)": [70000, 69000]
   };
+  // ===== 성인 · 학생 가격 (2026-11-20) =====
+  // 품목마다 price = 성인 가격, sprice = 학생 가격(없으면 비움). 예약 상품명에 「(학생)」이 있는 품목은 그 성인 품목의 학생 가격으로 합침
+  //  예) "평일 관람(학생)(09:00~18:00)" → "평일 관람(09:00~18:00)" 의 학생 가격 · "평일 관람(학생)" → "평일(관람)"
+  //  합친 학생 품목은 목록에서 숨기고(merged), 예약 상품명으로 찾을 때(전산 내역 · 학생 줄 나누기)는 그대로 쓰며 가격 = 성인 품목의 학생 가격
+  function studentBaseSrcs(src){ var s = String(src || ""); if(s.indexOf("(학생)") < 0) return []; return [s.replace("(학생)", ""), s.replace(/\s*관람\(학생\)/, "(관람)")]; }
+  function mergeStudents(list){
+    var by = {}; list.forEach(function(it){ if(it.src) by[normName(it.src)] = by[normName(it.src)] || it; });
+    list.forEach(function(it){
+      var bs = studentBaseSrcs(it.src); if(!bs.length) return;
+      var base = null; bs.some(function(b){ var x = by[normName(b)]; if(x && x !== it){ base = x; return true; } return false; }); if(!base) return;
+      if(base.sprice == null && it.price != null) base.sprice = it.price;   // 학생 가격을 따로 넣지 않았으면 학생 품목의 가격
+      it.price = base.sprice != null ? base.sprice : it.price; it.hidden = true; it.merged = true; it.stuOf = base.src;
+    });
+  }
   function buildCatalog(){
     var seen = {}, list = [], edits = catEdits.edits || {};
     CATALOG_RAW.forEach(function(line){
@@ -255,6 +269,7 @@
       // 구분을 '관람+식사'로 바꾼 품목(예: 새벽 해오름 산책(주말))도 이름으로 평일/주말을 정한다 → 식사 단가 = 가격 − 그날 입장료
       if(it.kind === "package" && it.weekend == null) it.weekend = /주말|공휴일/.test(String(it.src || "") + String(it.name || ""));
     });
+    mergeStudents(list);
     // 직접 입력용
     list.push({ id:"etc_view", src:"", sys:true, kind:"view", form:"sayuwon", name:"", price:null, disc:true, label:"관람 · 기타 (직접 입력)" });
     list.push({ id:"etc_item", src:"", sys:true, kind:"food", form:"shilla", name:"", price:null, disc:false, label:"기타 (직접 입력)" });
@@ -1864,7 +1879,7 @@
   function taxSplitNote(it){
     if(it.taxable == null && it.taxfree == null) return "";
     var s = (Number(it.taxable) || 0) + (Number(it.taxfree) || 0);
-    return s === (Number(it.price) || 0) ? "" : '<span class="sub taxwarn">합 ' + won(s) + '원 ≠ 정상가</span>';
+    return s === (Number(it.price) || 0) ? "" : '<span class="sub taxwarn">합 ' + won(s) + '원 ≠ 성인 가격</span>';
   }
   function catRowHTML(it){
     var u = it.kind === "package" ? unitPrice(it) : null;
@@ -1881,7 +1896,8 @@
       '<td><input type="text" data-f="name" value="' + esc(it.name) + '">' + (u != null ? '<span class="sub">식사 단가 ' + won(u) + '원</span>' : '') + '</td>' +
       '<td>' + kindSel + '</td>' +
       '<td>' + formSel + '</td>' +
-      '<td><input class="num" type="number" min="0" step="100" data-f="price" value="' + (it.price == null ? "" : it.price) + '"></td>' +
+      '<td><input class="num" type="number" min="0" step="100" data-f="price" value="' + (it.price == null ? "" : it.price) + '" title="성인 가격"></td>' +
+      '<td><input class="num" type="number" min="0" step="100" data-f="sprice" value="' + (it.sprice == null ? "" : it.sprice) + '" placeholder="-" title="학생 가격 (없으면 비움)"></td>' +   // 학생 가격 (2026-11-20)
       // 과세 · 비과세: 정상가를 나눠 적는 품목만 (예: 새벽 해오름 산책). 합이 정상가와 다르면 알림
       ['taxable','taxfree'].map(function(f){
         return '<td><input class="num" type="number" min="0" step="100" data-f="' + f + '" value="' + (it[f] == null ? "" : it[f]) + '"></td>';
@@ -1927,7 +1943,7 @@
       return (ea - eb) || byKind(a, b);
     });
     document.getElementById("cat-body").innerHTML = items.map(catRowHTML).join("") ||
-      '<tr><td colspan="10" style="padding:18px;text-align:center;color:var(--muted)">찾는 품목이 없습니다.</td></tr>';
+      '<tr><td colspan="11" style="padding:18px;text-align:center;color:var(--muted)">찾는 품목이 없습니다.</td></tr>';
     document.getElementById("cat-count").textContent = "· " + CATALOG.filter(function(it){ return !it.sys && !it.hidden; }).length + "개";
     syncPicks();
   }
@@ -1936,7 +1952,7 @@
     var el = e.target, f = el.getAttribute("data-f"), tr = el.closest("tr");
     if(!f || !tr) return;
     var id = tr.getAttribute("data-id");
-    var num = f === "price" || f === "taxable" || f === "taxfree";
+    var num = f === "price" || f === "sprice" || f === "taxable" || f === "taxfree";
     var v = f === "disc" ? el.checked : num ? (el.value === "" ? null : Number(el.value)) : el.value;
     setCat(id, f, v);
     // 과세 + 비과세 합이 정상가와 다르면 알림

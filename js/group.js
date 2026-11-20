@@ -397,7 +397,7 @@ function itemSelectHTML(k, rows){
   // 관람 · 관람+식사: 관람권(기본 관람 줄과 다른 것) · 관람 포함 패키지 전부 · 새벽 해오름 산책. 사담 1부 · 2부 · 디너는 예전 칸(sadam1 · 2 · D)
   const day=rec.date && isRedDay(rec.date) ? '주말/공휴일' : '평일', base=normSrc(viewSrcOf(rec));
   const SADAM_OF = {'사담런치1부':'sadam1','사담런치2부':'sadam2','사담디너':'sadamD'};
-  const area = catalogItems().filter(it=>(it.kind==='view' || it.kind==='package') && !/네이버/.test(it.src) && String(it.src).startsWith(day) && it.price!=null);   // 관람권(9~18 · 13~18 · 학생 등)도 모두 여기서 고름
+  const area = catalogItems().filter(it=>(it.kind==='view' || it.kind==='package') && (!it.merged || (itemKind(k)==='varea' && normSrc(daySrc(k.slice(2), rec))===normSrc(it.src))) && !/네이버/.test(it.src) && String(it.src).startsWith(day) && it.price!=null);   // 관람권(9~18 · 13~18 · 학생 등)도 모두 여기서 고름
   h+=`<optgroup label="관람 · 관람+식사">${area.map(it=>{ const pm=String(it.src).match(/\(관람,\s*(.+)\)$/), sk=pm ? SADAM_OF[normSrc(pm[1])] : null, v=sk || 'v:'+it.src;
       return opt(v, (pm ? '관람 + '+pm[1] : viewLabel(it.src)), used.has(v), k===v || (itemKind(k)==='varea' && normSrc(daySrc(k.slice(2), rec))===normSrc(it.src))); }).join('')}`
     + `${FIELDS.some(f=>f[1]==='haeorum') ? opt('haeorum', '새벽 해오름 산책 (관람료 포함)'+pr(progSrc('haeorum', rec)), used.has('haeorum'), k==='haeorum') : ''}</optgroup>`;
@@ -2412,10 +2412,14 @@ function catalogItems(){
     const [src, price, disc] = line.split('|'); if(seen[normSrc(src)]) return; seen[normSrc(src)]=1;
     const e = (quoteCat.edits||{})[src] || {};
     if(e.hidden) return;
-    out.push({ src, name: e.name, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), disc: e.disc!=null ? !!e.disc : disc==='1', kind: mbKind((e.kind==='food' && MB_DEF.some(m=>normSrc(m[0])===normSrc(src))) ? 'mabang' : (e.kind || kindOf(src)), src),
+    out.push({ src, name: e.name, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), sprice: e.sprice!=null ? Number(e.sprice) : null, disc: e.disc!=null ? !!e.disc : disc==='1', kind: mbKind((e.kind==='food' && MB_DEF.some(m=>normSrc(m[0])===normSrc(src))) ? 'mabang' : (e.kind || kindOf(src)), src),
       taxable: e.taxable!=null ? Number(e.taxable) : ((quoteCat.tax||{})[src]||[])[0], taxfree: e.taxfree!=null ? Number(e.taxfree) : ((quoteCat.tax||{})[src]||[])[1] });   // 과세 · 비과세 (품목 관리 값 우선)   // 예전에 '식사'로 바꿔 둔 기본 몽몽마방 메뉴도 메뉴로
   });
-  (quoteCat.added||[]).forEach(a=>{ if(a.hidden) return; out.push({ src: a.src || a.name, name: a.name, price: a.price!=null ? Number(a.price) : null, disc: !!a.disc, kind: mbKind(a.kind || 'food', a.src || a.name), taxable: a.taxable!=null ? Number(a.taxable) : undefined, taxfree: a.taxfree!=null ? Number(a.taxfree) : undefined }); });
+  (quoteCat.added||[]).forEach(a=>{ if(a.hidden) return; out.push({ src: a.src || a.name, name: a.name, price: a.price!=null ? Number(a.price) : null, sprice: a.sprice!=null ? Number(a.sprice) : null, disc: !!a.disc, kind: mbKind(a.kind || 'food', a.src || a.name), taxable: a.taxable!=null ? Number(a.taxable) : undefined, taxfree: a.taxfree!=null ? Number(a.taxfree) : undefined }); });
+  // 성인 · 학생 가격 (2026-11-20 · 견적서 품목 관리와 같음): 「(학생)」 품목은 그 성인 품목의 학생 가격(sprice)으로 합치고 merged 로 표시 (고르는 목록엔 안 보임 · 상품명으로 찾으면 가격 = 학생 가격)
+  const by={}; out.forEach(it=>{ by[normSrc(it.src)] ||= it; });
+  out.forEach(it=>{ const s=String(it.src||''); if(s.indexOf('(학생)')<0) return; it.merged=true;   /* 학생 품목은 성인 품목이 없어도(숨김 등) 고르는 목록에서 뺌 */ const base=[s.replace('(학생)',''), s.replace(/\s*관람\(학생\)/,'(관람)')].map(b=>by[normSrc(b)]).find(b=>b && b!==it); if(!base) return;
+    if(base.sprice==null && it.price!=null) base.sprice=it.price; it.price = base.sprice!=null ? base.sprice : it.price; it.merged=true; it.stuOf=base.src; });
   return out;
 }
 // 과세 · 비과세 1인 금액 (품목 관리): 비과세 = 사유원(입장료), 과세 = 신라. 둘 다 없으면 null
@@ -2523,8 +2527,11 @@ const istuMap = r => Object.fromEntries(String((r&&r.istu)||'').split(/\s*;\s*/)
 const canStu = k => itemKind(k)==='sadam' || (itemKind(k)==='varea' && !/학생/.test(k) && !/해오름/.test(k));
 const itemStu = k => istuMap(rec)[dkey(k)] || 0;
 function setItemStu(k, n){ const m=istuMap(rec), kk=dkey(k); n=Math.max(0, parseInt(n)||0); if(n) m[kk]=n; else delete m[kk]; const s=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); if(s!==String(rec.istu||'')){ rec.istu=s; touched.add('istu'); } }
-function stuDiffOf(src, r){   // 학생 1명당 낮아지는 금액 (성인 관람 − 학생 관람). 학생 품목이 품목 관리에 없으면 0
+function stuDiffOf(src, r){   // 학생 1명당 낮아지는 금액 (성인 가격 − 학생 가격). 학생 가격이 없으면 0
+  const itm = s => catalogItems().find(x=>normSrc(x.src)===normSrc(s)), gap = it => it && it.sprice!=null && it.price!=null && it.price>it.sprice ? it.price-it.sprice : 0;
+  { const g=gap(itm(src)); if(g) return g; }   // 그 품목에 학생 가격이 있으면 그것 (품목 관리 「학생」 칸, 2026-11-20)
   const base = /\(관람,/.test(src) ? viewSrcOf(r||rec) : src; if(!base || /학생/.test(base)) return 0;
+  { const g=gap(itm(base)); if(g) return g; }   // 관람+식사는 그날 관람권의 학생 가격만큼
   const day = /^주말|공휴일/.test(base) ? '주말/공휴일' : '평일', tm=(String(base).match(/\(\d\d:00~\d\d:00\)/)||['(09:00~18:00)'])[0];
   const sp = priceOf(`${day} 관람(학생)${tm}`) ?? priceOf(`${day} 관람(학생)(09:00~18:00)`), ap=priceOf(base);
   return sp!=null && ap!=null && ap>sp ? ap-sp : 0; }
@@ -2875,7 +2882,7 @@ const viewAuto = r => Math.max(0, numOf(r.people) - areaOthers(r));   // 기본 
 const effViewN = r => String(r.viewN||'').trim()!=='' ? numOf(r.viewN) : viewAuto(r);   // 직접 줄였으면 그 수
 const viewLabel = src => { const m=String(src).match(/\((\d\d):00~(\d\d):00\)/); return itemLabel(src) + (m ? ` (${+m[1]}~${+m[2]}시)` : ''); };   // "관람 (9~18시)" · "관람 (학생)"
 // 예약 내역 관람 줄 드롭다운: 품목 관리의 관람 품목 중 방문일(평일 · 주말)에 맞는 것 (네이버 제외)
-const viewItems = r => { const day=r.date && isRedDay(r.date) ? '주말/공휴일' : '평일'; return catalogItems().filter(it=>it.kind==='view' && !/네이버/.test(it.src) && String(it.src).startsWith(day) && it.price!=null); };
+const viewItems = r => { const day=r.date && isRedDay(r.date) ? '주말/공휴일' : '평일'; return catalogItems().filter(it=>it.kind==='view' && !it.merged && !/네이버/.test(it.src) && String(it.src).startsWith(day) && it.price!=null); };
 function quoteBlocks(r){
   const n = numOf(r.people), we = isRedDay(r.date);
   const DAY = we ? '주말/공휴일' : '평일';
