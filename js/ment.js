@@ -143,7 +143,7 @@
     // 카드에는 그림 미리보기 없이 「글 복사」 옆에 「이미지 복사」 버튼만 (여러 장이면 이미지 1 · 2 …, 2026-11-18)
     const imgBtns = m => !(m.imgs||[]).length ? '' : isMobile() ? `<button type="button" class="btn sm" data-imgsave title="그림을 모두 갤러리에 저장">이미지 저장${m.imgs.length>1?` (${m.imgs.length})`:''}</button>` : (m.imgs||[]).map((x,i,a)=>`<button type="button" class="btn sm" data-imgcopy="${esc(x.id)}" title="${esc(x.name||'이미지')} · 그림을 복사 → 카톡에 Ctrl+V">이미지${a.length>1?(i+1):''}<span class="cp"> 복사</span></button>`).join('');
     const imgsHTML = () => '';
-    const card = m => edit===m.id ? form(m) : `<div class="ment${isFav(m)?' fav':''}" data-id="${esc(m.id)}"><div class="m-head"><button type="button" class="m-star${isFav(m)?' on':''}" data-mfav title="${isFav(m)?'즐겨찾기 빼기':'즐겨찾기 (위로)'}" aria-pressed="${isFav(m)}">${isFav(m)?'★':'☆'}</button><b>${esc(m.title||'멘트')}</b><span class="sp"></span>`
+    const card = m => edit===m.id ? form(m) : `<div class="ment${isFav(m)?' fav':''}" data-id="${esc(m.id)}"><div class="m-head"><button type="button" class="m-star${isFav(m)?' on':''}" data-mfav title="${isFav(m)?'즐겨찾기 빼기':'즐겨찾기 (위로)'}" aria-pressed="${isFav(m)}">${isFav(m)?'★':'☆'}</button>${canEdit()?'<span class="m-grip" draggable="true" data-mgrip title="끌어서 다른 멘트 위에 놓으면 그 자리로 (순서 바꾸기)" aria-label="순서 바꾸기">⠿</span>':''}<b>${esc(m.title||'멘트')}</b><span class="sp"></span>`
       + `<button type="button" class="btn primary sm" data-mcopy title="제목과 글을 복사">${(m.imgs||[]).length?'글 복사':'복사'}</button>${imgBtns(m)}${canEdit()?'<button type="button" class="btn sm" data-medit>수정</button>':''}</div><div class="m-body-v">${esc(m.body)}</div>${imgsHTML(m)}</div>`;
     $('#list').innerHTML = (edit==='new' ? form({id:'new', title:'', body:''}) : '')
       + (list.length ? list.map(card).join('') : `<p class="hint">${q?'찾은 멘트가 없습니다.':'멘트가 없습니다.'}</p>`);
@@ -197,6 +197,20 @@
   $('#list').addEventListener('dragover', e=>{ const b=e.target.closest('.ment-edit'); if(!b) return; e.preventDefault(); b.classList.add('drop'); });
   $('#list').addEventListener('dragleave', e=>{ e.target.closest('.ment-edit')?.classList.remove('drop'); });
   $('#list').addEventListener('drop', e=>{ const b=e.target.closest('.ment-edit'); if(!b) return; e.preventDefault(); b.classList.remove('drop'); if(e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); });
+  // 순서 바꾸기 (2026-11-20): 멘트 이름 앞 ⠿ 를 끌어 다른 멘트 위에 놓으면 그 자리로 → 공유 기록에 저장 (모든 사람 · 휴대폰도 같은 순서)
+  //  즐겨찾기는 늘 위에 모이므로 즐겨찾기끼리 · 나머지끼리만. 컴퓨터에서 로그인한 사람만
+  let dragId=null;
+  const clearDrag = () => document.querySelectorAll('#list .ment.dragging, #list .ment.drop-on').forEach(x=>x.classList.remove('dragging','drop-on'));
+  $('#list').addEventListener('dragstart', e=>{ const g=e.target.closest?.('[data-mgrip]'); if(!g || edit) return; const b=g.closest('.ment'); dragId=b.dataset.id;
+    e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', dragId); try{ e.dataTransfer.setDragImage(b, 24, 20); }catch(_){} b.classList.add('dragging'); });
+  $('#list').addEventListener('dragover', e=>{ if(!dragId) return; const b=e.target.closest('.ment:not(.ment-edit)'); if(!b || b.dataset.id===dragId) return; e.preventDefault(); e.dataTransfer.dropEffect='move';
+    if(!b.classList.contains('drop-on')){ document.querySelectorAll('#list .ment.drop-on').forEach(x=>x.classList.remove('drop-on')); b.classList.add('drop-on'); } });
+  $('#list').addEventListener('drop', async e=>{ if(!dragId) return; const b=e.target.closest('.ment:not(.ment-edit)'); const from=dragId; dragId=null; clearDrag(); if(!b || b.dataset.id===from) return; e.preventDefault();
+    const a=items.find(x=>x.id===from), t=items.find(x=>x.id===b.dataset.id); if(!a || !t) return;
+    if(isFav(a)!==isFav(t)){ toast('즐겨찾기한 멘트는 즐겨찾기끼리, 나머지는 나머지끼리 순서를 바꿀 수 있습니다.', 3200); return; }
+    const old=items.slice(), i=items.indexOf(a), j=items.indexOf(t), next=items.filter(x=>x!==a); next.splice(next.indexOf(t)+(i<j?1:0), 0, a);   // 아래로 옮기면 그 멘트 뒤, 위로 옮기면 그 멘트 앞
+    items=next; const ok=await push(`「${a.title}」 순서를 바꿨습니다.`); if(!ok){ items=old; SY.writeJSON(CACHE_LS, items); render(); } });
+  $('#list').addEventListener('dragend', ()=>{ dragId=null; clearDrag(); });
   // 그림을 누르면 크게 (누르거나 Esc 로 닫기)
   $('#list').addEventListener('click', e=>{ const im=e.target.closest('.m-imgs.view img'); if(!im || !im.src) return; const z=document.createElement('div'); z.className='m-zoom'; z.innerHTML='<img alt="">'; z.firstChild.src=im.src; z.onclick=()=>z.remove(); document.body.appendChild(z); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelector('.m-zoom')?.remove(); });

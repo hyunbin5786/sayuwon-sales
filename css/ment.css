@@ -18,6 +18,12 @@
 .m-star{border:0;background:none;cursor:pointer;font-size:18px;line-height:1;color:#c9c3b5;padding:0 2px}
 .m-star:hover,.m-star.on{color:#d4a017}
 .ment.fav{border-color:#e8d36a;background:#fffdf2}
+.m-grip{cursor:grab;color:#b5af9f;font-size:16px;line-height:1;padding:0 2px;user-select:none}
+.m-grip:hover{color:var(--pine)}
+.m-grip:active{cursor:grabbing}
+.ment.dragging{opacity:.45}
+.ment.drop-on{outline:2px dashed var(--pine);outline-offset:2px}
+@media (max-width:700px){ .m-grip{display:none} }
 /* 이미지 (2026-11-18): 고치는 칸 · 카드의 작은 그림 + 이미지 복사 */
 .m-imgs{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}
 .m-img{position:relative;display:inline-flex;flex-direction:column;gap:4px;align-items:center}
