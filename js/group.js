@@ -687,11 +687,9 @@ document.addEventListener('input', e=>{
     itemChanged(false, !!was); }   // 담당 기본값은 수량을 처음 넣을 때만
   else if(el.dataset.iqa!=null){ const k=el.dataset.iqa, c=el.value.replace(/\D/g,''), was=itemQty(k); if(c!==el.value) el.value=c;   // 성인 인원 → 그 줄 인원 = 성인 + 학생 (2026-11-20)
     const a=parseInt(c)||0, s=itemStu(k); setItemQty(k, a+s ? String(a+s) : ''); itemChanged(false, !!was); }
-  else if(el.dataset.istu!=null){ const k=el.dataset.istu, c=el.value.replace(/\D/g,''), q=numOf(itemQty(k)); let n=parseInt(c)||0;   // 학생 인원: 그만큼 성인에서 빠짐 (합 = 그 줄 인원 그대로). 줄 인원이 없으면 학생만
-    if(!q && n) setItemQty(k, String(n)); else if(q && n>q){ n=q; toast(`학생은 그 줄 인원(${q}명)까지 넣을 수 있습니다. 더 많으면 성인 칸도 고쳐 주세요.`); }
-    el.value = n ? String(n) : (c ? '0' : ''); setItemStu(k, n);
-    const ai=el.closest('.it-q2')?.querySelector('[data-iqa]'); if(ai){ const t=numOf(itemQty(k)); ai.value = t ? String(t-n) : ''; }
-    itemChanged(false, true); }
+  else if(el.dataset.istu!=null){ const k=el.dataset.istu, c=el.value.replace(/\D/g,''); if(c!==el.value) el.value=c;   // 학생 인원: 친 그대로 (성인 칸은 건드리지 않음) · 그 줄 인원 = 성인 + 학생 (2026-11-20 · 맞지 않으면 칸을 나갈 때 팝업)
+    const n=parseInt(c)||0, ai=el.closest('.it-q2')?.querySelector('[data-iqa]'), a=parseInt((ai?.value||'').replace(/\D/g,''))||0;
+    setItemStu(k, n); setItemQty(k, a+n ? String(a+n) : ''); itemChanged(false, true); }
   else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); startTimer(); repaintSoon(); }   // 항목 비고 (치는 동안은 다시 그리지 않음)
   else if(el.dataset.is!=null){ const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); repaintSoon(); }   // 담당 이름 (치는 동안은 다시 그리지 않음)
   else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^tm[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
@@ -1399,8 +1397,8 @@ function fieldWarnings(r){
   { const n0=numOf(r.people), cA=v=>v ? (numOf(v)||n0) : 0, vs=viewsParse(r.views);
     const kindOf = s => { const it=catalogItems().find(x=>normSrc(x.src)===normSrc(daySrc(s, r))); return it ? it.kind : /\(관람,/.test(s) ? 'package' : 'view'; };
     const viewQ=vs.filter(x=>kindOf(x.src)!=='package').reduce((a,x)=>a+(+x.qty||0),0), pkgQ=vs.filter(x=>kindOf(x.src)==='package').reduce((a,x)=>a+(+x.qty||0),0)+cA(r.sadam1)+cA(r.sadam2)+cA(r.sadamD), area=viewQ+pkgQ+cA(r.haeorum);
-    if(n0 && area && area!==n0) w.push({field:'people', key:'pplArea', reason:`관람 인원은 ${n0}명인데 예약 내역의 관람 · 관람+식사 인원을 더하면 ${area}명입니다. 인원을 확인하세요.`});
-    const meal=cA(r.mabangL), base=n0||area; if(meal && base && meal+pkgQ!==base) w.push({field:'mabangL', key:'pplMeal', reason:`식사 인원(몽몽마방 ${meal}명${pkgQ?` + 관람+식사 ${pkgQ}명`:''} = ${meal+pkgQ}명)이 관람 인원 ${base}명과 다릅니다. 식사 인원을 확인하세요.`}); }
+    if(n0 && area && area!==n0) w.push({field:'people', blur:1, reason:`관람 인원은 ${n0}명인데 예약 내역의 관람 · 관람+식사 인원(성인 + 학생)을 더하면 ${area}명입니다. 인원을 확인하세요.`});
+    const meal=cA(r.mabangL), base=n0||area; if(meal && base && meal+pkgQ!==base) w.push({field:'mabangL', blur:1, reason:`식사 인원(몽몽마방 ${meal}명${pkgQ?` + 관람+식사 ${pkgQ}명`:''} = ${meal+pkgQ}명)이 관람 인원 ${base}명과 다릅니다. 식사 인원을 확인하세요.`}); }
   if(r.tout && !fmtTime(r.tout)) w.push({field:'tout', reason:'퇴장 시각을 24시간으로 적어 주세요 (예: 17:00).'});
   if(r.tin && r.tout && fmtTime(r.tin) && fmtTime(r.tout) && fmtTime(r.tout)<=fmtTime(r.tin)) w.push({field:'tout', reason:'퇴장 시각이 입장보다 빠릅니다. 24시간 표시인지 확인하세요 (오후 3시 = 15:00).'});
   if(r.date && r.tbdDate && r.tbdDate>r.date) w.push({field:'tbdDate', reason:'미정 항목 답변일이 방문일보다 늦습니다.'});
@@ -1418,14 +1416,17 @@ function fieldWarnings(r){
 
 // 이상한 값이 새로 생기면 (입력을 멈추고 1.2초 뒤) 바로 팝업. 한 번 보여 준 것은 이 예약을 여는 동안 다시 띄우지 않음
 let warnSeen=new Set(), warnT=null;
-const warnKey = w => w.field+'|'+(w.key||w.reason);   // 인원 맞추기처럼 숫자가 바뀌는 경고는 key 로 한 번만 (2026-11-20)
+const warnKey = w => w.field+'|'+w.reason;   // 인원 맞추기(blur)는 숫자가 바뀌면 다시 알림
+// 인원 칸(관람 인원 · 예약 내역의 성인 · 학생 · 수량)을 나갈 때: 관람 인원 ≠ 성인 + 학생 합 · 식사 인원이 안 맞으면 팝업. 같은 줄 성인 → 학생으로 옮길 때는 아직 안 띄움 (2026-11-20)
+document.addEventListener("focusout", e=>{ const el=e.target; if(!el || !(el.id==="f_people" || (el.closest?.("#itemsBox") && (el.dataset.iq!=null || el.dataset.iqa!=null || el.dataset.istu!=null)))) return;
+  setTimeout(()=>{ const a=document.activeElement, pair=el.closest(".it-q2"); if(pair && a && pair.contains(a)) return; checkWarn(true); }, 0); });
 function scheduleWarn(){ clearTimeout(warnT); warnT=setTimeout(checkWarn, 1200); }
-function checkWarn(){
+function checkWarn(onBlur){   // onBlur: 칸을 나갈 때 — 인원 맞추기(blur) 경고는 이때만 (치는 동안엔 안 띄움, 2026-11-20)
   if(!window.__autoReady || restoring) return;
-  const all=fieldWarnings(rec), cur=new Set(all.map(warnKey)); ['people|pplArea','mabangL|pplMeal'].forEach(k=>{ if(!cur.has(k)) warnSeen.delete(k); });   // 인원을 맞췄다가 다시 어긋나면 또 알림
+  const all=fieldWarnings(rec).filter(w=>!w.blur || onBlur);
   const fresh=all.filter(w=>!warnSeen.has(warnKey(w)));
   if(!fresh.length) return;
-  if([...document.querySelectorAll('.modal')].some(m=>!m.hidden)){ scheduleWarn(); return; }   // 다른 팝업이 떠 있으면 닫힌 뒤에
+  if([...document.querySelectorAll('.modal')].some(m=>!m.hidden)){ clearTimeout(warnT); warnT=setTimeout(()=>checkWarn(onBlur), 1200); return; }   // 다른 팝업이 떠 있으면 닫힌 뒤에
   fresh.forEach(w=>warnSeen.add(warnKey(w)));
   $('#warnList').innerHTML = fresh.map(w=>`<li><b>${esc(LABEL[w.field]||w.field)}</b>${rec[w.field]?` ${esc(rec[w.field])}`:''} · ${esc(w.reason)}</li>`).join('');
   $('#warnModal').hidden=false; setTimeout(()=>$('#warnOk').focus(),0);
