@@ -45,6 +45,7 @@ const FIELDS = [
   ['굿즈','idisc','항목 할인','','',null],   // 예약 내역 줄마다 할인 버튼 "sadam1=grp; v:(관람, …)=none" (시트 비고 칸 '항목 할인')
   ['굿즈','linkSent','결제링크 전송','','',null],   // 결제링크를 보낸 일시 (예약 내용의 「결제링크 전송」 버튼, 시트 비고 칸)
   ['굿즈','paidAt','입금 확인','','',null],   // 입금을 확인한 일시 (「입금 확인」 버튼)
+  ['굿즈','istu','항목 학생','','',null],   // 관람 · 관람+식사 줄마다 학생 인원 "sadam1=5; v:관람(09:00~18:00)=3" (나머지는 성인, 2026-11-20 · 시트 비고 칸 '항목 학생')
   ['굿즈','isp','항목 특별 할인','','',null],   // 줄마다 특별 할인 인원 · 기타 할인 "v:…=dKansong:2|0:10000|재방문 감사" (시트 비고 칸 '항목 특별 할인')
   ['굿즈','idamt','항목 할인액','','',null],   // 할인액을 직접 고친 줄 "sadam1=200000:125000" (과세(신라):비과세(사유원), 시트 비고 칸 '항목 할인액')
 ];
@@ -376,6 +377,7 @@ const tmTimes = k => { const p=String(rec['tm_'+k]||'').split('~'); return [p[0]
 const progHours = k => /^seminar2?$/.test(k) ? 0.5 : itemUnit(k)==='시간' ? Math.max(1, numOf(itemQty(k))||1) : 1;   // 끝 = 시작 + 1시간 (시간 프로그램은 예약한 시간만큼 · 세미나 도슨트는 30분, 2026-11-18)
 function clearItem(k){ const t=itemKind(k);
   if(ispOf(k)) setItemSp(k, null);   // 그 줄의 특별 할인 · 기타 할인도
+  if(canStu(k) && itemStu(k)) setItemStu(k, 0);   // 그 줄의 학생 인원도
   if(itemNote(k)) setItemNote(k, '');
   if(k==='seminar' && itemNote('seminar2')) setItemNote('seminar2', '');   // 두 번째 세미나 비고도
   if(t==='view') return;   // 관람 줄은 관람 인원 칸으로만
@@ -433,7 +435,7 @@ function itemRowHTML(k, rows){
                 + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:seminar2" data-tp="1" readonly title="두 번째 세미나 도슨트 끝나는 시각" value="${esc(e2)}"></label>`
                 + `<label class="it-xl">장소 <select class="it-x" data-ix="plc_seminar2" title="두 번째 세미나 도슨트 장소">${pv?'':'<option value="" selected>선택</option>'}${[...PLC_OPTS, ...(pv && !PLC_OPTS.includes(pv) ? [pv] : [])].map(x=>`<option${pv===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`
                 + `<input class="it-x it-note" data-inote="seminar2" data-ime="ko" placeholder="비고" value="${esc(itemNote('seminar2'))}"></div>`; })() : ''); })()
-    : note;
+    : (canStu(k) ? `<label class="it-xl it-stu" title="학생 인원 (나머지는 성인 · 기본은 모두 성인). 학생은 품목 관리의 학생 관람 가격 (관람+식사는 관람 부분만)">학생 <input class="it-x" data-istu="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="0" value="${itemStu(k)||''}">명</label>` : '') + note;
   return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}<span class="it-p" data-iup="${esc(k)}"></span>`
     + `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`
     + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="굿즈 담당 (기본 = 영업 담당 · 고칠 수 있음 · 굿즈 모두 같은 담당)"></span>`
@@ -675,6 +677,7 @@ document.addEventListener('input', e=>{
     if(k==='seminar' && (numOf(was)>=2)!==(numOf(el.value)>=2)){ itemChanged(true, !!was); const q=document.querySelector('#itemsBox [data-iq="seminar"]'); if(q){ q.focus(); const n=q.value.length; try{ q.setSelectionRange(n,n); }catch(_){} } if(numOf(el.value)>=2) openSemGuide(); return; }   // 세미나 도슨트 수량 2 ↔ 1: 두 번째 시작 · 끝 · 장소 · 비고 줄을 넣고 빼기
     if(itemKind(k)==='prog' && itemUnit(k)==='시간' && numOf(el.value) && numOf(el.value)!==numOf(was)){ const [s]=tmTimes(k); if(s && fmtTime(s)){ const en=plusH(s, progHours(k)); rec['tm_'+k]=`${s}~${en}`; touched.add('tm_'+k); const b=el.closest('.it-row')?.querySelector(`[data-ix="tmE:${CSS.escape(k)}"]`); if(b) b.value=en; paintTmMissing(); } }   // 시간 프로그램(대관 등): 수량(시간)을 바꾸면 끝 = 시작 + 그 시간 (2026-11-18)
     itemChanged(false, !!was); }   // 담당 기본값은 수량을 처음 넣을 때만
+  else if(el.dataset.istu!=null){ const k=el.dataset.istu, c=el.value.replace(/\D/g,''), q=numOf(itemQty(k)); let n=parseInt(c)||0; if(q && n>q){ n=q; toast(`학생은 그 줄 인원(${q}명)까지 넣을 수 있습니다.`); } el.value = n ? String(n) : (c ? '0' : ''); setItemStu(k, n); itemChanged(false, true); }   // 학생 인원 (2026-11-20)
   else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); startTimer(); repaintSoon(); }   // 항목 비고 (치는 동안은 다시 그리지 않음)
   else if(el.dataset.is!=null){ const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); repaintSoon(); }   // 담당 이름 (치는 동안은 다시 그리지 않음)
   else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^tm[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
@@ -1378,6 +1381,12 @@ function fieldWarnings(r){
   const w=[];
   if(r.date){ const d=new Date(r.date+'T00:00'), t=new Date(); t.setHours(0,0,0,0); if(d<t) w.push({field:'date', reason:'지난 날짜입니다. 방문일을 다시 확인하세요.'}); }
   if(r.tin && !fmtTime(r.tin)) w.push({field:'tin', reason:'입장 시각을 24시간으로 적어 주세요 (예: 13:30).'});
+  // 인원 맞추기 (2026-11-20): 관람 인원 = 예약 내역의 관람 · 관람+식사 인원 합 · 식사를 따로 예약했으면 (식사 + 관람+식사) = 관람 인원. 관람 · 식사 · 관람+식사 구분은 품목 관리 기준
+  { const n0=numOf(r.people), cA=v=>v ? (numOf(v)||n0) : 0, vs=viewsParse(r.views);
+    const kindOf = s => { const it=catalogItems().find(x=>normSrc(x.src)===normSrc(daySrc(s, r))); return it ? it.kind : /\(관람,/.test(s) ? 'package' : 'view'; };
+    const viewQ=vs.filter(x=>kindOf(x.src)!=='package').reduce((a,x)=>a+(+x.qty||0),0), pkgQ=vs.filter(x=>kindOf(x.src)==='package').reduce((a,x)=>a+(+x.qty||0),0)+cA(r.sadam1)+cA(r.sadam2)+cA(r.sadamD), area=viewQ+pkgQ+cA(r.haeorum);
+    if(n0 && area && area!==n0) w.push({field:'people', key:'pplArea', reason:`관람 인원은 ${n0}명인데 예약 내역의 관람 · 관람+식사 인원을 더하면 ${area}명입니다. 인원을 확인하세요.`});
+    const meal=cA(r.mabangL), base=n0||area; if(meal && base && meal+pkgQ!==base) w.push({field:'mabangL', key:'pplMeal', reason:`식사 인원(몽몽마방 ${meal}명${pkgQ?` + 관람+식사 ${pkgQ}명`:''} = ${meal+pkgQ}명)이 관람 인원 ${base}명과 다릅니다. 식사 인원을 확인하세요.`}); }
   if(r.tout && !fmtTime(r.tout)) w.push({field:'tout', reason:'퇴장 시각을 24시간으로 적어 주세요 (예: 17:00).'});
   if(r.tin && r.tout && fmtTime(r.tin) && fmtTime(r.tout) && fmtTime(r.tout)<=fmtTime(r.tin)) w.push({field:'tout', reason:'퇴장 시각이 입장보다 빠릅니다. 24시간 표시인지 확인하세요 (오후 3시 = 15:00).'});
   if(r.date && r.tbdDate && r.tbdDate>r.date) w.push({field:'tbdDate', reason:'미정 항목 답변일이 방문일보다 늦습니다.'});
@@ -1395,11 +1404,12 @@ function fieldWarnings(r){
 
 // 이상한 값이 새로 생기면 (입력을 멈추고 1.2초 뒤) 바로 팝업. 한 번 보여 준 것은 이 예약을 여는 동안 다시 띄우지 않음
 let warnSeen=new Set(), warnT=null;
-const warnKey = w => w.field+'|'+w.reason;
+const warnKey = w => w.field+'|'+(w.key||w.reason);   // 인원 맞추기처럼 숫자가 바뀌는 경고는 key 로 한 번만 (2026-11-20)
 function scheduleWarn(){ clearTimeout(warnT); warnT=setTimeout(checkWarn, 1200); }
 function checkWarn(){
   if(!window.__autoReady || restoring) return;
-  const fresh=fieldWarnings(rec).filter(w=>!warnSeen.has(warnKey(w)));
+  const all=fieldWarnings(rec), cur=new Set(all.map(warnKey)); ['people|pplArea','mabangL|pplMeal'].forEach(k=>{ if(!cur.has(k)) warnSeen.delete(k); });   // 인원을 맞췄다가 다시 어긋나면 또 알림
+  const fresh=all.filter(w=>!warnSeen.has(warnKey(w)));
   if(!fresh.length) return;
   if([...document.querySelectorAll('.modal')].some(m=>!m.hidden)){ scheduleWarn(); return; }   // 다른 팝업이 떠 있으면 닫힌 뒤에
   fresh.forEach(w=>warnSeen.add(warnKey(w)));
@@ -1857,7 +1867,7 @@ function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문�
   });
   if(r.pay==='현장 결제' || r.onsite) items.push('현장결제');
   { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy' && s.k!=='dGuide'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인`)); if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
-  { const st=viewsParse(r.views).filter(x=>/학생/.test(x.src)).reduce((a,x)=>a+(+x.qty||0),0); if(st) items.push(`학생 ${st}명 확인 필요`); }
+  { const st=viewsParse(r.views).filter(x=>/학생/.test(x.src)).reduce((a,x)=>a+(+x.qty||0),0) + Object.values(istuMap(r)).reduce((a,n)=>a+n,0); if(st) items.push(`학생 ${st}명 확인 필요`); }
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';
   const arrive = r.tin ? `${erpShortT(r.tin)} ${gate || '입장'}` : '';   // 입장문을 아직 안 정했으면 「9시 입장」 · 입장 시간이 미정이면 도착은 안 씀 (2026-11-19)
   // 시간이 적힌 프로그램이 있으면 도착부터 시간 순 (13시 곡신문 / 13:30 동행도슨트 / 15:00 세미나도슨트), 없으면 맨 뒤에 도착 (런치1부 / 현장결제 / 10:30 곡신문)
@@ -1978,7 +1988,7 @@ function erpBaseUp(b, T){ if(!b || b.v===5) return b;
   const s={...snap()}; for(let j=hist.length-1;j>=0;j--){ const h=hist[j]; if(!h || !(String(h.t||'')>T)) break; Object.entries(h.ch||{}).forEach(([k,c])=>{ if(Array.isArray(c)) s[k]=c[0]||''; }); }
   return {v:5, s:contentSnap(s)}; }
 // 예약 내역(품목 · 인원 · 할인)이 전산에 올린 때와 다른지 (2026-11-19): 다르면 「전산 예약 수정」을 끝낼 때 전산 내역을 다시 붙여넣음, 아니면 체크만
-const ERP_ITEM_KEY = k => ['people','views','viewN','viewSrc','sadam1','sadam2','sadamD','mabangL','mabangD','mabangMenu','goods','idisc','isp','idamt','etcDisc','etcDiscTo','etcDiscTx','etcDiscTf'].includes(k) || PROG_KEYS().includes(k) || SPECIAL.some(s=>s.k===k);
+const ERP_ITEM_KEY = k => ['people','istu','views','viewN','viewSrc','sadam1','sadam2','sadamD','mabangL','mabangD','mabangMenu','goods','idisc','isp','idamt','etcDisc','etcDiscTo','etcDiscTx','etcDiscTf'].includes(k) || PROG_KEYS().includes(k) || SPECIAL.some(s=>s.k===k);
 function erpItemsChanged(){ const e0=tasks.find(t=>t.id==='erp'); if(!e0 || !e0.base || e0.base.v!==5) return true;
   const a=e0.base.s||{}, b=contentSnap(snap()); return [...new Set([...Object.keys(a), ...Object.keys(b)])].some(k=>ERP_ITEM_KEY(k) && (a[k]||'')!==(b[k]||'')); }
 const erpDiff = (a,b) => { if(!a || a.v!==5 || !a.s) return [];
@@ -2478,11 +2488,25 @@ function specialCounts(r){ return SPECIAL.map(s=>({...s, n: Math.max(0, parseInt
 const discPct = name => (/관람/.test(name) && !/\(관람,/.test(name)) || /사담\s*런치/.test(name);
 function blockAmount(b, price){
   if(price==null) return null;
+  // 학생(b.stu명)은 1인 가격이 b.stuDiff 만큼 낮음 (품목 관리의 학생 관람 가격) — 앞에서부터 성인, 뒤가 학생으로 셈 (2026-11-20)
+  const ns=Math.min(b.stu||0, b.qty), na=b.qty-ns, sd=b.stuDiff||0; let pos=0;
+  const val=(c, pct)=>{ const aC=Math.max(0, Math.min(c, na-pos)); pos+=c; return (aC*price + (c-aC)*(price-sd))*(1-pct/100); };
   let left=b.qty, sum=0; const parts=[];
-  (b.notes||[]).forEach(nt=>{ const m=nt.match(/(\d+)\s*명\s+(\d+)%/); if(!m) return; const c=Math.min(+m[1],left), p=+m[2]; left-=c; sum+=c*price*(1-p/100); parts.push(`${p}% ${c}명`); });
-  sum+=left*price;
+  (b.notes||[]).forEach(nt=>{ const m=nt.match(/(\d+)\s*명\s+(\d+)%/); if(!m) return; const c=Math.min(+m[1],left), p=+m[2]; left-=c; sum+=val(c, p); parts.push(`${p}% ${c}명`); });
+  sum+=val(left, 0);
   return { amount: Math.round(sum), disc: parts.join(' · ') };
 }
+// ===== 학생 (2026-11-20): 관람 · 관람+식사 줄은 모두 성인이 기본, 줄마다 「학생」 인원을 넣으면 그만큼 학생 가격 =====
+// rec.istu = "sadam1=5; v:관람(09:00~18:00)=3" (줄 key = 할인 버튼과 같은 dkey) · 학생 가격 = 품목 관리의 「○○ 관람(학생)(시간대)」 · 관람+식사는 관람 부분만 학생 가격 (견적서와 같음)
+const istuMap = r => Object.fromEntries(String((r&&r.istu)||'').split(/\s*;\s*/).map(s=>{ const i=s.lastIndexOf('='); return i>0 ? [s.slice(0,i).trim(), Math.max(0, parseInt(s.slice(i+1))||0)] : null; }).filter(x=>x && x[1]>0));
+const canStu = k => itemKind(k)==='sadam' || (itemKind(k)==='varea' && !/학생/.test(k) && !/해오름/.test(k));
+const itemStu = k => istuMap(rec)[dkey(k)] || 0;
+function setItemStu(k, n){ const m=istuMap(rec), kk=dkey(k); n=Math.max(0, parseInt(n)||0); if(n) m[kk]=n; else delete m[kk]; const s=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); if(s!==String(rec.istu||'')){ rec.istu=s; touched.add('istu'); } }
+function stuDiffOf(src, r){   // 학생 1명당 낮아지는 금액 (성인 관람 − 학생 관람). 학생 품목이 품목 관리에 없으면 0
+  const base = /\(관람,/.test(src) ? viewSrcOf(r||rec) : src; if(!base || /학생/.test(base)) return 0;
+  const day = /^주말|공휴일/.test(base) ? '주말/공휴일' : '평일', tm=(String(base).match(/\(\d\d:00~\d\d:00\)/)||['(09:00~18:00)'])[0];
+  const sp = priceOf(`${day} 관람(학생)${tm}`) ?? priceOf(`${day} 관람(학생)(09:00~18:00)`), ap=priceOf(base);
+  return sp!=null && ap!=null && ap>sp ? ap-sp : 0; }
 // 1인 가격을 과세(신라) · 비과세(사유원)로: 품목 관리의 과세 · 비과세(비율) → 관람+식사는 그날 관람권 가격만큼 비과세 → 관람권은 모두 비과세 → 그 밖은 모두 과세
 function splitOf(src, price, r){
   const tax=taxOf(src); if(tax){ const tf=Math.round(price*tax.tf/(tax.tx+tax.tf)); return {tx:price-tf, tf}; }
@@ -2493,7 +2517,8 @@ function splitOf(src, price, r){
 // 줄 금액 (실제 결제 금액): 정상가 · 할인(과세 · 비과세 따로, 할인액을 직접 고쳤으면 그 값) · 결제 금액(과세 · 비과세)
 function blockMoney(b, r){
   const p = b.price ?? priceOf(b.product), a = blockAmount(b, p); if(!a) return null;
-  const u = b.price!=null ? {tx:p, tf:0} : splitOf(b.product, p, r), full=p*b.qty, fTx=u.tx*b.qty, fTf=u.tf*b.qty;
+  const sdT = Math.min(b.stu||0, b.qty)*(b.stuDiff||0);   // 학생 몫만큼 낮아지는 금액 (관람 부분 = 비과세(사유원))
+  const u = b.price!=null ? {tx:p, tf:0} : splitOf(b.product, p, r), full=p*b.qty-sdT, fTf=Math.max(0, u.tf*b.qty-sdT), fTx=full-fTf;
   const d=full-a.amount, aTf = full ? Math.round(d*fTf/full) : 0, aTx=d-aTf;   // 할인 버튼(%)으로 계산한 할인을 과세 · 비과세 비율로
   const ov=idamtMap(r||rec)[dkey(b.key||'')];
   const dTx = ov ? Math.min(ov.tx, fTx) : aTx, dTf = ov ? Math.min(ov.tf, fTf) : aTf;
@@ -2836,7 +2861,9 @@ function quoteBlocks(r){
   const cnt = v => v ? (numOf(v) || n) : 0;   // 'O' 처럼 숫자가 없으면 전체 인원
   const mbM = mbMenuOf(r);   // 몽몽마방은 단체도 관람과 따로: 관람권 + 고른 메뉴 품목 (사유의 밥상이면 사유의 밥상(단체))
   const blocks=[], skipped=[];
-  const add=(product, qty, disc, key)=>{ if(qty>0) blocks.push({product, qty, disc, key}); };   // key = 예약 내역 줄 (할인 버튼)
+  const add=(product, qty, disc, key)=>{ if(!(qty>0)) return; const b={product, qty, disc, key};   // key = 예약 내역 줄 (할인 버튼)
+    const ns = key && canStu(key) ? Math.min(qty, istuMap(r)[dkey(key)]||0) : 0, sd = ns ? stuDiffOf(product, r) : 0; if(ns && sd){ b.stu=ns; b.stuDiff=sd; }   // 학생 인원 (2026-11-20)
+    blocks.push(b); };
   // 관람 자동 줄 없음 (2026-11-14): 관람권도 예약 내역에서 직접 고른 것만 계산
   // 관람 + 사담(런치 1부 · 2부 · 디너)은 모두 사전예약 5% · 단체예약 10% 할인 대상 (2026-11-20 디너도 · 견적서 품목과 같음). 품목 관리에서 할인 대상을 끄면 그대로 따름
   const sdDisc = s => { const it=catalogItems().find(x=>normSrc(x.src)===normSrc(s)); return it ? !!it.disc : true; };
@@ -2872,7 +2899,7 @@ function quoteBlocks(r){
 }
 function quoteRaw(r, blocks){
   const d = r.date.replace(/-/g,'.');
-  return blocks.map(b=>[`방문일자(순번)\t${d} (0)`, `상품정보\t${b.product}`, `방문자정보\t${r.org||''}`, `예약인원\t${b.qty}명`, ...b.notes].join('\n')).join('\n\n');
+  return blocks.map(b=>[`방문일자(순번)\t${d} (0)`, `상품정보\t${b.product}`, `방문자정보\t${r.org||''}`, `예약인원\t${b.qty}명${b.stu ? `(어른 : ${b.qty-b.stu}명,학생 : ${b.stu}명)` : ''}`, ...b.notes].join('\n')).join('\n\n');
 }
 // 관람 인원이 바뀌었는데 예약 내역의 관람 줄은 그대로일 때 (2026-11-19): 시간대 관람권 줄(9~18 · 13~18) 인원을 「관람 인원 − 다른 관람 영역」에 맞춤
 //  관람 인원을 고칠 때 · 견적서 · 거래명세서 · 사전답사를 누를 때. 줄이 없거나 맞추면 0명 이하가 되면 그대로

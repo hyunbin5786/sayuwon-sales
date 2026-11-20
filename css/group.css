@@ -588,6 +588,7 @@ html.book-guest #bookBody tr{cursor:default}
 .it-extra .it-xl{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap}
 .it-extra .it-xl .it-x{min-width:0;width:70px}
 .it-extra .it-xl select.it-x{width:auto;min-width:80px}
+.it-extra .it-stu .it-x{width:46px;text-align:right}   /* 학생 인원 (2026-11-20) */
 .it-extra .it-xl.tbd select{background:#fff6d6;border-color:#e2c46a}
 /* 품목마다 특별 할인: 줄의 「특별할인」 버튼 · 팝업 */
 .it-extra .spbtn{height:30px;border:1px solid #b9b5ab;background:#e6e4de;border-radius:6px;padding:0 12px;font:600 12.5px var(--sans);color:#3d3b36;cursor:pointer;white-space:nowrap}   /* 회색 버튼 (눈에 띄게) */
