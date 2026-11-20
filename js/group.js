@@ -2074,7 +2074,7 @@ $('#taskList').addEventListener('change', e=>{
   const up=e.target.dataset.tup;
   if(up){ const t=tasks.find(x=>x.id===up), f=e.target.files[0]; if(t && f) uploadFile(t, f); return; }
   const id=e.target.dataset.tk; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return;
-  if(id==='erpcheck'){ e.target.checked=!!t.done; toast('전산 내역을 붙여 넣어 예약 내용과 총 금액 · 할인이 같으면 저절로 완료됩니다.'); if(!erpList.length) $('#erpPasteBtn')?.click(); return; }   // 직접 체크하지 않음
+  if(id==='erpcheck'){ e.target.checked=!!t.done; $('#erpPasteBtn')?.click(); return; }   // 체크 = 전산 내역 붙여넣는 칸을 엶 (맞으면 저절로 완료, 2026-11-20)
   if((id==='erp' || (id==='erpfix' && erpItemsChanged())) && e.target.checked){ e.target.checked=false; askErpForTask(id); return; }   // 전산 예약 완료 = 전산 내역을 붙여넣어 예약 내용과 맞는지 확인한 뒤 · 전산 예약 수정은 예약 내역(품목 · 인원 · 할인)이 바뀐 때만 (2026-11-19, 그 밖엔 체크만)
   if(id==='paycheck' && e.target.checked && !rec.linkSent){ e.target.checked=false; toast('결제링크 전송을 먼저 체크해 주세요. (결제링크를 보내기 전에는 입금 확인을 할 수 없습니다)'); return; }   // 결제링크 전송 전에는 입금 확인 불가
   if(id==='linksend' && !e.target.checked && rec.paidAt){ if(!confirm('결제링크 전송을 해제하면 입금 확인도 함께 해제됩니다. 계속할까요?')){ e.target.checked=true; return; } rec.paidAt=''; touched.add('paidAt'); const pc=tasks.find(x=>x.id==='paycheck'); if(pc){ pc.done=false; pc.doneAt=''; delete pc.manualDone; } }   // 결제링크를 다시 보낼 때: 입금 확인도 함께 해제
@@ -3317,8 +3317,8 @@ function todayDueHTML(){
       + `<input class="etc-subadd" data-etcsubadd="${esc(o.r.id)}" data-ime="ko" placeholder="＋ 세부 과업 (적고 Enter)" autocomplete="off"></div></li>`); });
   return `<h3 class="my-h sub">오늘 마감 <small>${rows.length}개</small></h3>` + (rows.length ? `<ul class="pc-list today-due">${rows.join('')}</ul>` : '<p class="hint">오늘 마감인 과업이 없습니다.</p>');
 }
-const myCk = (o, t) => !o.personal && SELF_DONE.has(t.id) ? `<label class="my-ck self" title="예약을 열어 처리하면 완료됩니다 (체크하면 그 예약을 엶)"><input type="checkbox" data-myopenck="1"></label>` : `<label class="my-ck" title="체크하면 완료"><input type="checkbox" data-myck="${o.personal?'p':'g'}|${esc(o.r.id)}|${esc(t.id)}"></label>`;   // 전산 예약 · 전산 내역 대조 · 담당 입력처럼 예약에서 끝나는 과업도 체크 칸 (체크하면 그 예약을 엶, 2026-11-19)
-document.addEventListener('change', e=>{ if(!(e.target.dataset && e.target.dataset.myopenck)) return; e.target.checked=false; toast('이 과업은 예약을 열어 처리하면 완료됩니다 (전산 내역 붙여넣기 · 칸 채우기).', 3200); e.target.closest('li')?.querySelector('.who')?.click(); });
+const myCk = (o, t) => !o.personal && SELF_DONE.has(t.id) ? `<label class="my-ck self" title="예약을 열어 처리하면 완료됩니다 (체크하면 그 예약을 엶)"><input type="checkbox" data-myopenck="${esc(t.id)}"></label>` : `<label class="my-ck" title="체크하면 완료"><input type="checkbox" data-myck="${o.personal?'p':'g'}|${esc(o.r.id)}|${esc(t.id)}"></label>`;   // 전산 예약 · 전산 내역 대조 · 담당 입력처럼 예약에서 끝나는 과업도 체크 칸 (체크하면 그 예약을 엶, 2026-11-19)
+document.addEventListener('change', e=>{ if(!(e.target.dataset && e.target.dataset.myopenck)) return; e.target.checked=false; if(e.target.dataset.myopenck==='erpcheck') erpAfterOpen=e.target.closest('[data-myopen]')?.dataset.myopen||''; else toast('이 과업은 예약을 열어 처리하면 완료됩니다 (전산 내역 붙여넣기 · 칸 채우기).', 3200); e.target.closest('li')?.querySelector('.who')?.click(); });
 // 오늘 완료한 과업 (메인 1열 오늘 마감 아래): 체크를 풀면 다시 열림 — 마감이 지났으면 마감 = 오늘 (2026-11-19)
 function doneTodayHTML(){
   const today=ymd(new Date()), me=savedOwner(), isToday = s => { const x=new Date(s||''); return !isNaN(x) && ymd(x)===today; }, rows=[];
@@ -3427,7 +3427,10 @@ function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueC
 function openMy(fromGroup){ myTab='main'; $('#myModal').hidden=false; renderMy();   // 나의 할일 버튼은 어디서든 메인부터 (2026-11-19)
   if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
 // group.html?open=예약ID → 그 예약을 엶 (팝업 나의 할일에서 단체 줄을 누른 경우 · 목록을 받은 뒤)
-let openGId = new URLSearchParams(location.search).get('open');
+let openGId = new URLSearchParams(location.search).get('open'), openGErp = new URLSearchParams(location.search).get('erp')==='1';
+// 나의 할일에서 「전산 내역 대조」를 체크하면: 그 예약을 열고 전산 내역 붙여넣는 칸까지 (2026-11-20)
+let erpAfterOpen='';
+function erpPasteAfter(id){ if(erpAfterOpen!==id) return; erpAfterOpen=''; setTimeout(()=>{ if(editingId===id) $('#erpPasteBtn').click(); }, 400); }
 // &hl=people,tin… : 다음날 고객 응대 준비에서 바꾼 칸 → 열고 나서 노랗게 표시 · 그 칸으로 스크롤 (2026-11-19)
 const openHl = (new URLSearchParams(location.search).get('hl')||'').split(',').filter(Boolean);
 function showHl(){ if(!openHl.length) return; let first=null;
@@ -3436,7 +3439,7 @@ function showHl(){ if(!openHl.length) return; let first=null;
   const names={org:'업체', people:'관람 인원', tin:'입장시각', vehicle:'차량', phone:'연락처', gate:'입장문'};
   if(typeof toast==='function') toast(`다음날 고객 응대 준비에서 바꾼 칸: ${openHl.map(k=>names[k]||k).join(' · ')}`);
   setTimeout(()=>document.querySelectorAll('.hl-prep, .hl-prep-in').forEach(x=>x.classList.remove('hl-prep','hl-prep-in')), 12000); }
-async function tryOpenG(){ if(!openGId) return; const list = await store.list(); const r=(list||[]).find(x=>x.id===openGId); if(!r) return; openGId=null; history.replaceState(null,'','group.html'); openRecordG(r); setTimeout(showHl, 900); }
+async function tryOpenG(){ if(!openGId) return; const list = await store.list(); const r=(list||[]).find(x=>x.id===openGId); if(!r) return; openGId=null; history.replaceState(null,'','group.html'); openRecordG(r); if(openGErp){ openGErp=false; erpAfterOpen=r.id; erpPasteAfter(r.id); } setTimeout(showHl, 900); }
 setTimeout(tryOpenG, 400);
 const MY_EMBED = MY_ONLY && window.parent!==window;   // 다른 화면이 팝업으로 띄운 나의 할일
 function closeMy(){ if(MY_EMBED){ window.parent.postMessage({type:'sy-my', ev:'close'}, '*'); return; } if(MY_ONLY && document.documentElement.classList.contains('my-only')){ location.href='./'; return; } $('#myModal').hidden=true; }   // 팝업 = 바깥 화면이 닫음, 단독 페이지 = 메뉴로
@@ -3449,10 +3452,10 @@ $('#myCloseBtn').onclick=closeMy;
 $('#myPast').onchange=renderMy;
 $('#myModal').addEventListener('mousedown', e=>{ if(e.target.id==='myModal' && !MY_ONLY) closeMy(); });
 $('#myBody').addEventListener('click', e=>{ if(e.target.closest('.my-ck, .etc-subadd, .etc-subck, [data-etcdone]')) return; const pe=e.target.closest('[data-popen]');
-  if(MY_EMBED){ const ge=e.target.closest('[data-myopen]'); if(pe||ge) window.parent.postMessage({type:'sy-my', ev:'go', url: pe ? 'personal.html?open='+encodeURIComponent(pe.dataset.popen) : 'group.html?open='+encodeURIComponent(ge.dataset.myopen)}, '*'); return; }   // 팝업 안: 바깥 화면이 그 화면으로 이동
+  if(MY_EMBED){ const ge=e.target.closest('[data-myopen]'); if(pe||ge) window.parent.postMessage({type:'sy-my', ev:'go', url: pe ? 'personal.html?open='+encodeURIComponent(pe.dataset.popen) : 'group.html?open='+encodeURIComponent(ge.dataset.myopen)+(erpAfterOpen===ge.dataset.myopen?'&erp=1':'')}, '*'); erpAfterOpen=''; return; }   // 팝업 안: 바깥 화면이 그 화면으로 이동
   if(pe){ guardLeave(()=>{ location.href='personal.html?open='+encodeURIComponent(pe.dataset.popen); }); return; } const el=e.target.closest('[data-myopen]'); if(!el) return; const r=cache.find(x=>x.id===el.dataset.myopen); if(!r) return;
-  if(MY_ONLY){ document.documentElement.classList.remove('my-only'); history.replaceState(null,'','group.html'); document.title='단체고객 전화응대 · 사유원 운영 보조 시스템'; $('#crumb').textContent='단체고객 전화응대'; $('#myModal').hidden=true; openRecordG(r); return; }   // 단체 줄 → 단체 화면으로 바뀌며 그 예약을 엶
-  closeMy(); openRecordG(r); });
+  if(MY_ONLY){ document.documentElement.classList.remove('my-only'); history.replaceState(null,'','group.html'); document.title='단체고객 전화응대 · 사유원 운영 보조 시스템'; $('#crumb').textContent='단체고객 전화응대'; $('#myModal').hidden=true; openRecordG(r); erpPasteAfter(r.id); return; }   // 단체 줄 → 단체 화면으로 바뀌며 그 예약을 엶
+  closeMy(); openRecordG(r); erpPasteAfter(r.id); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#myModal').hidden){ e.preventDefault(); closeMy(); } });
 
 // ===================== 남이 담당인 예약: 잠금 + 담당자에게 메모 =====================
