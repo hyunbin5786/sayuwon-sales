@@ -3398,12 +3398,15 @@ function todayDueHTML(){
 const myCk = (o, t) => !o.personal && SELF_DONE.has(t.id) ? `<label class="my-ck self" title="예약을 열어 처리하면 완료됩니다 (체크하면 그 예약을 엶)"><input type="checkbox" data-myopenck="${esc(t.id)}"></label>` : `<label class="my-ck" title="체크하면 완료"><input type="checkbox" data-myck="${o.personal?'p':'g'}|${esc(o.r.id)}|${esc(t.id)}"></label>`;   // 전산 예약 · 전산 내역 대조 · 담당 입력처럼 예약에서 끝나는 과업도 체크 칸 (체크하면 그 예약을 엶, 2026-11-19)
 document.addEventListener('change', e=>{ if(!(e.target.dataset && e.target.dataset.myopenck)) return; e.target.checked=false; if(e.target.dataset.myopenck==='erpcheck') erpAfterOpen=e.target.closest('[data-myopen]')?.dataset.myopen||''; else toast('이 과업은 예약을 열어 처리하면 완료됩니다 (전산 내역 붙여넣기 · 칸 채우기).', 3200); e.target.closest('li')?.querySelector('.who')?.click(); });
 // 오늘 완료한 과업 (메인 1열 오늘 마감 아래): 체크를 풀면 다시 열림 — 마감이 지났으면 마감 = 오늘 (2026-11-19)
+// 편 · 접은 상태는 직접 누를 때만 바뀜 (화면을 새로 그려도 · 새로 고쳐도 그대로, 2026-11-20)
+const DONE_TODAY_LS='sy_done_today_open';
+const doneTodayOpen = () => { try{ return localStorage.getItem(DONE_TODAY_LS)==='1'; }catch(_){ return false; } };
 function doneTodayHTML(){
   const today=ymd(new Date()), me=savedOwner(), isToday = s => { const x=new Date(s||''); return !isNaN(x) && ymd(x)===today; }, rows=[];
   (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).tasks.filter(t=>t.done && !t.removed && !SELF_DONE.has(t.id) && isToday(t.doneAt)).forEach(t=>rows.push(`<li class="r my-tg done" data-myopen="${esc(r.id)}"><span class="who"><span class="my-task"><label class="my-ck" title="체크를 풀면 다시 열림 (마감 = 오늘)"><input type="checkbox" checked data-myunck="g|${esc(r.id)}|${esc(t.id)}"></label> <span class="tag">단체</span> <b>${esc(r.org||r.contact||'(업체 미정)')}</b> · <s>${esc(t.title)}</s></span></span></li>`)));
   (cache||[]).filter(r=>isPersonalRec(r) && (r.owner||r.takenBy)===me).forEach(r=>{ let ts=[]; try{ ts=(JSON.parse(r.history||'{}').tasks)||[]; }catch(_){} ts.filter(t=>t.done && isToday(t.doneAt)).forEach(t=>rows.push(`<li class="r my-tg done" data-popen="${esc(r.id)}"><span class="who"><span class="my-task"><label class="my-ck" title="체크를 풀면 다시 열림 (마감 = 오늘)"><input type="checkbox" checked data-myunck="p|${esc(r.id)}|${esc(t.id)}"></label> <span class="tag">개인</span> <b>${esc(r.contact||'(이름 없음)')}</b> · <s>${esc(t.title)}</s></span></span></li>`)); });
   etcMine().forEach(o=>Object.entries(o.d.done||{}).filter(([,v])=>isToday(v&&v.at)).forEach(([day])=>rows.push(`<li class="my-etc done"><span class="who"><span class="my-task"><label class="my-ck" title="체크를 풀면 완료 취소"><input type="checkbox" checked data-etcundo="${esc(o.r.id)}|${day}"></label> <span class="tag">${esc(catLabel(etcCatOf(o.d))||ETC_NOCAT)}</span> <s>${esc(o.d.title)}</s></span></span></li>`)));
-  return rows.length ? `<details class="etc-more done-today"><summary>오늘 완료한 과업 ${rows.length}개 (체크를 풀면 다시 열림)</summary><ul class="pc-list">${rows.join('')}</ul></details>` : '';
+  return rows.length ? `<details class="etc-more done-today"${doneTodayOpen()?' open':''} data-etcfold="today"><summary>오늘 완료한 과업 ${rows.length}개 (체크를 풀면 다시 열림)</summary><ul class="pc-list">${rows.join('')}</ul></details>` : '';
 }
 document.addEventListener('change', async e=>{ const v=e.target.dataset && e.target.dataset.myunck; if(!v || e.target.checked) return; const [kind,id,tid]=v.split('|'), today=todayYmd(), now=new Date().toISOString(); e.target.disabled=true;
   const reopen = t => { t.done=false; t.doneAt=''; delete t.manualDone; delete t.doneBy; if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=false); (t.xsubs||[]).forEach(x=>x.done=false); if((t.due||'')<today){ t.due=today; t.dueSet=1; t.dueSetAt=now; } };
@@ -3949,7 +3952,7 @@ document.addEventListener('change', e=>{
   if(e.target.id==='etcDue') etcForm.due=e.target.value; if(e.target.id==='etcDom') etcForm.dom=e.target.value;
   if(etcEdit){ if(e.target.id==='etcEDue') etcEdit.d.due=e.target.value; if(e.target.id==='etcEStart') etcEdit.d.start=e.target.value; if(e.target.id==='etcEDom') etcEdit.d.dom=e.target.value; }
 });
-document.addEventListener('toggle', e=>{ const f=e.target.dataset?.etcfold; if(f==='all') etcOpenAll=e.target.open; if(f==='done') etcOpenDone=e.target.open; }, true);
+document.addEventListener('toggle', e=>{ const f=e.target.dataset?.etcfold; if(f==='all') etcOpenAll=e.target.open; if(f==='done') etcOpenDone=e.target.open; if(f==='today' && e.target.open!==doneTodayOpen()){ try{ localStorage.setItem(DONE_TODAY_LS, e.target.open?'1':'0'); }catch(_){} } }, true);
 document.addEventListener('keydown', e=>{ if(e.target.id!=='etcESubIn' || e.key!=='Enter' || e.isComposing) return; e.preventDefault(); const t=e.target.value.trim(); if(!t || !etcEdit) return;
   etcEdit.d.subs=[...(etcEdit.d.subs||[]), {id:'s'+Date.now().toString(36), title:t}]; etcRepaint(); const i=$('#etcESubIn'); if(i){ i.value=''; i.focus(); } });
 document.addEventListener('click', async e=>{
