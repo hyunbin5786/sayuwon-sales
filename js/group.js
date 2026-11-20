@@ -1968,6 +1968,7 @@ function syncAutoTasks(){
   if(typeof tcfgWant==="function") tcfgWant(rec, want);   // 추후과업 메시지 관리: 끈 과업은 빼고 조건이 맞는 새 과업은 넣음 (2026-11-20)
   if(consult){ const keep=want.filter(id=>id==='tour' || id==='clergy'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약만 (손대지 않은 것은 아래에서 빠짐)
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec), ...(id==='wkcheck' && editingId && rec.date && wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId] ? {done:true, doneAt:wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId]} : {})}); });   // 사전 답사 과업 메모 = 답사 정보
+  if(typeof tcfgSubs==="function") tcfgSubs(tasks);   // 추후과업 메시지 관리의 세부 과업 (2026-11-20)
   // 미정 항목 확인 연락 (2026-11-20): 미정 항목 + 빨간 칸(아직 안 넣은 것)을 세부 과업으로 — 하나씩 체크하며 고객님께 여쭘. 다 체크하면 완료
   { const tq=tasks.find(t=>t.id==='tbdcall' && !t.removed); if(tq){ const want2=!want.includes('tbdcall') ? [] : [...String(rec.tbd||'').split(/\s*,\s*/).filter(Boolean).map(l=>`미정 · ${l}`), ...askMissing().map(l=>`미입력 · ${l}`)];
     const xs=tq.xsubs||[], keep=xs.filter(x=>!/^q:/.test(x.id) || want2.includes(x.title)); want2.forEach(l=>{ if(!keep.some(x=>x.title===l)) keep.push({id:'q:'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), title:l, done:false}); }); tq.xsubs=keep; } }
