@@ -224,12 +224,12 @@
   // 미리보기는 스크롤 없이 한눈에 (2026-11-19): 오른쪽 칸 너비 · 화면 높이(고정 헤더 · 버튼 줄 빼고)에 맞춰 통째로 줄임
   function fitPrev(){
     const box=document.querySelector('.pv-box'), v=$('#stPrev'), side=$('#stRight'); if(!box || !v || side.hidden) return;
-    v.style.transform=''; v.style.width=''; box.style.height='';
-    const w=v.scrollWidth, h=v.scrollHeight; if(!w || !h) return;
+    v.style.transform=''; v.style.width=''; box.style.height=''; box.style.width='';
+    const inner=v.firstElementChild, w=(inner&&inner.offsetWidth)||v.scrollWidth, h=v.scrollHeight; if(!w || !h) return;   // 사진(.sh-wrap 800px) 크기 그대로
     const sticky=getComputedStyle(side).position==='sticky', top = sticky ? (parseFloat(getComputedStyle(side).top)||0) + (box.getBoundingClientRect().top - side.getBoundingClientRect().top) : 0;
     const availH = sticky ? Math.max(240, window.innerHeight - top - 16) : Infinity, s=Math.min(1, box.clientWidth/w, availH/h);
     if(s<1){ v.style.width=w+'px'; v.style.transform=`scale(${s})`; }
-    box.style.height=Math.ceil(h*s)+'px';
+    box.style.height=Math.ceil(h*s)+'px'; box.style.width=Math.ceil(w*s)+'px';   // 미리보기 칸 = 저장되는 사진과 같은 비율 · 가운데 (2026-11-20)
   }
   window.addEventListener('resize', ()=>fitPrev());
   function render(){

@@ -30,7 +30,7 @@ main.st-main > .panel{margin-bottom:14px}
 /* 미리보기 (사진과 같은 모양) */
 .st-pv{position:sticky;top:72px}   /* 고정 헤더 아래 (2026-11-19) */
 .pv-h{font-size:12px;color:var(--muted);margin:0 0 6px}
-.pv-box{overflow:hidden;border:1px solid var(--line);border-radius:12px;background:#f3f6f9}   /* 스크롤 없이 한눈에: 화면 높이에 맞춰 줄임 (fitPrev, 2026-11-19) */
+.pv-box{overflow:hidden;border:1px solid var(--line);border-radius:12px;background:#f3f6f9;margin:0 auto;max-width:100%}   /* 스크롤 없이 한눈에: 화면 높이에 맞춰 줄임 (fitPrev, 2026-11-19) */
 .pv-box .st-shot-view{transform-origin:top left}
 .st-shot{position:absolute;left:-9999px;top:0}
 /* 사진 모양 (미리보기 · 저장 공통) */
