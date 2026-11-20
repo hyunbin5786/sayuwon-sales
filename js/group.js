@@ -2416,7 +2416,7 @@ function priceSections(){
     return g; })]).filter(([,rows])=>rows.length);
 }
 // ---------- 할인 ----------
-// 단체 할인: 20명 미만 사전예약 5%, 20명 이상 단체예약 10% → 관람·사담 런치 상품에만
+// 단체 할인: 20명 미만 사전예약 5%, 20명 이상 단체예약 10% → 관람 · 관람+사담(런치 · 디너) 상품에만
 // 특별 할인(사람마다): 그 사람은 단체 할인과 비교해 큰 쪽 하나만
 const SPECIAL = [
   {k:'dKansong', name:'간송미술관 제휴', short:'간송', rate:.15, proof:'간송미술관 방문 티켓 (방문일 기준 6개월 이내 것)'},
@@ -2836,9 +2836,9 @@ function quoteBlocks(r){
   const blocks=[], skipped=[];
   const add=(product, qty, disc, key)=>{ if(qty>0) blocks.push({product, qty, disc, key}); };   // key = 예약 내역 줄 (할인 버튼)
   // 관람 자동 줄 없음 (2026-11-14): 관람권도 예약 내역에서 직접 고른 것만 계산
-  add(`${DAY}(관람, 사담 런치1부)`, cnt(r.sadam1), true, 'sadam1');
-  add(`${DAY}(관람, 사담 런치2부)`, cnt(r.sadam2), true, 'sadam2');
-  add(`${DAY}(관람, 사담 디너)`, cnt(r.sadamD), false, 'sadamD');
+  // 관람 + 사담(런치 1부 · 2부 · 디너)은 모두 사전예약 5% · 단체예약 10% 할인 대상 (2026-11-20 디너도 · 견적서 품목과 같음). 품목 관리에서 할인 대상을 끄면 그대로 따름
+  const sdDisc = s => { const it=catalogItems().find(x=>normSrc(x.src)===normSrc(s)); return it ? !!it.disc : true; };
+  [['sadam1','사담 런치1부'],['sadam2','사담 런치2부'],['sadamD','사담 디너']].forEach(([k,nm])=>{ const s=`${DAY}(관람, ${nm})`; add(s, cnt(r[k]), sdDisc(s), k); });
   viewsParse(r.views).forEach(v=>{ const s=daySrc(v.src, r), it=catalogItems().find(x=>normSrc(x.src)===normSrc(s)); add(s, v.qty, it ? !!it.disc : /관람\(/.test(s), 'v:'+v.src); });   // 관람 영역의 다른 품목 (할인 대상은 품목 관리 기준)
   if(r.mabangL && mbM) add(mbM.src, cnt(r.mabangL), false, 'mb');   // 고른 메뉴 품목 (품목 리스트 가격)
   else if(r.mabangL && Number(r.mabangPrice)){ add('몽몽마방 단품', cnt(r.mabangL), false); blocks[blocks.length-1].price=Number(r.mabangPrice); }   // 예전 기록: 적어 둔 단가
