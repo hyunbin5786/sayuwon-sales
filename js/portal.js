@@ -172,10 +172,12 @@ function dashRecs(items){
       if(r.date && (new Date(opsToday()) - new Date(r.date))/864e5 > 30) return;
       if(ct==='예약취소') return;   // 예약취소는 과업 없음
       const consult = ct==='예약상담' || ct==='상담';
-      const ts=histTasks(r).filter(t=>!t.done && !t.removed && !doneByRec(t, r) && (!consult || ['tour','clergy'].includes(t.id) || t.custom)).map(t=>({title:t.title, due:dueOf(t,r)}));
+      // 전주 목요일이 지난 뒤 받은 예약 = 다음주 예약 점검 · 현장 결제 인원 확인 연락 없음 (2026-11-20, group.js thuPassed 와 같음)
+      const made=histTasks(r).map(t=>t.at).filter(Boolean).sort()[0] || r.saved || '', thuLate = t0 => { const thu=r.date ? wkPrevThu(String(r.date).slice(0,10)) : ''; return !!thu && thu < opsYmd(t0 ? new Date(t0) : new Date()); };
+      const ts=histTasks(r).filter(t=>!t.done && !t.removed && !doneByRec(t, r) && (!consult || ['tour','clergy'].includes(t.id) || t.custom) && !((t.id==='wkcheck' || t.id==='onsitecall') && !t.memo && !(t.xsubs||[]).length && thuLate(t.at||made))).map(t=>({title:t.title, due:dueOf(t,r)}));
       // 다음주 예약 점검 (2026-11-20 · group.js wkcheck 와 같은 기준): 가예약 · 예약확정이고 방문일이 오늘 이후면 예약마다 방문일 전주 목요일 마감 (아직 저장된 과업이 없어도)
       const d0=String(r.date||'').slice(0,10), o0=(r.owner||r.takenBy||'').trim();
-      if(booked(r) && d0>=opsToday() && !histTasks(r).some(t=>t.id==='wkcheck')){ const thu=wkPrevThu(d0), w=items.find(x=>x.id==='wk'+wkHash(o0)+thu.replace(/-/g,'')); let dn={}; try{ dn=(JSON.parse((w||{}).history||'{}')||{}).done||{}; }catch(_){}
+      if(booked(r) && d0>=opsToday() && !histTasks(r).some(t=>t.id==='wkcheck') && !thuLate(made)){ const thu=wkPrevThu(d0), w=items.find(x=>x.id==='wk'+wkHash(o0)+thu.replace(/-/g,'')); let dn={}; try{ dn=(JSON.parse((w||{}).history||'{}')||{}).done||{}; }catch(_){}
         if(!dn[r.id]) ts.push({title:'다음주 예약 점검', due:wkLimit(d0)}); }
       if(ts.length) recs.push({kind:'단체', owner:(r.owner||r.takenBy||'').trim(), name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:ts, href:'group.html?open='+encodeURIComponent(r.id)});
     } else if(ct==='개인고객'){
