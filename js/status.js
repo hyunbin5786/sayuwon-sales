@@ -73,7 +73,11 @@
   }
   // ---------- 네이버 예약자관리 엑셀 (2026-11-19): 날짜마다 오전 · 오후 인원 → 그 날짜의 오전입장 · 오후입장 줄 「네이버」 칸 ----------
   st.naver ||= {};   // { 'YYYY-MM-DD': {am, pm, n, full, partial, check:[]} } · 방문자내역을 나중에 넣어도 들어감
-  { const t=SY.ymd(new Date()); Object.keys(st.naver).forEach(d=>{ if(d<t) delete st.naver[d]; }); save(); }   // 네이버 인원은 오늘 · 내일 것만 (지난 날짜는 쌓아 두지 않음, 2026-11-21)
+  // 이 화면은 무조건 오늘 + 내일 2일만 (2026-11-21): 날짜 표 · 네이버 인원 모두 — 다른 날짜는 넣어도 빼고, 날이 바뀌면 지난 날짜는 저절로 빠짐
+  const twoDays = () => { const a=new Date(), b=new Date(); b.setDate(b.getDate()+1); return [SY.ymd(a), SY.ymd(b)]; };
+  const inTwo = d => twoDays().includes(d);
+  function keepTwo(){ const n0=st.days.length+Object.keys(st.naver).length; st.days=st.days.filter(d=>inTwo(d.date)); Object.keys(st.naver).forEach(d=>{ if(!inTwo(d)) delete st.naver[d]; }); if(st.days.length+Object.keys(st.naver).length!==n0) save(); }
+  keepTwo();
   function applyNaver(day){
     const nv=st.naver[day.date]; if(!nv) return day;
     [['오전입장','am'],['오후입장','pm']].forEach(([c,k])=>{ let r=day.rows.find(x=>x.cat===c); if(!r){ r={cat:c, home:0, naver:0, groups:''}; day.rows.splice(k==='am'?0:1, 0, r); } r.naver=nv[k]; });
@@ -126,7 +130,7 @@
     if(e.target.id==='niClose'){ imgRes=null; paintImgBox(); return; }
     if(e.target.id!=='niApply' || !imgRes) return;
     const R=imgRes, put=[], wait=[];
-    R.dates.forEach((date,ci)=>{ if(!date) return; const v={am:0, pm:0, extra:{}, src:'img'};
+    R.dates.forEach((date,ci)=>{ if(!date || !inTwo(date)) return; const v={am:0, pm:0, extra:{}, src:'img'};
       R.grid.forEach((row,ri)=>{ const c=R.cats[ri], n=row[ci]||0; if(!c || c==='전체') return;   /* 전체는 확인용 (넣지 않음) */ if(c==='오전입장') v.am+=n; else if(c==='오후입장') v.pm+=n; else v.extra[c]=(v.extra[c]||0)+n; });
       st.naver[date]=v; const d=st.days.find(x=>x.date===date); if(d){ applyNaver(d); put.push(dLab(date)); } else wait.push(dLab(date)); });
     save(); imgRes=null; paintImgBox(); render();
@@ -148,7 +152,7 @@
   $('#nvManNo').onclick=()=>{ $('#nvManModal').hidden=true; };
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#nvManModal').hidden) $('#nvManModal').hidden=true; });
   $('#nvManOk').onclick=()=>{ const put=[], wait=[];
-    manRows.filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.date) && (r.am!=='' || r.pm!=='')).forEach(r=>{ st.naver[r.date]={am:+r.am||0, pm:+r.pm||0, extra:{}, src:'manual'}; const d=st.days.find(x=>x.date===r.date); if(d){ applyNaver(d); put.push(dLab(r.date)); } else wait.push(dLab(r.date)); });
+    manRows.filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.date) && inTwo(r.date) && (r.am!=='' || r.pm!=='')).forEach(r=>{ st.naver[r.date]={am:+r.am||0, pm:+r.pm||0, extra:{}, src:'manual'}; const d=st.days.find(x=>x.date===r.date); if(d){ applyNaver(d); put.push(dLab(r.date)); } else wait.push(dLab(r.date)); });
     if(!put.length && !wait.length){ toast('넣을 인원을 적어 주세요.'); return; }
     $('#nvManModal').hidden=true; save(); render();
     toast([put.length?`네이버 인원을 넣었습니다 (${put.join(' · ')})`:'', wait.length?`${wait.join(' · ')}: 그 날짜 방문자내역을 넣으면 들어갑니다`:''].filter(Boolean).join(' · ')); };
@@ -157,7 +161,7 @@
   let pendingNaver=[];   // 비밀번호가 없어서 못 읽은 파일 → 비밀번호를 넣으면 다시
   const isNaverFile = h => (h[0]===0x50 && h[1]===0x4b) || (h[0]===0xd0 && h[1]===0xcf);   // .xlsx (비밀번호 걸린 것 포함)
   async function readFiles(files){
-    $('#fileErr').textContent=''; const got=[], errs=[], nvGot=[]; let nvFail='';   // nvFail: 네이버 엑셀을 못 읽은 이유 → 직접 입력 팝업
+    $('#fileErr').textContent=''; const got=[], errs=[], nvGot=[], skip=[]; let nvFail='';   // nvFail: 네이버 엑셀을 못 읽은 이유 → 직접 입력 팝업
     for(const f of files){
       try{ const buf=await f.arrayBuffer(), h=new Uint8Array(buf.slice(0,4));
         if(isNaverFile(h)){
@@ -165,17 +169,20 @@
           const pw=$('#nvPw').value;
           try{ const days=await NaverXL.read(f, pw); $('.in-opts').classList.remove('need');
             if(pw) try{ $('#nvKeep').checked ? localStorage.setItem(PW_LS, pw) : localStorage.removeItem(PW_LS); }catch(_){}
-            Object.entries(days).forEach(([date,v])=>{ st.naver[date]=v; nvGot.push(date); const d=st.days.find(x=>x.date===date); if(d) applyNaver(d); });
+            Object.entries(days).forEach(([date,v])=>{ if(!inTwo(date)) return; st.naver[date]=v; nvGot.push(date); const d=st.days.find(x=>x.date===date); if(d) applyNaver(d); });   // 오늘 · 내일 것만
             pendingNaver=pendingNaver.filter(x=>x!==f);
           }catch(e){ if(e.code!=='need_pw' && /비밀번호/.test(e.message)){ if(!pendingNaver.includes(f)) pendingNaver.push(f); nvFail='네이버 엑셀 오류'; continue; }   // 비밀번호가 맞지 않음 → 오류 글 대신 직접 입력 팝업 (2026-11-19 · 맞는 비밀번호를 넣으면 다시 읽음)
             if(e.code==='need_pw'){ if(!pendingNaver.includes(f)) pendingNaver.push(f); $('.in-opts').classList.add('need'); $('#nvPw').focus(); throw e; }
             pendingNaver=pendingNaver.filter(x=>x!==f); nvFail=e.message||'알 수 없는 오류'; continue; }   // 비밀번호 말고 다른 오류 → 끝나고 직접 입력 팝업 (2026-11-19)
           continue;
         }
-        const v=parse(new TextDecoder('utf-8').decode(buf)); const day=buildDay(v);
+        const v=parse(new TextDecoder('utf-8').decode(buf));
+        if(!inTwo(v.date)){ skip.push(dLab(v.date)); continue; }   // 오늘 · 내일이 아닌 방문자내역은 넣지 않음 (2026-11-21)
+        const day=buildDay(v);
         st.days=st.days.filter(d=>d.date!==day.date); st.days.push(day); got.push(dLab(day.date)); }
       catch(e){ errs.push(`${f.name}: ${e.message||'읽지 못했습니다.'}`); }
     }
+    if(skip.length) errs.push(`${skip.join(' · ')} 방문자내역은 넣지 않았습니다 (이 화면은 오늘 · 내일만)`);
     $('#fileErr').textContent=errs.join(' · ');
     st.days.sort((a,b)=>a.date.localeCompare(b.date)); save(); render();
     const nvShown=nvGot.filter(d=>st.days.some(x=>x.date===d)).sort(), nvWait=nvGot.filter(d=>!st.days.some(x=>x.date===d)).sort();
@@ -236,6 +243,7 @@
   }
   window.addEventListener('resize', ()=>fitPrev());
   function render(){
+    keepTwo();   // 화면을 켜 둔 채 날이 바뀌어도 오늘 · 내일만
     const has=st.days.length>0; $('#stClear').hidden=!has; $('#stRight').hidden=!has; st.title=TITLE;
     $('#stEdit').innerHTML = has ? `<div class="st-ed">${editHTML()}</div>` : '';
     if(has) paintShot();

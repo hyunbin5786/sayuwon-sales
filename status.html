@@ -23,7 +23,7 @@
     <!-- 2026-11-19 간단하게: 엑셀(방문자내역 · 네이버) 한 칸, 아래 한 줄에 비밀번호 · 네이버 사진은 없앰 (네이버 엑셀이 안 되면 직접 입력 팝업) -->
     <div class="in-grid">
       <label class="drop" id="drop" title="전산 방문자내역(.xls · 날짜마다 한 파일)과 네이버 예약자관리(.xlsx)를 함께 넣어도 됩니다. 이 브라우저 안에서만 읽고, 같은 날짜를 다시 넣으면 그 날짜만 새로"><input type="file" id="file" accept=".xls,.xlsx,.html,.htm" multiple hidden>
-        <b>엑셀 넣기</b><span class="hint">방문자내역 · 네이버 예약자관리 — 끌어다 놓거나 눌러서 고르기</span></label>
+        <b>엑셀 넣기</b><span class="hint">오늘 · 내일 방문자내역 · 네이버 예약자관리 — 끌어다 놓거나 눌러서 고르기</span></label>
     </div>
     <div class="in-opts">
       <label title="네이버 인원은 네이버 이관 2단계와 같은 방식 (전액환불은 빼고, 일부 환불은 환불금액만큼 인원을 뺌)">네이버 엑셀 비밀번호 <input type="password" id="nvPw" autocomplete="off"></label><label class="chk"><input type="checkbox" id="nvKeep" checked> 기억</label>
@@ -47,7 +47,7 @@
     <h2 id="nvManTitle">네이버 인원을 직접 넣어 주세요</h2>
     <p id="nvManMsg" class="hint"></p>
     <table class="ed-t nvman-t"><thead><tr><th>날짜</th><th>오전입장</th><th>오후입장</th><th></th></tr></thead><tbody id="nvManBody"></tbody></table>
-    <div class="dm-btns"><button class="btn sm" id="nvManAdd" type="button">＋ 날짜 추가</button><span class="sp"></span><button class="btn" id="nvManNo" type="button">취소</button><button class="btn primary" id="nvManOk" type="button">넣기</button></div>
+    <div class="dm-btns"><button class="btn sm" id="nvManAdd" type="button" hidden>＋ 날짜 추가</button><!-- 오늘 · 내일만 (2026-11-21) --><span class="sp"></span><button class="btn" id="nvManNo" type="button">취소</button><button class="btn primary" id="nvManOk" type="button">넣기</button></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
@@ -58,7 +58,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/naverxl.js?v=20261119b2"></script>
 <script src="js/naverimg.js?v=20261119d3"></script>
-<script src="js/status.js?v=20261121a"></script>
+<script src="js/status.js?v=20261121b"></script>
 <script src="js/ime.js?v=20261118r"></script>
 <script src="js/menu.js?v=20261119c4"></script>
 </body>
