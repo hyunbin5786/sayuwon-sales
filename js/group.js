@@ -132,7 +132,7 @@ let optOpen = new Set();
 const GROUP_OF = Object.fromEntries(FIELDS.map(f=>[f[1], f[0]]));
 const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1], ['사담','몽몽마방'].includes(f[0]) ? `${f[0]} ${f[2]}` : f[2]]));
 CFIELDS.forEach(([f,l])=>{ for(let i=0;i<10;i++) LABEL[`c${i}_${f}`]= i? `${l}(${i+1})` : l; });
-const SPECIAL_LABEL = { dKansong:'간송 할인', dMerit:'국가유공자 할인', dGunwi:'군위 주민 할인', dClergy:'대구대교구', dStaff:'직원 할인' }; Object.assign(LABEL, SPECIAL_LABEL);
+const SPECIAL_LABEL = { dKansong:'간송 할인', dMerit:'국가유공자 할인', dGunwi:'군위 주민 할인', dClergy:'대구대교구', dStaff:'직원 할인', dGuide:'가이드 무료' }; Object.assign(LABEL, SPECIAL_LABEL);
 Object.assign(LABEL, { teaMed:'티하우스 명상', gayageum:'가야금', cabin:'유루 캐빈' });
 try{ addCatalogProgs(JSON.parse(localStorage.getItem('sayuwon_quote_cat'))); }catch(_){}   // 마지막으로 받은 견적서 품목으로 (새로 받으면 그때 다시)
 const DOW = SY.DOW;   // 공통 도구 (js/common.js)
@@ -318,7 +318,7 @@ let spKey=null;
 function openSp(k){ spKey=k; ispMigrate(k); $('#spEdit').hidden=true; $('#spMain').hidden=false; $('#spEditBtn').hidden=false; document.querySelectorAll('#itemsBox [data-spwrap]').forEach(b=>{ b.outerHTML=spBtnHTML(b.dataset.spwrap); });   // 예전 기록이면 그 할인이 들어간 줄에 먼저 표시
   const v=ispOf(k) || {sp:{}, tf:0, tx:0, why:''};
   $('#spTitle').textContent = `특별 할인 · ${itemName(k)}`;
-  $('#spPeople').innerHTML = SPECIAL.filter(s=>!s.off || v.sp[s.k]).map(s=>`<label title="${esc(s.name)} · ${s.rate===1?'무료':Math.round(s.rate*100)+'%'} · 지참: ${esc(s.proof)}">${esc(s.short)} <small>${s.rate===1?'무료':Math.round(s.rate*100)+'%'}</small><input data-spk="${s.k}" inputmode="numeric" data-ime="num" maxlength="3" autocomplete="off" value="${v.sp[s.k]||''}">명</label>`).join('');
+  $('#spPeople').innerHTML = SPECIAL.filter(s=>!s.off || v.sp[s.k]).map(s=>`<label title="${esc(s.name)} · ${s.rate===1?'무료':Math.round(s.rate*100)+'%'}${s.proof?" · 지참: "+esc(s.proof):""}">${esc(s.short)} <small>${s.rate===1?'무료':Math.round(s.rate*100)+'%'}</small><input data-spk="${s.k}" inputmode="numeric" data-ime="num" maxlength="3" autocomplete="off" value="${v.sp[s.k]||''}">명</label>`).join('');
   $('#spTf').value = v.tf ? wonTxt(v.tf) : ''; $('#spTx').value = v.tx ? wonTxt(v.tx) : ''; $('#spWhy').value = v.why||'';
   const n=numOf(itemQty(k)); $('#spHint').textContent = n ? `이 품목 ${n}${itemUnit(k)} 중 특별 할인 인원은 단체 할인과 비교해 큰 쪽 하나만 적용됩니다. 같은 분이 다른 품목에서도 할인받으면 그 품목에도 넣으세요 (증빙 안내 인원은 품목 중 가장 큰 수).` : '';
   $('#spModal').hidden=false; setTimeout(()=>$('#spPeople input')?.focus(), 0); }
@@ -1113,7 +1113,7 @@ function readback(r){
   // 결제 방식 안내(PAY_GUIDE)는 결제를 고를 때 팝업
   // 특별 할인: 인원 · 할인율 · 지참할 증빙
   const sp = typeof SPECIAL!=='undefined' ? specialCounts(r) : [];
-  if(sp.length) s += `\n\n[특별 할인 안내]\n` + sp.map(x=>`· ${x.name} ${x.n}명은 ${x.rate===1?'무료':Math.round(x.rate*100)+'% 할인'}입니다. 방문 당일 꼭 지참해 주세요: ${x.proof}`).join('\n')
+  if(sp.some(x=>x.proof)) s += `\n\n[특별 할인 안내]\n` + sp.filter(x=>x.proof).map(x=>`· ${x.name} ${x.n}명은 ${x.rate===1?'무료':Math.round(x.rate*100)+'% 할인'}입니다. 방문 당일 꼭 지참해 주세요: ${x.proof}`).join('\n')
     + `\n· 다른 할인과 겹치면 가장 큰 할인 하나만 적용되고, 증빙이 없으면 할인이 어렵습니다.`;
   return s;
 }
@@ -1382,7 +1382,7 @@ function fieldWarnings(r){
   if(r.tin && r.tout && fmtTime(r.tin) && fmtTime(r.tout) && fmtTime(r.tout)<=fmtTime(r.tin)) w.push({field:'tout', reason:'퇴장 시각이 입장보다 빠릅니다. 24시간 표시인지 확인하세요 (오후 3시 = 15:00).'});
   if(r.date && r.tbdDate && r.tbdDate>r.date) w.push({field:'tbdDate', reason:'미정 항목 답변일이 방문일보다 늦습니다.'});
   else if(r.tbd && r.date && r.tbdDate && r.tbdDate>tbdLimit(r.date)) w.push({field:'tbdDate', reason: r.tbdLate ? `${tbdLimitName(r.date)}보다 늦음 · 사유: ${r.tbdLate}` : `미정 항목 답변일은 ${tbdLimitName(r.date)}(${mdLabel(tbdLimit(r.date))})까지입니다. 늦추려면 사유를 적어야 합니다.`});
-  if(typeof SPECIAL!=='undefined') specialCounts(r).forEach(s=>w.push({field:s.k, reason:`${s.n}명 ${s.name} 할인 → 방문 때 ${s.proof} 지참을 안내하세요.`}));
+  if(typeof SPECIAL!=='undefined') specialCounts(r).filter(s=>s.proof).forEach(s=>w.push({field:s.k, reason:`${s.n}명 ${s.name} 할인 → 방문 때 ${s.proof} 지참을 안내하세요.`}));
   const day = adminData && adminData.days && adminData.days[r.date];
   if(day) Object.entries(ADMIN_SLOT).forEach(([k,[slot,name]])=>{
     const s=day[slot], want=numOf(r[k]); if(!s || !want) return;
@@ -1856,7 +1856,7 @@ function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문�
     if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2)) items.push([erpProgT(r.tm_seminar2), name+(r.plc_seminar2?`(${String(r.plc_seminar2).trim()})`:'')].filter(Boolean).join(' '));
   });
   if(r.pay==='현장 결제' || r.onsite) items.push('현장결제');
-  { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인`)); if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
+  { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy' && s.k!=='dGuide'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인`)); if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
   { const st=viewsParse(r.views).filter(x=>/학생/.test(x.src)).reduce((a,x)=>a+(+x.qty||0),0); if(st) items.push(`학생 ${st}명 확인 필요`); }
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';
   const arrive = r.tin ? `${erpShortT(r.tin)} ${gate || '입장'}` : '';   // 입장문을 아직 안 정했으면 「9시 입장」 · 입장 시간이 미정이면 도착은 안 씀 (2026-11-19)
@@ -2424,6 +2424,7 @@ const SPECIAL = [
   {k:'dGunwi',   name:'군위 주민',        short:'군위 주민', rate:.50, proof:'주민등록증 또는 등본 (거주지 확인)'},
   {k:'dClergy',  name:'대구대교구 신부·수녀·신학생', short:'대구대교구', rate:1, proof:'소속 증명서 또는 신분증'},
   {k:'dStaff',   name:'직원',             short:'직원', rate:.30, proof:'사원증 (직원 확인)'},   // 2026-11-17 직원 할인 30%
+  {k:'dGuide',   name:'가이드(무료)',     short:'가이드(무료)', rate:1, proof:''},   // 2026-11-20 여행사 가이드 무료 (전산: * 가이드(무료) 성인 1명 100%) · 증빙 없음
 ];
 // ===== 특별 할인 종류 편집 (2026-11-17): 특별할인 팝업의 「편집」 → 이름 · 할인율 · 증빙을 고치고, 새 할인 추가 · 빼기 =====
 // 공유 기록 한 줄(id spdisc, 통화 구분 '특별할인설정')의 수정 기록 칸에 {list:[{k,name,short,rate,proof,off,olds}], at, by} → 모든 직원이 같은 목록
@@ -2431,7 +2432,7 @@ const SPECIAL = [
 var SPD_ID='spdisc', SPD_TYPE='특별할인설정';
 const SPECIAL_BASE = SPECIAL.map(s=>({...s})), SPECIAL_LABEL_BASE = {...SPECIAL_LABEL};
 let spdSig='';
-function spdList(){ const r=(cache||[]).find(x=>x.id===SPD_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return Array.isArray(j.list)&&j.list.length ? j.list : SPECIAL_BASE; }
+function spdList(){ const r=(cache||[]).find(x=>x.id===SPD_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return Array.isArray(j.list)&&j.list.length ? j.list.concat(SPECIAL_BASE.filter(b=>!j.list.some(x=>x&&x.k===b.k))) : SPECIAL_BASE; }   // 공유 목록에 없는 새 기본 할인(가이드 무료 등)은 뒤에 붙임
 function applySpd(){ try{
   const list=spdList(), sig=JSON.stringify(list); if(sig===spdSig) return false; spdSig=sig;
   SPECIAL.splice(0, SPECIAL.length, ...list.filter(s=>s && s.k && (s.short||s.name)).map(s=>({k:s.k, name:String(s.name||s.short), short:String(s.short||s.name), rate:Math.min(1, Math.max(0, +s.rate||0)), proof:String(s.proof||''), off:!!s.off, olds:Array.isArray(s.olds)?s.olds:[]})));
