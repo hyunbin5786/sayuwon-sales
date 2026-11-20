@@ -1004,9 +1004,6 @@ let tbdAuto=false;
 function prevWeekThu(d){ const t=new Date(d+'T00:00'); if(isNaN(t)) return ''; t.setDate(t.getDate()-((t.getDay()+6)%7)-4); return ymd(t); }
 // 미정 항목 답변일 기본값 · 한도: 방문일 전주 목요일. 그 목요일이 이미 지났으면 방문일 전날 (그것도 지났으면 오늘)
 function tbdLimit(d){ const thu=prevWeekThu(d), today=ymd(new Date()); if(!thu) return ''; if(thu>=today) return thu; const p=new Date(d+'T00:00'); p.setDate(p.getDate()-1); const pd=ymd(p); return pd>=today ? pd : today; }
-// 전주 목요일이 이미 지난 뒤에 생기는 과업(다음주 예약 점검 · 현장 결제 인원 확인 연락)은 만들지 않음 (2026-11-20): made = 과업이 생긴 날(없으면 오늘)
-const thuPassed = (d, made) => { const thu=prevWeekThu(d); return !!thu && thu < (made ? ymd(new Date(made)) : ymd(new Date())); };
-const firstTaskAt = ts => (ts||[]).map(t=>t.at).filter(Boolean).sort()[0] || '';   // 예약에서 가장 먼저 생긴 과업 = 예약을 받은 때
 const tbdLimitName = d => tbdLimit(d)===prevWeekThu(d) ? '방문일 전주 목요일' : '방문일 전날';
 function applyTbdDefault(){
   const has=tbdSet(rec).size>0, w=document.getElementById('w_tbdDate');
@@ -1945,9 +1942,8 @@ function askMissing(){ const out=[];
 function syncAutoTasks(){
   const want = [], consult = quietStage(effStage(rec));   // 예약상담은 기록용: 추후 과업 없음
   if(rec.tbd || askMissing().length) want.push('tbdcall');   // 미정 항목 · 아직 안 넣은 칸(빨간 칸)이 있으면 연락 (2026-11-20)   // 미정 항목(결제 방법 포함)이 있으면 답변일에 연락
-  const lateThu = id => { const t=tasks.find(x=>x.id===id); return !(t && t.done) && thuPassed(rec.date, (t && t.at) || firstTaskAt(tasks)); };   // 전주 목요일이 지난 뒤 생긴 것은 안 만듦 (이미 끝낸 것은 그대로)
-  if(rec.pay==='현장 결제' && rec.date && !lateThu('onsitecall')) want.push('onsitecall');   // 현장 결제: 전주 목요일에 인원 확인 + 인원 변경 어려움 안내
-  if(rec.date && (rec.date>=todayYmd() || tasks.some(t=>t.id==='wkcheck')) && !lateThu('wkcheck')) want.push('wkcheck');   // 다음주 예약 점검 (2026-11-20 · 지난 방문일은 새로 만들지 않음): 미정 · 미입력 항목이 없어도 예약마다 방문일 전주 목요일에 점검 (예전엔 나의 할일에 한 줄로 모아서)
+  if(rec.pay==='현장 결제' && rec.date) want.push('onsitecall');   // 현장 결제: 전주 목요일에 인원 확인 + 인원 변경 어려움 안내
+  if(rec.date && (rec.date>=todayYmd() || tasks.some(t=>t.id==='wkcheck'))) want.push('wkcheck');   // 다음주 예약 점검 (2026-11-20 · 지난 방문일은 새로 만들지 않음): 미정 · 미입력 항목이 없어도 예약마다 방문일 전주 목요일에 점검 (예전엔 나의 할일에 한 줄로 모아서)
   if(needsErp(rec)) want.push('erp', 'erpcheck');   // 전산 예약 + 전산 내역을 붙여 넣어 예약 내용과 총 금액 · 할인이 같은지 대조 (같으면 자동 완료)
   if(rec.pay==='세금계산서') want.push('tax');
   if(rec.pay==='결제링크') want.push('linksend', 'paycheck');   // 결제링크: 보내기(오늘) · 입금 확인(보낸 다음날). 예약 내용의 버튼과 서로 맞춤
@@ -3337,12 +3333,11 @@ function tasksOf(r){
   const ts=settleTasks(parseHist(r).tasks, r, x);
   const has = id => ts.some(t=>t.id===id) || parseHist(r).tasks.some(t=>t.id===id && t.removed);   // 삭제한 과업은 다시 만들지 않음
   if(x.tbd && !has('tbdcall')) ts.push({id:'tbdcall', title:AUTO_TASKS.tbdcall, done:false, due:x.tbdDate||ymd(new Date(r.saved||Date.now()))});
-  const made=firstTaskAt(parseHist(r).tasks) || r.saved || '', late=t=>!t.done && !t.memo && !(t.xsubs||[]).length && thuPassed(r.date, t.at||made);   // 전주 목요일이 지난 뒤 받은 예약 = 점검 · 현장 결제 연락 없음
-  if(x.pay==='현장 결제' && r.date && !has('onsitecall') && !thuPassed(r.date, made)) ts.push({id:'onsitecall', title:AUTO_TASKS.onsitecall, done:false, due:tbdLimit(r.date)});
-  if(r.date && r.date>=ymd(new Date()) && !has('wkcheck') && !thuPassed(r.date, made)){ const thu=prevWeekThu(r.date), old=(typeof wkDone==='function' && thu) ? wkDone(ownerOf(r), thu)[r.id] : '';   // 예전 「다음주 예약 점검」 한 줄에서 체크한 예약은 끝난 것으로
+  if(x.pay==='현장 결제' && r.date && !has('onsitecall')) ts.push({id:'onsitecall', title:AUTO_TASKS.onsitecall, done:false, due:tbdLimit(r.date)});
+  if(r.date && r.date>=ymd(new Date()) && !has('wkcheck')){ const thu=prevWeekThu(r.date), old=(typeof wkDone==='function' && thu) ? wkDone(ownerOf(r), thu)[r.id] : '';   // 예전 「다음주 예약 점검」 한 줄에서 체크한 예약은 끝난 것으로
     ts.push({id:'wkcheck', title:AUTO_TASKS.wkcheck, done:!!old, ...(old?{doneAt:old}:{}), due:tbdLimit(r.date)}); }
   if(typeof tcfgVirtual==="function") tcfgVirtual(r, x, ts, has);   // 추후과업 메시지 관리의 새 과업 (열지 않은 예약도, 2026-11-20)
-  return ts.filter(t=> !(t.id==='tbdcall' && !x.tbd) && !(t.id==='onsitecall' && x.pay!=='현장 결제') && !((t.id==='onsitecall' || t.id==='wkcheck') && late(t)))   // 조건이 사라진 것은 뺌
+  return ts.filter(t=> !(t.id==='tbdcall' && !x.tbd) && !(t.id==='onsitecall' && x.pay!=='현장 결제'))   // 조건이 사라진 것은 뺌
     .map(t=>({...t, ...(!t.custom && !t.titleSet && AUTO_TASKS[t.id] ? {title:AUTO_TASKS[t.id]} : {}), due: t.id==='tbdcall' && !t.dueSet && !t.done && x.tbdDate ? x.tbdDate : taskDue(t)}));
 }
 const openTasksOf = r => tasksOf(r).filter(t=>!t.done).sort((a,b)=>a.due.localeCompare(b.due));
