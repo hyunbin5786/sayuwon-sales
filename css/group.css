@@ -209,6 +209,10 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 .it-q{display:flex;align-items:center;gap:4px}
 .it-q input{width:100%;height:34px;border:1px solid var(--line);border-radius:6px;padding:0 6px;text-align:right;font:600 14px var(--sans);font-variant-numeric:tabular-nums}
 .it-q i{font-style:normal;font-size:12px;color:var(--muted);flex:none;min-width:24px}
+.it-q2{flex-direction:column;align-items:stretch;gap:3px}   /* 관람 · 관람+식사: 성인 · 학생 두 칸 (2026-11-20) */
+.it-q2 label{display:flex;align-items:center;gap:4px}
+.it-q2 b{font-weight:500;font-size:11.5px;color:var(--muted);flex:none;min-width:24px}
+.it-q2 input{height:28px}
 .it-s input{width:100%;height:34px;border:1.5px solid #8fb07f;border-radius:6px;padding:0 8px;background:#eef5e9;color:var(--pine);font:600 13px var(--sans)}
 .it-s.missing input{border:1.5px dashed var(--red);background:var(--red-soft);color:var(--red)}
 .it-s.missing input::placeholder{color:var(--red)}
@@ -588,7 +592,6 @@ html.book-guest #bookBody tr{cursor:default}
 .it-extra .it-xl{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap}
 .it-extra .it-xl .it-x{min-width:0;width:70px}
 .it-extra .it-xl select.it-x{width:auto;min-width:80px}
-.it-extra .it-stu .it-x{width:46px;text-align:right}   /* 학생 인원 (2026-11-20) */
 .it-extra .it-xl.tbd select{background:#fff6d6;border-color:#e2c46a}
 /* 품목마다 특별 할인: 줄의 「특별할인」 버튼 · 팝업 */
 .it-extra .spbtn{height:30px;border:1px solid #b9b5ab;background:#e6e4de;border-radius:6px;padding:0 12px;font:600 12.5px var(--sans);color:#3d3b36;cursor:pointer;white-space:nowrap}   /* 회색 버튼 (눈에 띄게) */
@@ -733,7 +736,7 @@ html.book-guest #bookBody tr{cursor:default}
 .it-extra .it-xl.missing{color:var(--red)}
 .it-extra .it-xl.missing .it-x{border:1.5px dashed var(--red);background:var(--red-soft);color:var(--red)}
 /* 예약 내역 줄의 빨간 칸(담당 · 대관 시간 · 시작 · 끝)도 예약 내용 미입력 칸과 같은 모양 (2026-11-18): 연한 빨강 바탕 · 실선 테두리 · 글씨는 보통 색 */
-.it-s.missing input,.it-q.missing input,.it-extra .it-xl.missing .it-x{border:1px solid #d98b80 !important;background:#fdf1ef !important;color:var(--ink) !important}
+.it-s.missing input,.it-q.missing input,.it-q2 label.missing input,.it-extra .it-xl.missing .it-x{border:1px solid #d98b80 !important;background:#fdf1ef !important;color:var(--ink) !important}
 .it-s.missing input::placeholder{color:var(--muted)}
 .it-extra .it-xl.missing{color:var(--muted)}
 .it-money .dbtn:disabled{cursor:default;opacity:.55}

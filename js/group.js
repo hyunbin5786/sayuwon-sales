@@ -435,9 +435,14 @@ function itemRowHTML(k, rows){
                 + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:seminar2" data-tp="1" readonly title="두 번째 세미나 도슨트 끝나는 시각" value="${esc(e2)}"></label>`
                 + `<label class="it-xl">장소 <select class="it-x" data-ix="plc_seminar2" title="두 번째 세미나 도슨트 장소">${pv?'':'<option value="" selected>선택</option>'}${[...PLC_OPTS, ...(pv && !PLC_OPTS.includes(pv) ? [pv] : [])].map(x=>`<option${pv===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`
                 + `<input class="it-x it-note" data-inote="seminar2" data-ime="ko" placeholder="비고" value="${esc(itemNote('seminar2'))}"></div>`; })() : ''); })()
-    : (canStu(k) ? `<label class="it-xl it-stu" title="학생 인원 (나머지는 성인 · 기본은 모두 성인). 학생은 품목 관리의 학생 관람 가격 (관람+식사는 관람 부분만)">학생 <input class="it-x" data-istu="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="0" value="${itemStu(k)||''}">명</label>` : '') + note;
+    : note;
+  // 관람 · 관람+식사 줄: 인원 칸을 성인 · 학생 두 칸으로 (2026-11-20). 기본은 모두 성인, 학생을 넣으면 그만큼 성인에서 빠짐 (합 = 그 줄 인원)
+  const qtyHTML = canStu(k) ? (()=>{ const tot=numOf(itemQty(k)), s=Math.min(itemStu(k), tot);
+      return `<span class="it-q it-q2"><label title="성인 인원"><b>성인</b><input data-iqa="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="인원" value="${tot ? tot-s : esc(itemQty(k))}"></label>`
+        + `<label title="학생 인원 (넣으면 그만큼 성인에서 빠짐) · 학생은 품목 관리의 학생 관람 가격 (관람+식사는 관람 부분만)"><b>학생</b><input data-istu="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="0" value="${s||''}"></label></span>`; })()
+    : `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`;
   return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}<span class="it-p" data-iup="${esc(k)}"></span>`
-    + `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`
+    + qtyHTML
     + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="굿즈 담당 (기본 = 영업 담당 · 고칠 수 있음 · 굿즈 모두 같은 담당)"></span>`
       : stf ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="프로그램 담당"></span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
     + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
@@ -451,8 +456,9 @@ function renderItems(force){
   if(itemRows.includes('view')) itemRows=['view', ...itemRows.filter(k=>k!=='view')];   // 관람 인원은 항상 첫 줄
   const sig=itemRows.join('|') + (rec.seminar && sem2On(rec) ? '|sem2' : '');   // 세미나 도슨트 두 번째 줄이 생기고 없어질 때도 다시 그림
   if(!force && box.dataset.sig===sig && box.contains(document.activeElement)){   // 쓰는 중: 줄은 그대로 두고 값만 맞춤
-    box.querySelectorAll('[data-iq],[data-is],[data-ix],[data-inote]').forEach(el=>{ if(el===document.activeElement) return;
-      const v = el.dataset.iq!=null ? itemQty(el.dataset.iq) : el.dataset.is!=null ? String(rec[itemStfKey(el.dataset.is)]||'') : el.dataset.inote!=null ? itemNote(el.dataset.inote) : el.dataset.ix==='mbS' ? mbTimes()[0] : el.dataset.ix==='mbE' ? mbTimes()[1] : /^tm[SE]:/.test(el.dataset.ix) ? tmTimes(el.dataset.ix.slice(4))[el.dataset.ix[2]==='S'?0:1] : /^crs_/.test(el.dataset.ix) ? crsNorm(rec[el.dataset.ix]) : String(rec[el.dataset.ix]||''); if(el.value!==v) el.value=v; });
+    box.querySelectorAll('[data-iq],[data-iqa],[data-istu],[data-is],[data-ix],[data-inote]').forEach(el=>{ if(el===document.activeElement) return;
+      const stuT = k => Math.min(itemStu(k), numOf(itemQty(k)));   // 성인 · 학생 칸 (2026-11-20)
+      const v = el.dataset.iqa!=null ? (numOf(itemQty(el.dataset.iqa)) ? String(numOf(itemQty(el.dataset.iqa))-stuT(el.dataset.iqa)) : itemQty(el.dataset.iqa)) : el.dataset.istu!=null ? (stuT(el.dataset.istu) ? String(stuT(el.dataset.istu)) : '') : el.dataset.iq!=null ? itemQty(el.dataset.iq) : el.dataset.is!=null ? String(rec[itemStfKey(el.dataset.is)]||'') : el.dataset.inote!=null ? itemNote(el.dataset.inote) : el.dataset.ix==='mbS' ? mbTimes()[0] : el.dataset.ix==='mbE' ? mbTimes()[1] : /^tm[SE]:/.test(el.dataset.ix) ? tmTimes(el.dataset.ix.slice(4))[el.dataset.ix[2]==='S'?0:1] : /^crs_/.test(el.dataset.ix) ? crsNorm(rec[el.dataset.ix]) : String(rec[el.dataset.ix]||''); if(el.value!==v) el.value=v; });
     paintItemState(); paintItemPrices(); return;
   }
   box.dataset.sig=sig;
@@ -640,7 +646,8 @@ document.addEventListener('click', async e=>{ const b=e.target.closest('#itemsBo
 // 예약 내역: 품목을 고르면 비고를 뺀 모든 칸(인원 · 수량 · 시작 · 끝 · 장소 · 코스 · 결제 등)이 비었을 때 빨간 칸 — 고객님께 여쭤볼 정보 (2026-11-18)
 // (담당은 paintItemState 에서 · 결제 미정은 노란 칸 · 코스 「앵당삼거리 시작」을 켜면 채운 것)
 function paintTmMissing(){
-  document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-q input').forEach(q=>q.closest('.it-q').classList.toggle('missing', !q.value.trim()));
+  document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-q input[data-iq]').forEach(q=>q.closest('.it-q').classList.toggle('missing', !q.value.trim()));
+  document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-q2 input[data-iqa]').forEach(q=>q.closest('label').classList.toggle('missing', !numOf(itemQty(q.dataset.iqa))));   // 성인 · 학생: 줄 인원이 비었을 때 성인 칸만 빨갛게 (학생 0명은 그대로, 2026-11-20)
   document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-xl').forEach(l=>{ const x=l.querySelector('.it-x'); l.classList.toggle('missing', !!x && !String(x.value||'').trim()); });
 }
 function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은 넣은 묶음만
@@ -663,13 +670,14 @@ document.addEventListener('change', e=>{
   const s=e.target.closest?.('#itemsBox [data-isel]'); if(!s) return;
   const old=s.dataset.isel, val=s.value; if(!val) return;
   const nk = val.startsWith('mb:') ? 'mb' : val;
-  const q=itemQty(old), st=itemHasStaff(old) ? String(rec[itemStfKey(old)]||'') : '';
+  let q=itemQty(old); const st=itemHasStaff(old) ? String(rec[itemStfKey(old)]||'') : '', so=canStu(old) ? itemStu(old) : 0;
   if(nk!==old) clearItem(old);
+  if(nk!==old && !numOf(q) && canStu(nk)){ const n0=numOf(rec.people), rest=n0-areaOthers(rec); q = rest>0 ? String(rest) : n0 ? String(n0) : ''; }   // 관람 · 관람+식사: 기본 = 관람 인원(다른 줄에 넣은 만큼 빼고) 모두 성인 (2026-11-20)
   if(val.startsWith('mb:') && val.length>3){ rec.mabangMenu=val.slice(3); touched.add('mabangMenu'); mbPayDefault(); }
   const i=itemRows.indexOf(old); if(i>=0) itemRows[i]=nk; else itemRows.push(nk);
-  if(nk!==old){ setItemQty(nk, q || (itemKind(nk)==='goods' ? '1' : '')); if(itemHasStaff(nk) && st && !String(rec[itemStfKey(nk)]||'').trim()){ rec[itemStfKey(nk)]=st; touched.add(itemStfKey(nk)); } }
+  if(nk!==old){ setItemQty(nk, q || (itemKind(nk)==='goods' ? '1' : '')); if(itemHasStaff(nk) && st && !String(rec[itemStfKey(nk)]||'').trim()){ rec[itemStfKey(nk)]=st; touched.add(itemStfKey(nk)); } if(so && canStu(nk)) setItemStu(nk, Math.min(so, numOf(itemQty(nk)))); }
   itemChanged(true);
-  const qi=document.querySelector(`#itemsBox [data-iq="${CSS.escape(nk)}"]`); if(qi && !qi.value) qi.focus();
+  const qi=document.querySelector(`#itemsBox [data-iq="${CSS.escape(nk)}"], #itemsBox [data-iqa="${CSS.escape(nk)}"]`); if(qi && !qi.value) qi.focus();
 });
 document.addEventListener('input', e=>{
   const el=e.target; if(!el.closest?.('#itemsBox')) return;
@@ -677,7 +685,13 @@ document.addEventListener('input', e=>{
     if(k==='seminar' && (numOf(was)>=2)!==(numOf(el.value)>=2)){ itemChanged(true, !!was); const q=document.querySelector('#itemsBox [data-iq="seminar"]'); if(q){ q.focus(); const n=q.value.length; try{ q.setSelectionRange(n,n); }catch(_){} } if(numOf(el.value)>=2) openSemGuide(); return; }   // 세미나 도슨트 수량 2 ↔ 1: 두 번째 시작 · 끝 · 장소 · 비고 줄을 넣고 빼기
     if(itemKind(k)==='prog' && itemUnit(k)==='시간' && numOf(el.value) && numOf(el.value)!==numOf(was)){ const [s]=tmTimes(k); if(s && fmtTime(s)){ const en=plusH(s, progHours(k)); rec['tm_'+k]=`${s}~${en}`; touched.add('tm_'+k); const b=el.closest('.it-row')?.querySelector(`[data-ix="tmE:${CSS.escape(k)}"]`); if(b) b.value=en; paintTmMissing(); } }   // 시간 프로그램(대관 등): 수량(시간)을 바꾸면 끝 = 시작 + 그 시간 (2026-11-18)
     itemChanged(false, !!was); }   // 담당 기본값은 수량을 처음 넣을 때만
-  else if(el.dataset.istu!=null){ const k=el.dataset.istu, c=el.value.replace(/\D/g,''), q=numOf(itemQty(k)); let n=parseInt(c)||0; if(q && n>q){ n=q; toast(`학생은 그 줄 인원(${q}명)까지 넣을 수 있습니다.`); } el.value = n ? String(n) : (c ? '0' : ''); setItemStu(k, n); itemChanged(false, true); }   // 학생 인원 (2026-11-20)
+  else if(el.dataset.iqa!=null){ const k=el.dataset.iqa, c=el.value.replace(/\D/g,''), was=itemQty(k); if(c!==el.value) el.value=c;   // 성인 인원 → 그 줄 인원 = 성인 + 학생 (2026-11-20)
+    const a=parseInt(c)||0, s=itemStu(k); setItemQty(k, a+s ? String(a+s) : ''); itemChanged(false, !!was); }
+  else if(el.dataset.istu!=null){ const k=el.dataset.istu, c=el.value.replace(/\D/g,''), q=numOf(itemQty(k)); let n=parseInt(c)||0;   // 학생 인원: 그만큼 성인에서 빠짐 (합 = 그 줄 인원 그대로). 줄 인원이 없으면 학생만
+    if(!q && n) setItemQty(k, String(n)); else if(q && n>q){ n=q; toast(`학생은 그 줄 인원(${q}명)까지 넣을 수 있습니다. 더 많으면 성인 칸도 고쳐 주세요.`); }
+    el.value = n ? String(n) : (c ? '0' : ''); setItemStu(k, n);
+    const ai=el.closest('.it-q2')?.querySelector('[data-iqa]'); if(ai){ const t=numOf(itemQty(k)); ai.value = t ? String(t-n) : ''; }
+    itemChanged(false, true); }
   else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); startTimer(); repaintSoon(); }   // 항목 비고 (치는 동안은 다시 그리지 않음)
   else if(el.dataset.is!=null){ const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); repaintSoon(); }   // 담당 이름 (치는 동안은 다시 그리지 않음)
   else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^tm[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
