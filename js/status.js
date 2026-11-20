@@ -73,6 +73,7 @@
   }
   // ---------- 네이버 예약자관리 엑셀 (2026-11-19): 날짜마다 오전 · 오후 인원 → 그 날짜의 오전입장 · 오후입장 줄 「네이버」 칸 ----------
   st.naver ||= {};   // { 'YYYY-MM-DD': {am, pm, n, full, partial, check:[]} } · 방문자내역을 나중에 넣어도 들어감
+  { const t=SY.ymd(new Date()); Object.keys(st.naver).forEach(d=>{ if(d<t) delete st.naver[d]; }); save(); }   // 네이버 인원은 오늘 · 내일 것만 (지난 날짜는 쌓아 두지 않음, 2026-11-21)
   function applyNaver(day){
     const nv=st.naver[day.date]; if(!nv) return day;
     [['오전입장','am'],['오후입장','pm']].forEach(([c,k])=>{ let r=day.rows.find(x=>x.cat===c); if(!r){ r={cat:c, home:0, naver:0, groups:''}; day.rows.splice(k==='am'?0:1, 0, r); } r.naver=nv[k]; });
@@ -134,7 +135,9 @@
   // ---------- 네이버 엑셀을 못 읽으면 (2026-11-19): 팝업에서 날짜마다 오전 · 오후 네이버 인원을 직접 ----------
   let manRows=[];   // [{date, am, pm}]
   function openNaverManual(why){
-    const ds=[...new Set(st.days.map(d=>d.date))].sort(); manRows=(ds.length?ds:[SY.ymd(new Date(Date.now()+864e5))]).map(date=>{ const v=st.naver[date]||{}; return {date, am:v.am??'', pm:v.pm??''}; });
+    // 네이버 입력은 늘 오늘 + 내일 2일 (2026-11-21 · 예전엔 넣어 둔 방문자내역 날짜가 모두 쌓여 나옴)
+    const t0=new Date(), t1=new Date(); t1.setDate(t1.getDate()+1);
+    manRows=[SY.ymd(t0), SY.ymd(t1)].map(date=>{ const v=st.naver[date]||{}; return {date, am:v.am??'', pm:v.pm??''}; });
     $('#nvManTitle').textContent = why ? '네이버 엑셀 오류 · 직접 입력' : '네이버 인원을 직접 넣어 주세요';
     $('#nvManMsg').textContent = `${why ? (why==='네이버 엑셀 오류' ? '네이버 엑셀 오류입니다. ' : `네이버 엑셀 오류입니다 (${why}). `) : ''}네이버 예약 화면을 보고 날짜마다 오전 · 오후 확정 인원을 넣으면 그 날짜의 「네이버」 칸에 들어갑니다.`;
     paintMan(); $('#nvManModal').hidden=false; setTimeout(()=>$('#nvManBody input[data-man$="|am"]')?.focus(), 0); }
