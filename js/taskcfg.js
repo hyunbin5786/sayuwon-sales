@@ -6,8 +6,8 @@
 var TCFG_ID='taskcfg', TCFG_TYPE='추후과업설정';
 const TCFG_BASE_TITLES = {...AUTO_TASKS};   // 처음 이름 (되돌리기용)
 // 원래 있는 과업이 생기는 때 (원래 조건 설명 · 조건을 더하면 그것까지 맞을 때만)
-const TCFG_WHEN = { tour:'사전 답사가 잡히면', clergy:'대구대교구 특별 할인이 있으면', tbdcall:'미정 항목 · 아직 안 넣은 칸이 있으면 (마감 = 답변일)', onsitecall:'결제 방식이 현장 결제이면 (마감 = 방문일 전주 목요일)',
-  wkcheck:'방문일이 있으면 모든 예약 (마감 = 방문일 전주 목요일)', mbcall:'몽몽마방이 있으면', mbmenu:'몽몽마방 메뉴를 안 골랐으면', progstaff:'프로그램 · 굿즈 담당이 비었으면', staffbrief:'프로그램 · 굿즈가 있으면',
+const TCFG_WHEN = { tour:'사전 답사가 잡히면', clergy:'대구대교구 특별 할인이 있으면', tbdcall:'미정 항목 · 아직 안 넣은 칸이 있으면 (마감 = 답변일)', onsitecall:'결제 방식이 현장 결제이면 (마감 = 방문일 전주 목요일 · 지났으면 방문일 전날)',
+  wkcheck:'방문일이 있으면 모든 예약 (마감 = 방문일 전주 목요일 · 지났으면 방문일 전날)', mbcall:'몽몽마방이 있으면', mbmenu:'몽몽마방 메뉴를 안 골랐으면', progstaff:'프로그램 · 굿즈 담당이 비었으면', staffbrief:'프로그램 · 굿즈가 있으면',
   goodsprep:'굿즈가 있으면 (마감 = 방문 전날)', erp:'가예약 · 예약확정이면', erpcheck:'가예약 · 예약확정이면', erpfix:'전산 등록 뒤 예약 내용이 바뀌면', quote:'견적서 요청을 체크하면', stmt:'거래명세서 요청을 체크하면',
   tax:'결제 방식이 세금계산서이면', linksend:'결제 방식이 결제링크이면', paycheck:'결제 방식이 결제링크이면 (마감 = 보낸 다음날)' };
 const TCFG_AUTO_NOTE = new Set(['erp','erpfix','tax','tour']);   // 원래 자동 문구가 있는 과업 (기본 문구 = {자동문구})
@@ -30,7 +30,7 @@ const TCFG_CONDS = [
   ['pplMin', '관람 인원이 ○명 이상이면', r=>numOf(r.people), 'num'],
   ['pplMax', '관람 인원이 ○명 이하이면', r=>numOf(r.people), 'num'],
 ];
-const TCFG_DUE = [['visit','방문일 ○일 전'],['prevThu','방문일 전주 목요일'],['visitMon','방문 주 월요일'],['made','과업이 생긴 날 ○일 뒤']];
+const TCFG_DUE = [['visit','방문일 ○일 전'],['prevThu','방문일 전주 목요일 (지났으면 전날)'],['visitMon','방문 주 월요일'],['made','과업이 생긴 날 ○일 뒤']];
 let tcfg = {b:{}, c:[]}, tcfgSig='';
 function tcfgRead(){ const r=(cache||[]).find(x=>x.id===TCFG_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return {b:j.b&&typeof j.b==='object'?j.b:{}, c:Array.isArray(j.c)?j.c:[], at:j.at||'', by:j.by||''}; }
 // 받은 설정을 화면에 반영: 과업 이름(AUTO_TASKS) · 새 과업 이름 · 방문일을 따라가는 마감
