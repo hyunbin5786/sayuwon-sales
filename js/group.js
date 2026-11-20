@@ -508,8 +508,8 @@ function erpKeyOf(p){ const ns=normSrc(p);
 // 전산 내역을 줄 key별로 합침 (같은 상품이 순번 여러 개면 더함)
 function erpByKey(){ const m={}, other=[];
   erpList.forEach(x=>{ const k=erpKeyOf(x.product); if(!k){ other.push(x); return; }
-    const o = m[k] ||= {people:0, base:0, disc:0, amount:0, notes:[], seqs:[]};
-    o.people+=x.people; o.base+=x.base; o.disc+=x.disc; o.amount+=x.amount; o.notes.push(...x.notes); if(x.seq) o.seqs.push(x.seq); });
+    const o = m[k] ||= {product:x.product, date:x.date, people:0, students:0, base:0, disc:0, amount:0, notes:[], seqs:[]};
+    o.people+=x.people; o.students+=x.students||0; o.base+=x.base; o.disc+=x.disc; o.amount+=x.amount; o.notes.push(...x.notes); if(x.seq) o.seqs.push(x.seq); });
   return {m, other}; }
 const cleanErpNote = n => String(n).replace(/\s*-\s*[\d,]+\(.*$/,'').replace(/\s*-\s*([\d,]+)\s*$/,' $1원');
 // 관람+식사 패키지 "평일(관람, 사담 런치1부)" → 1인 관람 · 식사 가격. 품목 관리의 비과세(관람) · 과세(식사)가 있으면 그것, 없으면 그날 기본 관람권 가격만큼 관람
@@ -554,7 +554,8 @@ const damIn = (k, side, v, max) => `<span class="dam"><i>${side==='tx'?'과세(�
 // 전산 내역 줄 금액: 전산 상품금액 · 할인을 과세(신라) · 비과세(사유원)로 (자동 = 전산 사유원/신라 나누기와 같은 계산), 할인액을 고쳤으면 그 값
 function erpRowMoney(k, x){
   const src=itemSrc(k), p=src ? priceOf(src) : null, u = p ? splitOf(src, p, rec) : {tx:1, tf:0}, rt=(u.tx+u.tf) ? u.tf/(u.tx+u.tf) : 0;
-  const fTf=Math.round(x.base*rt), fTx=x.base-fTf;
+  const sTf = x.students ? erpFullTf(x) : null;   // 학생이 있으면 어른 · 학생 비과세를 따로 더함
+  const fTf = sTf!=null ? Math.min(x.base, sTf) : Math.round(x.base*rt), fTx=x.base-fTf;
   const lines=erpList.filter(y=>erpKeyOf(y.product)===k), autoSaw=lines.reduce((s,y)=>s+erpSplit(y).saw,0);
   const aTf=Math.max(0, Math.min(x.disc, fTf-autoSaw)), aTx=x.disc-aTf;
   const ov=idamtMap(rec)[dkey(k)], dTx = ov ? Math.min(ov.tx, fTx) : aTx, dTf = ov ? Math.min(ov.tf, fTf) : aTf;
@@ -2660,16 +2661,25 @@ function parseErp(text){
   return list;
 }
 // 사유원 / 신라 나누기: 관람 = 사유원, 관람+식사 패키지 = 관람료만큼 사유원 나머지 신라, 그 밖 = 신라
+// 전산 상품금액(할인 전) 중 비과세(사유원) 몫: 어른 = 품목 비과세, 학생 = 학생 행의 비과세 (2026-11-20 · 예전엔 학생도 어른 비과세로 계산해 차이가 남)
+function erpFullTf(x){
+  const t=taxOf(x.product); if(!t || !x.people) return null;
+  const ns=Math.min(x.students||0, x.people), it=ns ? stuItemOf(x.product) : null, us = it ? stuSplitOf(x.product, it.sprice, {date:x.date||rec.date, tin:''}) : null;
+  return t.tf*(x.people-ns) + (us ? us.tf : t.tf)*ns;
+}
 function erpSplit(x){
   const t=taxOf(x.product);   // 품목 관리의 과세 · 비과세가 있으면 그것으로 (할인 괄호 = 신라 몫이면 그대로 반영)
-  if(t){ let saw = x.discShilla!=null && x.people ? t.tf*x.people - Math.max(0, x.disc-x.discShilla) : Math.round(x.amount*t.tf/(t.tx+t.tf));
+  if(t){ const fTf=erpFullTf(x);
+    let saw = x.discShilla!=null && x.people ? fTf - Math.max(0, x.disc-x.discShilla) : x.students && x.base && fTf!=null ? Math.round(x.amount*fTf/x.base) : Math.round(x.amount*t.tf/(t.tx+t.tf));
     saw=Math.max(0, Math.min(x.amount, saw)); return {saw, shilla:x.amount-saw}; }
   const isView = /관람/.test(x.product) && !/\(관람,/.test(x.product) && !/관람권|관람식사권/.test(x.product);
   if(isView) return {saw:x.amount, shilla:0};
   if(/\(관람,/.test(x.product) && x.people){
-    const vp=priceOf(viewSrcOf({date:x.date, tin:''})) || priceOf(`${x.date && isRedDay(x.date)?'주말/공휴일':'평일'}(관람)`) || 0;
-    const sawDisc = x.discShilla!=null ? Math.max(0, x.disc-x.discShilla) : Math.round(vp*x.people*(x.base ? x.disc/x.base : 0));   // 할인 중 사유원 몫
-    const saw=Math.max(0, Math.min(x.amount, vp*x.people - sawDisc)); return {saw, shilla:x.amount-saw}; }
+    const vsrc=viewSrcOf({date:x.date, tin:''}), vp=priceOf(vsrc) || priceOf(`${x.date && isRedDay(x.date)?'주말/공휴일':'평일'}(관람)`) || 0;
+    const vit=catalogItems().find(y=>normSrc(y.src)===normSrc(vsrc)), vsp = vit && vit.sprice!=null && !vit.nostu ? vit.sprice : vp;   // 학생은 그날 관람권의 학생 가격
+    const ns=Math.min(x.students||0, x.people), vFull=vp*(x.people-ns)+vsp*ns;
+    const sawDisc = x.discShilla!=null ? Math.max(0, x.disc-x.discShilla) : Math.round(vFull*(x.base ? x.disc/x.base : 0));   // 할인 중 사유원 몫
+    const saw=Math.max(0, Math.min(x.amount, vFull - sawDisc)); return {saw, shilla:x.amount-saw}; }
   return {saw:0, shilla:x.amount};
 }
 // 전산 내역 합계 · 사유원 / 신라 (결제 정보가 있으면 면세 = 사유원, 과세 = 신라)
