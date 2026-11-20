@@ -375,3 +375,7 @@ html.cat-page #cat-close{display:none !important}
     color-scheme: light;
   }
 }
+/* 품목 관리 학생 행 (2026-11-20) */
+.cattable tr.stu-row td{background:#f7f9f4;border-top:0}
+.cattable td.stu-lab{color:var(--muted);padding-left:18px;font-weight:500}
+.cattable .stu-add{margin-top:3px;padding:1px 8px;font-size:11.5px}

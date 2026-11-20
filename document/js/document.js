@@ -239,8 +239,12 @@
     list.forEach(function(it){
       var bs = studentBaseSrcs(it.src); if(!bs.length) return;
       var base = null; bs.some(function(b){ var x = by[normName(b)]; if(x && x !== it){ base = x; return true; } return false; }); if(!base) return;
+      it.hidden = true; it.merged = true; it.stuOf = base.src;
+      if(base.nostu) return;   // 품목 관리에서 「학생 빼기」 한 품목
       if(base.sprice == null && it.price != null) base.sprice = it.price;   // 학생 가격을 따로 넣지 않았으면 학생 품목의 가격
-      it.price = base.sprice != null ? base.sprice : it.price; it.hidden = true; it.merged = true; it.stuOf = base.src;
+      if(base.staxable == null && it.taxable != null) base.staxable = it.taxable;   // 학생 과세 · 비과세도 학생 품목 값 (2026-11-20 · 학생 행)
+      if(base.staxfree == null && it.taxfree != null) base.staxfree = it.taxfree;
+      it.price = base.sprice != null ? base.sprice : it.price; it.taxable = base.staxable; it.taxfree = base.staxfree;
     });
   }
   function buildCatalog(){
@@ -1887,10 +1891,18 @@
     var i = 0, n = 0; while(i < out.length && n < before){ if(/\d/.test(out[i])) n++; i++; }   // 커서를 같은 숫자 뒤로
     try { el.setSelectionRange(i, i); } catch(e){}
   }
-  function taxSplitNote(it){
-    if(it.taxable == null && it.taxfree == null) return "";
-    var s = (Number(it.taxable) || 0) + (Number(it.taxfree) || 0);
-    return s === (Number(it.price) || 0) ? "" : '<span class="sub taxwarn">합 ' + won(s) + '원 ≠ 성인 가격</span>';
+  function taxSplitNote(it, stu){
+    var tx = stu ? it.staxable : it.taxable, tf = stu ? it.staxfree : it.taxfree, p = stu ? it.sprice : it.price;
+    if(tx == null && tf == null) return "";
+    var s = (Number(tx) || 0) + (Number(tf) || 0);
+    return s === (Number(p) || 0) ? "" : '<span class="sub taxwarn">합 ' + won(s) + '원 ≠ ' + (stu ? '학생' : '') + '가격</span>';
+  }
+  // 학생 행 (2026-11-20): 성인 품목 바로 아래 「└ 학생」 — 학생 가격 · 과세 · 비과세를 따로. 「학생 빼기」면 학생 가격 없음 (인원을 한꺼번에)
+  function stuRowHTML(it){
+    var mi = function(f, ph){ return '<input class="num money" type="text" inputmode="numeric" autocomplete="off" data-f="' + f + '" value="' + moneyIn(it[f]) + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '>'; };
+    return '<tr class="stu-row" data-id="' + esc(it.id) + '" data-stu="1"><td></td><td class="src stu-lab">└ 학생</td><td colspan="3"><span class="sub">학생 1인 가격 · 과세 · 비과세 (성인과 같으면 「학생 빼기」)</span></td>' +
+      '<td>' + mi("sprice") + '</td><td>' + mi("staxable") + '</td><td>' + mi("staxfree") + taxSplitNote(it, true) + '</td><td></td>' +
+      '<td><button class="btn small" type="button" data-act="delstu">학생 빼기</button></td></tr>';
   }
   function catRowHTML(it){
     var u = it.kind === "package" ? unitPrice(it) : null;
@@ -1904,23 +1916,23 @@
     return '<tr data-id="' + esc(it.id) + '">' +
       '<td style="text-align:center"><input type="checkbox" class="pick" aria-label="선택"' + (picked[it.id] ? ' checked' : '') + '></td>' +
       '<td class="src">' + (it.def ? esc(it.src) : '<input type="text" data-f="src" value="' + esc(it.src) + '" placeholder="예약 시스템 상품명">') + '</td>' +
-      '<td><input type="text" data-f="name" value="' + esc(it.name) + '">' + (u != null ? '<span class="sub">식사 단가 ' + won(u) + '원</span>' : '') + '</td>' +
+      '<td><input type="text" data-f="name" value="' + esc(it.name) + '">' + (u != null ? '<span class="sub">식사 단가 ' + won(u) + '원</span>' : '') +
+        ((it.kind === "view" || it.kind === "package") && it.sprice == null ? '<button class="btn small stu-add" type="button" data-act="addstu" title="학생 가격이 성인과 다르면 학생 행을 추가">＋ 학생</button>' : '') + '</td>' +
       '<td>' + kindSel + '</td>' +
       '<td>' + formSel + '</td>' +
-      '<td><input class="num money" type="text" inputmode="numeric" autocomplete="off" data-f="price" value="' + moneyIn(it.price) + '" title="성인 가격"></td>' +
-      '<td><input class="num money" type="text" inputmode="numeric" autocomplete="off" data-f="sprice" value="' + moneyIn(it.sprice) + '" placeholder="-" title="학생 가격 (없으면 비움)"></td>' +   // 학생 가격 (2026-11-20)
+      '<td><input class="num money" type="text" inputmode="numeric" autocomplete="off" data-f="price" value="' + moneyIn(it.price) + '" title="' + (it.sprice != null ? '성인 가격' : '가격') + '"></td>' +
       // 과세 · 비과세: 정상가를 나눠 적는 품목만 (예: 새벽 해오름 산책). 합이 정상가와 다르면 알림
       ['taxable','taxfree'].map(function(f){
         return '<td><input class="num money" type="text" inputmode="numeric" autocomplete="off" data-f="' + f + '" value="' + moneyIn(it[f]) + '"></td>';
       }).join("").replace(/<\/td>$/, taxSplitNote(it) + '</td>') +
       '<td style="text-align:center"><input type="checkbox" data-f="disc"' + (it.disc ? ' checked' : '') + '></td>' +
       '<td><button class="btn small danger" type="button" data-act="del">삭제</button></td>' +
-    '</tr>';
+    '</tr>' + (it.sprice != null ? stuRowHTML(it) : '');
   }
 
   var picked = {};   // 체크한 품목 id
   function visibleIds(){
-    return [].map.call(document.querySelectorAll("#cat-body tr[data-id]"), function(tr){ return tr.getAttribute("data-id"); });
+    return [].map.call(document.querySelectorAll("#cat-body tr[data-id]:not(.stu-row)"), function(tr){ return tr.getAttribute("data-id"); });
   }
   // 선택 개수에 맞춰 일괄 버튼과 전체 선택 상태를 맞춘다
   function syncPicks(){
@@ -1954,7 +1966,7 @@
       return (ea - eb) || byKind(a, b);
     });
     document.getElementById("cat-body").innerHTML = items.map(catRowHTML).join("") ||
-      '<tr><td colspan="11" style="padding:18px;text-align:center;color:var(--muted)">찾는 품목이 없습니다.</td></tr>';
+      '<tr><td colspan="10" style="padding:18px;text-align:center;color:var(--muted)">찾는 품목이 없습니다.</td></tr>';
     document.getElementById("cat-count").textContent = "· " + CATALOG.filter(function(it){ return !it.sys && !it.hidden; }).length + "개";
     syncPicks();
   }
@@ -1963,22 +1975,19 @@
     var el = e.target, f = el.getAttribute("data-f"), tr = el.closest("tr");
     if(!f || !tr) return;
     var id = tr.getAttribute("data-id");
-    var num = f === "price" || f === "sprice" || f === "taxable" || f === "taxfree";
+    var num = f === "price" || f === "sprice" || f === "taxable" || f === "taxfree" || f === "staxable" || f === "staxfree";
     var v = f === "disc" ? el.checked : num ? (el.value.replace(/\D/g, "") === "" ? null : Number(el.value.replace(/\D/g, ""))) : el.value;   // 가격 칸은 쉼표를 빼고 숫자로
     setCat(id, f, v);
     // 과세 + 비과세 합이 정상가와 다르면 알림
     if(num){
-      var cell = tr.querySelector('[data-f="taxfree"]').parentNode, old = cell.querySelector(".taxwarn");
+      var stu = tr.getAttribute("data-stu") === "1";
+      var cell = tr.querySelector(stu ? '[data-f="staxfree"]' : '[data-f="taxfree"]').parentNode, old = cell.querySelector(".taxwarn");
       if(old) old.remove();
-      cell.insertAdjacentHTML("beforeend", taxSplitNote(product(id)));
+      cell.insertAdjacentHTML("beforeend", taxSplitNote(product(id), stu));
     }
-    // 구분·정상가가 바뀌면 발급 칸과 식사 단가 표시를 다시 그린다
-    if(f === "kind" || (f === "price" && product(id).kind === "package")){
-      var it = product(id);
-      var tmp = document.createElement("tbody"); tmp.innerHTML = catRowHTML(it);
-      if(f === "kind") tr.replaceWith(tmp.firstChild);
-      else { var sub = tr.querySelector(".sub"); if(sub) sub.textContent = "식사 단가 " + won(unitPrice(it)) + "원"; }
-    }
+    // 구분이 바뀌면 다시 그림(학생 행 · 「＋ 학생」 버튼도) · 관람+식사 가격이 바뀌면 식사 단가 표시
+    if(f === "kind" && e.type === "change"){ renderCatalog(); return; }
+    if(f === "price" && product(id).kind === "package"){ var sub = tr.querySelector(".sub"); if(sub) sub.textContent = "식사 단가 " + won(unitPrice(product(id))) + "원"; }
   }
   document.getElementById("cat-body").addEventListener("change", function(e){
     if(e.target.classList.contains("pick")){
@@ -2009,6 +2018,11 @@
   document.getElementById("cat-body").addEventListener("click", function(e){
     var b = e.target.closest("[data-act]"); if(!b) return;
     var id = b.closest("tr").getAttribute("data-id"), it = product(id);
+    // 학생 행 (2026-11-20): 「＋ 학생」 = 성인 가격으로 학생 행을 만들고 학생 가격 칸으로 · 「학생 빼기」 = 학생 가격 없음 (예전 「(학생)」 품목이 다시 붙지 않게 nostu)
+    if(b.getAttribute("data-act") === "addstu"){ setCat(id, "nostu", false); setCat(id, "sprice", it.price); renderCatalog();
+      var si = document.querySelector('#cat-body tr.stu-row[data-id="' + CSS.escape(id) + '"] [data-f="sprice"]'); if(si){ si.focus(); si.select(); } return; }
+    if(b.getAttribute("data-act") === "delstu"){ if(!confirm('"' + (it.src || it.name) + '" 의 학생 가격을 뺄까요? (인원을 성인 · 학생으로 나누지 않고 한꺼번에 받습니다)')) return;
+      setCat(id, "sprice", null); setCat(id, "staxable", null); setCat(id, "staxfree", null); setCat(id, "nostu", true); renderCatalog(); return; }
     // 아무것도 적지 않은 새 품목은 묻지 않고 지운다
     if((it.src || it.name) && !confirm('"' + (it.src || it.name) + '" 품목을 삭제할까요?')) return;
     delete picked[id];

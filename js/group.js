@@ -377,7 +377,7 @@ const tmTimes = k => { const p=String(rec['tm_'+k]||'').split('~'); return [p[0]
 const progHours = k => /^seminar2?$/.test(k) ? 0.5 : itemUnit(k)==='시간' ? Math.max(1, numOf(itemQty(k))||1) : 1;   // 끝 = 시작 + 1시간 (시간 프로그램은 예약한 시간만큼 · 세미나 도슨트는 30분, 2026-11-18)
 function clearItem(k){ const t=itemKind(k);
   if(ispOf(k)) setItemSp(k, null);   // 그 줄의 특별 할인 · 기타 할인도
-  if(canStu(k) && itemStu(k)) setItemStu(k, 0);   // 그 줄의 학생 인원도
+  if(itemStu(k)) setItemStu(k, 0);   // 그 줄의 학생 인원도
   if(itemNote(k)) setItemNote(k, '');
   if(k==='seminar' && itemNote('seminar2')) setItemNote('seminar2', '');   // 두 번째 세미나 비고도
   if(t==='view') return;   // 관람 줄은 관람 인원 칸으로만
@@ -672,7 +672,7 @@ document.addEventListener('change', e=>{
   const nk = val.startsWith('mb:') ? 'mb' : val;
   let q=itemQty(old); const st=itemHasStaff(old) ? String(rec[itemStfKey(old)]||'') : '', so=canStu(old) ? itemStu(old) : 0;
   if(nk!==old) clearItem(old);
-  if(nk!==old && !numOf(q) && canStu(nk)){ const n0=numOf(rec.people), rest=n0-areaOthers(rec); q = rest>0 ? String(rest) : n0 ? String(n0) : ''; }   // 관람 · 관람+식사: 기본 = 관람 인원(다른 줄에 넣은 만큼 빼고) 모두 성인 (2026-11-20)
+  if(nk!==old && !numOf(q) && (itemKind(nk)==='sadam' || (itemKind(nk)==='varea' && !/학생|해오름/.test(nk)))){ const n0=numOf(rec.people), rest=n0-areaOthers(rec); q = rest>0 ? String(rest) : n0 ? String(n0) : ''; }   // 관람 · 관람+식사: 기본 = 관람 인원(다른 줄에 넣은 만큼 빼고) 모두 성인 (2026-11-20)
   if(val.startsWith('mb:') && val.length>3){ rec.mabangMenu=val.slice(3); touched.add('mabangMenu'); mbPayDefault(); }
   const i=itemRows.indexOf(old); if(i>=0) itemRows[i]=nk; else itemRows.push(nk);
   if(nk!==old){ setItemQty(nk, q || (itemKind(nk)==='goods' ? '1' : '')); if(itemHasStaff(nk) && st && !String(rec[itemStfKey(nk)]||'').trim()){ rec[itemStfKey(nk)]=st; touched.add(itemStfKey(nk)); } if(so && canStu(nk)) setItemStu(nk, Math.min(so, numOf(itemQty(nk)))); }
@@ -2412,14 +2412,16 @@ function catalogItems(){
     const [src, price, disc] = line.split('|'); if(seen[normSrc(src)]) return; seen[normSrc(src)]=1;
     const e = (quoteCat.edits||{})[src] || {};
     if(e.hidden) return;
-    out.push({ src, name: e.name, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), sprice: e.sprice!=null ? Number(e.sprice) : null, disc: e.disc!=null ? !!e.disc : disc==='1', kind: mbKind((e.kind==='food' && MB_DEF.some(m=>normSrc(m[0])===normSrc(src))) ? 'mabang' : (e.kind || kindOf(src)), src),
+    out.push({ src, name: e.name, price: e.price!=null ? Number(e.price) : (price ? Number(price) : null), sprice: e.sprice!=null ? Number(e.sprice) : null, staxable: e.staxable!=null ? Number(e.staxable) : null, staxfree: e.staxfree!=null ? Number(e.staxfree) : null, nostu: !!e.nostu, disc: e.disc!=null ? !!e.disc : disc==='1', kind: mbKind((e.kind==='food' && MB_DEF.some(m=>normSrc(m[0])===normSrc(src))) ? 'mabang' : (e.kind || kindOf(src)), src),
       taxable: e.taxable!=null ? Number(e.taxable) : ((quoteCat.tax||{})[src]||[])[0], taxfree: e.taxfree!=null ? Number(e.taxfree) : ((quoteCat.tax||{})[src]||[])[1] });   // 과세 · 비과세 (품목 관리 값 우선)   // 예전에 '식사'로 바꿔 둔 기본 몽몽마방 메뉴도 메뉴로
   });
-  (quoteCat.added||[]).forEach(a=>{ if(a.hidden) return; out.push({ src: a.src || a.name, name: a.name, price: a.price!=null ? Number(a.price) : null, sprice: a.sprice!=null ? Number(a.sprice) : null, disc: !!a.disc, kind: mbKind(a.kind || 'food', a.src || a.name), taxable: a.taxable!=null ? Number(a.taxable) : undefined, taxfree: a.taxfree!=null ? Number(a.taxfree) : undefined }); });
+  (quoteCat.added||[]).forEach(a=>{ if(a.hidden) return; out.push({ src: a.src || a.name, name: a.name, price: a.price!=null ? Number(a.price) : null, sprice: a.sprice!=null ? Number(a.sprice) : null, staxable: a.staxable!=null ? Number(a.staxable) : null, staxfree: a.staxfree!=null ? Number(a.staxfree) : null, nostu: !!a.nostu, disc: !!a.disc, kind: mbKind(a.kind || 'food', a.src || a.name), taxable: a.taxable!=null ? Number(a.taxable) : undefined, taxfree: a.taxfree!=null ? Number(a.taxfree) : undefined }); });
   // 성인 · 학생 가격 (2026-11-20 · 견적서 품목 관리와 같음): 「(학생)」 품목은 그 성인 품목의 학생 가격(sprice)으로 합치고 merged 로 표시 (고르는 목록엔 안 보임 · 상품명으로 찾으면 가격 = 학생 가격)
   const by={}; out.forEach(it=>{ by[normSrc(it.src)] ||= it; });
   out.forEach(it=>{ const s=String(it.src||''); if(s.indexOf('(학생)')<0) return; it.merged=true;   /* 학생 품목은 성인 품목이 없어도(숨김 등) 고르는 목록에서 뺌 */ const base=[s.replace('(학생)',''), s.replace(/\s*관람\(학생\)/,'(관람)')].map(b=>by[normSrc(b)]).find(b=>b && b!==it); if(!base) return;
-    if(base.sprice==null && it.price!=null) base.sprice=it.price; it.price = base.sprice!=null ? base.sprice : it.price; it.merged=true; it.stuOf=base.src; });
+    it.stuOf=base.src; if(base.nostu) return;   // 품목 관리에서 「학생 빼기」
+    if(base.sprice==null && it.price!=null) base.sprice=it.price; if(base.staxable==null && it.taxable!=null) base.staxable=it.taxable; if(base.staxfree==null && it.taxfree!=null) base.staxfree=it.taxfree;   // 학생 과세 · 비과세도 (학생 행)
+    it.price = base.sprice!=null ? base.sprice : it.price; it.taxable=base.staxable; it.taxfree=base.staxfree; });
   return out;
 }
 // 과세 · 비과세 1인 금액 (품목 관리): 비과세 = 사유원(입장료), 과세 = 신라. 둘 다 없으면 null
@@ -2524,17 +2526,20 @@ function blockAmount(b, price){
 // ===== 학생 (2026-11-20): 관람 · 관람+식사 줄은 모두 성인이 기본, 줄마다 「학생」 인원을 넣으면 그만큼 학생 가격 =====
 // rec.istu = "sadam1=5; v:관람(09:00~18:00)=3" (줄 key = 할인 버튼과 같은 dkey) · 학생 가격 = 품목 관리의 「○○ 관람(학생)(시간대)」 · 관람+식사는 관람 부분만 학생 가격 (견적서와 같음)
 const istuMap = r => Object.fromEntries(String((r&&r.istu)||'').split(/\s*;\s*/).map(s=>{ const i=s.lastIndexOf('='); return i>0 ? [s.slice(0,i).trim(), Math.max(0, parseInt(s.slice(i+1))||0)] : null; }).filter(x=>x && x[1]>0));
-const canStu = k => itemKind(k)==='sadam' || (itemKind(k)==='varea' && !/학생/.test(k) && !/해오름/.test(k));
+// 학생 가격이 성인과 다른 품목만 성인 · 학생으로 나눠 받음 (품목 관리의 「└ 학생」 행). 학생 가격이 없거나 같으면 인원을 한꺼번에 (2026-11-20)
+const itemSrcOf = (k, r=rec) => itemKind(k)==='sadam' ? `${r.date && isRedDay(r.date) ? '주말/공휴일' : '평일'}(관람, ${{sadam1:'사담 런치1부', sadam2:'사담 런치2부', sadamD:'사담 디너'}[k]})` : itemKind(k)==='varea' ? daySrc(k.slice(2), r) : '';
+const stuItemOf = src => { const it=catalogItems().find(x=>normSrc(x.src)===normSrc(src)); return it && !it.merged && it.sprice!=null && it.price!=null && it.sprice!==it.price ? it : null; };
+const canStu = (k, r=rec) => (itemKind(k)==='sadam' || (itemKind(k)==='varea' && !/학생/.test(k) && !/해오름/.test(k))) && !!stuItemOf(itemSrcOf(k, r));
 const itemStu = k => istuMap(rec)[dkey(k)] || 0;
 function setItemStu(k, n){ const m=istuMap(rec), kk=dkey(k); n=Math.max(0, parseInt(n)||0); if(n) m[kk]=n; else delete m[kk]; const s=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); if(s!==String(rec.istu||'')){ rec.istu=s; touched.add('istu'); } }
-function stuDiffOf(src, r){   // 학생 1명당 낮아지는 금액 (성인 가격 − 학생 가격). 학생 가격이 없으면 0
-  const itm = s => catalogItems().find(x=>normSrc(x.src)===normSrc(s)), gap = it => it && it.sprice!=null && it.price!=null && it.price>it.sprice ? it.price-it.sprice : 0;
-  { const g=gap(itm(src)); if(g) return g; }   // 그 품목에 학생 가격이 있으면 그것 (품목 관리 「학생」 칸, 2026-11-20)
-  const base = /\(관람,/.test(src) ? viewSrcOf(r||rec) : src; if(!base || /학생/.test(base)) return 0;
-  { const g=gap(itm(base)); if(g) return g; }   // 관람+식사는 그날 관람권의 학생 가격만큼
-  const day = /^주말|공휴일/.test(base) ? '주말/공휴일' : '평일', tm=(String(base).match(/\(\d\d:00~\d\d:00\)/)||['(09:00~18:00)'])[0];
-  const sp = priceOf(`${day} 관람(학생)${tm}`) ?? priceOf(`${day} 관람(학생)(09:00~18:00)`), ap=priceOf(base);
-  return sp!=null && ap!=null && ap>sp ? ap-sp : 0; }
+function stuDiffOf(src){ const it=stuItemOf(src); return it ? it.price-it.sprice : 0; }   // 학생 1명당 차이 (성인 가격 − 학생 가격, 그 품목의 학생 행)
+// 학생 1인 가격을 과세 · 비과세로: 학생 행의 과세 · 비과세(비율) → 관람+식사는 그날 관람권의 학생 가격(없으면 성인)만큼 비과세 → 관람권은 모두 비과세 → 그 밖은 과세
+function stuSplitOf(src, sp, r){
+  const it=catalogItems().find(x=>normSrc(x.src)===normSrc(src)); if(!it) return {tx:sp, tf:0};
+  const tx=Number(it.staxable)||0, tf=Number(it.staxfree)||0; if((it.staxable!=null || it.staxfree!=null) && tx+tf>0){ const f=Math.round(sp*tf/(tx+tf)); return {tx:sp-f, tf:f}; }
+  if(/\(관람,/.test(src)){ const v=catalogItems().find(x=>normSrc(x.src)===normSrc(viewSrcOf(r||rec))), vp = v ? (v.sprice!=null && !v.nostu ? v.sprice : v.price) : null; if(vp!=null && vp<sp) return {tx:sp-vp, tf:vp}; }
+  if(it.kind==='view') return {tx:0, tf:sp};
+  return {tx:sp, tf:0}; }
 // 1인 가격을 과세(신라) · 비과세(사유원)로: 품목 관리의 과세 · 비과세(비율) → 관람+식사는 그날 관람권 가격만큼 비과세 → 관람권은 모두 비과세 → 그 밖은 모두 과세
 function splitOf(src, price, r){
   const tax=taxOf(src); if(tax){ const tf=Math.round(price*tax.tf/(tax.tx+tax.tf)); return {tx:price-tf, tf}; }
@@ -2545,8 +2550,10 @@ function splitOf(src, price, r){
 // 줄 금액 (실제 결제 금액): 정상가 · 할인(과세 · 비과세 따로, 할인액을 직접 고쳤으면 그 값) · 결제 금액(과세 · 비과세)
 function blockMoney(b, r){
   const p = b.price ?? priceOf(b.product), a = blockAmount(b, p); if(!a) return null;
-  const sdT = Math.min(b.stu||0, b.qty)*(b.stuDiff||0);   // 학생 몫만큼 낮아지는 금액 (관람 부분 = 비과세(사유원))
-  const u = b.price!=null ? {tx:p, tf:0} : splitOf(b.product, p, r), full=p*b.qty-sdT, fTf=Math.max(0, u.tf*b.qty-sdT), fTx=full-fTf;
+  // 성인 · 학생 따로 (2026-11-20): 학생은 학생 가격 · 학생 과세 · 비과세 (품목 관리의 학생 행)
+  const ns = Math.min(b.stu||0, b.qty), na = b.qty-ns, sp = p-(b.stuDiff||0);
+  const u = b.price!=null ? {tx:p, tf:0} : splitOf(b.product, p, r), us = ns ? (b.price!=null ? {tx:sp, tf:0} : stuSplitOf(b.product, sp, r)) : {tx:0, tf:0};
+  const fTx=u.tx*na + us.tx*ns, fTf=u.tf*na + us.tf*ns, full=fTx+fTf;
   const d=full-a.amount, aTf = full ? Math.round(d*fTf/full) : 0, aTx=d-aTf;   // 할인 버튼(%)으로 계산한 할인을 과세 · 비과세 비율로
   const ov=idamtMap(r||rec)[dkey(b.key||'')];
   const dTx = ov ? Math.min(ov.tx, fTx) : aTx, dTf = ov ? Math.min(ov.tf, fTf) : aTf;
@@ -2890,7 +2897,7 @@ function quoteBlocks(r){
   const mbM = mbMenuOf(r);   // 몽몽마방은 단체도 관람과 따로: 관람권 + 고른 메뉴 품목 (사유의 밥상이면 사유의 밥상(단체))
   const blocks=[], skipped=[];
   const add=(product, qty, disc, key)=>{ if(!(qty>0)) return; const b={product, qty, disc, key};   // key = 예약 내역 줄 (할인 버튼)
-    const ns = key && canStu(key) ? Math.min(qty, istuMap(r)[dkey(key)]||0) : 0, sd = ns ? stuDiffOf(product, r) : 0; if(ns && sd){ b.stu=ns; b.stuDiff=sd; }   // 학생 인원 (2026-11-20)
+    const ns = key && canStu(key, r) ? Math.min(qty, istuMap(r)[dkey(key)]||0) : 0, sd = ns ? stuDiffOf(product) : 0; if(ns && sd){ b.stu=ns; b.stuDiff=sd; }   // 학생 인원 (2026-11-20)
     blocks.push(b); };
   // 관람 자동 줄 없음 (2026-11-14): 관람권도 예약 내역에서 직접 고른 것만 계산
   // 관람 + 사담(런치 1부 · 2부 · 디너)은 모두 사전예약 5% · 단체예약 10% 할인 대상 (2026-11-20 디너도 · 견적서 품목과 같음). 품목 관리에서 할인 대상을 끄면 그대로 따름
