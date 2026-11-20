@@ -37,7 +37,7 @@ function opsPending(d, today=opsToday()){
   for(let i=7;i>=0;i--){ const x=new Date(today+'T00:00'); x.setDate(x.getDate()-i); const day=opsYmd(x); if(opsOccurs(d, day) && !done[day]) out.push(day); }
   return out;
 }
-const opsRepeatLabel = d => d.repeat==='daily' ? '매일' : d.repeat==='weekly' ? `매주 ${(d.dows||[]).slice().sort((a,b)=>((a+6)%7)-((b+6)%7)).map(i=>OPS_DOW[i]).join('·')||'(요일 없음)'}` : d.repeat==='monthly' ? `매달 ${+d.dom>=31?'말일':(d.dom||1)+'일'}` : '반복 없음';
+const opsRepeatLabel = d => d.repeat==='daily' ? '매일' : d.repeat==='weekly' ? `매주 ${(d.dows||[]).slice().sort((a,b)=>((a+6)%7)-((b+6)%7)).map(i=>OPS_DOW[i]).join('·')||'(요일 없음)'}` : d.repeat==='monthly' ? `매달 ${+d.dom>=31?'말일':(d.dom||1)+'일'}` : d.repeat==='later' ? '마감 없음' : '반복 없음';
 
 // ---- 굿즈 품목 (품목관리 · 견적서 품목 목록 중 굿즈): 스마트스토어 발송 보고의 상품명 ----
 // 단체 화면과 같은 자료: 견적서 코드(document/js/document.js)의 CATALOG_RAW · GOODS + 품목관리에서 고친 것(공유 · edits · added)

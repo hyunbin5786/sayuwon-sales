@@ -756,6 +756,8 @@ html.book-guest #bookBody tr{cursor:default}
 .my-etc{flex-wrap:wrap}
 .my-etc.editing{display:block;border-color:var(--pine);box-shadow:0 0 0 2px var(--pine-soft)}
 .etc-subck{flex:1 1 100%;display:flex;flex-direction:column;gap:3px;padding:4px 0 0 26px;font-size:12.5px}
+.etc-memo{flex:1 1 100%;padding:2px 0 0 26px;font-size:12.5px;line-height:1.5;color:#6b665c;white-space:pre-line;word-break:break-word}   /* 직접 넣은 업무 메모: 늘 보임 (2026-11-20) */
+.etc-later{margin:0 0 0 6px;font-size:12.5px;align-self:center}
 .etc-subck label{display:flex;gap:6px;align-items:center;cursor:pointer}
 .etc-subck input{accent-color:var(--pine)}
 .etc-subck label:has(input:checked){color:var(--muted);text-decoration:line-through}
