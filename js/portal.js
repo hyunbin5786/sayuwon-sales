@@ -133,6 +133,11 @@ paint();
 // 단체: 영업 담당(owner)별, 방문 뒤 30일이 지난 예약은 빼고 (나의 할일과 같은 기준). 예약상담은 사전답사 · 담당자 확정 · 대구대교구 · 직접 추가한 과업만
 // 개인고객: 받은(저장한) 사람별 안 끝난 과업 · 기타 개인 업무: 오늘 할 것 + 지난 것(반복은 최근 7일)
 const GROUP_TYPES = ['단체예약','예약상담','가예약','예약확정','예약접수','상담','공식예약'];   // 예약취소는 대시보드에서 뺌 (2026-11-18 4단계)
+// 다음주 예약 점검 (2026-11-20): 방문일 전주 목요일 (지났으면 방문 전날, 그것도 지났으면 오늘) · 예전 주간 점검 기록(id wk+이름+목요일)에서 체크한 예약은 끝난 것
+const wkHash = s => { let h=5381; for(const c of String(s)) h=((h*33) ^ c.codePointAt(0))>>>0; return h.toString(36); };
+const wkPrevThu = d => { const t=new Date(d+'T00:00'); t.setDate(t.getDate()-((t.getDay()+6)%7)-4); return opsYmd(t); };
+const wkLimit = d => { const thu=wkPrevThu(d), today=opsToday(); if(thu>=today) return thu; const p=new Date(d+'T00:00'); p.setDate(p.getDate()-1); const pd=opsYmd(p); return pd>=today ? pd : today; };
+const booked = r => ['가예약','예약확정','예약접수','공식예약'].includes(r.callType) || (/^adm/.test(r.id||'') && (r.callType||'단체예약')==='단체예약');
 const histTasks = r => { try{ const j=JSON.parse(r.history||'{}'); return Array.isArray(j.tasks) ? j.tasks : []; }catch(_){ return []; } };
 // 단체 과업이 예약 내용으로 이미 끝났는지 (단체 화면 추후 과업과 같은 기준, 2026-11-18): 저장 전이라 「오늘 마감」으로 남던 것
 //  전산 예약 = 전산 등록 · 결제링크 전송 · 입금 확인 = 비고 칸에 그 일시 · 하위 과업이 모두 체크 · 예전 기준(담당자 이름 등)으로 생긴 전산 예약 수정
@@ -168,6 +173,10 @@ function dashRecs(items){
       if(ct==='예약취소') return;   // 예약취소는 과업 없음
       const consult = ct==='예약상담' || ct==='상담';
       const ts=histTasks(r).filter(t=>!t.done && !t.removed && !doneByRec(t, r) && (!consult || ['tour','clergy'].includes(t.id) || t.custom)).map(t=>({title:t.title, due:dueOf(t,r)}));
+      // 다음주 예약 점검 (2026-11-20 · group.js wkcheck 와 같은 기준): 가예약 · 예약확정이고 방문일이 오늘 이후면 예약마다 방문일 전주 목요일 마감 (아직 저장된 과업이 없어도)
+      const d0=String(r.date||'').slice(0,10), o0=(r.owner||r.takenBy||'').trim();
+      if(booked(r) && d0>=opsToday() && !histTasks(r).some(t=>t.id==='wkcheck')){ const thu=wkPrevThu(d0), w=items.find(x=>x.id==='wk'+wkHash(o0)+thu.replace(/-/g,'')); let dn={}; try{ dn=(JSON.parse((w||{}).history||'{}')||{}).done||{}; }catch(_){}
+        if(!dn[r.id]) ts.push({title:'다음주 예약 점검', due:wkLimit(d0)}); }
       if(ts.length) recs.push({kind:'단체', owner:(r.owner||r.takenBy||'').trim(), name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:ts, href:'group.html?open='+encodeURIComponent(r.id)});
     } else if(ct==='개인고객'){
       const ts=histTasks(r).filter(t=>!t.done).map(t=>({title:t.title, due:dueOf(t,r)}));
@@ -179,19 +188,6 @@ function dashRecs(items){
       const subs=d.subs||[], subTxt = day => subs.length ? `세부 과업 ${subs.filter(s=>((d.subDone||{})[day]||{})[s.id]).length}/${subs.length}` : opsRepeatLabel(d);
       if(days.length) recs.push({kind:'기타', owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({title:subTxt(day), due:day})), href:'group.html?my=1&tab=etc'});
     }
-  });
-  // 다음주 예약 점검 (매주 목요일, 2026-11-19 · 나의 할일 group.js weekTask 와 같은 기준): 영업 담당마다 금~다음주 일 내 예약(가예약 · 예약확정) 중 아직 체크 안 한 것이 있으면 한 줄
-  const today=opsToday(), td=new Date(today+'T00:00'); td.setDate(td.getDate()-((td.getDay()-4+7)%7)); const thu=opsYmd(td);
-  const addD = n => { const x=new Date(thu+'T00:00'); x.setDate(x.getDate()+n); return opsYmd(x); }, from=addD(1), to=addD(10);   // 금 ~ 다음주 일요일 (2026-11-19 · 예전 다음 목요일까지)
-  const hash = s => { let h=5381; for(const c of String(s)) h=((h*33) ^ c.codePointAt(0))>>>0; return h.toString(36); };
-  const booked = r => ['가예약','예약확정','예약접수','공식예약'].includes(r.callType) || (/^adm/.test(r.id||'') && (r.callType||'단체예약')==='단체예약');
-  const byOwner = {};
-  items.forEach(r=>{ const d=String(r.date||'').slice(0,10), o=(r.owner||r.takenBy||'').trim(); if(o && d>=from && d<=to && booked(r)) (byOwner[o] ||= []).push(r); });
-  const wl = d => { const x=new Date(d+'T00:00'); return `${x.getMonth()+1}월 ${x.getDate()}일 (${'일월화수목금토'[x.getDay()]})`; };
-  Object.entries(byOwner).forEach(([o, list])=>{
-    const w=items.find(r=>r.id==='wk'+hash(o)+thu.replace(/-/g,'')); let done={}, due=thu; try{ const wh=JSON.parse((w||{}).history||'{}')||{}; done=wh.done||{}; if(/^\d{4}-\d{2}-\d{2}$/.test(wh.due||'')) due=wh.due; }catch(_){}   // 바꾼 마감 (2026-11-19)
-    const n=list.filter(r=>done[r.id]).length; if(n===list.length) return;
-    recs.push({kind:'단체', owner:o, name:`다음주 예약 점검 · ${wl(from)} ~ ${wl(to)} · ${n}/${list.length}`, q:'다음주 예약 점검 '+list.map(r=>r.org||'').join(' '), tasks:[{title:`내 예약 ${list.length}건 점검 (남은 ${list.length-n}건)`, due:due}], href:'group.html?my=1&tab=group'});
   });
   return recs;
 }
