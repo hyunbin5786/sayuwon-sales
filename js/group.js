@@ -3108,7 +3108,8 @@ async function openQuote2(doc, win){
   await save(true);   // 파일을 이 예약에 붙이려면 저장돼 있어야 함
   const {blocks, skipped} = quoteBlocks(rec);
   const c = contactsOf(rec)[0] || {};
-  const h = { at:Date.now(), raw:quoteRaw(rec, blocks), client:rec.org||'', clientMgr:c.name||'', sender:savedOwner()||rec.owner||'', doc: doc||'quote', recId: editingId||'', org: rec.org||'', date: rec.date||'' };
+  const email = (contactsOf(rec).map(x=>String(x.email||'').split(/[\s,;\/]+/).find(s=>/@/.test(s))||'').find(Boolean)) || '';   // 담당자 이메일 중 가장 위에 있는 것 → 견적서 메일 받는 사람 (2026-11-21)
+  const h = { at:Date.now(), raw:quoteRaw(rec, blocks), client:rec.org||'', clientMgr:c.name||'', email,sender:savedOwner()||rec.owner||'', doc: doc||'quote', recId: editingId||'', org: rec.org||'', date: rec.date||'' };
   try{ localStorage.setItem('sy_intake_handoff', JSON.stringify(h)); }catch(_){ try{ win && win.close(); }catch(__){} toast('이 브라우저에서는 넘길 수 없습니다.'); return; }
   if(win && !win.closed) win.location.href=new URL(QUOTE_URL, location.href).href; else window.open(QUOTE_URL, '_blank');
   toast(`${doc==='statement'?'거래명세서':'견적서'} 사이트를 열었습니다 · ${blocks.length}개 상품${skipped.length?` · ${skipped.join(', ')}은(는) 직접 추가`:''} · 출력하면 드라이브에도 저장됩니다`);

@@ -581,7 +581,7 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
 | `sayuwon_quote_cat` · `sy_catalog_shared` | 견적서 품목 목록 |
 | `sayuwon_intake_admin` | 관리자 사이트 사담 · 마방 현황 |
 | `sayuwon_view` · `sayuwon_my_tab` · `sayuwon_list_sort` · `sy_menu_acc` · `sy_ta_size` | 보던 화면(단체 화면만 · **나의 할일 팝업 · 단독 화면에서는 되살리지 않음**: 팝업 안에 단체예약 목록 · 열어 둔 예약이 뜨지 않게, 2026-11-18) · 나의 할일 탭 · 목록 정렬 · 메뉴 펼침 · 메모 칸 크기 |
-| `sy_intake_handoff` · `sy_intake_docs` | 단체 → 견적서로 넘기는 예약 · 견적서가 돌려주는 파일 링크 |
+| `sy_intake_handoff` · `sy_intake_docs` | 단체 → 견적서로 넘기는 예약(업체 · 담당자 · **담당자 이메일 중 맨 위 것 → 메일 받는 사람**, 2026-11-21) · 견적서가 돌려주는 파일 링크 |
 | `sayuwon_task_slot` · `sayuwon_task_snooze` · `sayuwon_paycheck_seen` | 마감 알림 · 입금 확인 알림을 본 시각 |
 | 그 밖 | `sayuwon_pcats`(개인 구분) · `sayuwon_member_names` · `sayuwon_db_time` · `sy_edit_sid` · `sayuwon_prep_state` · `sy_history_*`(견적서 발급 내역) · `sy_senders` |
 

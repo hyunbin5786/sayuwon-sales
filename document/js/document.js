@@ -1309,6 +1309,7 @@
   // 도우미(sayuwon-sales)와 같은 사이트라 로그인(이름 · 사번)으로 확인 (2026-11-21 · 팀 비밀번호 없음). 올린 링크는 sy_intake_docs 로 도우미에 돌려준다.
   var INTAKE_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";
   var intakeLink = null;
+  var intakeMail = "";   // 단체고객에서 넘어온 담당자 이메일(맨 위 것) → 메일 받는 사람 (2026-11-21)
   function blobB64(b){ return new Promise(function(ok, no){ var fr = new FileReader(); fr.onload = function(){ ok(String(fr.result).split(",")[1]); }; fr.onerror = function(){ no(fr.error); }; fr.readAsDataURL(b); }); }
   async function toIntakeDrive(files){
     var key = "", who = null; try { key = localStorage.getItem("sayuwon_intake_key") || ""; var u = JSON.parse(localStorage.getItem("sy_user") || "null"); if(u && u.name && u.emp) who = {name:u.name, emp:u.emp}; } catch(e){}   // 팀 비밀번호 대신 로그인 (2026-11-21)
@@ -2184,7 +2185,7 @@
     if(hasWork() && !confirm("지금 작성 중인 내용을 지우고 새로 시작할까요?")) return;
     document.getElementById("f-raw").value = "";
     document.getElementById("start-err").innerHTML = "";
-    curReq = null; paintReqPick(); paintReqInfo(); document.getElementById("mail-to").value = "";   // 새 문서: 고른 고객 요청도 비움
+    curReq = null; intakeMail = ""; paintReqPick(); paintReqInfo(); document.getElementById("mail-to").value = "";   // 새 문서: 고른 고객 요청 · 넘어온 이메일도 비움
     if(reqItems !== null){ renderReqList(); loadReqs(); }
     elStart.hidden = false; paintSteps();
     document.getElementById("f-raw").focus();
@@ -2244,7 +2245,7 @@
     for(var i=0;i<bs.length;i++) bs[i].classList.toggle("on", bs[i].getAttribute("data-v") === doc);
     document.getElementById("mail-status").textContent = "";
   }
-  function openMail(){ mailDoc = null; mailFill(); if(curReq && curReq.email) document.getElementById("mail-to").value = curReq.email; elMail.hidden = false; paintSteps(); document.getElementById("mail-subject").focus(); }
+  function openMail(){ mailDoc = null; mailFill(); var mt = document.getElementById("mail-to"); if(curReq && curReq.email) mt.value = curReq.email; else if(intakeMail && !mt.value.trim()) mt.value = intakeMail; elMail.hidden = false; paintSteps(); document.getElementById("mail-subject").focus(); }
   function closeMail(){ elMail.hidden = true; paintSteps(); }
   document.getElementById("open-mail").addEventListener("click", openMail);
   // 메일 문구 버튼은 출력한 뒤에만 (닫은 메일 창을 다시 열 때). 새 문서를 시작하면 다시 숨김
@@ -2780,6 +2781,7 @@
     if(h.footnote) state.footnote = h.footnote;
     if(h.doc === "statement" || h.doc === "quote") state.docType = h.doc;
     if(h.recId) intakeLink = { recId: h.recId, doc: h.doc || "quote", org: h.org || state.client, date: h.date || "" };
+    if(h.email){ intakeMail = String(h.email); document.getElementById("mail-to").value = intakeMail; }   // 담당자 이메일 중 맨 위 것 → 메일 받는 사람
     paint();
   })();
 })();
