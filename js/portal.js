@@ -164,14 +164,24 @@ const dueOf = (t, r) => t.due || (t.at ? opsYmd(t.at) : r.saved ? opsYmd(r.saved
 const DASH_LS = 'sy_dash_cache';
 let dashData = (()=>{ try{ const c=JSON.parse(localStorage.getItem(DASH_LS)||'null'); return c && c.recs ? c : null; }catch(_){ return null; } })();
 let dashTomorrow = new Set(), dashWho = '', dashLoading = false;
+// ===== 과업 계산 = 나의 할일과 똑같이 (2026-11-21) =====
+// 단체 예약의 과업은 단체 화면 규칙(group.js)으로 계산해야 저장 안 된 과업(아무도 그 예약을 아직 안 열었을 때)까지 나옴 →
+// 첫 화면에 보이지 않는 창(#dashEngine = group.html?my=1&embed=1)을 띄워 그 tasksOf 로 계산. 준비 전에는 저장된 과업으로 (예전처럼)
+let lastItems=null, engineWait=null;
+function engine(){ try{ const w=$('#dashEngine').contentWindow; return w && typeof w.tasksOf==='function' && w.__tasksReady && w.eval('typeof quoteCat!=="undefined" && !!quoteCat') ? w : null; }catch(_){ return null; } }
+function startEngine(){ const f=$('#dashEngine'); if(!f || f.src || !getUser()) return; f.src='group.html?my=1&embed=1&engine=1&t='+Date.now();
+  clearInterval(engineWait); let n=0; engineWait=setInterval(()=>{ n++; if(engine()){ clearInterval(engineWait); if(lastItems){ dashData={...(dashData||{}), recs:dashRecs(lastItems)}; renderDash(); } } else if(n>60) clearInterval(engineWait); }, 500); }
 function dashRecs(items){
-  const recs=[];
+  const recs=[], E=engine();
   items.forEach(r=>{
     const ct=r.callType||'단체예약';
     if(GROUP_TYPES.includes(ct)){
       if(r.date && (new Date(opsToday()) - new Date(r.date))/864e5 > 30) return;
       if(ct==='예약취소') return;   // 예약취소는 과업 없음
       const consult = ct==='예약상담' || ct==='상담';
+      if(E){   // 나의 할일과 같은 규칙 (안 끝난 과업 모두 · 마감 = 나의 할일과 같음)
+        let ts=[]; try{ ts=(E.tasksOf(r)||[]).filter(t=>!t.done && !t.removed).map(t=>({title:t.title, due:t.due||dueOf(t,r)})); }catch(_){ ts=null; }
+        if(ts){ if(ts.length) recs.push({kind:'단체', owner:(r.owner||r.takenBy||'').trim(), name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:ts, href:'group.html?open='+encodeURIComponent(r.id)}); return; } }
       const ts=histTasks(r).filter(t=>!t.done && !t.removed && !doneByRec(t, r) && (!consult || ['tour','clergy'].includes(t.id) || t.custom)).map(t=>({title:t.title, due:dueOf(t,r)}));
       // 다음주 예약 점검 (2026-11-20 · group.js wkcheck 와 같은 기준): 가예약 · 예약확정이고 방문일이 오늘 이후면 예약마다 방문일 전주 목요일 마감 (아직 저장된 과업이 없어도)
       const d0=String(r.date||'').slice(0,10), o0=(r.owner||r.takenBy||'').trim();
@@ -201,7 +211,8 @@ async function loadDash(){
     const [j, m] = await Promise.all([SY.list(), callApi({action:'members'}).catch(()=>null)]);   // 목록 · 멤버를 함께 받음
     if(!j.ok){ if(j.error==='bad_key'){ $('#dashKey').hidden=false; $('#dashBody').innerHTML='<p class="err">'+SY.authFail()+'</p>'; return; } throw new Error(j.error); }
     const names = m && m.ok ? (m.members||[]).map(x=>String(x.name||'').trim()).filter(Boolean) : ((dashData && dashData.names)||[]);
-    dashData = {recs:dashRecs(j.items||[]), names, at:Date.now()};
+    lastItems=j.items||[]; startEngine();
+    dashData = {recs:dashRecs(lastItems), names, at:Date.now()};
     try{ localStorage.setItem(DASH_LS, JSON.stringify(dashData)); }catch(_){}
     renderDash();
   }catch(e){ if(!dashData) $('#dashBody').innerHTML='<p class="err">불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.</p>'; }
