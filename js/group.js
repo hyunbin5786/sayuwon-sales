@@ -79,7 +79,7 @@ const sem2On = r => numOf(r.seminar)>=2 || !!r.seminar2;
 const SEM2_IX = ['tm_seminar2','plc_seminar2'];
 const COUPON_IN_GOODS = ['gaga'];   // 음료쿠폰: 품목 고르기에서 굿즈 묶음에 · 줄에는 시작 · 끝 없이 비고만 (저장은 예전 칸 gaga 그대로, 2026-11-18)
 const isDrinkSrc = src => /음료쿠폰|\((몽몽차방|가가빈빈)\)/.test(String(src||''));   // 음료쿠폰 묶음에 넣는 굿즈 (음료쿠폰 · 「(몽몽차방)」 · 「(가가빈빈)」 품목, 2026-11-21)
-const goodsKeyOf = src =>COUPON_IN_GOODS.find(c=>normSrc(PROG_SRC[c])===normSrc(src)) || '';   // 품목 관리 굿즈 품목 → 예전 전용 칸 (음료쿠폰(가가빈빈) → gaga)
+const goodsKeyOf = src => COUPON_IN_GOODS.find(c=>normSrc(PROG_SRC[c])===normSrc(src)) || '';   // 품목 관리 굿즈 품목 → 예전 전용 칸 (음료쿠폰(가가빈빈) → gaga)
 const PROG_KEYS = () => FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1])).map(f=>f[1]);
 const STF_KEYS = () => FIELDS.filter(f=>isSub(f[1])).map(f=>f[1]);   // 담당 · 시간대 · 코스
 // 프로그램은 들어갔는데 담당이 빈 것 (차방 · 당두봉갈 제외)
