@@ -507,7 +507,7 @@ $('#pngBtn').onclick=async()=>{
   box.innerHTML = `<div class="sh-h"><b>${esc(dLab(s.date))} 단체현황 · ${list.length}팀</b><span>방문 ${total}명+@</span></div>`
     + `<table><thead><tr><th>단체 · 고객</th><th>인원</th><th>도착</th><th>입장문</th><th>차량</th></tr></thead><tbody>`
     + list.map(r=>`<tr class="${r.inList?'':'new'}"><td class="nm"><b>${esc(r.name)}</b>${r.phone?`<small>${esc(r.phone)}</small>`:''}</td><td class="c">${r.ppl}</td><td class="c">${esc(r.time||r.timeHint||'')}</td><td class="c">${r.gate?`<span class="g ${esc(r.gate)}">${esc(r.gate)}</span>`:'<span class="g tbd">미정</span>'}</td><td class="c">${esc(r.vehicle||'')}</td></tr>`
-      + ((n=>n ? `<tr class="nt"><td colspan="5">${esc(n)}</td></tr>` : '')(shortNote(r)))).join('')
+      + ((n=>n ? `<tr class="nt"><td colspan="5" style="white-space:pre-line">${esc(n)}</td></tr>` : '')(String(r.note??shortNote(r)).trim()))).join('')   // 비고 = 표의 비고 그대로 (직접 고치거나 더한 것도, 2026-11-21)
     + `</tbody></table>`
     + `<div class="sh-f"><span class="g1">단체 ${gSum}명</span><span class="g2">버스 ${bus}대+</span><span class="g3">개인고객 ${ind}명</span></div>`
     + `<div class="sh-n">현장결제건: ${esc(onsite.join(', ')||'-')}</div>`
