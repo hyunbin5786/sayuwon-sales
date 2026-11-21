@@ -226,11 +226,14 @@ function build(fresh){
     const prods=x ? x.items.filter(i=>i.n>0 || x.items.length===1).map(i=>shortProd(i.p)) : [];
     const pmT = x && x.items.some(i=>/13:00~18:00/.test(i.p)) && !x.items.some(i=>/09:00~18:00|\(관람,/.test(i.p)) ? '13:00 이후' : '';
     // 처음 값(엑셀 · 단체예약) — 표에서 고친 값(state.edit)과 비교해 「수정 내용 저장」에 씀 (2026-11-19)
+    const na = x ? noteArrive(x.note) : null;   // 엑셀 비고의 도착 시각 · 입장문
     const agV = ag && !r ? {bus:String(ag.bus||'').replace(/\D/g,''), car:String(ag.car||'').replace(/\D/g,'')} : {bus:'', car:''};   // 여행사 등록의 차량 (단체예약 기록이 없을 때 · 2026-11-20)
     const orig = { name: r ? (r.org||r.contact||'(업체 미정)') : x.name, ppl: x ? x.ppl : (parseInt(r.people)||0),   // 개인도 성명 그대로 (「(개인)」 안 붙임, 2026-11-20)
-      time: fmtT(r&&r.tin) || (ag ? fmtT(ag.time) : '') || '', bus: v.bus || (!v.car ? agV.bus : ''), car: v.car || (!v.bus ? agV.car : ''),   // 여행사는 등록한 도착시간 · 차량이 기본 (비워 두면 없음) phone: x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || '',
+      // 도착시간 · 입장문: 단체예약 기록 → 엑셀 비고의 「11:40 치허문」(2026-11-21) → 여행사 등록 (비워 두면 없음)
+      time: fmtT(r&&r.tin) || (na && na.time) || (ag ? fmtT(ag.time) : '') || '', bus: v.bus || (!v.car ? agV.bus : ''), car: v.car || (!v.bus ? agV.car : ''),
+      phone: x&&x.phone || String(r&&r.phone||'').split(/\s*\/\s*/)[0] || '',
       note: x && x.note && x.note!=='-' ? x.note : '',
-      gate: (()=>{ const rg=r ? (memoVal(r,'입장문')||r.gate||'') : ''; return /^(치허문|곡신문)$/.test(rg) ? rg : (ag && ag.gate) || ''; })() };   // 여행사는 등록한 입장문이 기본   // 비고 = 전산 방문자내역 엑셀의 비고 그대로 (2026-11-19 · 상품 · 단체예약 내용을 만들어 붙이지 않음)
+      gate: (()=>{ const rg=r ? (memoVal(r,'입장문')||r.gate||'') : ''; return /^(치허문|곡신문)$/.test(rg) ? rg : (na && na.gate) || (ag && ag.gate) || ''; })() };   // 여행사는 등록한 입장문이 기본   // 비고 = 전산 방문자내역 엑셀의 비고 그대로 (2026-11-19 · 상품 · 단체예약 내용을 만들어 붙이지 않음)
     return { key:k, recId: r ? r.id : '', on: state.sel[k]!==false, group: !!r || !!ag || isGroupName(x&&x.name), inList: !!r, agency: ag ? ag.name : '', agMemo: ag ? (ag.memo||'') : '', orig,
       name: e.name ?? orig.name, xname:x?x.name:'', ppl: e.ppl!=null && e.ppl!=='' ? (parseInt(e.ppl)||0) : orig.ppl,
       time: e.time ?? orig.time, timeHint: pmT, bus: e.bus ?? orig.bus, car: e.car ?? orig.car,
@@ -469,6 +472,12 @@ $('#xlsxBtn').onclick=async()=>{ if(!state || !window.ExcelJS) return; const d=t
 //  - 금액 · 출입구 미정 · 입장 시각 · 마방 식사 · 적은 사람 이름 등은 뺌. 표에서 비고를 직접 고쳤으면 고친 글 그대로
 const PROG_RE = /런치|디너|일출|해오름|일몰|선셋|도슨트|세미나|PPT/i;
 const shortT = t => { const m=fmtT(t).match(/(\d\d):(\d\d)/); return m ? (m[2]==='00' ? `${+m[1]}시` : `${+m[1]}:${m[2]}`) : String(t||'').trim(); };
+// 현장결제 어느 문에서: 엑셀 비고 「현장결제필요합니다.(곡신)」 「현장 결제 (치허문)」 → 현장결제(곡신) · 현장결제(치허). 문이 없으면 현장결제
+const onsiteLabel = note => { const m=String(note||'').match(/현장\s*결제[^/()]{0,20}\(\s*(곡신|치허)\s*문?\s*\)/); return m ? `현장결제(${m[1]})` : '현장결제'; };
+// 엑셀 비고의 도착 시각 · 입장문: 「11:40 치허문」 「11시40분 곡신문」 → {time:'11:40', gate:'치허문'} (2026-11-21)
+const noteArrive = note => { const s=String(note||''), m=s.match(/(\d{1,2})\s*(?::|시)\s*(\d{2})?\s*분?\s*(치허문|곡신문|치허|곡신)/);
+  if(m) return { time:`${String(+m[1]).padStart(2,'0')}:${m[2]||'00'}`, gate: /^치허/.test(m[3]) ? '치허문' : '곡신문' };
+  const t=s.match(/(\d{1,2}):(\d{2})\s*(?:도착|입장)/); return t ? { time:`${String(+t[1]).padStart(2,'0')}:${t[2]}`, gate:'' } : null; };
 const MEAL_ONLY = s => /런치|디너/.test(s) && !/도슨트|세미나|PPT|일출|일몰/i.test(s);   // 식사(상품명)만 적힌 조각: 「런치2부」 「사담 디너」 → 비고에서 뺌
 function shortNote(r){
   const out=[], add=s=>{ s=String(s||'').trim(); if(s && !out.some(x=>norm(x)===norm(s))) out.push(s); };
@@ -477,7 +486,7 @@ function shortNote(r){
   String(r.xnote||'').replace(/\s*\(\s*[가-힣]{2,4}\s*\)\s*$/,'')   // 맨 끝 적은 사람 이름 「(문현빈)」은 뺌
     .split(/\s*\/\s*/).forEach(s=>{ if(PROG_RE.test(s) && !/\d[\d,]*\s*원/.test(s) && !MEAL_ONLY(clean(s))) add(clean(s)); });   // 런치 · 디너(예약 상품명)는 안 씀 (2026-11-20)
   if(r.agMemo) add(r.agMemo);   // 여행사 등록 메모 (2026-11-19)
-  if(r.onsitePay || /현장\s*결제/.test(r.xnote||'')) add('현장결제');
+  if(r.onsitePay || /현장\s*결제/.test(r.xnote||'')) add(onsiteLabel(r.xnote));   // 「현장결제필요합니다.(곡신)」 → 현장결제(곡신) = 곡신문에서 현장결제 (2026-11-21)
   const arrive = r.time ? `${shortT(r.time)} ${r.gate || '입장'}` : (r.gate || '');   // 입장문을 아직 안 골랐으면 「9시 입장」 (2026-11-19)
   // 시간이 적힌 프로그램이 있으면 도착부터 시간 순 (예: 13시 곡신문 / 13:30 동행도슨트 / 15-16시 자체세미나), 없으면 맨 뒤에 도착 (예: 런치1부 / 현장결제 / 10:30 곡신문)
   const startMin = s => { const m=String(s).match(/^(\d{1,2})(?::(\d\d))?(?=시|\s|-|~)/); return m ? +m[1]*60+(+m[2]||0) : null; };
