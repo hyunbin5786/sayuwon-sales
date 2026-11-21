@@ -51,7 +51,7 @@ function tkHTML(T){
   const n=T.subs.filter(s=>s.done).length;
   return `<li class="tk${cls}" data-tk="${key}"><div class="tk-main">${ck}${title}${T.subs.length?`<small class="tk-cnt">세부 ${n}/${T.subs.length}</small>`:''}</div>`
     + `<div class="tk-meta">${meta.join('')}</div>`
-    + ((T.chg||[]).length ? `<div class="tk-chg"><b>바뀐 내용</b> ${T.chg.map(esc).join(' · ')}</div>` : '')
+    + ((T.chg||[]).length ? `<div class="tk-chg">바뀐 내용: ${T.chg.map(esc).join(' · ')}</div>` : '')
     + (T.memo ? `<div class="tk-ctl tk-memo" data-tkmemo title="눌러서 메모 고치기">${esc(T.memo)}</div>` : '')
     + (T.subs.length ? `<div class="tk-subs">${T.subs.map(s=>`<span class="tk-sub${s.done?' on':''}"><label><input type="checkbox" ${T.kind==='e' ? `data-etcsub="${esc(T.rid)}|${esc(T.day)}|${esc(s.id)}"` : `data-tksub="${esc(s.id)}"`}${s.done?' checked':''}> ${esc(s.title)}</label>${s.fixed?'':`<button type="button" class="tk-ctl tk-subx" ${T.kind==='e' ? `data-etcsubx="${esc(T.rid)}|${esc(s.id)}"` : `data-tksubx="${esc(s.id)}"`} title="세부 과업 빼기">×</button>`}</span>`).join('')}</div>` : '')
     + `</li>`;

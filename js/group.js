@@ -145,6 +145,7 @@ const isCKey = k => /^c\d+_(name|phone|email|memo)$/.test(k);   // 담당자 칸
 // ===================== 상태 =====================
 let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
+const PPL_TITLE='전날 확인 변경 → 예약내역&전산 확인';   // 「관람 인원이 바뀌면」 과업 이름 (2026-11-21 · 예전 「예약 내역&전산 내역 확인」 · 직접 고친 이름은 그대로)
 let hist=[], baseSnap=null, tasks=[], erpList=[], openDone=new Set(), memos=[], lockOwner='';   // memos: 이 예약에 남긴 메모 · lockOwner: 남이 담당인 예약을 열었을 때 그 담당 이름 (잠금)
 const FRESH_KEYS = ['org','people','date','tin','phone','vehicle','pay','sadam1','sadam2','sadamD','mabangL','memo','contact'];   // 견적서 · 거래명세서 · 사전답사 전에 공유 기록이 다른 곳에서 바뀌었는지 (freshRec)
 const rawPick = r => JSON.stringify(FRESH_KEYS.map(k=>String((r||{})[k]??'').trim()));
@@ -1993,7 +1994,7 @@ function syncAutoTasks(){
   { const tq=tasks.find(t=>t.id==='tbdcall' && !t.removed); if(tq){ const want2=!want.includes('tbdcall') ? [] : [...String(rec.tbd||'').split(/\s*,\s*/).filter(Boolean).map(l=>`미정 · ${l}`), ...askMissing().map(l=>`미입력 · ${l}`)];
     const xs=tq.xsubs||[], keep=xs.filter(x=>!/^q:/.test(x.id) || want2.includes(x.title)); want2.forEach(l=>{ if(!keep.some(x=>x.title===l)) keep.push({id:'q:'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), title:l, done:false}); }); tq.xsubs=keep; } }
   tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } if(!t.due) t.due=taskDue(t); });
-  tasks.forEach(t=>{ if(!t.custom && !t.titleSet && AUTO_TASKS[t.id] && t.title!==AUTO_TASKS[t.id]) t.title=AUTO_TASKS[t.id]; });   // 추후과업 메시지 관리에서 바꾼 이름 (직접 고친 제목은 그대로)
+  tasks.forEach(t=>{ if(!t.custom && !t.titleSet && AUTO_TASKS[t.id] && t.title!==AUTO_TASKS[t.id]) t.title=AUTO_TASKS[t.id]; if(t.id==='pplchk' && !t.titleSet && t.title!==PPL_TITLE) t.title=PPL_TITLE; });   // 추후과업 메시지 관리에서 바꾼 이름 (직접 고친 제목은 그대로)
   const fx=tasks.find(t=>t.id==='erpfix');
   if(fx && !fx.removed){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; fx.v=4; } else if(!fx.done && e0 && e0.base){ fx.changes=[]; if(!(fx.xsubs||[]).length){ fx.done=true; fx.doneAt=new Date().toISOString(); fx.autoDone=true; } } }   // 예약 내용이 전산에 올린 때와 같아지면 저절로 완료 (2026-11-19)
   // 하위 과업: 견적서 · 거래명세서는 기본 3개(생성 · 전송 · NAS 업로드) + 누구나 직접 추가한 세부 과제(xsubs). 하위 과업이 있으면 모두 체크될 때 완료
@@ -2089,7 +2090,7 @@ function renderTasks(){
     return `<li class="task${t.done?' done':late?' late':''}${fold?' collapsed':''}" data-id="${esc(t.id)}">
       <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<span class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''} title="체크하면 완료"><input class="ttl" data-tttl="${esc(t.id)}" value="${esc(t.title)}" data-ime="ko" spellcheck="false" autocomplete="off" title="눌러서 제목 고치기 (Enter로 확정)"></span>${t.done && subsDone?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}
         ${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}${dboxHTML(`data-tdue="${esc(t.id)}"`, due)}</label><button type="button" class="tsave" data-tsave="${esc(t.id)}" title="이 과업의 고친 내용(체크 · 제목 · 마감일 · 메모 · 세부 과제)을 지금 저장">저장</button><button type="button" class="del" data-tdel="${esc(t.id)}" title="이 과업 삭제 (확인 뒤)" aria-label="과업 삭제">×</button></div>
-      ${t.id==='pplchk' && pplChanges(t).length ? `<div class="tk-chg tchg-line"><b>바뀐 내용</b> ${pplChanges(t).map(esc).join(' · ')}</div>` : ''}${subsHTML(t)}${docBtn}${files}
+      ${t.id==='pplchk' && pplChanges(t).length ? `<div class="tk-chg tchg-line">바뀐 내용: ${pplChanges(t).map(esc).join(' · ')}</div>` : ''}${subsHTML(t)}${docBtn}${files}
       ${txt?`<textarea class="tnote${t.noteEdit?' edited':''}" id="tpre_${esc(t.id)}" data-tnote="${esc(t.id)}" spellcheck="false" title="자동으로 만든 문구 · 직접 고칠 수 있음">${esc(txt)}</textarea><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')||t.id==='tour'?'비고 문구 복사':'문구 복사'}</button>${t.noteEdit?`<button type="button" class="btn" data-tregen="${esc(t.id)}" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><span class="hint" style="margin:0">직접 고친 문구</span>`:''}<span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${typeof tcfgMsgHTML==="function" ? tcfgMsgHTML(t) : ""}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
@@ -2976,7 +2977,7 @@ document.addEventListener('change', e=>{ if(e.target && e.target.id==='f_people'
 // 저장한 예약의 관람 인원이 바뀌면 추후 과업 「예약 내역&전산 내역 확인」 (설명: 인원수 변경에 따른 예약 내역 확인, 2026-11-19)
 function pplTask(){ const was=String((baseSnap||{}).people||'').trim(), now=String(rec.people||'').trim(); if(!editingId || !was || !now || was===now) return;
   let t=tasks.find(x=>x.id==='pplchk');
-  if(!t){ t={id:'pplchk', title:'예약 내역&전산 내역 확인', custom:true, done:false, at:new Date().toISOString(), due:todayYmd(), pplFrom:was}; tasks.push(t); }
+  if(!t){ t={id:'pplchk', title:PPL_TITLE, custom:true, done:false, at:new Date().toISOString(), due:todayYmd(), pplFrom:was}; tasks.push(t); }
   else if(t.done){ t.done=false; t.doneAt=''; t.at=new Date().toISOString(); t.due=todayYmd(); delete t.dueSet; t.pplFrom=was; t.changes=[]; }
   t.pplTo=now; t.changes=[...(t.changes||[]).filter(c=>!/^관람 인원 .* \(단체 화면\)$/.test(c)), `관람 인원 ${was} → ${now} (단체 화면)`]; renderTasks(); renderSide(); }   // 무엇이 바뀌었는지 과업 아래에 (2026-11-21)
 // 「예약 내역&전산 내역 확인」 아래에 보이는 바뀐 내용 (예전 기록은 pplFrom → pplTo 로)
@@ -3359,7 +3360,7 @@ function tasksOf(r){
     ts.push({id:'wkcheck', title:AUTO_TASKS.wkcheck, done:!!old, ...(old?{doneAt:old}:{}), due:tbdLimit(r.date)}); }
   if(typeof tcfgVirtual==="function") tcfgVirtual(r, x, ts, has);   // 추후과업 메시지 관리의 새 과업 (열지 않은 예약도, 2026-11-20)
   return ts.filter(t=> !(t.id==='tbdcall' && !x.tbd) && !(t.id==='onsitecall' && x.pay!=='현장 결제'))   // 조건이 사라진 것은 뺌
-    .map(t=>({...t, ...(!t.custom && !t.titleSet && AUTO_TASKS[t.id] ? {title:AUTO_TASKS[t.id]} : {}), due: t.id==='tbdcall' && !t.dueSet && !t.done && x.tbdDate ? x.tbdDate : taskDue(t)}));
+    .map(t=>({...t, ...(!t.custom && !t.titleSet && AUTO_TASKS[t.id] ? {title:AUTO_TASKS[t.id]} : t.id==='pplchk' && !t.titleSet ? {title:PPL_TITLE} : {}), due: t.id==='tbdcall' && !t.dueSet && !t.done && x.tbdDate ? x.tbdDate : taskDue(t)}));
 }
 const openTasksOf = r => tasksOf(r).filter(t=>!t.done).sort((a,b)=>a.due.localeCompare(b.due));
 const taskRecActive = r => !r.date || daysFrom(r.date, ymd(new Date())) <= 30;   // 방문 뒤 30일 지난 예약의 과업은 빼고
