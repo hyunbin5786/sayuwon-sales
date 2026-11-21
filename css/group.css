@@ -991,3 +991,4 @@ li.tk.done .tk-title s{color:var(--muted);font-weight:400}
 .book-add-pop .ba-h{font-size:14px;margin-bottom:10px}
 .book-add-pop .ba-btns{display:flex;justify-content:flex-end;gap:6px;margin:14px 0 0}
 #bookAddBtn{height:30px;padding:0 12px}
+.erp-acts{display:inline-flex;gap:6px;margin-left:auto;flex:none;align-items:center}.it-erpdrop{color:var(--muted);border-color:var(--line);font-weight:600}   /* 전산에만 있는 상품: 추가 · 빼기 (2026-11-21) */
