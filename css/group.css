@@ -1080,3 +1080,12 @@ li.tk.has-x .tk-main{padding-right:22px}
 }
 /* 세미나 도슨트 2회 이상: 장소마다 담당 칸 (2026-11-21) */
 .it-extra .it-xl.it-stf .it-x{width:110px}
+/* 불러오는 중 화면 (2026-11-21): 예약 정보가 준비될 때까지 새 통화 화면을 가림 (헤더는 그대로) */
+.g-loading-box{display:none}
+html.g-loading .g-loading-box{display:flex;position:fixed;left:0;right:0;bottom:0;top:var(--gl-top,52px);z-index:11;background:var(--bg,#f6f4ee);align-items:center;justify-content:center}
+html.g-loading body{overflow:hidden}
+.gl-in{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:24px}
+.gl-in b{font-size:16px;color:var(--ink,#262620)}
+.gl-in small{margin:0}
+.gl-spin{width:34px;height:34px;border-radius:50%;border:3px solid #d9d4c6;border-top-color:var(--pine,#2f5d46);animation:glspin .8s linear infinite}
+@keyframes glspin{to{transform:rotate(360deg)}}
