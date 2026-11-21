@@ -2111,8 +2111,8 @@ function renderTasks(){
     return;
   }
   const SUB = { erp:'전산에 예약을 등록하고, 아래 문구를 전산 비고에 붙여넣은 뒤 체크하세요.', tax:'고객 안내 후, 아래 내용으로 세금계산서 발행을 요청하세요.',
-    quote:'아래 세 가지를 모두 체크하면 완료됩니다. 버튼을 누르면 견적서 사이트에 예약 내용이 채워집니다. 출력하면 PDF · 엑셀이 드라이브에도 저장되고 여기에 링크가 붙습니다.',
-    stmt:'아래 세 가지를 모두 체크하면 완료됩니다. 버튼을 누르면 거래명세서로 채워집니다. 출력하면 PDF · 엑셀이 드라이브에도 저장되고 여기에 링크가 붙습니다.' };
+    quote:'아래 세 가지를 모두 체크하면 완료됩니다. 버튼을 누르면 견적서 사이트에 예약 내용이 채워집니다. 출력하면 「견적서 생성」이 체크되고, 출력한 내용은 견적서 사이트 발급 내역에서 봅니다.',
+    stmt:'아래 세 가지를 모두 체크하면 완료됩니다. 버튼을 누르면 거래명세서로 채워집니다. 출력하면 「거래명세서 생성」이 체크되고, 출력한 내용은 견적서 사이트 발급 내역에서 봅니다.' };
   box.innerHTML = shownTasks.map(t=>{
     const txt=taskText(t);
     const sub = t.id==='paycheck' ? (rec.paidAt ? `입금 확인 ${esc(dtLabel(rec.paidAt))}` : rec.linkSent ? `결제링크를 ${esc(dtLabel(rec.linkSent))}에 보냈습니다. 입금되면 예약 내용의 <b>「입금 확인」</b>을 누르거나 체크하세요 (누른 일시가 기록됩니다). 보낸 다음날(${mdLabel(ymd(nextDay(rec.linkSent)))}) 아침에 이 창을 열면 확인 알림이 뜹니다.` : '결제링크를 먼저 보내세요 (결제링크 전송). 입금되면 예약 내용의 <b>「입금 확인」</b>을 누르거나 체크하세요.')
@@ -2132,7 +2132,8 @@ function renderTasks(){
       : t.id==='pplchk' ? `인원수 변경에 따른 예약 내역 확인${t.pplFrom||t.pplTo ? ` (관람 인원 ${esc(t.pplFrom||'?')}명 → ${esc(t.pplTo||'?')}명)` : ''}`
       : SUB[t.id] || '';
     const docBtn = (t.id==='quote'||t.id==='stmt') ? `<div class="tbtn"><button type="button" class="btn" data-tquote="${t.id==='stmt'?'statement':'quote'}">${t.id==='stmt'?'거래명세서 만들기':'견적서 만들기'}</button></div>` : '';
-    const files = t.id!=='tax' && (t.files||[]).length ? `<div class="tfiles">${t.files.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}</div>` : '';
+    // 견적서 · 거래명세서 파일 링크는 안 보임 (출력한 내용은 견적서 사이트 발급 내역에서, 2026-11-21)
+    const files = !['tax','quote','stmt'].includes(t.id) && (t.files||[]).length ? `<div class="tfiles">${t.files.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}</div>` : '';
     const due=taskDue(t), late=!t.done && due<todayYmd(); const subsDone=taskSubsDone(t), fold=t.done && subsDone && !openDone.has(t.id);   // 아래 하위 과업 · 세부 과제가 다 체크돼야 접힘   // 끝난 과업은 첫 줄만 (누르면 펼침)
     return `<li class="task${t.done?' done':late?' late':''}${fold?' collapsed':''}" data-id="${esc(t.id)}">
       <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<span class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''} title="체크하면 완료"><input class="ttl" data-tttl="${esc(t.id)}" value="${esc(t.title)}" data-ime="ko" spellcheck="false" autocomplete="off" title="눌러서 제목 고치기 (Enter로 확정)"></span>${t.done && subsDone?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}
@@ -2251,11 +2252,11 @@ async function takeDocs(){
       if(d.recId && d.recId===editingId){ attach(tasks); renderTasks(); await save(true); continue; }
       const r=(cache||[]).find(x=>x.id===d.recId);
       if(!r){ if(Date.now()-new Date(d.at)<7*864e5) left.push(d); continue; }   // 목록을 아직 못 받았으면 다음에
-      const ph=parseHist(r); attach(ph.tasks); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${title} 출력 · 드라이브 저장`});
+      const ph=parseHist(r); attach(ph.tasks); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${title} 출력`});
       await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now});
     }
     try{ left.length ? localStorage.setItem(DOCS_LS, JSON.stringify(left)) : localStorage.removeItem(DOCS_LS); }catch(_){}
-    if(list.length>left.length){ await store.list(); toast('견적서 사이트에서 만든 파일을 과업에 붙였습니다.'); }
+    if(list.length>left.length){ await store.list(); toast('견적서 사이트에서 출력해 과업 「생성」을 체크했습니다.'); }
   } finally { takingDocs=false; }
 }
 window.addEventListener('storage', e=>{ if(e.key===DOCS_LS && e.newValue) takeDocs(); });
@@ -3112,7 +3113,7 @@ async function openQuote2(doc, win){
   const h = { at:Date.now(), raw:quoteRaw(rec, blocks), client:rec.org||'', clientMgr:c.name||'', email, sender:savedOwner()||rec.owner||'', doc: doc||'quote', recId: editingId||'', org: rec.org||'', date: rec.date||'' };
   try{ localStorage.setItem('sy_intake_handoff', JSON.stringify(h)); }catch(_){ try{ win && win.close(); }catch(__){} toast('이 브라우저에서는 넘길 수 없습니다.'); return; }
   if(win && !win.closed) win.location.href=new URL(QUOTE_URL, location.href).href; else window.open(QUOTE_URL, '_blank');
-  toast(`${doc==='statement'?'거래명세서':'견적서'} 사이트를 열었습니다 · ${blocks.length}개 상품${skipped.length?` · ${skipped.join(', ')}은(는) 직접 추가`:''} · 출력하면 드라이브에도 저장됩니다`);
+  toast(`${doc==='statement'?'거래명세서':'견적서'} 사이트를 열었습니다 · ${blocks.length}개 상품${skipped.length?` · ${skipped.join(', ')}은(는) 직접 추가`:''} · 출력한 내용은 발급 내역에`);
 }
 // 발급 내역 (견적서 사이트 공유 저장소, 2026-11-21): 이 예약으로 발급한 견적서 · 거래명세서가 있으면 버튼에 ✓, 다시 누르면 발급 내역에서 그 문서를 엶
 // 같은 예약 = 발급할 때 넘긴 예약 ID(snapshot.intakeRec) 또는 수신(업체) · 이용일(방문일)이 같은 것. 발급 취소한 것은 빼고

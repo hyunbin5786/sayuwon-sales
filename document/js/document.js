@@ -1310,8 +1310,13 @@
   var INTAKE_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";
   var intakeLink = null;
   var intakeMail = "";   // 단체고객에서 넘어온 담당자 이메일(맨 위 것) → 메일 받는 사람 (2026-11-21)
+  // 2026-11-21: 출력한 파일을 드라이브에 올려 단체 과업에 붙이던 것은 없앰 (모든 내용은 발급 내역에서). 출력했다는 것만 단체 화면에 알려 과업 「생성」을 체크
+  function noteIntakeIssued(){
+    if(!intakeLink || !intakeLink.recId) return;
+    try { var list = JSON.parse(localStorage.getItem("sy_intake_docs") || "[]"); list.push({ recId: intakeLink.recId, doc: state.docType, files: [], at: new Date().toISOString() }); localStorage.setItem("sy_intake_docs", JSON.stringify(list)); } catch(e){}
+  }
   function blobB64(b){ return new Promise(function(ok, no){ var fr = new FileReader(); fr.onload = function(){ ok(String(fr.result).split(",")[1]); }; fr.onerror = function(){ no(fr.error); }; fr.readAsDataURL(b); }); }
-  async function toIntakeDrive(files){
+  async function toIntakeDrive(files){   // 쓰지 않음 (예전 드라이브 저장)
     var key = "", who = null; try { key = localStorage.getItem("sayuwon_intake_key") || ""; var u = JSON.parse(localStorage.getItem("sy_user") || "null"); if(u && u.name && u.emp) who = {name:u.name, emp:u.emp}; } catch(e){}   // 팀 비밀번호 대신 로그인 (2026-11-21)
     var base = elStatus.textContent;
     if(!key && !who){ status(base + " · 드라이브 저장은 로그인한 뒤 가능합니다.", "err"); return; }
@@ -1408,8 +1413,7 @@
       for(var si=0; si<variants.length; si++) await browserDownloads.save({ filename: variants[si].name, data: variants[si].blob });
       await browserDownloads.save({ filename: xlsxName, data: new Blob([buf]) });
       status("저장했습니다 · " + variants.map(function(v){ return v.name; }).concat([xlsxName]).join(" · "), "ok");
-      if(intakeLink) toIntakeDrive(variants.map(function(v){ return { name: v.name, blob: v.blob, mime: "application/pdf" }; })
-        .concat([{ name: xlsxName, blob: new Blob([buf]), mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }]));
+      noteIntakeIssued();   // 단체 화면 과업 「생성」 체크 (파일은 드라이브에 올리지 않음, 2026-11-21)
       recordIssue(variants.map(function(v){ return v.name; }).concat([xlsxName]));   // 발급 내역에 남김
       if(curReq && (curReq.status || "접수") === "접수") reqMark("출력");   // 고객 견적 요청 상태
       setMailReady(true);
