@@ -5,6 +5,7 @@
  *  1. https://script.google.com 에서 '새 프로젝트'
  *  2. 기존 내용을 지우고 이 파일 내용을 통째로 붙여넣는다
  *  3. (2026-11-21부터 팀 비밀번호 없음) 사이트는 로그인(이름 + 사번 · members 시트)으로 확인합니다. 예전 PASSCODE 속성이 있으면 예전 화면도 그대로 됩니다
+ *     고객 견적 요청(quoteReqAdd · 2026-11-21)도 로그인 없이 한 건 저장만 — 목록(quoteReqList) · 상태(quoteReqMark)는 로그인한 직원만 · 'quotereq' 시트
  *     예약 현황 공유(bookList · bookAdd)는 로그인 없이 — 그 목록에 필요한 칸만 보냅니다 (고객 연락처 · 이메일 · 통화 메모 · 수정 기록 없음)
  *  4. 위쪽 함수 목록에서 setup 을 골라 '실행' → 권한 승인 (내 드라이브에 '단체예약 접수 기록' 시트가 생김)
  *  5. 배포 → 새 배포 → 유형: 웹 앱 / 실행 사용자: 나 / 액세스 권한: 모든 사용자
@@ -83,9 +84,25 @@ function doPost(e) {
     catch (err) { return json_({ ok: false, error: "bookadd: " + String(err && err.message || err) }); }
     finally { bl.releaseLock(); }
   }
+  // 고객 견적 요청 (2026-11-21 · api 7): 고객이 로그인 없이 document/request.html 에서 보내는 요청 한 건 저장만 (목록 · 내용은 돌려주지 않음)
+  if (req.action === "quoteReqAdd") {
+    var ql = LockService.getScriptLock(); ql.waitLock(20000);
+    try { return json_({ ok: true, id: quoteReqAdd_(req.item || {}), api: 7 }); }
+    catch (err) { return json_({ ok: false, error: String(err && err.message || err) }); }
+    finally { ql.releaseLock(); }
+  }
   // 팀 비밀번호 대신 로그인 (2026-11-21 · api 6): 화면이 보내는 로그인(이름 + 사번)이 멤버 목록에 있으면 됨.
   // 예전 팀 비밀번호(스크립트 속성 PASSCODE)를 기억한 브라우저도 그대로 됨 (예전 화면이 섞여 있어도 끊기지 않게)
   if (!authOk_(req)) return json_({ ok: false, error: "bad_key" });
+
+  // 고객 견적 요청 목록 · 상태 바꾸기 (로그인한 직원만 · 견적서 화면 1단계)
+  if (req.action === "quoteReqList") return json_({ ok: true, items: quoteReqList_(), api: 7 });
+  if (req.action === "quoteReqMark") {
+    var qm = LockService.getScriptLock(); qm.waitLock(20000);
+    try { return json_({ ok: true, item: quoteReqMark_(req), api: 7 }); }
+    catch (err) { return json_({ ok: false, error: String(err && err.message || err) }); }
+    finally { qm.releaseLock(); }
+  }
 
   // 멤버관리 (팀 비밀번호 필요)
   if (req.action === "members") return json_({ ok: true, members: readMembers_() });
@@ -193,7 +210,10 @@ function bookList_() {
     if (!o.id || o.deleted) return;
     if (BOOK_DB_IDS[o.id]) { out.push({ id: o.id, callType: o.callType, saved: o.saved, updated: o.updated, history: o.history }); return; }   // 직접 추가 목록 (내용 = history)
     if (!GROUP[o.callType || "단체예약"] || !o.date || o.date < from) return;
-    var p = {}; BOOK_KEYS.forEach(function (k) { p[k] = o[k]; }); out.push(p);
+    var p = {}; BOOK_KEYS.forEach(function (k) { p[k] = o[k]; });
+    // 비고(memo) 안에 적힌 전화번호 · 이메일도 지움 (자동 등록 · 직접 적은 「연락처 …」 등 — 예약 현황 목록에는 쓰지 않음, 2026-11-21)
+    p.memo = String(p.memo || "").replace(/\+?\d{2,3}[-.\s]?\d{3,4}[-.\s]?\d{4}/g, "").replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, "");
+    out.push(p);
   });
   return out;
 }
@@ -213,6 +233,70 @@ function bookAdd_(req) {
   item.history = JSON.stringify(j); item.summary = (db === "mabangdb" ? "몽몽마방 예약 목록 " : "예약 현황 직접 추가 ") + j.rows.length + "건"; item.takenBy = by;
   put_(item);
   return { id: db, history: item.history };
+}
+// =====================================================================
+// 고객 견적 요청 (2026-11-21): 'quotereq' 시트, 요청 1건 = 1줄. 지우면 '삭제' 칸에 일시만
+//  - 고객 페이지(로그인 없음)는 quoteReqAdd 로 한 건 더하기만 — 목록을 볼 수 없음
+//  - 직원(로그인)은 quoteReqList 로 목록, quoteReqMark 로 상태(접수 → 출력 → 완료 · 삭제)
+// =====================================================================
+var QR_COLS = [["id", "ID"], ["at", "접수 일시"], ["org", "단체명"], ["name", "담당자"], ["phone", "연락처"], ["email", "이메일"],
+  ["date", "방문 희망일"], ["pax", "인원"], ["memo", "요청사항"], ["status", "상태"], ["by", "처리한 사람"], ["doneAt", "처리 일시"], ["deleted", "삭제"]];
+var QR_KEYS = QR_COLS.map(function (c) { return c[0]; });
+function quoteReqSheet_() {
+  var ss = sheet_().getParent(), s = ss.getSheetByName("quotereq");
+  if (!s) {
+    s = ss.insertSheet("quotereq");
+    s.getRange(1, 1, s.getMaxRows(), QR_COLS.length).setNumberFormat("@");   // 연락처 · 날짜가 숫자 · 날짜값으로 바뀌지 않게 모두 글자로
+    s.getRange(1, 1, 1, QR_COLS.length).setValues([QR_COLS.map(function (c) { return c[1]; })]).setFontWeight("bold");
+    s.setFrozenRows(1);
+  }
+  return s;
+}
+// 시트에 수식으로 들어가지 않게: = + - @ 로 시작하면 앞에 작은따옴표
+function qrText_(v, n) {
+  var t = String(v == null ? "" : v).replace(/\r\n?/g, "\n").trim().slice(0, n);
+  return /^[=+\-@]/.test(t) ? "'" + t : t;
+}
+function quoteReqAdd_(it) {
+  if (it.hp) return "";   // 사람 눈에 안 보이는 칸이 채워져 있으면 자동 입력(스팸) — 저장하지 않고 성공처럼
+  var c = CacheService.getScriptCache(), n = Number(c.get("qr_rate") || 0);
+  if (n >= 30) throw new Error("busy");   // 10분에 30건 넘게 오면 잠시 막음
+  c.put("qr_rate", String(n + 1), 600);
+  var o = { org: qrText_(it.org, 60), name: qrText_(it.name, 30), phone: qrText_(it.phone, 20), email: qrText_(it.email, 100),
+    date: String(it.date || ""), pax: String(it.pax || "").replace(/\D/g, "").slice(0, 5), memo: qrText_(it.memo, 1000) };
+  if (!o.org || !o.name) throw new Error("need_name");
+  if (String(o.phone).replace(/\D/g, "").length < 9) throw new Error("bad_phone");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email)) throw new Error("bad_email");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date)) throw new Error("bad_date");
+  if (!it.agree) throw new Error("need_agree");
+  o.id = "q" + Date.now().toString(36) + Math.floor(Math.random() * 1000);
+  o.at = Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm");
+  o.status = "접수"; o.by = ""; o.doneAt = ""; o.deleted = "";
+  var s = quoteReqSheet_(), r = s.getLastRow() + 1;
+  s.getRange(r, 1, 1, QR_COLS.length).setNumberFormat("@").setValues([QR_KEYS.map(function (k) { return o[k]; })]);
+  return o.id;
+}
+// 지난 1년 접수 (최근이 위)
+function quoteReqList_() {
+  var s = quoteReqSheet_(), n = s.getLastRow(); if (n < 2) return [];
+  var from = Utilities.formatDate(new Date(Date.now() - 365 * 864e5), "Asia/Seoul", "yyyy-MM-dd");
+  return s.getRange(2, 1, n - 1, QR_COLS.length).getDisplayValues().map(function (r) {
+    var o = {}; QR_KEYS.forEach(function (k, i) { o[k] = r[i]; }); return o;
+  }).filter(function (o) { return o.id && !o.deleted && String(o.at).slice(0, 10) >= from; }).reverse();
+}
+// {id, status: 접수 | 출력 | 완료 | 삭제} — 처리한 사람 = 로그인한 이름
+function quoteReqMark_(req) {
+  var id = String(req.id || ""), st = String(req.status || ""), by = String((req.who && req.who.name) || req.by || "").slice(0, 20);
+  if (!/^(접수|출력|완료|삭제)$/.test(st)) throw new Error("bad_status");
+  var s = quoteReqSheet_(), n = s.getLastRow(); if (!id || n < 2) throw new Error("not_found");
+  var cell = s.getRange(2, 1, n - 1, 1).createTextFinder(id).matchEntireCell(true).findNext();
+  if (!cell) throw new Error("not_found");
+  var r = cell.getRow(), now = Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm");
+  if (st === "삭제") s.getRange(r, QR_KEYS.indexOf("deleted") + 1).setNumberFormat("@").setValue(now + " " + by);
+  else s.getRange(r, QR_KEYS.indexOf("status") + 1, 1, 3).setNumberFormat("@").setValues([[st, by, now]]);
+  var v = s.getRange(r, 1, 1, QR_COLS.length).getDisplayValues()[0], o = {};
+  QR_KEYS.forEach(function (k, i) { o[k] = v[i]; });
+  return o;
 }
 function addMembers_(list, by) {
   var have = {}, s = membersSheet_(), added = 0;
