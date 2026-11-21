@@ -52,16 +52,20 @@ input[data-tp]{cursor:pointer;caret-color:transparent}`;
     if(keep.length) keep.forEach(([k,t])=>{ const c=pop.querySelector(`[data-col="${k}"]`); if(c) c.scrollTop=t; });
     else pop.querySelectorAll('.tp-col').forEach(c=>{ const on=c.querySelector('.on') || c.querySelector('[data-n="9"]') || c.firstElementChild; if(on) c.scrollTop = on.offsetTop - c.clientHeight/2 + on.offsetHeight/2; });
   }
-  function place(){ if(!cur || !pop || pop.hidden) return; const r=cur.getBoundingClientRect(), w=pop.offsetWidth, h=pop.offsetHeight;
+  function place(){ if(!live() || !pop || pop.hidden) return; const r=cur.getBoundingClientRect(), w=pop.offsetWidth, h=pop.offsetHeight;
     let top=r.bottom+4; if(top+h > innerHeight-8) top=Math.max(8, r.top-h-4); pop.style.top=top+'px'; pop.style.left=Math.max(8, Math.min(r.left, innerWidth-w-8))+'px'; }
-  function apply(v){ if(!cur) return; cur.value=v; cur.dispatchEvent(new Event('input',{bubbles:true})); cur.dispatchEvent(new Event('change',{bubbles:true})); }
+  // 고르는 사이 화면이 다시 그려져 칸이 바뀌면 (예: 다음날 고객 응대 준비 표) 같은 칸(id · data-…)을 다시 찾아서 씀 (2026-11-21)
+  let curSel='';
+  const selOf = el => { const a=[...el.attributes].filter(x=>x.name==='id' || (/^data-/.test(x.name) && x.name!=='data-tp')); return a.length ? 'input'+a.map(x=>x.name==='id' ? '#'+CSS.escape(x.value) : `[${x.name}="${CSS.escape(x.value)}"]`).join('') : ''; };
+  const live = () => { if(cur && !cur.isConnected && curSel){ const n=document.querySelector(curSel); if(n) cur=n; } return cur; };
+  function apply(v){ if(!live()) return; cur.value=v; cur.dispatchEvent(new Event('input',{bubbles:true})); cur.dispatchEvent(new Event('change',{bubbles:true})); }
   function open(el){
     if(!pop) build(); if(cur===el && !pop.hidden) return;
-    cur=el; const range=el.dataset.tp==='range';
+    cur=el; curSel=selOf(el); const range=el.dataset.tp==='range';
     if(range){ const [a,b]=String(el.value||'').split('~'); val=[parse(a), parse(b)]; } else val=[parse(el.value)];
     pop.innerHTML=''; pop.hidden=false; paint(); place();   // 보이게 한 뒤 그려야 고른 시각으로 스크롤됨
   }
-  function close(){ if(!pop || pop.hidden) return; pop.hidden=true; const el=cur; cur=null; if(el){ el.dispatchEvent(new FocusEvent('focusout',{bubbles:true})); el.dispatchEvent(new Event('blur')); } }
+  function close(){ if(!pop || pop.hidden) return; pop.hidden=true; live(); const el=cur; cur=null; if(el){ el.dispatchEvent(new FocusEvent('focusout',{bubbles:true})); el.dispatchEvent(new Event('blur')); } }
   window.syTimePick = { open, close };
   document.addEventListener('click', e=>{ const el=e.target.closest?.('input[data-tp]'); if(el){ open(el); return; } if(pop && !pop.hidden && !pop.contains(e.target)) close(); }, true);
   document.addEventListener('focusin', e=>{ const el=e.target; if(el.matches?.('input[data-tp]')){ el.readOnly=true; } });   // 키보드로 치지 않음 (스크롤로 고르기)
