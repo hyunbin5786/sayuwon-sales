@@ -22,7 +22,7 @@
     const at=ps.map(p=>String(p.at||'')).sort().pop(), cur=ps.filter(p=>String(p.at||'')===at).sort((a,b)=>a.part-b.part);   // 마지막으로 저장한 묶음만
     return { rows: cur.flatMap(p=>p.rows).map(a=>({id:a[0], date:a[1]||'', org:a[2]||'', name:a[3]||'', pos:a[4]||'', phone:a[5]||'', note:a[6]||'', turn:a[7]||''})), parts: ps.map(p=>p.id) };
   }
-  async function fetchAll(){ const j=await callApi({action:'list'}); return fromItems(j.items); }
+  async function fetchAll(){ const j=await SY.list(); return fromItems(j.items); }   // 같이 쓰는 사본 + 바뀐 것만 (2026-11-21)
   async function load(){
     if(!SY.getKey()){ $('#keyBox').hidden=false; $('#body').innerHTML='<tr><td colspan="9" class="hint">팀 비밀번호를 넣으면 명부가 보입니다.</td></tr>'; return; }
     st('불러오는 중…', 'wait');

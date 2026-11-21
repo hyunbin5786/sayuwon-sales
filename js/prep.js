@@ -23,7 +23,7 @@ const memoVal = (r, label) => { const p=String(r.memo||'').split(' / ').map(s=>s
 let groups = (()=>{ try{ return (JSON.parse(localStorage.getItem(GROUP_CACHE_LS)||'[]')||[]).filter(isConfirmed); }catch(_){ return []; } })();
 async function loadGroups(){
   if(!getKey()){ $('#keyBox').hidden=false; return; }
-  try{ const j=await callApi({action:'list'}); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true; noticeFrom(j.items); agencyFrom(j.items); paintHist(j.items);
+  try{ const j=await SY.list(); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true; noticeFrom(j.items); agencyFrom(j.items); paintHist(j.items);
     if(state){ build(false); if(hasEdits()) scheduleAuto(); } }   // 저장 안 한 수정이 남아 있으면 버튼 옆에 알림
   catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('팀 비밀번호가 맞지 않습니다.'); } else toast('단체예약을 불러오지 못했습니다. 마지막으로 받은 목록으로 보여 줍니다.'); }
 }
@@ -139,7 +139,7 @@ async function pushNow(){
 // 공유된 것 받아 오기: 이 날짜의 공유 기록이 지금 화면 것보다 새로우면 바꿈 (방금 고치는 중이면 기다림)
 async function pullShared(force){
   if(!getKey()) return false;
-  const d=prepDate; let j; try{ j=await callApi({action:'list'}); }catch(_){ return false; }
+  const d=prepDate; let j; try{ j=await SY.list(); }catch(_){ return false; }
   noticeFrom(j.items); agencyFrom(j.items); paintHist(j.items);   // 안내 명단 상품 · 지난 기록 목록도
   const r=(j.items||[]).find(x=>x.id===PREP_ID(d)); if(!r){ if(state && state.date===d && (state.rows||[]).length && !state.at) sharePush(); return false; }   // 이 PC에만 있던 그날 내용은 팀에 올림 (지난 기록에도 나오게)
   let st=null; try{ st=unpackState(JSON.parse(r.history||'null')); }catch(_){} if(!st || !Array.isArray(st.rows)) return false;
@@ -283,7 +283,7 @@ async function saveEdits(auto){
   let nGroup=0, nFix=0;
   const G_LABEL = { org:'업체명', people:'관람 인원', tin:'입장시각', vehicle:'차량', phone:'연락처', gate:'입장문', views:'관람 품목' };
   try{
-    const latest = linked.length ? ((await callApi({action:'list'})).items||[]) : [];   // 저장하는 순간의 최신 단체예약 위에
+    const latest = linked.length ? ((await SY.list({fresh:true})).items||[]) : [];   // 저장하는 순간의 최신 단체예약 위에
     const failed=[], want={};
     for(const r of linked){
       const rec = latest.find(g=>g.id===r.recId) || groups.find(g=>g.id===r.recId); if(!rec){ failed.push(r.name+' (단체예약을 못 찾음)'); continue; }
@@ -319,7 +319,7 @@ async function saveEdits(auto){
       const gi=groups.findIndex(g=>g.id===it.id); if(gi>=0) groups[gi]=it; else groups.push(it);
     }
     // 저장 확인: 다시 받아서 표의 값이 정말 들어갔는지
-    if(nGroup){ const chk=((await callApi({action:'list'})).items||[]);
+    if(nGroup){ const chk=((await SY.list({fresh:true})).items||[]);
       Object.entries(want).forEach(([id,w])=>{ const g=chk.find(x=>x.id===id); if(!g) return; const bad=['org','people','tin','vehicle','phone'].filter(k=>String(g[k]||'')!==String(w[k]||'')); if(memoVal(g,'입장문')!==(w.gate||'')) bad.push('gate');
         if(bad.length) failed.push(`${(linked.find(r=>r.recId===id)||{}).name||id} (${bad.map(k=>G_LABEL[k]).join(' · ')})`); });
       groups = chk.filter(isConfirmed).length ? chk.filter(isConfirmed) : groups; }

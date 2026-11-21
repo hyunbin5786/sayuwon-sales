@@ -86,7 +86,13 @@ function doPost(e) {
     finally { ml.releaseLock(); }
   }
 
-  if (req.action === "list") return json_({ ok: true, items: list_(Number(req.limit) || 2000), admin: readAdmin_(), api: 3 });
+  // 목록 (2026-11-21 · api 5): since(ISO 일시)를 주면 그 뒤에 저장 · 삭제된 줄만 (delta:true · 삭제된 줄은 deleted 칸이 채워져 옴) → 화면은 가진 사본에 합침
+  //  now = 이 서버 시각 (다음 since 로). since 가 없으면 예전처럼 전체
+  if (req.action === "list") {
+    var now = new Date().toISOString();
+    if (req.since) return json_({ ok: true, items: listSince_(String(req.since)), delta: true, now: now, admin: readAdmin_(), api: 5 });
+    return json_({ ok: true, items: list_(Number(req.limit) || 2000), now: now, admin: readAdmin_(), api: 5 });
+  }
   // 삭제된 기록 (단체예약 · 개인고객 통화): 시트에서는 줄을 지우지 않고 '삭제' 칸에 일시만 적으므로 그 줄들을 돌려줌 (보기 전용)
   if (req.action === "deleted") return json_({ ok: true, items: listDeleted_(Number(req.limit) || 1000), api: 4 });
   // 같은 예약을 두 PC(창)에서 동시에 고치지 않도록: 예약을 열면 '고치는 중' 표시 (2분 30초 유지, 열어 둔 화면이 1분마다 연장 · 닫으면 풀림)
@@ -273,6 +279,22 @@ function listDeleted_(limit) {
     if (o.deleted && o.id) out.push(o);
   });
   return out.slice(-limit);
+}
+// since 뒤에 저장(수정 일시) · 삭제(삭제 칸)된 줄만 — 두 칸만 먼저 읽고, 바뀐 줄만 통째로 읽음 (전체 2,000줄 × 38칸을 매번 읽지 않게)
+function listSince_(since) {
+  var s = sheet_();
+  var n = s.getLastRow();
+  if (n < 2) return [];
+  var ui = KEYS.indexOf("updated"), di = KEYS.indexOf("deleted");   // 붙어 있는 두 칸
+  var uv = s.getRange(2, ui + 1, n - 1, di - ui + 1).getDisplayValues(), hit = [];
+  uv.forEach(function (r, i) { if ((r[0] && r[0] > since) || (r[di - ui] && r[di - ui] > since)) hit.push(i + 2); });
+  if (!hit.length) return [];
+  var toObj = function (r) { var o = {}; KEYS.forEach(function (k, i) { o[k] = r[i]; }); return o; }, out = [];
+  if (hit.length > 40) {   // 많으면 한 번에 (처음 ~ 끝 줄)
+    var a = hit[0], rows = s.getRange(a, 1, hit[hit.length - 1] - a + 1, COLS.length).getDisplayValues();
+    hit.forEach(function (r) { out.push(toObj(rows[r - a])); });
+  } else hit.forEach(function (r) { out.push(toObj(s.getRange(r, 1, 1, COLS.length).getDisplayValues()[0])); });
+  return out.filter(function (o) { return o.id; });
 }
 function list_(limit) {
   var s = sheet_();

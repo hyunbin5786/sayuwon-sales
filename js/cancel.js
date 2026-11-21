@@ -23,7 +23,7 @@
     const at=ps.map(p=>String(p.at||'')).sort().pop();
     return { rows: ps.filter(p=>String(p.at||'')===at).sort((a,b)=>a.part-b.part).flatMap(p=>p.rows), parts: ps.map(p=>p.id) };
   }
-  const fetchAll = async () => fromItems((await callApi({action:'list'})).items);
+  const fetchAll = async () => fromItems((await SY.list()).items);   // 같이 쓰는 사본 + 바뀐 것만 (2026-11-21)
   async function saveAll(list){
     const at=new Date().toISOString(), by=user.name||'', packs=[]; let cur=[], size=0;
     list.forEach(r=>{ const n=JSON.stringify(r).length+1; if(size+n>MAXC && cur.length){ packs.push(cur); cur=[]; size=0; } cur.push(r); size+=n; });

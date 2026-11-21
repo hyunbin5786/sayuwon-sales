@@ -198,7 +198,7 @@ async function loadDash(){
   if(dashData) renderDash(); else $('#dashBody').innerHTML='<p class="hint">불러오는 중…</p>';
   if(dashLoading) return; dashLoading=true;
   try{
-    const [j, m] = await Promise.all([callApi({action:'list'}), callApi({action:'members'}).catch(()=>null)]);   // 목록 · 멤버를 함께 받음
+    const [j, m] = await Promise.all([SY.list(), callApi({action:'members'}).catch(()=>null)]);   // 목록 · 멤버를 함께 받음
     if(!j.ok){ if(j.error==='bad_key'){ $('#dashKey').hidden=false; $('#dashBody').innerHTML='<p class="err">팀 비밀번호가 맞지 않습니다.</p>'; return; } throw new Error(j.error); }
     const names = m && m.ok ? (m.members||[]).map(x=>String(x.name||'').trim()).filter(Boolean) : ((dashData && dashData.names)||[]);
     dashData = {recs:dashRecs(j.items||[]), names, at:Date.now()};

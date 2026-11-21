@@ -43,7 +43,7 @@ async function pull(inFlush){
   if(!getKey()){ paintSync('needkey'); return; }
   if(flushing && !inFlush) return;
   try{
-    const j=await callApi({action:'list'});
+    const j=await SY.list();   // 같이 쓰는 사본 + 바뀐 것만 (2026-11-21)
     items=(j.items||[]).filter(r=>r.callType===CALL_TYPE); writeJSON(CACHE_LS, items.slice(-500));
     { const pc=(j.items||[]).find(r=>r.id==='pcats'); if(pc && !pending.some(p=>p.action==='put' && p.item.id==='pcats')){ pcatRec=pc; writeJSON(PCATS_LS, pc); } paintChips(); if(!memberNames.length) loadMembers(); }   // 모두가 추가한 구분 · 멤버 이름
     groupMine=(j.items||[]).filter(r=>r.callType!==CALL_TYPE && ['단체예약','예약상담','가예약','예약확정','예약접수','상담','공식예약'].includes(r.callType||'단체예약') && (r.owner||r.takenBy)===(user.name||''));   // 마감 알림용: 내가 영업 담당인 단체 예약

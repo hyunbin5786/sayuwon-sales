@@ -22,7 +22,7 @@
   let groups = (SY.readJSON('sayuwon_intake_cache', [])||[]).filter(r=>GROUP_TYPES.includes(r.callType||'단체예약'));
   async function loadGroups(){
     if(!SY.getKey()){ $('#keyBox').hidden=false; return; }
-    try{ const r=await fetch(SY.API_URL,{method:'POST',body:JSON.stringify({action:'list', key:SY.getKey()})}); const j=await r.json();
+    try{ let j; try{ j=await SY.list(); }catch(e){ j={ok:false, error:e.code||e.message}; }
       if(!j.ok){ if(j.error==='bad_key') $('#keyBox').hidden=false; return; }
       groups=(j.items||[]).filter(r=>GROUP_TYPES.includes(r.callType||'단체예약')); $('#keyBox').hidden=true; }catch(_){}
   }

@@ -57,7 +57,7 @@ const setSync = t => { $('#sync').textContent = t; };
 async function pull(){
   if(!opsKey()){ $('#keyBox').hidden=false; return; }
   setSync('불러오는 중…');
-  try{ const j=await opsApi({action:'list'}); $('#keyBox').hidden=true;
+  try{ const j=await SY.list(); $('#keyBox').hidden=true;
     rows = (j.items||[]).filter(r=>r.callType===OPS_TYPES[P]).map(r=>{ const h=opsParse(r); return h ? {r, d:h.d||{}, log:h.log||[]} : null; }).filter(Boolean);
     try{ localStorage.setItem(CACHE_LS, JSON.stringify(rows)); }catch(_){}
     setSync(''); render();

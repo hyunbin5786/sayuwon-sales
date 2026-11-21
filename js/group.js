@@ -1528,10 +1528,10 @@ let pending = readJSON(PEND_LS,[]);        // 아직 시트에 못 올린 저장
 let serverItems = readJSON(CACHE_LS,[]);   // 마지막으로 받은 시트 내용 (바로 띄우기용)
 // 2026-11-21: 사본이 5MB 를 넘으면 localStorage 에 못 써서(조용히 실패) 열 때마다 구글 시트를 기다렸음 → 전체 사본은 IndexedDB 에, 열자마자 그것으로 그림
 let pulledOnce=false;
-const cacheReady = (async()=>{ const v=await SY.idb.get(CACHE_LS);
+const cacheReady = (async()=>{ const v=(await SY.listCached()) || (await SY.idb.get(CACHE_LS));   // 모든 화면이 같이 쓰는 사본 (js/common.js SY.list) · 없으면 예전 단체 화면 사본
   if(Array.isArray(v) && v.length && !pulledOnce){ serverItems=v; cache=merged(); if(window.__tasksReady){ try{ renderList(); paintMyCount(); tryOpenG(); if(!$('#myModal').hidden) renderMy(); }catch(_){} } } })();
-function cacheWrite(items){   // 전체 = IndexedDB · localStorage 는 작을 때만 (다른 화면이 빨리 쓰도록) — 크면 지워서 저장 대기 · 다른 칸 자리를 남김
-  SY.idb.set(CACHE_LS, items);
+function cacheWrite(items){   // 전체 사본은 SY.list 가 IndexedDB 에 둠 · localStorage 는 작을 때만 (다른 화면이 빨리 쓰도록) — 크면 지워서 저장 대기 · 다른 칸 자리를 남김
+  SY.idb.del(CACHE_LS);   // 예전(첫 판) 단체 화면 전용 사본은 지움
   try{ const s=JSON.stringify(items.slice(-1000)); if(s.length < 1.5e6) localStorage.setItem(CACHE_LS, s); else localStorage.removeItem(CACHE_LS); }catch(_){ try{ localStorage.removeItem(CACHE_LS); }catch(__){} } }
 const ADMIN_LS='sayuwon_intake_admin';
 let adminData = readJSON(ADMIN_LS,null);   // 관리자 사이트 사담·마방 현황 {updated, days:{날짜:{L1,L2,D,MB}}}
@@ -1614,7 +1614,7 @@ async function pull(inFlush){
   if(!getKey()){ syncState='needkey'; paintSync(); return; }
   if(flushing && !inFlush) return;
   try{
-    const j=await callApi({action:'list'});
+    const j=await SY.list(inFlush ? {fresh:true} : {});   // 바뀐 것만 받아 사본에 합침 (js/common.js, 2026-11-21)
     serverItems=j.items||[]; pulledOnce=true; cacheWrite(serverItems);
     if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
     dbTime.pulled=new Date().toISOString(); writeJSON(DBT_LS, dbTime);
