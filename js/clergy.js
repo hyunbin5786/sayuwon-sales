@@ -2,7 +2,7 @@
 // 천주교 대구대교구 수녀 · 신부 · 신학생 무료입장(연 2회) 명부. 팀 공유: 공유 기록(calls) 통화 구분 「무료입장명부」
 //  저장: 한 줄(시트 칸)에 5만 자까지라 4만 자씩 나눠 id clergy0 · clergy1 … ({part, of, at, rows:[[id, 방문일, 소속, 이름, 직책, 연락처, 비고, 회차]]})
 //  - 「엑셀 불러오기」: 명부 엑셀(머리줄에 방문일 · 소속 · 이름 · 직책 · 연락처 · 비고 · 회차)을 읽어 명부를 그 내용으로 바꿈 (확인 팝업)
-//  - 「＋ 새로 추가」: 한 줄 추가 (회차는 올해 그 사람 방문 수로 채움) · 줄 끝 × 로 지우기 (확인 팝업)
+//  - 「＋ 새로 추가」: 방문일 · 소속 · 이름 · 직책 · 연락처 → 회차(그해 방문 수 + 1) · 대구대교구 소속(js/clergyorg.js) 확인, 문제 없으면 바로 저장 · 3회차 이상 · 목록에 없는 소속이면 경고 팝업(그래도 저장 가능) · 줄 끝 × 로 지우기 (확인 팝업)
 //  - 추가 · 지우기는 저장 직전에 최신 명부를 다시 받아 그 위에 반영 (여러 명이 같이 써도 덮어쓰지 않게)
 (function(){
   const $ = s => document.querySelector(s), esc = SY.esc;
@@ -65,24 +65,68 @@
   }
   $('#q').addEventListener('input', render); $('#onlyYear').addEventListener('change', render);
 
-  // ---------- 새로 추가 ----------
+  // ---------- 새로 추가 (2026-11-21: 방문일 · 소속 · 이름 · 직책 · 연락처만 넣으면 회차 · 대구대교구 소속을 확인해 문제 없으면 바로 저장) ----------
+  //  회차 = 그 방문일 해에 같은 사람(이름 + 연락처 숫자)이 명부에 있는 수 + 1 → 3회차부터(연 2회 넘음) 경고
+  //  소속 = js/clergyorg.js(대교구 누리집 본당 164곳 · 교구 기관 · 교구에서 일하는 수도회) 또는 명부에 이미 적힌 소속이면 통과, 아니면 경고
+  //  경고가 있으면 팝업에 경고 문구 → 「그래도 저장」을 누르면 저장 (취소하면 고쳐서 다시)
+  const nz = s => String(s||'').replace(/\s/g,'').replace(/^\((재|복|사)\)/,'').replace(/^천주교/,'');
+  const ORG = window.CLERGY_ORG || {parish:[], order:[], word:[], inst:[]};
+  function orgOk(org, list){
+    const n=nz(org); if(!n) return false;
+    if(ORG.word.some(w=>n.includes(w))) return true;
+    if(ORG.parish.some(p=>n===p || n===p+'성당' || n===p+'본당' || n.includes(p+'성당') || n.includes(p+'본당') || n.includes(p+'주교좌') || n.includes(p+'공소'))) return true;
+    if(ORG.order.some(o=>n.includes(o))) return true;
+    if(ORG.inst.some(i=>n===i || (i.length>=4 && n.includes(i)) || (n.length>=4 && i.includes(n)))) return true;
+    return (list||[]).some(r=>r.org && nz(r.org)===n);   // 명부에 이미 적힌 소속
+  }
+  const visitsIn = (list, r) => { const y=String(r.date).slice(0,4); return list.filter(x=>who(x)===who(r) && String(x.date).slice(0,4)===y).length; };
+  function warnsFor(r, list){
+    const w=[], c=visitsIn(list, r);
+    if(c>=2) w.push(`<b>${esc(r.name)}</b> 님은 ${esc(String(r.date).slice(0,4))}년에 이미 <b>${c}회</b> 방문했습니다 — 이번이 <b>${c+1}회차</b>로 연 2회를 넘습니다.`);
+    if(!orgOk(r.org, list)) w.push(`소속 <b>「${esc(r.org)}」</b>은 대구대교구 본당 · 기관 목록에 없습니다 — <a href="https://www.daegu-archdiocese.or.kr/page/area.html?srl=church_search" target="_blank" rel="noopener">대교구 본당 찾기</a>에서 대구대교구 소속인지 확인해 주세요.`);
+    return w;
+  }
+  // 날짜 칸: 단체 방문일과 같은 방식 (칸 안에 「날짜 (요일)」 · 누르면 달력 · 한 번 더 누르거나 숫자를 치면 직접 입력)
+  function makeDateBox(pick){
+    const box=document.createElement('span'); box.className='dbox'; pick.parentNode.insertBefore(box, pick);
+    const txt=document.createElement('input'); txt.className='dtxt'; txt.readOnly=true; txt.placeholder='누르면 달력'; txt.title='누르면 달력 · 한 번 더 누르면 직접 입력'; txt.setAttribute('inputmode','numeric');
+    box.appendChild(txt); box.appendChild(pick); pick.classList.add('dpick'); pick.tabIndex=-1;
+    const paint=()=>{ if(!txt.dataset.editing) txt.value=SY.dateDisp(pick.value); };
+    const openPick=()=>{ try{ pick.showPicker(); }catch(_){ pick.focus(); } };
+    const startEdit=blank=>{ txt.dataset.editing='1'; txt.readOnly=false; txt.value=blank?'':pick.value; txt.focus(); if(!blank) txt.select(); };
+    txt.addEventListener('mousedown', e=>{ if(txt.dataset.editing) return; if(Date.now()-(+txt.dataset.pickAt||0)<20000){ e.preventDefault(); txt.dataset.pickAt=''; startEdit(false); return; } txt.dataset.pickAt=String(Date.now()); setTimeout(openPick,0); });
+    txt.addEventListener('keydown', e=>{ if(!txt.dataset.editing && /^\d$/.test(e.key)) startEdit(true); else if(!txt.dataset.editing && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); openPick(); } else if(txt.dataset.editing && e.key==='Enter'){ e.preventDefault(); txt.blur(); } });
+    txt.addEventListener('blur', ()=>{ if(!txt.dataset.editing) return; const d=SY.parseDateText(txt.value); delete txt.dataset.editing; txt.readOnly=true;
+      if(d===null){ toast('날짜를 알아볼 수 없습니다. 2026-12-05 · 12/5 처럼 적어 주세요.'); paint(); return; }
+      if(d!==pick.value){ pick.value=d; pick.dispatchEvent(new Event('input',{bubbles:true})); } paint(); });
+    pick.addEventListener('input', paint); pick.addEventListener('change', paint); paint();
+  }
+  const closeAdd = () => { $('#addBox').hidden=true; $('#addBox').innerHTML=''; };
   function openAdd(){ const t=SY.ymd(new Date());
-    $('#addBox').innerHTML = `<div class="cl-add"><label>방문일 <input type="date" id="aDate" value="${t}"></label><label>소속 <input id="aOrg" data-ime="ko" placeholder="성당 · 수녀원 · 신학원"></label>`
+    $('#addBox').innerHTML = `<div class="cl-add"><label>방문일 <input type="date" id="aDate" value="${t}"></label><label>소속 <input id="aOrg" data-ime="ko" placeholder="본당 · 수녀원 · 기관"></label>`
       + `<label>이름 <input id="aName" data-ime="ko"></label><label>직책 <input id="aPos" list="posList" data-ime="ko" value="수녀"><datalist id="posList"><option>수녀</option><option>신부</option><option>신학생</option></datalist></label>`
-      + `<label>연락처 <input id="aPhone" inputmode="tel"></label><label>비고 <input id="aNote" data-ime="ko" value="무료단독"></label><label>회차 <input id="aTurn" placeholder="자동"></label>`
-      + `<span class="cl-add-btns"><button type="button" class="btn" id="aNo">취소</button><button type="button" class="btn primary" id="aOk">추가</button></span><p class="hint" id="aHint"></p></div>`;
-    $('#addBox').hidden=false; $('#aName').focus(); }
-  function turnHint(){ const n=$('#aName')?.value.trim(), p=$('#aPhone')?.value; if(!n) { $('#aHint').textContent=''; return; }
-    const c=yearCount()[n.replace(/\s/g,'')+'|'+digits(p)]||0; $('#aTurn').placeholder = `${c+1}회차`;
-    $('#aHint').innerHTML = c ? `올해 이미 <b>${c}회</b> 방문${c>=2?' — <b class="bad">연 2회를 다 썼습니다</b>':''}` : ''; }
-  document.addEventListener('input', e=>{ if(e.target.id==='aName' || e.target.id==='aPhone') turnHint(); if(e.target.id==='aPhone' && SY.phoneTyping) SY.phoneTyping(e.target, e.inputType); });
+      + `<label>연락처 <input id="aPhone" inputmode="tel"></label>`
+      + `<span class="cl-add-btns"><button type="button" class="btn" id="aNo">취소</button><button type="button" class="btn primary" id="aOk">저장</button></span><p class="hint" id="aHint"></p></div>`;
+    makeDateBox($('#aDate')); $('#addBox').hidden=false; $('#aOrg').focus(); }
+  const formRow = () => ({id:newId(), date:$('#aDate').value, org:$('#aOrg').value.trim(), name:$('#aName').value.trim(), pos:$('#aPos').value.trim(), phone:$('#aPhone').value.trim(), note:'', turn:''});
+  function turnHint(){ if(!$('#aHint')) return; const r=formRow(); if(!r.name && !r.org){ $('#aHint').textContent=''; return; }
+    const out=[]; if(r.name && /^\d{4}/.test(r.date)){ const c=visitsIn(rows, r); out.push(c>=2 ? `<b class="bad">${r.date.slice(0,4)}년에 이미 ${c}회 방문 — ${c+1}회차 (연 2회 넘음)</b>` : `${r.date.slice(0,4)}년 <b>${c+1}회차</b>`); }
+    if(r.org && !orgOk(r.org, rows)) out.push('<b class="bad">대구대교구 본당 · 기관 목록에 없는 소속</b>');
+    $('#aHint').innerHTML = out.join(' · '); }
+  document.addEventListener('input', e=>{ if(['aName','aPhone','aOrg','aDate'].includes(e.target.id)) turnHint(); if(e.target.id==='aPhone' && SY.phoneTyping) SY.phoneTyping(e.target, e.inputType); });
   $('#addBtn').onclick=()=>{ if(!loaded){ toast('명부를 먼저 불러와 주세요.'); return; } openAdd(); };
+  async function saveNew(r){   // 최신 명부로 회차를 다시 세어 넣음
+    if(await change(list=>{ const c=visitsIn(list, r); return [...list, {...r, turn:`${c+1}회차`}]; }, `「${r.name}」을 명부에 넣었습니다.`)) closeAdd(); }
   document.addEventListener('click', async e=>{
-    if(e.target.id==='aNo'){ $('#addBox').hidden=true; $('#addBox').innerHTML=''; return; }
-    if(e.target.id==='aOk'){ const r={id:newId(), date:$('#aDate').value, org:$('#aOrg').value.trim(), name:$('#aName').value.trim(), pos:$('#aPos').value.trim(), phone:$('#aPhone').value.trim(), note:$('#aNote').value.trim(), turn:$('#aTurn').value.trim()};
-      if(!r.name){ toast('이름을 적어 주세요.'); $('#aName').focus(); return; }
-      if(!r.turn){ const c=yearCount()[who(r)]||0; if(String(r.date).startsWith(year())) r.turn=`${c+1}회차`; }
-      if(await change(list=>[...list, r], `「${r.name}」을 명부에 넣었습니다.`)){ $('#addBox').hidden=true; $('#addBox').innerHTML=''; } return; }
+    if(e.target.id==='aNo'){ closeAdd(); return; }
+    if(e.target.id==='aOk'){ if(busy) return; const r=formRow();
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(r.date)){ toast('방문일을 넣어 주세요.'); return; }
+      const miss=[['org','소속','aOrg'],['name','이름','aName'],['pos','직책','aPos'],['phone','연락처','aPhone']].find(([k])=>!r[k]);
+      if(miss){ toast(`${miss[1]}을(를) 적어 주세요.`); $('#'+miss[2]).focus(); return; }
+      let latest=rows; try{ st('확인 중…', 'wait'); latest=(await fetchAll()).rows; rows=latest; st('', ''); }catch(_){ st('', ''); }   // 최신 명부로 확인
+      const w=warnsFor(r, latest);
+      if(!w.length){ await saveNew(r); return; }   // 문제 없으면 바로 저장
+      ask(`<span class="bad">⚠ 확인해 주세요</span><br>${w.map(x=>'· '+x).join('<br>')}<br><br>그래도 명부에 저장할까요?`, '그래도 저장', ()=>saveNew(r)); return; }
     const d=e.target.closest && e.target.closest('[data-del]'); if(d){ const r=rows.find(x=>x.id===d.dataset.del); if(!r) return;
       ask(`<b>${esc(dLab(r.date))} · ${esc(r.name)}</b> 줄을 명부에서 지울까요? (팀이 함께 보는 명부에서 지워집니다)`, '지우기', ()=>change(list=>list.filter(x=>x.id!==r.id), `「${r.name}」 줄을 지웠습니다.`)); }
   });
