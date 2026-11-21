@@ -579,7 +579,7 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 .erp-ck .ck.ok{color:var(--pine);font-weight:600}
 .erp-ck .ck.bad{color:var(--red);font-weight:700}
 /* 예약 현황 공유 (첫 화면 3열 → group.html?book=…): 단체 화면은 숨기고 예약 목록 창만 한 페이지로. 로그인 안 했으면(book-guest) 보기만 */
-html.book-only header > *:not(.sys-brand):not(.sys-crumb):not(.sync){display:none!important}
+html.book-only header > *:not(.sys-brand):not(.sys-crumb):not(.sync):not(.smenu-btn:not(.man-btn)){display:none!important}   /* 메뉴 버튼(☰)은 보임 (2026-11-21) */
 html.book-only .layout{display:none!important}
 html.book-only #bookModal{position:static;background:none;padding:12px max(16px,env(safe-area-inset-left,0px));display:block}
 html.book-only #bookModal[hidden]{display:none}
