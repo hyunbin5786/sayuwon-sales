@@ -45,15 +45,13 @@ function tkHTML(T){
   if(T.kind!=='e' || T.rep==='none' || T.rep==='later') meta.push(`<span class="tk-ctl tk-due" title="눌러서 마감 바꾸기">${dboxHTML('data-tkdue', T.due)}${T.due?`<small>${tkDueTxt(T.due)}</small>`:'<small>마감 없음</small>'}</span>`);
   else if(T.day) meta.push(`<span class="tk-when">${esc(opsDateLabel(T.day))} <small>${tkDueTxt(T.day)}</small></span>`);
   if(T.before && T.before.length) meta.push(`<button type="button" class="tk-ctl tk-add etc-past" data-etcpast="${esc(T.rid)}" title="${esc(T.before.map(opsDateLabel).join(', '))}">지난 ${T.before.length}일 모두 완료</button>`);
-  if(!T.memo) meta.push(`<button type="button" class="tk-ctl tk-add" data-tkmemo>＋ 메모</button>`);
-  meta.push(`<button type="button" class="tk-ctl tk-add" data-tksubadd>＋ 세부</button>`);
-  if(T.canDel) meta.push(`<button type="button" class="tk-ctl tk-add tk-del" data-tkdel title="이 과업 삭제">삭제</button>`);
   const n=T.subs.filter(s=>s.done).length;
-  return `<li class="tk${cls}" data-tk="${key}"><div class="tk-main">${ck}${title}${T.subs.length?`<small class="tk-cnt">세부 ${n}/${T.subs.length}</small>`:''}</div>`
+  // 2026-11-21: 삭제 = 카드 오른쪽 위 × · 세부 과업 · 메모는 단체예약 추후 과업처럼 칸을 미리 둠 · 바뀐 내용은 나의 할일에 안 씀 (단체예약 추후 과업 아래에만)
+  return `<li class="tk${cls}${T.canDel?' has-x':''}" data-tk="${key}">${T.canDel?`<button type="button" class="tk-ctl tk-x" data-tkdel title="이 과업 삭제" aria-label="과업 삭제">×</button>`:''}<div class="tk-main">${ck}${title}${T.subs.length?`<small class="tk-cnt">세부 ${n}/${T.subs.length}</small>`:''}</div>`
     + `<div class="tk-meta">${meta.join('')}</div>`
-    + ((T.chg||[]).length ? `<div class="tk-chg">바뀐 내용: ${T.chg.map(esc).join(' · ')}</div>` : '')
-    + (T.memo ? `<div class="tk-ctl tk-memo" data-tkmemo title="눌러서 메모 고치기">${esc(T.memo)}</div>` : '')
-    + (T.subs.length ? `<div class="tk-subs">${T.subs.map(s=>`<span class="tk-sub${s.done?' on':''}"><label><input type="checkbox" ${T.kind==='e' ? `data-etcsub="${esc(T.rid)}|${esc(T.day)}|${esc(s.id)}"` : `data-tksub="${esc(s.id)}"`}${s.done?' checked':''}> ${esc(s.title)}</label>${s.fixed?'':`<button type="button" class="tk-ctl tk-subx" ${T.kind==='e' ? `data-etcsubx="${esc(T.rid)}|${esc(s.id)}"` : `data-tksubx="${esc(s.id)}"`} title="세부 과업 빼기">×</button>`}</span>`).join('')}</div>` : '')
+    + `<div class="tk-subs">${T.subs.map(s=>`<span class="tk-sub${s.done?' on':''}"><label><input type="checkbox" ${T.kind==='e' ? `data-etcsub="${esc(T.rid)}|${esc(T.day)}|${esc(s.id)}"` : `data-tksub="${esc(s.id)}"`}${s.done?' checked':''}> ${esc(s.title)}</label>${s.fixed?'':`<button type="button" class="tk-ctl tk-subx" ${T.kind==='e' ? `data-etcsubx="${esc(T.rid)}|${esc(s.id)}"` : `data-tksubx="${esc(s.id)}"`} title="세부 과업 빼기">×</button>`}</span>`).join('')}`
+    + `<input class="tk-ctl tk-subin" data-tksubin data-ime="ko" placeholder="+ 세부 과업 추가 (적고 Enter)" autocomplete="off"></div>`
+    + `<textarea class="tk-ctl tk-memoin" data-tkmemoin data-ime="ko" rows="1" placeholder="메모">${esc(T.memo)}</textarea>`
     + `</li>`;
 }
 const tkListHTML = (list, empty) => list.length ? `<ul class="pc-list tk-list">${list.map(tkHTML).join('')}</ul>` : (empty ? `<p class="hint">${empty}</p>` : '');
@@ -94,12 +92,6 @@ document.addEventListener('click', e=>{
   const K=tkKeyOf(t); if(!K) return;
   const tt=t.closest('[data-tkt]'); if(tt){ e.preventDefault(); e.stopPropagation(); const cur=(tt.textContent||'').trim();
     tkInline(tt, {value:cur, placeholder:'과업 이름', save: v=>{ if(!v){ toast('이름을 적어 주세요.'); renderMy(); return; } return tkMut(K, x=>{ x.title=v; x.titleSet=1; }, d=>{ d.title=v; }, `이름 → ${v}`); }}); return; }
-  const mm=t.closest('[data-tkmemo]'); if(mm){ e.preventDefault(); e.stopPropagation(); const cur=mm.classList.contains('tk-memo') ? mm.textContent : '';
-    const box=document.createElement('div'); K.li.appendChild(box); if(!mm.classList.contains('tk-memo')) mm.remove();
-    tkInline(mm.classList.contains('tk-memo') ? mm : box, {value:cur, multi:true, placeholder:'메모 (Ctrl+Enter 또는 칸 밖을 누르면 저장)', save: v=>tkMut(K, x=>{ x.memo=v; }, d=>{ d.memo=v; }, v?'메모 고침':'메모 지움')}); return; }
-  const sa=t.closest('[data-tksubadd]'); if(sa){ e.preventDefault(); e.stopPropagation(); const box=document.createElement('div'); K.li.appendChild(box);
-    tkInline(box, {placeholder:'세부 과업 (Enter)', save: v=>{ if(!v){ renderMy(); return; } const id='x'+Date.now().toString(36);
-      return tkMut(K, (x, now)=>{ x.xsubs=[...(x.xsubs||[]), {id, title:v, done:false}]; tkSubsDone(x, now); }, d=>{ d.subs=[...(d.subs||[]), {id:'s'+Date.now().toString(36), title:v}]; }, `세부 과업 추가: ${v}`); }}); return; }
   const sx=t.closest('[data-tksubx]'); if(sx){ e.preventDefault(); e.stopPropagation(); const sid=sx.dataset.tksubx;
     tkMut(K, (x, now)=>{ x.xsubs=(x.xsubs||[]).filter(s=>s.id!==sid); tkSubsDone(x, now); }, ()=>false, '세부 과업 빼기'); return; }
   const dw=t.closest('[data-tkdow]'); if(dw){ e.preventDefault(); e.stopPropagation(); const i=+dw.dataset.tkdow;
@@ -109,8 +101,17 @@ document.addEventListener('click', e=>{
       askDelete(`「${o.d.title}」 업무를 삭제할까요? (반복 업무면 앞으로의 날짜도 모두 없어집니다)`, async()=>{ await store.del(K.rid); cache=cache.filter(x=>x.id!==K.rid); renderMy(); if(typeof paintMyCount==='function') paintMyCount(); toast(`「${o.d.title}」 삭제했습니다.`); }); return; }
     askDelete('이 과업을 삭제할까요?', ()=>tkMut(K, x=>{ x.removed=true; }, ()=>false, '삭제')); return; }
 });
+// 세부 과업 칸: 적고 Enter → 추가 (다시 그린 뒤에도 그 칸에 커서) · 메모 칸: 칸을 벗어나면 저장, 줄이 늘면 칸도 늘어남 (2026-11-21)
+document.addEventListener('keydown', e=>{ const t=e.target; if(!t.matches?.('[data-tksubin]') || e.key!=='Enter' || e.isComposing) return; e.preventDefault();
+  const v=t.value.trim(), K=tkKeyOf(t); if(!v || !K) return; t.disabled=true; const key=K.li.dataset.tk;
+  tkMut(K, (x, now)=>{ x.xsubs=[...(x.xsubs||[]), {id:'x'+Date.now().toString(36), title:v, done:false}]; tkSubsDone(x, now); }, d=>{ d.subs=[...(d.subs||[]), {id:'s'+Date.now().toString(36), title:v}]; }, `세부 과업 추가: ${v}`)
+    .then(()=>{ const li=[...document.querySelectorAll('.tk[data-tk]')].find(l=>l.dataset.tk===key); li?.querySelector('[data-tksubin]')?.focus(); }); });
+const tkGrow = el => { el.style.height='auto'; el.style.height=Math.max(30, el.scrollHeight+2)+'px'; };
+document.addEventListener('input', e=>{ if(e.target.matches?.('[data-tkmemoin]')) tkGrow(e.target); });
+document.addEventListener('focusin', e=>{ if(e.target.matches?.('[data-tkmemoin]')) tkGrow(e.target); });
 document.addEventListener('change', e=>{
   const t=e.target; if(!t.closest?.('.tk')) return; const K=tkKeyOf(t); if(!K) return;
+  if(t.dataset.tkmemoin!=null){ const v=t.value.trim(); tkMut(K, x=>{ if(String(x.memo||'').trim()===v) return false; x.memo=v; }, d=>{ if(String(d.memo||'').trim()===v) return false; d.memo=v; }, v?'메모 고침':'메모 지움'); return; }
   if(t.dataset.tksub!=null){ const sid=t.dataset.tksub, on=t.checked;
     tkMut(K, (x, now)=>{ if(/^d:/.test(sid)){ const k=sid.slice(2); x.subs={...(x.subs||Object.fromEntries((DOC_SUBS[x.id]||[]).map(([a])=>[a,false]))), [k]:on}; } else (x.xsubs||[]).forEach(s=>{ if(s.id===sid) s.done=on; }); tkSubsDone(x, now); }, ()=>false, on?'세부 과업 체크':'세부 과업 해제'); return; }
   if(t.hasAttribute('data-tkdue')){ const v=t.value; if(!v) return;

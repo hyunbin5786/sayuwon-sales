@@ -1632,7 +1632,7 @@ async function pull(inFlush){
     serverItems=j.items||[]; pulledOnce=true; cacheWrite(serverItems);
     if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
     dbTime.pulled=new Date().toISOString(); writeJSON(DBT_LS, dbTime);
-    syncState='ok'; lastSyncErr=''; syncErrN=0; $('#keyMsg').textContent=''; paintSync(); renderList(); tryOpenG(); liveSync(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); checkMemoPopup(); if(editingId){ const cr=cache.find(x=>x.id===editingId); if(cr){ memos=mergeMemos(memos, parseHist(cr).memos); paintLock(); } } if(!$("#myModal").hidden && !(typeof etcEdit!=="undefined" && etcEdit && document.activeElement?.closest?.(".etc-edit"))) renderMy(); }
+    syncState='ok'; lastSyncErr=''; syncErrN=0; $('#keyMsg').textContent=''; paintSync(); renderList(); tryOpenG(); liveSync(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); checkMemoPopup(); if(editingId){ const cr=cache.find(x=>x.id===editingId); if(cr){ memos=mergeMemos(memos, parseHist(cr).memos); paintLock(); } } if(!$("#myModal").hidden && !(typeof etcEdit!=="undefined" && etcEdit && document.activeElement?.closest?.(".etc-edit")) && !document.activeElement?.matches?.(".tk-memoin, .tk-subin, .tk-in")) renderMy(); }   // 과업 칸(메모 · 세부 과업)에 적는 중이면 나의 할일을 다시 그리지 않음
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
 const store={
