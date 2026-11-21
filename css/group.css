@@ -1047,3 +1047,19 @@ li.tk.has-x .tk-main{padding-right:22px}
 }
 #bookAddModal .ba-who{margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--line)}
 #bookAddModal .ba-who label.wide input{width:200px}
+/* 추후과업 메시지 관리 · 바꿔 넣는 말 (2026-11-21): 누르면 마지막으로 누른 글 칸에 들어감 */
+.tcfg-vars{font-size:12px;margin:0 0 8px;line-height:1.9}
+.tcfg-vars code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-right:2px;cursor:pointer;white-space:nowrap}
+.tcfg-vars code:hover{border-color:var(--pine);color:var(--pine)}
+.tcfg-ed textarea.tcfg-in{min-height:48px}
+/* 예약 현황 직접 추가: 빼기 사유 창 · 수정 기록 창 (2026-11-21) */
+#bkDelModal{z-index:35}
+#bkLogModal{z-index:32}
+.bkdel-why{display:flex;flex-direction:column;gap:4px;margin-top:8px;font-size:13px}
+.bkdel-why textarea{width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;resize:vertical}
+.bklog .mbdb-t td{vertical-align:top}
+.bklog tr.bklog-del td{background:#fbf3f1}
+.bklog tr.bklog-edit td{background:#f6f8f2}
+#tcfgModal label.chk{display:flex !important;flex-direction:row !important;align-items:center;gap:6px;color:var(--ink);font-size:13px}
+#tcfgModal label.chk input{display:inline-block;width:auto;margin:0}
+#tcfgModal .tcfg-cond select:first-child{width:auto;min-width:240px;max-width:100%}

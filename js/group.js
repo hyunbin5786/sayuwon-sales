@@ -1278,6 +1278,60 @@ async function bkDbSave(rows, msg){
   await store.put(item); const ci=cache.findIndex(x=>x.id===BKDB_ID); if(ci>=0) cache[ci]=item; else cache.push(item);
   if(!$('#bookModal').hidden) paintBook(); renderDayAll(); toast(msg);
 }
+// ===== 예약 현황 직접 추가 · 몽몽마방 목록의 수정 기록 (2026-11-21): 추가 · 수정 · 빼기(사유 필수)를 모두 남김 =====
+// 공유 기록 한 줄(id booklog, 통화 구분 '예약현황기록') 수정 기록 칸에 {log:[{t, by, act, db:'bk'|'mb', cat, row, chg, why}]}
+// 한 칸(구글 시트 5만 자)에 다 차면 앞의 기록은 booklog-○○ 줄로 옮겨 두고 새로 (지우지 않음). 목록이 180 · 90일 지나 정리돼도 기록은 남음
+var BKLOG_ID='booklog', BKLOG_TYPE='예약현황기록';
+const BK_FLD = { d:'날짜', org:'업체', ppl:'인원', tm:'시간', place:'장소', kind:'종류', item:'항목', staff:'담당', note:'비고' };
+const bkSnap = (db, x) => { x=x||{}; const o = db==='mb' ? {d:x.d, tm:x.t, org:x.n, ppl:x.p, item:x.m, by:x.by, guest:x.guest} : {d:x.d, org:x.org, ppl:x.ppl, tm:x.tm, place:x.place, kind:x.kind, item:x.item, staff:x.staff, note:x.note, by:x.by, guest:x.guest};
+  Object.keys(o).forEach(k=>{ if(o[k]==null || o[k]==='' || o[k]===0) delete o[k]; else o[k]=String(o[k]); }); return o; };
+const bkChg = (a, b) => Object.keys(BK_FLD).filter(k=>String(a[k]||'')!==String(b[k]||'')).map(k=>[k, a[k]||'', b[k]||'']);
+function bkLogList(){ return (cache||[]).filter(r=>r.callType===BKLOG_TYPE).flatMap(r=>{ try{ const j=JSON.parse(r.history||'{}'); return Array.isArray(j.log) ? j.log : []; }catch(_){ return []; } }).sort((a,b)=>String(b.t).localeCompare(String(a.t))); }
+async function bkLogAdd(entries){
+  if(BOOK_GUEST || !entries.length) return;
+  const now=new Date().toISOString(), by=savedOwner()||'';
+  entries=entries.map(e=>({t:now, by, ...e}));
+  const old=cache.find(x=>x.id===BKLOG_ID); let log=[]; try{ const j=JSON.parse((old&&old.history)||'{}'); if(Array.isArray(j.log)) log=j.log; }catch(_){}
+  let next=[...log, ...entries];
+  if(old && log.length && JSON.stringify({log:next}).length>40000){   // 칸이 차면 앞 기록을 따로 한 줄로 옮겨 둠
+    const arch={...old, id:BKLOG_ID+'-'+Date.now().toString(36), saved:now, summary:`예약 현황 수정 기록 ${log.length}건 (보관)`}; await store.put(arch); cache.push(arch); next=entries; }
+  const item={...(old||{}), id:BKLOG_ID, callType:BKLOG_TYPE, saved:now, takenBy:by, summary:`예약 현황 수정 기록 ${next.length}건`, history:JSON.stringify({log:next, at:now, by})};
+  await store.put(item); const ci=cache.findIndex(x=>x.id===BKLOG_ID); if(ci>=0) cache[ci]=item; else cache.push(item);
+  if($('#bkLogModal') && !$('#bkLogModal').hidden) paintBkLog();
+}
+// 수정 기록 창: 지금 탭(몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰) 것만, 「모든 구분」을 켜면 전부
+function paintBkLog(){
+  const all=$('#bkLogAll').checked, c=bookCatNow, list=bkLogList().filter(e=>all || (c==='mb' ? e.db==='mb' : e.db!=='mb' && e.cat===c));
+  const catName = e => e.db==='mb' ? '몽몽마방' : BOOK_CATS[e.cat]||e.cat||'';
+  const what = r => [r.d?dateLabel(r.d):'', r.tm, r.org?`<b>${esc(r.org)}</b>`:'', r.ppl?r.ppl+(r.cat==='coupon'?'장':'명'):'', r.place, r.kind, r.item, r.staff?`담당 ${r.staff}`:'', r.note?`비고 ${r.note}`:''].filter(Boolean).map(v=>/^<b>/.test(v)?v:esc(v)).join(' · ');
+  $('#bkLogSum').textContent = `${list.length}건${all?'':` · ${c==='mb'?'몽몽마방':BOOK_CATS[c]}`}`;
+  $('#bkLogBody').innerHTML = list.map(e=>`<tr class="bklog-${e.act==='빼기'?'del':e.act==='수정'?'edit':'add'}"><td>${esc(dtLabel(e.t))}</td><td>${esc(e.by||'')}</td><td><span class="tag">${esc(e.act)}</span>${all?`<small class="hint" style="margin:0;display:block">${esc(catName(e))}</small>`:''}</td><td>${what({...(e.row||{}), cat:e.cat})}</td>`
+    + `<td>${e.act==='빼기' ? `사유: <b>${esc(e.why||'')}</b>` : e.act==='수정' ? (e.chg||[]).map(([k,a,b])=>`${esc(BK_FLD[k]||k)} ${esc(a||'(없음)')} → <b>${esc(b||'(없음)')}</b>`).join('<br>') || '바뀐 칸 없음' : esc(e.why||'')}</td></tr>`).join('')
+    || `<tr><td colspan="5" class="empty">아직 기록이 없습니다. 직접 추가 · 수정 · 빼기를 하면 여기에 남습니다.</td></tr>`;
+  labelCells('#bkLogBody', ['일시','누가','구분','예약','바뀐 것 · 사유']);
+}
+function openBkLog(){ $('#bkLogAll').checked=false; paintBkLog(); $('#bkLogModal').hidden=false; }
+// 빼기: 사유를 꼭 적어야 뺌. 기록을 먼저 남기고 목록에서 뺌
+let bkDelPend=null;   // {db:'bk'|'mb', id | i}
+function openBkDel(p){
+  const r = p.db==='mb' ? mbDb().rows[p.i] : bkDb().rows.find(x=>x.id===p.id); if(!r) return;
+  bkDelPend={...p, snap:bkSnap(p.db, r), cat: p.db==='mb' ? 'mb' : r.cat};
+  $('#bkDelMsg').textContent = p.db==='mb' ? `${dateLabel(r.d)} ${r.t||''} ${r.n} 몽몽마방 예약을 목록에서 뺍니다.` : `${dateLabel(r.d)} ${r.org} ${BOOK_CATS[r.cat]} 예약을 목록에서 뺍니다.`;
+  $('#bkDelWhy').value=''; $('#bkDelErr').textContent=''; $('#bkDelModal').hidden=false; setTimeout(()=>$('#bkDelWhy').focus(), 0);
+}
+const closeBkDel = () => { $('#bkDelModal').hidden=true; bkDelPend=null; };
+async function doBkDel(){
+  const p=bkDelPend, why=$('#bkDelWhy').value.trim(); if(!p) return;
+  if(!why){ $('#bkDelErr').textContent='빼는 사유를 적어 주세요.'; $('#bkDelWhy').focus(); return; }
+  if(BOOK_GUEST){ toast('로그인한 사람만 뺄 수 있습니다.'); return; }
+  $('#bkDelYes').disabled=true;
+  try{
+    await bkLogAdd([{act:'빼기', db:p.db, cat:p.cat, row:p.snap, why}]);   // 기록 먼저
+    if(p.db==='mb'){ const rows=mbDb().rows, k=rows.findIndex(x=>JSON.stringify(bkSnap('mb', x))===JSON.stringify(p.snap)); if(k>=0) await mbDbSave(rows.filter((_,j)=>j!==k), '몽몽마방 예약을 목록에서 뺐습니다 (사유는 수정 기록에).'); }
+    else await bkDbSave(bkDb().rows.filter(x=>x.id!==p.id), '예약을 목록에서 뺐습니다 (사유는 수정 기록에).');
+    closeBkDel();
+  } finally { $('#bkDelYes').disabled=false; }
+}
 let bookCatNow='rent', bookEdit=null;   // bookEdit: 고치는 줄 (몽몽마방은 {mb:번호}, 그 밖은 {id})
 const BOOK_COLS = { rent:['일자','업체','인원','장소 · 시간','담당자 이름','비고사항',''], docent:['일자','업체','인원','시간','종류','담당자 이름','비고사항',''], prog:['일자','업체','인원','프로그램 항목','담당자 이름','비고사항',''], coupon:['일자','업체','매수','쿠폰 종류','담당자 이름','비고사항',''] };
 function manualRows(){ try{ return bkDb().rows.map(x=>({...x, manual:true, ppl:+x.ppl||0})); }catch(_){ return []; } }   // 직접 넣은 대관 · 도슨트 · 프로그램
@@ -1285,6 +1339,7 @@ function paintBook(){
   document.querySelectorAll('#bookTabs [data-bt]').forEach(b=>b.classList.toggle('on', b.dataset.bt===bookCatNow));
   const isMb = bookCatNow==='mb'; $('#bookMb').hidden=!isMb; $('#bookGen').hidden=isMb;
   if($('#bookAddBtn')) $('#bookAddBtn').hidden=false;   // 직접 추가 = 팝업 (로그인 없이도 이름을 적고 추가, 2026-11-21)
+  if($('#bookLogBtn')) $('#bookLogBtn').hidden=BOOK_GUEST;   // 수정 기록 = 로그인한 사람
   if(bookAddClosed()) paintBookAdd();   // 팝업에 적는 중이면 (새 기록을 받아 다시 그려도) 적던 칸은 그대로
   if(isMb){ paintMbDb(); $('#bookTitle').textContent='몽몽마방 예약 목록'; $('#bookSum').textContent = $('#mbdbSum').textContent; return; }
   const c=bookCatNow, today=todayYmd(), past=$('#bookPast').checked;
@@ -1338,11 +1393,16 @@ async function bookAddSave(){
     await bookPull(); toast(`${c==='mb'?'몽몽마방':BOOK_CATS[c]} 예약을 추가했습니다 (${by}).`); return true; }
   if(c==='mb'){ if(!ppl){ toast('인원을 적어 주세요.'); $('#baPpl').focus(); return false; }
     const row={d, t:tm, n:org, p:ppl, m:v('baItem')}, rows=[...mbDb().rows];
-    if(bookEdit && bookEdit.mb!=null) rows[bookEdit.mb]=row; else rows.push(row);
-    const ed=!!bookEdit; bookEdit=null; await mbDbSave(rows, ed?'몽몽마방 예약을 고쳤습니다.':'몽몽마방 예약을 추가했습니다.'); return true; }
+    const was = bookEdit && bookEdit.mb!=null ? rows[bookEdit.mb] : null;
+    if(was){ row.by=was.by; if(was.guest) row.guest=was.guest; rows[bookEdit.mb]=row; } else { row.by=savedOwner()||''; rows.push(row); }
+    const ed=!!was; bookEdit=null; await mbDbSave(rows, ed?'몽몽마방 예약을 고쳤습니다.':'몽몽마방 예약을 추가했습니다.');
+    await bkLogAdd([ed ? {act:'수정', db:'mb', cat:'mb', row:bkSnap('mb', row), chg:bkChg(bkSnap('mb', was), bkSnap('mb', row))} : {act:'추가', db:'mb', cat:'mb', row:bkSnap('mb', row)}]); return true; }
   const row={ id: (bookEdit&&bookEdit.id) || 'b'+Date.now().toString(36), cat:c, d, org, ppl, tm, place:c==='rent'?v('baPlace'):'', kind:c==='docent'?v('baKind'):'', item:(c==='prog'||c==='coupon')?v('baItem'):'', staff:v('baStaff'), note:v('baNote'), by:savedOwner()||'' };
+  const was = bookEdit && bookEdit.id ? bkDb().rows.find(r=>r.id===row.id) : null;
+  if(was){ row.by=was.by||row.by; if(was.guest) row.guest=was.guest; }   // 처음 넣은 사람은 그대로
   const rows=bkDb().rows.filter(r=>r.id!==row.id); rows.push(row);
-  const ed=!!bookEdit; bookEdit=null; await bkDbSave(rows, ed?'예약을 고쳤습니다.':`${BOOK_CATS[c]} 예약을 추가했습니다.`); return true;
+  const ed=!!was; bookEdit=null; await bkDbSave(rows, ed?'예약을 고쳤습니다.':`${BOOK_CATS[c]} 예약을 추가했습니다.`);
+  await bkLogAdd([ed ? {act:'수정', db:'bk', cat:c, row:bkSnap('bk', row), chg:bkChg(bkSnap('bk', was), bkSnap('bk', row))} : {act:'추가', db:'bk', cat:c, row:bkSnap('bk', row)}]); return true;
 }
 // 엑셀 표 한 번에 넣기: 일자 · 업체 · 인원 · 동행 시간 · PPT 시간 · 대관 시간 · … · 담당 · 비고 (따옴표로 묶인 칸 안 줄바꿈도)
 function tsvRows(text){ const rows=[]; let row=[], cell='', q=false; const s=String(text||'').replace(/\r/g,'');
@@ -1375,9 +1435,15 @@ document.addEventListener('click', async e=>{ const t=e.target;
   if(t.id==='baSave'){ t.disabled=true; const ok=await bookAddSave(); if(!ok){ t.disabled=false; return; } bookAddClose(); return; }
   if(t.id==='baCancel'){ bookAddClose(); return; }
   if(t.id==='baImpSave' && bookImp){ const key=x=>[x.cat,x.d,x.org,x.tm,x.kind].join('|'), have=new Set(bkDb().rows.map(key)), add=bookImp.rows.filter(x=>!have.has(key(x)));
-    bookImp=null; await bkDbSave([...bkDb().rows, ...add], `${add.length}건을 넣었습니다.${add.length?'':' (이미 있는 예약)'}`); bookAddClose(); return; }
+    bookImp=null; await bkDbSave([...bkDb().rows, ...add], `${add.length}건을 넣었습니다.${add.length?'':' (이미 있는 예약)'}`);
+    await bkLogAdd(add.map(x=>({act:'추가', db:'bk', cat:x.cat, row:bkSnap('bk', x), why:'엑셀 표로 한 번에'}))); bookAddClose(); return; }
   if(t.dataset.bkedit){ bookEdit={id:t.dataset.bkedit}; bookAddOpen(); return; }
-  if(t.dataset.bkdel){ const r=bkDb().rows.find(x=>x.id===t.dataset.bkdel); if(!r || !confirm(`${dateLabel(r.d)} ${r.org} ${BOOK_CATS[r.cat]} 예약을 목록에서 뺄까요?`)) return; await bkDbSave(bkDb().rows.filter(x=>x.id!==r.id), '예약을 목록에서 뺐습니다.'); return; }
+  if(t.dataset.bkdel){ if(BOOK_GUEST){ toast('로그인한 사람만 뺄 수 있습니다.'); return; } openBkDel({db:'bk', id:t.dataset.bkdel}); return; }   // 사유를 적는 창 (2026-11-21)
+  if(t.id==='bkDelYes'){ doBkDel(); return; }
+  if(t.id==='bkDelNo'){ closeBkDel(); return; }
+  if(t.id==='bookLogBtn'){ openBkLog(); return; }
+  if(t.id==='bkLogClose'){ $('#bkLogModal').hidden=true; return; }
+  if(t.id==='bkLogAll'){ paintBkLog(); return; }
   if(t.dataset.mbedit!=null){ bookEdit={mb:+t.dataset.mbedit}; bookAddOpen(); return; }
 });
 // 직접 추가 팝업: Esc = 닫기 (뒤의 예약 목록 창보다 먼저)
@@ -1432,9 +1498,15 @@ async function mbDbSave(rows, msg){
   await store.put(item); const ci=cache.findIndex(x=>x.id===MBDB_ID); if(ci>=0) cache[ci]=item; else cache.push(item);
   if(!$('#bookModal').hidden) paintBook(); renderDayAll(); toast(msg);
 }
-$('#mbdbBody').addEventListener('click', e=>{ const i=e.target.dataset.mbdel; if(i==null) return; const r=mbDb().rows[+i]; if(!r) return;
-  if(!confirm(`${dateLabel(r.d)} ${r.t} ${r.n} 몽몽마방 예약을 목록에서 뺄까요?`)) return;
-  mbDbSave(mbDb().rows.filter((_,k)=>k!==+i), '몽몽마방 예약을 목록에서 뺐습니다.'); });
+$('#mbdbBody').addEventListener('click', e=>{ const i=e.target.dataset.mbdel; if(i==null) return; if(!mbDb().rows[+i]) return;
+  if(BOOK_GUEST){ toast('로그인한 사람만 뺄 수 있습니다.'); return; }
+  openBkDel({db:'mb', i:+i}); });   // 사유를 적는 창 → 수정 기록에 남기고 뺌 (2026-11-21)
+// 사유 창 · 수정 기록 창: Esc = 닫기, 사유 칸에서 Ctrl+Enter = 빼기
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape' && $('#bkDelModal') && !$('#bkDelModal').hidden){ e.preventDefault(); e.stopImmediatePropagation(); closeBkDel(); return; }
+  if(e.key==='Escape' && $('#bkLogModal') && !$('#bkLogModal').hidden){ e.preventDefault(); e.stopImmediatePropagation(); $('#bkLogModal').hidden=true; return; }
+  if(e.key==='Enter' && e.ctrlKey && e.target.id==='bkDelWhy'){ e.preventDefault(); doBkDel(); }
+}, true);
 
 // 확인할 것(팝업): 입력된 값끼리 맞지 않거나, 관리자 사이트 기준 자리가 모자랄 때
 function fieldWarnings(r){
@@ -2036,7 +2108,7 @@ function syncAutoTasks(){
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec), ...(id==='wkcheck' && editingId && rec.date && wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId] ? {done:true, doneAt:wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId]} : {})}); });   // 사전 답사 과업 메모 = 답사 정보
   if(typeof tcfgSubs==="function") tcfgSubs(tasks);   // 추후과업 메시지 관리의 세부 과업 (2026-11-20)
   // 미정 항목 확인 연락 (2026-11-20): 미정 항목 + 빨간 칸(아직 안 넣은 것)을 세부 과업으로 — 하나씩 체크하며 고객님께 여쭘. 다 체크하면 완료
-  { const tq=tasks.find(t=>t.id==='tbdcall' && !t.removed); if(tq){ const want2=!want.includes('tbdcall') ? [] : [...String(rec.tbd||'').split(/\s*,\s*/).filter(Boolean).map(l=>`미정 · ${l}`), ...askMissing().map(l=>`미입력 · ${l}`)];
+  { const tq=tasks.find(t=>t.id==='tbdcall' && !t.removed); if(tq){ const want2=!want.includes('tbdcall') || (typeof tcfgNoAutoSubs==='function' && tcfgNoAutoSubs('tbdcall')) ? [] : [...String(rec.tbd||'').split(/\s*,\s*/).filter(Boolean).map(l=>`미정 · ${l}`), ...askMissing().map(l=>`미입력 · ${l}`)];
     const xs=tq.xsubs||[], keep=xs.filter(x=>!/^q:/.test(x.id) || want2.includes(x.title)); want2.forEach(l=>{ if(!keep.some(x=>x.title===l)) keep.push({id:'q:'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), title:l, done:false}); }); tq.xsubs=keep; } }
   // 방문일 · 답변일 · 결제링크 전송일을 따라가는 마감: 이미 지난 마감은 그 바탕(dueKey)이 그대로면 그대로 둠 (2026-11-21 · 예전엔 지나면 「방문일 전날 · 오늘」로 밀려 빨간 「지남」이 사라졌음)
   { const dk=[rec.date||'', rec.tbdDate||'', rec.linkSent||''].join('|'), td=todayYmd();
@@ -2047,6 +2119,7 @@ function syncAutoTasks(){
   // 하위 과업: 견적서 · 거래명세서는 기본 3개(생성 · 전송 · NAS 업로드) + 누구나 직접 추가한 세부 과제(xsubs). 하위 과업이 있으면 모두 체크될 때 완료
   // (전산 예약 · 프로그램 담당 · 몽몽마방 메뉴처럼 칸을 채우면 끝나는 과업은 하위 과업과 상관없이 그 조건으로)
   tasks.forEach(t=>{ if(t.removed) return; const ds=DOC_SUBS[t.id]; if(ds && !t.subs) t.subs=Object.fromEntries(ds.map(([k])=>[k, !!t.done]));   // 삭제한 과업은 그대로
+    if(ds && t.subs && t.done) ds.forEach(([k])=>{ if(!(k in t.subs)) t.subs[k]=true; });   // 추후과업 메시지 관리에서 세부 과업을 더해도 이미 끝난 과업은 다시 열리지 않게 (2026-11-21)
     if(['erp','erpcheck','progstaff','mbmenu'].includes(t.id)) return;
     const st=[...(ds ? ds.map(([k])=>!!t.subs[k]) : []), ...(t.xsubs||[]).map(x=>!!x.done)]; if(!st.length) return;
     const all=st.every(Boolean); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); } if(!all && t.done && !t.manualDone){ t.done=false; t.doneAt=''; } });   // 위 체크로 끝낸 과업(manualDone)은 하위 과업이 남아도 완료 그대로

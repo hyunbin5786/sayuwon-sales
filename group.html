@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261121i">
+<link rel="stylesheet" href="css/group.css?v=20261121j">
 <link rel="stylesheet" href="css/menu.css?v=20261121a">
 </head>
 <body>
@@ -98,7 +98,7 @@
 <div class="modal" id="bookModal" hidden>
   <section class="list panel mbdb book" role="dialog" aria-modal="true" aria-labelledby="bookTitle">
     <h2><span id="bookTitle">예약 목록</span> <span class="seg my-tabs" id="bookTabs"><button type="button" data-bt="mb">몽몽마방</button><button type="button" data-bt="rent">대관</button><button type="button" data-bt="docent">도슨트</button><button type="button" data-bt="prog">프로그램</button><button type="button" data-bt="coupon">음료쿠폰</button></span> <small id="bookSum"></small>
-      <span class="row-btns"><button type="button" class="btn primary" id="bookAddBtn" title="이 목록에 예약 한 건 직접 추가 (팝업)">＋ 직접 추가</button><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bookPast"> 지난 예약도 보기</label><button type="button" class="btn list-x" id="bookClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+      <span class="row-btns"><button type="button" class="btn primary" id="bookAddBtn" title="이 목록에 예약 한 건 직접 추가 (팝업)">＋ 직접 추가</button><button type="button" class="btn primary" id="bookLogBtn" title="직접 추가한 예약의 추가 · 수정 · 빼기(사유) 기록">수정 기록</button><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bookPast"> 지난 예약도 보기</label><button type="button" class="btn list-x" id="bookClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <div id="bookGen" class="book-pane"><div class="tw"><table class="mbdb-t"><thead id="bookHead"></thead><tbody id="bookBody"></tbody></table></div>
     <p class="hint" style="margin:8px 0 0">단체 예약이 <b>예약접수</b>가 되면 예약 내역의 대관(차방 = 몽몽차방 · 당두봉갈) · 도슨트(동행 도슨트 = 동행 · 세미나 도슨트 = PPT) · 프로그램이 자동으로 들어갑니다(줄을 누르면 그 예약). 그 밖의 예약은 위 「＋ 직접 추가」로.</p></div>
     <div id="bookMb" class="book-pane" hidden>
@@ -106,6 +106,25 @@
     <div class="tw"><table class="mbdb-t"><thead><tr><th>날짜</th><th>시간</th><th>예약자 · 업체</th><th>인원</th><th>메뉴</th><th></th></tr></thead><tbody id="mbdbBody"></tbody></table></div>
     </div>
     <!-- 직접 추가 · 수정은 「＋ 직접 추가」 · 「수정」을 누르면 팝업(bookAddModal)으로 (2026-11-21 · 예전엔 목록 아래 칸) -->
+  </section>
+</div>
+<!-- 예약 현황 직접 추가 줄 빼기: 사유 필수 → 수정 기록(booklog)에 남김 (2026-11-21) -->
+<div class="modal" id="bkDelModal" hidden>
+  <section class="panel ask-box" role="dialog" aria-modal="true" aria-labelledby="bkDelTitle">
+    <h2 id="bkDelTitle">예약 빼기</h2>
+    <p id="bkDelMsg" class="ask-msg"></p>
+    <label class="bkdel-why">빼는 사유 <small class="hint" style="margin:0">(꼭 적어 주세요 · 수정 기록에 남습니다)</small><textarea id="bkDelWhy" rows="3" data-ime="ko" placeholder="사유"></textarea></label>
+    <p id="bkDelErr" class="late" style="margin:4px 0 0"></p>
+    <div class="row-btns ask-btns"><button type="button" class="btn" id="bkDelNo">취소</button><button type="button" class="btn primary" id="bkDelYes">빼기</button></div>
+  </section>
+</div>
+<!-- 예약 현황 수정 기록: 직접 추가한 예약의 추가 · 수정 · 빼기(사유) -->
+<div class="modal" id="bkLogModal" hidden>
+  <section class="list panel mbdb book bklog" role="dialog" aria-modal="true" aria-labelledby="bkLogTitle">
+    <h2><span id="bkLogTitle">수정 기록</span> <small id="bkLogSum"></small>
+      <span class="row-btns"><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bkLogAll"> 모든 구분</label><button type="button" class="btn list-x" id="bkLogClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+    <div class="tw"><table class="mbdb-t"><thead><tr><th>일시</th><th>누가</th><th>구분</th><th>예약</th><th>바뀐 것 · 사유</th></tr></thead><tbody id="bkLogBody"></tbody></table></div>
+    <p class="hint" style="margin:8px 0 0">직접 추가한 예약을 넣고 · 고치고 · 뺀 기록입니다 (2026-11-21부터). 단체 예약에서 자동으로 들어온 줄은 그 예약의 수정 기록에 있습니다.</p>
   </section>
 </div>
 <div class="modal" id="bookAddModal" hidden>
@@ -378,8 +397,8 @@
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
 <script src="js/common.js?v=20261121c"></script>
 <script src="js/opslib.js?v=20261121a"></script>
-<script src="js/group.js?v=20261121x"></script>
-<script src="js/taskcfg.js?v=20261121b"></script>
+<script src="js/group.js?v=20261121y"></script>
+<script src="js/taskcfg.js?v=20261121c"></script>
 <script src="js/mytask.js?v=20261121d"></script>
 <script src="js/ime.js?v=20261118r"></script>
 <script src="js/keepsize.js?v=20261120g"></script>
