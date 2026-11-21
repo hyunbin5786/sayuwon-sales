@@ -78,7 +78,7 @@ const UNIT = k => /^seminar2?$/.test(k) ? '회' : COUPON_IN_GOODS.includes(k) ? 
 const sem2On = r => numOf(r.seminar)>=2 || !!r.seminar2;
 const SEM2_IX = ['tm_seminar2','plc_seminar2'];
 const COUPON_IN_GOODS = ['gaga'];   // 음료쿠폰: 품목 고르기에서 굿즈 묶음에 · 줄에는 시작 · 끝 없이 비고만 (저장은 예전 칸 gaga 그대로, 2026-11-18)
-const isDrinkSrc = src => /음료쿠폰|\((몽몽차방|가가빈빈)\)/.test(String(src||''));   // 음료쿠폰 묶음에 넣는 굿즈 (음료쿠폰 · 「(몽몽차방)」 · 「(가가빈빈)」 품목, 2026-11-21)
+const isDrinkSrc = src => /음료쿠폰|\((몽몽차방|가가빈빈)\)/.test(String(src||''));   // 음료쿠폰 굿즈 (굿즈 묶음 맨 위 · 예약 현황 「음료쿠폰」). 예전 기록의 몽몽차방 · 가가빈빈 음료도 음료쿠폰으로 셈 (2026-11-21)
 const goodsKeyOf = src => COUPON_IN_GOODS.find(c=>normSrc(PROG_SRC[c])===normSrc(src)) || '';   // 품목 관리 굿즈 품목 → 예전 전용 칸 (음료쿠폰(가가빈빈) → gaga)
 const PROG_KEYS = () => FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1])).map(f=>f[1]);
 const STF_KEYS = () => FIELDS.filter(f=>isSub(f[1])).map(f=>f[1]);   // 담당 · 시간대 · 코스
@@ -409,13 +409,12 @@ function itemSelectHTML(k, rows){
     h+=`<optgroup label="${l}">${FIELDS.filter(f=>f[0]===g && !isSub(f[1]) && f[1]!=='haeorum' && !COUPON_IN_GOODS.includes(f[1]) && (f[1]!=='seminar2' || k==='seminar2')).map(f=>opt(f[1], f[2]+pr(progSrc(f[1], rec)), used.has(f[1]), k===f[1])).join('')}</optgroup>`; });
   const gi=goodsItems();
   // 굿즈 = 품목 관리에서 구분이 굿즈인 품목 (품목 관리 품명 그대로). 예전 전용 칸이 있는 품목(음료쿠폰(가가빈빈) = gaga)은 그 칸으로 한 번만 (2026-11-18)
-  // 음료쿠폰 묶음 (2026-11-21): 굿즈 중 음료쿠폰 · 몽몽차방 · 가가빈빈 음료(모과차(몽몽차방) · 아메리카노(몽몽차방) 등)는 굿즈와 섞지 않고 「음료쿠폰」 묶음 안에 (음료쿠폰 두 가지가 맨 위). 저장은 그대로 (gaga 칸 · 굿즈 g:품목)
+  // 음료쿠폰 (2026-11-21): 몽몽차방 · 가가빈빈 음료(아메리카노 · 모과차 등)는 품목에서 지우고 음료쿠폰으로 통합 → 음료쿠폰(가가빈빈 · 몽몽차방)은 굿즈 묶음 맨 위. 저장은 그대로 (gaga 칸 · 굿즈 g:품목)
   const gk = it => goodsKeyOf(it.src), gv = it => gk(it) || 'g:'+it.src, gl = it => String(it.name||'').trim()||it.src;
   const cpFix = COUPON_IN_GOODS.filter(c=>FIELDS.some(f=>f[1]===c) && !gi.some(it=>gk(it)===c));   // 품목 관리에서 아직 굿즈가 아니어도(예전 목록) 음료쿠폰(가가빈빈)은 늘 보이게
-  const drinks = gi.filter(it=>isDrinkSrc(it.src)).sort((a,b)=>(/음료쿠폰/.test(b.src)?1:0)-(/음료쿠폰/.test(a.src)?1:0));
-  const stray = itemKind(k)==='goods' && !gi.some(it=>'g:'+it.src===k) ? k : '';   // 품목 관리에서 지운(이름을 바꾼) 굿즈가 예전 기록에 남아 있으면 그 줄에서만 보임
-  h+=`<optgroup label="음료쿠폰">${cpFix.map(c=>opt(c, LABEL[c]||c, used.has(c), k===c)).join('')}${drinks.map(it=>opt(gv(it), gl(it), used.has(gv(it)), k===gv(it))).join('')}${stray && isDrinkSrc(stray.slice(2)) ? opt(stray, stray.slice(2), false, true) : ''}</optgroup>`;
-  h+=`<optgroup label="굿즈">${gi.filter(it=>!isDrinkSrc(it.src)).map(it=>opt(gv(it), gl(it), used.has(gv(it)), k===gv(it))).join('')}${stray && !isDrinkSrc(stray.slice(2)) ? opt(stray, stray.slice(2), false, true) : ''}</optgroup>`;
+  const gs = [...gi].sort((a,b)=>(isDrinkSrc(b.src)?1:0)-(isDrinkSrc(a.src)?1:0));   // 음료쿠폰이 맨 위, 나머지는 가나다
+  const stray = itemKind(k)==='goods' && !gi.some(it=>'g:'+it.src===k) ? k : '';   // 품목 관리에서 지운(이름을 바꾼) 굿즈가 예전 기록에 남아 있으면 그 줄에서만 보임 (예: 예전 아메리카노(몽몽차방))
+  h+=`<optgroup label="굿즈">${cpFix.map(c=>opt(c, LABEL[c]||c, used.has(c), k===c)).join('')}${gs.map(it=>opt(gv(it), gl(it), used.has(gv(it)), k===gv(it))).join('')}${stray ? opt(stray, stray.slice(2), false, true) : ''}</optgroup>`;
   return `<select class="it-sel" data-isel="${esc(k)}" aria-label="항목">${h}</select>`;
 }
 function itemRowHTML(k, rows){
