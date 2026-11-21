@@ -2009,7 +2009,9 @@ function syncAutoTasks(){
   // 미정 항목 확인 연락 (2026-11-20): 미정 항목 + 빨간 칸(아직 안 넣은 것)을 세부 과업으로 — 하나씩 체크하며 고객님께 여쭘. 다 체크하면 완료
   { const tq=tasks.find(t=>t.id==='tbdcall' && !t.removed); if(tq){ const want2=!want.includes('tbdcall') ? [] : [...String(rec.tbd||'').split(/\s*,\s*/).filter(Boolean).map(l=>`미정 · ${l}`), ...askMissing().map(l=>`미입력 · ${l}`)];
     const xs=tq.xsubs||[], keep=xs.filter(x=>!/^q:/.test(x.id) || want2.includes(x.title)); want2.forEach(l=>{ if(!keep.some(x=>x.title===l)) keep.push({id:'q:'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), title:l, done:false}); }); tq.xsubs=keep; } }
-  tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } if(!t.due) t.due=taskDue(t); });
+  // 방문일 · 답변일 · 결제링크 전송일을 따라가는 마감: 이미 지난 마감은 그 바탕(dueKey)이 그대로면 그대로 둠 (2026-11-21 · 예전엔 지나면 「방문일 전날 · 오늘」로 밀려 빨간 「지남」이 사라졌음)
+  { const dk=[rec.date||'', rec.tbdDate||'', rec.linkSent||''].join('|'), td=todayYmd();
+    tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const keep = t.due && t.due<td && (t.dueKey===undefined || t.dueKey===dk); if(!keep){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } t.dueKey=dk; } if(!t.due) t.due=taskDue(t); }); }
   tasks.forEach(t=>{ if(!t.custom && !t.titleSet && AUTO_TASKS[t.id] && t.title!==AUTO_TASKS[t.id]) t.title=AUTO_TASKS[t.id]; if(t.id==='pplchk' && !t.titleSet && t.title!==PPL_TITLE) t.title=PPL_TITLE; });   // 추후과업 메시지 관리에서 바꾼 이름 (직접 고친 제목은 그대로)
   const fx=tasks.find(t=>t.id==='erpfix');
   if(fx && !fx.removed){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; fx.v=4; } else if(!fx.done && e0 && e0.base){ fx.changes=[]; if(!(fx.xsubs||[]).length){ fx.done=true; fx.doneAt=new Date().toISOString(); fx.autoDone=true; } } }   // 예약 내용이 전산에 올린 때와 같아지면 저절로 완료 (2026-11-19)
@@ -2417,7 +2419,7 @@ async function loadQuotePrices(){
     const p = parseQuotePage(html);
     const data = (shared && shared.data) || (quoteCat && {edits:quoteCat.edits, added:quoteCat.added}) || {};
     quoteCat = { ...p, edits: data.edits||{}, added: data.added||[], at: new Date().toISOString() };
-    writeJSON('sayuwon_quote_cat', quoteCat); priceLoaded = true;
+    writeJSON('sayuwon_quote_cat', quoteCat); priceLoaded = true; simVer++;   // 품목이 바뀌면 열지 않은 예약의 과업도 다시 계산
     addCatalogProgs(quoteCat).forEach(f=>{ document.querySelector('#opt_'+OPT[f[0]].id+' .fields')?.insertAdjacentHTML('beforeend', isSub(f[1]) ? fieldHTML(f[1], isStf(f[1]) ? '담당' : SUB_NAME[f[1].split('_')[0]], '', 'sub'+(isStf(f[1])?' sub-stf':''), isStf(f[1])) : fieldHTML(f[1],f[2],'','pbase',false)); paintFields(); });   // 견적서 품목에 새 단체 품목이 생기면 칸 추가
   }catch(_){ priceLoaded = false; }
   paintFields(); renderPrice(); if(window.__tasksReady) renderTasks();   // 몽몽마방 메뉴 · 가격도 새로
@@ -3374,12 +3376,45 @@ function settleTasks(list, r, x){
       else { const ds=DOC_SUBS[u.id], st=[...(ds && u.subs ? ds.map(([k])=>!!u.subs[k]) : []), ...(u.xsubs||[]).map(s=>!!s.done)]; if(st.length && st.every(Boolean)) u.done=true; }
       return u; });
 }
-// 저장된 예약의 추후 과업 (열지 않은 예약도): 저장된 과업 + 아직 저장 안 된 미정 항목 연락 · 현장 결제 인원 확인
+// ===== 열지 않은 예약의 추후 과업 = 열었을 때와 똑같이 (2026-11-21) =====
+// 예전: 예약을 열어야 syncAutoTasks(과업 규칙)가 돌아 새 과업(전산 예약 · 견적서 · 담당자에게 일정 전달 …)이 생기고 저장됨 →
+//       열기 전에는 나의 할일에 안 뜨다가, 누군가 그 예약을 열면 그때 (이미 기한이 지난 채로) 나타났음
+// 지금: 나의 할일 · 알림이 예약마다 그 예약을 연 것처럼 같은 규칙(syncAutoTasks)을 화면 밖에서 돌려 과업을 계산 (저장은 하지 않음 · 화면 상태는 그대로 되돌림)
+//  recFromRecord = openRecord 가 시트 한 줄로 예약 칸(rec)을 만드는 것과 같게 (화면은 건드리지 않음) — openRecord 를 고치면 여기도 같이
+function recFromRecord(r){
+  const o=blank(); KEYS.forEach(k=>{ o[k]=r[k]||''; });
+  LEGACY_KEYS.forEach(k=>{ if(r[k]) o[k]=r[k]; }); if(r.mabangD) o.mabangD=r.mabangD;
+  if(!o.owner) o.owner=savedOwner(); o.tbd='';
+  Object.assign(o, unpackExtra(r));
+  if(!o.pay) o.pay='미정'; if(!o.gate) o.gate='미정';
+  if(o.seminar2){ o.seminar=String((numOf(o.seminar)||1)+(numOf(o.seminar2)||1)); o.seminar2=''; }
+  { const gl=goodsParse(o.goods), mv=gl.filter(g=>goodsKeyOf(g.src)); if(mv.length){ mv.forEach(g=>{ const c=goodsKeyOf(g.src); o[c]=String((numOf(o[c])||0)+(g.qty||0)); }); o.goods=goodsJoin(gl.filter(g=>!goodsKeyOf(g.src))); } }
+  syncPayTbd(o);
+  if(/^adm/.test(r.id) && !o.erp) o.erp='관리자 예약';
+  o.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(o) ? normStage(r.callType) : '';
+  Object.assign(o, splitContacts(r));
+  return o;
+}
+const simCache=new Map();   // 예약 id → {k, tasks} (그 예약 · 오늘 · 품목 · 과업 설정이 같으면 다시 계산하지 않음)
+let simVer=0;               // 품목 관리 · 추후과업 메시지 관리를 다시 받으면 올림 → 모두 다시 계산
+function simTasks(r){
+  const k=[r.saved||'', r.updated||'', String(r.history||'').length, todayYmd(), simVer, savedOwner()].join('|'), c=simCache.get(r.id);
+  if(c && c.k===k) return c.tasks;
+  const S={rec, tasks, erpList, editingId, touched};
+  let out=null;
+  try{ const ph=parseHist(r); rec=recFromRecord(r); tasks=JSON.parse(JSON.stringify(ph.tasks||[])); erpList=ph.erp||[]; editingId=r.id; touched=new Set();
+    syncAutoTasks(); out=tasks; }
+  catch(e){ out=null; }
+  finally{ rec=S.rec; tasks=S.tasks; erpList=S.erpList; editingId=S.editingId; touched=S.touched; }
+  simCache.set(r.id, {k, tasks:out}); return out;
+}
+// 저장된 예약의 추후 과업 (열지 않은 예약도): 위 simTasks (열었을 때와 같은 규칙). 계산이 안 되면 예전 방식(저장된 과업 + 미정 · 현장 결제 · 점검)
 function tasksOf(r){
   if(stageOfRec(r)==='예약상담' && editingId!==r.id){ const x=xOf(r), all=parseHist(r).tasks, st=all.find(t=>t.id==='tour'), own=all.filter(t=>t.custom).map(t=>({...t, due:taskDue(t)})); return [...(x.tour ? [st ? {...st, due:taskDue(st)} : {id:'tour', title:AUTO_TASKS.tour, done:false, due:ymd(new Date(r.saved||Date.now())), at:r.saved}] : []), ...own]; }   // 예약상담: 사전답사 전산 예약 + 직접 추가한 과업
   if(editingId===r.id && quietStage(effStage(rec))) return tasks.filter(consultTask).map(t=>({...t, due:taskDue(t)}));
   if(editingId===r.id) return tasks.map(t=>({...t, due:taskDue(t)}));   // 지금 열어 둔 예약은 화면의 과업
   if(stageOfRec(r)==='예약취소') return [];   // 예약취소: 추후 과업 없음
+  if(taskRecActive(r)){ const sim=simTasks(r); if(sim) return sim.filter(t=>!t.removed).map(t=>({...t, due:taskDue(t)})); }   // 열었을 때와 같은 과업 (2026-11-21 · 방문 뒤 30일이 지난 예약은 나의 할일에 안 나오므로 계산하지 않음)
   const x={...xOf(r)}; syncPayTbd(x);   // 미정 항목은 화면과 같은 기준 (결제 · 몽몽마방 결제 · 차량)
   const ts=settleTasks(parseHist(r).tasks, r, x);
   const has = id => ts.some(t=>t.id===id) || parseHist(r).tasks.some(t=>t.id===id && t.removed);   // 삭제한 과업은 다시 만들지 않음

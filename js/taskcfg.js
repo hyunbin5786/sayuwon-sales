@@ -34,7 +34,7 @@ const TCFG_DUE = [['visit','방문일 ○일 전'],['prevThu','방문일 전주 
 let tcfg = {b:{}, c:[]}, tcfgSig='';
 function tcfgRead(){ const r=(cache||[]).find(x=>x.id===TCFG_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return {b:j.b&&typeof j.b==='object'?j.b:{}, c:Array.isArray(j.c)?j.c:[], at:j.at||'', by:j.by||''}; }
 // 받은 설정을 화면에 반영: 과업 이름(AUTO_TASKS) · 새 과업 이름 · 방문일을 따라가는 마감
-function tcfgApply(){ try{ const j=tcfgRead(), sig=JSON.stringify([j.b, j.c]); if(sig===tcfgSig) return false; tcfgSig=sig; tcfg=j;
+function tcfgApply(){ try{ const j=tcfgRead(), sig=JSON.stringify([j.b, j.c]); if(sig===tcfgSig) return false; tcfgSig=sig; tcfg=j; if(typeof simVer!=="undefined") simVer++;
   Object.keys(TCFG_BASE_TITLES).forEach(id=>{ const b=j.b[id]||{}, t=String(b.title||'').trim(); AUTO_TASKS[id] = t || TCFG_BASE_TITLES[id]; if(b.due && b.due.base && b.due.base!=='orig' && b.due.base!=='made') FOLLOW_DUE.add(id); });   // 원래 과업도 마감을 바꿨으면 방문일을 따라감
   j.c.forEach(c=>{ if(c && c.id){ AUTO_TASKS[c.id] = String(c.title||'').trim() || '(이름 없는 과업)'; if(c.due && c.due.base!=='made') FOLLOW_DUE.add(c.id); } });
   return true; }catch(_){ return false; } }
