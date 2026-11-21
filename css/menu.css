@@ -90,3 +90,5 @@ header .man-btn svg{flex:none}
 .man-zoom{position:fixed;inset:0;z-index:1600;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px}
 .man-zoom img{max-width:100%;max-height:100%;border-radius:8px}
 @media (max-width:760px){ .man-body{padding:16px 16px 60px;font-size:16px} .man-body h2{font-size:18px} }
+/* 매뉴얼 버튼은 PC에서만 (2026-11-21): 휴대폰(좁은 화면 · 터치 화면)에서는 숨김 */
+@media (max-width:760px), (hover:none) and (pointer:coarse){ header .man-btn, .man-wrap{display:none !important} }
