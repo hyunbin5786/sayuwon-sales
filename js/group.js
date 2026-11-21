@@ -3859,6 +3859,11 @@ const MY_EMBED = MY_ONLY && window.parent!==window;   // 다른 화면이 팝업
 function closeMy(){ if(MY_EMBED){ window.parent.postMessage({type:'sy-my', ev:'close'}, '*'); return; } if(MY_ONLY && document.documentElement.classList.contains('my-only')){ location.href='./'; return; } $('#myModal').hidden=true; }   // 팝업 = 바깥 화면이 닫음, 단독 페이지 = 메뉴로
 // 단체 화면의 「나의 할일」 = 이 화면 위 팝업 (메뉴 8번은 한 페이지)
 $('#myOpenBtn').onclick=()=>openMy(true);
+// 나의 할일 「↻ 새로고침」 (2026-11-21): 보낼 저장이 있으면 먼저 보내고, 공유 기록을 새로(이미 가고 있는 요청과 따로) 받아 다시 그림 (평소엔 30초마다 · 창으로 돌아오면 저절로)
+$('#myReloadBtn').onclick=async()=>{ const b=$('#myReloadBtn'); if(b.disabled) return; b.disabled=true; b.textContent='불러오는 중…';
+  try{ if(pending.length) await flush(); else await pull(true);    renderMy(); paintMyCount(); toast(syncState==='ok' ? `최신 내용으로 다시 불러왔습니다 (${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}).` : '불러오지 못했습니다. 잠시 뒤 다시 눌러 주세요.'); }
+  catch(e){ handleErr(e); toast('불러오지 못했습니다: '+(e.code||e.message||e)); }
+  finally{ b.disabled=false; b.textContent='↻ 새로고침'; } };
 if(location.hash==='#my' && !MY_ONLY) setTimeout(openMy, 300);   // 예전 주소 group.html#my
 if(MY_ONLY){ document.title='나의 할일 · 사유원 운영 보조 시스템'; $('#crumb').textContent='나의 할일'; setTimeout(openMy, 50); }
 document.addEventListener('click', e=>{ const b=e.target.closest('#myTabs [data-mt]'); if(!b) return; myTab=b.dataset.mt; try{ localStorage.setItem('sayuwon_my_tab', myTab); }catch(_){} renderMy(); });
