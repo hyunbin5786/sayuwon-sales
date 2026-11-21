@@ -1370,7 +1370,7 @@ function paintBookAdd(){
   const inp=(id,ph,v,cls='')=>`<input id="${id}" class="${cls}" placeholder="${ph}"${id==='baTm'?' data-tp="range" readonly':''} value="${esc(v==null?'':v)}" autocomplete="off"${/Org|Staff|Note|Item/.test(id)?' data-ime="ko"':''}>`;
   const sel=(id,opts,v)=>`<select id="${id}">${opts.map(o=>`<option${o===v?' selected':''}>${esc(o)}</option>`).join('')}${v && !opts.includes(v)?`<option selected>${esc(v)}</option>`:''}</select>`;
   const f = c==='mb'
-    ? [`<label>시간 ${inp('baTm','',x.tm,'t')}</label>`, `<label>예약자 · 업체 ${inp('baOrg','',x.org)}</label>`, `<label>인원 ${inp('baPpl','명',x.ppl,'n')}</label>`, `<label>메뉴 ${sel('baItem', mbMenus().map(m=>m.name), x.item||'')}</label>`]
+    ? [`<label>시간 ${inp('baTm','',x.tm,'t')}</label>`, `<label>예약자 ${inp('baOrg','',x.org)}</label>`, `<label>인원 ${inp('baPpl','명',x.ppl,'n')}</label>`, `<label>메뉴 ${sel('baItem', mbMenus().map(m=>m.name), x.item||'')}</label>`]
     : [`<label>업체 ${inp('baOrg','',x.org)}</label>`, `<label>${c==='coupon'?'매수':'인원'} ${inp('baPpl',c==='coupon'?'장':'명',x.ppl,'n')}</label>`, `<label>시간 ${inp('baTm','',x.tm,'t')}</label>`,
        c==='rent' ? `<label>장소 ${sel('baPlace', PLACE_OPTS, x.place||'')}</label>` : c==='docent' ? `<label>종류 ${sel('baKind', KIND_OPTS, x.kind||'')}</label>` : c==='coupon' ? `<label>쿠폰 종류 ${sel('baItem', COUPON_OPTS, x.item||'')}</label>` : `<label>프로그램 항목 ${inp('baItem','',x.item)}</label>`,
        `<label>담당자 이름 ${inp('baStaff','',x.staff)}</label>`, `<label class="wide">비고사항 ${inp('baNote','',x.note)}</label>`];
@@ -1382,7 +1382,7 @@ function paintBookAdd(){
 }
 async function bookAddSave(){
   const c=bookCatNow, v=id=>(($('#'+id)||{}).value||'').trim(), d=v('baDate'), org=v('baOrg'), ppl=parseInt(v('baPpl'))||0;
-  if(!d){ toast('날짜를 고르세요.'); return false; } if(!org){ toast(c==='mb'?'예약자 · 업체를 적어 주세요.':'업체를 적어 주세요.'); $('#baOrg').focus(); return false; }
+  if(!d){ toast('날짜를 고르세요.'); return false; } if(!org){ toast(c==='mb'?'예약자를 적어 주세요.':'업체를 적어 주세요.'); $('#baOrg').focus(); return false; }
   const tm=(()=>{ const s=v('baTm'); const f=typeof fmtRange==='function' ? fmtRange(s) : ''; return f || s; })();
   if(BOOK_GUEST){   // 로그인 없이 추가 (2026-11-21): 적은 이름으로 서버에 한 건 (bookAdd) → 목록 다시 받음
     const by=v('baBy'); if(!by){ toast('추가하는 사람 이름을 적어 주세요.'); $('#baBy')?.focus(); return false; }
@@ -1518,7 +1518,8 @@ async function bookPrintImg(){
         ctx.fillStyle=bg; ctx.fillRect(bx, by, lw-4, bh); ctx.fillStyle=fg; ctx.fillRect(bx, by, 6, bh);
         ctx.save(); ctx.beginPath(); ctx.rect(bx, by, lw-4, bh); ctx.clip();
         let ty=by+8; const line=(txt,px,b,col,max)=>{ ctx.font=f(px,b); ctx.fillStyle=col; wrap(ctx, txt, iw, max).forEach(s=>{ if(ty+px>by+bh-4) return; ctx.fillText(s, bx+14, ty); ty+=px+6; }); };
-        const tmTx=String(x.tm||'').replace(/\s/g,''); line(narrow ? tmTx.split('~')[0] : tmTx, 22, 1, fg, 1); line(x.org, narrow?23:27, 1, '#2b2a26', narrow?3:2);   // 나란히 놓인 좁은 칸: 시작 시각만 · 업체 글씨 작게 3줄 line(bkTitle(x), 22, 0, fg, 1); if(x.ppl) line(`${x.ppl}${x.cat==='coupon'?'장':'명'}`, 22, 0, '#55524a', 1);
+        // 나란히 놓인 좁은 칸: 시작 시각만 · 업체 글씨 작게 3줄
+        const tmTx=String(x.tm||'').replace(/\s/g,''); line(narrow ? tmTx.split('~')[0] : tmTx, 22, 1, fg, 1); line(x.org, narrow?23:27, 1, '#2b2a26', narrow?3:2); line(bkTitle(x), 22, 0, fg, 1); if(x.ppl) line(`${x.ppl}${x.cat==='coupon'?'장':'명'}`, 22, 0, '#55524a', 1);
         ctx.restore(); }); });
     y+=gh;
   });
@@ -1564,7 +1565,7 @@ function paintMbDb(){
   $('#mbdbBody').innerHTML = list.map(x=>`<tr class="${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}"${x.auto && !x.cur?` data-bopen="${esc(x.id)}"`:''}><td>${esc(dateLabel(x.d))}</td><td>${esc(x.t||'')}</td><td><b>${esc(x.n)}</b></td><td class="num">${x.p?esc(x.p)+'명':''}</td><td>${esc(x.m||'')}${x.pay==='마방'?' <small class="hint" style="margin:0">(마방 결제)</small>':''}</td>`
     + `<td class="acts">${x.cur ? '<span class="tag call" title="지금 화면에서 입력 중인 예약 (저장 전이어도 바로)">지금 이 예약</span>' : x.auto ? '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>' : `<button type="button" class="btn sm" data-mbedit="${x.i}">수정</button><button type="button" class="del" data-mbdel="${x.i}" title="이 예약 빼기">×</button>`}</td></tr>`).join('')
     || `<tr><td colspan="6" class="empty">${all.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'위 「＋ 직접 추가」로 몽몽마방 예약을 넣으세요.'}</td></tr>`;
-  labelCells('#mbdbBody', ['날짜','시간','예약자 · 업체','인원','메뉴','']);   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
+  labelCells('#mbdbBody', ['날짜','시간','예약자','인원','메뉴','']);   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
 }
 async function mbDbSave(rows, msg){
   if(BOOK_GUEST){ toast('로그인한 사람만 고칠 수 있습니다.'); return; }
