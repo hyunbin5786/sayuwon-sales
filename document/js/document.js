@@ -2640,7 +2640,7 @@
   // 고객이 request.html 에서 남긴 요청(공유 기록 서버 quotereq 시트) → 1단계 목록에서 골라
   //  · 예약 정보를 붙여넣고 「자동 채우기」: 품목 · 인원 · 이용일은 예약에서, 수신(단체명) · 수신 담당자는 요청에서
   //  · 「붙여넣기 없이 초안으로 시작」: 수신 · 담당자 · 이용일 · 인원 + 기본 관람 한 줄
-  // 출력하면 요청 상태 「출력」, 메일 앱으로 열면 「완료」. 메일 받는 사람 = 고객이 적은 이메일
+  // 출력하면 요청 상태 「출력」, 「끝난 요청으로」 누르면 「완료」. 메일 받는 사람 = 고객이 적은 이메일
   var REQ_PAGE = "https://hyunbin5786.github.io/sayuwon-sales/document/request.html";
   var reqItems = null, curReq = null;
   function reqApi(body){
@@ -2748,17 +2748,7 @@
     if(!curReq || !confirm(curReq.org + " " + curReq.name + "님 견적 요청을 목록에서 지울까요? (시트에는 삭제 일시와 함께 남습니다)")) return;
     reqMark("삭제").then(function(){ curReq = null; paintReqPick(); renderReqList(); });
   });
-  // 메일 앱으로 열기: 받는 사람 · 제목 · 본문을 채운 메일 쓰기 창 (PDF는 직원이 첨부)
-  document.getElementById("mail-app").addEventListener("click", function(){
-    var to = document.getElementById("mail-to").value.trim();
-    var msg = document.getElementById("mail-status");
-    if(to && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){ msg.textContent = "받는 사람 이메일 주소를 확인해 주세요."; return; }
-    var url = "mailto:" + encodeURIComponent(to).replace(/%40/g, "@") + "?subject=" + encodeURIComponent(document.getElementById("mail-subject").value) +
-      "&body=" + encodeURIComponent(document.getElementById("mail-text").value.replace(/\r?\n/g, "\r\n"));
-    window.location.href = url;
-    msg.textContent = "메일 쓰기 창을 열었습니다. 저장된 PDF를 첨부해 보내 주세요.";
-    if(curReq && curReq.status !== "완료") reqMark("완료");
-  });
+  // 「메일 앱으로 열기」 버튼은 없앰 (2026-11-21): 받는 사람 · 제목 · 본문은 복사 버튼으로. 요청을 끝내려면 목록의 「끝난 요청으로」
 
   paint();
   openStart();   // 처음 열면 1단계: 붙여넣기 / 직접 생성 고르기
