@@ -384,7 +384,7 @@
   // ---------- rules ----------
   function autoRate(r){
     if(!r.disc) return 0;
-    var pax = Number(state && state.pax) || 0;
+    var pax = r.qty != null && r.qty !== "" ? (Number(r.qty) || 0) : (Number(state && state.pax) || 0);   // 2026-11-21: 그 줄 수량(인원)으로 — 관람 · 관람+식사 줄이 20명 이상이면 10% (예전엔 전체 인원)
     return pax >= 20 ? 10 : 5;
   }
   function autoNote(rate){
@@ -983,7 +983,7 @@
 
     bindText(card, r, "name", "tName");
     bindText(card, r, "note", "tNote");
-    bindNum(card, r, "qty", "tQty", function(){ r.qtyFixed = true; });   // 직접 고친 수량은 인원 변경을 따라가지 않음
+    bindNum(card, r, "qty", "tQty", function(){ r.qtyFixed = true; if(!r.tRate){ var nr = autoRate(r); if(nr !== r.rate){ r.rate = nr; if(!r.tNote) r.note = autoNote(nr); syncCard(card, r); } } });   // 줄 수량이 20명을 넘나들면 할인율도 (직접 고친 할인율은 그대로, 2026-11-21)   // 직접 고친 수량은 인원 변경을 따라가지 않음
     bindNum(card, r, "price", null, function(){ paintNoteLabel(card, r); });
     bindNum(card, r, "rate", "tRate", function(){
       if(!r.tNote){

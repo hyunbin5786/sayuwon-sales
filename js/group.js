@@ -155,7 +155,7 @@ let openedObj = null;   // 그때의 칸 값 (liveVals) — 다른 곳에서 바
 function savedOwner(){ try{ return localStorage.getItem('sayuwon_owner')||''; }catch(_){ return ''; } }
 function blank(){ const o={}; KEYS.forEach(k=>o[k]=''); o.owner=savedOwner(); o.pay='미정'; o.gate='미정'; o.vehicle='미정'; o.tbd='차량 대수, 결제 방법'; return o; }   // 결제 · 입장문 · 차량은 기본 미정 (차량 2026-11-18)   // 결제는 기본 미정
 let peopleAuto=false;   // 관람 인원을 예약 내역 관람 줄 인원 합으로 채운 중 (syncPeopleFromArea)
-let discBand=null;   // 관람 인원 구간 (1 = 19명까지 · 2 = 20명부터), followDiscBand
+let discBand=null;   // 품목(줄)마다 인원 구간 {key: 1 = 19명까지 · 2 = 20명부터}, followDiscBand
 function resetState(){ discBand=null; vehAutoN=0; peopleAuto=false; itemRows=[]; itemPend=new Set(); rec=blank(); touched=new Set(['owner']); startedAt=null; editingId=null; nContacts=1; optOpen=new Set(); }
 function contactsOf(r){
   const out=[]; for(let i=0;i<nContactsOf(r);i++){ const c={name:r[`c${i}_name`]||'',phone:r[`c${i}_phone`]||'',email:r[`c${i}_email`]||''}; if(c.name||c.phone||c.email) out.push(c); } return out;
@@ -537,7 +537,7 @@ function erpDiscInfo(k, x){
     const b=quoteBlocks(r2).blocks.find(y=>y.key===k), mm=b && blockMoney(b, r2); cand[v] = mm ? {tx:mm.aTx, tf:mm.aTf} : {tx:0, tf:0}; });
   const tot=c=>c.tx+c.tf, pc=[...new Set((x.notes||[]).flatMap(s=>[...String(s).matchAll(/(\d+(?:\.\d+)?)\s*%/g)].map(m=>+m[1])))];   // 전산 할인 줄의 % (사전예약자 성인 19명 5% → 사전예약)
   const guess = !(+x.disc) ? 'none' : pc.length===1 && pc[0]===5 ? 'pre' : pc.length===1 && pc[0]===10 ? 'grp' : (['pre','grp'].find(v=>Math.abs(tot(cand[v])-(+x.disc||0))<1) || '');
-  return { cand, guess, auto:b0.dauto, n:numOf(rec.people), gN:b0.gN||0 };
+  return { cand, guess, auto:b0.dauto, n:b0.qty, gN:b0.gN||0 };   // n = 그 품목 인원 (2026-11-21)
 }
 function erpDiscBtns(k, x, ex){
   const info=erpDiscInfo(k, x); if(!info) return '';
@@ -1020,15 +1020,19 @@ function applyTbdDefault(){
 }
 // 인원이 19명 ↔ 20명을 넘나들면 할인 버튼을 직접 고른 것(사전예약 · 단체예약)과 고친 할인액은 지우고 인원 기준(자동)으로 다시 (할인 없음은 그대로)
 
+// 2026-11-21: 품목(줄)마다 그 줄 인원으로 — 관람 · 관람+식사 줄이 20명 이상이면 단체예약 10%, 19명까지 사전예약 5%. 그 줄이 넘나들 때 그 줄만 다시
 function followDiscBand(){
-  const n=numOf(rec.people), b = n>=20 ? 2 : n>0 ? 1 : 0; if(!b) return;
-  if(discBand && b!==discBand){
-    const m=idiscMap(rec), keys=Object.keys(m).filter(k=>m[k]==='pre' || m[k]==='grp');
-    keys.forEach(k=>delete m[k]); if(keys.length){ rec.idisc=Object.entries(m).map(([a,c])=>`${a}=${c}`).join('; '); touched.add('idisc'); }
-    const am=idamtMap(rec); let cleared=0; quoteBlocks(rec).blocks.forEach(x=>{ if(x.key && x.dsel!=='none' && am[dkey(x.key)]){ setItemDamt(x.key, null); cleared++; } });
-    if(keys.length || cleared || quoteBlocks(rec).blocks.some(x=>x.disc)) toast(b===2 ? '관람 인원이 20명 이상이 되어 할인을 단체예약 10%로 바꿨습니다.' : '관람 인원이 20명 미만이 되어 할인을 사전예약 5%로 바꿨습니다.');
+  const bl=quoteBlocks(rec).blocks.filter(x=>x.key && x.disc), now={}; bl.forEach(x=>{ now[x.key] = x.qty>=20 ? 2 : x.qty>0 ? 1 : 0; });
+  if(discBand && typeof discBand==='object'){
+    const m=idiscMap(rec), am=idamtMap(rec), up=[], down=[]; let mchg=false;
+    bl.forEach(x=>{ const was=discBand[x.key], b=now[x.key]; if(!was || !b || was===b) return; const kk=dkey(x.key);
+      if(m[kk]==='pre' || m[kk]==='grp'){ delete m[kk]; mchg=true; } if(x.dsel!=='none' && am[kk]) setItemDamt(x.key, null);
+      (b===2 ? up : down).push(itemName(x.key)); });
+    if(mchg){ rec.idisc=Object.entries(m).map(([a,c])=>`${a}=${c}`).join('; '); touched.add('idisc'); }
+    if(up.length) toast(`${up.join(' · ')} 인원이 20명 이상이 되어 할인을 단체예약 10%로 바꿨습니다.`);
+    if(down.length) toast(`${down.join(' · ')} 인원이 20명 미만이 되어 할인을 사전예약 5%로 바꿨습니다.`);
   }
-  discBand=b;
+  discBand=now;
 }
 function renderSide(){
   followDiscBand();
@@ -2951,7 +2955,8 @@ function quoteBlocks(r){
   blocks.forEach(b=>{
     b.notes=[];
     // 할인 버튼: 자동 = 할인 대상 품목이면 인원으로(19명까지 사전예약 5% · 20명부터 단체예약 10%), 줄마다 버튼으로 바꾼 것(항목 할인)이 있으면 그것
-    const autoP = b.disc ? g : 0, o = ov[dkey(b.key||'')], pct = o==='none' ? 0 : o==='pre' ? 5 : o==='grp' ? 10 : autoP, nm = pct===10 ? '단체예약' : '사전예약';
+    // 2026-11-21: 그 품목(줄) 인원으로 — 관람만이든 관람+식사든 그 줄이 20명 이상이면 단체예약 10% (예전엔 전체 관람 인원)
+    const autoP = b.disc ? Math.round(groupRate(b.qty)*100) : 0, o = ov[dkey(b.key||'')], pct = o==='none' ? 0 : o==='pre' ? 5 : o==='grp' ? 10 : autoP, nm = pct===10 ? '단체예약' : '사전예약';
     b.dauto = DISC_OF(autoP); b.dsel = o && DISC_OPTS.some(x=>x[0]===o) ? o : b.dauto; b.gN=0;   // gN = 사전예약 · 단체예약 할인을 받는 인원 (특별 할인이 더 큰 사람은 빼고)
     const mine = ispOn ? SPECIAL.filter(s=>((im[dkey(b.key||'')]||{}).sp||{})[s.k]).map(s=>({...s, left:im[dkey(b.key||'')].sp[s.k]})) : (b.disc ? sp : []);
     if(!mine.length && (o==='none' || (!b.disc && !pct))) return;
