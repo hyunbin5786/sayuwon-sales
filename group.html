@@ -99,6 +99,8 @@
   <section class="list panel mbdb book" role="dialog" aria-modal="true" aria-labelledby="bookTitle">
     <h2><span id="bookTitle">예약 목록</span> <span class="seg my-tabs" id="bookTabs"><button type="button" data-bt="mb">몽몽마방</button><button type="button" data-bt="rent">대관</button><button type="button" data-bt="docent">도슨트</button><button type="button" data-bt="prog">프로그램</button><button type="button" data-bt="coupon">음료쿠폰</button></span> <small id="bookSum"></small>
       <span class="row-btns"><button type="button" class="btn primary" id="bookAddBtn" title="이 목록에 예약 한 건 직접 추가 (팝업)">＋ 직접 추가</button><button type="button" class="btn primary" id="bookLogBtn" title="직접 추가한 예약의 추가 · 수정 · 빼기(사유) 기록">수정 기록</button><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bookPast"> 지난 예약도 보기</label><button type="button" class="btn list-x" id="bookClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+    <!-- 내 담당: 이름으로 걸러 보기 · 오늘부터 7일 뒤까지 내 일정을 주간 시간표 이미지로 (2026-11-21) -->
+    <div class="book-me" id="bookMe"><label class="bm-name">내 이름 <input id="bookMeName" data-ime="ko" placeholder="이름" autocomplete="off"></label><label class="bm-mine" id="bookMineL"><input type="checkbox" id="bookMine"> 내 담당만 보기</label><button type="button" class="btn primary" id="bookPrint" title="오늘부터 7일 뒤까지 내 담당 일정(대관 · 도슨트 · 프로그램 · 음료쿠폰)을 주간 시간표 이미지로 저장">출력하기</button></div>
     <div id="bookGen" class="book-pane"><div class="tw"><table class="mbdb-t"><thead id="bookHead"></thead><tbody id="bookBody"></tbody></table></div>
     <p class="hint" style="margin:8px 0 0">단체 예약이 <b>예약접수</b>가 되면 예약 내역의 대관(차방 = 몽몽차방 · 당두봉갈) · 도슨트(동행 도슨트 = 동행 · 세미나 도슨트 = PPT) · 프로그램이 자동으로 들어갑니다(줄을 누르면 그 예약). 그 밖의 예약은 위 「＋ 직접 추가」로.</p></div>
     <div id="bookMb" class="book-pane" hidden>
@@ -397,7 +399,7 @@
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
 <script src="js/common.js?v=20261121c"></script>
 <script src="js/opslib.js?v=20261121a"></script>
-<script src="js/group.js?v=20261121y"></script>
+<script src="js/group.js?v=20261121z"></script>
 <script src="js/taskcfg.js?v=20261121c"></script>
 <script src="js/mytask.js?v=20261121d"></script>
 <script src="js/ime.js?v=20261118r"></script>

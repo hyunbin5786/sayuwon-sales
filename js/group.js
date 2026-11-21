@@ -1340,16 +1340,18 @@ function paintBook(){
   const isMb = bookCatNow==='mb'; $('#bookMb').hidden=!isMb; $('#bookGen').hidden=isMb;
   if($('#bookAddBtn')) $('#bookAddBtn').hidden=false;   // 직접 추가 = 팝업 (로그인 없이도 이름을 적고 추가, 2026-11-21)
   if($('#bookLogBtn')) $('#bookLogBtn').hidden=BOOK_GUEST;   // 수정 기록 = 로그인한 사람
+  if($('#bookMineL')) $('#bookMineL').hidden=isMb;   // 몽몽마방 목록에는 담당 칸이 없음
   if(bookAddClosed()) paintBookAdd();   // 팝업에 적는 중이면 (새 기록을 받아 다시 그려도) 적던 칸은 그대로
   if(isMb){ paintMbDb(); $('#bookTitle').textContent='몽몽마방 예약 목록'; $('#bookSum').textContent = $('#mbdbSum').textContent; return; }
   const c=bookCatNow, today=todayYmd(), past=$('#bookPast').checked;
-  const all=[...bookRows(), ...manualRows()].filter(x=>x.cat===c).sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99'))), list=all.filter(x=>past || x.d>=today);
-  $('#bookTitle').textContent = `${BOOK_CATS[c]} 예약 목록`; $('#bookSum').textContent = `${list.length}건 · 단체 예약(가예약 · 예약확정)에서 자동 + 직접 추가`;
+  const me=bkMe(), mine=$('#bookMine').checked && !!me;   // 내 담당만 보기 (2026-11-21)
+  const all=[...bookRows(), ...manualRows()].filter(x=>x.cat===c).sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99'))), list=all.filter(x=>(past || x.d>=today) && (!mine || isMine(x, me)));
+  $('#bookTitle').textContent = `${BOOK_CATS[c]} 예약 목록`; { const bs=$('#bookSum'); if(bs){ bs.textContent=''; bs.hidden=true; } }   // 건수 · 「단체 예약에서 자동 + 직접 추가」 문구는 없앰 (2026-11-21)
   $('#bookHead').innerHTML = `<tr>${BOOK_COLS[c].map(h=>`<th>${h}</th>`).join('')}</tr>`;
   const cell = x => c==='rent' ? [[x.place||'(장소 미정)', x.tm].filter(Boolean).join(' · ')+(x.hrs?` (${x.hrs}시간)`:'')] : c==='docent' ? [x.tm||'(미정)', (x.kind||'')+(x.place?` · ${x.place}`:'')+(x.hrs?` · ${x.hrs}시간`:'')] : [[x.item, x.tm].filter(Boolean).join(' · ')];
   $('#bookBody').innerHTML = list.map(x=>`<tr class="r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}"${x.manual?'':` data-bopen="${esc(x.id)}"`}><td>${esc(dateLabel(x.d))}</td><td><b>${esc(x.org)}</b></td><td class="num">${x.ppl?x.ppl+(c==='coupon'?'장':'명'):''}</td>${cell(x).map(v=>`<td>${esc(v)}</td>`).join('')}<td style="white-space:pre-line">${esc(x.staff)}</td><td class="note">${esc(x.note)}</td>`
     + `<td class="acts">${x.manual ? `<button type="button" class="btn sm" data-bkedit="${esc(x.id)}">수정</button><button type="button" class="del" data-bkdel="${esc(x.id)}" title="빼기">×</button>` : '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>'}</td></tr>`).join('')
-    || `<tr><td colspan="${BOOK_COLS[c].length}" class="empty">${all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다. 위 「＋ 직접 추가」로 넣으세요.'}</td></tr>`;
+    || `<tr><td colspan="${BOOK_COLS[c].length}" class="empty">${mine?`담당 「${esc(me)}」인 ${past?'':'앞으로 있을 '}예약이 없습니다.`:all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다. 위 「＋ 직접 추가」로 넣으세요.'}</td></tr>`;
   labelCells('#bookBody', BOOK_COLS[c]);   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
 }
 // 예약 목록 표의 칸마다 머리글 이름(data-l) → 휴대폰에서는 줄마다 카드로, 칸 이름을 앞에 (css/group.css 「예약 현황 공유 휴대폰」)
@@ -1455,6 +1457,80 @@ var BOOK_GUEST = !!BOOK_ONLY && document.documentElement.classList.contains('boo
 if(BOOK_ONLY){ $('#crumb').textContent='예약 현황 공유'; setTimeout(()=>openBook(BOOK_ONLY), 50); }
 function bookPageSync(){ if(!BOOK_ONLY) return; const t=bookCatNow==='mb'?'몽몽마방':BOOK_CATS[bookCatNow]; document.title=`${t} · 예약 현황 공유 · 사유원 운영 보조 시스템`; $('#crumb').textContent=`예약 현황 공유 › ${t}`; history.replaceState(null,'','group.html?book='+bookCatNow); }
 const bookShut = () => { if(!BOOK_ONLY) $('#bookModal').hidden=true; };   // 공유 페이지는 닫지 않음 (메뉴로는 헤더)
+// ===== 내 담당 (2026-11-21): 「내 이름」(기본 = 로그인 이름 · 이 브라우저에 기억)이 담당 칸에 들어 있는 예약만 · 출력하기 = 오늘부터 7일 뒤까지 주간 시간표 이미지 =====
+var BKME_LS='sy_book_me';
+function bkMe(){ const el=document.getElementById('bookMeName'); return el ? el.value.trim() : ''; }
+const isMine = (x, me) => { const n=normSrc(me); return !!n && normSrc(x.staff).includes(n); };
+(function(){ const el=document.getElementById('bookMeName'); if(!el) return;
+  try{ el.value = localStorage.getItem(BKME_LS) || (JSON.parse(localStorage.getItem('sy_user')||'null')||{}).name || localStorage.getItem('sy_guest_name') || ''; }catch(_){}
+  el.addEventListener('input', ()=>{ try{ localStorage.setItem(BKME_LS, el.value.trim()); }catch(_){} if($('#bookMine').checked) paintBook(); });
+  $('#bookMine').addEventListener('change', ()=>{ if($('#bookMine').checked && !bkMe()){ $('#bookMine').checked=false; toast('내 이름을 먼저 적어 주세요.'); el.focus(); return; } paintBook(); });
+  $('#bookPrint').addEventListener('click', bookPrintImg);
+})();
+const BK_COLOR = { rent:['#e7efe2','#4f6b3f'], docent:['#e4ecf5','#3d5a80'], prog:['#f6ecdc','#8a5a1c'], coupon:['#f3e6ee','#7d3c62'] };   // [바탕, 글자 · 테두리]
+function bkTm(x){ const m=String(x.tm||'').match(/(\d{1,2})\s*:\s*(\d{2})(?:\s*[~\-–]\s*(\d{1,2})\s*:\s*(\d{2}))?/); if(!m) return null;
+  const a=+m[1]*60+(+m[2]); let b = m[3]!=null ? +m[3]*60+(+m[4]) : a+(x.hrs?x.hrs*60:60); if(b<=a) b=a+60; return [a,b]; }
+function bkTitle(x){ return x.cat==='docent' ? `도슨트${x.kind?' · '+x.kind:''}` : x.cat==='rent' ? `대관${x.place?' · '+x.place:''}` : x.cat==='coupon' ? (x.item||'음료쿠폰') : (x.item||'프로그램'); }
+async function bookPrintImg(){
+  const me=bkMe(); if(!me){ toast('내 이름을 먼저 적어 주세요.'); $('#bookMeName').focus(); return; }
+  const t0=new Date(); t0.setHours(0,0,0,0); const days=[...Array(8)].map((_,i)=>{ const d=new Date(t0); d.setDate(d.getDate()+i); return ymd(d); });   // 오늘 + 7일 = 8일
+  const evs=[...bookRows(), ...manualRows()].filter(x=>days.includes(x.d) && isMine(x, me)).map(x=>({...x, se:bkTm(x)}));
+  const cv=document.createElement('canvas'), W=1080, PAD=36, TW=84, COLW=(W-PAD*2-TW)/4, HH=136, MINH=112, FONT=getComputedStyle(document.body).fontFamily || 'sans-serif';
+  const ctx0=cv.getContext('2d'), f=(px,b)=>`${b?'700 ':''}${px}px ${FONT}`;
+  const wrap=(ctx,text,w,max)=>{ const out=[]; let line=''; for(const ch of String(text||'')){ if(ctx.measureText(line+ch).width>w && line){ out.push(line); line=ch; if(out.length>=max) break; } else line+=ch; } if(out.length<max && line) out.push(line); if(out.length===max && ctx.measureText(out.join('')).width<ctx.measureText(String(text)).width-1){ let l=out[max-1]; while(l && ctx.measureText(l+'…').width>w) l=l.slice(0,-1); out[max-1]=l+'…'; } return out; };
+  // 4일씩 두 단 (휴대폰 세로 화면에 맞춤). 단마다 쓰는 시간대만 (기본 9 ~ 18시)
+  const panels=[days.slice(0,4), days.slice(4)].map(ds=>{ const pe=evs.filter(x=>ds.includes(x.d)), timed=pe.filter(x=>x.se), un=pe.filter(x=>!x.se);
+    let h0=9, h1=18; timed.forEach(x=>{ h0=Math.min(h0, Math.floor(x.se[0]/60)); h1=Math.max(h1, Math.ceil(x.se[1]/60)); });
+    const unMax=Math.max(0, ...ds.map(d=>un.filter(x=>x.d===d).length)); return { ds, timed, un, h0, h1, unH: unMax ? 46+unMax*96 : 0 }; });
+  const HEAD=210, DAYH=92, FOOT=80, GAP=40;
+  const H = HEAD + panels.reduce((s,p)=>s+DAYH+p.unH+(p.h1-p.h0)*HH, 0) + GAP + FOOT;
+  cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
+  ctx.fillStyle='#f7f5ef'; ctx.fillRect(0,0,W,H);
+  // 머리
+  ctx.fillStyle='#2f4a35'; ctx.font=f(54,1); ctx.textBaseline='top'; ctx.fillText(`${me} 님 일정`, PAD, 44);
+  ctx.fillStyle='#6b675d'; ctx.font=f(30); ctx.fillText(`${dateLabel(days[0])} ~ ${dateLabel(days[7])} · ${evs.length}건 (대관 · 도슨트 · 프로그램 · 음료쿠폰)`, PAD, 118);
+  let y=HEAD;
+  panels.forEach((p,pi)=>{
+    if(pi) y+=GAP;
+    const x0=PAD+TW;
+    // 요일 머리
+    p.ds.forEach((d,i)=>{ const x=x0+i*COLW, dt=new Date(d+'T00:00'), red=isRedDay(d), today=i===0&&pi===0;
+      ctx.fillStyle= today ? '#2f4a35' : '#fff'; ctx.fillRect(x+3, y, COLW-6, DAYH-10);
+      ctx.fillStyle= today ? '#fff' : red ? '#b3412e' : '#2b2a26'; ctx.font=f(34,1); ctx.textAlign='center'; ctx.fillText(`${dt.getMonth()+1}/${dt.getDate()}`, x+COLW/2, y+10);
+      ctx.font=f(24); ctx.fillText(`${DOW[dt.getDay()]}요일${today?' · 오늘':''}`, x+COLW/2, y+50); ctx.textAlign='left'; });
+    y+=DAYH;
+    // 시간 미정
+    if(p.unH){ ctx.fillStyle='#6b675d'; ctx.font=f(22,1); ctx.fillText('시간', PAD, y+10); ctx.fillText('미정', PAD, y+36);
+      p.ds.forEach((d,i)=>{ p.un.filter(x=>x.d===d).forEach((x,k)=>{ const bx=x0+i*COLW+4, by=y+8+k*96, [bg,fg]=BK_COLOR[x.cat]||BK_COLOR.prog;
+        ctx.fillStyle=bg; ctx.fillRect(bx, by, COLW-8, 88); ctx.fillStyle=fg; ctx.fillRect(bx, by, 6, 88);
+        ctx.font=f(22,1); ctx.fillText(wrap(ctx, bkTitle(x), COLW-26, 1)[0]||'', bx+14, by+8); ctx.fillStyle='#2b2a26'; ctx.font=f(26,1); ctx.fillText(wrap(ctx, x.org, COLW-26, 1)[0]||'', bx+14, by+40); }); });
+      y+=p.unH; }
+    // 시간 칸
+    const gh=(p.h1-p.h0)*HH; ctx.fillStyle='#fff'; ctx.fillRect(x0, y, COLW*4, gh);
+    for(let h=p.h0; h<=p.h1; h++){ const yy=y+(h-p.h0)*HH; ctx.strokeStyle='#e2ded3'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x0+COLW*4, yy); ctx.stroke();
+      if(h<p.h1){ ctx.fillStyle='#6b675d'; ctx.font=f(26,1); ctx.fillText(`${h}시`, PAD, yy+6); } }
+    for(let i=0;i<=4;i++){ ctx.strokeStyle='#e2ded3'; ctx.beginPath(); ctx.moveTo(x0+i*COLW, y); ctx.lineTo(x0+i*COLW, y+gh); ctx.stroke(); }
+    p.ds.forEach((d,i)=>{ const list=p.timed.filter(x=>x.d===d).sort((a,b)=>a.se[0]-b.se[0]), lanes=[];   // 겹치면 나란히
+      list.forEach(x=>{ x.ve=Math.max(x.se[1], x.se[0]+MINH/HH*60); });   // 짧은 일정도 업체 이름이 보이는 높이 (화면에서 차지하는 끝)
+      list.forEach(x=>{ let l=lanes.findIndex(end=>end<=x.se[0]); if(l<0){ l=lanes.length; lanes.push(0); } lanes[l]=x.ve; x.lane=l; });
+      list.forEach(x=>{ const n=Math.max(1, ...list.filter(z=>z.se[0]<x.ve && z.ve>x.se[0]).map(z=>z.lane+1)), lw=(COLW-8)/n, narrow=n>1;
+        const bx=x0+i*COLW+4+x.lane*lw, by=y+(x.se[0]-p.h0*60)/60*HH+2, bh=(x.ve-x.se[0])/60*HH-4, [bg,fg]=BK_COLOR[x.cat]||BK_COLOR.prog, iw=lw-22;
+        ctx.fillStyle=bg; ctx.fillRect(bx, by, lw-4, bh); ctx.fillStyle=fg; ctx.fillRect(bx, by, 6, bh);
+        ctx.save(); ctx.beginPath(); ctx.rect(bx, by, lw-4, bh); ctx.clip();
+        let ty=by+8; const line=(txt,px,b,col,max)=>{ ctx.font=f(px,b); ctx.fillStyle=col; wrap(ctx, txt, iw, max).forEach(s=>{ if(ty+px>by+bh-4) return; ctx.fillText(s, bx+14, ty); ty+=px+6; }); };
+        const tmTx=String(x.tm||'').replace(/\s/g,''); line(narrow ? tmTx.split('~')[0] : tmTx, 22, 1, fg, 1); line(x.org, narrow?23:27, 1, '#2b2a26', narrow?3:2);   // 나란히 놓인 좁은 칸: 시작 시각만 · 업체 글씨 작게 3줄 line(bkTitle(x), 22, 0, fg, 1); if(x.ppl) line(`${x.ppl}${x.cat==='coupon'?'장':'명'}`, 22, 0, '#55524a', 1);
+        ctx.restore(); }); });
+    y+=gh;
+  });
+  ctx.fillStyle='#8a867b'; ctx.font=f(22); ctx.fillText(`사유원 예약 현황 · 담당 「${me}」 · ${dtLabel(new Date().toISOString())} 출력${evs.length?'':' · 이 기간에 담당 일정이 없습니다'}`, PAD, H-FOOT+24);
+  // 저장: 휴대폰은 공유(사진에 저장), 컴퓨터는 파일로 내려받기
+  const blob=await new Promise(r=>cv.toBlob(r, 'image/png')); if(!blob){ toast('이미지를 만들지 못했습니다.'); return; }
+  const name=`내일정_${me}_${days[0].replace(/-/g,'')}-${days[7].slice(5).replace('-','')}.png`, file=new File([blob], name, {type:'image/png'});
+  if(matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file], title:`${me} 님 일정`}); return; }catch(e){ if(e && e.name==='AbortError') return; } }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  toast(evs.length ? `내 일정 ${evs.length}건을 이미지로 저장했습니다.` : '이 기간에 담당 일정이 없습니다 (빈 시간표를 저장했습니다).', 3000);
+  window.__bkPrintCanvas=cv;   // 마지막으로 만든 이미지 (확인용)
+}
 function openBook(c){ bookCatNow=c; bookEdit=null; bookImp=null; $('#bookModal').hidden=false; paintBook(); bookPageSync(); }
 document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('[data-book]'); if(b) openBook(b.dataset.book); const t=e.target.closest && e.target.closest('#bookTabs [data-bt]'); if(t){ bookCatNow=t.dataset.bt; bookEdit=null; paintBook(); bookPageSync(); } });
 $('#bookClose').onclick=bookShut;
