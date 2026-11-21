@@ -984,3 +984,10 @@ li.tk.done .tk-title s{color:var(--muted);font-weight:400}
 .tk-in-memo{height:auto;padding:6px 8px;line-height:1.5;resize:vertical}
 .tk-chg{margin:5px 0 0 21px;padding:4px 8px;font-size:12.5px;line-height:1.5;color:#7a4b12;background:#fbf3e3;border-radius:6px}.tk-chg b{margin-right:4px}   /* 무엇이 바뀌었는지 (2026-11-21) */
 #taskList .tchg-line{margin:4px 0 2px 0}
+/* 예약 목록 직접 추가 · 수정 = 팝업 (2026-11-21 · 예전엔 목록 아래 칸) */
+#bookAddModal{z-index:30}
+.book-add-pop{width:min(760px,100%);padding:16px 18px}
+.book-add-pop .book-add{border:0;margin:0;padding:0}
+.book-add-pop .ba-h{font-size:14px;margin-bottom:10px}
+.book-add-pop .ba-btns{display:flex;justify-content:flex-end;gap:6px;margin:14px 0 0}
+#bookAddBtn{height:30px;padding:0 12px}

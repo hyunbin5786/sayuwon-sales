@@ -508,6 +508,7 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
 | 예약 항목 줄 | `itemRows` · `itemRowHTML()` · `renderItems()` · `paintItemPrices()`(할인 버튼 · 특별할인 · 할인액) · `setItemQty()` · `syncPeopleFromArea()`(관람 인원 자동) |
 | 품목마다 특별 할인 | `rec.isp` · `openSp()` · `spBtnHTML()` |
 | 그날 예약 현황 · 예약 목록 창 · 예약 현황 공유 | `bookRows()` · `openBook()` · `?book=` 페이지 |
+| 예약 목록 직접 추가 · 수정 = 팝업 (2026-11-21) | 목록 머리의 「＋ 직접 추가」 · 줄의 「수정」을 누르면 같은 칸(날짜 · 업체 · 인원 · 시간 · 장소/종류/쿠폰 · 담당 · 비고, 엑셀 표 넣기 포함)이 팝업(`#bookAddModal` · `bookAddOpen`)으로 · 추가 · 고치기 · 취소 · Esc 로 닫힘. 목록 아래에 늘 있던 칸은 없앰. 보기 전용(로그인 안 함)은 버튼 없음 |
 | 복사 · 저장 | `copy()` · `store`(list · put · del) · `pending` 대기열 · `flush()` · `pull()` · `merged()`(시트 + 대기 + 개인고객 화면 최신본) |
 | 수정 기록 · 자동 저장 | `snap()` · `diffSnap()` · `save()` · `scheduleAuto()`(30초) · `paintDirty()`(노란 점) · `guardLeave()` |
 | 추후 과업 | `AUTO_TASKS` · `syncAutoTasks()`(조건으로 생기고 빠짐) · `autoDue()`(마감) · `renderTasks()` · `taskAuto()`(전산 비고 · 일정 전달 등 문구) · 사전답사 `tourNote()` |
