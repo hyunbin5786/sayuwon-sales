@@ -945,3 +945,5 @@ input.tcfg-in{height:34px}
 .tcfg-sub{display:flex;gap:4px;align-items:center}
 .tcfg-sub input.tcfg-in{height:30px}
 #askModal{z-index:40}   /* 확인 팝업은 다른 팝업(추후과업 메시지 관리 등)보다 앞에 */
+/* 전산에 없는 품목 (2026-11-21): 할인 줄은 다른 품목과 같고, 아래에 「전산 내역에 없음」 한 줄 */
+.it-money .im.erp-none{flex:1 1 100%;order:9;font-size:12px}

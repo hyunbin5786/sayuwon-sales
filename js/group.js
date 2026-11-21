@@ -446,7 +446,7 @@ function itemRowHTML(k, rows){
     + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="굿즈 담당 (기본 = 영업 담당 · 고칠 수 있음 · 굿즈 모두 같은 담당)"></span>`
       : stf ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="프로그램 담당"></span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
     + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
-    + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div><div class="it-extra">${extra}${spBtnHTML(k)}<span class="it-amt" data-iamt="${esc(k)}"></span></div>`) + `</div>`;   // 둘째 줄: 할인(할인 대상만) · 셋째 줄: 비고 (할인이 없으면 바로 비고, 금액은 그 줄 끝)
+    + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div><div class="it-extra">${extra}<span class="it-amt" data-iamt="${esc(k)}"></span></div>`) + `</div>`;   // 둘째 줄: 할인(할인 대상만) · 셋째 줄: 비고 (할인이 없으면 바로 비고, 금액은 그 줄 끝)
 }
 function renderItems(force){
   const box=$('#itemsBox'); if(!box) return;
@@ -570,6 +570,11 @@ document.addEventListener('change', e=>{ const el=e.target.closest?.('#itemsBox 
   setItemDamt(k, tx===m.aTx && tf===m.aTf ? null : {tx, tf}); startTimer(); renderSide(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.closest?.('#itemsBox [data-idamt]')){ e.preventDefault(); e.target.blur(); } });
 document.addEventListener('click', e=>{ const b=e.target.closest?.('#itemsBox [data-idamtreset]'); if(!b) return; setItemDamt(b.dataset.idamtreset, null); startTimer(); renderSide(); });
+// 예약 내역 할인 줄 하나 (모든 품목 같은 모양): [할인 없음 · 사전예약 5% · 단체예약 10% · 특별할인] … [할인액 비과세 · 과세 · 금액]
+function discRowHTML(k, b, m, money){
+  return `<span class="im dsel" title="할인 (자동: ${esc((DISC_OPTS.find(o=>o[0]===b.dauto)||[])[1]||'')}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${b.dsel===v && (v==='none' || b.gN>0)?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${b.dauto}">${l}${b.dsel===v && v!=='none' && b.gN>0 ? ` ${b.gN}명` : ''}</button>`).join('')}${spBtnHTML(k)}</span>`
+    + `<span class="im-r"><span class="im dams" title="${esc(m.disc||'할인액')}">${m.fTf>0?damIn(k,'tf', m.dTf, m.fTf):''}${m.fTx>0?damIn(k,'tx', m.dTx, m.fTx):''}</span>${money}</span>`;
+}
 // 줄마다 [단가 · 할인 · 금액] (전산 내역이 있으면 인원 · 상품금액 · 할인 · 금액, 인원이 다르면 빨갛게)
 function paintItemPrices(){
   // 줄 구성 (2026-11-14): ① [품목 · 가격(관람+식사는 관람 · 식사 따로) · 인원 · 담당 · ×] ② 할인(할인 대상 품목만: 버튼 · 할인 금액 · 할인 단가 · 금액) ③ 비고 (할인 줄이 없으면 금액은 비고 줄 끝)
@@ -587,7 +592,9 @@ function paintItemPrices(){
     if(E){ const x=E.m[k];
       if(!x){ const inView = /^v:/.test(k) && /\(학생\)/.test(k) && E.m[k.replace(/\(학생\)/,'')];   // 관람(학생): 전산은 관람 한 줄에 어른 · 학생 함께
         h = k==='seminar2' && E.m.seminar ? cell('전산', '세미나 도슨트 줄에 함께 (전산은 세미나 한 품목 · 금액은 첫 세미나 도슨트 줄)') : inView ? cell('전산', '관람 줄에 함께 (어른 · 학생이 한 줄 · 금액은 관람 줄)') : k==='view' && !effViewN(rec) ? cell('전산', '관람권 따로 없음 (모두 관람 포함 품목)') : cell('전산', `<b class="bad">전산 내역에 없음</b>${mi?' <small>· 품목 관리 가격으로 합계에 넣음</small>':''}`, 'warn');
-        if(mi) amt = cell('금액', mi.atMabang ? `<s>${won(mi.m.amount)}</s> <small>마방에서 결제</small>` : `<b>${won(mi.m.amount)}</b>`, 'amt'); }
+        if(mi){   // 전산에 없는 품목도 예약 내역과 같은 할인 줄 (할인 버튼 · 특별할인 · 할인액 · 금액, 2026-11-21 · 예전엔 「전산 내역에 없음」 + 비고 옆 특별할인 버튼)
+          const money = cell('금액', mi.atMabang ? `<s>${won(mi.m.amount)}</s> <small>마방에서 결제</small>` : `<b>${won(mi.m.amount)}</b>`, 'amt');
+          h = discRowHTML(k, mi.b, mi.m, money) + cell('전산', `<b class="bad">전산 내역에 없음</b> <small>· 품목 관리 가격으로 합계에 넣음</small>`, 'warn erp-none'); } }
       else h = erpDiscBtns(k, x, ex) + `<span class="im dams" title="${esc(x.notes.map(cleanErpNote).join(' · ')||'전산 할인')}">${ex.fTf>0?damIn(k,'tf', ex.dTf, ex.fTf):''}${ex.fTx>0?damIn(k,'tx', ex.dTx, ex.fTx):''}</span>`;   // 전산 내역 줄: 할인만 (과세 · 비과세 할인액은 고칠 수 있음)
       }
     // 금액을 아직 계산할 수 없을 때도 할인 줄은 늘 같은 모양 (할인 버튼 · 특별할인 · 오른쪽 금액 자리) — 처음 추가할 때 예전 모양이 잠깐 보이지 않게 (2026-11-18)
@@ -607,9 +614,7 @@ function paintItemPrices(){
         const discRow = m && x.b;   // 모든 품목에 같은 할인 줄 (버튼 · 할인액) — 할인 대상이 아닌 품목도 할인을 넣을 수 있게 (2026-11-17)   // 할인 대상이 아니어도 「할인 넣기」를 눌렀거나 할인액을 넣은 줄은 할인 줄
         // 할인액: 과세(신라) · 비과세(사유원) 따로, 칸에서 바로 고칠 수 있음 (고치면 「직접 고침」, ↺ = 할인 버튼 계산으로 되돌리기)
         const dIn = (side, v, max) => damIn(k, side, v, max);
-        if(discRow) h = `<span class="im dsel" title="할인 (자동: ${esc(DISC_OPTS.find(o=>o[0]===x.b.dauto)[1])}) · 잘못 들어갔으면 눌러서 바꾸기">${DISC_OPTS.map(([v,l])=>`<button type="button" class="dbtn${x.b.dsel===v && (v==='none' || x.b.gN>0)?' on':''}" data-idisc="${esc(k)}" data-dv="${v}" data-da="${x.b.dauto}">${l}${x.b.dsel===v && v!=='none' && x.b.gN>0 ? ` ${x.b.gN}명` : ''}</button>`).join('')}${spBtnHTML(k)}</span>`
-            + `<span class="im-r">` + `<span class="im dams" title="${esc(m.disc||'할인액')}">${m.fTf>0?dIn('tf', m.dTf, m.fTf):''}${m.fTx>0?dIn('tx', m.dTx, m.fTx):''}</span>`
-            + money + `</span>`;   // 할인액 · 금액은 오른쪽 묶음 (2026-11-18)
+        if(discRow) h = discRowHTML(k, x.b, m, money);   // 할인액 · 금액은 오른쪽 묶음 (2026-11-18)
         else amt = money + (m && x.b ? `<button type="button" class="dopen" data-dopen="${esc(k)}" title="이 품목에 할인 넣기 (과세 · 비과세 할인액)">할인 넣기</button>` : ''); } }
     el.innerHTML=h; if(am) am.innerHTML=amt; });
   // 전산에만 있는 상품 (예약 내역 줄로 못 옮긴 것)
