@@ -982,3 +982,5 @@ li.tk.done .tk-title s{color:var(--muted);font-weight:400}
 .tk-in{display:block;width:calc(100% - 21px);box-sizing:border-box;margin:5px 0 0 21px;height:30px;border:1px solid var(--pine);border-radius:6px;padding:0 8px;font:13px var(--sans);color:var(--ink);background:#fff}
 .tk-main .tk-in{margin:0;flex:1;width:auto}
 .tk-in-memo{height:auto;padding:6px 8px;line-height:1.5;resize:vertical}
+.tk-chg{margin:5px 0 0 21px;padding:4px 8px;font-size:12.5px;line-height:1.5;color:#7a4b12;background:#fbf3e3;border-radius:6px}.tk-chg b{margin-right:4px}   /* 무엇이 바뀌었는지 (2026-11-21) */
+#taskList .tchg-line{margin:4px 0 2px 0}

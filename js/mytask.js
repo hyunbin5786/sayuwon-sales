@@ -7,7 +7,8 @@
 // ---------- 줄 자료 ----------
 function tkFromG(r, t){
   const ds=DOC_SUBS[t.id], subs=[...(ds ? ds.map(([k,l])=>({id:'d:'+k, title:l, done:!!(t.subs||{})[k], fixed:true})) : []), ...(t.xsubs||[]).map(x=>({id:x.id, title:x.title, done:!!x.done}))];
-  return { kind:'g', rid:r.id, tid:t.id, day:'', title:t.title, due:t.due||'', done:!!t.done, memo:t.memo||'', subs,
+  const chg = t.id==='pplchk' ? pplChanges(t) : t.id==='erpfix' ? (t.changes||[]) : [];   // 무엇이 바뀌었는지 (예약 내역&전산 내역 확인 · 전산 예약 수정, 2026-11-21)
+  return { kind:'g', rid:r.id, tid:t.id, day:'', title:t.title, due:t.due||'', done:!!t.done, memo:t.memo||'', subs, chg,
     src:`단체 · ${r.org||r.contact||'(업체 미정)'}${r.date?' · 방문 '+dateLabel(r.date):''}`, srcAttr:`data-myopen="${esc(r.id)}"`, canDel: !!t.custom };
 }
 function tkFromP(r, t){
@@ -50,6 +51,7 @@ function tkHTML(T){
   const n=T.subs.filter(s=>s.done).length;
   return `<li class="tk${cls}" data-tk="${key}"><div class="tk-main">${ck}${title}${T.subs.length?`<small class="tk-cnt">세부 ${n}/${T.subs.length}</small>`:''}</div>`
     + `<div class="tk-meta">${meta.join('')}</div>`
+    + ((T.chg||[]).length ? `<div class="tk-chg"><b>바뀐 내용</b> ${T.chg.map(esc).join(' · ')}</div>` : '')
     + (T.memo ? `<div class="tk-ctl tk-memo" data-tkmemo title="눌러서 메모 고치기">${esc(T.memo)}</div>` : '')
     + (T.subs.length ? `<div class="tk-subs">${T.subs.map(s=>`<span class="tk-sub${s.done?' on':''}"><label><input type="checkbox" ${T.kind==='e' ? `data-etcsub="${esc(T.rid)}|${esc(T.day)}|${esc(s.id)}"` : `data-tksub="${esc(s.id)}"`}${s.done?' checked':''}> ${esc(s.title)}</label>${s.fixed?'':`<button type="button" class="tk-ctl tk-subx" ${T.kind==='e' ? `data-etcsubx="${esc(T.rid)}|${esc(s.id)}"` : `data-tksubx="${esc(s.id)}"`} title="세부 과업 빼기">×</button>`}</span>`).join('')}</div>` : '')
     + `</li>`;

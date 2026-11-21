@@ -2075,7 +2075,7 @@ function renderTasks(){
     return `<li class="task${t.done?' done':late?' late':''}${fold?' collapsed':''}" data-id="${esc(t.id)}">
       <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<span class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''} title="체크하면 완료"><input class="ttl" data-tttl="${esc(t.id)}" value="${esc(t.title)}" data-ime="ko" spellcheck="false" autocomplete="off" title="눌러서 제목 고치기 (Enter로 확정)"></span>${t.done && subsDone?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}
         ${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}${dboxHTML(`data-tdue="${esc(t.id)}"`, due)}</label><button type="button" class="tsave" data-tsave="${esc(t.id)}" title="이 과업의 고친 내용(체크 · 제목 · 마감일 · 메모 · 세부 과제)을 지금 저장">저장</button><button type="button" class="del" data-tdel="${esc(t.id)}" title="이 과업 삭제 (확인 뒤)" aria-label="과업 삭제">×</button></div>
-      ${subsHTML(t)}${docBtn}${files}
+      ${t.id==='pplchk' && pplChanges(t).length ? `<div class="tk-chg tchg-line"><b>바뀐 내용</b> ${pplChanges(t).map(esc).join(' · ')}</div>` : ''}${subsHTML(t)}${docBtn}${files}
       ${txt?`<textarea class="tnote${t.noteEdit?' edited':''}" id="tpre_${esc(t.id)}" data-tnote="${esc(t.id)}" spellcheck="false" title="자동으로 만든 문구 · 직접 고칠 수 있음">${esc(txt)}</textarea><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')||t.id==='tour'?'비고 문구 복사':'문구 복사'}</button>${t.noteEdit?`<button type="button" class="btn" data-tregen="${esc(t.id)}" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><span class="hint" style="margin:0">직접 고친 문구</span>`:''}<span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${typeof tcfgMsgHTML==="function" ? tcfgMsgHTML(t) : ""}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
@@ -2963,8 +2963,10 @@ document.addEventListener('change', e=>{ if(e.target && e.target.id==='f_people'
 function pplTask(){ const was=String((baseSnap||{}).people||'').trim(), now=String(rec.people||'').trim(); if(!editingId || !was || !now || was===now) return;
   let t=tasks.find(x=>x.id==='pplchk');
   if(!t){ t={id:'pplchk', title:'예약 내역&전산 내역 확인', custom:true, done:false, at:new Date().toISOString(), due:todayYmd(), pplFrom:was}; tasks.push(t); }
-  else if(t.done){ t.done=false; t.doneAt=''; t.at=new Date().toISOString(); t.due=todayYmd(); delete t.dueSet; t.pplFrom=was; }
-  t.pplTo=now; renderTasks(); renderSide(); }
+  else if(t.done){ t.done=false; t.doneAt=''; t.at=new Date().toISOString(); t.due=todayYmd(); delete t.dueSet; t.pplFrom=was; t.changes=[]; }
+  t.pplTo=now; t.changes=[...(t.changes||[]).filter(c=>!/^관람 인원 .* \(단체 화면\)$/.test(c)), `관람 인원 ${was} → ${now} (단체 화면)`]; renderTasks(); renderSide(); }   // 무엇이 바뀌었는지 과업 아래에 (2026-11-21)
+// 「예약 내역&전산 내역 확인」 아래에 보이는 바뀐 내용 (예전 기록은 pplFrom → pplTo 로)
+const pplChanges = t => (t.changes||[]).length ? t.changes : (t.pplFrom && t.pplTo ? [`관람 인원 ${t.pplFrom} → ${t.pplTo}`] : []);
 // 열어 둔 예약이 다른 곳(다음날 고객 응대 준비 · 다른 PC)에서 바뀌면 (2026-11-19): 30초마다 받아 올 때 확인
 //  고치던 것이 없으면 그 예약을 새로 불러오고, 고치는 중이면 내가 안 고친 칸만 받아 넣음 → 옛 내용으로 저장해 덮어쓰지 않게
 const liveVals = r => { const x=unpackExtra(r||{}), o={}; ['org','people','date','tin','phone','vehicle','sadam1','sadam2','sadamD','mabangL'].forEach(k=>{ o[k]=String((r||{})[k]??'').trim(); }); o.gate=String(x.gate||'').trim(); o.views=String(x.views||'').trim(); return o; };
