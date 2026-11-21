@@ -103,3 +103,4 @@ main.st-main > .panel{margin-bottom:14px}
 @media (max-width:1100px){ .st-cols{grid-template-columns:1fr} .st-right{position:static} }
 .ni-pic{display:flex;flex-direction:column;gap:6px}
 .ni-warn{color:var(--amber);font-size:12px;font-weight:600}
+.share-st{font-size:12px;color:var(--pine);align-self:center;margin-right:8px}.share-st.bad{color:var(--red,#a4442c)}   /* 팀 공유 상태 (2026-11-21) */

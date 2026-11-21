@@ -34,6 +34,26 @@
   document.body.appendChild(wrap);
   const btn=document.createElement('button'); btn.type='button'; btn.className='smenu-btn'; btn.title='메뉴 열기 / 닫기'; btn.setAttribute('aria-label','메뉴'); btn.innerHTML='☰ <span>메뉴</span>';
   hd.insertBefore(btn, hd.firstChild);
+  // ===== 매뉴얼 (2026-11-21): 헤더 맨 왼쪽 위 책 버튼 → 이 페이지의 매뉴얼(manual/페이지.html)을 큰 창으로 =====
+  //  형식(노션 「네이버→사유원 예약 이관」 따라): [1단계] 제목 · 화면 사진(번호 표시) · 짧은 설명 · 접는 칸(이럴 때는 …). 아직 없는 페이지는 「준비 중」
+  const MAN_KEY = herePath==='document/' ? 'document' : herePath==='group.html' ? (hereQ.get('my') ? 'my' : hereQ.get('book') ? 'book' : 'group') : herePath.replace(/\.html$/,'');
+  const MAN_NAME = (document.title||'').split(' · ')[0] || '이 페이지';
+  const mbk=document.createElement('button'); mbk.type='button'; mbk.className='smenu-btn man-btn'; mbk.title=`${MAN_NAME} 매뉴얼 (사용 방법)`; mbk.setAttribute('aria-label','매뉴얼');
+  mbk.innerHTML='<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 6.5C10.2 5 7.6 4.3 4 4.5v13c3.6-.2 6.2.5 8 2 1.8-1.5 4.4-2.2 8-2v-13c-3.6-.2-6.2.5-8 2Zm0 0v13"/></svg><span>매뉴얼</span>';
+  hd.insertBefore(mbk, hd.firstChild);
+  const man=document.createElement('div'); man.className='man-wrap'; man.hidden=true;
+  man.innerHTML=`<div class="man-bg" data-manclose></div><section class="man-panel" role="dialog" aria-modal="true" aria-label="매뉴얼"><div class="man-top"><b>📖 ${esc(MAN_NAME)} 매뉴얼</b><button type="button" class="man-x" data-manclose title="닫기 (Esc)" aria-label="매뉴얼 닫기">×</button></div><div class="man-body" id="manBody"><p class="man-wait">불러오는 중…</p></div></section>`;
+  document.body.appendChild(man);
+  let manLoaded=false;
+  async function openMan(){ man.hidden=false; document.documentElement.classList.add('man-open'); if(manLoaded) return;
+    const body=man.querySelector('#manBody');
+    try{ const r=await fetch(`${base}manual/${MAN_KEY}.html?t=${Date.now()}`); if(!r.ok) throw 0; const h=await r.text();
+      body.innerHTML = h.replace(/(src|href)="img\//g, `$1="${base}manual/img/`); manLoaded=true; }
+    catch(_){ body.innerHTML=`<p class="man-wait">이 페이지의 매뉴얼은 준비 중입니다.</p>`; } }
+  const closeMan = () => { man.hidden=true; document.documentElement.classList.remove('man-open'); };
+  mbk.addEventListener('click', ()=>man.hidden ? openMan() : closeMan());
+  man.addEventListener('click', e=>{ if(e.target.closest('[data-manclose]')) closeMan(); const im=e.target.closest('.man-body img'); if(im){ const z=document.createElement('div'); z.className='man-zoom'; z.innerHTML='<img alt="">'; z.firstChild.src=im.src; z.onclick=()=>z.remove(); document.body.appendChild(z); } });
+  document.addEventListener('keydown', e=>{ if(e.key!=='Escape') return; const z=document.querySelector('.man-zoom'); if(z){ z.remove(); return; } if(!man.hidden) closeMan(); });
   // 첫 화면(로그인)은 메뉴를 왼쪽에 붙여 펼쳐 둠: 회색 가림 없이, 대시보드는 메뉴 너비만큼 옆으로 좁혀짐 (html.smenu-dock). × · ☰ 로 접고 펴기
   const dock = isHomePg && logged;
   const setTop = () => document.documentElement.style.setProperty('--sm-top', Math.max(0, Math.round(hd.getBoundingClientRect().bottom))+'px');

@@ -12,7 +12,24 @@
   const LS='sy_status_v1', FOOT_DEF='집계 기준 | 홈페이지 예약 + 네이버 확정 인원 · 사유의 밥상(단체) 제외 · 단체 예약 인원은 해당 상품 인원에 포함';
   const TITLE='사유원 예약 현황';   // 제목은 고정 (2026-11-19 · 제목 칸 없앰)
   let st = SY.readJSON(LS, null) || { title:TITLE, foot:FOOT_DEF, days:[] };
-  const save = () => SY.writeJSON(LS, st);
+  // ---------- 팀 공유 (2026-11-21): 이 화면 내용 전체 = 공유 기록 한 줄(id statusdb · 통화 구분 「예약현황공유」) ----------
+  //  고치면 1.5초 뒤 올리고, 열 때 · 30초마다 · 이 창으로 돌아올 때 다른 사람이 고친 것을 받음 (마지막에 저장한 것이 이김)
+  //  날이 바뀌면 지난 날짜는 지움(keepTwo) → 지운 것도 올림. 하루 동안은 그대로 유지 · 공유
+  const SHARE_ID='statusdb', SHARE_TYPE='예약현황공유', me=(SY.user()||{}).name||'';
+  let pushT=null, pushing=false;
+  async function pushShare(){ pushT=null; if(!SY.getKey()) return; pushing=true;
+    try{ const now=st.at||new Date().toISOString(), item={id:SHARE_ID, callType:SHARE_TYPE, saved:now, takenBy:me, owner:me, summary:`예약 현황 공유 ${st.days.map(d=>d.date).join(' · ')}`, history:JSON.stringify({st, at:now, by:me})};
+      const r=await fetch(SY.API_URL,{method:'POST', body:JSON.stringify({action:'put', item, key:SY.getKey()})}), j=await r.json(); if(!j.ok) throw new Error(j.error); paintShare(`공유됨 · ${hm(now)} ${me}`); }
+    catch(e){ paintShare('공유 못 함 · 잠시 뒤 다시', true); }
+    finally{ pushing=false; } }
+  const save = () => { st.at=new Date().toISOString(); st.by=me; SY.writeJSON(LS, st); clearTimeout(pushT); paintShare('공유 중…'); pushT=setTimeout(pushShare, 1500); };
+  async function pullShare(){ if(!SY.getKey() || pushing || pushT) return;   // 올리는 중 · 올릴 것이 남아 있으면 받지 않음
+    try{ const j=await SY.list(); const r=(j.items||[]).find(x=>x.id===SHARE_ID); if(!r) return; let h=null; try{ h=JSON.parse(r.history||'null'); }catch(_){}
+      if(!h || !h.st) return; const el=document.activeElement, typing=el && el.closest && el.closest('#stEdit') && /INPUT|TEXTAREA/.test(el.tagName);
+      if(String(h.at||'') > String(st.at||'') && !typing){ st=h.st; SY.writeJSON(LS, st); render(); paintShare(`${hm(h.at)} ${h.by||''} 님이 고친 내용을 받았습니다`); } }
+    catch(_){} }
+  const hm = iso => { const x=new Date(iso||''); return isNaN(x) ? '' : `${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`; };   // 이 컴퓨터 시각
+  function paintShare(t, bad){ const el=document.getElementById('shareSt'); if(el){ el.textContent=t; el.className='share-st'+(bad?' bad':''); } }
   const digits = s => String(s||'').replace(/\D/g,''), norm = s => String(s||'').replace(/\s/g,'').toLowerCase();
   const dLab = d => { const t=new Date(d+'T00:00'); return isNaN(t) ? d : `${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; };
   const dLong = d => { const t=new Date(d+'T00:00'); return isNaN(t) ? d : `${t.getFullYear()}. ${t.getMonth()+1}. ${t.getDate()}.(${DOW[t.getDay()]})`; };
@@ -76,7 +93,7 @@
   // 이 화면은 무조건 오늘 + 내일 2일만 (2026-11-21): 날짜 표 · 네이버 인원 모두 — 다른 날짜는 넣어도 빼고, 날이 바뀌면 지난 날짜는 저절로 빠짐
   const twoDays = () => { const a=new Date(), b=new Date(); b.setDate(b.getDate()+1); return [SY.ymd(a), SY.ymd(b)]; };
   const inTwo = d => twoDays().includes(d);
-  function keepTwo(){ const n0=st.days.length+Object.keys(st.naver).length; st.days=st.days.filter(d=>inTwo(d.date)); Object.keys(st.naver).forEach(d=>{ if(!inTwo(d)) delete st.naver[d]; }); if(st.days.length+Object.keys(st.naver).length!==n0) save(); }
+  function keepTwo(){ const n0=st.days.length+Object.keys(st.naver).length; st.days=st.days.filter(d=>inTwo(d.date)); Object.keys(st.naver).forEach(d=>{ if(!inTwo(d)) delete st.naver[d]; }); if(st.days.length+Object.keys(st.naver).length!==n0) SY.writeJSON(LS, st); }   // 지난 날짜 지우기는 「고친 것」이 아님 (공유 시각을 바꾸지 않아 다른 사람의 오늘 내용을 그대로 받음, 2026-11-21)
   keepTwo();
   function applyNaver(day){
     const nv=st.naver[day.date]; if(!nv) return day;
@@ -274,4 +291,5 @@
     catch(_){ toast('사진을 만들지 못했습니다.'); }
   };
   render();   // 단체예약 목록은 안 받음 (2026-11-19 · 엑셀 표 그대로)
+  pullShare(); setInterval(()=>{ if(!document.hidden) pullShare(); }, 30000); window.addEventListener("focus", pullShare);   // 팀 공유: 열 때 · 30초마다 · 돌아올 때 받음 (2026-11-21)
 })();
