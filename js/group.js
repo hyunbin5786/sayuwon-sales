@@ -3109,13 +3109,38 @@ async function openQuote2(doc, win){
   const {blocks, skipped} = quoteBlocks(rec);
   const c = contactsOf(rec)[0] || {};
   const email = (contactsOf(rec).map(x=>String(x.email||'').split(/[\s,;\/]+/).find(s=>/@/.test(s))||'').find(Boolean)) || '';   // 담당자 이메일 중 가장 위에 있는 것 → 견적서 메일 받는 사람 (2026-11-21)
-  const h = { at:Date.now(), raw:quoteRaw(rec, blocks), client:rec.org||'', clientMgr:c.name||'', email,sender:savedOwner()||rec.owner||'', doc: doc||'quote', recId: editingId||'', org: rec.org||'', date: rec.date||'' };
+  const h = { at:Date.now(), raw:quoteRaw(rec, blocks), client:rec.org||'', clientMgr:c.name||'', email, sender:savedOwner()||rec.owner||'', doc: doc||'quote', recId: editingId||'', org: rec.org||'', date: rec.date||'' };
   try{ localStorage.setItem('sy_intake_handoff', JSON.stringify(h)); }catch(_){ try{ win && win.close(); }catch(__){} toast('이 브라우저에서는 넘길 수 없습니다.'); return; }
   if(win && !win.closed) win.location.href=new URL(QUOTE_URL, location.href).href; else window.open(QUOTE_URL, '_blank');
   toast(`${doc==='statement'?'거래명세서':'견적서'} 사이트를 열었습니다 · ${blocks.length}개 상품${skipped.length?` · ${skipped.join(', ')}은(는) 직접 추가`:''} · 출력하면 드라이브에도 저장됩니다`);
 }
-$('#quoteBtn').onclick=()=>openQuote('quote');
-$('#stmtBtn').onclick=()=>openQuote('statement');
+// 발급 내역 (견적서 사이트 공유 저장소, 2026-11-21): 이 예약으로 발급한 견적서 · 거래명세서가 있으면 버튼에 ✓, 다시 누르면 발급 내역에서 그 문서를 엶
+// 같은 예약 = 발급할 때 넘긴 예약 ID(snapshot.intakeRec) 또는 수신(업체) · 이용일(방문일)이 같은 것. 발급 취소한 것은 빼고
+var quoteHist=null, quoteHistAt=0;   // var: paintDocBtns 가 먼저 불려도 되게
+const QH_DATE = v => { v=String(v||''); if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v; const d=new Date(v); return isNaN(d) ? v.slice(0,10) : ymd(d); };
+async function loadQuoteHist(force){
+  if(BOOK_ONLY || (!force && Date.now()-quoteHistAt<60000)) return; quoteHistAt=Date.now();
+  try{ const j=await fetch(QUOTE_SHARED_URL+'?history=1&limit=500').then(r=>r.json());
+    if(j && Array.isArray(j.history)){ quoteHist=j.history.map(h=>({ id:h.id, at:h.at, doc:h.doc, client:h.client, date:QH_DATE((h.snapshot&&h.snapshot.useDate)||h.useDate), rec:(h.snapshot&&h.snapshot.intakeRec)||'', canceled:h.canceled })); paintDocBtns(); } }catch(_){}
+}
+var DOC_KO = { quote:'견적서', statement:'거래명세서', stmt:'거래명세서' };
+function issuedDocs(doc){
+  if(!quoteHist || !rec) return [];
+  const org=normSrc(rec.org), name=DOC_KO[doc];
+  return quoteHist.filter(h=>!h.canceled && h.doc===name && ((editingId && h.rec===editingId) || (org && normSrc(h.client)===org && rec.date && h.date===rec.date)));
+}
+// 이미 발급했으면 발급 내역으로, 아니면 새로 발급
+function docBtn(doc){
+  if(!issuedDocs(doc).length){ openQuote(doc); return; }
+  const h={ at:Date.now(), mode:'history', doc, recId:editingId||'', org:rec.org||'', date:rec.date||'' };
+  try{ localStorage.setItem('sy_intake_handoff', JSON.stringify(h)); }catch(_){ toast('이 브라우저에서는 넘길 수 없습니다.'); return; }
+  window.open(QUOTE_URL, '_blank');
+  toast(`${DOC_KO[doc]} 발급 내역을 열었습니다 · 거기서 재발행 · 수정발행`);
+}
+$('#quoteBtn').onclick=()=>docBtn('quote');
+$('#stmtBtn').onclick=()=>docBtn('statement');
+window.addEventListener('focus', ()=>loadQuoteHist());   // 견적서 사이트에서 출력하고 돌아오면 ✓ 다시 (1분에 한 번)
+setTimeout(()=>loadQuoteHist(true), 1500);
 // 버튼 앞 체크: 켜면 추후 과업에 발급 과업(하위 과업 3개)이 생기고, 끄면 (손대지 않은) 과업이 빠짐
 document.querySelectorAll('[data-want]').forEach(c=>c.addEventListener('change', ()=>{ const wk=c.dataset.want; rec[wk]=c.checked?'있음':''; touched.add(wk); startTimer(); renderSide(); }));
 
@@ -3283,9 +3308,10 @@ async function downloadXlsx(){
 function paintDocBtns(){
   [['ckQuote','wantQuote'],['ckStmt','wantStmt']].forEach(([c,wk])=>{ const el=document.getElementById(c); if(el) el.checked=!!rec[wk]; });   // 버튼 앞 체크 = 과업 요청
   paintTourCk();   // 사전답사 체크 = 답사 정보 있음
-  [['quoteBtn','quote','견적서'],['stmtBtn','stmt','거래명세서']].forEach(([b,id,name])=>{ const el=document.getElementById(b); if(!el) return;
-    const t=tasks.find(x=>x.id===id && x.done); el.classList.toggle('issued', !!t); el.textContent = name;
-    el.title = t ? `${name} 발급함 ${t.doneAt?dtLabel(t.doneAt):''} · 누르면 다시 발급` : `${name} 발급 (누르면 발급으로 체크)`; });
+  [['quoteBtn','quote','견적서','quote'],['stmtBtn','stmt','거래명세서','statement']].forEach(([b,id,name,doc])=>{ const el=document.getElementById(b); if(!el) return;
+    const hs=typeof issuedDocs==='function' ? issuedDocs(doc) : [], last=hs.map(h=>h.at).sort().pop();   // 발급 내역에 있으면 ✓ (2026-11-21)
+    el.classList.toggle('issued', !!hs.length); el.textContent = name;
+    el.title = hs.length ? `${name} 발급함 ${last?dtLabel(last):''} · 누르면 발급 내역(재발행 · 수정발행)` : `${name} 발급`; });
 }
 $('#xlsxBtn').onclick=downloadXlsx;
 

@@ -2348,6 +2348,7 @@
       doc: docName(), client: state.client.trim(), useDate: state.useDate, issueDate: issueDate(),
       total: totalOf("sayuwon") + totalOf("shilla"), sender: state.sender, use: state.docUse,
       files: files, snapshot: JSON.parse(JSON.stringify(state)) };
+    if(intakeLink && intakeLink.recId) h.snapshot.intakeRec = intakeLink.recId;   // 단체 예약 ID: 단체 화면 견적서 버튼 ✓ · 발급 내역 찾기 (2026-11-21)
     if(meta && meta.kind === "revise") setIssueMeta({ kind:"revise", parent: h.id, label: histLabel(h) });   // 또 고쳐 출력하면 이번 것의 수정발행
     else setIssueMeta(null);
     // 발급 내역을 거치지 않은 출력이라도 같은 문서(수신 · 이용일 · 문서 종류)의 발급이 있으면 그 문서의 수정발행으로 본다
@@ -2422,6 +2423,8 @@
     var all = effHistory(allHistory()), q = document.getElementById("hist-search").value.trim().toLowerCase();
     var byId = {}; all.forEach(function(h){ byId[h.id] = h; });
     var groups = groupVersions(all);
+    paintHistFocus();
+    if(histFocus) groups = groups.filter(function(g){ return g.versions.some(histFocusHit); });
     if(q) groups = groups.filter(function(g){ return g.versions.some(function(h){ return [h.client, h.sender, h.doc, fmtAt(h.at)].join(" ").toLowerCase().indexOf(q) >= 0; }); });
     document.getElementById("hist-count").textContent = "· 문서 " + groupVersions(all).length + "건 (발급 " + all.length + "번)";
     var st = !SHARED_URL ? "이 브라우저에만 저장됩니다."
@@ -2460,14 +2463,31 @@
           : (h.snapshot ? '<button class="btn small" type="button" data-h="reissue">재발행</button><button class="btn small" type="button" data-h="revise">수정발행</button>' : '') +
             '<button class="btn small danger" type="button" data-h="cancel">발급 취소</button>') + '</div></td>' +
       '</tr>';
-    }).join("") : '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--muted)">' + (q ? "찾는 내역이 없습니다." : "아직 발급 내역이 없습니다. 출력하면 여기에 남습니다.") + '</td></tr>';
+    }).join("") : '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--muted)">' + (histFocus ? (histServer ? "이 예약의 발급 내역을 찾지 못했습니다. 「전체 보기」로 찾아 주세요." : "발급 내역을 불러오는 중…") : q ? "찾는 내역이 없습니다." : "아직 발급 내역이 없습니다. 출력하면 여기에 남습니다.") + '</td></tr>';
+  }
+  // 단체 화면에서 발급한 문서의 견적서 버튼을 다시 누르면: 그 예약의 발급 내역만 (예약 ID 또는 수신 · 이용일 · 문서 종류가 같은 것, 2026-11-21)
+  var histFocus = null;   // { recId, org, date, doc }
+  function histFocusHit(h){
+    var f = histFocus; if(!f) return true;
+    if(f.doc && h.doc !== f.doc) return false;
+    var s = h.snapshot || {};
+    if(f.recId && s.intakeRec === f.recId) return true;
+    return !!f.org && String(h.client || "").replace(/\s/g, "") === f.org.replace(/\s/g, "") && dateOnly(s.useDate || h.useDate) === f.date;
+  }
+  function paintHistFocus(){
+    var bar = document.getElementById("hist-focus");
+    if(!bar){ bar = document.createElement("div"); bar.id = "hist-focus"; bar.className = "hint"; bar.style.margin = "0 0 8px";
+      document.getElementById("hist-status").insertAdjacentElement("beforebegin", bar);
+      bar.addEventListener("click", function(e){ if(e.target.closest("[data-hfall]")){ histFocus = null; renderHistory(); } }); }
+    bar.hidden = !histFocus;
+    if(histFocus) bar.innerHTML = "단체 예약 <b>" + esc(histFocus.org || "") + "</b> (" + esc(fmtDate(histFocus.date, true)) + ") " + esc(histFocus.doc || "") + " 발급 내역만 보는 중 · <button class=\"btn small\" type=\"button\" data-hfall>전체 보기</button>";
   }
   function openHistory(){
     document.getElementById("hist-search").value = "";
     renderHistory(); elHist.hidden = false;
     flushHistory().then(loadHistory);
   }
-  function closeHistory(){ elHist.hidden = true; }
+  function closeHistory(){ elHist.hidden = true; histFocus = null; }
   // 발급 취소: 줄은 지우지 않고 '발급 취소' 표시(일시 · 사유)만 남긴다. 취소 철회로 되돌릴 수 있음
   function setCanceled(h, on){
     var note = "";
@@ -2762,6 +2782,11 @@
     var KEY = "sy_intake_handoff", h = null;
     try { h = JSON.parse(localStorage.getItem(KEY) || "null"); localStorage.removeItem(KEY); } catch(e){}
     try { history.replaceState(null, "", location.pathname); } catch(e){}
+    if(h && h.mode === "history" && Date.now() - (h.at || 0) < 5 * 60000){   // 이미 발급한 문서: 발급 내역에서 그 예약 것만 (2026-11-21)
+      histFocus = { recId: h.recId || "", org: h.org || "", date: h.date || "", doc: DOC_NAME[h.doc] || "" };
+      if(h.recId) intakeLink = { recId: h.recId, doc: h.doc || "quote", org: h.org || "", date: h.date || "" };   // 거기서 수정발행 · 재발행해도 그 예약에 파일이 붙게
+      closeStart(); openHistory(); return;
+    }
     if(!h || !h.raw || !(Date.now() - (h.at || 0) < 5 * 60000)) return;
     document.getElementById("f-raw").value = h.raw;
     applyBooking();
