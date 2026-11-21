@@ -1078,3 +1078,5 @@ li.tk.has-x .tk-main{padding-right:22px}
   .book-me #bookPrint{margin:0;height:52px;font-size:18px;border-radius:12px;width:100%}
   html.book-only #bookLogBtn{height:48px;font-size:17px;border-radius:12px;width:100%}
 }
+/* 세미나 도슨트 2회 이상: 장소마다 담당 칸 (2026-11-21) */
+.it-extra .it-xl.it-stf .it-x{width:110px}
