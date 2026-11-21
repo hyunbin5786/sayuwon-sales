@@ -34,13 +34,18 @@
   document.body.appendChild(wrap);
   const btn=document.createElement('button'); btn.type='button'; btn.className='smenu-btn'; btn.title='메뉴 열기 / 닫기'; btn.setAttribute('aria-label','메뉴'); btn.innerHTML='☰ <span>메뉴</span>';
   hd.insertBefore(btn, hd.firstChild);
-  // ===== 매뉴얼 (2026-11-21): 헤더 맨 왼쪽 위 책 버튼 → 이 페이지의 매뉴얼(manual/페이지.html)을 큰 창으로 =====
+  // ===== 매뉴얼 (2026-11-21): 헤더 맨 오른쪽 위 책 버튼 → 이 페이지의 매뉴얼(manual/페이지.html)을 큰 창으로 =====
   //  형식(노션 「네이버→사유원 예약 이관」 따라): [1단계] 제목 · 화면 사진(번호 표시) · 짧은 설명 · 접는 칸(이럴 때는 …). 아직 없는 페이지는 「준비 중」
   const MAN_KEY = herePath==='document/' ? 'document' : herePath==='group.html' ? (hereQ.get('my') ? 'my' : hereQ.get('book') ? 'book' : 'group') : herePath.replace(/\.html$/,'');
   const MAN_NAME = (document.title||'').split(' · ')[0] || '이 페이지';
   const mbk=document.createElement('button'); mbk.type='button'; mbk.className='smenu-btn man-btn'; mbk.title=`${MAN_NAME} 매뉴얼 (사용 방법)`; mbk.setAttribute('aria-label','매뉴얼');
   mbk.innerHTML='<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 6.5C10.2 5 7.6 4.3 4 4.5v13c3.6-.2 6.2.5 8 2 1.8-1.5 4.4-2.2 8-2v-13c-3.6-.2-6.2.5-8 2Zm0 0v13"/></svg><span>매뉴얼</span>';
-  hd.insertBefore(mbk, hd.firstChild);
+  // 위치 (2026-11-21 변경): 헤더 맨 오른쪽. 오른쪽에 다른 것(이름 · 나의 할일 · 로그아웃 등)이 있으면 그 뒤, 없으면 오른쪽 끝으로 밀어 붙임
+  hd.appendChild(mbk);
+  const manPlace = () => { mbk.style.marginLeft='8px'; const hr=hd.getBoundingClientRect(), pr=parseFloat(getComputedStyle(hd).paddingRight)||0;
+    if(hr.right-pr-mbk.getBoundingClientRect().right > 4) mbk.style.marginLeft='auto'; };
+  requestAnimationFrame(manPlace); window.addEventListener('load', manPlace);
+  try{ new ResizeObserver(()=>requestAnimationFrame(manPlace)).observe(hd); new MutationObserver(ms=>{ if(ms.some(m=>m.target!==mbk && !mbk.contains(m.target))) requestAnimationFrame(manPlace); }).observe(hd, {subtree:true, attributes:true, attributeFilter:['hidden','style','class'], childList:true}); }catch(_){}
   const man=document.createElement('div'); man.className='man-wrap'; man.hidden=true;
   man.innerHTML=`<div class="man-bg" data-manclose></div><section class="man-panel" role="dialog" aria-modal="true" aria-label="매뉴얼"><div class="man-top"><b>📖 ${esc(MAN_NAME)} 매뉴얼</b><button type="button" class="man-x" data-manclose title="닫기 (Esc)" aria-label="매뉴얼 닫기">×</button></div><div class="man-body" id="manBody"><p class="man-wait">불러오는 중…</p></div></section>`;
   document.body.appendChild(man);
