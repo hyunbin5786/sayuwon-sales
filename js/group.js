@@ -1526,6 +1526,13 @@ const readJSON=SY.readJSON;
 const writeJSON=SY.writeJSON;
 let pending = readJSON(PEND_LS,[]);        // 아직 시트에 못 올린 저장·삭제 [{action:'put',item}|{action:'del',id}]
 let serverItems = readJSON(CACHE_LS,[]);   // 마지막으로 받은 시트 내용 (바로 띄우기용)
+// 2026-11-21: 사본이 5MB 를 넘으면 localStorage 에 못 써서(조용히 실패) 열 때마다 구글 시트를 기다렸음 → 전체 사본은 IndexedDB 에, 열자마자 그것으로 그림
+let pulledOnce=false;
+const cacheReady = (async()=>{ const v=await SY.idb.get(CACHE_LS);
+  if(Array.isArray(v) && v.length && !pulledOnce){ serverItems=v; cache=merged(); if(window.__tasksReady){ try{ renderList(); paintMyCount(); tryOpenG(); if(!$('#myModal').hidden) renderMy(); }catch(_){} } } })();
+function cacheWrite(items){   // 전체 = IndexedDB · localStorage 는 작을 때만 (다른 화면이 빨리 쓰도록) — 크면 지워서 저장 대기 · 다른 칸 자리를 남김
+  SY.idb.set(CACHE_LS, items);
+  try{ const s=JSON.stringify(items.slice(-1000)); if(s.length < 1.5e6) localStorage.setItem(CACHE_LS, s); else localStorage.removeItem(CACHE_LS); }catch(_){ try{ localStorage.removeItem(CACHE_LS); }catch(__){} } }
 const ADMIN_LS='sayuwon_intake_admin';
 let adminData = readJSON(ADMIN_LS,null);   // 관리자 사이트 사담·마방 현황 {updated, days:{날짜:{L1,L2,D,MB}}}
 let syncState = SHARED_URL ? 'loading' : 'off', flushing=false, retryTimer=null;
@@ -1608,14 +1615,14 @@ async function pull(inFlush){
   if(flushing && !inFlush) return;
   try{
     const j=await callApi({action:'list'});
-    serverItems=j.items||[]; writeJSON(CACHE_LS,serverItems.slice(-1000));
+    serverItems=j.items||[]; pulledOnce=true; cacheWrite(serverItems);
     if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
     dbTime.pulled=new Date().toISOString(); writeJSON(DBT_LS, dbTime);
     syncState='ok'; lastSyncErr=''; syncErrN=0; $('#keyMsg').textContent=''; paintSync(); renderList(); tryOpenG(); liveSync(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); checkMemoPopup(); if(editingId){ const cr=cache.find(x=>x.id===editingId); if(cr){ memos=mergeMemos(memos, parseHist(cr).memos); paintLock(); } } if(!$("#myModal").hidden && !(typeof etcEdit!=="undefined" && etcEdit && document.activeElement?.closest?.(".etc-edit"))) renderMy(); }
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
 const store={
-  async list(){ cache = SHARED_URL ? merged() : readJSON(LKEY,[]); if(typeof applySpd==='function') applySpd(); if(typeof tcfgApply==='function') tcfgApply(); return cache; },
+  async list(){ if(SHARED_URL) await cacheReady; cache = SHARED_URL ? merged() : readJSON(LKEY,[]); if(typeof applySpd==='function') applySpd(); if(typeof tcfgApply==='function') tcfgApply(); return cache; },
   async put(item){
     if(!SHARED_URL){ const l=readJSON(LKEY,[]); const i=l.findIndex(x=>x.id===item.id); if(i>=0) l[i]=item; else l.push(item); writeJSON(LKEY,l); return; }
     pending=pending.filter(p=>!(p.action==='put'&&p.item.id===item.id)); pending.push({action:'put',item}); writeJSON(PEND_LS,pending); paintSync(); flush();
@@ -3755,6 +3762,9 @@ async function restoreView(){
   if(BOOK_ONLY || MY_ONLY) return;   // 예약 현황 공유 페이지 · 나의 할일(단독 · 팝업)에서는 안 함 — 팝업 안에서 지난번 단체 화면(열어 둔 예약 · 단체예약 목록)이 되살아나지 않게 (2026-11-18)
   let v=null; try{ v=JSON.parse(localStorage.getItem(VIEW_LS)||'null'); }catch(_){}
   if(!v) return;
+  // 메뉴 · 링크로 들어오면 늘 새 통화 (2026-11-21) — 지난 화면(열어 둔 예약 · 목록)은 새로고침 · 뒤로 가기일 때만. 저장 안 한 입력이 있으면 그것만은 되살림
+  const navType = (performance.getEntriesByType && (performance.getEntriesByType('navigation')[0]||{}).type) || 'navigate';
+  if(navType==='navigate' && !v.dirty) return;
   restoring=true;
   try{
     await store.list();
