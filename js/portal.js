@@ -33,7 +33,7 @@ const esc = SY.esc;   // 공통 도구 (js/common.js)
 
 // ===================== 공유 저장소 (단체 화면과 같은 Apps Script) =====================
 const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
-const KEY_LS = SY.KEY_LS;   // 팀 비밀번호 (단체 · 개인고객 화면과 같이 씀)
+const KEY_LS = SY.KEY_LS;   // 예전 팀 비밀번호 저장 이름 (2026-11-21부터 로그인으로 확인)
 const getKey = SY.getKey;
 async function callApi(body){
   const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})});   // Content-Type 없이 (Apps Script 사전 확인 요청 없이)
@@ -74,7 +74,7 @@ document.addEventListener('click', e=>{
 // 헤더의 「사유원 운영 보조 시스템」 = 메뉴로 (품목관리는 남은 변경을 저장한 뒤)
 $('#brand').addEventListener('click', e=>{ if(!getUser()) return; e.preventDefault(); if(!$('#catWrap').hidden){ askClose(); return; } view='menu'; history.replaceState(null,'',location.pathname); paint(); });
 
-// ===================== 멤버관리 (팀 비밀번호 필요) =====================
+// ===================== 멤버관리 (로그인으로 확인, 2026-11-21) =====================
 let members=[];
 function paintMembers(){
   const u=getUser()||{};
@@ -86,14 +86,14 @@ async function memberCall(body){
   $('#memberErr').textContent='';
   let j=null; try{ j=await callApi(body); }catch(_){}
   if(!j){ $('#memberErr').textContent='연결하지 못했습니다. 잠시 뒤 다시 해 주세요.'; return null; }
-  if(j.error==='bad_key'){ $('#memberBody').hidden=true; $('#memberKey').hidden=false; $('#memberKeyErr').textContent = getKey() ? '비밀번호가 맞지 않습니다.' : ''; setTimeout(()=>$('#memberKeyIn').focus(),0); return null; }
+  if(j.error==='bad_key'){ $('#memberBody').hidden=true; $('#memberKey').hidden=false; $('#memberKeyErr').textContent = ''; return null; }
   if(j.error==='bad_action' || (j.ok && !j.members)){ $('#memberErr').textContent='공유 저장소(Apps Script)를 새 버전으로 배포해야 멤버관리를 쓸 수 있습니다.'; $('#memberBody').hidden=false; $('#memberKey').hidden=true; return null; }
   if(!j.ok){ $('#memberErr').textContent='실패했습니다: '+(j.error||''); return null; }
   $('#memberKey').hidden=true; $('#memberBody').hidden=false;
   members=j.members||[]; paintMembers(); return j;
 }
 const loadMembers = () => { if(!getKey()){ $('#memberKey').hidden=false; $('#memberBody').hidden=true; return; } memberCall({action:'members'}); };
-$('#memberKeyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#memberKeyIn').value.trim(); if(!v) return; setLS(KEY_LS, v); $('#memberKeyIn').value=''; loadMembers(); });
+// (멤버관리 팀 비밀번호 칸은 없앰 · 2026-11-21 — 로그인으로 확인)
 // "이름 사번" 줄들 → [{name, emp}]
 const parseLines = t => String(t||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{ const m=l.match(/^(.+?)[\s,\t]+([0-9A-Za-z-]{2,20})$/); return m ? {name:m[1].replace(/[,\t]/g,'').trim(), emp:m[2]} : {bad:l}; });
 async function addList(list){
@@ -199,7 +199,7 @@ async function loadDash(){
   if(dashLoading) return; dashLoading=true;
   try{
     const [j, m] = await Promise.all([SY.list(), callApi({action:'members'}).catch(()=>null)]);   // 목록 · 멤버를 함께 받음
-    if(!j.ok){ if(j.error==='bad_key'){ $('#dashKey').hidden=false; $('#dashBody').innerHTML='<p class="err">팀 비밀번호가 맞지 않습니다.</p>'; return; } throw new Error(j.error); }
+    if(!j.ok){ if(j.error==='bad_key'){ $('#dashKey').hidden=false; $('#dashBody').innerHTML='<p class="err">'+SY.authFail()+'</p>'; return; } throw new Error(j.error); }
     const names = m && m.ok ? (m.members||[]).map(x=>String(x.name||'').trim()).filter(Boolean) : ((dashData && dashData.names)||[]);
     dashData = {recs:dashRecs(j.items||[]), names, at:Date.now()};
     try{ localStorage.setItem(DASH_LS, JSON.stringify(dashData)); }catch(_){}
@@ -243,7 +243,7 @@ document.addEventListener('click', e=>{
 });
 if($('#dashQ')) $('#dashQ').addEventListener('input', ()=>renderDash());
 $('#dashReload').onclick = () => loadDash();
-$('#dashKeyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#dashKeyIn').value.trim(); if(!v) return; setLS(KEY_LS, v); $('#dashKeyIn').value=''; loadDash(); });
+// (대시보드 팀 비밀번호 칸은 없앰 · 2026-11-21 — 로그인으로 확인)
 // 대시보드 새로 받기 (2026-11-18 · 거의 실시간): 20초마다 · 이 창으로 돌아오면 · 다른 탭(단체 · 개인고객 · 나의 할일)에서 저장하면 바로
 const dashSoon = (ms=0) => { clearTimeout(dashSoon.t); dashSoon.t=setTimeout(()=>{ if(getUser() && !$('#menuView').hidden && document.visibilityState==='visible') loadDash(); }, ms); };
 setInterval(()=>dashSoon(), 20e3);

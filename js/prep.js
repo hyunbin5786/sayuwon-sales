@@ -25,9 +25,9 @@ async function loadGroups(){
   if(!getKey()){ $('#keyBox').hidden=false; return; }
   try{ const j=await SY.list(); groups=(j.items||[]).filter(isConfirmed); $('#keyBox').hidden=true; noticeFrom(j.items); agencyFrom(j.items); paintHist(j.items);
     if(state){ build(false); if(hasEdits()) scheduleAuto(); } }   // 저장 안 한 수정이 남아 있으면 버튼 옆에 알림
-  catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('팀 비밀번호가 맞지 않습니다.'); } else toast('단체예약을 불러오지 못했습니다. 마지막으로 받은 목록으로 보여 줍니다.'); }
+  catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast(SY.authFail()); } else toast('단체예약을 불러오지 못했습니다. 마지막으로 받은 목록으로 보여 줍니다.'); }
 }
-$('#keyBtn').onclick=()=>{ const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(KEY_LS, v); }catch(_){} $('#keyIn').value=''; loadGroups(); };
+// (팀 비밀번호 입력 칸은 없앰 · 2026-11-21 — 서버는 로그인으로 확인)
 
 // ===================== ① 엑셀 (전산 방문자내역: HTML 표 모양의 .xls) =====================
 // 열: 구분 · 방문일 · 성명 · 연락처 · 예약일시 · 프로그램유형 · 예약인원(어른 · 학생) · 불래원 · … · 결제수단 · 금액 · 입장정보(입장 · 퇴장) · 비고
@@ -281,7 +281,7 @@ async function saveEdits(auto){
   // 2026-11-19 다시: 고친 칸만이 아니라, 표(③ 응대 표)에 적힌 내용 그대로 연결된 단체예약에 올림 (빠지는 것 없게). 다른 칸이면 바꾸고, 같으면 그대로
   const todo=rows.map(r=>({r, ch:rowChanges(r)})), linked=rows.filter(r=>r.on && r.recId);
   if(!linked.length && !todo.some(o=>o.ch.length)){ if(!auto) toast('저장할 내용이 없습니다 (단체예약과 연결된 줄이 없습니다).'); return; }
-  if(!getKey()){ $('#keyBox').hidden=false; saveSt('저장 못 함: 팀 비밀번호가 없습니다', 'bad'); toast('저장하려면 팀 비밀번호를 먼저 넣어 주세요.'); return; }
+  if(!getKey()){ $('#keyBox').hidden=false; saveSt('저장 못 함: 로그인 확인 안 됨', 'bad'); toast(SY.authFail()); return; }
   saving=true; saveSt('저장 중…', 'wait'); const btn=$('#saveEdits'); btn.disabled=true; const now=new Date().toISOString(), me=user.name||'', today=SY.ymd(new Date());
   let nGroup=0, nFix=0;
   const G_LABEL = { org:'업체명', people:'관람 인원', tin:'입장시각', vehicle:'차량', phone:'연락처', gate:'입장문', views:'관람 품목' };
@@ -334,9 +334,9 @@ async function saveEdits(auto){
     const msg = nGroup ? `단체예약 ${nGroup}건 반영${nFix?` · 전산 예약 수정 과업 ${nFix}건`:''}` : '단체예약은 이미 표와 같음';
     saveSt(`저장됨 ${new Date().toTimeString().slice(0,5)} · ${msg}`, 'ok');
     toast(`저장했습니다. ${msg}.`);
-  }catch(e){ const why = e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다' : (e.code || e.message || '연결 오류');
+  }catch(e){ const why = e.code==='bad_key' ? '로그인 확인 안 됨' : (e.code || e.message || '연결 오류');
     saveSt(`저장 못 함: ${why}${nGroup?` (단체예약 ${nGroup}건까지는 반영)`:''} — 다시 눌러 주세요`, 'bad');
-    toast(e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다.' : `저장하지 못했습니다 (${why})${nGroup?` · 단체예약 ${nGroup}건까지는 반영됨`:''}. 「수정 내용 저장」을 다시 눌러 주세요.`); }
+    toast(e.code==='bad_key' ? SY.authFail() : `저장하지 못했습니다 (${why})${nGroup?` · 단체예약 ${nGroup}건까지는 반영됨`:''}. 「수정 내용 저장」을 다시 눌러 주세요.`); }
   finally{ btn.disabled=false; saving=false; if(saveAgain){ saveAgain=false; } }
 }
 // 「수정 내용 저장」 (새 탭은 띄우지 않음, 2026-11-19)

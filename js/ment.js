@@ -53,7 +53,7 @@
     delete item.date; delete item.org;
     SY.writeJSON(CACHE_LS, items); render(); setSync('저장 중…');
     pushing=true; try{ await api({action:'put', item}); row=item; pushing=false; setSync(''); toast(what); return true; }
-    catch(e){ pushing=false; setSync('저장 못 함'); if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('고친 내용을 저장하려면 팀 비밀번호가 필요합니다. 위 칸에 넣어 주세요.', 4000); } else toast('저장하지 못했습니다: '+(e.code||e.message)); return false; }   // 고치기만 비밀번호 필요
+    catch(e){ pushing=false; setSync('저장 못 함'); if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast(SY.authFail(), 4000); } else toast('저장하지 못했습니다: '+(e.code||e.message)); return false; }   // 고치기만 비밀번호 필요
   }
 
   // ---------- 이미지 ----------
@@ -217,7 +217,7 @@
   $('#askNo').onclick=()=>{ $('#askModal').hidden=true; };
   $('#addBtn').onclick=()=>{ if(!canEdit()){ toast('멘트 추가는 컴퓨터에서 할 수 있습니다.'); return; } edit='new'; draftImgs=[]; $('#q').value=''; render(); };
   $('#q').addEventListener('input', ()=>{ if(!edit) render(); });
-  $('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(SY.KEY_LS, v); }catch(_){} $('#keyIn').value=''; $('#keyErr').textContent=''; $('#keyBox').hidden=true; toast('팀 비밀번호를 넣었습니다. 다시 저장해 주세요.'); pull(); });
+  // (팀 비밀번호 입력 칸은 없앰 · 2026-11-21 — 서버는 로그인으로 확인)
   window.addEventListener('focus', ()=>{ if(!edit) pull(); });
   render(); pull();
 })();

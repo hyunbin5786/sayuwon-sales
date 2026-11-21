@@ -4,8 +4,8 @@
  * 설치
  *  1. https://script.google.com 에서 '새 프로젝트'
  *  2. 기존 내용을 지우고 이 파일 내용을 통째로 붙여넣는다
- *  3. 프로젝트 설정(톱니바퀴) → 스크립트 속성에 PASSCODE(팀 공용 비밀번호)를 추가
- *     (이 코드는 공개되지 않습니다. 사이트에서 처음 한 번 이 비밀번호를 넣으면 그 브라우저에 기억됩니다)
+ *  3. (2026-11-21부터 팀 비밀번호 없음) 사이트는 로그인(이름 + 사번 · members 시트)으로 확인합니다. 예전 PASSCODE 속성이 있으면 예전 화면도 그대로 됩니다
+ *     예약 현황 공유(bookList · bookAdd)는 로그인 없이 — 그 목록에 필요한 칸만 보냅니다 (고객 연락처 · 이메일 · 통화 메모 · 수정 기록 없음)
  *  4. 위쪽 함수 목록에서 setup 을 골라 '실행' → 권한 승인 (내 드라이브에 '단체예약 접수 기록' 시트가 생김)
  *  5. 배포 → 새 배포 → 유형: 웹 앱 / 실행 사용자: 나 / 액세스 권한: 모든 사용자
  *  6. 나오는 웹 앱 URL(https://script.google.com/macros/s/…/exec)을 group.html 의 SHARED_URL 에 넣는다
@@ -15,7 +15,7 @@
  * 저장 형식: 'calls' 시트, 통화 1건 = 1줄. 지우면 줄을 없애지 않고 '삭제' 칸에 일시를 적는다.
  *
  * 비밀 값은 코드가 아니라 '프로젝트 설정(톱니바퀴) → 스크립트 속성'에 넣는다 (코드를 새로 붙여넣어도 그대로 남음)
- *   PASSCODE  : 팀 비밀번호 (사이트에서 처음 한 번 입력)
+ *   PASSCODE  : (예전) 팀 비밀번호 — 없어도 됨. 있으면 그 비밀번호를 기억한 예전 브라우저도 됨
  *   ADMIN_ID  : 관리자 사이트(admin.sayuwon.com) 아이디 — 조회 전용 계정 권장
  *   ADMIN_PW  : 그 비밀번호
  *
@@ -72,14 +72,26 @@ function doPost(e) {
     try { return json_({ ok: true, file: mentImgGet_(String(req.id || "")) }); }
     catch (err) { return json_({ ok: false, error: "mentimg: " + String(err && err.message || err) }); }
   }
-  var pc = passcode_();
-  if (!pc || String(req.key || "") !== pc) return json_({ ok: false, error: "bad_key" });
+  // 예약 현황 공유 (2026-11-21 · api 6): 담당자 휴대폰에서 로그인 없이 보기 · 이름을 적고 한 건 추가 — 이 목록에 필요한 칸만 (고객 연락처 · 이메일 · 통화 메모 · 수정 기록은 보내지 않음)
+  if (req.action === "bookList") {
+    try { return json_({ ok: true, items: bookList_(), api: 6 }); }
+    catch (err) { return json_({ ok: false, error: "booklist: " + String(err && err.message || err) }); }
+  }
+  if (req.action === "bookAdd") {
+    var bl = LockService.getScriptLock(); bl.waitLock(20000);
+    try { return json_({ ok: true, item: bookAdd_(req), api: 6 }); }
+    catch (err) { return json_({ ok: false, error: "bookadd: " + String(err && err.message || err) }); }
+    finally { bl.releaseLock(); }
+  }
+  // 팀 비밀번호 대신 로그인 (2026-11-21 · api 6): 화면이 보내는 로그인(이름 + 사번)이 멤버 목록에 있으면 됨.
+  // 예전 팀 비밀번호(스크립트 속성 PASSCODE)를 기억한 브라우저도 그대로 됨 (예전 화면이 섞여 있어도 끊기지 않게)
+  if (!authOk_(req)) return json_({ ok: false, error: "bad_key" });
 
   // 멤버관리 (팀 비밀번호 필요)
   if (req.action === "members") return json_({ ok: true, members: readMembers_() });
   if (req.action === "memberAdd" || req.action === "memberDel") {
     var ml = LockService.getScriptLock(); ml.waitLock(20000);
-    try {
+    try { CacheService.getScriptCache().remove("members_v1");   // 로그인 확인에 쓰는 멤버 목록을 바로 새로
       if (req.action === "memberAdd") return json_({ ok: true, added: addMembers_(req.list || [], req.by), members: readMembers_() });
       return json_({ ok: true, removed: delMember_(req.emp, req.by), members: readMembers_() });
     } catch (err) { return json_({ ok: false, error: String(err) }); }
@@ -155,6 +167,52 @@ function memberLogin_(name, emp) {
   var n = normName_(name), e = normEmp_(emp);
   var hit = list.some(function (m) { return normName_(m.name) === n && normEmp_(m.emp) === e; });
   return { ok: true, member: hit };
+}
+// 로그인 확인 (팀 비밀번호 대신): req.who = {name, emp} 가 멤버 목록에 있으면 OK. 멤버 목록은 5분 동안 기억 (매번 시트를 읽지 않게)
+function authOk_(req) {
+  var pc = passcode_();
+  if (pc && String(req.key || "") === pc) return true;
+  var w = req.who || {}, n = normName_(w.name), e = normEmp_(w.emp);
+  if (!n || !e) return false;
+  var c = CacheService.getScriptCache(), raw = c.get("members_v1"), list = null;
+  try { list = raw ? JSON.parse(raw) : null; } catch (x) { list = null; }
+  if (!list) { list = readMembers_().map(function (m) { return [normName_(m.name), normEmp_(m.emp)]; }); try { c.put("members_v1", JSON.stringify(list), 300); } catch (x) {} }
+  if (!list.length) return true;   // 처음 설정 (멤버가 아직 없음)
+  return list.some(function (m) { return m[0] === n && m[1] === e; });
+}
+// 예약 현황 공유 목록: 단체 예약(가예약 · 예약확정 등, 지난 120일 ~)의 예약 현황에 쓰는 칸 + 몽몽마방 · 대관 등 직접 추가 목록
+var BOOK_KEYS = ["id", "callType", "date", "org", "owner", "people", "sadam1", "sadam2", "sadamD", "mabangL", "mabangD", "chabang", "donghaeng", "dangdu", "yoga", "gaga", "teaMed", "gayageum", "cabin", "tin", "tout", "meal", "mabangMenu", "memo", "saved", "updated"];
+var BOOK_DB_IDS = { mabangdb: "몽몽마방예약", bookdb: "예약현황추가" };
+function bookList_() {
+  var s = sheet_(), n = s.getLastRow(); if (n < 2) return [];
+  var rows = s.getRange(2, 1, n - 1, COLS.length).getDisplayValues(), out = [];
+  var from = Utilities.formatDate(new Date(Date.now() - 120 * 864e5), "Asia/Seoul", "yyyy-MM-dd");
+  var GROUP = { "단체예약": 1, "예약상담": 1, "가예약": 1, "예약확정": 1, "예약접수": 1, "상담": 1, "공식예약": 1 };
+  rows.forEach(function (r) {
+    var o = {}; KEYS.forEach(function (k, i) { o[k] = r[i]; });
+    if (!o.id || o.deleted) return;
+    if (BOOK_DB_IDS[o.id]) { out.push({ id: o.id, callType: o.callType, saved: o.saved, updated: o.updated, history: o.history }); return; }   // 직접 추가 목록 (내용 = history)
+    if (!GROUP[o.callType || "단체예약"] || !o.date || o.date < from) return;
+    var p = {}; BOOK_KEYS.forEach(function (k) { p[k] = o[k]; }); out.push(p);
+  });
+  return out;
+}
+// 로그인 없이 한 건 추가: {db:'mabangdb'|'bookdb', row:{…}, by:이름} → 그 목록 줄에 더함 (고치기 · 빼기는 로그인한 사람만)
+function bookAdd_(req) {
+  var db = String(req.db || ""); if (!BOOK_DB_IDS[db]) throw new Error("bad_db");
+  var by = String(req.by || "").trim().slice(0, 20); if (!by) throw new Error("no_name");
+  var src = req.row || {}, row = {};
+  Object.keys(src).slice(0, 20).forEach(function (k) { if (/^[a-zA-Z]{1,10}$/.test(k)) row[k] = String(src[k] == null ? "" : src[k]).slice(0, 300); });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(row.d || "")) throw new Error("bad_date");
+  row.by = by; row.guest = "1"; if (db === "bookdb") row.id = "b" + Date.now().toString(36) + Math.floor(Math.random() * 1000);
+  var s = sheet_(), r = findRow_(s, db), item;
+  if (r > 0) { var v = s.getRange(r, 1, 1, COLS.length).getValues()[0]; item = {}; KEYS.forEach(function (k, i) { item[k] = v[i]; }); }
+  else item = { id: db, callType: BOOK_DB_IDS[db], saved: new Date().toISOString() };
+  var j = {}; try { j = JSON.parse(item.history || "{}") || {}; } catch (x) { j = {}; }
+  j.rows = (Array.isArray(j.rows) ? j.rows : []).concat([row]); j.at = new Date().toISOString(); j.by = by;
+  item.history = JSON.stringify(j); item.summary = (db === "mabangdb" ? "몽몽마방 예약 목록 " : "예약 현황 직접 추가 ") + j.rows.length + "건"; item.takenBy = by;
+  put_(item);
+  return { id: db, history: item.history };
 }
 function addMembers_(list, by) {
   var have = {}, s = membersSheet_(), added = 0;

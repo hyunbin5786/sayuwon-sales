@@ -1004,3 +1004,46 @@ li.tk.has-x .tk-main{padding-right:22px}
 .tk-subin:focus{border-style:solid;border-color:var(--pine);outline:none}
 .tk-memoin{display:block;width:calc(100% - 21px);box-sizing:border-box;margin:6px 0 0 21px;min-height:30px;resize:none;overflow:hidden;font:12.5px/1.5 var(--sans);color:var(--ink);background:var(--bg);border:1px solid transparent;border-radius:6px;padding:5px 8px}
 .tk-memoin:focus{border-color:var(--pine);background:#fff;outline:none}
+/* ===== 예약 현황 공유 휴대폰 (2026-11-21): 담당자분들이 휴대폰으로 크게 보도록 — 큰 글씨 · 큰 버튼 · 예약 한 건 = 카드 한 장 (컴퓨터 화면은 그대로) ===== */
+@media (max-width:760px){
+  html.book-only body{font-size:17px}
+  html.book-only #bookModal{padding:8px 12px 40px}
+  html.book-only #bookModal > section > h2{display:flex;flex-direction:column;align-items:stretch;gap:10px;font-size:22px;line-height:1.3}
+  html.book-only #bookTitle{font-size:22px;font-weight:700}
+  html.book-only #bookTabs{display:grid !important;grid-template-columns:repeat(3,1fr);gap:6px;background:none;padding:0;border:0}
+  html.book-only #bookTabs button{min-height:50px;font-size:18px;font-weight:700;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);padding:0 4px}
+  html.book-only #bookTabs button.on{background:var(--pine);border-color:var(--pine);color:#fff}
+  html.book-only #bookSum{font-size:15px;font-weight:400;color:var(--muted)}
+  html.book-only #bookModal h2 .row-btns{display:flex;flex-direction:column;align-items:stretch;gap:10px;margin:0}
+  html.book-only #bookAddBtn{height:54px;font-size:19px;border-radius:12px;width:100%}
+  html.book-only #bookModal h2 .row-btns label.hint{font-size:17px !important;color:var(--ink);gap:8px !important}
+  html.book-only #bookPast{width:24px;height:24px}
+  html.book-only #bookModal .hint{font-size:15px;line-height:1.6}
+  html.book-only .mbdb-t, html.book-only .mbdb-t tbody{display:block;width:100% !important;min-width:0 !important}
+  html.book-only .mbdb-t tr{box-sizing:border-box;width:100%}
+  html.book-only .mbdb-t thead{display:none}
+  html.book-only .mbdb-t tr{display:block;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 0 12px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  html.book-only .mbdb-t tr.past{opacity:.55}
+  html.book-only .mbdb-t tr.same{border-color:var(--pine)}
+  html.book-only .mbdb-t td{display:flex;align-items:baseline;gap:10px;border:0 !important;padding:5px 0 !important;font-size:18px;line-height:1.45;text-align:left !important;white-space:normal !important;background:none !important}
+  html.book-only .mbdb-t td:empty{display:none}
+  html.book-only .mbdb-t td[data-l]::before{content:attr(data-l);flex:none;width:5.2em;font-size:15px;color:var(--muted);font-weight:400}
+  html.book-only .mbdb-t td:first-child{font-size:20px;font-weight:700;color:var(--pine);padding-bottom:8px !important;border-bottom:1px solid var(--line) !important;margin-bottom:4px}
+  html.book-only .mbdb-t td:first-child::before{display:none}
+  html.book-only .mbdb-t td b{font-size:19px}
+  html.book-only .mbdb-t td.empty{display:block;text-align:center !important;color:var(--muted);font-size:17px;padding:24px 0 !important}
+  html.book-only .mbdb-t td.acts{justify-content:flex-end;gap:8px}
+  html.book-only .mbdb-t td.acts .btn{height:40px;font-size:16px;padding:0 16px}
+  html.book-only .mbdb-t .tw, html.book-only #bookModal .tw{overflow:visible}
+  /* 직접 추가 팝업도 크게 · 칸은 한 줄에 하나 */
+  #bookAddModal .book-add-pop{padding:18px 16px;width:100%;border-radius:16px}
+  #bookAddModal .ba-h{font-size:19px}
+  #bookAddModal .ba-row{flex-direction:column;align-items:stretch;gap:12px}
+  #bookAddModal .ba-row label{font-size:16px;color:var(--ink);gap:5px}
+  #bookAddModal .ba-row input, #bookAddModal .ba-row select, #bookAddModal .ba-row .dbox, #bookAddModal .ba-row label.wide input, #bookAddModal .ba-row input.t, #bookAddModal .ba-row input.n{width:100% !important;height:48px;font-size:18px;text-align:left}
+  #bookAddModal .ba-row .dbox input.dtxt{width:100%;height:48px;font-size:18px}
+  #bookAddModal .ba-btns .btn{flex:1;height:52px;font-size:18px}
+  #bookAddModal .ba-who .hint{font-size:14px}
+}
+#bookAddModal .ba-who{margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed var(--line)}
+#bookAddModal .ba-who label.wide input{width:200px}

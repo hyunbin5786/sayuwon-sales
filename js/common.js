@@ -3,6 +3,12 @@
 //  - API_URL: 공유 기록(구글 시트 calls · members) Apps Script 웹 앱 주소 (단체 · 개인 · 다음날 준비 · 첫 화면 · 운영보조 공통)
 //  - KEY_LS: 팀 비밀번호를 기억하는 브라우저 저장소 이름 · USER_LS: 로그인(이름 · 사번)
 //  견적서 품목 목록(QUOTE_SHARED_URL)은 다른 Apps Script 라서 js/group.js · document/js/document.js 에 따로 있음
+// ===== 팀 비밀번호 대신 로그인 (2026-11-21) =====
+// 공유 기록 서버(API_URL)로 가는 모든 요청에 로그인(이름 + 사번)을 붙임 → 서버가 멤버 목록으로 확인. 화면마다 팀 비밀번호를 넣는 칸은 없앰
+// (예전에 기억해 둔 팀 비밀번호가 있으면 함께 보냄 — 서버가 아직 예전 버전이어도 끊기지 않게)
+(function(){ const API="https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec", f0=window.fetch.bind(window);
+  window.fetch = (u, o) => { try{ if(String(u)===API && o && typeof o.body==='string'){ const b=JSON.parse(o.body), us=JSON.parse(localStorage.getItem('sy_user')||'null');
+      if(us && us.name && us.emp && !b.who) b.who={name:us.name, emp:us.emp}; o={...o, body:JSON.stringify(b)}; } }catch(_){} return f0(u, o); }; })();
 const SY = Object.freeze({
   API_URL: "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec",
   KEY_LS: 'sayuwon_intake_key',
@@ -15,7 +21,10 @@ const SY = Object.freeze({
   // 브라우저 저장소 (막혀 있으면 기본값 · 조용히 넘어감)
   readJSON: (k, d) => { try{ const v=JSON.parse(localStorage.getItem(k)); return v==null ? d : v; }catch(_){ return d; } },
   writeJSON: (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(_){} },
-  getKey: () => { try{ return localStorage.getItem('sayuwon_intake_key')||''; }catch(_){ return ''; } },
+  // 서버 확인용 값: 예전 팀 비밀번호(있으면) — 없으면 로그인 표시('login')로 「연결됨」처럼 다룸 (2026-11-21 · 실제 확인은 서버가 로그인으로)
+  getKey: () => { try{ const k=localStorage.getItem('sayuwon_intake_key'); if(k) return k; const u=JSON.parse(localStorage.getItem('sy_user')||'null'); return u && u.name && u.emp ? 'login' : ''; }catch(_){ return ''; } },
+  // 서버가 「확인 안 됨」(bad_key)이면: 팀 비밀번호를 묻지 않고, 로그인을 다시 하도록 안내
+  authFail: () => '로그인 정보를 확인할 수 없습니다. 첫 화면에서 다시 로그인해 주세요 (멤버 목록에 이름 · 사번이 있어야 합니다).',
   user: () => { try{ const u=JSON.parse(localStorage.getItem('sy_user')||'null'); return u && u.name && u.emp ? u : null; }catch(_){ return null; } },
   // 날짜 칸 글자: "2026-12-05" → "2026-12-05 (토)"
   dateDisp: v => { if(!v) return ''; const t=new Date(v+'T00:00'); return isNaN(t) ? v : `${v} (${'일월화수목금토'[t.getDay()]})`; },

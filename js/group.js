@@ -1277,7 +1277,7 @@ function manualRows(){ try{ return bkDb().rows.map(x=>({...x, manual:true, ppl:+
 function paintBook(){
   document.querySelectorAll('#bookTabs [data-bt]').forEach(b=>b.classList.toggle('on', b.dataset.bt===bookCatNow));
   const isMb = bookCatNow==='mb'; $('#bookMb').hidden=!isMb; $('#bookGen').hidden=isMb;
-  if($('#bookAddBtn')) $('#bookAddBtn').hidden=!!BOOK_GUEST;   // 직접 추가 = 팝업 (보기 전용이면 버튼 없음)
+  if($('#bookAddBtn')) $('#bookAddBtn').hidden=false;   // 직접 추가 = 팝업 (로그인 없이도 이름을 적고 추가, 2026-11-21)
   if(bookAddClosed()) paintBookAdd();   // 팝업에 적는 중이면 (새 기록을 받아 다시 그려도) 적던 칸은 그대로
   if(isMb){ paintMbDb(); $('#bookTitle').textContent='몽몽마방 예약 목록'; $('#bookSum').textContent = $('#mbdbSum').textContent; return; }
   const c=bookCatNow, today=todayYmd(), past=$('#bookPast').checked;
@@ -1288,15 +1288,18 @@ function paintBook(){
   $('#bookBody').innerHTML = list.map(x=>`<tr class="r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}"${x.manual?'':` data-bopen="${esc(x.id)}"`}><td>${esc(dateLabel(x.d))}</td><td><b>${esc(x.org)}</b></td><td class="num">${x.ppl?x.ppl+(c==='coupon'?'장':'명'):''}</td>${cell(x).map(v=>`<td>${esc(v)}</td>`).join('')}<td style="white-space:pre-line">${esc(x.staff)}</td><td class="note">${esc(x.note)}</td>`
     + `<td class="acts">${x.manual ? `<button type="button" class="btn sm" data-bkedit="${esc(x.id)}">수정</button><button type="button" class="del" data-bkdel="${esc(x.id)}" title="빼기">×</button>` : '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>'}</td></tr>`).join('')
     || `<tr><td colspan="${BOOK_COLS[c].length}" class="empty">${all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다. 위 「＋ 직접 추가」로 넣으세요.'}</td></tr>`;
+  labelCells('#bookBody', BOOK_COLS[c]);   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
 }
+// 예약 목록 표의 칸마다 머리글 이름(data-l) → 휴대폰에서는 줄마다 카드로, 칸 이름을 앞에 (css/group.css 「예약 현황 공유 휴대폰」)
+function labelCells(sel, heads){ document.querySelectorAll(sel+' tr').forEach(tr=>{ [...tr.children].forEach((td,i)=>{ if(td.colSpan>1) return; const h=heads[i]||''; if(h) td.dataset.l=h; else td.removeAttribute('data-l'); }); }); }
 // 직접 추가 · 수정 칸 (탭마다 칸이 다름) — 2026-11-21: 목록 아래가 아니라 「＋ 직접 추가」 · 「수정」을 누르면 팝업(#bookAddModal)으로
 const bookAddClosed = () => !$('#bookAddModal') || $('#bookAddModal').hidden;
-function bookAddOpen(){ paintBookAdd(); $('#bookAddModal').hidden=false; setTimeout(()=>($('#baOrg')||$('#bookAdd input'))?.focus(), 0); }
+function bookAddOpen(){ paintBookAdd(); $('#bookAddModal').hidden=false; setTimeout(()=>(($('#baBy') && !$('#baBy').value ? $('#baBy') : $('#baOrg'))||$('#bookAdd input'))?.focus(), 0); }
 function bookAddClose(){ $('#bookAddModal').hidden=true; bookEdit=null; bookImp=null; paintBookAdd(); }
 const PLACE_OPTS=['몽몽차방','당두봉갈'], KIND_OPTS=['동행','PPT'], COUPON_OPTS=['음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)'];
 function paintBookAdd(){
   const c=bookCatNow, box=$('#bookAdd'); if(!box) return;
-  if(BOOK_GUEST){ box.innerHTML='<p class="hint" style="margin:0">보기 전용입니다. <a href="./">로그인</a>하면 직접 추가 · 수정할 수 있습니다.</p>'; return; }
+  if(BOOK_GUEST) bookEdit=null;   // 로그인 없이는 추가만 (고치기 · 빼기는 로그인한 사람, 2026-11-21)
   let x = {};
   if(bookEdit && bookEdit.mb!=null){ const r=mbDb().rows[bookEdit.mb]; if(r) x={d:r.d, tm:r.t, org:r.n, ppl:r.p, item:r.m}; }
   else if(bookEdit && bookEdit.id) x = bkDb().rows.find(r=>r.id===bookEdit.id) || {};
@@ -1308,14 +1311,24 @@ function paintBookAdd(){
        c==='rent' ? `<label>장소 ${sel('baPlace', PLACE_OPTS, x.place||'')}</label>` : c==='docent' ? `<label>종류 ${sel('baKind', KIND_OPTS, x.kind||'')}</label>` : c==='coupon' ? `<label>쿠폰 종류 ${sel('baItem', COUPON_OPTS, x.item||'')}</label>` : `<label>프로그램 항목 ${inp('baItem','',x.item)}</label>`,
        `<label>담당자 이름 ${inp('baStaff','',x.staff)}</label>`, `<label class="wide">비고사항 ${inp('baNote','',x.note)}</label>`];
   box.innerHTML = `<div class="ba-h"><b>${c==='mb'?'몽몽마방':BOOK_CATS[c]} ${bookEdit?'예약 고치기':'예약 직접 추가'}</b> <span class="hint" style="margin:0">예약 한 건</span></div>`
+    + (BOOK_GUEST ? `<div class="ba-row ba-who"><label class="wide">추가하는 사람 이름 <input id="baBy" data-ime="ko" placeholder="이름" autocomplete="off" value="${esc((()=>{ try{ return localStorage.getItem('sy_guest_name')||''; }catch(_){ return ''; } })())}"></label><span class="hint">로그인 없이 추가합니다 · 고치기 · 빼기는 로그인한 사람이</span></div>` : '')   // 로그인 없이: 이름을 적고 추가 (2026-11-21)
     + `<div class="ba-row"><label>날짜 ${dboxHTML('id="baDate"', x.d||rec.date||'')}</label>${f.join('')}</div>`
     + `<div class="ba-btns"><button type="button" class="btn" id="baCancel">취소</button><button type="button" class="btn primary" id="baSave">${bookEdit?'고치기':'추가'}</button></div>`
-    + (!['mb','coupon'].includes(c) && !bookEdit ? `<details class="ba-imp"><summary class="hint">엑셀 표를 한 번에 넣기 (대관 · 도슨트 · 프로그램 표)</summary><p class="hint" style="margin:4px 0">엑셀에서 줄을 복사해 붙여 넣으세요. 열 순서: 일자 · 업체 · 인원 · 동행 도슨트 시간 · PPT 도슨트 시간 · 대관 시간 · … · 담당 · 비고. 시간이 있는 칸마다 한 건씩 들어갑니다 (대관 장소는 넣은 뒤 「수정」에서).</p><textarea id="baImp" placeholder="여기에 붙여 넣기"></textarea><div id="baImpPrev" class="mb-prev"></div><div class="row-btns" style="justify-content:flex-end"><button type="button" class="btn primary" id="baImpSave" disabled>모두 넣기</button></div></details>` : '');
+    + (!['mb','coupon'].includes(c) && !bookEdit && !BOOK_GUEST ? `<details class="ba-imp"><summary class="hint">엑셀 표를 한 번에 넣기 (대관 · 도슨트 · 프로그램 표)</summary><p class="hint" style="margin:4px 0">엑셀에서 줄을 복사해 붙여 넣으세요. 열 순서: 일자 · 업체 · 인원 · 동행 도슨트 시간 · PPT 도슨트 시간 · 대관 시간 · … · 담당 · 비고. 시간이 있는 칸마다 한 건씩 들어갑니다 (대관 장소는 넣은 뒤 「수정」에서).</p><textarea id="baImp" placeholder="여기에 붙여 넣기"></textarea><div id="baImpPrev" class="mb-prev"></div><div class="row-btns" style="justify-content:flex-end"><button type="button" class="btn primary" id="baImpSave" disabled>모두 넣기</button></div></details>` : '');
 }
 async function bookAddSave(){
   const c=bookCatNow, v=id=>(($('#'+id)||{}).value||'').trim(), d=v('baDate'), org=v('baOrg'), ppl=parseInt(v('baPpl'))||0;
   if(!d){ toast('날짜를 고르세요.'); return false; } if(!org){ toast(c==='mb'?'예약자 · 업체를 적어 주세요.':'업체를 적어 주세요.'); $('#baOrg').focus(); return false; }
   const tm=(()=>{ const s=v('baTm'); const f=typeof fmtRange==='function' ? fmtRange(s) : ''; return f || s; })();
+  if(BOOK_GUEST){   // 로그인 없이 추가 (2026-11-21): 적은 이름으로 서버에 한 건 (bookAdd) → 목록 다시 받음
+    const by=v('baBy'); if(!by){ toast('추가하는 사람 이름을 적어 주세요.'); $('#baBy')?.focus(); return false; }
+    if(c==='mb' && !ppl){ toast('인원을 적어 주세요.'); $('#baPpl').focus(); return false; }
+    try{ localStorage.setItem('sy_guest_name', by); }catch(_){}
+    const row = c==='mb' ? {d, t:tm, n:org, p:String(ppl), m:v('baItem')} : {cat:c, d, org, ppl:String(ppl), tm, place:c==='rent'?v('baPlace'):'', kind:c==='docent'?v('baKind'):'', item:(c==='prog'||c==='coupon')?v('baItem'):'', staff:v('baStaff'), note:v('baNote')};
+    try{ const r=await fetch(SY.API_URL,{method:'POST', body:JSON.stringify({action:'bookAdd', db: c==='mb'?MBDB_ID:BKDB_ID, row, by})}), j=await r.json();
+      if(!j.ok){ toast(j.error==='bad_action' || j.error==='bad_key' ? '서버(Apps Script)를 새 버전으로 배포해야 로그인 없이 추가할 수 있습니다.' : '추가하지 못했습니다: '+j.error, 4000); return false; } }
+    catch(e){ toast('추가하지 못했습니다 (인터넷 연결). 잠시 뒤 다시 눌러 주세요.'); return false; }
+    await bookPull(); toast(`${c==='mb'?'몽몽마방':BOOK_CATS[c]} 예약을 추가했습니다 (${by}).`); return true; }
   if(c==='mb'){ if(!ppl){ toast('인원을 적어 주세요.'); $('#baPpl').focus(); return false; }
     const row={d, t:tm, n:org, p:ppl, m:v('baItem')}, rows=[...mbDb().rows];
     if(bookEdit && bookEdit.mb!=null) rows[bookEdit.mb]=row; else rows.push(row);
@@ -1351,7 +1364,7 @@ document.addEventListener('input', e=>{ if(e.target.id!=='baImp') return; bookIm
   $('#baImpPrev').innerHTML = !bookImp ? '' : bookImp.rows.length ? `<b>${bookImp.rows.length}건</b><ul>${bookImp.rows.map(x=>`<li>${esc(dateLabel(x.d))} · ${esc(BOOK_CATS[x.cat])}${x.kind?' '+esc(x.kind):''} ${esc(x.tm||'')} · <b>${esc(x.org)}</b> · ${x.ppl}명${x.staff?' · '+esc(x.staff.replace(/\n/g,', ')):''}${x.note?' · '+esc(x.note):''}</li>`).join('')}</ul>${bookImp.skipped.length?`<div class="hint">읽지 못한 줄 ${bookImp.skipped.length}개</div>`:''}` : '<b class="late">읽은 줄이 없습니다.</b>';
   $('#baImpSave').disabled = !(bookImp && bookImp.rows.length); });
 document.addEventListener('click', async e=>{ const t=e.target;
-  if(t.id==='bookAddBtn'){ if(BOOK_GUEST){ toast('로그인한 사람만 추가할 수 있습니다.'); return; } bookEdit=null; bookAddOpen(); return; }
+  if(t.id==='bookAddBtn'){ bookEdit=null; bookAddOpen(); return; }   // 로그인 없이도 (이름 칸이 나옴)
   if(t.id==='baSave'){ t.disabled=true; const ok=await bookAddSave(); if(!ok){ t.disabled=false; return; } bookAddClose(); return; }
   if(t.id==='baCancel'){ bookAddClose(); return; }
   if(t.id==='baImpSave' && bookImp){ const key=x=>[x.cat,x.d,x.org,x.tm,x.kind].join('|'), have=new Set(bkDb().rows.map(key)), add=bookImp.rows.filter(x=>!have.has(key(x)));
@@ -1401,7 +1414,8 @@ function paintMbDb(){
   $('#mbdbSum').textContent = all.length ? `${all.length}건 · 단체 예약(가예약 · 예약확정)에서 자동 + 직접 추가${db.at?` · 직접 추가 마지막 저장 ${dtLabel(db.at)}${db.by?` (${db.by})`:''}`:''}` : '아직 없음';
   $('#mbdbBody').innerHTML = list.map(x=>`<tr class="${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}"${x.auto && !x.cur?` data-bopen="${esc(x.id)}"`:''}><td>${esc(dateLabel(x.d))}</td><td>${esc(x.t||'')}</td><td><b>${esc(x.n)}</b></td><td class="num">${x.p?esc(x.p)+'명':''}</td><td>${esc(x.m||'')}${x.pay==='마방'?' <small class="hint" style="margin:0">(마방 결제)</small>':''}</td>`
     + `<td class="acts">${x.cur ? '<span class="tag call" title="지금 화면에서 입력 중인 예약 (저장 전이어도 바로)">지금 이 예약</span>' : x.auto ? '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>' : `<button type="button" class="btn sm" data-mbedit="${x.i}">수정</button><button type="button" class="del" data-mbdel="${x.i}" title="이 예약 빼기">×</button>`}</td></tr>`).join('')
-    || `<tr><td colspan="6" class="empty">${all.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'아래에서 몽몽마방 예약을 추가하세요.'}</td></tr>`;
+    || `<tr><td colspan="6" class="empty">${all.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'위 「＋ 직접 추가」로 몽몽마방 예약을 넣으세요.'}</td></tr>`;
+  labelCells('#mbdbBody', ['날짜','시간','예약자 · 업체','인원','메뉴','']);   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
 }
 async function mbDbSave(rows, msg){
   if(BOOK_GUEST){ toast('로그인한 사람만 고칠 수 있습니다.'); return; }
@@ -1550,7 +1564,7 @@ function cacheWrite(items){   // 전체 사본은 SY.list 가 IndexedDB 에 둠 
 const ADMIN_LS='sayuwon_intake_admin';
 let adminData = readJSON(ADMIN_LS,null);   // 관리자 사이트 사담·마방 현황 {updated, days:{날짜:{L1,L2,D,MB}}}
 let syncState = SHARED_URL ? 'loading' : 'off', flushing=false, retryTimer=null;
-const getKey=()=>{ try{ return localStorage.getItem(KEY_LS)||''; }catch(_){ return ''; } };
+const getKey=SY.getKey;   // 팀 비밀번호 대신 로그인 (2026-11-21, js/common.js)
 
 async function callApi(body){
   // Content-Type 을 붙이지 않아야 Apps Script 로 사전 확인 요청 없이 바로 간다
@@ -1578,10 +1592,9 @@ function paintSync(){
   const txt={ off:'이 브라우저에만 저장', loading:'', ok: n?`올리는 중 ${n}건`:'', error: n?`연결 끊김 · ${n}건 대기 · 다시 시도 중`:'연결 끊김 · 다시 시도 중', needkey:'' }[syncState];
   chip.textContent=txt; chip.hidden=!txt; chip.title = syncState==='error' && lastSyncErr ? `마지막 오류: ${lastSyncErr}
 15초마다 다시 보냅니다. 저장 대기 중인 내용은 이 브라우저에 남아 있으니 창을 닫아도 다음에 열면 이어서 보냅니다.` : ''; chip.className='sync '+(syncState==='error'||syncState==='off'?'warn':'');
-  const km=$('#keyModal'), wasHidden=km.hidden; km.hidden = syncState!=='needkey';
-  if(!km.hidden && wasHidden) setTimeout(()=>$('#keyInput').focus(), 0);
+  const km=$('#keyModal'); km.hidden = syncState!=='needkey' || !!BOOK_GUEST;   // 로그인 확인 안내 (예약 현황 공유를 로그인 없이 볼 때는 안 띄움)
   paintDbTime();
-  $('#storeHint').textContent = !SHARED_URL ? '이 브라우저에만 저장됩니다 (공유 주소 연결 전)' : syncState==='ok' ? '구글 시트에 저장 · 모두가 같은 목록을 봅니다' : syncState==='needkey' ? '팀 비밀번호를 넣으면 공유 목록이 보입니다' : syncState==='error' ? '연결이 안 돼 이 브라우저에 모아 두었다가 다시 올립니다' : '불러오는 중…';
+  $('#storeHint').textContent = !SHARED_URL ? '이 브라우저에만 저장됩니다 (공유 주소 연결 전)' : syncState==='ok' ? '구글 시트에 저장 · 모두가 같은 목록을 봅니다' : syncState==='needkey' ? '로그인을 확인하지 못했습니다 · 첫 화면에서 다시 로그인' : syncState==='error' ? '연결이 안 돼 이 브라우저에 모아 두었다가 다시 올립니다' : '불러오는 중…';
 }
 // 구글 시트(Apps Script) DB에 마지막으로 저장된 시각 (이 브라우저에서 올린 것) · 마지막으로 받아 온 시각
 var DBT_LS = 'sayuwon_db_time';   // var: paintSync가 먼저 불려도 되게
@@ -1600,15 +1613,23 @@ function fitHist(item){ const s=String(item && item.history || ''); if(s.length<
   let h=Array.isArray(hj.h)?hj.h:[]; while(item.history.length>45000 && h.length>20){ h=[h[0], ...h.slice(1+Math.max(1, Math.floor(h.length/10)))]; hj.h=h; item.history=JSON.stringify(hj); } return h; }
 var lastSyncErr='', syncErrN=0;   // 저장 실패 이유 (헤더 「연결 끊김」에 마우스를 올리면 보임)
 function handleErr(e){
-  if(e.code==='bad_key'){ syncState='needkey'; if(getKey()) $('#keyMsg').textContent='비밀번호가 맞지 않습니다.'; }
+  if(e.code==='bad_key'){ syncState='needkey'; $('#keyMsg').textContent=SY.authFail(); }
   else { syncState='error'; clearTimeout(retryTimer); retryTimer=setTimeout(()=>{ flush(); }, 15000);
     const net = e instanceof TypeError || /fetch|network|Load failed/i.test(String(e.message||e)), msg = net ? '인터넷 연결 (또는 구글 서버 응답 없음)' : String(e.message||e).replace(/^Error:\s*/,'');
     syncErrN = msg===lastSyncErr ? syncErrN+1 : 1; lastSyncErr = msg;
     if(!net && syncErrN===3) toast(`구글 시트 저장이 계속 실패합니다: ${msg}`); }   // 같은 오류가 세 번 이어지면 한 번 알림 (연결 문제는 알리지 않고 계속 다시 시도)
   paintSync();
 }
+// 예약 현황 공유를 로그인 없이 볼 때 (2026-11-21 · 담당자 휴대폰): 그 목록에 필요한 칸만 받는 bookList (고객 연락처 · 메모 · 수정 기록 없음)
+async function bookPull(){
+  try{ const r=await fetch(SY.API_URL,{method:'POST', body:JSON.stringify({action:'bookList'})}), j=await r.json();
+    if(!j.ok){ syncState='error'; lastSyncErr = j.error==='bad_action' || j.error==='bad_key' ? '서버(Apps Script)를 새 버전으로 배포해야 로그인 없이 볼 수 있습니다' : String(j.error||''); paintSync(); if($('#bookSum')) $('#bookSum').textContent=lastSyncErr; return; }
+    serverItems=j.items||[]; cache=merged(); syncState='ok'; paintSync(); renderDayAll(); if(!$('#bookModal').hidden) paintBook(); }
+  catch(e){ syncState='error'; lastSyncErr='인터넷 연결'; paintSync(); }
+}
 async function flush(){
   if(!SHARED_URL || flushing) return;
+  if(BOOK_GUEST) return bookPull();
   if(!getKey()){ syncState='needkey'; paintSync(); return; }
   flushing=true;
   try{
@@ -1625,6 +1646,7 @@ async function flush(){
 }
 async function pull(inFlush){
   if(!SHARED_URL) return;
+  if(BOOK_GUEST) return bookPull();
   if(!getKey()){ syncState='needkey'; paintSync(); return; }
   if(flushing && !inFlush) return;
   try{
@@ -1649,7 +1671,7 @@ const store={
     writeJSON(PEND_LS,pending); paintSync(); flush();
   }
 };
-$('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#keyInput').value.trim(); if(!v) return; try{ localStorage.setItem(KEY_LS,v); }catch(_){} $('#keyInput').value=''; $('#keyMsg').textContent=''; syncState='loading'; paintSync(); flush(); });
+// (팀 비밀번호 입력 칸은 없앰 · 2026-11-21 — 서버는 로그인으로 확인, 안 되면 「로그인 확인 필요」 안내만)
 window.addEventListener('focus', ()=>{ if(pending.length) flush(); else pull(); });   // 다른 창에서 돌아오면 최신 목록
 setInterval(()=>{ if(!document.hidden){ if(pending.length) flush(); else pull(); } }, 30000);   // 30초마다 (2026-11-18 · 예전 1분)
 // ===================== 수정 기록 =====================

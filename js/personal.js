@@ -18,7 +18,7 @@ $('#me').innerHTML = user.name ? `👤 <b>${esc(user.name)}</b>` : '';
 const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
 const KEY_LS=SY.KEY_LS, PEND_LS='sayuwon_personal_pending', CACHE_LS='sayuwon_personal_cache';
 const CALL_TYPE='개인고객';
-const getKey=()=>{ try{ return localStorage.getItem(KEY_LS)||''; }catch(_){ return ''; } };
+const getKey=SY.getKey;   // 팀 비밀번호 대신 로그인 (2026-11-21, js/common.js)
 let pending = readJSON(PEND_LS, []), items = readJSON(CACHE_LS, []), flushing=false, retryT=null;
 async function callApi(body){
   const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})});   // Content-Type 없이 (Apps Script 사전 확인 요청 없이)
@@ -28,9 +28,9 @@ function paintSync(state){
   const c=$('#syncChip'), n=pending.length;
   const txt = state==='error' ? `연결 끊김 · ${n}건 대기 · 다시 시도 중` : n ? `올리는 중 ${n}건` : '';
   c.textContent=txt; c.hidden=!txt;
-  $('#keyModal').hidden = state!=='needkey'; if(state==='needkey') setTimeout(()=>$('#keyInput').focus(),0);
+  $('#keyModal').hidden = state!=='needkey';   // 로그인 확인 안내 (팀 비밀번호 칸 없음, 2026-11-21)
 }
-function handleErr(e){ if(e.code==='bad_key'){ if(getKey()) $('#keyMsg').textContent='비밀번호가 맞지 않습니다.'; paintSync('needkey'); } else { paintSync('error'); clearTimeout(retryT); retryT=setTimeout(flush, 15000); } }
+function handleErr(e){ if(e.code==='bad_key'){ $('#keyMsg').textContent=SY.authFail(); paintSync('needkey'); } else { paintSync('error'); clearTimeout(retryT); retryT=setTimeout(flush, 15000); } }
 async function flush(){
   if(flushing) return; if(!getKey()){ paintSync('needkey'); return; }
   flushing=true;
@@ -59,7 +59,7 @@ function put(item){
   writeJSON(CACHE_LS, items.slice(-500));
   renderLists(); paintSync(); flush(); paintMyCount();
 }
-$('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#keyInput').value.trim(); if(!v) return; try{ localStorage.setItem(KEY_LS, v); }catch(_){} $('#keyInput').value=''; flush(); });
+// (팀 비밀번호 입력 칸은 없앰 · 2026-11-21 — 서버는 로그인으로 확인)
 
 // ===================== 날짜 칸 (단체 화면 방문일과 같은 방식) =====================
 // 칸 안에 "2026-12-05 (토)". 누르면 바로 달력, 달력을 연 뒤 한 번 더 누르거나 숫자를 치면 글자로 직접 입력 (2026-12-05 · 12/5 · 1205)
@@ -459,7 +459,7 @@ function askDelete(msg, ok, title='삭제 확인', yes='삭제'){ askOk=ok; docu
 // 성함 · 연락처 · 방문일 · 인원 · 문의 내용(메모) · 지금까지 기록은 그대로, 개인고객 자동 과업(문의 처리)은 뺌, 영업 담당 = 바꾼 사람
 async function toGroup(){
   if(!hasContent()){ toast('문의 내용이나 고객 정보를 넣어 주세요.'); return; }
-  if(!getKey()){ toast('팀 비밀번호를 먼저 넣어 주세요.'); return; }
+  if(!getKey()){ toast(SY.authFail()); return; }
   clearTimeout(autoT);
   const it=toItem(), now=new Date().toISOString();
   let h={}; try{ h=JSON.parse(it.history||'{}')||{}; }catch(_){}

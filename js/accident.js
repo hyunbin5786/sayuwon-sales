@@ -1,11 +1,12 @@
-// ===== 운영보조 (ops.html, 초안 2026-11-18) =====
+// ===== 사고현황 접수 (accident.html · 2026-11-21 운영보조에서 따로 나눈 페이지) =====
+// 예전 ops.html?p=accident 의 그 탭 그대로 (공유 기록 · 화면 동작 같음). 이 페이지만 고쳐 발전시키면 됨 — 다른 운영보조 페이지와 따로
 // 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 README 14절
 // lost 분실물 찾기 · accident 사고현황 접수 · stock 재고확인
 // 저장: 공유 기록(calls) 한 줄 = 한 건 (opslib.js). 고치면 바로 시트에 올리고, 다른 사람이 고친 것은 1분마다 · 이 창으로 돌아올 때 다시 받음
 const $ = s => document.querySelector(s);
 const esc = SY.esc;   // 공통 도구 (js/common.js)
 const user = opsUser();
-const P = (new URLSearchParams(location.search).get('p')) || 'lost';   // 기타 개인 업무(?p=task)는 나의 할일로 옮김 (2026-11-18)
+const P = 'accident';   // 이 페이지 (공유 기록 통화 구분 · 브라우저 사본 이름에 씀)
 const won = n => (Math.round(+n||0)).toLocaleString('ko-KR');
 function toast(m){ const t=$('#toast'); t.textContent=m; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true, 2600); }
 
@@ -13,15 +14,6 @@ function toast(m){ const t=$('#toast'); t.textContent=m; t.hidden=false; clearTi
 // type: text · tel · num · date · time · select · textarea · dows(요일) · dom(매달 일자) · repeat
 const LOST_ST = ['보관중','찾는 중','반환 완료','폐기'], ACC_ST = ['접수','처리 중','완료'];
 const BOARDS = {
-  lost: { title:'분실물 찾기', add:'분실물 접수', hint:'습득물 보관 · 분실 신고 · 반환까지',
-    fields:[ {k:'kind', l:'구분', type:'select', opts:['습득','분실 신고'], def:()=>'습득'}, {k:'date', l:'접수일', type:'date', def:()=>opsToday()},
-      {k:'item', l:'물품', type:'text', req:1}, {k:'feature', l:'특징', type:'text', ph:'색 · 브랜드 · 안에 든 것'},
-      {k:'place', l:'발견 · 분실 장소', type:'text'}, {k:'storage', l:'보관 위치', type:'text'},
-      {k:'person', l:'습득자 / 신고자', type:'text'}, {k:'phone', l:'연락처', type:'tel'},
-      {k:'status', l:'상태', type:'select', opts:LOST_ST, def:()=>'보관중'}, {k:'returnDate', l:'반환일', type:'date', show:d=>d.status==='반환 완료'},
-      {k:'returnTo', l:'반환 받은 분', type:'text', show:d=>d.status==='반환 완료'}, {k:'memo', l:'메모', type:'textarea', w:2} ],
-    cols:[['date','접수일',v=>opsDateLabel(v)],['kind','구분'],['item','물품'],['place','장소'],['storage','보관 위치'],['status','상태'],['phone','연락처']],
-    status:'status', open:['보관중','찾는 중'], summary:d=>`${d.kind||''} ${d.item||''} · ${d.status||''}` },
   accident: { title:'사고현황 접수', add:'사고 접수', hint:'부상 · 시설 파손 등 · 조치와 처리 상태',
     fields:[ {k:'date', l:'날짜', type:'date', def:()=>opsToday()}, {k:'time', l:'시각', type:'time'},
       {k:'type', l:'유형', type:'select', opts:['부상','시설 파손','분실 · 도난','민원','기타'], def:()=>'부상'}, {k:'place', l:'장소', type:'text'},
@@ -30,24 +22,12 @@ const BOARDS = {
       {k:'status', l:'상태', type:'select', opts:ACC_ST, def:()=>'접수'}, {k:'staff', l:'담당', type:'text', def:()=>user.name||''}, {k:'memo', l:'메모', type:'textarea', w:2} ],
     cols:[['date','날짜',(v,d)=>`${opsDateLabel(v)}${d.time?' '+d.time:''}`],['type','유형'],['place','장소'],['what','내용',v=>String(v||'').split('\n')[0].slice(0,40)],['status','상태'],['staff','담당']],
     status:'status', open:['접수','처리 중'], summary:d=>`${d.type||''} ${d.place||''} · ${d.status||''}` },
-  stock: { title:'재고확인', add:'품목 추가', hint:'품목별 수량 · 최소 수량 아래면 빨강',
-    fields:[ {k:'name', l:'품목', type:'text', req:1}, {k:'cat', l:'분류', type:'text'}, {k:'place', l:'위치', type:'text'},
-      {k:'qty', l:'수량', type:'num', def:()=>'0'}, {k:'unit', l:'단위', type:'text', def:()=>'개'}, {k:'min', l:'최소 수량', type:'num', ph:'이 아래면 부족'}, {k:'memo', l:'메모', type:'textarea', w:2} ],
-    summary:d=>`${d.name||''} ${d.qty||0}${d.unit||''}` },
-  // 스마트스토어 발송 보고 (2026-11-18): 엑셀(★ 스마트스토어 발송내역.xlsx, 달마다 시트) 열 그대로 · 상품명 = 품목관리 굿즈
-  ship: { title:'스마트스토어 발송 보고', add:'발송 추가', hint:'주문 · 발송 · 수령 · 달마다 보고',
-    fields:[ {k:'orderDate', l:'주문일', type:'date', def:()=>opsToday()}, {k:'shipDate', l:'발송일', type:'date'}, {k:'recvDate', l:'수령일', type:'date'},
-      {k:'item', l:'상품명 (굿즈)', type:'goods', req:1, w:2}, {k:'qty', l:'수량', type:'num', def:()=>'1'}, {k:'amount', l:'총 주문금액', type:'num'}, {k:'shipFee', l:'배송비', type:'num'},
-      {k:'buyer', l:'구매자명', type:'text'}, {k:'recv', l:'수취인명', type:'text'}, {k:'phone', l:'수취인연락처', type:'tel'}, {k:'phone2', l:'수취인연락처2', type:'tel'},
-      {k:'addr', l:'기본배송지', type:'text', w:2}, {k:'addr2', l:'상세배송지', type:'text'}, {k:'zip', l:'우편번호', type:'text'}, {k:'msg', l:'배송메세지', type:'textarea', w:2} ],
-    summary:d=>`${d.orderDate||''} ${d.item||''} ${d.qty||''}개 · ${d.recv||d.buyer||''}` },
 };
-const B = BOARDS[P] || BOARDS.lost;
+const B = BOARDS[P];
 document.title = `${B.title} · 사유원 운영 보조 시스템`;
 $('#crumb').textContent = `운영보조 › ${B.title}`;
 $('#me').textContent = user.name ? `👤 ${user.name}` : '';
 $('#bTitle').textContent = B.title; $('#addBtn').textContent = '＋ ' + B.add;
-document.querySelectorAll('#tabs a').forEach(a=>a.classList.toggle('on', a.dataset.p===P));
 
 // ---------- 공유 기록 ----------
 const CACHE_LS = 'sy_ops_cache_' + P;
@@ -61,7 +41,7 @@ async function pull(){
     rows = (j.items||[]).filter(r=>r.callType===OPS_TYPES[P]).map(r=>{ const h=opsParse(r); return h ? {r, d:h.d||{}, log:h.log||[]} : null; }).filter(Boolean);
     try{ localStorage.setItem(CACHE_LS, JSON.stringify(rows)); }catch(_){}
     setSync(''); render();
-  }catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; $('#keyErr').textContent = '비밀번호가 맞지 않습니다.'; } setSync('연결 안 됨 · 잠시 뒤 다시'); }
+  }catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; $('#keyErr').textContent = SY.authFail(); } setSync('연결 안 됨 · 잠시 뒤 다시'); }
 }
 async function putRow(row, what){
   const now=new Date().toISOString(), log=[...(row.log||[]), {at:now, by:user.name||'', what}].slice(-60);
@@ -77,7 +57,7 @@ async function delRow(row){
   rows=rows.filter(x=>x.r?.id!==row.r.id); render();
   try{ await opsApi({action:'del', id:row.r.id}); toast('삭제했습니다.'); }catch(e){ toast('삭제하지 못했습니다: '+(e.code||e.message)); pull(); }
 }
-$('#keyForm').addEventListener('submit', e=>{ e.preventDefault(); const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(OPS_KEY_LS, v); }catch(_){} $('#keyIn').value=''; $('#keyErr').textContent=''; pull(); });
+// (팀 비밀번호 입력 칸은 없앰 · 2026-11-21 — 서버는 로그인으로 확인)
 
 // ---------- 목록 ----------
 let filter = B.open ? 'open' : 'all', mineOnly = true;

@@ -6,7 +6,7 @@
 <title>단체고객 전화응대 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261121h">
+<link rel="stylesheet" href="css/group.css?v=20261121i">
 <link rel="stylesheet" href="css/menu.css?v=20261119d2">
 </head>
 <body>
@@ -24,15 +24,14 @@
   <span class="sync" id="syncChip" hidden></span>
   <span class="sync db-time" id="dbTime" hidden></span>
 </header>
-<!-- 공유 기록이 끊기면(비밀번호 없음 · 틀림) 뜨는 팝업. 연결될 때까지 닫히지 않음 -->
+<!-- 공유 기록 서버가 로그인을 확인하지 못하면 뜨는 안내 (2026-11-21 · 팀 비밀번호 칸은 없앰, 로그인으로 확인) -->
 <div class="modal" id="keyModal" hidden>
-  <form class="panel consult del-box" id="keyForm" role="dialog" aria-modal="true" aria-labelledby="keyTitle">
-    <h2 id="keyTitle">공유 기록 연결</h2>
-    <p class="hint" style="margin:0 0 10px">공유 기록과 연결이 끊겼습니다. 팀 비밀번호를 넣어 주세요. 이 브라우저에 기억됩니다.</p>
-    <input type="password" id="keyInput" placeholder="팀 비밀번호" autocomplete="off" style="width:100%;box-sizing:border-box;height:36px;border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:14px var(--sans)">
+  <div class="panel consult del-box" role="dialog" aria-modal="true" aria-labelledby="keyTitle">
+    <h2 id="keyTitle">로그인 확인 필요</h2>
+    <p class="hint" style="margin:0 0 10px">공유 기록 서버가 로그인 정보를 확인하지 못했습니다. 첫 화면에서 다시 로그인해 주세요 (멤버 목록에 이름 · 사번이 있어야 합니다).</p>
     <div id="keyMsg" style="min-height:18px;margin-top:6px;font-size:12.5px"></div>
-    <div class="row-btns" style="margin-top:8px;justify-content:flex-end"><button class="btn primary" type="submit">연결</button></div>
-  </form>
+    <div class="row-btns" style="margin-top:8px;justify-content:flex-end"><a class="btn primary" href="./">첫 화면으로</a></div>
+  </div>
 </div>
 <!-- 나의 할일: 내가 영업 담당인 예약 -->
 <!-- 나의 할일 설정 팝업 (2026-11-19): 구분 순서 ▲▼ · ＋ 구분 추가 -->
@@ -377,14 +376,14 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/common.js?v=20261121b"></script>
-<script src="js/opslib.js?v=20261120a"></script>
-<script src="js/group.js?v=20261121p"></script>
+<script src="js/common.js?v=20261121c"></script>
+<script src="js/opslib.js?v=20261121a"></script>
+<script src="js/group.js?v=20261121q"></script>
 <script src="js/taskcfg.js?v=20261121b"></script>
 <script src="js/mytask.js?v=20261121d"></script>
 <script src="js/ime.js?v=20261118r"></script>
 <script src="js/keepsize.js?v=20261120g"></script>
-<script src="js/menu.js?v=20261119c4"></script>
+<script src="js/menu.js?v=20261121a"></script>
 <script src="js/timepick.js?v=20261121a"></script>
 </body>
 </html>

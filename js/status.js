@@ -21,12 +21,12 @@
   const GROUP_TYPES=['단체예약','예약상담','가예약','예약확정','예약접수','상담','공식예약'];
   let groups = (SY.readJSON('sayuwon_intake_cache', [])||[]).filter(r=>GROUP_TYPES.includes(r.callType||'단체예약'));
   async function loadGroups(){
-    if(!SY.getKey()){ $('#keyBox').hidden=false; return; }
+    if(!SY.getKey()){ ($('#keyBox')||{}).hidden=false; return; }
     try{ let j; try{ j=await SY.list(); }catch(e){ j={ok:false, error:e.code||e.message}; }
-      if(!j.ok){ if(j.error==='bad_key') $('#keyBox').hidden=false; return; }
-      groups=(j.items||[]).filter(r=>GROUP_TYPES.includes(r.callType||'단체예약')); $('#keyBox').hidden=true; }catch(_){}
+      if(!j.ok){ if(j.error==='bad_key') ($('#keyBox')||{}).hidden=false; return; }
+      groups=(j.items||[]).filter(r=>GROUP_TYPES.includes(r.callType||'단체예약')); ($('#keyBox')||{}).hidden=true; }catch(_){}
   }
-  if($('#keyBtn')) $('#keyBtn').onclick=()=>{ const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(SY.KEY_LS, v); }catch(_){} $('#keyIn').value=''; loadGroups().then(()=>toast('연결했습니다. 엑셀을 다시 넣으면 단체 이름이 들어갑니다.')); };
+  // (팀 비밀번호 입력 칸은 없앰 · 2026-11-21 — 서버는 로그인으로 확인)
 
   // ---------- 엑셀 읽기 (전산 방문자내역: HTML 표 모양의 .xls) ----------
   const cellLines = td => td ? td.innerHTML.split(/<br\s*\/?>/i).map(h=>{ const d=document.createElement('div'); d.innerHTML=h; return d.textContent.replace(/\s+/g,' ').trim(); }).filter((s,i,a)=>s!=='' || i<a.length-1) : [];

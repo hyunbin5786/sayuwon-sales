@@ -24,10 +24,10 @@
   }
   async function fetchAll(){ const j=await SY.list(); return fromItems(j.items); }   // 같이 쓰는 사본 + 바뀐 것만 (2026-11-21)
   async function load(){
-    if(!SY.getKey()){ $('#keyBox').hidden=false; $('#body').innerHTML='<tr><td colspan="9" class="hint">팀 비밀번호를 넣으면 명부가 보입니다.</td></tr>'; return; }
+    if(!SY.getKey()){ $('#keyBox').hidden=false; $('#body').innerHTML='<tr><td colspan="9" class="hint">로그인하면 명부가 보입니다.</td></tr>'; return; }
     st('불러오는 중…', 'wait');
     try{ const r=await fetchAll(); rows=r.rows; loaded=true; $('#keyBox').hidden=true; st('', ''); render(); }
-    catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('팀 비밀번호가 맞지 않습니다.'); } st('불러오지 못함 — 잠시 뒤 다시 열어 주세요', 'bad'); }
+    catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast(SY.authFail()); } st('불러오지 못함 — 잠시 뒤 다시 열어 주세요', 'bad'); }
   }
   async function saveAll(list){
     const at=new Date().toISOString(), by=user.name||'', packs=[]; let cur=[], size=0;
@@ -40,10 +40,10 @@
   }
   // 최신 명부를 받아 바꾼 뒤 저장 (추가 · 지우기)
   async function change(fn, okMsg){
-    if(busy) return; if(!SY.getKey()){ $('#keyBox').hidden=false; toast('팀 비밀번호를 먼저 넣어 주세요.'); return; }
+    if(busy) return; if(!SY.getKey()){ $('#keyBox').hidden=false; toast(SY.authFail()); return; }
     busy=true; st('저장 중…', 'wait');
     try{ const latest=(await fetchAll()).rows; await saveAll(fn(latest)); render(); st(`저장됨 ${new Date().toTimeString().slice(0,5)}`, 'ok'); if(okMsg) toast(okMsg); return true; }
-    catch(e){ st('저장 못 함 — 다시 해 주세요', 'bad'); toast(e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다.' : '저장하지 못했습니다: '+(e.code||e.message)); return false; }
+    catch(e){ st('저장 못 함 — 다시 해 주세요', 'bad'); toast(e.code==='bad_key' ? SY.authFail() : '저장하지 못했습니다: '+(e.code||e.message)); return false; }
     finally{ busy=false; }
   }
 
@@ -110,16 +110,13 @@
       out.push({id:newId()+out.length.toString(36), date, org:g(r,'org'), name, pos:g(r,'pos'), phone:g(r,'phone'), note:g(r,'note'), turn:g(r,'turn')}); });
     return out;
   }
-  $('#xlBtn').onclick=()=>{ if(!SY.getKey()){ $('#keyBox').hidden=false; toast('팀 비밀번호를 먼저 넣어 주세요.'); return; } $('#xlFile').click(); };
+  $('#xlBtn').onclick=()=>{ if(!SY.getKey()){ $('#keyBox').hidden=false; toast(SY.authFail()); return; } $('#xlFile').click(); };
   $('#xlFile').addEventListener('change', async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
     let list; try{ list=parseXl(await f.arrayBuffer()); }catch(err){ toast('엑셀을 읽지 못했습니다: '+(err.message||err), 4000); return; }
     if(!list.length){ toast('엑셀에서 명부 줄을 찾지 못했습니다.'); return; }
     ask(`엑셀에서 <b>${list.length}명</b>을 읽었습니다. 명부를 이 엑셀 내용으로 바꿀까요?${rows.length?`<br>(지금 명부 ${rows.length}명은 엑셀 내용으로 바뀝니다)`:''}`, '바꾸기',
       ()=>change(()=>list, `명부를 엑셀 내용 ${list.length}명으로 바꿨습니다.`)); });
 
-  // ---------- 팀 비밀번호 ----------
-  $('#keyBtn').onclick=()=>{ const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(SY.KEY_LS||'sayuwon_intake_key', v); }catch(_){} $('#keyIn').value=''; load(); };
-  $('#keyIn').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#keyBtn').click(); });
   load();
   setInterval(()=>{ if(!document.hidden && loaded && !busy && $('#addBox').hidden) fetchAll().then(r=>{ rows=r.rows; render(); }).catch(()=>{}); }, 60000);   // 1분마다 남이 고친 것 받아 옴
 })();

@@ -1309,14 +1309,14 @@
     return "사유원_" + docName() + "_" + who + "_" + d + (tag ? "_" + tag : "") + ".pdf";
   }
   // ---------- 단체 예약 도우미에서 열었을 때: 출력한 파일을 도우미의 구글 드라이브 폴더에도 저장 ----------
-  // 도우미(sayuwon-sales)와 같은 사이트라 도우미가 기억한 팀 비밀번호를 그대로 쓴다. 올린 링크는 sy_intake_docs 로 도우미에 돌려준다.
+  // 도우미(sayuwon-sales)와 같은 사이트라 로그인(이름 · 사번)으로 확인 (2026-11-21 · 팀 비밀번호 없음). 올린 링크는 sy_intake_docs 로 도우미에 돌려준다.
   var INTAKE_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";
   var intakeLink = null;
   function blobB64(b){ return new Promise(function(ok, no){ var fr = new FileReader(); fr.onload = function(){ ok(String(fr.result).split(",")[1]); }; fr.onerror = function(){ no(fr.error); }; fr.readAsDataURL(b); }); }
   async function toIntakeDrive(files){
-    var key = ""; try { key = localStorage.getItem("sayuwon_intake_key") || ""; } catch(e){}
+    var key = "", who = null; try { key = localStorage.getItem("sayuwon_intake_key") || ""; var u = JSON.parse(localStorage.getItem("sy_user") || "null"); if(u && u.name && u.emp) who = {name:u.name, emp:u.emp}; } catch(e){}   // 팀 비밀번호 대신 로그인 (2026-11-21)
     var base = elStatus.textContent;
-    if(!key){ status(base + " · 드라이브 저장은 도우미에서 팀 비밀번호를 넣은 뒤 가능합니다.", "err"); return; }
+    if(!key && !who){ status(base + " · 드라이브 저장은 로그인한 뒤 가능합니다.", "err"); return; }
     var link = intakeLink, done = [];
     status(base + " · 구글 드라이브에 올리는 중…", "ok");
     try{
@@ -1324,7 +1324,7 @@
         // 사유원_견적서_수신_20261105_내부용.pdf → "견적서 내부용" (드라이브 이름: 방문일 단체명 견적서 내부용.pdf)
         var parts = files[i].name.replace(/\.(pdf|xlsx)$/, "").split("_");
         var kind = [parts[1], parts[4]].filter(Boolean).join(" ") + (/\.xlsx$/.test(files[i].name) ? " 엑셀" : "");
-        var r = await fetch(INTAKE_URL, { method:"POST", body: JSON.stringify({ key: key, action: "upload", name: files[i].name, mime: files[i].mime,
+        var r = await fetch(INTAKE_URL, { method:"POST", body: JSON.stringify({ key: key, who: who, action: "upload", name: files[i].name, mime: files[i].mime,
           data: await blobB64(files[i].blob), org: link.org, date: link.date, kind: kind }) }).then(function(x){ return x.json(); });
         if(!r.ok) throw new Error(r.error === "bad_action" ? "도우미 Apps Script를 새 버전으로 배포해야 합니다" : r.error);
         done.push({ name: r.file.name, url: r.file.url, at: r.file.at });

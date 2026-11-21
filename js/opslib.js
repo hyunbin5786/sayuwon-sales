@@ -5,7 +5,7 @@
 const OPS_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
 const OPS_KEY_LS = SY.KEY_LS;   // 팀 비밀번호 (단체 · 개인고객 화면과 같이 씀)
 const OPS_TYPES = { task:'개인업무', lost:'분실물', accident:'사고', stock:'재고', ship:'스마트스토어' };
-const opsKey = () => { try{ return localStorage.getItem(OPS_KEY_LS)||''; }catch(_){ return ''; } };
+const opsKey = SY.getKey;   // 팀 비밀번호 대신 로그인 (2026-11-21, js/common.js)
 async function opsApi(body){
   const r=await fetch(OPS_URL,{method:'POST',body:JSON.stringify({...body,key:opsKey()})});
   const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j;

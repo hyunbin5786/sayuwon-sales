@@ -34,16 +34,16 @@
     reqs=list;
   }
   async function change(fn, okMsg){
-    if(busy) return false; if(!SY.getKey()){ $('#keyBox').hidden=false; toast('팀 비밀번호를 먼저 넣어 주세요.'); return false; }
+    if(busy) return false; if(!SY.getKey()){ $('#keyBox').hidden=false; toast(SY.authFail()); return false; }
     busy=true; st('저장 중…', 'wait');
     try{ await saveAll(fn((await fetchAll()).rows)); render(); st(`저장됨 ${new Date().toTimeString().slice(0,5)}`, 'ok'); if(okMsg) toast(okMsg); return true; }
-    catch(e){ st('저장 못 함 — 다시 해 주세요', 'bad'); toast(e.code==='bad_key' ? '팀 비밀번호가 맞지 않습니다.' : '저장하지 못했습니다: '+(e.code||e.message)); return false; }
+    catch(e){ st('저장 못 함 — 다시 해 주세요', 'bad'); toast(e.code==='bad_key' ? SY.authFail() : '저장하지 못했습니다: '+(e.code||e.message)); return false; }
     finally{ busy=false; }
   }
   async function load(){
     if(!SY.getKey()){ $('#keyBox').hidden=false; return; }
     try{ reqs=(await fetchAll()).rows; loaded=true; $('#keyBox').hidden=true; render(); }
-    catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast('팀 비밀번호가 맞지 않습니다.'); } else st('불러오지 못함 — 잠시 뒤 다시 열어 주세요', 'bad'); }
+    catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast(SY.authFail()); } else st('불러오지 못함 — 잠시 뒤 다시 열어 주세요', 'bad'); }
   }
 
   // ---------- 탭 ----------
@@ -72,7 +72,7 @@
   // ---------- ② 목록 · 처리 ----------
   function render(){
     const nOpen=reqs.filter(r=>!r.done).length; $('#openN').textContent = nOpen ? nOpen : '';
-    if(!loaded){ $('#list').innerHTML='<p class="hint">팀 비밀번호를 넣으면 요청 목록이 보입니다.</p>'; return; }
+    if(!loaded){ $('#list').innerHTML='<p class="hint">로그인하면 요청 목록이 보입니다.</p>'; return; }
     const q=$('#q').value.trim().replace(/\s/g,'').toLowerCase(), qd=digits(q);
     const list=reqs.filter(r=>(flt==='all' || (flt==='open' ? !r.done : !!r.done)) && (!q || [r.name,r.no,r.by,r.whyTxt,r.amt].join('').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && digits(r.phone+r.no).includes(qd))))
       .sort((a,b)=> flt==='open' ? String(a.at||'').localeCompare(String(b.at||'')) : String(b.done?.at||b.at||'').localeCompare(String(a.done?.at||a.at||'')));   // 처리 전 = 오래된 요청부터
@@ -123,7 +123,7 @@
         done: /처리\s*완료|완료/.test(dn) ? {at:'', by:'', memo:dn} : null, ...( !/완료/.test(dn) && dn ? {note:dn} : {}) };
     }).filter(Boolean);
   }
-  $('#xlBtn').onclick=()=>{ if(!SY.getKey()){ $('#keyBox').hidden=false; toast('팀 비밀번호를 먼저 넣어 주세요.'); return; } $('#xlFile').click(); };
+  $('#xlBtn').onclick=()=>{ if(!SY.getKey()){ $('#keyBox').hidden=false; toast(SY.authFail()); return; } $('#xlFile').click(); };
   $('#xlFile').addEventListener('change', async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
     let add; try{ add=parseXl(await f.arrayBuffer()); }catch(err){ toast('엑셀을 읽지 못했습니다: '+(err.message||err), 4000); return; }
     const key=r=>(r.no+'|'+r.name).replace(/\s/g,''), have=new Set(reqs.map(key)), fresh=add.filter(r=>!have.has(key(r)));
@@ -131,9 +131,6 @@
     ask(`<p>엑셀에서 <b>${add.length}건</b>을 읽었습니다. 목록에 없는 <b>${fresh.length}건</b>을 더할까요?</p><p class="hint">처리 여부 칸에 「완료」가 있으면 처리 완료로 넣습니다.</p>`, '더하기',
       ()=>change(list=>{ const h=new Set(list.map(key)); return [...list, ...fresh.filter(r=>!h.has(key(r)))]; }, `${fresh.length}건을 목록에 더했습니다.`)); });
 
-  // ---------- 팀 비밀번호 · 시작 ----------
-  $('#keyBtn').onclick=()=>{ const v=$('#keyIn').value.trim(); if(!v) return; try{ localStorage.setItem(SY.KEY_LS||'sayuwon_intake_key', v); }catch(_){} $('#keyIn').value=''; load(); };
-  $('#keyIn').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#keyBtn').click(); });
   let t0='req'; try{ t0=localStorage.getItem('sy_cx_tab')||'req'; }catch(_){} if(/[?&]tab=list/.test(location.search)) t0='list';
   setTab(t0); load();
   setInterval(()=>{ if(!document.hidden && loaded && !busy) fetchAll().then(r=>{ const ae=document.activeElement; if(ae && ae.classList.contains('cx-memo')) return; reqs=r.rows; render(); }).catch(()=>{}); }, 30000);   // 30초마다 새 요청 · 처리 받아 옴

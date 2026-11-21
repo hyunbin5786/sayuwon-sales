@@ -21,7 +21,7 @@
   <!-- 준비할 날짜 (2026-11-18): 맨 위 · 기본 = 내일 (다음날 준비) · 엑셀의 방문일이 다르면 팝업. 2026-11-19: 화면 폭 전체 한 줄 (팀 비밀번호도 같은 줄) -->
   <section class="panel day-pick" id="p0">
     <h2>준비할 날짜 <span class="dbox"><input class="dtxt" id="prepDateTxt" readonly title="누르면 달력 · 한 번 더 누르면 직접 입력"><input type="date" class="dpick" id="prepDate" tabindex="-1" aria-hidden="true"></span><small id="prepDateHint"></small><span class="share-st" id="shareSt" title="이 화면 내용은 팀이 함께 봅니다 (준비할 날짜마다)"></span></h2>
-    <div class="keybox" id="keyBox" hidden><span class="hint">단체예약을 불러오려면 팀 비밀번호가 필요합니다 (다른 화면과 같은 비밀번호, 이 브라우저에 기억).</span><input id="keyIn" type="password" placeholder="팀 비밀번호" autocomplete="off"><button class="btn primary" id="keyBtn">연결</button></div>
+    <div class="keybox" id="keyBox" hidden><span class="hint">로그인 정보를 확인할 수 없어 단체예약을 불러오지 못했습니다. <a href="./">첫 화면</a>에서 다시 로그인해 주세요 (팀 비밀번호는 없앰 · 2026-11-21).</span></div>
   </section>
   <div class="pcol pcol-l">   <!-- 2열: 왼쪽 = ① 엑셀 · ② 티켓 발권 대상 · 오른쪽 = ③ 응대 표 (①과 같은 높이에서 시작, 2026-11-19) -->
   <!-- ① 엑셀 -->
@@ -85,10 +85,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="js/common.js?v=20261121b"></script>
-<script src="js/prep.js?v=20261121f"></script>
+<script src="js/common.js?v=20261121c"></script>
+<script src="js/prep.js?v=20261121z"></script>
 <script src="js/mypop.js?v=20261119a"></script>
-<script src="js/menu.js?v=20261119c4"></script>
+<script src="js/menu.js?v=20261121a"></script>
 <script src="js/timepick.js?v=20261121a"></script>
 </body>
 </html>
