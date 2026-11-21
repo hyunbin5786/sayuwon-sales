@@ -1413,6 +1413,7 @@
       if(intakeLink) toIntakeDrive(variants.map(function(v){ return { name: v.name, blob: v.blob, mime: "application/pdf" }; })
         .concat([{ name: xlsxName, blob: new Blob([buf]), mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }]));
       recordIssue(variants.map(function(v){ return v.name; }).concat([xlsxName]));   // 발급 내역에 남김
+      if(curReq && (curReq.status || "접수") === "접수") reqMark("출력");   // 고객 견적 요청 상태
       setMailReady(true);
       openMail();   // 이어서 메일 문구
     } catch(err){
@@ -1842,6 +1843,7 @@
     if(res.visitor) state.client = res.visitor;
     // 할인 종류별로 줄이 나뉘어도 인원은 예약인원 기준
     state.pax = Math.max.apply(null, res.blocks.map(function(b){ return Number(b.qty)||0; }).concat(rows.map(function(r){ return Number(r.qty)||0; })));
+    reqFill(false);   // 고객 견적 요청을 골랐으면 수신 · 담당자는 요청에서 (2026-11-21)
     paint();
 
     var booked = res.blocks.reduce(function(s,b){ return s + (b.amount || b.price); }, 0);
@@ -2185,11 +2187,14 @@
     if(hasWork() && !confirm("지금 작성 중인 내용을 지우고 새로 시작할까요?")) return;
     document.getElementById("f-raw").value = "";
     document.getElementById("start-err").innerHTML = "";
+    curReq = null; paintReqPick(); paintReqInfo(); document.getElementById("mail-to").value = "";   // 새 문서: 고른 고객 요청도 비움
+    if(reqItems !== null){ renderReqList(); loadReqs(); }
     elStart.hidden = false; paintSteps();
     document.getElementById("f-raw").focus();
   }
   function closeStart(){ elStart.hidden = true; paintSteps(); }
   function startBlank(){
+    curReq = null; paintReqInfo();
     defaultState();
     editMode = "create";
     setMailReady(false);
@@ -2242,7 +2247,7 @@
     for(var i=0;i<bs.length;i++) bs[i].classList.toggle("on", bs[i].getAttribute("data-v") === doc);
     document.getElementById("mail-status").textContent = "";
   }
-  function openMail(){ mailDoc = null; mailFill(); elMail.hidden = false; paintSteps(); document.getElementById("mail-subject").focus(); }
+  function openMail(){ mailDoc = null; mailFill(); if(curReq && curReq.email) document.getElementById("mail-to").value = curReq.email; elMail.hidden = false; paintSteps(); document.getElementById("mail-subject").focus(); }
   function closeMail(){ elMail.hidden = true; paintSteps(); }
   document.getElementById("open-mail").addEventListener("click", openMail);
   // 메일 문구 버튼은 출력한 뒤에만 (닫은 메일 창을 다시 열 때). 새 문서를 시작하면 다시 숨김
@@ -2258,7 +2263,7 @@
     var b = e.target.closest("[data-copy]"); if(!b) return;
     var el = document.getElementById(b.getAttribute("data-copy"));
     var msg = document.getElementById("mail-status");
-    function done(){ msg.textContent = (b.getAttribute("data-copy") === "mail-subject" ? "제목" : "본문") + "을 복사했습니다. 메일에 붙여넣으세요."; msg.className = "status ok"; }
+    function done(){ msg.textContent = ({ "mail-subject":"제목을", "mail-to":"받는 사람 주소를" }[b.getAttribute("data-copy")] || "본문을") + " 복사했습니다. 메일에 붙여넣으세요."; msg.className = "status ok"; }
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(el.value).then(done, function(){ el.select(); document.execCommand("copy"); done(); });
     } else { el.select(); document.execCommand("copy"); done(); }
@@ -2494,6 +2499,7 @@
     editMode = "edit";
     setMailReady(false);
     document.getElementById("parseinfo").innerHTML = "";
+    curReq = null; paintReqInfo();
     closeStart(); closeHistory(); closeMail();
     paint(); status("");
     setEditOpen(false);
@@ -2632,8 +2638,133 @@
   document.addEventListener("keydown", function(e){ if(e.key === "Escape" && !elHist.hidden) closeHistory(); });
   flushHistory();   // 지난번에 못 올린 내역
 
+  // ---------- 고객 견적 요청 (2026-11-21) ----------
+  // 고객이 request.html 에서 남긴 요청(공유 기록 서버 quotereq 시트) → 1단계 목록에서 골라
+  //  · 예약 정보를 붙여넣고 「자동 채우기」: 품목 · 인원 · 이용일은 예약에서, 수신(단체명) · 수신 담당자는 요청에서
+  //  · 「붙여넣기 없이 초안으로 시작」: 수신 · 담당자 · 이용일 · 인원 + 기본 관람 한 줄
+  // 출력하면 요청 상태 「출력」, 메일 앱으로 열면 「완료」. 메일 받는 사람 = 고객이 적은 이메일
+  var REQ_PAGE = "https://hyunbin5786.github.io/sayuwon-sales/document/request.html";
+  var reqItems = null, curReq = null;
+  function reqApi(body){
+    var key = "", who = null;
+    try { key = localStorage.getItem("sayuwon_intake_key") || ""; var u = JSON.parse(localStorage.getItem("sy_user") || "null"); if(u && u.name && u.emp) who = {name:u.name, emp:u.emp}; } catch(e){}
+    body.key = key; body.who = who;
+    return fetch(INTAKE_URL, { method:"POST", body: JSON.stringify(body) }).then(function(x){ return x.json(); })
+      .then(function(j){ if(!j.ok){ var e = new Error(j.error || "error"); e.code = j.error; throw e; } return j; });
+  }
+  function reqErrText(e){
+    var c = e && e.code;
+    if(c === "bad_key") return "로그인 정보를 확인할 수 없습니다. 첫 화면에서 다시 로그인해 주세요.";
+    if(c === "bad_action") return "공유 기록 Apps Script를 새 버전으로 배포해야 고객 견적 요청을 볼 수 있습니다.";
+    return "고객 견적 요청을 불러오지 못했습니다 (" + (e && e.message || e) + ").";
+  }
+  function reqDateDisp(v){ if(!v) return ""; var t = new Date(v + "T00:00"); return isNaN(t) ? v : v + " (" + "일월화수목금토"[t.getDay()] + ")"; }
+  function reqBadge(st){ return '<span class="reqbadge ' + (st === "접수" ? "new" : st === "출력" ? "out" : "") + '">' + esc(st || "접수") + '</span>'; }
+  function renderReqList(){
+    var box = document.getElementById("req-list");
+    if(reqItems === null) return;
+    var all = document.getElementById("req-all").checked;
+    var list = reqItems.filter(function(r){ return all || r.status !== "완료"; });
+    var fresh = reqItems.filter(function(r){ return (r.status || "접수") === "접수"; }).length;
+    document.getElementById("req-count").textContent = fresh ? "새 요청 " + fresh + "건" : "";
+    if(!list.length){ box.innerHTML = '<div class="reqempty">' + (reqItems.length ? "처리할 요청이 없습니다." : "아직 들어온 요청이 없습니다.") + '</div>'; return; }
+    box.innerHTML = list.map(function(r){
+      return '<button type="button" class="reqitem' + (curReq && curReq.id === r.id ? " on" : "") + '" data-req="' + esc(r.id) + '">' + reqBadge(r.status) +
+        '<span class="rq-main">' + esc(r.org) + ' · ' + esc(r.name) + '님</span><span>' + esc(reqDateDisp(r.date)) + (r.pax ? " · " + esc(r.pax) + "명" : "") + '</span>' +
+        '<span class="rq-sub">접수 ' + esc(r.at) + (r.memo ? " · " + esc(String(r.memo).split("\n")[0]) : "") + '</span></button>';
+    }).join("");
+  }
+  function loadReqs(){
+    var box = document.getElementById("req-list");
+    if(reqItems === null) box.innerHTML = '<div class="reqempty">불러오는 중…</div>';
+    return reqApi({ action:"quoteReqList" }).then(function(j){ reqItems = j.items || []; renderReqList(); })
+      .catch(function(e){ box.innerHTML = '<div class="reqempty">' + esc(reqErrText(e)) + '</div>'; });
+  }
+  function paintReqPick(){
+    var pick = document.getElementById("req-pick"), acts = document.getElementById("req-acts");
+    if(!curReq){ pick.innerHTML = ""; acts.hidden = true; return; }
+    pick.innerHTML = "<b>고객 견적 요청: " + esc(curReq.org) + " · " + esc(curReq.name) + "님</b> (" + esc(reqDateDisp(curReq.date)) + (curReq.pax ? " · " + esc(curReq.pax) + "명" : "") +
+      ")<br>예약 정보를 붙여넣고 「자동 채우기」를 누르면 품목은 예약에서, 수신 · 담당자 · 받는 메일은 이 요청에서 채웁니다.";
+    acts.hidden = false;
+    document.getElementById("req-actnote").textContent = curReq.status && curReq.status !== "접수" ? curReq.status + " · " + (curReq.by || "") + " " + (curReq.doneAt || "") : "";
+  }
+  function paintReqInfo(warn){
+    var el = document.getElementById("reqinfo");
+    if(!curReq){ el.innerHTML = ""; return; }
+    var r = curReq;
+    el.innerHTML = '<div class="rq-head">' + reqBadge(r.status) + '<b>고객 견적 요청 · ' + esc(r.org) + ' ' + esc(r.name) + '님</b></div>' +
+      '<div>연락처 ' + esc(r.phone) + ' · 이메일 ' + esc(r.email) + '</div>' +
+      '<div>방문 희망일 ' + esc(reqDateDisp(r.date)) + (r.pax ? ' · 인원 ' + esc(r.pax) + '명' : '') + ' · 접수 ' + esc(r.at) + '</div>' +
+      (r.memo ? '<div class="rq-memo">' + esc(r.memo) + '</div>' : '') +
+      (warn ? '<div class="warn">' + esc(warn) + '</div>' : '');
+  }
+  // 요청 내용을 문서에 채움. draft = 붙여넣기 없이 초안 (이용일 · 인원 · 기본 관람 한 줄까지)
+  function reqFill(draft){
+    if(!curReq) return;
+    var r = curReq, warn = "";
+    state.client = r.org || state.client;
+    state.clientMgr = r.name || state.clientMgr;
+    if(draft){
+      state.useDate = r.date || "";
+      state.quoteDate = state.useDate && todayISO() > state.useDate ? state.useDate : todayISO();
+      state.pax = Number(r.pax) || null;
+      if(!state.rows.length && state.useDate) state.rows = [makeRow(baseView(isWeekend(state.useDate)).id)];
+    } else {
+      if(!state.useDate) state.useDate = r.date;
+      else if(r.date && state.useDate !== r.date) warn = "붙여넣은 예약의 이용일(" + reqDateDisp(state.useDate) + ")이 고객 요청의 방문 희망일(" + reqDateDisp(r.date) + ")과 다릅니다.";
+      if(r.pax && state.pax && Number(r.pax) !== Number(state.pax)) warn += (warn ? " " : "") + "예약 인원 " + state.pax + "명 / 요청 인원 " + r.pax + "명";
+    }
+    paintReqInfo(warn);
+  }
+  function reqMark(status){
+    var r = curReq; if(!r || !r.id) return Promise.resolve();
+    return reqApi({ action:"quoteReqMark", id: r.id, status: status }).then(function(j){
+      if(j.item){ Object.keys(j.item).forEach(function(k){ r[k] = j.item[k]; }); }
+      if(reqItems) reqItems = reqItems.filter(function(x){ return x.id !== r.id || status !== "삭제"; }).map(function(x){ return x.id === r.id ? r : x; });
+      renderReqList(); paintReqInfo();
+    }).catch(function(e){ if(window.console) console.warn(e); });
+  }
+  document.getElementById("req-list").addEventListener("click", function(e){
+    var b = e.target.closest("[data-req]"); if(!b || !reqItems) return;
+    var id = b.getAttribute("data-req");
+    curReq = curReq && curReq.id === id ? null : reqItems.filter(function(x){ return x.id === id; })[0] || null;
+    renderReqList(); paintReqPick();
+    if(curReq) document.getElementById("f-raw").focus();
+  });
+  document.getElementById("req-all").addEventListener("change", renderReqList);
+  document.getElementById("req-refresh").addEventListener("click", loadReqs);
+  document.getElementById("req-copylink").addEventListener("click", function(){
+    var b = this;
+    (navigator.clipboard ? navigator.clipboard.writeText(REQ_PAGE) : Promise.reject()).then(function(){ b.textContent = "복사했습니다"; }, function(){ prompt("고객님께 보낼 주소", REQ_PAGE); })
+      .then(function(){ setTimeout(function(){ b.textContent = "요청 페이지 주소 복사"; }, 1500); });
+  });
+  document.getElementById("req-draft").addEventListener("click", function(){
+    var r = curReq; if(!r) return;
+    startBlank(); curReq = r; reqFill(true); paint();
+  });
+  document.getElementById("req-done").addEventListener("click", function(){
+    if(!curReq) return;
+    reqMark("완료").then(function(){ curReq = null; paintReqPick(); renderReqList(); });
+  });
+  document.getElementById("req-del").addEventListener("click", function(){
+    if(!curReq || !confirm(curReq.org + " " + curReq.name + "님 견적 요청을 목록에서 지울까요? (시트에는 삭제 일시와 함께 남습니다)")) return;
+    reqMark("삭제").then(function(){ curReq = null; paintReqPick(); renderReqList(); });
+  });
+  // 메일 앱으로 열기: 받는 사람 · 제목 · 본문을 채운 메일 쓰기 창 (PDF는 직원이 첨부)
+  document.getElementById("mail-app").addEventListener("click", function(){
+    var to = document.getElementById("mail-to").value.trim();
+    var msg = document.getElementById("mail-status");
+    if(to && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){ msg.textContent = "받는 사람 이메일 주소를 확인해 주세요."; return; }
+    var url = "mailto:" + encodeURIComponent(to).replace(/%40/g, "@") + "?subject=" + encodeURIComponent(document.getElementById("mail-subject").value) +
+      "&body=" + encodeURIComponent(document.getElementById("mail-text").value.replace(/\r?\n/g, "\r\n"));
+    window.location.href = url;
+    msg.textContent = "메일 쓰기 창을 열었습니다. 저장된 PDF를 첨부해 보내 주세요.";
+    if(curReq && curReq.status !== "완료") reqMark("완료");
+  });
+
   paint();
   openStart();   // 처음 열면 1단계: 붙여넣기 / 직접 생성 고르기
+  loadReqs();
 
   // ---------- 예약 접수 도우미(sayuwon-sales)에서 넘어온 예약 ----------
   // 도우미의 '견적서 발급'이 같은 사이트(hyunbin5786.github.io) 저장소에 예약 정보를 두고 ?from=intake 로 연다.
