@@ -46,6 +46,7 @@ const FIELDS = [
   ['굿즈','linkSent','결제링크 전송','','',null],   // 결제링크를 보낸 일시 (예약 내용의 「결제링크 전송」 버튼, 시트 비고 칸)
   ['굿즈','paidAt','입금 확인','','',null],   // 입금을 확인한 일시 (「입금 확인」 버튼)
   ['굿즈','istu','항목 학생','','',null],   // 관람 · 관람+식사 줄마다 학생 인원 "sadam1=5; v:관람(09:00~18:00)=3" (나머지는 성인, 2026-11-20 · 시트 비고 칸 '항목 학생')
+  ['굿즈','erpSame','전산 같은 품목','','',null],   // 전산 품목 이름은 다르지만 같은 것 "seminar>dangdu" (전산 세미나 도슨트 = 예약 당두봉갈 대관, 2026-11-21 · 시트 비고 칸)
   ['굿즈','isp','항목 특별 할인','','',null],   // 줄마다 특별 할인 인원 · 기타 할인 "v:…=dKansong:2|0:10000|재방문 감사" (시트 비고 칸 '항목 특별 할인')
   ['굿즈','idamt','항목 할인액','','',null],   // 할인액을 직접 고친 줄 "sadam1=200000:125000" (과세(신라):비과세(사유원), 시트 비고 칸 '항목 할인액')
 ];
@@ -494,7 +495,11 @@ function itemSrc(k){ const t=itemKind(k), DAY=rec.date && isRedDay(rec.date) ? '
   if(t==='goods') return k.slice(2);
   return ''; }
 // 전산 상품 → 예약 내역 줄 key (erpFields와 같은 기준)
-function erpKeyOf(p){ const ns=normSrc(p);
+// 전산 같은 품목 (2026-11-21): 「전산 내역과 예약 내용이 다릅니다」의 「같은 품목 (이름만 다름)」 → {전산 쪽 칸: 예약 쪽 칸}
+const erpSameMap = (r=rec) => Object.fromEntries(String((r&&r.erpSame)||'').split(/\s*;\s*/).map(s=>s.split('>')).filter(p=>p.length===2 && p[0] && p[1]));
+function erpSameApply(o){ Object.entries(erpSameMap()).forEach(([ek, rk])=>{ if(o[ek]){ if(!o[rk]) o[rk]=rec[rk]||o[ek]; o[ek]=''; } }); return o; }   // 전산 쪽 수량은 예약 쪽 칸으로 (단위가 달라도 같은 것으로 봄)
+function erpKeyOf(p){ const k=erpKeyOf0(p), al=erpSameMap(); return (k && al[k]) || k; }
+function erpKeyOf0(p){ const ns=normSrc(p);
   if(/\(관람,\s*사담\s*런치\s*1부\)/.test(p)) return 'sadam1';
   if(/\(관람,\s*사담\s*런치\s*2부\)/.test(p)) return 'sadam2';
   if(/\(관람,\s*사담\s*디너\)/.test(p)) return 'sadamD';
@@ -2800,7 +2805,7 @@ const ERP_FILL_KEYS = () => ['sadam1','sadam2','sadamD','views','viewN','mabangL
 // 세미나 도슨트 두 개(두 장소): 전산은 세미나 한 품목 → 전산 수량 = 두 줄 합이면 두 줄 그대로 같은 것으로 봄
 function semSplit(o){ if(rec.seminar2 && numOf(o.seminar) && numOf(o.seminar)===(numOf(rec.seminar)||1)+(numOf(rec.seminar2)||1)){ o.seminar=rec.seminar; o.seminar2=rec.seminar2; } return o; }
 function fillFromErp(list){
-  const {o:o0, sp, etc, etcTo, unknown, org, phone} = erpFields(list), o=semSplit(o0), ch=[];
+  const {o:o0, sp, etc, etcTo, unknown, org, phone} = erpFields(list), o=erpSameApply(semSplit(o0)), ch=[];
   const set=(k,v)=>{ v=v||''; if(String(rec[k]||'')===v) return; rec[k]=v; touched.add(k); ch.push(k); };
   ERP_FILL_KEYS().forEach(k=>set(k, o[k]));
   if(o.people) set('people', o.people); if(o.date) set('date', o.date);
@@ -2820,7 +2825,7 @@ function erpCompare(list){
   // → 품목(평일 · 주말은 방문일에 맞춰, 띄어쓰기 무시)별 수량 합으로 비교. 다를 때는 시간대까지 보이게 (관람 (9~18시) 20명)
   const qmap = (k,v) => { const m={}; (k==='views'?viewsParse(v):goodsParse(v)).forEach(x=>{ const key=normSrc(k==='views'?daySrc(x.src, rec):x.src); m[key]=(m[key]||0)+(+x.qty||0); }); return JSON.stringify(Object.keys(m).sort().filter(a=>m[a]).map(a=>[a,m[a]])); };
   const same = (k,a,b) => (k==='views'||k==='goods') ? qmap(k,a)===qmap(k,b) : String(a||'')===String(b||'');
-  const {o:o0, unknown}=erpFields(list), o=semSplit(o0), show=(k,v)=>!v?(k==='viewN'?'자동':'없음'):k==='goods'?goodsText({goods:v}):k==='views'?viewsParse(v).map(x=>`${viewLabel(daySrc(x.src, rec))} ${x.qty}명`).join(', '):k==='date'?dateLabel(v):/^\d+$/.test(String(v))&&UNIT(k)?v+(k==='people'||/^sadam|mabangL/.test(k)?'명':UNIT(k)):v;
+  const {o:o0, unknown}=erpFields(list), o=erpSameApply(semSplit(o0)), show=(k,v)=>!v?(k==='viewN'?'자동':'없음'):k==='goods'?goodsText({goods:v}):k==='views'?viewsParse(v).map(x=>`${viewLabel(daySrc(x.src, rec))} ${x.qty}명`).join(', '):k==='date'?dateLabel(v):/^\d+$/.test(String(v))&&UNIT(k)?v+(k==='people'||/^sadam|mabangL/.test(k)?'명':UNIT(k)):v;
   const d=[...ERP_FILL_KEYS(),'people','date'].filter(k=>!same(k, o[k], rec[k]) && !((k==='people'||k==='date') && !o[k]))
     .map(k=>({k, label:k==='goods'?'굿즈':k==='views'?'관람 · 관람+식사':k==='viewN'?'기본 관람권 인원':LABEL[k]||k, mine:show(k,rec[k]), erp:show(k,o[k])}));
   unknown.forEach(p=>d.push({k:'?', label:'알아보지 못한 전산 상품', mine:'-', erp:p}));
@@ -2855,8 +2860,19 @@ function takeErpText(text){
 function openErpDiff(list, diff){
   erpDiffList={list, diff};
   $('#erpDiffBody').innerHTML = `<table class="ptable"><thead><tr><th>항목</th><th>예약 내용</th><th>전산 내역</th></tr></thead><tbody>${diff.map(x=>`<tr><td>${esc(x.label)}</td><td>${esc(x.mine)}</td><td><b>${esc(x.erp)}</b></td></tr>`).join('')}</tbody></table>`;
+  const pr=erpSamePairs(diff); $('#erpDiffSame').hidden=!pr.length;
+  if(pr.length) $('#erpDiffBody').insertAdjacentHTML('beforeend', `<p class="hint" style="margin:8px 0 0">${pr.map(([r,e])=>`예약 「${esc(r.label)}」와 전산 「${esc(e.label)}」`).join(', ')}가 이름만 다른 같은 품목이면 <b>「같은 품목 (이름만 다름)」</b>을 누르세요. 예약 내용은 그대로 두고, 이 예약에서는 앞으로 같은 것으로 봅니다.</p>`);
+  if(pr.length) $('#erpDiffSame').title = `이름만 다르고 같은 품목: ${pr.map(([r,e])=>`예약 「${r.label}」 = 전산 「${e.label}」`).join(' · ')} — 예약 내용은 그대로, 이 예약에서는 앞으로 같은 것으로 봄`;
   $('#erpDiffModal').hidden=false; $('#erpDiffFill').focus();
 }
+// 「같은 품목 (이름만 다름)」 짝: 예약에만 있는 칸 ↔ 전산에만 있는 칸 (관람 · 굿즈 · 인원 · 방문일 · 알아보지 못한 상품은 빼고), 나온 순서대로
+function erpSamePairs(diff){ const ok=x=>!['views','goods','people','date','viewN','?'].includes(x.k);
+  const onlyMine=diff.filter(x=>ok(x) && x.erp==='없음' && x.mine!=='없음'), onlyErp=diff.filter(x=>ok(x) && x.mine==='없음' && x.erp!=='없음');
+  return onlyMine.slice(0, onlyErp.length).map((r,i)=>[r, onlyErp[i]]); }
+$('#erpDiffSame').onclick=()=>{ const d=erpDiffList; if(!d) return; const pr=erpSamePairs(d.diff); if(!pr.length) return;
+  const m=erpSameMap(); pr.forEach(([r,e])=>{ m[e.k]=r.k; }); rec.erpSame=Object.entries(m).map(([a,b])=>`${a}>${b}`).join('; '); touched.add('erpSame');
+  const left=erpCompare(d.list); closeErpDiff(); toast(`같은 품목으로 봅니다: ${pr.map(([r,e])=>`${r.label} = ${e.label}`).join(' · ')}`, 3600);
+  if(left.length) openErpDiff(d.list, left); else applyErpList(d.list, 'same'); };
 const closeErpDiff = () => { $('#erpDiffModal').hidden=true; erpDiffList=null; };
 $('#erpDiffFill').onclick=()=>{ const d=erpDiffList; closeErpDiff(); if(d) applyErpList(d.list, 'fill', d.diff); };
 $('#erpDiffKeep').onclick=()=>{ const d=erpDiffList; closeErpDiff(); if(d) applyErpList(d.list, 'keep', d.diff); };
