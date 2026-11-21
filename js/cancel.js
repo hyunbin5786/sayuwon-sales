@@ -57,7 +57,35 @@
     const box=b.parentElement; if(box.classList.contains('chips')) b.classList.toggle('on'); else { box.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b)); if(box.id==='flt'){ flt=b.dataset.v; render(); } } });
   $('#fVa').addEventListener('change', e=>{ $('#fAccBox').hidden=!e.target.checked; if(e.target.checked) $('#fAcc').focus(); });
   $('#fPhone').addEventListener('input', e=>{ if(SY.phoneTyping) SY.phoneTyping(e.target, e.inputType); });
-  function resetForm(){ ['fDate','fName','fPhone','fNo','fAmt','fWhyTxt','fAcc'].forEach(id=>$('#'+id).value=''); $('#fVa').checked=false; $('#fAccBox').hidden=true;
+  // ---------- 전산 예약 붙여넣기 (2026-11-21): 방문일 · 예약자 이름 · 연락처 · 예약 사이트(홈페이지) · 자세히(상품 · 인원 · 금액) 저절로 ----------
+  //  전산 예약 내역: 「방문일자(순번) 2026.11.21 (1)」 「상품정보 …」 「방문자정보 이름(010-…)」 「예약인원 5명(어른 : 5명)」 「금액 327,750」 — 상품이 여러 개면 블록이 여러 개
+  function parseErpCx(text){
+    const blocks=[]; let cur=null;
+    String(text||'').split(/\r?\n/).forEach(line=>{ const t=line.trim(); if(!t) return;
+      const m=t.match(/^([^\t:：]+?)\s*(?:\t+|[:：]\s*|\s{2,})(.*)$/); const k=m ? m[1].replace(/\s/g,'') : '', v=m ? m[2].trim() : '';
+      if(k==='방문일자(순번)'){ cur={}; blocks.push(cur); const d=v.match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/); if(d) cur.date=`${d[1]}-${d[2].padStart(2,'0')}-${d[3].padStart(2,'0')}`; return; }
+      if(!cur) return;
+      if(k==='상품정보') cur.product=v;
+      else if(k==='방문자정보'){ const p=v.match(/^(.*?)\s*\(([^)]*)\)\s*$/); cur.name=(p?p[1]:v).trim(); cur.phone=p && /\d{2,}/.test(p[2]) ? p[2].trim() : ''; }
+      else if(k==='예약인원'){ cur.people=+((v.match(/(\d+)\s*명/)||[])[1]||0); cur.peopleTxt=v; }
+      else if(k==='금액') cur.amount=+v.replace(/\D/g,'')||0;
+    });
+    return blocks.filter(b=>b.date || b.product);
+  }
+  function fillFromErp(){
+    const bl=parseErpCx($('#fErp').value), ok=$('#fErpOk'); if(!bl.length){ ok.hidden=true; return; }
+    const first=bl.find(b=>b.name)||bl[0], set=(id,v)=>{ if(v) $('#'+id).value=v; }, got=[];
+    if(first.date){ set('fDate', first.date); got.push('방문일'); }
+    if(first.name){ set('fName', first.name); got.push('예약자 이름'); }
+    if(first.phone){ set('fPhone', SY.fmtPhone(first.phone)); got.push('연락처'); }
+    document.querySelectorAll('#fSite button').forEach(b=>b.classList.toggle('on', b.dataset.v==='홈페이지')); got.push('예약 사이트(홈페이지)');   // 전산 예약 = 홈페이지
+    const won=n=>Number(n||0).toLocaleString('ko-KR'), tot=bl.reduce((s,b)=>s+(b.amount||0),0);
+    const items=bl.map(b=>`${b.product||''}${b.people?` ${b.people}명`:''}${b.amount?` ${won(b.amount)}원`:''}`.trim()).filter(Boolean);
+    if(items.length){ set('fAmt', items.join(' + ') + (bl.length>1 && tot ? ` · 합계 ${won(tot)}원` : '')); got.push('자세히(상품 · 인원 · 금액)'); }
+    ok.textContent = `✓ 전산 예약에서 넣었습니다: ${got.join(' · ')} — 아래 칸을 확인하고 취소 내용 · 사유를 골라 주세요.`; ok.hidden=false;
+  }
+  $('#fErp').addEventListener('input', fillFromErp);
+  function resetForm(){ ['fErp','fDate','fName','fPhone','fNo','fAmt','fWhyTxt','fAcc'].forEach(id=>$('#'+id).value=''); $('#fErpOk').hidden=true; $('#fVa').checked=false; $('#fAccBox').hidden=true;
     [['fSite','홈페이지'],['fKind','전체 환불'],['fDoc','']].forEach(([id,v])=>document.querySelectorAll(`#${id} button`).forEach(b=>b.classList.toggle('on', b.dataset.v===v)));
     document.querySelectorAll('#fWhy button').forEach(b=>b.classList.remove('on')); }
   $('#fReset').onclick=resetForm;

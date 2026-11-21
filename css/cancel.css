@@ -38,3 +38,10 @@
 .cx-done{color:var(--pine);font-weight:700;font-size:13.5px}
 .cx-done small{font-weight:400;color:var(--muted)}
 @media (max-width:700px){ .cx-card{flex-direction:column} .cx-side{width:auto} }
+/* 전산 예약 붙여넣기 (2026-11-21) */
+.cx-erp{display:flex;flex-direction:column;gap:6px;padding-bottom:12px;margin-bottom:4px;border-bottom:1px dashed var(--line)}
+.cx-erp label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+.cx-erp label small{font-size:11.5px}
+.cx-erp textarea{width:100%;box-sizing:border-box;min-height:64px;resize:vertical;border:1px dashed var(--pine);border-radius:8px;padding:8px 10px;font:13px/1.5 var(--sans);color:var(--ink);background:#fafcf8}
+.cx-erp textarea:focus{border-style:solid;outline:none}
+.cx-erp-ok{margin:0;font-size:12.5px;color:var(--pine);font-weight:600}
