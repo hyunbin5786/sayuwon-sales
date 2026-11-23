@@ -222,7 +222,7 @@ async function loadDash(){
     try{ localStorage.setItem(DASH_LS, JSON.stringify(dashData)); }catch(_){}
     renderDash();
   }catch(e){ if(!dashData) $('#dashBody').innerHTML='<p class="err">불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.</p>'; }
-  finally{ dashLoading=false; }
+  finally{ dashLoading=false; if(dashAgain){ dashAgain=false; dashSoon(0); } }
 }
 function renderDash(){ if(!dashData) return;
   const today=opsToday(), tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const tomorrow=opsYmd(tm), me=(getUser()||{}).name||'';
@@ -259,6 +259,8 @@ document.addEventListener('click', e=>{
   const w=e.target.closest('[data-dwho]'); if(w){ dashWho = dashWho===w.dataset.dwho ? '' : w.dataset.dwho; renderDash(); }
 });
 if($('#dashQ')) $('#dashQ').addEventListener('input', ()=>renderDash());
+let dashAgain=false;
+SY.live.onRev(()=>{ if(dashLoading){ dashAgain=true; return; } dashSoon(0); });   // 다른 컴퓨터에서 바뀜 → 대시보드를 바로 다시 받음 (2026-11-23)
 // 바로 알리기 (2026-11-23 · js/common.js SY.live): 단체 · 개인고객 화면 · 나의 할일 팝업에서 과업을 끝내면(기록을 저장하면) 그 순간 대시보드에서도 빠짐 — 20초마다 다시 받기를 기다리지 않음
 SY.live.on(m=>{ try{
   if(!getUser()) return; if(!lastItems){ dashSoon(200); return; }

@@ -2752,6 +2752,7 @@
     renderReqList(); paintReqPick();
     if(curReq) document.getElementById("f-raw").focus();
   });
+  if(SY.live && SY.live.onRev) SY.live.onRev(function(){ if(reqItems !== null) loadReqs(); });   // 새 고객 견적 요청이 들어오면 목록을 바로 다시 받음 (2026-11-23)
   document.getElementById("req-all").addEventListener("change", renderReqList);
   document.getElementById("req-refresh").addEventListener("click", loadReqs);
   document.getElementById("req-copylink").addEventListener("click", function(){

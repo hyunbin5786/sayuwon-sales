@@ -46,7 +46,7 @@
   const call = async body => { const mod = await ready; if ((localStorage.getItem(VER) || '') !== ver) load();   // 다른 창 · 팝업이 고쳤으면 다시 읽음
     queries = 0; const req = JSON.parse(JSON.stringify(body)); log.push(req); if (log.length > 300) log.shift();
     let r; try { r = await mod.api(req, env, location.origin + '/cf', window.SY_CF_IP || ''); } catch (e) { r = { ok: false, error: String((e && e.message) || e) }; console.error('[cf] 서버 코드 오류', req.action, e); }
-    if (!/^(list|deleted|members|mentList|mentImgGet|bookList|quoteReqList|quoteGet)$/.test(req.action)) persist();
+    if (!/^(list|deleted|members|mentList|mentImgGet|bookList|quoteReqList|quoteGet|wait)$/.test(req.action)) persist();
     return JSON.parse(r && r.__raw ? r.__raw : JSON.stringify(r)); };
   SY_BACKEND.main = call;
   SY_BACKEND.beacon = body => { call(body); };

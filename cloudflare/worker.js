@@ -365,8 +365,25 @@ const EXPORT_SQL = () => { const tail = ' WHERE rowid>? ORDER BY rowid LIMIT ?';
   quote_history: 'SELECT rowid AS seq, id, at, data FROM quote_history' + tail,
   files: 'SELECT rowid AS seq, id, kind, name, mime, size, at, "by" FROM files' + tail,
   file_chunks: 'SELECT rowid AS seq, id, n, data FROM file_chunks' + tail,
-  kv: "SELECT rowid AS seq, k, v FROM kv WHERE rowid>? AND k NOT LIKE 'fail:%' AND k<>'qr_rate' ORDER BY rowid LIMIT ?",
+  kv: "SELECT rowid AS seq, k, v FROM kv WHERE rowid>? AND k NOT LIKE 'fail:%' AND k<>'qr_rate' AND k<>'rev' ORDER BY rowid LIMIT ?",
 }; };
+
+// ---------- 바뀜 기다리기 (2026-11-23 · 다른 컴퓨터에도 바로) ----------
+//  kv 'rev' = 공유 기록이 마지막으로 바뀐 일시. 저장 · 삭제 · 고객 견적 요청 · 담당 지정 때마다 올림 (bumpRev)
+//  동작 wait {rev}: 화면이 알고 있는 rev 와 달라질 때까지 서버가 붙잡고 기다렸다가(1초마다 확인 · 길어야 약 25초) 바뀌는 순간 답함 → 화면은 답을 받자마자 목록을 다시 받고 곧바로 또 기다림
+//  = 서버가 먼저 알려 주는 것과 같은 효과 (약 1초 안). 요청 수는 화면이 25초마다 묻던 예전과 비슷 (바뀐 것이 없으면 25초에 한 번)
+//  무료 요금제: 기다리는 시간은 CPU 시간에 안 들어감 · D1 조회는 요청 하나에 50번까지 → 25번만 확인
+const bumpRev = env => kvSet(env, 'rev', iso());
+const WAIT_TICKS = 25, WAIT_MS = 1000;
+async function waitRev(env, have) {
+  let cur = '';
+  for (let i = 0; i < WAIT_TICKS; i++) {
+    cur = (await kvGet(env, 'rev')) || '0';
+    if (!have || cur !== have) return { ok: true, rev: cur, changed: !!have };
+    await new Promise(r => setTimeout(r, WAIT_MS));
+  }
+  return { ok: true, rev: cur, changed: false };
+}
 
 // ---------- 요청 하나 처리 (apps-script 의 doPost 와 같은 순서) ----------
 export async function api(req, env, origin = '', ip = '') {
@@ -379,7 +396,7 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'mentImgGet') { try { return { ok: true, file: await mentImgGet(env, String(req.id || '')) }; } catch (e) { return err('mentimg: ', e); } }
   if (a === 'bookList') { try { return { ok: true, items: await bookList(env), api: 6 }; } catch (e) { return err('booklist: ', e); } }
   if (a === 'bookAdd') { try { return { ok: true, item: await bookAdd(env, req), api: 6 }; } catch (e) { return err('bookadd: ', e); } }
-  if (a === 'quoteReqAdd') { try { return { ok: true, id: await quoteReqAdd(env, req.item || {}), api: 7 }; } catch (e) { return err('', e); } }
+  if (a === 'quoteReqAdd') { try { const id = await quoteReqAdd(env, req.item || {}); await bumpRev(env); return { ok: true, id, api: 7 }; } catch (e) { return err('', e); } }
   if (a === 'import') { try { return { ok: true, imported: await importData(env, req) }; } catch (e) { return err('', e); } }
   // 여기부터 로그인(멤버)만
   if (req.who && isBlocked(await failState(env, ip))) return { ok: false, error: 'too_many' };
@@ -391,10 +408,11 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'export') { const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };
     const lim = t === 'file_chunks' ? 1 : Math.min(Number(req.limit) || 200, 500), rs = await rows(env, sql, Number(req.after) || 0, lim);
     return { ok: true, table: t, rows: rs, next: rs.length === lim ? rs[rs.length - 1].seq : null }; }
+  if (a === 'wait') return waitRev(env, String(req.rev || ''));
   if (a === 'quoteReqList') return { ok: true, items: await quoteReqList(env), api: 7 };
-  if (a === 'quoteReqMark') { try { return { ok: true, item: await quoteReqMark(env, req), api: 7 }; } catch (e) { return err('', e); } }
+  if (a === 'quoteReqMark') { try { const item = await quoteReqMark(env, req); await bumpRev(env); return { ok: true, item, api: 7 }; } catch (e) { return err('', e); } }
   if (a === 'members') return { ok: true, members: await readMembers(env), roles: await readRoles(env) };
-  if (a === 'memberRole') { try { await setRole(env, String(req.role || ''), req.emp, !!req.on); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
+  if (a === 'memberRole') { try { await setRole(env, String(req.role || ''), req.emp, !!req.on); await bumpRev(env); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
   if (a === 'memberAdd') { try { return { ok: true, added: await addMembers(env, req.list || [], req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
   if (a === 'memberDel') { try { return { ok: true, removed: await delMember(env, req.emp, req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
   // 목록: since(ISO 일시)를 주면 그 뒤에 저장 · 삭제된 줄만 (delta · 삭제된 줄은 deleted 가 채워져 옴). 없으면 최근 2,000줄 중 지워지지 않은 것
@@ -410,8 +428,8 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'mentImgPut') { try { return { ok: true, file: await mentImgPut(env, req) }; } catch (e) { return err('mentimg: ', e); } }
   if (a === 'syncAdmin') { try { const result = await syncAdmin(env); return { ok: true, result, admin: JSON.parse(await adminRaw(env)) }; } catch (e) { return err('admin_sync: ', e); } }
   try {
-    if (a === 'put') return { ok: true, id: await put(env, req.item || {}) };
-    if (a === 'del') return { ok: true, id: await del(env, String(req.id || '')) };
+    if (a === 'put') { const id = await put(env, req.item || {}); await bumpRev(env); return { ok: true, id }; }
+    if (a === 'del') { const id = await del(env, String(req.id || '')); await bumpRev(env); return { ok: true, id }; }
     return { ok: false, error: 'bad_action' };
   } catch (e) { return err('Error: ', e); }
 }

@@ -104,16 +104,37 @@ const SY = Object.freeze({
   //  SY.live.on(fn)                                   알림을 받으면 fn(m)
   //  SY.live.apply(items)                             서버에서 받은 목록에, 방금 알림 받은(보낸) 기록을 덮어 돌려줌 — 서버에 아직 안 올라갔거나 먼저 떠난 요청이 옛 목록을 들고 와도 되돌아가지 않게.
   //                                                   서버 쪽 그 줄의 수정 일시(updated)가 바뀌면(= 서버가 더 새것을 줌) 그때부터는 서버 것 · 길어도 5분
-  live: (()=>{ let ch=null; const subs=[], over=new Map();
+  //  SY.live.onRev(fn)   다른 컴퓨터에서 바뀜 (2026-11-23): 서버의 「바뀜 기다리기」(동작 wait · cloudflare/worker.js)가 답하면 fn() — 화면은 여기서 목록을 다시 받음 (약 1초 안)
+  //    브라우저 하나에서 창(탭 · 팝업) 하나만 서버에 묻고(Web Locks 'sy-watch'), 나머지 창에는 이 통로로 알림 → 창이 많아도 요청은 하나. 그 창을 닫으면 다른 창이 이어받음
+  //    서버가 예전 것이면(wait 를 모름) 조용히 그만둠 → 예전처럼 20~30초마다 받기만
+  live: (()=>{ let ch=null; const subs=[], over=new Map(), revSubs=[]; let watching=false;
+    const fireRev = () => revSubs.forEach(f=>{ try{ f(); }catch(_){} });
+    const sleep = ms => new Promise(r=>setTimeout(r, ms));
+    const watchLoop = async () => { let rev='', fail=0;
+      for(;;){
+        if(!SY.user()){ await sleep(5000); continue; }
+        const t0=Date.now();
+        try{ const j=await SY.callRaw({action:'wait', rev});
+          if(j && j.error==='bad_action') return;   // 예전 서버
+          if(!j || !j.ok){ await sleep(30000); continue; }
+          fail=0;
+          if(rev && j.rev!==rev){ fireRev(); try{ ch && ch.postMessage({t:'rev'}); }catch(_){} }
+          rev=j.rev||'';
+        }catch(_){ await sleep(Math.min(60000, 3000*(++fail))); continue; }
+        if(Date.now()-t0 < 400) await sleep(400);   // 너무 빨리 도는 것 막기
+      } };
+    const startWatch = () => { if(watching) return; watching=true;
+      if(navigator.locks && navigator.locks.request) navigator.locks.request('sy-watch', watchLoop).catch(()=>{}); else watchLoop(); };
     const idOf = m => m.t==='del' ? m.id : (m.item || {}).id;
     const take = m => { const id=idOf(m); if(!id) return false; over.set(id, {m, at:Date.now()}); return true; };
-    try{ ch=new BroadcastChannel('sy-live'); ch.onmessage = e => { const m=e.data; if(!m || !take(m)) return; subs.forEach(f=>{ try{ f(m); }catch(_){} }); }; }catch(_){ ch=null; }
+    try{ ch=new BroadcastChannel('sy-live'); ch.onmessage = e => { const m=e.data; if(m && m.t==='rev'){ fireRev(); return; } if(!m || !take(m)) return; subs.forEach(f=>{ try{ f(m); }catch(_){} }); }; }catch(_){ ch=null; }
     const patch = async m => { try{ const st=await SY.idb.get('sy_list_v1'); if(!st || !Array.isArray(st.items)) return; const id=idOf(m), i=st.items.findIndex(x=>x.id===id);
       if(m.t==='del'){ if(i<0) return; st.items.splice(i,1); } else { const it={...m.item}; delete it._pending; if(i>=0) st.items[i]={...st.items[i], ...it}; else st.items.push(it); }
       await SY.idb.set('sy_list_v1', st); }catch(_){} };
     return {
       post: m => { if(!take(m)) return; try{ ch && ch.postMessage(JSON.parse(JSON.stringify(m))); }catch(_){} patch(m); },
       on: f => { subs.push(f); },
+      onRev: f => { revSubs.push(f); startWatch(); },
       apply: items => { if(!over.size) return items; const now=Date.now(), map=new Map((items||[]).map(x=>[x.id, x]));
         over.forEach((o, id)=>{ const s=map.get(id), stamp = s ? String(s.updated||'') : null;
           if(o.base===undefined) o.base=stamp;

@@ -1744,6 +1744,7 @@ function merged(){
   return SY.live.apply([...m.values()]);   // 다른 화면이 방금 저장 · 삭제한 기록 (바로 알리기 · js/common.js SY.live, 2026-11-23)
 }
 // 다른 화면(다른 탭 · 나의 할일 팝업 · 개인고객 화면)이 기록을 저장 · 삭제하면 그 순간 받아 다시 그림 (2026-11-23) — 서버에서 다시 받기(30초마다)를 기다리지 않음
+SY.live.onRev(()=>{ if(BOOK_GUEST) return; if(pending.length) flush(); else pull(); if(typeof loadMyQuoteReq==='function') loadMyQuoteReq(); });   // 다른 컴퓨터에서 바뀜 → 바로 다시 받음 (바뀐 줄만)
 let liveT=0;
 SY.live.on(m=>{ const id = m.t==='del' ? m.id : m.item.id; cache=merged(); clearTimeout(liveT);
   liveT=setTimeout(()=>{ if(!window.__tasksReady) return;

@@ -56,6 +56,7 @@ function put(item){
   SY.live.post({t:'put', item});   // 다른 화면(나의 할일 팝업 · 첫 화면 · 단체 화면)에 바로 (js/common.js SY.live, 2026-11-23)
   renderLists(); paintSync(); flush(); paintMyCount();
 }
+SY.live.onRev(()=>{ pull(); });   // 다른 컴퓨터에서 바뀜 → 바로 다시 받음 (2026-11-23)
 // 다른 화면(나의 할일 팝업 등)이 개인고객 통화를 고치면(과업 체크) 그 순간 받아 다시 그림 (2026-11-23)
 SY.live.on(m=>{ try{
   if(m.t==='del'){ const n=items.length; items=items.filter(x=>x.id!==m.id); if(items.length!==n){ writeJSON(CACHE_LS, items.slice(-500)); renderLists(); paintMyCount(); } return; }
