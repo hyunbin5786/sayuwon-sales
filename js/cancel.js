@@ -75,7 +75,12 @@
     }
     return out;
   }
-  const fileLinks = (files, rmAttr) => (files||[]).map((f,i)=>`<span class="cx-file"><a href="${esc(f.url)}" target="_blank" rel="noopener" title="${esc(f.name||"증빙 서류")} — 새 창에서 보기">📎 ${esc(f.name||'증빙 서류')}</a>${rmAttr?`<button type="button" ${rmAttr}="${i}" title="이 파일 빼기">×</button>`:''}</span>`).join('');
+  // 파일 주소 끝에 화면에 보이는 이름을 붙임 (2026-11-23): 브라우저가 탭 제목 · 저장할 때 파일 이름을 주소 끝(원래는 fxxxx 코드)에서 가져가기 때문.
+  //  서버가 /file/<id>/<이름> 을 받을 때(api 8 이상)만 붙임 — 서버를 다시 배포하기 전에는 예전 주소 그대로
+  let fileApi=0;
+  fetch(SY.API_URL||SY_BACKEND.API_URL).then(r=>r.json()).then(j=>{ fileApi=+j.api||0; if(fileApi>=8){ render(); syncDoc(); } }).catch(()=>{});
+  const fileHref = f => fileApi>=8 && /\/file\/[A-Za-z0-9_-]+$/.test(f.url||'') && f.name ? `${f.url}/${encodeURIComponent(f.name)}` : (f.url||'');
+  const fileLinks = (files, rmAttr) => (files||[]).map((f,i)=>`<span class="cx-file"><a href="${esc(fileHref(f))}" target="_blank" rel="noopener" title="${esc(f.name||"증빙 서류")} — 새 창에서 보기">📎 ${esc(f.name||'증빙 서류')}</a>${rmAttr?`<button type="button" ${rmAttr}="${i}" title="이 파일 빼기">×</button>`:''}</span>`).join('');
 
   // ---------- 탭 없음 (2026-11-23): 1열 취소 요청하기 · 2열 요청 목록이 늘 함께 보임 ----------
   const toForm = () => { const y=$('#pReq').getBoundingClientRect().top; if(y<0 || y>innerHeight*0.5) $('#pReq').scrollIntoView({behavior:'smooth', block:'start'}); };

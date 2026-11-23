@@ -520,8 +520,9 @@ export default {
     const url = new URL(request.url);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     if (request.method === 'GET') {
-      const m = url.pathname.match(/^\/file\/([a-zA-Z0-9_-]{8,80})$/);
-      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 7, db: 'd1' });
+      // 2026-11-23: /file/<id>/<보이는 이름> 도 받음 — 브라우저는 탭 제목 · 저장 이름을 주소 끝에서 가져가므로 화면에 보이는 이름을 주소 끝에 붙임 (뒤 이름은 무시하고 id 로 찾음)
+      const m = url.pathname.match(/^\/file\/([a-zA-Z0-9_-]{8,80})(?:\/[^/]*)?$/);
+      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 8, db: 'd1' });   // api 8 = /file/<id>/<이름> 받음
       const f = await readFile(env, m[1]);
       if (!f || f.kind !== 'doc') return new Response('파일이 없습니다', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       const bin = atob(f.data), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
