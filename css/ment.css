@@ -72,7 +72,7 @@ main{max-width:1760px}
 @media (max-width:700px){ .m-star:not(.on){visibility:hidden} .m-star{pointer-events:none} }
 /* 컴퓨터 2열 (2026-11-23): 1열 = 제목 목록 (순서 · ★ · ⠿) · 2열 = 고른 멘트의 글 전체 + 올린 이미지. 휴대폰(700px 이하)은 위의 예전 모양 그대로 */
 @media (min-width:701px){
-  .ment-list.md{grid-template-columns:minmax(230px,320px) minmax(0,1fr);gap:18px;align-items:start}
+  .ment-list.md{grid-template-columns:minmax(230px,320px) minmax(0,700px);justify-content:center;gap:18px;align-items:start}   /* 2열(내용) 너비를 절반으로 · 가운데 (2026-11-23 · 예전 1fr = 약 1,400px) */
   .m-nav{display:flex;flex-direction:column;gap:4px;max-height:calc(100vh - 200px);overflow-y:auto;position:sticky;top:64px;padding:2px 4px 2px 2px}
   .m-nav .ment{flex-direction:row;align-items:center;gap:6px;padding:8px 10px;border-radius:8px;cursor:pointer}
   .m-nav .ment:hover{border-color:var(--pine)}
