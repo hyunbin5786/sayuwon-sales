@@ -1,5 +1,5 @@
 // ===== 로컬 미리보기 전용: 새 서버(Cloudflare Worker) 코드를 브라우저 안에서 돌려 보기 (2026-11-23) =====
-// localhost 에서 주소 끝에 ?mock=cf 를 한 번 붙이면 켜짐 (끄기 ?mock=0 · 예전 가짜 서버는 ?mock=1). js/common.js 맨 아래가 이 파일을 읽음
+// localhost 에서 주소 끝에 ?mock=1 을 한 번 붙이면 켜짐 (끄기 ?mock=0). js/common.js 맨 아래가 이 파일을 읽음. (손으로 흉내 낸 가짜 서버 js/devmock.js 는 2026-11-23에 없앰 — 진짜 서버 코드를 돌리는 이쪽 하나로)
 //  - cloudflare/worker.js (진짜 서버 코드) 를 그대로 불러와, cloudflare/schema.sql 로 만든 SQLite DB(sql.js) 에 붙여 돌림
 //    → 서버에 올리기 전에 「화면 + 서버 코드 + SQL」이 맞물리는지 확인. Cloudflare D1 의 제한(값 하나 2MB · 묶는 값 100개 · 요청 하나에 쿼리 50번)도 넘으면 오류를 냄
 //  - DB 는 이 브라우저 localStorage 'sy_cf_db' 에만 (지우기: SY_CF.reset()). 처음엔 멤버 테스트 / T001 · 김영업 / T002 와 가상 예약
@@ -50,12 +50,10 @@
     return JSON.parse(r && r.__raw ? r.__raw : JSON.stringify(r)); };
   SY_BACKEND.main = call;
   SY_BACKEND.beacon = body => { call(body); };
-  SY_BACKEND.quoteGet = query => { const p = new URLSearchParams(query || ''); return call(SY.sign({ action: 'quoteGet', history: p.get('history') ? 1 : 0, limit: +p.get('limit') || 0 })); };   // devmock 의 가짜 견적서 서버 대신 서버 코드로
-  SY_BACKEND.quotePost = body => call(SY.sign({ ...body, action: 'quotePost' }));
   window.SY_CF = { log, ready, env, q0(){ queries = 0; },   // q0: 서버 코드를 직접 부르는 시험에서 쿼리 수 세기를 0으로
 
     sql: (s, a) => { const st = db.prepare(s); st.bind(a || []); const o = []; while (st.step()) o.push(st.getAsObject()); st.free(); return o; },
     reset(){ localStorage.removeItem(LS); localStorage.removeItem(VER); try { indexedDB.deleteDatabase('sayuwon'); } catch (_) {} location.reload(); } };
   console.info('[cf] js/devcf.js — cloudflare/worker.js 를 브라우저 SQLite 로 돌리는 중 (진짜 서버에는 쓰지 않음 · 끄기 ?mock=0)');
-  document.addEventListener('DOMContentLoaded', () => { const b = [...document.body.children].find(x => x.textContent === '가짜 서버 (시험용)'); if (b) { b.textContent = '새 서버 코드 시험 (로컬 SQLite)'; b.style.background = '#1d4ed8'; } });
+  document.addEventListener('DOMContentLoaded', () => { const b = document.createElement('div'); b.textContent = '시험용 (로컬 SQLite · 진짜 DB 아님)'; b.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:9999;background:#1d4ed8;color:#fff;font:12px sans-serif;padding:3px 8px;border-radius:4px;opacity:.85;pointer-events:none'; document.body.appendChild(b); });
 })();

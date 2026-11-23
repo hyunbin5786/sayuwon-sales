@@ -65,7 +65,7 @@ $('#readback').addEventListener('blur', ()=>{ if(!rec.readDone && $('#readback')
 $('#readRegen').onclick=()=>{ rec.readEdit=''; rec.readDone=''; touched.add('readDone'); renderSide(); toast('예약 내용으로 멘트를 다시 만들었습니다.'); };
 $('#readDone').addEventListener('change', e=>{ rec.readDone = e.target.checked ? new Date().toISOString() : ''; if(e.target.checked) rec.readEdit=''; touched.add('readDone'); startTimer(); renderSide(); });
 
-// ===================== 저장: 구글 시트(Apps Script) → 주소가 비어 있으면 이 브라우저 =====================
+// ===================== 저장: 공유 DB (서버 요청은 SY.call · 끊긴 사이 저장한 것은 대기열에 모았다가 다시 보냄) =====================
 // 서버로 가는 요청은 모두 SY.call (js/common.js). 예전의 「공유 주소가 없으면 이 브라우저에만 저장」 방식은 없앰 (2026-11-23 · 주소는 늘 있음)
 const PEND_LS='sayuwon_intake_pending', CACHE_LS='sayuwon_intake_cache';
 const readJSON=SY.readJSON;
@@ -107,7 +107,7 @@ function paintSync(){
   paintDbTime();
   $('#storeHint').textContent = syncState==='ok' ? '공유 DB에 저장 · 모두가 같은 목록을 봅니다' : syncState==='needkey' ? '로그인을 확인하지 못했습니다 · 첫 화면에서 다시 로그인' : syncState==='error' ? '연결이 안 돼 이 브라우저에 모아 두었다가 다시 올립니다' : '불러오는 중…';
 }
-// 구글 시트(Apps Script) DB에 마지막으로 저장된 시각 (이 브라우저에서 올린 것) · 마지막으로 받아 온 시각
+// 공유 DB에 마지막으로 저장된 시각 (이 브라우저에서 올린 것) · 마지막으로 받아 온 시각
 var DBT_LS = 'sayuwon_db_time';   // var: paintSync가 먼저 불려도 되게
 var dbTime = readJSON(DBT_LS, {});
 const markDb = k => { dbTime[k]=new Date().toISOString(); writeJSON(DBT_LS, dbTime); paintDbTime(); };
@@ -133,7 +133,7 @@ function handleErr(e){
 // 예약 현황 공유를 로그인 없이 볼 때 (2026-11-21 · 담당자 휴대폰): 그 목록에 필요한 칸만 받는 bookList (고객 연락처 · 메모 · 수정 기록 없음)
 async function bookPull(){
   try{ const j=await SY.callRaw({action:'bookList'});
-    if(!j.ok){ syncState='error'; lastSyncErr = j.error==='bad_action' || j.error==='bad_key' ? '서버(Apps Script)를 새 버전으로 배포해야 로그인 없이 볼 수 있습니다' : String(j.error||''); paintSync(); if($('#bookSum')) $('#bookSum').textContent=lastSyncErr; return; }
+    if(!j.ok){ syncState='error'; lastSyncErr = String(j.error||''); paintSync(); if($('#bookSum')) $('#bookSum').textContent=lastSyncErr; return; }
     serverItems=j.items||[]; cache=merged(); syncState='ok'; paintSync(); renderDayAll(); if(!$('#bookModal').hidden) paintBook(); }
   catch(e){ syncState='error'; lastSyncErr='인터넷 연결'; paintSync(); }
 }

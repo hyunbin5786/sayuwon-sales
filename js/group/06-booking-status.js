@@ -99,7 +99,7 @@ function paintTrash(){
 }
 async function openTrash(){ $('#trashModal').hidden=false; $('#trashSearch').value=''; trashItems=null; trashErr=''; paintTrash();
   try{ const j=await SY.call({action:'deleted'}); trashItems=j.items||[]; }
-  catch(e){ trashErr = e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 삭제된 예약이 보입니다 (apps-script/group-intake.gs 의 deleted).' : '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
+  catch(e){ trashErr = '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
   paintTrash(); }
 $('#trashBtn').onclick=openTrash;
 $('#trashClose').onclick=()=>{ $('#trashModal').hidden=true; };
@@ -231,7 +231,7 @@ async function bookAddSave(){
     try{ localStorage.setItem('sy_guest_name', by); }catch(_){}
     const row = c==='mb' ? {d, t:tm, n:org, p:String(ppl), m:v('baItem')} : {cat:c, d, org, ppl:String(ppl), tm, place:c==='rent'?v('baPlace'):'', kind:c==='docent'?v('baKind'):'', item:(c==='prog'||c==='coupon')?v('baItem'):'', staff:v('baStaff'), note:v('baNote')};
     try{ const j=await SY.callRaw({action:'bookAdd', db: c==='mb'?MBDB_ID:BKDB_ID, row, by});
-      if(!j.ok){ toast(j.error==='bad_action' || j.error==='bad_key' ? '서버(Apps Script)를 새 버전으로 배포해야 로그인 없이 추가할 수 있습니다.' : '추가하지 못했습니다: '+j.error, 4000); return false; } }
+      if(!j.ok){ toast('추가하지 못했습니다: '+j.error, 4000); return false; } }
     catch(e){ toast('추가하지 못했습니다 (인터넷 연결). 잠시 뒤 다시 눌러 주세요.'); return false; }
     await bookPull(); toast(`${c==='mb'?'몽몽마방':BOOK_CATS[c]} 예약을 추가했습니다 (${by}).`); return true; }
   if(c==='mb'){ if(!ppl){ toast('인원을 적어 주세요.'); $('#baPpl').focus(); return false; }

@@ -2397,9 +2397,9 @@
     if(histFocus) groups = groups.filter(function(g){ return g.versions.some(histFocusHit); });
     if(q) groups = groups.filter(function(g){ return g.versions.some(function(h){ return [h.client, h.sender, h.doc, fmtAt(h.at)].join(" ").toLowerCase().indexOf(q) >= 0; }); });
     document.getElementById("hist-count").textContent = "· 문서 " + groupVersions(all).length + "건 (발급 " + all.length + "번)";
-    var st = histServer === false ? "⚠ 공유 저장소(Apps Script)를 업데이트해야 다른 사람과 공유됩니다. 지금은 이 브라우저에 보관 중입니다."
+    var st = histServer === false ? "⚠ 서버에 저장하지 못했습니다 (로그인이 확인되지 않았거나 연결이 끊김). 지금은 이 브라우저에 보관 중입니다."
       : histServer ? "공유 내역입니다. 누가 발급해도 모두에게 보입니다." : "불러오는 중…";
-    if(cancelServer === false && histCancel.length) st += " ⚠ 발급 취소를 다른 사람과 공유하려면 Apps Script를 새 버전으로 다시 배포해야 합니다 (지금은 이 브라우저에만 표시).";
+    if(cancelServer === false && histCancel.length) st += " ⚠ 발급 취소를 서버에 저장하지 못했습니다 (지금은 이 브라우저에만 표시).";
     document.getElementById("hist-status").textContent = st;
     document.getElementById("hist-body").innerHTML = groups.length ? groups.map(function(g){
       var vs = g.versions, h = vs.filter(function(x){ return x.id === selVer[g.root]; })[0] || vs[0];
@@ -2633,7 +2633,7 @@
   function reqErrText(e){
     var c = e && e.code;
     if(c === "bad_key") return "로그인 정보를 확인할 수 없습니다. 첫 화면에서 다시 로그인해 주세요.";
-    if(c === "bad_action") return "공유 기록 Apps Script를 새 버전으로 배포해야 고객 견적 요청을 볼 수 있습니다.";
+    if(c === "too_many") return "틀린 로그인이 여러 번 이어져 서버가 잠시 막았습니다. 15분쯤 뒤에 다시 됩니다.";
     return "고객 견적 요청을 불러오지 못했습니다 (" + (e && e.message || e) + ").";
   }
   function reqDateDisp(v){ if(!v) return ""; var t = new Date(v + "T00:00"); return isNaN(t) ? v : v + " (" + "일월화수목금토"[t.getDay()] + ")"; }

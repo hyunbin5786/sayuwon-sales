@@ -7,12 +7,11 @@
 //   SY.callRaw(body)  같은 요청, 던지지 않고 응답 그대로 (로그인 확인처럼 ok:false 도 직접 보는 곳)
 //   SY.beacon(body)   창을 닫는 순간에 보내는 요청 (고치는 중 표시 풀기) — 응답을 기다리지 않음
 //   SY.quote.get(query) · SY.quote.post(body)   견적서 서버 (품목 목록 · 발급 내역 — 다른 Apps Script)
-//  모든 요청에 로그인(이름 + 사번 = who)과 예전 팀 비밀번호(key · 기억해 둔 브라우저만)를 붙임 → 서버가 멤버 목록으로 확인
+//  모든 요청에 로그인(이름 + 사번 = who)을 붙임 → 서버가 멤버 목록으로 확인 (예전 팀 비밀번호 key 는 2026-11-23에 완전히 없앰)
 //
-//  로컬 미리보기에서 진짜 시트에 쓰지 않고 시험하기: 주소 끝에 ?mock=1 (끄기 ?mock=0) → js/devmock.js 가 가짜 서버가 됨 (localhost 에서만 · README 13절)
+//  로컬 미리보기에서 진짜 DB 에 쓰지 않고 시험하기: 주소 끝에 ?mock=1 (끄기 ?mock=0) → js/devcf.js 가 서버 코드(cloudflare/worker.js)를 브라우저 안 SQLite 로 돌림 (localhost 에서만 · README 13절)
 const SY_BACKEND = {
   API_URL:   "https://sayuwon-api.serendipity5786-9e7.workers.dev/",   // 공유 기록 (cloudflare/worker.js · 2026-11-23 구글 시트에서 옮김 · 되돌릴 때: https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec)
-  QUOTE_URL: "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec",   // (예전) 견적서 품목 목록 · 발급 내역 Apps Script — 이제 쓰지 않음 (tools/migrate.html 이 옮길 때 읽음 · 예전 견적서 사이트 sayuwon-invoice-quotation 은 아직 이 주소를 씀)
   // Content-Type 을 붙이지 않아야 Apps Script 로 사전 확인(preflight) 요청 없이 바로 감
   main(body){ return fetch(this.API_URL, {method:'POST', body:JSON.stringify(body)}).then(r=>r.json()); },
   beacon(body){ const s=JSON.stringify(body); try{ if(navigator.sendBeacon && navigator.sendBeacon(this.API_URL, s)) return; }catch(_){} fetch(this.API_URL, {method:'POST', body:s, keepalive:true}).catch(()=>{}); },
@@ -22,13 +21,11 @@ const SY_BACKEND = {
 };
 const SY = Object.freeze({
   API_URL: SY_BACKEND.API_URL,
-  KEY_LS: 'sayuwon_intake_key',
   USER_LS: 'sy_user',
   DOW: '일월화수목금토',
   // ---- 서버 요청 ----
-  // 요청에 로그인 · 예전 팀 비밀번호를 붙임 (이미 who 가 있으면 그대로)
-  sign: body => { const b={...body}, u=SY.user(); let k=''; try{ k=localStorage.getItem(SY.KEY_LS)||''; }catch(_){}
-    if(k && b.key==null) b.key=k; if(u && !b.who) b.who={name:u.name, emp:u.emp}; return b; },
+  // 요청에 로그인을 붙임 (이미 who 가 있으면 그대로)
+  sign: body => { const b={...body}, u=SY.user(); if(u && !b.who) b.who={name:u.name, emp:u.emp}; return b; },
   callRaw: body => SY_BACKEND.main(SY.sign(body)),
   call: async body => { const j=await SY_BACKEND.main(SY.sign(body)); if(!j || !j.ok){ const e=new Error((j && j.error)||'error'); e.code=j && j.error; throw e; } return j; },
   beacon: body => SY_BACKEND.beacon(SY.sign(body)),
@@ -40,8 +37,8 @@ const SY = Object.freeze({
   // 브라우저 저장소 (막혀 있으면 기본값 · 조용히 넘어감)
   readJSON: (k, d) => { try{ const v=JSON.parse(localStorage.getItem(k)); return v==null ? d : v; }catch(_){ return d; } },
   writeJSON: (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(_){} },
-  // 서버 확인용 값: 예전 팀 비밀번호(있으면) — 없으면 로그인 표시('login')로 「연결됨」처럼 다룸 (2026-11-21 · 실제 확인은 서버가 로그인으로)
-  getKey: () => { try{ const k=localStorage.getItem('sayuwon_intake_key'); if(k) return k; const u=JSON.parse(localStorage.getItem('sy_user')||'null'); return u && u.name && u.emp ? 'login' : ''; }catch(_){ return ''; } },
+  // 서버를 쓸 수 있는 상태인지 (= 로그인했는지). 이름은 예전 팀 비밀번호 때의 것 — 로그인했으면 'login', 아니면 ''
+  getKey: () => SY.user() ? 'login' : '',
   // 서버가 「확인 안 됨」(bad_key)이면: 팀 비밀번호를 묻지 않고, 로그인을 다시 하도록 안내
   authFail: () => '로그인 정보를 확인할 수 없습니다. 첫 화면에서 다시 로그인해 주세요 (멤버 목록에 이름 · 사번이 있어야 합니다).',
   user: () => { try{ const u=JSON.parse(localStorage.getItem('sy_user')||'null'); return u && u.name && u.emp ? u : null; }catch(_){ return null; } },
@@ -84,13 +81,13 @@ const SY = Object.freeze({
   // ===== 공유 기록 목록 (2026-11-21): 모든 화면이 같이 쓰는 사본 + 바뀐 것만 받기 =====
   //  예전: 화면마다 열 때 · 20~30초마다 시트 전체(최대 2,000줄 · 수정 기록 포함)를 통째로 받음 → 몇 초씩
   //  지금: 전체 사본은 IndexedDB 한 곳(모든 화면 · 창이 같이 씀). 서버가 api 5 이상이면 마지막으로 받은 뒤 바뀐 줄만 받아 합침
-  //        (90초 겹쳐 받음 · 30분마다 한 번은 전체로 다시 맞춤). 서버가 예전 버전이면 예전처럼 전체
+  //        (90초 겹쳐 받음 · 30분마다 한 번은 전체로 다시 맞춤)
   //  SY.list() → {ok, items, admin, ...} (예전 callApi({action:'list'}) 와 같은 모양) · SY.listCached() → 사본 items (없으면 null)
   listCached: async () => { const st=await SY.idb.get('sy_list_v1'); return st && Array.isArray(st.items) ? st.items : null; },
   list: (()=>{ let inflight=null;
     const go = async (full) => {
       const st=await SY.idb.get('sy_list_v1'), now0=Date.now();
-      const delta = !full && st && Array.isArray(st.items) && st.api>=5 && st.since && now0-(st.fullAt||0) < 30*60000;
+      const delta = !full && st && Array.isArray(st.items) && st.since && now0-(st.fullAt||0) < 30*60000;
       const body={action:'list'}; if(delta) body.since=new Date(Date.parse(st.since)-90000).toISOString();
       const j=await SY.call(body);
       let items;
@@ -102,11 +99,10 @@ const SY = Object.freeze({
     // fresh: 방금 저장한 뒤 다시 받을 때 (이미 가고 있는 요청을 같이 쓰지 않음)
     return (opt={}) => { if(inflight && !opt.full && !opt.fresh) return inflight; const p=go(!!opt.full).finally(()=>{ if(inflight===p) inflight=null; }); inflight=p; return p; }; })(),
 });
-// ===== 로컬 미리보기 전용 (운영 주소에서는 절대 읽지 않음) — localhost 에서 주소 끝에 한 번 붙이면 그 브라우저에 기억 =====
-//   ?mock=1  가짜 서버 (js/devmock.js)   ·   ?mock=cf  새 서버 코드 cloudflare/worker.js 를 브라우저 SQLite 로 (js/devcf.js)   ·   ?mock=0  끄기
+// ===== 로컬 미리보기 전용 (운영 주소에서는 절대 읽지 않음) — localhost 에서 주소 끝에 ?mock=1 을 한 번 붙이면 그 브라우저에 기억 (끄기 ?mock=0) =====
+//   js/devcf.js 가 서버 코드 cloudflare/worker.js 를 브라우저 안 SQLite 로 돌림 → 진짜 DB 에는 아무것도 가지 않음
 (function(){ if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
-  try{ const q=new URLSearchParams(location.search).get('mock'); if(q==='1' || q==='cf') localStorage.setItem('sy_mock', q); if(q==='0') localStorage.removeItem('sy_mock');
-    const m=localStorage.getItem('sy_mock'), me=document.currentScript && document.currentScript.src; if(!me || (m!=='1' && m!=='cf')) return;
-    const tag = f => '<script src="'+me.replace(/common\.js.*$/, f)+'"><\/script>';
-    document.write(tag('devmock.js') + (m==='cf' ? tag('devcf.js') : ''));
+  try{ const q=new URLSearchParams(location.search).get('mock'); if(q==='1' || q==='cf') localStorage.setItem('sy_mock', '1'); if(q==='0') localStorage.removeItem('sy_mock');
+    const m=localStorage.getItem('sy_mock'), me=document.currentScript && document.currentScript.src; if(!me || !m) return;
+    document.write('<script src="'+me.replace(/common\.js.*$/, 'devcf.js')+'"><\/script>');
   }catch(_){} })();

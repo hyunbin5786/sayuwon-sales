@@ -22,7 +22,7 @@ function paint(){
     if($('#quoteLink')) $('#quoteLink').href = QUOTE;
     $('#setupBar').hidden = !u.setup;
     $('#setupBar').textContent = u.setup==='empty' ? '아직 등록된 멤버가 없어 누구나 로그인할 수 있습니다. 「관리 › 멤버관리」에서 직원(본인 포함)을 추가하면 그때부터 이름 · 사번을 확인합니다.'
-      : u.setup==='old' ? '공유 저장소(Apps Script)가 아직 예전 버전이라 이름 · 사번을 확인하지 못했습니다. 새 버전으로 배포하면 확인합니다.' : '';
+      : '';
     if(location.hash==='#catalog') openCatalog();
     if(view==='members') loadMembers();
     if(view==='menu') setTimeout(()=>loadDash(), 0);   // 대시보드: 저장해 둔 것을 바로 그리고 새로 받음 (스크립트를 다 읽은 뒤)
@@ -46,7 +46,6 @@ $('#loginForm').addEventListener('submit', async e=>{
   let setup='';
   if(j.ok && j.member) setup = j.empty ? 'empty' : '';
   else if(j.ok){ err.textContent='이름과 사번이 맞지 않습니다. 다시 확인해 주세요.'; $('#inEmp').select(); return; }
-  else if(j.error==='bad_action') setup='old';   // 서버가 예전 버전 (로그인 확인 기능 없음) → 막지 않음
   else if(j.error==='too_many'){ err.textContent='틀린 로그인이 여러 번 이어져 잠시 막혔습니다. 15분쯤 뒤에 다시 해 주세요.'; return; }
   else { err.textContent='확인하지 못했습니다: '+(j.error||''); return; }
   setLS(USER_KEY, JSON.stringify({name, emp, at:new Date().toISOString(), setup}));
@@ -81,7 +80,7 @@ async function memberCall(body){
   let j=null; try{ j=await SY.callRaw(body); }catch(_){}
   if(!j){ $('#memberErr').textContent='연결하지 못했습니다. 잠시 뒤 다시 해 주세요.'; return null; }
   if(j.error==='bad_key'){ $('#memberBody').hidden=true; $('#memberKey').hidden=false; $('#memberKeyErr').textContent = ''; return null; }
-  if(j.error==='bad_action' || (j.ok && !j.members)){ $('#memberErr').textContent='공유 저장소(Apps Script)를 새 버전으로 배포해야 멤버관리를 쓸 수 있습니다.'; $('#memberBody').hidden=false; $('#memberKey').hidden=true; return null; }
+  if(j.error==='bad_action' || (j.ok && !j.members)){ $('#memberErr').textContent='멤버 목록을 받지 못했습니다: '+(j.error||''); $('#memberBody').hidden=false; $('#memberKey').hidden=true; return null; }
   if(!j.ok){ $('#memberErr').textContent='실패했습니다: '+(j.error||''); return null; }
   $('#memberKey').hidden=true; $('#memberBody').hidden=false;
   members=j.members||[]; paintMembers(); return j;

@@ -1268,7 +1268,7 @@ function paintTrash(){
 }
 async function openTrash(){ $('#trashModal').hidden=false; $('#trashSearch').value=''; trashItems=null; trashErr=''; paintTrash();
   try{ const j=await SY.call({action:'deleted'}); trashItems=j.items||[]; }
-  catch(e){ trashErr = e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 삭제된 예약이 보입니다 (apps-script/group-intake.gs 의 deleted).' : '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
+  catch(e){ trashErr = '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
   paintTrash(); }
 $('#trashBtn').onclick=openTrash;
 $('#trashClose').onclick=()=>{ $('#trashModal').hidden=true; };
@@ -1400,7 +1400,7 @@ async function bookAddSave(){
     try{ localStorage.setItem('sy_guest_name', by); }catch(_){}
     const row = c==='mb' ? {d, t:tm, n:org, p:String(ppl), m:v('baItem')} : {cat:c, d, org, ppl:String(ppl), tm, place:c==='rent'?v('baPlace'):'', kind:c==='docent'?v('baKind'):'', item:(c==='prog'||c==='coupon')?v('baItem'):'', staff:v('baStaff'), note:v('baNote')};
     try{ const j=await SY.callRaw({action:'bookAdd', db: c==='mb'?MBDB_ID:BKDB_ID, row, by});
-      if(!j.ok){ toast(j.error==='bad_action' || j.error==='bad_key' ? '서버(Apps Script)를 새 버전으로 배포해야 로그인 없이 추가할 수 있습니다.' : '추가하지 못했습니다: '+j.error, 4000); return false; } }
+      if(!j.ok){ toast('추가하지 못했습니다: '+j.error, 4000); return false; } }
     catch(e){ toast('추가하지 못했습니다 (인터넷 연결). 잠시 뒤 다시 눌러 주세요.'); return false; }
     await bookPull(); toast(`${c==='mb'?'몽몽마방':BOOK_CATS[c]} 예약을 추가했습니다 (${by}).`); return true; }
   if(c==='mb'){ if(!ppl){ toast('인원을 적어 주세요.'); $('#baPpl').focus(); return false; }
@@ -1712,7 +1712,7 @@ $('#readback').addEventListener('blur', ()=>{ if(!rec.readDone && $('#readback')
 $('#readRegen').onclick=()=>{ rec.readEdit=''; rec.readDone=''; touched.add('readDone'); renderSide(); toast('예약 내용으로 멘트를 다시 만들었습니다.'); };
 $('#readDone').addEventListener('change', e=>{ rec.readDone = e.target.checked ? new Date().toISOString() : ''; if(e.target.checked) rec.readEdit=''; touched.add('readDone'); startTimer(); renderSide(); });
 
-// ===================== 저장: 구글 시트(Apps Script) → 주소가 비어 있으면 이 브라우저 =====================
+// ===================== 저장: 공유 DB (서버 요청은 SY.call · 끊긴 사이 저장한 것은 대기열에 모았다가 다시 보냄) =====================
 // 서버로 가는 요청은 모두 SY.call (js/common.js). 예전의 「공유 주소가 없으면 이 브라우저에만 저장」 방식은 없앰 (2026-11-23 · 주소는 늘 있음)
 const PEND_LS='sayuwon_intake_pending', CACHE_LS='sayuwon_intake_cache';
 const readJSON=SY.readJSON;
@@ -1754,7 +1754,7 @@ function paintSync(){
   paintDbTime();
   $('#storeHint').textContent = syncState==='ok' ? '공유 DB에 저장 · 모두가 같은 목록을 봅니다' : syncState==='needkey' ? '로그인을 확인하지 못했습니다 · 첫 화면에서 다시 로그인' : syncState==='error' ? '연결이 안 돼 이 브라우저에 모아 두었다가 다시 올립니다' : '불러오는 중…';
 }
-// 구글 시트(Apps Script) DB에 마지막으로 저장된 시각 (이 브라우저에서 올린 것) · 마지막으로 받아 온 시각
+// 공유 DB에 마지막으로 저장된 시각 (이 브라우저에서 올린 것) · 마지막으로 받아 온 시각
 var DBT_LS = 'sayuwon_db_time';   // var: paintSync가 먼저 불려도 되게
 var dbTime = readJSON(DBT_LS, {});
 const markDb = k => { dbTime[k]=new Date().toISOString(); writeJSON(DBT_LS, dbTime); paintDbTime(); };
@@ -1780,7 +1780,7 @@ function handleErr(e){
 // 예약 현황 공유를 로그인 없이 볼 때 (2026-11-21 · 담당자 휴대폰): 그 목록에 필요한 칸만 받는 bookList (고객 연락처 · 메모 · 수정 기록 없음)
 async function bookPull(){
   try{ const j=await SY.callRaw({action:'bookList'});
-    if(!j.ok){ syncState='error'; lastSyncErr = j.error==='bad_action' || j.error==='bad_key' ? '서버(Apps Script)를 새 버전으로 배포해야 로그인 없이 볼 수 있습니다' : String(j.error||''); paintSync(); if($('#bookSum')) $('#bookSum').textContent=lastSyncErr; return; }
+    if(!j.ok){ syncState='error'; lastSyncErr = String(j.error||''); paintSync(); if($('#bookSum')) $('#bookSum').textContent=lastSyncErr; return; }
     serverItems=j.items||[]; cache=merged(); syncState='ok'; paintSync(); renderDayAll(); if(!$('#bookModal').hidden) paintBook(); }
   catch(e){ syncState='error'; lastSyncErr='인터넷 연결'; paintSync(); }
 }
@@ -2313,7 +2313,7 @@ async function uploadFile(t, file){
     upBusy=false; renderTasks(); autoSave();
   }catch(e){
     upBusy=false; renderTasks();
-    toast(e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 올릴 수 있습니다.' : '올리지 못했습니다: '+e.message);
+    toast('올리지 못했습니다: '+e.message);
   }
 }
 $('#taskList').addEventListener('change', e=>{
@@ -2553,7 +2553,7 @@ $('#adminSyncBtn').onclick=async()=>{
     toast(`가져왔습니다 · 15명 이상 ${j.result.big}건 중 새로 ${j.result.added}건 등록`);
     await pull();
   }catch(e){
-    toast(e.code==='bad_action' ? 'Apps Script를 새 버전으로 다시 배포해야 합니다.' : '가져오지 못했습니다: '+e.message);
+    toast('가져오지 못했습니다: '+e.message);
   }finally{ b.disabled=false; b.textContent='관리자 사이트에서 지금 가져오기'; }
 };
 

@@ -4,7 +4,14 @@
 //   응답: { ok:true, … } 또는 { ok:false, error }
 // 연결(바인딩): DB = D1 데이터베이스 (cloudflare/schema.sql 로 표를 만든 것)
 // 견적서 서버(품목 목록 · 발급 내역)도 여기에 (quoteGet · quotePost) · 틀린 로그인이 이어지면 그곳을 15분 막음 (too_many)
-// 비밀 값(Worker 설정 → 변수와 비밀): ADMIN_ID · ADMIN_PW (관리자 사이트 조회 계정) · MIGRATE_KEY (자료를 옮길 때만 · 끝나면 지움) · PASSCODE (예전 팀 비밀번호 · 없어도 됨)
+// 비밀 값(Worker 설정 → 변수와 비밀): MIGRATE_KEY (예전 서버에서 자료를 들여올 때만 · 끝나면 지움) · ADMIN_ID · ADMIN_PW (관리자 사이트 자동 가져오기를 쓸 때만)
+// ── 다른 DB(사내 DB 등)로 옮길 때 (README 20절) ──
+//   · 화면과의 약속은 api() 의 action 목록뿐 — 새 서버가 같은 요청에 같은 답을 주면 화면은 js/common.js 의 주소만 바꾸면 됨
+//   · 자료는 action 'export' 로 표마다 통째로 내려받음 (tools/export.html) — DB 종류와 상관없는 JSON
+//   · SQL 은 표준 문법만 쓰되, 아래 셋만 SQLite(D1) 방식이라 다른 DB 에서는 그 DB 문법으로 바꿈:
+//       ① 있으면 고치고 없으면 넣기  INSERT … ON CONFLICT(id) DO UPDATE  (MySQL: ON DUPLICATE KEY UPDATE · MSSQL/Oracle: MERGE)
+//       ② 없을 때만 넣기  INSERT OR IGNORE / INSERT OR REPLACE
+//       ③ 넣은 순서  rowid  (다른 DB: 자동 증가 번호 칸 seq 를 만들어 그 칸으로 정렬)
 // 파일(이미지 · PDF)도 같은 DB 에 저장 (files · file_chunks). 볼 때는 GET /file/<id> — id 가 길고 무작위라 주소를 아는 사람만 열 수 있음
 // 이 파일은 브라우저에서도 그대로 돌아감 (로컬 시험: js/devcf.js 가 SQLite 로 흉내 낸 DB 를 붙여 줌)
 
@@ -73,8 +80,9 @@ async function quotePost(env, req) {
   if ((req.history || []).length) { for (let i = 0; i < hist.length; i += 40) await env.DB.batch(hist.slice(i, i + 40).map(h => histStmt(env, h))); out.saved = req.history.length; }
   if ((req.cancel || []).length) { let done = 0;
     for (const c of req.cancel) { if (!c || !c.id) continue;
-      const r = await q(env, "UPDATE quote_history SET data=json_set(data, '$.canceled', ?1, '$.cancelNote', ?2) WHERE id=?3", String(c.canceled || ''), String(c.cancelNote || ''), String(c.id)).run();
-      if (r.meta && r.meta.changes) done++; }
+      const row = await q(env, 'SELECT data FROM quote_history WHERE id=?', String(c.id)).first(); if (!row) continue;
+      const h = JSON.parse(row.data); h.canceled = String(c.canceled || ''); h.cancelNote = String(c.cancelNote || '');
+      await q(env, 'UPDATE quote_history SET data=? WHERE id=?', JSON.stringify(h), String(c.id)).run(); done++; }
     out.canceled = done; }
   if ((out.saved != null || out.canceled != null) && !(req.ops || []).length) return out;
   let d = await readCatalog(env);
@@ -93,9 +101,8 @@ async function memberLogin(env, name, emp) {
   const n = normName(name), e = normEmp(emp);
   return { ok: true, member: list.some(m => normName(m.name) === n && normEmp(m.emp) === e) };
 }
-// 요청의 who = {name, emp} 가 멤버 목록에 있으면 OK (멤버가 한 명도 없으면 누구나 — 처음 설정용). 예전 팀 비밀번호(PASSCODE)도 통과
+// 요청의 who = {name, emp} 가 멤버 목록에 있으면 OK (멤버가 한 명도 없으면 누구나 — 처음 설정용)
 async function authOk(env, req) {
-  if (env.PASSCODE && String(req.key || '') === env.PASSCODE) return true;
   const w = req.who || {}, n = normName(w.name), e = normEmp(w.emp);
   if (!n || !e) return false;
   const list = await readMembers(env);
@@ -140,8 +147,9 @@ async function put(env, item) {
   return id;
 }
 async function del(env, id) {
-  const now = iso();
-  await q(env, "UPDATE calls SET deleted=?1, data=json_set(data, '$.deleted', ?1) WHERE id=?2", now, id).run();
+  const it = await getItem(env, id); if (!it) return id;   // 없는 id 는 그냥 성공처럼 (예전 서버와 같음)
+  it.deleted = iso();
+  await q(env, 'UPDATE calls SET deleted=?, data=? WHERE id=?', it.deleted, JSON.stringify(it), id).run();
   return id;
 }
 // 목록 응답은 저장해 둔 JSON 글자를 그대로 이어 붙임 (줄마다 풀었다 다시 싸지 않음 — 무료 요금제 CPU 10ms 안에 들어오게)
@@ -333,6 +341,17 @@ async function importData(env, req) {
   return out;
 }
 
+// 내려받기에 쓰는 SQL (표마다 · seq = 넣은 순서). 틀린 로그인 횟수 · 견적 요청 수 제한 같은 잠깐 쓰는 값은 뺌
+const EXPORT_SQL = () => { const tail = ' WHERE rowid>? ORDER BY rowid LIMIT ?'; return {
+  calls: 'SELECT rowid AS seq, id, call_type, visit_date, updated, deleted, data FROM calls' + tail,
+  members: 'SELECT rowid AS seq, emp, name, added, "by", deleted FROM members' + tail,
+  quotereq: 'SELECT rowid AS seq, ' + QR_COLS + ' FROM quotereq' + tail,
+  quote_history: 'SELECT rowid AS seq, id, at, data FROM quote_history' + tail,
+  files: 'SELECT rowid AS seq, id, kind, name, mime, size, at, "by" FROM files' + tail,
+  file_chunks: 'SELECT rowid AS seq, id, n, data FROM file_chunks' + tail,
+  kv: "SELECT rowid AS seq, k, v FROM kv WHERE rowid>? AND k NOT LIKE 'fail:%' AND k<>'qr_rate' ORDER BY rowid LIMIT ?",
+}; };
+
 // ---------- 요청 하나 처리 (apps-script 의 doPost 와 같은 순서) ----------
 export async function api(req, env, origin = '', ip = '') {
   const a = req.action, err = (pre, e) => ({ ok: false, error: pre + String((e && e.message) || e) });
@@ -352,6 +371,10 @@ export async function api(req, env, origin = '', ip = '') {
   // 견적서 발급 내역(최근 것부터) · 품목 목록 고치기 · 발급 내역 더하기 · 발급 취소
   if (a === 'quoteGet') return rawRows('history', await rows(env, 'SELECT data FROM (SELECT rowid AS r, data FROM quote_history ORDER BY rowid DESC LIMIT ?) ORDER BY r DESC', Number(req.limit) || 500), '');
   if (a === 'quotePost') { try { return await quotePost(env, req); } catch (e) { return err('', e); } }
+  // 전체 내려받기 (백업 · 다른 DB 로 옮길 때): 표 하나를 넣은 순서대로 조금씩 — {table, after(마지막으로 받은 seq), limit} → {rows, next}. table 이 없으면 표 이름 목록
+  if (a === 'export') { const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };
+    const lim = t === 'file_chunks' ? 1 : Math.min(Number(req.limit) || 200, 500), rs = await rows(env, sql, Number(req.after) || 0, lim);
+    return { ok: true, table: t, rows: rs, next: rs.length === lim ? rs[rs.length - 1].seq : null }; }
   if (a === 'quoteReqList') return { ok: true, items: await quoteReqList(env), api: 7 };
   if (a === 'quoteReqMark') { try { return { ok: true, item: await quoteReqMark(env, req), api: 7 }; } catch (e) { return err('', e); } }
   if (a === 'members') return { ok: true, members: await readMembers(env) };

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>전체 내려받기 (백업) · 사유원 운영 보조 시스템</title>
+<!-- 전체 내려받기 (2026-11-23): 공유 DB 의 모든 표를 JSON 파일 하나로 이 컴퓨터에 내려받음
+     - 쓰임 ① 백업 (가끔 눌러서 파일을 안전한 곳에 보관) ② 다른 DB(사내 DB 등)로 옮길 때의 원본 — DB 종류와 상관없는 모양
+     - 로그인한 멤버만 (서버 동작 export). 사이트에서: (사이트 주소)/tools/export.html · 로컬 미리보기에서도 됨
+     - 파일 모양은 README 20절. 고객 연락처 · 멤버 이름과 사번이 모두 들어 있으니 파일을 아무 데나 두지 말 것 -->
+<script>(function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("../"); }catch(e){} })();</script>
+<style>
+  body{font:15px/1.6 "Noto Sans KR",system-ui,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#22231f;background:#f6f5f1}
+  h1{font-size:20px} button{margin-top:12px;padding:10px 18px;border:0;border-radius:6px;background:#3f5236;color:#fff;font:inherit;font-weight:600;cursor:pointer} button:disabled{opacity:.5;cursor:default}
+  label{display:block;margin-top:10px} #log{margin-top:16px;padding:12px;background:#fff;border:1px solid #e2e0d8;border-radius:8px;white-space:pre-wrap;min-height:100px;font:13px/1.6 ui-monospace,Consolas,monospace}
+  .hint{color:#6b6d66;font-size:13px} .ok{color:#2f6b2f;font-weight:700} .err{color:#b3261e;font-weight:700} a{color:#3f5236}
+</style>
+</head>
+<body>
+<h1>전체 내려받기 (백업)</h1>
+<p class="hint">공유 DB 의 모든 기록 · 멤버 · 견적 요청 · 견적서 발급 내역 · 품목 관리 내용 · 올린 파일을 파일 하나(JSON)로 이 컴퓨터에 내려받습니다. DB 는 읽기만 합니다.<br>
+파일에는 고객 연락처와 멤버의 이름 · 사번이 들어 있습니다. 안전한 곳에 보관하고 메일 · 메신저로 보내지 마세요. <a href="../">← 첫 화면</a></p>
+<label><input type="checkbox" id="withFiles" checked> 올린 파일(이미지 · PDF)도 함께 (끄면 글자 자료만 — 파일이 많아지면 오래 걸립니다)</label>
+<button id="go">내려받기</button>
+<div id="log"></div>
+<script src="../js/common.js?v=20261123e"></script>
+<script>
+(function(){
+  const $ = id => document.getElementById(id), logEl = $('log');
+  const log = (t, cls) => { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = t; logEl.appendChild(d); return d; };
+  const parse = s => { try { return JSON.parse(s); } catch (e) { return s; } };
+  async function table(name, onRow){ let after = 0, n = 0; const line = log(`${name} …`);
+    for (;;) { const j = await SY.call({ action: 'export', table: name, after, limit: 200 }); j.rows.forEach(onRow); n += j.rows.length; line.textContent = `${name} ${n}줄`; if (j.next == null) break; after = j.next; }
+    return n; }
+  $('go').onclick = async () => {
+    logEl.textContent = ''; $('go').disabled = true;
+    try {
+      const out = { app: 'sayuwon-group-intake', format: 1, exportedAt: new Date().toISOString(), by: (SY.user() || {}).name || '', tables: { calls: [], members: [], quotereq: [], quote_history: [], kv: [], files: [] } }, T = out.tables;
+      await table('calls', r => T.calls.push({ seq: r.seq, id: r.id, call_type: r.call_type, visit_date: r.visit_date, updated: r.updated, deleted: r.deleted, data: parse(r.data) }));
+      await table('members', r => T.members.push(r));
+      await table('quotereq', r => T.quotereq.push(r));
+      await table('quote_history', r => T.quote_history.push({ seq: r.seq, id: r.id, at: r.at, data: parse(r.data) }));
+      await table('kv', r => T.kv.push({ seq: r.seq, k: r.k, v: parse(r.v) }));
+      const files = new Map(); await table('files', r => { const f = { ...r, base64: '' }; files.set(r.id, f); T.files.push(f); });
+      if ($('withFiles').checked) await table('file_chunks', r => { const f = files.get(r.id); if (f) f.base64 += r.data; });
+      else { T.files.forEach(f => delete f.base64); log('파일 내용은 넣지 않았습니다 (목록만).'); }
+      const blob = new Blob([JSON.stringify(out)], { type: 'application/json' }), a = document.createElement('a'), d = new Date();
+      a.href = URL.createObjectURL(blob); a.download = `sayuwon-backup-${SY.ymd(d)}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}.json`; document.body.appendChild(a); a.click(); a.remove();
+      log(`끝났습니다. ${a.download} (${(blob.size / 1024 / 1024).toFixed(2)} MB) 을 내려받았습니다.`, 'ok');
+    } catch (e) { log('멈췄습니다: ' + (e.code === 'bad_key' ? SY.authFail() : e.code === 'bad_action' ? '서버가 아직 내려받기를 모르는 버전입니다 (cloudflare/worker.js 를 다시 올려야 함).' : (e.message || e)), 'err'); }
+    finally { $('go').disabled = false; }
+  };
+})();
+</script>
+</body>
+</html>

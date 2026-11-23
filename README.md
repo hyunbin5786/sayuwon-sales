@@ -38,8 +38,7 @@ css/
   mypop.css           나의 할일 팝업
 js/
   common.js           ★ 공통 SY: 서버 요청(SY.call · SY.callRaw · SY.beacon · SY.quote) · 공유 기록 사본(SY.list) · esc · 날짜 · 전화 · 저장소 — 모든 화면이 맨 먼저
-  devmock.js          로컬 미리보기 전용 가짜 서버 (localhost + ?mock=1 일 때만 읽힘 · 13절)
-  devcf.js            로컬 미리보기 전용: 새 서버 코드(cloudflare/worker.js)를 브라우저 SQLite 로 돌림 (?mock=cf · 18절)
+  devcf.js            로컬 미리보기 전용 시험 서버: 서버 코드(cloudflare/worker.js)를 브라우저 안 SQLite 로 돌림 (localhost + ?mock=1 일 때만 읽힘 · 13절)
   group.js            ★ 자동으로 합친 파일 (직접 고치지 않음) ← js/group/*.js 를 tools/build.ps1 이 이어 붙임
   group/              단체 화면 소스 16개 (01-fields.js … 16-etc-tasks.js · 14-3절 지도)
   taskcfg.js          추후과업 메시지 관리 (단체 화면)
@@ -58,6 +57,7 @@ js/
 tools/
   build.ps1           js/group/*.js → js/group.js 합치기 (-Check: 같은지 확인만)
   migrate.html        구글 시트 → 새 DB 로 자료 옮기기 (한 번만 쓰는 도구 · 18절)
+  export.html         전체 내려받기 (백업 · 다른 DB 로 옮길 때 · 20절) — 사이트에서 /tools/export.html
 cloudflare/
   schema.sql          새 DB(Cloudflare D1) 표 만들기
   worker.js           새 서버 코드 (Cloudflare Worker) — apps-script/group-intake.gs 와 같은 동작 · 아직 전환 전 (18절)
@@ -67,7 +67,7 @@ apps-script/
 ```
 
 - HTML에는 화면 틀만, 모양은 `css/`, 동작은 `js/`에 있습니다. 로그인 확인처럼 화면이 그려지기 전에 돌아야 하는 몇 줄만 HTML `<head>` 안에 남겨 두었습니다
-- **CSS · JS를 고치면 HTML의 `?v=날짜` 를 바꿔 주세요.** 2026-11-23부터 **모든 HTML의 모든 파일이 같은 값**을 씁니다 (지금 `?v=20261123d`). 무엇을 고쳤든 모든 HTML에서 한꺼번에 다음 값(`20261123b` · 다음 날이면 `20261124a`)으로 바꾸면 됩니다 — 파일마다 따로 세지 않음. 그래야 브라우저가 예전 파일을 쓰지 않습니다
+- **CSS · JS를 고치면 HTML의 `?v=날짜` 를 바꿔 주세요.** 2026-11-23부터 **모든 HTML의 모든 파일이 같은 값**을 씁니다 (지금 `?v=20261123e`). 무엇을 고쳤든 모든 HTML에서 한꺼번에 다음 값(`20261123b` · 다음 날이면 `20261124a`)으로 바꾸면 됩니다 — 파일마다 따로 세지 않음. 그래야 브라우저가 예전 파일을 쓰지 않습니다
 - **`js/group.js` 는 직접 고치지 않습니다.** `js/group/` 안의 파일을 고친 뒤 `tools/build.ps1` 을 실행합니다 (13절)
 - **사이트 주소를 코드에 적지 않습니다** (2026-11-23): 화면끼리는 `document/index.html` 같은 상대 주소로만 엽니다. 예전에는 `github.io` 일 때와 아닐 때를 갈라 `https://hyunbin5786.github.io/sayuwon-sales/…` 를 적어 두었는데 모두 없앴습니다 → 배포하는 곳이 바뀌어도 코드를 고칠 필요 없음. (고객에게 보내는 견적 요청 주소도 지금 사이트 주소에서 만듦)
 - **맨 위 헤더 고정** (2026-11-19, `css/menu.css`): 모든 화면의 맨 위 헤더(사유원 운영 보조 시스템 · 메뉴 · 나의 할일)는 스크롤해도 위에 고정, 나머지만 스크롤 (예약 현황 공유의 미리보기도 헤더 아래에 붙음) · 헤더는 z-index 12 라 모든 팝업(나의 할일 · 예약 목록 · 붙여넣기 등)이 헤더 앞에 뜸
@@ -571,7 +571,7 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
 **순서: 고치기 → (단체 화면이면) 합치기 → 가짜 서버로 확인 → `?v=` 바꾸기 → README 고치기 → 올리기**
 
 - **로컬 미리보기**: `.claude/serve.ps1`(저장소에 올리지 않음)로 이 폴더를 띄워 봅니다 — `powershell -ExecutionPolicy Bypass -File .claude/serve.ps1 -Port 8767` → http://localhost:8767/ . CSS · JS 파일 형식을 맞게 보내야 화면이 제대로 보입니다
-- **가짜 서버로 시험하기** (2026-11-23, `js/devmock.js`): 로컬 주소 끝에 `?mock=1` 을 한 번 붙여 열면(예: `http://localhost:8767/index.html?mock=1`) 그 브라우저는 계속 가짜 서버를 씁니다 — 화면 오른쪽 아래에 빨간 「가짜 서버 (시험용)」 표시. **진짜 구글 시트에는 아무것도 가지 않습니다.** 끄기는 `?mock=0`
+- **시험 서버로 확인하기** (2026-11-23, `js/devcf.js` — 처음의 `js/devmock.js` 는 없앰 · 20-5절. 아래 설명 중 `SY_MOCK` 은 `SY_CF` 로: `SY_CF.log` · `SY_CF.sql('SELECT …')` · `SY_CF.reset()`, 표시는 파란 「시험용 (로컬 SQLite)」): 로컬 주소 끝에 `?mock=1` 을 한 번 붙여 열면(예: `http://localhost:8767/index.html?mock=1`) 그 브라우저는 계속 가짜 서버를 씁니다 — 화면 오른쪽 아래에 빨간 「가짜 서버 (시험용)」 표시. **진짜 구글 시트에는 아무것도 가지 않습니다.** 끄기는 `?mock=0`
   - 로그인: 이름 `테스트` · 사번 `T001` (또는 `김영업` · `T002`). 가상 단체 예약 2건 · 개인 통화 1건이 들어 있음
   - 내용은 그 브라우저 `localStorage` 의 `sy_mock_db` 에만. 처음 상태로: 개발자 도구 콘솔에서 `SY_MOCK.reset()` 뒤 새로고침. 무엇을 보냈는지: `SY_MOCK.log`, 지금 내용: `SY_MOCK.db`
   - `localhost` · `127.0.0.1` 에서만 읽습니다. 운영 주소에서는 `?mock=1` 을 붙여도 아무 일도 없음 (`js/common.js` 맨 아래)
@@ -957,3 +957,75 @@ localStorage (그 브라우저 · 그 사이트 주소에만 — **사이트 주
 - **예전 견적서 사이트(sayuwon-invoice-quotation)는 계속 예전 Apps Script 를 씀** → 그 사이트에서 낸 발급 내역 · 고친 품목은 이 시스템에 안 보임 (그 반대도). 이 시스템의 `document/` 만 쓸 것
 - 서버 코드 · 표를 고쳤으므로 올리는 순서: ① D1 콘솔에서 `quote_history` 표 만들기 ② Worker 에 새 `worker.js` 붙여 넣고 Deploy ③ `migrate.html` 로 견적서 자료 옮기기 ④ 화면 코드 푸시. (①②를 먼저 해도 예전 화면은 그대로 돎)
 - 로컬 시험(`?mock=cf`): 품목 읽기는 로그인 없이 · 발급 내역 읽기/쓰기는 로그인 없으면 `bad_key` · 품목 op 여섯 가지 · 같은 발급 두 번 → 한 줄 · 발급 취소 · 최근 것부터 · `limit` · 품목 관리 화면에서 가격 고치기(`quotePost:set` → 「저장했습니다」) · 단체 화면 가격표 불러오기 · 틀린 로그인 8가지 → 9번째부터 `too_many`(맞는 로그인도) · 다른 IP 는 정상 · 같은 틀린 값 3번은 1번으로 · 옮기는 도구 두 번 돌리기 — 모두 정상
+
+## 20. 지금의 DB 는 하나 · 나중에 사내 DB 로 옮길 때 (2026-11-23)
+
+### 20-1. 지금 자료가 있는 곳
+
+**쓰고 있는 DB 는 하나**입니다: Cloudflare D1 의 `sayuwon` (서버 = Worker `sayuwon-api`). 공유 기록 · 멤버 · 고객 견적 요청 · 견적서 품목 관리 내용 · 견적서 발급 내역 · 올린 파일이 모두 여기에 있습니다.
+
+구글 쪽에 남아 있는 것은 **옮기기 전의 사본**입니다 (되돌릴 때만 쓰고, 지금은 아무 화면도 읽거나 쓰지 않음): 시트 「단체예약 접수 기록」 + 그 Apps Script · 시트 「견적서 품목 목록」 + 그 Apps Script · 드라이브 폴더 「사유원 단체예약 서류」(전환 전에 올린 서류 — 예약 과업의 링크로 지금도 열림).
+
+### 20-2. 옮기기 쉽게 해 둔 것
+
+| 무엇 | 어떻게 |
+|---|---|
+| **화면과 서버 사이의 약속이 하나** | 화면은 `js/common.js` 의 `SY.call({action…})` 로만 서버를 부름 (11절 · 19절 표가 전부). 새 서버가 같은 요청에 같은 답을 주면 **화면은 `SY_BACKEND.API_URL` 한 줄만** 바꾸면 됨 |
+| **전체 내려받기** (`export` · `tools/export.html`) | 로그인한 멤버가 모든 표를 JSON 파일 하나로 내려받음 — DB 종류와 상관없는 모양 (아래 20-3). **백업으로도 씀**: 사이트 주소 뒤에 `/tools/export.html` |
+| **특정 DB 전용 문법을 줄임** | 서버 코드의 SQL 은 표준 문법. SQLite 전용 함수(`json_set`)는 없앰. 남은 세 가지(있으면 고치고 없으면 넣기 · 없을 때만 넣기 · 넣은 순서 `rowid`)는 `cloudflare/worker.js` 맨 위에 적어 둠 |
+| **표가 단순함** | 표 7개, 칸은 글자와 숫자뿐. JSON 은 글자 칸에 통째로 (DB 의 JSON 기능에 기대지 않음) |
+| **서버 코드를 시험하는 장치** | `?mock=1` (`js/devcf.js`) — 서버 코드를 고치거나 새 서버를 만들 때 화면과 맞물리는지 확인하는 기준 |
+
+### 20-3. 내려받은 파일의 모양 (`sayuwon-backup-날짜-시각.json`)
+
+```
+{ app, format: 1, exportedAt, by,
+  tables: {
+    calls:         [ { seq, id, call_type, visit_date, updated, deleted, data: { 38칸 … } } ],   // 공유 기록 — 종류는 data.callType (14-4절 표)
+    members:       [ { seq, emp, name, added, by, deleted } ],
+    quotereq:      [ { seq, id, at, org, name, phone, email, date, pax, memo, status, by, doneAt, deleted } ],
+    quote_history: [ { seq, id, at, data: { id, at, kind, parent, doc, client, useDate, issueDate, total, sender, use, files, snapshot, canceled, cancelNote } } ],
+    kv:            [ { seq, k, v } ],        // catalog = 품목 관리에서 바꾼 것 { edits, added } · admin = 관리자 사이트 현황
+    files:         [ { seq, id, kind(doc | ment), name, mime, size, at, by, base64 } ]   // 파일 내용은 base64 글자 (「올린 파일도 함께」를 껐으면 없음)
+  } }
+```
+
+`seq` = 넣은 순서 (목록이 이 순서로 나옴 · 새 DB 에서도 이 순서로 넣으면 같음). 날짜 · 시각은 모두 글자: `updated` · `deleted` · `saved` 는 ISO(UTC) · `added` · `at`(견적 요청) · `doneAt` 은 한국 시각 `yyyy-MM-dd HH:mm` · 방문일은 `yyyy-MM-dd`.
+
+### 20-4. 사내 DB 로 옮기는 순서 (그때 할 일)
+
+1. 사내 DB 에 표를 만듦 — `cloudflare/schema.sql` 을 그 DB 문법으로 (칸 종류는 긴 글자 · 정수뿐. `calls.data` · `quote_history.data` · `file_chunks.data` 는 1MB 까지 들어가는 긴 글자 칸. `rowid` 대신 자동 증가 번호 칸 `seq`)
+2. 사내 서버에 「서버 동작 목록」(11절 + 19절 + `export`)을 구현 — `cloudflare/worker.js` 가 그대로 설명서. 약 400줄이고 `api()` 함수 하나가 입구. 로그인은 지금처럼 요청의 `who`(이름 + 사번)를 멤버 표와 견줌 (사내 인증으로 바꾸려면 여기만)
+3. `tools/export.html` 로 내려받은 파일을 사내 DB 에 넣음 (표마다 `seq` 순서로)
+4. `js/common.js` 의 `API_URL` 을 사내 서버 주소로 → 로컬에서 확인 → 올림. 사내망 주소면 화면(GitHub Pages)도 사내에서 열 수 있는 곳으로 옮겨야 함 (화면은 정적 파일이라 어디에 두어도 됨 · 주소는 코드에 적혀 있지 않음)
+5. 그때 함께 하면 좋은 것 (지금은 일부러 안 함 — 화면 코드를 크게 고쳐야 해서): 한 표에 섞인 종류를 표로 나누기 · 비고 칸 묶음(` / `)과 수정 기록 JSON 을 칸으로 풀기 · 품목 기본 목록을 코드에서 DB 로 (15-3절)
+
+### 20-5. 필요 없어진 것 점검 (2026-11-23)
+
+**없앤 것**
+
+| 무엇 | 왜 필요 없어졌나 |
+|---|---|
+| `js/devmock.js` (손으로 흉내 낸 가짜 서버) | 진짜 서버 코드를 돌리는 `js/devcf.js` 가 생겨 같은 일을 두 번 맞춰야 했음. `?mock=1` 은 이제 `devcf.js` |
+| 예전 팀 비밀번호: `SY.KEY_LS` · 요청의 `key` · 서버의 `PASSCODE` 통과 | 2026-11-21부터 로그인으로만 확인. 새 서버에는 팀 비밀번호가 없음 (`SY.getKey()` 는 「로그인했는지」만 알려 주는 이름으로 남김 — 부르는 곳이 많아서) |
+| `SY_BACKEND.QUOTE_URL` (예전 견적서 서버 주소) | 견적서도 같은 서버로 감 (19절). 옮기는 도구 안에만 남아 있음 |
+| 「바뀐 것만 받기」의 서버 버전 확인 (`st.api>=5`) | 새 서버는 늘 됨 |
+| 「Apps Script를 새 버전으로 배포해야 …」 안내 9곳 (멘트 이미지 · 삭제된 예약/통화 · 서류 올리기 · 관리자 사이트 가져오기 · 로그인 없이 보기/추가 · 멤버관리 · 고객 견적 요청) | 서버가 그 기능을 모를 때(`bad_action`)를 위한 것 — 새 서버는 모두 앎. 일반 오류 문구로 |
+| 첫 화면 로그인의 「서버가 예전 버전이면 확인 없이 통과」(`setup='old'`) | 같은 이유 + 통과시키면 안 되는 길 |
+| SQLite 전용 `json_set` (삭제 표시 · 발급 취소) | 다른 DB 로 옮길 때 걸림 → 읽어서 고쳐 쓰기로 |
+
+**아직 남아 있고, 때가 되면 없앨 것**
+
+| 무엇 | 언제 |
+|---|---|
+| `tools/migrate.html` · 서버의 `import` 동작 · 비밀 값 `MIGRATE_KEY` | 구글에서 마지막으로 가져온 뒤 (며칠 안). `MIGRATE_KEY` 를 지우면 `import` 는 저절로 막힘 |
+| `apps-script/group-intake.gs` · 구글 시트 2개 · 예전 Apps Script 2개 | 새 DB 가 안정됐다고 판단한 뒤 (그 전까지는 되돌릴 길) |
+| README 11절 「설치 · 다시 배포」 · 14-4절의 시트 · 드라이브 설명 | 위와 함께 (지금 서버 기준 설명은 18 · 19 · 20절) |
+| 견적서 화면의 「서버가 발급 내역을 못 받을 때 이 브라우저에 보관」 갈래 (`histServer === false`) | 문구만 고침. 연결이 끊겼을 때도 쓰이므로 그대로 둠 |
+
+**쓰지 않는 것으로 보이는데 정해야 하는 것**
+
+- **관리자 사이트 자동 가져오기** (`syncAdmin` · 15분 예약 작업 · 단체예약 목록의 「관리자 사이트에서 지금 가져오기」 버튼 · 사담/마방 자리 경고): 예전 서버에도 관리자 계정(`ADMIN_ID` · `ADMIN_PW`)이 없어 **한 번도 돌지 않은 기능**. 쓸 계획이 없으면 서버 · 화면에서 함께 걷어 내는 것이 좋음 (사내 DB 로 옮길 때 구현할 것이 줄어듦). 쓸 거면 조회용 계정을 넣으면 켜짐
+- `mypage.html` · `ops.html` (예전 주소를 새 주소로 넘기는 쪽지): 예전 즐겨찾기가 남아 있을 수 있어 둠
+
+**확인 방법**: 지운 이름(`KEY_LS` · `QUOTE_URL` · `devmock` · `SY_MOCK` · `PASSCODE` · `json_set` · `setup==='old'`)을 코드 전체에서 찾아 남은 곳이 없는 것을 보고, `?mock=1` 로 첫 화면 · 단체 · 견적서 · 멘트 · 개인고객 · 분실물 · 내려받기 화면을 열어 콘솔 오류가 없는 것 · 삭제 / 발급 취소 / 내려받기(표 7개 · 나눠 받기 · 로그인 없으면 거절)가 되는 것을 확인.

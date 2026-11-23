@@ -302,7 +302,7 @@ async function uploadFile(t, file){
     upBusy=false; renderTasks(); autoSave();
   }catch(e){
     upBusy=false; renderTasks();
-    toast(e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 올릴 수 있습니다.' : '올리지 못했습니다: '+e.message);
+    toast('올리지 못했습니다: '+e.message);
   }
 }
 $('#taskList').addEventListener('change', e=>{
@@ -542,7 +542,7 @@ $('#adminSyncBtn').onclick=async()=>{
     toast(`가져왔습니다 · 15명 이상 ${j.result.big}건 중 새로 ${j.result.added}건 등록`);
     await pull();
   }catch(e){
-    toast(e.code==='bad_action' ? 'Apps Script를 새 버전으로 다시 배포해야 합니다.' : '가져오지 못했습니다: '+e.message);
+    toast('가져오지 못했습니다: '+e.message);
   }finally{ b.disabled=false; b.textContent='관리자 사이트에서 지금 가져오기'; }
 };
 

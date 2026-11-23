@@ -28,7 +28,7 @@
 
   const toast = (m, ms=2200) => { const t=$('#toast'); t.textContent=m; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>{ t.hidden=true; }, ms); };
   const setSync = t => { $('#sync').textContent=t; };
-  const needDeploy = e => e && e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 이미지를 쓸 수 있습니다 (apps-script/group-intake.gs).' : '';
+  const needDeploy = () => '';   // (예전 서버가 이미지 기능이 없는 버전일 때 안내하던 것 — 이제 늘 됨)
   // 불러오기: 팀 비밀번호 없이 (Apps Script mentList · 2026-11-18, 주로 휴대폰). 예전 배포면 비밀번호가 있는 기기만 전체 목록에서
   const applyRow = r => { row = r ? {...(row||{}), ...r} : row; let h=null; try{ h=r ? JSON.parse(r.history||'{}') : null; }catch(_){}
     items = h && Array.isArray(h.items) ? h.items : DEFAULT.slice(); SY.writeJSON(CACHE_LS, items); loaded=true; failed=false; setSync(''); if(!edit) render();

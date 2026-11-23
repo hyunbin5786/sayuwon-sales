@@ -351,7 +351,7 @@ async function setAllTrash(on){
   $('#allHead').innerHTML = on ? TRASH_HEAD : ALL_HEAD; $('#allSearch').value=''; $('#allFlt').hidden=on; renderAll();
   if(on){ trashItems=null; trashErr=''; renderAll();
     try{ const j=await SY.call({action:'deleted'}); trashItems=j.items||[]; }
-    catch(e){ trashErr = e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 삭제된 통화가 보입니다 (apps-script/group-intake.gs 의 deleted).' : '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
+    catch(e){ trashErr = '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
     if(allTrash) renderAll(); }
 }
 $('#allTrash').onclick=()=>setAllTrash(!allTrash);
