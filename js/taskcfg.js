@@ -8,6 +8,7 @@
 // 문구 · 안내 줄은 {단체명} 처럼 바꿔 넣는 말을 씀 → 예약마다 그 값으로
 var TCFG_ID='taskcfg', TCFG_TYPE='추후과업설정';
 const TCFG_BASE_TITLES = {...AUTO_TASKS};   // 처음 이름 (되돌리기용)
+delete TCFG_BASE_TITLES.onsitecall; delete TCFG_BASE_TITLES.tbdcall;   // 2026-11-23: 현장 결제 인원 확인 연락 · 미정 항목 확인 연락은 따로 과업이 아니라 다음주 예약 점검의 세부 과업 (그 칸에서 켜고 끔)
 const TCFG_BASE_DOC = JSON.parse(JSON.stringify(DOC_SUBS));   // 원래 세부 과업 (견적서 · 거래명세서 · 대구대교구)
 const TCFG_BASE_FOLLOW = new Set(FOLLOW_DUE);
 // 바꿔 넣는 말 (r = 예약, t = 과업)
@@ -120,6 +121,7 @@ function tcfgVirtual(r, x, ts, has){
 function tcfgSubs(list){ (list||[]).forEach(t=>{ if(t.done || t.removed) return; const c=tcfgOf(t.id), subs=(c&&Array.isArray(c.subs)?c.subs:[]).map(s=>String(s||'').trim()).filter(Boolean); if(!subs.length) return;
   const xs=t.xsubs ||= []; subs.forEach((s,i)=>{ if(!xs.some(x=>x.title===s)) xs.push({id:'c:'+i+Date.now().toString(36), title:s, done:false}); }); }); }
 const tcfgNoAutoSubs = id => !!((tcfg.b||{})[id]||{}).noAutoSubs;   // 미정 항목 확인 연락: 미정 · 미입력 칸을 세부 과업으로 넣지 않음
+const tcfgNoOnsiteSub = () => { const b=tcfg.b||{}; return !!((b.wkcheck||{}).noOnsiteSub || (b.onsitecall||{}).off); };   // 다음주 예약 점검에 「현장 결제 인원 확인 연락」을 넣지 않음 (예전에 그 과업을 꺼 두었으면 끈 채로)
 // 바꿔 넣기
 function tcfgFill(tpl, r, base, t){ let s=String(tpl||''); s=s.replace(/\{자동문구\}/g, base||''); TCFG_VARS.forEach(([k,f])=>{ if(s.indexOf('{'+k+'}')<0) return; let v=''; try{ v=f(r,t); }catch(_){} s=s.split('{'+k+'}').join(String(v||'')); }); return s.trim(); }
 // 과업 문구 (전산 비고 · 세금계산서 요청 등): 고친 틀이 있으면 그 틀(비우면 없음), 없으면 원래 문구
@@ -141,7 +143,7 @@ function tcfgEff(id, b){ b=b||{};
   return { title: String(b.title||''), conds: tcfgClone(Array.isArray(b.when) ? b.when : [...(TCFG_DEF_WHEN[id]||[]), ...(b.conds||[])]),
     due: b.due && b.due.base && b.due.base!=='orig' ? {...b.due} : {...tcfgDefDue(id)},
     subs: TCFG_BASE_DOC[id] ? [...(Array.isArray(b.docSubs) ? b.docSubs : TCFG_BASE_DOC[id].map(x=>x[1])), ...(b.subs||[])] : [...(b.subs||[])],
-    note: b.note!=null ? b.note : (TCFG_DEF_NOTE[id]||''), desc: b.desc!=null ? b.desc : (TCFG_DEF_DESC[id]||''), off: !!b.off, autoSubs: !b.noAutoSubs }; }
+    note: b.note!=null ? b.note : (TCFG_DEF_NOTE[id]||''), desc: b.desc!=null ? b.desc : (TCFG_DEF_DESC[id]||''), off: !!b.off, autoSubs: !b.noAutoSubs, onsiteSub: id==='wkcheck' ? !tcfgNoOnsiteSub() : true }; }
 const tcfgCleanConds = cs => (cs||[]).map(q=>({k:q.k, v:String(q.v??'')})).filter(q=>{ const x=TCFG_CONDS.find(y=>y[0]===q.k); return x && (x[3]!=='num' || q.v!==''); });
 const tcfgDueNorm = d => { d=d||{}; return TCFG_N_DUE.has(d.base) ? {base:d.base, n:Math.max(0, parseInt(d.n)||0)} : {base:d.base||'made'}; };
 const tcfgSubsClean = s => (s||[]).map(x=>String(x||'').trim()).filter(Boolean);
@@ -154,7 +156,7 @@ function tcfgPack(id, e){ const o={};
   const subs=tcfgSubsClean(e.subs);
   if(TCFG_BASE_DOC[id]){ if(!tcfgEq(subs, TCFG_BASE_DOC[id].map(x=>x[1]))) o.docSubs=subs; } else if(subs.length) o.subs=subs;
   { const v=String(e.note||'').trim(); if(v!==String(TCFG_DEF_NOTE[id]||'').trim()) o.note=v; }
-  { const v=String(e.desc||'').trim(); if(v!==String(TCFG_DEF_DESC[id]||'').trim()) o.desc=v; } if(e.off) o.off=true; if(id==='wkcheck' && !e.autoSubs) o.noAutoSubs=true;
+  { const v=String(e.desc||'').trim(); if(v!==String(TCFG_DEF_DESC[id]||'').trim()) o.desc=v; } if(e.off) o.off=true; if(id==='wkcheck' && !e.autoSubs) o.noAutoSubs=true; if(id==='wkcheck' && !e.onsiteSub) o.noOnsiteSub=true;
   return o; }
 function tcfgPackC(c){ const o={id:c.id, title:String(c.title||'').trim(), due:tcfgDueNorm(c.due||{base:'visit',n:3})};
   const conds=tcfgCleanConds(c.conds); if(conds.length) o.conds=conds; const subs=tcfgSubsClean(c.subs); if(subs.length) o.subs=subs;
@@ -200,7 +202,11 @@ function tcfgEdHTML(T, c, builtin, id){
     <div class="tcfg-due"><select data-tf="${T}|dueBase">${TCFG_DUE.map(([k,l])=>`<option value="${k}"${k===due.base?' selected':''}>${esc(l)}</option>`).join('')}</select>${TCFG_N_DUE.has(due.base)?`<input data-tf="${T}|dueN" inputmode="numeric" data-ime="num" value="${esc(due.n??0)}" style="width:56px"> 일`:''}</div>
     <div class="tcfg-lab">세부 과업 <small class="hint">(과업에 체크 칸으로 들어감 · 모두 체크하면 그 과업 완료)</small></div>
     <div class="tcfg-subs">${subs.map((s,i)=>`<span class="tcfg-sub"><input class="tcfg-in" data-tsub="${T}|${i}" data-ime="ko" value="${esc(s)}"><button type="button" class="del" data-tsubdel="${T}|${i}" title="이 세부 과업 빼기">×</button></span>`).join('')}<span class="tcfg-sub"><input class="tcfg-in" data-tsubnew="${T}" data-ime="ko" placeholder="＋ 세부 과업 (적고 Enter)"></span></div>
-    ${builtin && id==='wkcheck' ? `<label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> 미정 항목 · 아직 안 넣은 칸을 하나씩 세부 과업으로 자동으로 넣기</label>` : ''}
+    ${builtin && id==='wkcheck' ? `<div class="tcfg-lab">자동으로 넣는 세부 과업 <small class="hint">(예약 내용에 따라 저절로 들어감 · 체크를 빼면 넣지 않음)</small></div>
+    <div class="tcfg-auto">
+      <label class="chk"><input type="checkbox" data-tf="${T}|onsiteSub"${c.onsiteSub?' checked':''}> <b>${esc(ONSITE_SUB)}</b> <small class="hint">— 결제 방법이 현장 결제일 때 · 고객님께 최종 인원을 확인하고 당일 인원 변경이 어렵다는 점을 안내</small></label>
+      <label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> <b>미정 항목에 대한 내용</b> <small class="hint">— 미정 항목 · 아직 안 넣은 칸을 하나씩 (예: 「미정 · 결제 방법」 「미입력 · 입장 시간」)</small></label>
+    </div>` : ''}
     <div class="tcfg-two">
       <label>과업 문구 <small class="hint">(「문구 복사」 버튼으로 복사 · 비우면 없음${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''})</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '')}</label>
       <label>과업 아래 안내 줄 <small class="hint">(과업 제목 아래에 자동으로 붙는 글 · 예: 바뀐 내용 · 비우면 없음)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '')}</label>
@@ -210,7 +216,8 @@ function tcfgPaint(){ const d=tcfgDraft; if(!d) return; const body=$('#tcfgBody'
   const head=(T, name, sub, tags, open, off)=>`<div class="tcfg-row${off?' off':''}" data-tcfgopen="${esc(T)}"><b>${esc(name)}</b><small class="hint">${esc(sub)}</small>${tags}<span class="tcfg-arrow">${open?'▴':'▾'}</span></div>`;
   const built = Object.keys(TCFG_BASE_TITLES).map(id=>{ const T='b:'+id, e=d.b[id], open=tcfgOpenId===T, changed=Object.keys(tcfgPack(id, e)).length>0;
     const sub=[tcfgCondTxt(e.conds)||'모든 예약', '마감 '+tcfgDueTxt(e.due)].join(' · ');
-    const tags=(e.off?'<span class="tag">끔</span>':'')+(changed?'<span class="tag">고침</span>':'')+(tcfgSubsClean(e.subs).length?`<span class="tag">세부 ${tcfgSubsClean(e.subs).length}</span>`:'');
+    const tags=(e.off?'<span class="tag">끔</span>':'')+(changed?'<span class="tag">고침</span>':'')+(tcfgSubsClean(e.subs).length?`<span class="tag">세부 ${tcfgSubsClean(e.subs).length}</span>`:'')
+      +(id==='wkcheck' && (e.onsiteSub||e.autoSubs) ? `<span class="tag" title="${esc([e.onsiteSub&&ONSITE_SUB, e.autoSubs&&'미정 항목에 대한 내용'].filter(Boolean).join(' · '))}">자동 세부 ${(e.onsiteSub?1:0)+(e.autoSubs?1:0)}</span>` : '');   // 다음주 예약 점검: 현장 결제 인원 확인 연락 · 미정 항목 (2026-11-23)
     return `<li class="${open?'open':''}">${head(T, String(e.title||'').trim()||TCFG_BASE_TITLES[id], sub, tags, open, e.off)}${open?tcfgEdHTML(T, e, true, id):''}</li>`; }).join('');
   const custom = (d.c||[]).map((c,i)=>{ const T='c:'+i, open=tcfgOpenId===T;
     const sub=`${tcfgCondTxt(c.conds)||'모든 예약 (가예약 · 예약확정)'} · 마감 ${tcfgDueTxt(c.due||{base:'visit',n:3})}`;
@@ -222,7 +229,7 @@ function tcfgPaint(){ const d=tcfgDraft; if(!d) return; const body=$('#tcfgBody'
 // 칸 값 → 초안. 돌려주는 값이 true 면 다시 그림
 function tcfgSet(el){ if(!tcfgDraft) return false;
   if(el.dataset.tf){ const [T,f]=el.dataset.tf.split('|'), c=tcfgTarget(T); if(!c) return false;
-    if(f==='off' || f==='autoSubs'){ c[f]=el.checked; return true; }
+    if(f==='off' || f==='autoSubs' || f==='onsiteSub'){ c[f]=el.checked; return true; }
     if(f==='dueBase'){ c.due={...(c.due||{}), base:el.value}; if(c.due.n==null) c.due.n=TCFG_N_DUE.has(el.value) ? (el.value==='made'?0:3) : 0; return true; }
     if(f==='dueN'){ c.due={...(c.due||{}), n:parseInt(el.value.replace(/\D/g,''))||0}; return false; }
     c[f]=el.value; return false; }

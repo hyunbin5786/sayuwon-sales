@@ -2160,6 +2160,7 @@ function autoDue(id, r){
 }
 const taskDue = t => t.due || (t.at ? ymd(new Date(t.at)) : todayYmd());   // 예전 과업은 생긴 날
 const DOC_SUBS = { quote:[['make','견적서 생성'],['send','견적서 전송'],['nas','견적서 NAS에 업로드']], stmt:[['make','거래명세서 생성'],['send','거래명세서 전송'],['nas','거래명세서 NAS에 업로드']] , clergy:[['ask','예약자에게 정보 요청'],['sheet','대구대교구 시트 기입']] };   // 대구대교구 특별 할인이 들어가면 (2026-11-17)
+const ONSITE_SUB = '현장 결제 인원 확인 연락';   // 다음주 예약 점검의 세부 과업 (현장 결제일 때 · 2026-11-23 · 예전엔 따로 과업 onsitecall)
 // 방문 전주 금요일 (방문 주 월요일 − 3일). 이미 지났으면 방문일 전날, 그것도 지났으면 오늘 (전주 목요일 tbdLimit 와 같은 규칙)
 function staffFri(d){ const t=new Date(d+'T00:00'); if(isNaN(t)) return todayYmd(); t.setDate(t.getDate()-((t.getDay()+6)%7)-3); const fri=ymd(t), today=todayYmd(); if(fri>=today) return fri; const p=new Date(d+'T00:00'); p.setDate(p.getDate()-1); const pd=ymd(p); return pd>=today ? pd : today; }
 const staffFriName = d => d && staffFri(d)===(()=>{ const t=new Date(d+'T00:00'); t.setDate(t.getDate()-((t.getDay()+6)%7)-3); return ymd(t); })() ? '방문 전주 금요일' : '방문 전날';
@@ -2175,7 +2176,7 @@ function askMissing(){ const out=[];
 function syncAutoTasks(){
   const want = [], consult = quietStage(effStage(rec));   // 예약상담은 기록용: 추후 과업 없음
   const needAsk = !!rec.tbd || askMissing().length>0;   // 미정 항목 · 아직 안 넣은 칸(빨간 칸)이 있음 → 다음주 예약 점검의 세부 과업으로 (2026-11-23 · 예전 「미정 항목 확인 연락」)   // 미정 항목 · 아직 안 넣은 칸(빨간 칸)이 있으면 연락 (2026-11-20)   // 미정 항목(결제 방법 포함)이 있으면 답변일에 연락
-  if(rec.pay==='현장 결제' && rec.date) want.push('onsitecall');   // 현장 결제: 전주 목요일에 인원 확인 + 인원 변경 어려움 안내
+  // 현장 결제 인원 확인 연락: 따로 과업을 만들지 않고 다음주 예약 점검의 세부 과업으로 (2026-11-23 · 아래 ONSITE_SUB)
   if((rec.date && (rec.date>=todayYmd() || tasks.some(t=>t.id==='wkcheck'))) || needAsk) want.push('wkcheck');   // 다음주 예약 점검 (2026-11-20 · 지난 방문일은 새로 만들지 않음): 미정 · 미입력 항목이 없어도 예약마다 방문일 전주 목요일에 점검 (예전엔 나의 할일에 한 줄로 모아서)
   if(needsErp(rec)) want.push('erp', 'erpcheck');   // 전산 예약 + 전산 내역을 붙여 넣어 예약 내용과 총 금액 · 할인이 같은지 대조 (같으면 자동 완료)
   if(rec.pay==='세금계산서') want.push('tax');
@@ -2200,7 +2201,7 @@ function syncAutoTasks(){
   if(fixes.length) want.push('erpfix');
   if(rec.tour) want.push('tour');   // 사전 답사가 잡히면 답사도 전산에 예약
   if(typeof tcfgWant==="function") tcfgWant(rec, want);
-  { const i=want.indexOf('tbdcall'); if(i>=0) want.splice(i,1);   // 「미정 항목 확인 연락」은 따로 만들지 않음 (다음주 예약 점검에 합침)
+  { ['tbdcall','onsitecall'].forEach(id=>{ const i=want.indexOf(id); if(i>=0) want.splice(i,1); });   // 「미정 항목 확인 연락」 · 「현장 결제 인원 확인 연락」은 따로 만들지 않음 (다음주 예약 점검의 세부 과업)
     if(needAsk && !want.includes('wkcheck') && !(typeof tcfgOf==='function' && (tcfgOf('wkcheck')||{}).off)) want.push('wkcheck'); }   // 방문일이 아직 없어도 물어볼 것이 있으면 점검 과업   // 추후과업 메시지 관리: 끈 과업은 빼고 조건이 맞는 새 과업은 넣음 (2026-11-20)
   if(consult){ const keep=want.filter(id=>id==='tour' || id==='clergy'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약만 (손대지 않은 것은 아래에서 빠짐)
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec), ...(id==='wkcheck' && editingId && rec.date && wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId] ? {done:true, doneAt:wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId]} : {})}); });   // 사전 답사 과업 메모 = 답사 정보
@@ -2211,7 +2212,14 @@ function syncAutoTasks(){
       if(tq && !old.removed){ const xs=tq.xsubs ||= []; (old.xsubs||[]).forEach(x=>{ if(!xs.some(y=>y.title===x.title)) xs.push(x); }); if(old.memo && !String(tq.memo||'').includes(old.memo)) tq.memo=[tq.memo, old.memo].filter(Boolean).join(' / '); }
       tasks.splice(tasks.indexOf(old), 1); }
     if(tq){ const want2=!want.includes('wkcheck') || (typeof tcfgNoAutoSubs==='function' && tcfgNoAutoSubs('wkcheck')) ? [] : [...String(rec.tbd||'').split(/\s*,\s*/).filter(Boolean).map(l=>`미정 · ${l}`), ...askMissing().map(l=>`미입력 · ${l}`)];
-    const xs=tq.xsubs||[], keep=xs.filter(x=>!/^q:/.test(x.id) || want2.includes(x.title)); want2.forEach(l=>{ if(!keep.some(x=>x.title===l)){ keep.push({id:'q:'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), title:l, done:false}); if(tq.done){ tq.done=false; delete tq.doneAt; delete tq.doneBy; delete tq.autoDone; } } }); tq.xsubs=keep; } }   // 점검을 끝낸 뒤에 물어볼 것이 새로 생기면 다시 열림
+    const xs=tq.xsubs||[], keep=xs.filter(x=>!/^q:/.test(x.id) || want2.includes(x.title)); want2.forEach(l=>{ if(!keep.some(x=>x.title===l)){ keep.push({id:'q:'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), title:l, done:false}); if(tq.done){ tq.done=false; delete tq.doneAt; delete tq.doneBy; delete tq.autoDone; } } }); tq.xsubs=keep; }   // 점검을 끝낸 뒤에 물어볼 것이 새로 생기면 다시 열림
+    // 현장 결제 인원 확인 연락 (2026-11-23): 현장 결제 예약이면 다음주 예약 점검의 세부 과업 「p:onsite」(맨 위). 예전에 따로 저장된 과업(onsitecall)은 체크 · 메모를 옮기고 없앰
+    const os=tasks.find(t=>t.id==='onsitecall'), osOn = !!tq && want.includes('wkcheck') && rec.pay==='현장 결제' && !!rec.date && !(typeof tcfgNoOnsiteSub==='function' && tcfgNoOnsiteSub());
+    if(tq){ const xs=tq.xsubs ||= [], i=xs.findIndex(x=>x.id==='p:onsite');
+      if(osOn && i<0){ const was=!!(os && os.done && !os.removed); xs.unshift({id:'p:onsite', title:ONSITE_SUB, done:was, ...(was && os.doneAt ? {doneAt:os.doneAt} : {})});
+        if(!was && tq.done && !os){ tq.done=false; delete tq.doneAt; delete tq.doneBy; delete tq.autoDone; } }   // 점검을 끝낸 뒤 현장 결제로 바뀌면 다시 열림
+      if(!osOn && i>=0) xs.splice(i,1);   // 현장 결제가 아니게 되면 뺌
+      if(os){ if(os.memo && !String(tq.memo||'').includes(os.memo)) tq.memo=[tq.memo, os.memo].filter(Boolean).join(' / '); tasks.splice(tasks.indexOf(os), 1); } } }
   // 방문일 · 답변일 · 결제링크 전송일을 따라가는 마감: 이미 지난 마감은 그 바탕(dueKey)이 그대로면 그대로 둠 (2026-11-21 · 예전엔 지나면 「방문일 전날 · 오늘」로 밀려 빨간 「지남」이 사라졌음)
   { const dk=[rec.date||'', rec.tbdDate||'', rec.linkSent||''].join('|'), td=todayYmd();
     tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const keep = t.due && t.due<td && (t.dueKey===undefined || t.dueKey===dk); if(!keep){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } t.dueKey=dk; } if(!t.due) t.due=taskDue(t); }); }
@@ -2295,6 +2303,7 @@ function renderTasks(){
       : t.id==='linksend' ? (rec.linkSent ? `결제링크 전송 ${esc(dtLabel(rec.linkSent))}` : '고객님께 결제링크를 보내고, 예약 내용 결제 칸 아래 <b>「결제링크 전송」</b>을 누르거나 체크하세요 (누른 일시가 기록됩니다).')
       : t.id==='tour' ? `사전 답사를 사유원 전산에 예약하고 체크하세요. 답사 정보는 아래 메모에 있습니다.`
       : t.id==='wkcheck' ? `기한(${esc(mdLabel(taskDue(t)))} · ${t.dueSet || !rec.date ? '직접 정한 날' : tbdLimitName(rec.date)})에 이 예약을 점검하고 체크하세요. 인원 · 입장 시간 · 식사 · 프로그램 · 결제 · 전산 내역이 맞는지, 미정 · 미입력 항목이 남았는지 확인합니다.` + (rec.tbd ? `<br>미정: <b>${esc(rec.tbd)}</b>${rec.tbdDate ? ` · 답변일 ${esc(mdLabel(rec.tbdDate))}` : ''} — 고객님께 연락해 확인하고, 정해진 내용을 칸에 채운 뒤 아래 세부 과업을 하나씩 체크하세요.` : '')
+          + ((t.xsubs||[]).some(x=>x.id==='p:onsite') ? `<br>현장 결제 예약: 고객님께 연락해 <b>최종 인원</b>을 확인하고, <b>당일 인원 변경이 어렵다는 점</b>을 다시 한번 안내한 뒤 「${ONSITE_SUB}」를 체크하세요.` : '')
       : t.id==='onsitecall' ? `현장 결제 예약입니다. 기한(${esc(mdLabel(taskDue(t)))} · ${t.dueSet || !rec.date ? '직접 정한 날' : tbdLimitName(rec.date)})에 고객님께 연락해 <b>최종 인원</b>을 확인하고, <b>당일 인원 변경이 어렵다는 점</b>을 다시 한번 안내하세요.`
       : t.id==='mbcall' ? `몽몽마방 식당에 전화해서 확인하고 체크하세요. (${esc([rec.date&&dateLabel(rec.date), rec.mabangL&&rec.mabangL+'명'].filter(Boolean).join(' · ')||'방문일 · 인원 미정')})<br>① 고객님이 말씀하신 시각 <b>${esc(rec.mabangTime||'(시간 미입력)')}</b> 가능한지<br>② 그날 예약 가능한 시간이 모두 언제인지 → 아래 메모에 적어 두기`
       : t.id==='mbmenu' ? (t.done ? '몽몽마방 메뉴를 골랐습니다.' : `몽몽마방 식사에서 메뉴(${esc(mbMenus().map(m=>m.name).join(' · '))}) 중 하나를 고르세요. 고르면 자동으로 완료됩니다.`)
@@ -3696,12 +3705,12 @@ function tasksOf(r){
   const x={...xOf(r)}; syncPayTbd(x);   // 미정 항목은 화면과 같은 기준 (결제 · 몽몽마방 결제 · 차량)
   const ts=settleTasks(parseHist(r).tasks, r, x);
   const has = id => ts.some(t=>t.id===id) || parseHist(r).tasks.some(t=>t.id===id && t.removed);   // 삭제한 과업은 다시 만들지 않음
-  if(x.pay==='현장 결제' && r.date && !has('onsitecall')) ts.push({id:'onsitecall', title:AUTO_TASKS.onsitecall, done:false, due:tbdLimit(r.date)});
   { const i=ts.findIndex(t=>t.id==='tbdcall'); if(i>=0) ts.splice(i,1); }   // 예전 「미정 항목 확인 연락」은 다음주 예약 점검으로 합침 (2026-11-23)
+  // 현장 결제 인원 확인 연락은 다음주 예약 점검의 세부 과업 (2026-11-23) — 따로 만들지 않음. 예전에 저장된 것은 다음주 예약 점검이 있으면 아래에서 뺌
   if(((r.date && r.date>=ymd(new Date())) || x.tbd) && !has('wkcheck')){ const thu=prevWeekThu(r.date), old=(typeof wkDone==='function' && thu) ? wkDone(ownerOf(r), thu)[r.id] : '';   // 예전 「다음주 예약 점검」 한 줄에서 체크한 예약은 끝난 것으로
     ts.push({id:'wkcheck', title:AUTO_TASKS.wkcheck, done:!!old, ...(old?{doneAt:old}:{}), due:autoDue('wkcheck', {...x, date:r.date})}); }
   if(typeof tcfgVirtual==="function") tcfgVirtual(r, x, ts, has);   // 추후과업 메시지 관리의 새 과업 (열지 않은 예약도, 2026-11-20)
-  return ts.filter(t=> t.id!=='tbdcall' && !(t.id==='onsitecall' && x.pay!=='현장 결제'))   // 조건이 사라진 것은 뺌
+  return ts.filter(t=> t.id!=='tbdcall' && !(t.id==='onsitecall' && (x.pay!=='현장 결제' || ts.some(y=>y.id==='wkcheck'))))   // 조건이 사라진 것은 뺌 · 현장 결제 인원 확인 연락은 다음주 예약 점검에 합침
     .map(t=>({...t, ...(!t.custom && !t.titleSet && AUTO_TASKS[t.id] ? {title:AUTO_TASKS[t.id]} : t.id==='pplchk' && !t.titleSet ? {title:PPL_TITLE} : {}), due: t.id==='wkcheck' && !t.dueSet && !t.done && x.tbd && x.tbdDate && x.tbdDate < taskDue(t) ? x.tbdDate : taskDue(t)}));
 }
 const openTasksOf = r => tasksOf(r).filter(t=>!t.done).sort((a,b)=>a.due.localeCompare(b.due));

@@ -1087,3 +1087,4 @@ html.g-loading body{overflow:hidden}
 .gl-in small{margin:0}
 .gl-spin{width:34px;height:34px;border-radius:50%;border:3px solid #d9d4c6;border-top-color:var(--pine,#2f5d46);animation:glspin .8s linear infinite}
 @keyframes glspin{to{transform:rotate(360deg)}}
+.tcfg-auto{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px dashed var(--line);border-radius:7px;background:#fafcf8;margin:0 0 6px}   /* 다음주 예약 점검: 자동으로 넣는 세부 과업 (2026-11-23) */
