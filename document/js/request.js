@@ -10,7 +10,11 @@
   const form = $('req-form'), err = $('q-err'), send = $('q-send');
   const won = n => (Math.round(+n || 0)).toLocaleString('ko-KR');
 
-  // 연락처: 치는 동안 - 넣기 (다른 화면 연락처 칸과 같은 방식)
+  // 연락처: 치는 동안 - 넣기 (다른 화면 연락처 칸과 같은 방식). 「010-」 이 미리 적혀 있음 (request.html · 2026-11-23) — 누르면 커서가 그 뒤로, 02 · 031 … 을 치면 010 이 떼어짐 (SY.phoneTyping)
+  { const p = $('q-phone'), end = () => { if(p.value === '010-') setTimeout(() => p.setSelectionRange(4, 4), 0); };
+    if(!p.value){ p.value = '010-'; p.dataset.autop = '1'; }   // 브라우저가 지난 입력을 되살려 비운 경우
+    p.addEventListener('focus', end); p.addEventListener('click', end);
+    p.addEventListener('blur', () => { if(!p.value.trim()){ p.value = '010-'; p.dataset.autop = '1'; } }); }
   $('q-phone').addEventListener('input', e => { const el=e.target, f=SY.phoneTyping(el, e.inputType); if(f!==el.value) el.value=f; });
 
   // ---------- 필요한 서류: 견적서 · 거래명세서 (둘 다 고를 수 있음). 체크한 것만 그 발급일 칸이 뜸 (2026-11-23) ----------
