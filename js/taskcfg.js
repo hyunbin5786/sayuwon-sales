@@ -148,7 +148,7 @@ function tcfgPack(id, e){ const o={};
   const subs=tcfgSubsClean(e.subs);
   if(TCFG_BASE_DOC[id]){ if(!tcfgEq(subs, TCFG_BASE_DOC[id].map(x=>x[1]))) o.docSubs=subs; } else if(subs.length) o.subs=subs;
   { const v=String(e.note||'').trim(); if(v!==String(TCFG_DEF_NOTE[id]||'').trim()) o.note=v; }
-  const m=String(e.msg||'').trim(); if(m) o.msg=m; if(e.off) o.off=true; if(id==='tbdcall' && !e.autoSubs) o.noAutoSubs=true;
+  const m=String(e.msg||'').trim(); if(m) o.msg=m; if(e.off) o.off=true; if(id==='wkcheck' && !e.autoSubs) o.noAutoSubs=true;
   return o; }
 function tcfgPackC(c){ const o={id:c.id, title:String(c.title||'').trim(), due:tcfgDueNorm(c.due||{base:'visit',n:3})};
   const conds=tcfgCleanConds(c.conds); if(conds.length) o.conds=conds; const subs=tcfgSubsClean(c.subs); if(subs.length) o.subs=subs;
@@ -194,7 +194,7 @@ function tcfgEdHTML(T, c, builtin, id){
     <div class="tcfg-due"><select data-tf="${T}|dueBase">${TCFG_DUE.map(([k,l])=>`<option value="${k}"${k===due.base?' selected':''}>${esc(l)}</option>`).join('')}</select>${TCFG_N_DUE.has(due.base)?`<input data-tf="${T}|dueN" inputmode="numeric" data-ime="num" value="${esc(due.n??0)}" style="width:56px"> 일`:''}</div>
     <div class="tcfg-lab">세부 과업 <small class="hint">(과업에 체크 칸으로 들어감 · 모두 체크하면 그 과업 완료)</small></div>
     <div class="tcfg-subs">${subs.map((s,i)=>`<span class="tcfg-sub"><input class="tcfg-in" data-tsub="${T}|${i}" data-ime="ko" value="${esc(s)}"><button type="button" class="del" data-tsubdel="${T}|${i}" title="이 세부 과업 빼기">×</button></span>`).join('')}<span class="tcfg-sub"><input class="tcfg-in" data-tsubnew="${T}" data-ime="ko" placeholder="＋ 세부 과업 (적고 Enter)"></span></div>
-    ${builtin && id==='tbdcall' ? `<label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> 미정 항목 · 아직 안 넣은 칸을 하나씩 세부 과업으로 자동으로 넣기</label>` : ''}
+    ${builtin && id==='wkcheck' ? `<label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> 미정 항목 · 아직 안 넣은 칸을 하나씩 세부 과업으로 자동으로 넣기</label>` : ''}
     <div class="tcfg-two">
       <label>과업 문구 <small class="hint">(「문구 복사」 버튼으로 복사 · 비우면 없음${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''})</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '')}</label>
       <label>고객 안내 글 <small class="hint">(「안내 글 복사」 · 비우면 없음)</small>${tcfgTA(`data-tf="${T}|msg"`, c.msg, '안녕하세요 {담당자}님, 사유원입니다.')}</label>

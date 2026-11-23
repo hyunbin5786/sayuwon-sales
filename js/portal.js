@@ -175,7 +175,9 @@ function dashRecs(items){
       if(E){   // 나의 할일과 같은 규칙 (안 끝난 과업 모두 · 마감 = 나의 할일과 같음)
         let ts=[]; try{ ts=(E.tasksOf(r)||[]).filter(t=>!t.done && !t.removed).map(t=>({title:t.title, due:t.due||dueOf(t,r)})); }catch(_){ ts=null; }
         if(ts){ if(ts.length) recs.push({kind:'단체', owner:(r.owner||r.takenBy||'').trim(), name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:ts, href:'group.html?open='+encodeURIComponent(r.id)}); return; } }
-      const ts=histTasks(r).filter(t=>!t.done && !t.removed && !doneByRec(t, r) && (!consult || ['tour','clergy'].includes(t.id) || t.custom)).map(t=>({title:t.title, due:dueOf(t,r)}));
+      const d00=String(r.date||'').slice(0,10), wkSoon = histTasks(r).some(t=>t.id==='wkcheck' && !t.removed) || (booked(r) && d00>=opsToday());   // 다음주 예약 점검이 따로 나올 예약인지
+      const ts=histTasks(r).filter(t=>!t.done && !t.removed && !doneByRec(t, r) && (!consult || ['tour','clergy'].includes(t.id) || t.custom) && !(t.id==='tbdcall' && wkSoon))   // 예전 「미정 항목 확인 연락」은 다음주 예약 점검에 합침 (2026-11-23)
+        .map(t=>({title: t.id==='tbdcall' ? '다음주 예약 점검' : t.title, due:dueOf(t,r)}));
       // 다음주 예약 점검 (2026-11-20 · group.js wkcheck 와 같은 기준): 가예약 · 예약확정이고 방문일이 오늘 이후면 예약마다 방문일 전주 목요일 마감 (아직 저장된 과업이 없어도)
       const d0=String(r.date||'').slice(0,10), o0=(r.owner||r.takenBy||'').trim();
       if(booked(r) && d0>=opsToday() && !histTasks(r).some(t=>t.id==='wkcheck')){ const thu=wkPrevThu(d0), w=items.find(x=>x.id==='wk'+wkHash(o0)+thu.replace(/-/g,'')); let dn={}; try{ dn=(JSON.parse((w||{}).history||'{}')||{}).done||{}; }catch(_){}
