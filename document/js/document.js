@@ -2724,7 +2724,7 @@
       if(r.pax && state.pax && Number(r.pax) !== Number(state.pax)) warn += (warn ? " " : "") + "예약 인원 " + state.pax + "명 / 요청 인원 " + r.pax + "명";
     }
     // 요청서에 고객이 고른 것을 문서 설정에 그대로 (2026-11-23): 요청사항의 [서류] · [결제] · [요청] 줄 (request.js memoText 가 만드는 줄)
-    //  서류 = 견적서 / 거래명세서 / 둘 다 · 견적서 발급일 → 견적일 · 결제 = 「현장에서 재결제」면 현장 결제, 아니면 인터넷 결제 · [요청](체험비로 바꾸기 등 내용 변경)이 있으면 내부용 + 외부용
+    //  서류 = 견적서 / 거래명세서 / 둘 다 · 견적서 발급일 → 견적일 · 결제 = 늘 현장 결제 · [요청](체험비로 바꾸기 등 내용 변경)이 있으면 내부용 + 외부용
     var line = function(tag){ var m = String(r.memo || "").match(new RegExp("^\\[" + tag + "\\]\\s*(.*)$", "m")); return m ? m[1] : null; };
     var docs = line("서류");
     if(docs !== null){   // 새 요청서로 들어온 요청만 (예전 요청은 이 줄이 없음 → 설정을 건드리지 않음)
@@ -2732,9 +2732,9 @@
       if(q || s){ state.docBoth = q && s; state.docType = q ? "quote" : "statement"; }
       var qd = (docs.match(/견적서\s*\(발급일\s*(\d{4}-\d{2}-\d{2})\)/) || [])[1];
       if(q && qd) state.quoteDate = qd;
-      state.payMode = /현장/.test(line("결제") || "") ? "site" : "online";
       state.docUse = line("요청") ? "fake" : "real";
     }
+    state.payMode = "site";   // 고객 요청서(매표소에서 받는 요청)로 들어온 문서는 늘 현장 결제 = 사유원 · 신라철강 따로 발급 (2026-11-23 · 요청서의 「현장에서 재결제했습니다」 칸을 없애고 이것으로)
     paintReqInfo(warn);
   }
   function reqMark(status){

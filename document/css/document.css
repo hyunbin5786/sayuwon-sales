@@ -465,3 +465,7 @@ html.reqhtml, html.reqhtml body{height:auto; min-height:100%; overflow:visible}
 @media (hover:none), (pointer:coarse){
   .reqpage .dbox input.dpick{left:0; top:0; bottom:auto; width:100% !important; height:100% !important; min-height:100%; opacity:0; pointer-events:auto; font-size:16px; -webkit-appearance:none; appearance:none; z-index:1}
 }
+/* 고객 요청 페이지: 단체명 · 담당자 성함을 한 행에 (휴대폰에서도 나란히, 2026-11-23) */
+.reqpage .grid2.same{grid-template-columns:1fr 1fr; gap:10px}
+.reqpage .rowpair .grid2 > div{min-width:0}
+.reqpage .rowpair .grid2 input{width:100%; box-sizing:border-box}

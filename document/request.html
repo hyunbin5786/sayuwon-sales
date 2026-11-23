@@ -4,7 +4,7 @@
 <!-- 고객 견적 요청 (2026-11-21): 고객님이 로그인 없이 휴대폰 · PC에서 직접 입력 → 공유 기록(quotereq 시트)에 한 건 저장.
      직원은 견적서 화면(document/) 1단계 「고객 견적 요청」 목록에서 열어 초안으로 채우고 검수 · 출력 · 메일 -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap">
-<link rel="stylesheet" href="css/document.css?v=20261123x">
+<link rel="stylesheet" href="css/document.css?v=20261123y">
 </head><body class="reqpage">
 <header class="reqhd"><span class="reqbrand">사유원</span><span class="reqcrumb">견적서/거래명세서 요청서</span></header>
 <main class="reqwrap">
@@ -12,14 +12,18 @@
     <div class="body">
       <h1 class="reqtitle">사유원 견적서/거래명세서 신청서</h1>
       <p class="reqlead">아래 내용을 남겨 주시면 확인 후 적어 주신 이메일로 견적서 · 거래명세서를 보내 드립니다.</p>
-      <div class="field">
-        <label for="q-org">단체명 <b class="req">*</b></label>
-        <input id="q-org" type="text" maxlength="60" autocomplete="organization" required>
-        <span class="hint">단체 소속이 아닌 경우 담당자 성함과 동일하게 입력해 주세요</span>
-      </div>
-      <div class="field">
-        <label for="q-name">담당자 성함 <b class="req">*</b></label>
-        <input id="q-name" type="text" maxlength="30" autocomplete="name" required>
+      <div class="field rowpair">
+        <div class="grid2 same">
+          <div>
+            <label for="q-org">단체명 <b class="req">*</b></label>
+            <input id="q-org" type="text" maxlength="60" autocomplete="organization" required>
+          </div>
+          <div>
+            <label for="q-name">담당자 성함 <b class="req">*</b></label>
+            <input id="q-name" type="text" maxlength="30" autocomplete="name" required>
+          </div>
+        </div>
+        <span class="hint">단체 소속이 아닌 경우 단체명을 담당자 성함과 동일하게 입력해 주세요</span>
       </div>
       <div class="field">
         <label for="q-phone">연락처 <b class="req">*</b></label>
@@ -59,11 +63,6 @@
         <span class="hint">거래명세서에 적힐 날짜입니다. 오늘로 넣어 두었으니 다르면 바꿔 주세요</span>
       </div>
       <div class="field">
-        <label>결제</label>
-        <label class="opt"><input id="q-onsite" type="checkbox"> <span><b>현장에서 재결제</b>했습니다</span></label>
-        <span class="hint">현장에서 재결제하신 경우 서류가 사유원 · 신라철강 두 곳 이름으로 따로 발급됩니다</span>
-      </div>
-      <div class="field">
         <label>요청사항 <span class="hint">해당하는 것을 골라 주세요</span></label>
         <label class="opt"><input id="q-opt-exp" type="checkbox"> <span>식사 / 굿즈 구매 금액은 <b>체험비</b>로 바꿔 주세요</span></label>
         <div class="optsum" id="q-exp-sum" hidden></div>
@@ -101,7 +100,7 @@
   </section>
 </div>
 <script
- src="../js/common.js?v=20261123x"></script>
-<script src="js/request.js?v=20261123x"></script>
-<script src="js/datebox.js?v=20261123x"></script>
+ src="../js/common.js?v=20261123y"></script>
+<script src="js/request.js?v=20261123y"></script>
+<script src="js/datebox.js?v=20261123y"></script>
 </body></html>
