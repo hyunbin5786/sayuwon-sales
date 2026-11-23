@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>백업에서 되살리기 · 사유원 운영 보조 시스템</title>
+<!-- 백업에서 되살리기 (2026-11-23): tools/backup.ps1(매주 자동) 또는 tools/export.html 로 받은 백업 파일을 공유 DB 에 다시 넣음
+     - 로그인한 멤버 + 서버의 비밀 값 MIGRATE_KEY 가 있어야 함 (평소에는 MIGRATE_KEY 를 지워 두므로 아무나 못 함 — 되살릴 때만 Cloudflare 에 넣었다가 끝나면 지움)
+     - 두 가지 방식: ① 빠진 것만 채우기 (지금 DB 에 없는 것만 넣음 · 있는 것은 건드리지 않음) ② 백업 때 모습으로 덮어쓰기 (같은 id 는 백업 내용으로 바꿈)
+       어느 쪽이든 백업 뒤에 새로 생긴 것은 지우지 않음. 멤버는 늘 「없는 사람만 더하기」(멤버를 빼지 않음)
+     - 비어 있는 새 DB 에 통째로 넣을 때도 이 도구 (② 로). 쓰는 법 · 파일 모양은 README 20절 -->
+<script>(function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("../"); }catch(e){} })();</script>
+<style>
+  body{font:15px/1.6 "Noto Sans KR",system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#22231f;background:#f6f5f1}
+  h1{font-size:20px} button{margin-top:14px;padding:10px 18px;border:0;border-radius:6px;background:#3f5236;color:#fff;font:inherit;font-weight:600;cursor:pointer} button:disabled{opacity:.5;cursor:default}
+  label{display:block;margin:10px 0 2px;font-weight:600} label.opt{font-weight:400;margin:4px 0} input[type=password],input[type=file]{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cfccc0;border-radius:6px;font:inherit;background:#fff}
+  #sum,#log{margin-top:14px;padding:12px;background:#fff;border:1px solid #e2e0d8;border-radius:8px;white-space:pre-wrap;font:13px/1.6 ui-monospace,Consolas,monospace} #log{min-height:80px}
+  .hint{color:#6b6d66;font-size:13px} .ok{color:#2f6b2f;font-weight:700} .err{color:#b3261e;font-weight:700} a{color:#3f5236}
+</style>
+</head>
+<body>
+<h1>백업에서 되살리기</h1>
+<p class="hint">백업 파일(<code>sayuwon-backup-….json</code>)의 내용을 공유 DB 에 다시 넣습니다. <b>모두가 쓰는 자료가 바뀌는 일</b>이니 필요할 때만, 먼저 「전체 내려받기」로 지금 상태를 받아 둔 뒤에 하세요. <a href="export.html">전체 내려받기</a> · <a href="../">첫 화면</a></p>
+<label>백업 파일</label>
+<input type="file" id="file" accept=".json,application/json">
+<div id="sum" hidden></div>
+<label>방식</label>
+<label class="opt"><input type="radio" name="mode" value="fill" checked> 빠진 것만 채우기 — 지금 DB 에 없는 기록 · 발급 내역 · 파일만 넣음 (있는 것은 그대로)</label>
+<label class="opt"><input type="radio" name="mode" value="replace"> 백업 때 모습으로 덮어쓰기 — 같은 기록은 백업 내용으로 바꿈 (백업 뒤에 고친 내용이 사라짐 · 백업 뒤에 새로 만든 것은 남음)</label>
+<label>MIGRATE_KEY (Cloudflare Worker 비밀 값 — 되살릴 때만 넣었다가 끝나면 지움)</label>
+<input type="password" id="mkey" autocomplete="off">
+<button id="go" disabled>되살리기 시작</button>
+<div id="log"></div>
+<script src="../js/common.js?v=20261123f"></script>
+<script>
+(function(){
+  const $ = id => document.getElementById(id), logEl = $('log');
+  const log = (t, cls) => { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = t; logEl.appendChild(d); d.scrollIntoView({ block: 'nearest' }); return d; };
+  const parse = v => { if (typeof v !== 'string') return v; try { return JSON.parse(v); } catch (e) { return v; } };
+  let B = null;   // 읽어 들인 백업: {calls:[기록], members, quotereq, history:[발급 내역], catalog, admin, files:[{id, kind, name, mime, data}]}
+  // 백업 파일 두 모양을 하나로: format 1 (export.html · data 가 풀려 있고 파일은 files[].base64) · "raw-1" (backup.ps1 · data 가 글자이고 파일은 file_chunks)
+  function read(j){
+    if (!j || j.app !== 'sayuwon-group-intake' || !j.tables) throw new Error('이 시스템의 백업 파일이 아닙니다');
+    const T = j.tables, bySeq = a => (a || []).slice().sort((x, y) => (x.seq || 0) - (y.seq || 0));
+    const kv = Object.fromEntries((T.kv || []).map(r => [r.k, parse(r.v)]));
+    const chunks = {}; bySeq(T.file_chunks).sort((a, b) => a.id === b.id ? a.n - b.n : 0).forEach(c => { (chunks[c.id] = chunks[c.id] || [])[c.n] = c.data; });
+    return { at: j.exportedAt || '', format: j.format,
+      calls: bySeq(T.calls).map(r => parse(r.data)).filter(x => x && x.id),
+      members: bySeq(T.members).filter(m => !m.deleted && m.name && m.emp),
+      quotereq: bySeq(T.quotereq),
+      history: bySeq(T.quote_history).map(r => parse(r.data)).filter(x => x && x.id),
+      catalog: kv.catalog || null, admin: kv.admin || null,
+      files: bySeq(T.files).map(f => ({ id: f.id, kind: f.kind, name: f.name, mime: f.mime, data: f.base64 != null ? f.base64 : (chunks[f.id] || []).join('') })) };
+  }
+  $('file').addEventListener('change', async e => {
+    B = null; $('go').disabled = true; $('sum').hidden = true; logEl.textContent = '';
+    const f = e.target.files[0]; if (!f) return;
+    try { B = read(JSON.parse(await f.text()));
+      const noData = B.files.filter(x => !x.data).length;
+      $('sum').textContent = `백업 시각: ${B.at ? new Date(B.at).toLocaleString('ko-KR') : '(모름)'}\n기록 ${B.calls.length}줄 (그중 지워진 줄 ${B.calls.filter(x => x.deleted).length}) · 멤버 ${B.members.length}명 · 고객 견적 요청 ${B.quotereq.length}건\n견적서 발급 내역 ${B.history.length}건 · 품목 관리 내용 ${B.catalog ? '있음' : '없음'} · 파일 ${B.files.length}개` + (noData ? ` (그중 ${noData}개는 내용 없이 목록만 — 「올린 파일도 함께」를 끄고 받은 백업)` : '');
+      $('sum').hidden = false; $('go').disabled = false;
+    } catch (err) { log('파일을 읽지 못했습니다: ' + err.message, 'err'); }
+  });
+  async function exportAll(table, pick){ const out = []; let after = 0; for (;;) { const j = await SY.call({ action: 'export', table, after, limit: table === 'file_chunks' ? 1 : 200 }); j.rows.forEach(r => out.push(pick(r))); if (j.next == null) break; after = j.next; } return out; }
+  $('go').onclick = async () => {
+    const replace = document.querySelector('input[name=mode]:checked').value === 'replace', mkey = $('mkey').value;
+    if (!B) return; if (!mkey) return log('MIGRATE_KEY 를 넣어 주세요.', 'err');
+    if (!confirm(replace ? '백업 때 모습으로 덮어씁니다.\n백업 뒤에 고친 내용은 사라집니다. 계속할까요?' : '지금 DB 에 없는 것만 백업에서 채웁니다. 계속할까요?')) return;
+    logEl.textContent = ''; $('go').disabled = true;
+    const imp = b => SY.call({ action: 'import', mkey, replace, ...b });
+    try {
+      log('1) 지금 DB 에 무엇이 있는지 보는 중…');
+      const [curCalls, curHist, curFiles, curQr] = await Promise.all([exportAll('calls', r => r.id), exportAll('quote_history', r => r.id), exportAll('files', r => r.id), exportAll('quotereq', r => r.id)]);
+      const has = a => { const s = new Set(a); return x => s.has(x.id); };
+      const calls = replace ? B.calls : B.calls.filter(x => !has(curCalls)(x)), hist = replace ? B.history : B.history.filter(x => !has(curHist)(x));
+      const files = B.files.filter(f => f.data && (replace || !has(curFiles)(f))), qr = replace ? B.quotereq : B.quotereq.filter(x => !has(curQr)(x));
+      log(`   넣을 것: 기록 ${calls.length}줄 · 발급 내역 ${hist.length}건 · 파일 ${files.length}개 · 견적 요청 ${qr.length}건 (지금 DB: 기록 ${curCalls.length}줄 · 발급 내역 ${curHist.length}건 · 파일 ${curFiles.length}개)`);
+      log('2) 넣는 중…');
+      for (let i = 0; i < calls.length; i += 30) { const r = await imp({ calls: calls.slice(i, i + 30) }); (r.imported.skipped || []).forEach(id => log(`   ⚠ id 모양이 맞지 않아 건너뜀: ${id}`, 'err')); }
+      if (calls.length) log(`   기록 ${calls.length}줄`);
+      const r1 = await imp({ members: B.members, quotereq: qr, catalog: B.catalog || undefined, admin: replace && B.admin ? B.admin : undefined });
+      log(`   멤버 ${r1.imported.members}명 더함 (이미 있는 사람은 그대로) · 견적 요청 ${qr.length}건 · 품목 관리 내용 ${r1.imported.catalog ? '넣음' : '그대로 둠'}`);
+      for (let i = 0; i < hist.length; i += 10) await imp({ quoteHistory: hist.slice(i, i + 10) });
+      if (hist.length) log(`   발급 내역 ${hist.length}건`);
+      for (let i = 0; i < files.length; i++) { await imp({ files: [files[i]] }); log(`   파일 ${i + 1} / ${files.length}`); }
+      log('3) 다시 읽어 맞춰 보는 중…');
+      const now = new Map((await exportAll('calls', r => [r.id, r.data])));
+      let miss = 0, diff = 0; B.calls.forEach(x => { const d = now.get(x.id); if (d == null) miss++; else if (replace && JSON.stringify(parse(d)) !== JSON.stringify(x)) diff++; });
+      const nh = new Set(await exportAll('quote_history', r => r.id)), nf = new Set(await exportAll('files', r => r.id));
+      const mh = B.history.filter(x => !nh.has(x.id)).length, mf = B.files.filter(f => f.data && !nf.has(f.id)).length;
+      log(`   기록 ${now.size}줄 · 발급 내역 ${nh.size}건 · 파일 ${nf.size}개`);
+      if (miss || diff || mh || mf) log(`⚠ 맞지 않는 것이 있습니다: 없는 기록 ${miss} · 내용이 다른 기록 ${diff} · 없는 발급 내역 ${mh} · 없는 파일 ${mf}`, 'err');
+      else log(replace ? '끝났습니다. 백업에 있던 것이 모두 백업 내용 그대로 DB 에 있습니다.' : '끝났습니다. 백업에 있던 것이 모두 DB 에 있습니다 (이미 있던 것은 그대로 둠).', 'ok');
+      log('화면을 열어 둔 사람은 새로고침(F5) 하면 되살린 내용이 보입니다. Cloudflare 의 MIGRATE_KEY 는 지워 두세요.');
+    } catch (e) { log('멈췄습니다: ' + (e.code === 'bad_key' ? 'MIGRATE_KEY 가 다르거나(또는 서버에 없거나) 로그인이 확인되지 않았습니다' : (e.message || e)) + ' — 다시 눌러도 됩니다 (같은 것은 한 번만 들어감)', 'err'); }
+    finally { $('go').disabled = false; }
+  };
+})();
+</script>
+</body>
+</html>

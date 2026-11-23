@@ -330,14 +330,16 @@ async function importData(env, req) {
     const ms = req.members.filter(m => m && m.name && m.emp && !have[normEmp(m.emp)]).map(m => q(env, "INSERT INTO members (emp, name, added, \"by\", deleted) VALUES (?, ?, ?, ?, '')", String(m.emp), String(m.name), String(m.added || ''), String(m.by || '')));
     await batch(ms); out.members = ms.length;
   }
-  const qs = (req.quotereq || []).filter(o => o && o.id).map(o => q(env, 'INSERT OR REPLACE INTO quotereq (' + QR_COLS + ') VALUES (' + QR_KEYS.map(() => '?').join(',') + ')', ...QR_KEYS.map(k => String(o[k] == null ? '' : o[k]))));
+  const qs = (req.quotereq || []).filter(o => o && o.id).map(o => q(env, 'INSERT INTO quotereq (' + QR_COLS + ') VALUES (' + QR_KEYS.map((k, i) => '?' + (i + 1)).join(',') + ') ON CONFLICT(id) DO UPDATE SET ' + QR_KEYS.slice(1).map((k, i) => '"' + k + '"=?' + (i + 2)).join(','), ...QR_KEYS.map(k => String(o[k] == null ? '' : o[k]))));
   await batch(qs); out.quotereq = qs.length;
   for (const f of (req.files || [])) { if (!f || !f.id || !f.data) continue; await saveFile(env, String(f.id), f.kind === 'doc' ? 'doc' : 'ment', String(f.name || ''), String(f.mime || ''), String(f.data), '이관'); out.files++; }
   if (req.admin) await kvSet(env, 'admin', JSON.stringify(req.admin));
   // 견적서 서버 자료: 발급 내역은 없는 id 만 더함 (있는 줄은 그대로 — 새 서버에서 한 발급 취소를 지우지 않게) · 품목 목록은 새 서버에 아직 없을 때만
-  const hs = (req.quoteHistory || []).filter(h => h && h.id).map(h => histStmt(env, h));
+  //   replace:true (tools/restore.html 의 「백업 때 모습으로 덮어쓰기」) 이면 발급 내역 · 품목 목록도 받은 것으로 바꿈
+  const hs = (req.quoteHistory || []).filter(h => h && h.id).map(h => req.replace
+    ? q(env, 'INSERT INTO quote_history (id, at, data) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET at=?2, data=?3', String(h.id), String(h.at || ''), JSON.stringify(h)) : histStmt(env, h));   // 있는 줄은 자리(순서)를 지킨 채 내용만 바꿈
   await batch(hs); out.quoteHistory = hs.length;
-  if (req.catalog && !(await kvGet(env, 'catalog'))) { await kvSet(env, 'catalog', JSON.stringify(req.catalog)); out.catalog = 1; }
+  if (req.catalog && (req.replace || !(await kvGet(env, 'catalog')))) { await kvSet(env, 'catalog', JSON.stringify(req.catalog)); out.catalog = 1; }
   return out;
 }
 
