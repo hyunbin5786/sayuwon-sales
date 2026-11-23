@@ -161,3 +161,6 @@ body.pg-lost main{max-width:1600px}
 @media (max-width:1000px){.lost-cols{grid-template-columns:1fr}}
 /* 두 대시보드의 한 줄 높이를 같게 (2026-11-24): 습득 사진(76px)에 맞춰 분실물 신고 줄도 같은 높이 */
 .lost-board .tbl tbody td{height:93px}   /* 사진 76px + 위아래 여백 + 줄 */
+/* 표에서 바로 상태 바꾸기 (2026-11-24) — 글자색은 .st-(상태) 를 그대로 */
+.lost-st{font:inherit;font-weight:700;color:inherit;border:1px solid var(--line);border-radius:6px;padding:4px 6px;background:#fff;cursor:pointer}
+.lost-st option{color:var(--ink,#222);font-weight:400}

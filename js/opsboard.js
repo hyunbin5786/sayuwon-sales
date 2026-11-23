@@ -89,7 +89,7 @@ function renderLost(hit){
       return `<tr class="${b.open.includes(s)?'':'closed'}">`
         + (b.photo ? `<td class="lost-ph">${ps.length ? `<img data-phimg="${esc(ps[0].id)}" data-phview="${esc(ps[0].id)}" alt="${esc(x.d.item||'습득물')}" title="누르면 크게">${ps.length>1?`<small>+${ps.length-1}</small>`:''}` : '<span class="hint">사진 없음</span>'}</td>` : '')
         + b.cols.map(([k,,fn])=>`<td>${esc(fn?fn(x.d[k], x.d):x.d[k]||'')}</td>`).join('')
-        + `<td class="st st-${esc(s)}">${esc(s)}</td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></td></tr>`; };
+        + `<td class="st st-${esc(s)}"><select class="lost-st" data-lst="${esc(x.r.id)}" title="상태 바꾸기">${LOST_ST[b.kind].map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select></td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></td></tr>`; };
     return `<section class="lost-board"><div class="lb-head"><h3>${esc(b.title)} <small>${all.length}건</small></h3><button type="button" class="btn primary" data-ladd="${esc(b.kind)}">＋ ${esc(b.add)}</button></div>`
       + `<div class="filters">${chips}</div>`
       + (list.length ? `<div class="tw"><table class="tbl"><thead><tr>${b.photo?'<th>사진</th>':''}${b.cols.map(c=>`<th>${c[1]}</th>`).join('')}<th>상태</th><th></th></tr></thead><tbody>${list.map(tr).join('')}</tbody></table></div>`
@@ -98,6 +98,11 @@ function renderLost(hit){
   document.querySelectorAll('#list img[data-phimg]').forEach(im=>{ phLoad(im.dataset.phimg).then(u=>{ im.src=u; }).catch(()=>{ im.alt='사진을 불러오지 못함'; im.classList.add('bad'); }); });
 }
 if(B.boards) document.body.classList.add('pg-lost');
+// 표에서 바로 상태 바꾸기 (2026-11-24 · 드롭다운): 고르면 바로 저장 · 반환 완료면 반환일 = 오늘 (반환 받은 분은 「열기」에서)
+document.addEventListener('change', e=>{ const sel=e.target.closest('select[data-lst]'); if(!sel) return;
+  const x=rows.find(y=>y.r.id===sel.dataset.lst); if(!x) return; const from=lostStatus(x.d), to=sel.value; if(from===to) return;
+  const d={...x.d, status:to}; if(to==='반환 완료' && !d.returnDate) d.returnDate=opsToday();
+  putRow({...x, d}, `상태 ${from} → ${to}`).then(ok=>{ if(ok!==false) toast(`「${d.item||''}」 상태를 ${to}(으)로 바꿨습니다.`); }); });
 
 document.addEventListener('click', e=>{
   const lf=e.target.closest('[data-lf]'); if(lf){ const [bi, v]=lf.dataset.lf.split('|'); lostFilter[bi]=v; render(); return; }
