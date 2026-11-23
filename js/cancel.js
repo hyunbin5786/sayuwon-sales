@@ -53,7 +53,7 @@
     return [ !r.date && '방문일', !r.name && '예약자 이름', !r.phone && '연락처', !r.no && '예약 번호', !r.why && !r.whyTxt && '취소 사유',
       r.why==='기타' && !r.whyTxt && '사유 자세히',
       r.kind==='부분 취소' && !r.cnt && !r.amt && '취소할 인원',
-      (r.accBank || r.accNo) && !r.accBank && '환불 계좌 은행', (r.accBank || r.accNo) && !r.accNo && '환불 계좌번호', r.accOwn==='타인' && !r.accName && '예금주 이름',
+      (r.accBank || r.accNo) && !r.accBank && '환불 계좌 은행', (r.accBank || r.accNo) && !r.accNo && '환불 계좌번호', (r.accBank || r.accNo) && !r.accName && (r.accOwn==='타인' || !r.name) && '예금주 이름',   // 본인 계좌는 이름이 비어 있으면 예약자 이름으로 봄
       (r.doc==='받음' || r.doc==='받을 예정') && !(r.files||[]).length && '증빙 서류 파일' ].filter(Boolean);
   }
   const partTxt = (cnt, ppl) => cnt ? `${cnt}명 취소${ppl ? ` (${ppl}명 → ${ppl-cnt}명)` : ''}` : '';
@@ -93,15 +93,21 @@
     const box=b.parentElement; box.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b)); if(box.id==='flt'){ flt=b.dataset.v; render(); }
     if(box.id==='fKind'){ syncKind(); if(segVal('fKind')==='부분 취소') setTimeout(()=>$('#fCnt').focus(),0); }
     if(box.id==='fWhy'){ syncWhy(); if(segVal('fWhy')==='기타') setTimeout(()=>$('#fWhyTxt').focus(),0); }
-    if(box.id==='fAccOwn'){ syncAcc(); if(segVal('fAccOwn')==='타인') setTimeout(()=>$('#fAccName').focus(),0); }
+    if(box.id==='fAccOwn'){ const other=segVal('fAccOwn')==='타인';   // 본인 → 예약자 이름을 넣음 · 타인 → (넣어 준 이름이면) 비우고 적게 함
+      if(other){ if(accAuto) $('#fAccName').value=''; accAuto=false; setTimeout(()=>$('#fAccName').focus(),0); } else { accAuto=true; ownName(); } }
     if(box.id==='fDoc') syncDoc(); });
   // 취소 사유: 하나만 · 「기타」면 사유 자세히 (2026-11-23)
   const syncWhy = () => { $('#fWhyTxtBox').hidden = segVal('fWhy')!=='기타'; };
-  // 환불 계좌: 은행 · 계좌번호 · 예금주(본인 = 예약자 이름 / 타인이면 이름 적기) → acc 글로도 저장 (목록 · 엑셀과 같은 모양)
-  const syncAcc = () => { $('#fAccNameBox').hidden = segVal('fAccOwn')!=='타인'; };
-  function accOf(name){ const bank=$('#fBank').value, no=$('#fAccNo').value.trim(), own=segVal('fAccOwn')||'본인', nm=own==='타인' ? $('#fAccName').value.trim() : '';
+  // 환불 계좌: 은행 · 계좌번호 · 예금주(본인 / 타인) + 예금주 이름 → acc 글로도 저장 (목록 · 엑셀과 같은 모양)
+  //  예금주 이름 칸은 늘 보임 (2026-11-23): 본인 계좌면 예약자 이름을 넣어 줌(고칠 수 있음 · 고치기 전까지는 예약자 이름을 따라감), 타인 계좌면 비우고 적게 함
+  let accAuto=true;   // 예금주 이름이 예약자 이름을 따라가는 중인지
+  const ownName = () => { if(segVal('fAccOwn')==='본인' && accAuto) $('#fAccName').value=$('#fName').value.trim(); };
+  const syncAcc = () => { ownName(); };
+  $('#fName').addEventListener('input', ownName);
+  $('#fAccName').addEventListener('input', ()=>{ accAuto=false; });
+  function accOf(name){ const bank=$('#fBank').value, no=$('#fAccNo').value.trim(), own=segVal('fAccOwn')||'본인', nm=$('#fAccName').value.trim();
     if(!bank && !no) return {accBank:'', accNo:'', accOwn:'', accName:'', acc:''};
-    return {accBank:bank, accNo:no, accOwn:own, accName:nm, acc:[bank, no].filter(Boolean).join(' ') + ` · 예금주 ${own==='타인' ? `타인 계좌 (${nm||'이름 없음'})` : `본인${name?` (${name})`:''}`}`}; }
+    return {accBank:bank, accNo:no, accOwn:own, accName:nm, acc:[bank, no].filter(Boolean).join(' ') + ` · 예금주 ${own==='타인' ? `타인 계좌 (${nm||'이름 없음'})` : `본인${nm?` (${nm})`:''}`}`}; }
   $('#fPhone').addEventListener('input', e=>{ if(SY.phoneTyping) SY.phoneTyping(e.target, e.inputType); });
 
   // 날짜 칸: 단체 방문일과 같은 방식 (칸 안에 「날짜 (요일)」 · 누르면 달력 · 한 번 더 누르거나 숫자를 치면 직접 입력)
@@ -174,13 +180,13 @@
     const items=bl.map(b=>`${b.product||''}${b.people?` ${b.people}명`:''}${b.amount?` ${won(b.amount)}원`:''}`.trim()).filter(Boolean);
     formErp = items.length ? items.join(' + ') + (bl.length>1 && tot ? ` · 합계 ${won(tot)}원` : '') : '';
     ok.textContent = `✓ 전산 예약에서 넣었습니다: ${got.join(' · ')}${formErp?` — 예약 내용: ${formErp}`:''}. 아래 칸을 확인하고 취소 내용 · 사유를 골라 주세요.`; ok.hidden=false;
-    cntCheck();
+    cntCheck(); ownName();
   }
   $('#fErp').addEventListener('input', fillFromErp);
 
   function resetForm(){ ['fErp','fName','fPhone','fNo','fWhyTxt','fBank','fAccNo','fAccName','fCnt','fPpl'].forEach(id=>$('#'+id).value=''); setDate(''); $('#fErpOk').hidden=true;
     [['fSite','홈페이지'],['fKind','전체 환불'],['fDoc',''],['fWhy',null],['fAccOwn','본인']].forEach(([id,v])=>setSeg(id,v));
-    editId=null; formFiles=[]; origUrls=new Set(); formErp='';
+    editId=null; formFiles=[]; origUrls=new Set(); formErp=''; accAuto=true;
     $('#fEditBar').hidden=true; $('#fEditCancel').hidden=true; $('#fReset').hidden=false; $('#fSend').textContent='취소 요청 보내기';
     syncKind(); syncDoc(); syncWhy(); syncAcc(); }
   $('#fReset').onclick=resetForm;
@@ -196,7 +202,7 @@
     const pick=whys.length===1 && opts.includes(whys[0]) ? whys[0] : (whys.length || r.whyTxt) ? '기타' : null;
     setSeg('fWhy', pick); $('#fWhyTxt').value = pick==='기타' ? [...whys.filter(w=>w!=='기타'), r.whyTxt].filter(Boolean).join(' · ') : '';
     setSeg('fDoc', r.doc||''); formFiles=[...(r.files||[])]; origUrls=new Set(formFiles.map(f=>f.url)); formErp=r.erp||'';
-    if(r.accBank!=null || r.accNo!=null){ $('#fBank').value=r.accBank||''; $('#fAccNo').value=r.accNo||''; setSeg('fAccOwn', r.accOwn||'본인'); $('#fAccName').value=r.accName||''; }
+    if(r.accBank!=null || r.accNo!=null){ $('#fBank').value=r.accBank||''; $('#fAccNo').value=r.accNo||''; setSeg('fAccOwn', r.accOwn||'본인'); $('#fAccName').value=r.accName||''; accAuto = (r.accOwn||'본인')==='본인' && (!r.accName || r.accName===r.name); }
     else if(r.acc) $('#fAccNo').value=r.acc;   // 예전 요청: 한 줄로 적힌 계좌는 계좌번호 칸에 (은행 · 예금주는 다시 골라 주세요)
     const miss=missOf(r);
     $('#fEditBar').innerHTML=`✎ <b>${esc(r.name||'(이름 없음)')}</b> 님 취소 요청을 고치는 중 <small>(요청 ${esc(r.by||'')}${r.at?` · ${esc(atLab(r.at))}`:''})</small>${miss.length?`<br><span class="bad">빠진 정보: ${esc(miss.join(' · '))}</span>`:''}${r.erp?`<br><small>전산 예약: ${esc(r.erp)}</small>`:(r.amt && r.kind!=='부분 취소'?`<br><small>예전 자세히: ${esc(r.amt)}</small>`:'')}`;

@@ -6,9 +6,9 @@
 <title>예약 취소 요청 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261124r">
-<link rel="stylesheet" href="css/cancel.css?v=20261124r">
-<link rel="stylesheet" href="css/menu.css?v=20261124r">
+<link rel="stylesheet" href="css/prep.css?v=20261124s">
+<link rel="stylesheet" href="css/cancel.css?v=20261124s">
+<link rel="stylesheet" href="css/menu.css?v=20261124s">
 </head>
 <body>
 <!-- 고객 응대 보조 · 예약 취소 요청 (2026-11-19): 직원이 취소 담당자에게 예약 취소 처리를 요청 → 담당자가 처리 완료 표시.
@@ -67,7 +67,7 @@
           <label>은행 <select id="fBank"><option value="">은행 고르기</option><option>KB국민은행</option><option>신한은행</option><option>우리은행</option><option>하나은행</option><option>NH농협은행</option><option>지역농협 · 축협</option><option>IBK기업은행</option><option>iM뱅크 (대구은행)</option><option>BNK부산은행</option><option>BNK경남은행</option><option>광주은행</option><option>전북은행</option><option>제주은행</option><option>SC제일은행</option><option>한국씨티은행</option><option>KDB산업은행</option><option>수협은행</option><option>새마을금고</option><option>신협</option><option>우체국</option><option>저축은행</option><option>카카오뱅크</option><option>케이뱅크</option><option>토스뱅크</option><option>기타</option></select></label>
           <label class="grow">계좌번호 <input id="fAccNo" inputmode="numeric" autocomplete="off"></label>
           <div class="cx-f"><span class="lb">예금주</span><span class="seg" id="fAccOwn"><button type="button" data-v="본인" class="on">본인 계좌</button><button type="button" data-v="타인">타인 계좌</button></span></div>
-          <label id="fAccNameBox" hidden>예금주 이름 <input id="fAccName" data-ime="ko"></label>
+          <label id="fAccNameBox">예금주 이름 <input id="fAccName" data-ime="ko" title="본인 계좌면 예약자 이름이 들어갑니다 (고칠 수 있음)"></label>
         </div>
       </div>
       <div class="cx-btns"><button type="button" class="btn" id="fReset">비우기</button><button type="button" class="btn" id="fEditCancel" hidden>고치기 그만</button><button type="button" class="btn primary" id="fSend">취소 요청 보내기</button></div>
@@ -98,8 +98,8 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/common.js?v=20261124r"></script>
-<script src="js/cancel.js?v=20261124r"></script>
-<script src="js/menu.js?v=20261124r"></script>
+<script src="js/common.js?v=20261124s"></script>
+<script src="js/cancel.js?v=20261124s"></script>
+<script src="js/menu.js?v=20261124s"></script>
 </body>
 </html>
