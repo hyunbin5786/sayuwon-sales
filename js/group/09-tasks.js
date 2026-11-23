@@ -324,7 +324,10 @@ $('#taskList').addEventListener('change', e=>{
   if(id==='paycheck' && e.target.checked && !rec.linkSent){ e.target.checked=false; toast('결제링크 전송을 먼저 체크해 주세요. (결제링크를 보내기 전에는 입금 확인을 할 수 없습니다)'); return; }   // 결제링크 전송 전에는 입금 확인 불가
   if(id==='linksend' && !e.target.checked && rec.paidAt){ if(!confirm('결제링크 전송을 해제하면 입금 확인도 함께 해제됩니다. 계속할까요?')){ e.target.checked=true; return; } rec.paidAt=''; touched.add('paidAt'); const pc=tasks.find(x=>x.id==='paycheck'); if(pc){ pc.done=false; pc.doneAt=''; delete pc.manualDone; } }   // 결제링크를 다시 보낼 때: 입금 확인도 함께 해제
   t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
-  if(t.done) t.manualDone=1; else { delete t.manualDone; if(taskDue(t)<todayYmd()){ t.due=todayYmd(); t.dueSet=1; t.dueSetAt=new Date().toISOString(); }   /* 다시 열면 마감이 지났어도 오늘 마감 (2026-11-19) */ if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=false); (t.xsubs||[]).forEach(x=>x.done=false); }   // 위 체크 = 완료 (아래 하위 과업은 그대로, 다 체크될 때까지 접히지 않음) · 끄면 모두 해제 (2026-11-18)
+  if(t.done){ t.manualDone=1;   // 맨 위 체크 = 아래 세부 과업(기본 하위 과업 · 직접 추가한 세부 과제)도 모두 처리한 것으로 (2026-11-23 · 나의 할일에서 완료할 때와 같게)
+    const ds=DOC_SUBS[t.id]||[]; if(ds.length || t.subs){ t.subs=t.subs||{}; ds.forEach(([k])=>{ t.subs[k]=true; }); Object.keys(t.subs).forEach(k=>{ t.subs[k]=true; }); }
+    (t.xsubs||[]).forEach(x=>{ x.done=true; }); }
+  else { delete t.manualDone; if(taskDue(t)<todayYmd()){ t.due=todayYmd(); t.dueSet=1; t.dueSetAt=new Date().toISOString(); }   /* 다시 열면 마감이 지났어도 오늘 마감 (2026-11-19) */ if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=false); (t.xsubs||[]).forEach(x=>x.done=false); }   // 끄면 세부 과업도 모두 해제 (2026-11-18)
   if(id==='erp'){ rec.erp = t.done ? ymd(new Date()) : ''; touched.add('erp'); }
   if(id==='linksend' || id==='paycheck'){ const k=id==='linksend'?'linkSent':'paidAt'; rec[k] = t.done ? t.doneAt : ''; touched.add(k); paintFields(); }   // 과업 체크 = 예약 내용 버튼도 (일시 기록)
   if(id==='erpfix' && t.done){ const e=tasks.find(x=>x.id==='erp'); if(e) e.base=erpSnap(); t.changes=[]; }   // 전산에 고친 지금 내용을 기준으로
