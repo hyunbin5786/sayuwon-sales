@@ -1,5 +1,15 @@
 /* 대구대교구 무료입장 명부 (2026-11-19) */
-.cl-main{max-width:1200px}
+.cl-main{max-width:1560px}
+/* 2026-11-23: 1열 = 새로 추가 · 2열 = 명부 표. 좁은 화면에서는 위아래로 */
+.cl-main>.cl-cols,.cl-main>.keybox-panel{grid-column:1/-1}   /* main 은 prep.css 의 2열 grid — 한 줄을 통째로 씀 */
+.cl-cols{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
+.cl-cols>.panel{margin:0;min-width:0}
+.cl-addcol{position:sticky;top:12px}
+.cl-addcol .cl-add{flex-direction:column;align-items:stretch;flex-wrap:nowrap;margin:0}
+.cl-addcol .cl-add input,.cl-addcol .cl-add input[type=date],.cl-addcol .cl-add .dbox .dtxt{width:100%;box-sizing:border-box}
+.cl-addcol .cl-add-btns{margin-left:0;justify-content:flex-end}
+.cl-addcol .cl-add .hint{flex:0 0 auto}
+@media (max-width:900px){ .cl-cols{grid-template-columns:1fr} .cl-addcol{position:static} }
 .keybox-panel .keybox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .cl-tools{display:flex;gap:12px;align-items:center;margin:8px 0 10px}
 .cl-tools input[type=search]{height:34px;min-width:260px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit;font-size:14px}

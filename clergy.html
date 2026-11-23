@@ -6,13 +6,13 @@
 <title>대구대교구 무료입장 명부 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261124h">
-<link rel="stylesheet" href="css/clergy.css?v=20261124h">
-<link rel="stylesheet" href="css/menu.css?v=20261124h">
+<link rel="stylesheet" href="css/prep.css?v=20261124i">
+<link rel="stylesheet" href="css/clergy.css?v=20261124i">
+<link rel="stylesheet" href="css/menu.css?v=20261124i">
 </head>
 <body>
 <!-- 고객 응대 보조 · 대구대교구 무료입장 명부 (2026-11-19): 천주교 대구대교구 수녀 · 신부 · 신학생 무료입장(연 2회) 명부.
-     공유 기록(calls)에 통화 구분 「무료입장명부」로 나눠 저장 (id clergy0, clergy1 … 한 줄에 4만 자까지) — 명부 내용은 이 저장소(GitHub)에는 없음 -->
+     2026-11-23~: 서버 DB 의 명부 표 clergy (한 줄 = 한 방문 · README 22절) · 1열 새로 추가 / 2열 명부 표 — 명부 내용은 이 저장소(GitHub)에는 없음 -->
 <header>
   <a class="sys-brand" href="./" title="메뉴로">사유원 운영 보조 시스템</a><span class="sys-crumb">대구대교구 무료입장 명부</span>
   <span class="me" id="me"></span>
@@ -21,14 +21,21 @@
   <section class="panel keybox-panel" id="keyBox" hidden>
     <div class="keybox"><span class="hint">로그인 정보를 확인할 수 없습니다. <a href="./">첫 화면</a>에서 다시 로그인해 주세요 (팀 비밀번호는 없앰 · 2026-11-21).</span></div>
   </section>
-  <section class="panel">
+  <div class="cl-cols">
+  <!-- 1열: 새로 추가만 (2026-11-23) -->
+  <section class="panel cl-addcol">
+    <h2>새로 추가</h2>
+    <p class="hint">수녀 · 신부 · 신학생 무료입장 (연 2회) · 소속 확인: <a href="https://www.daegu-archdiocese.or.kr/page/org.html?srl=inst&amp;kind=f" target="_blank" rel="noopener">천주교 대구대교구 기관 검색</a></p>
+    <div id="addBox"></div>
+  </section>
+  <!-- 2열: 명부 표 (엑셀 불러오기 · 찾기 · 지우기) -->
+  <section class="panel cl-listcol">
     <h2>대구대교구 무료입장 명부 <small id="sum"></small>
-      <span class="right"><span class="save-st" id="st"></span><button class="btn line-g" id="xlBtn" type="button" title="명부 엑셀(사유원_천주교_무료입장 명부)을 넣으면 그 내용으로 명부를 바꿈">엑셀 불러오기</button><input type="file" id="xlFile" accept=".xlsx,.xls" hidden><button class="btn primary" id="addBtn" type="button">＋ 새로 추가</button></span></h2>
-    <p class="hint">수녀 · 신부 · 신학생 무료입장 (연 2회) · 소속 확인: <a href="https://www.daegu-archdiocese.or.kr/page/org.html?srl=inst&amp;kind=f" target="_blank" rel="noopener">천주교 대구대교구 기관 검색</a> · 팀이 함께 봅니다</p>
-    <div class="cl-tools"><input id="q" type="search" placeholder="이름 · 소속 · 연락처로 찾기" data-ime="ko" autocomplete="off"><label class="hint"><input type="checkbox" id="onlyYear"> 올해만</label></div>
-    <div id="addBox" hidden></div>
+      <span class="right"><span class="save-st" id="st"></span><button class="btn line-g" id="xlBtn" type="button" title="명부 엑셀(사유원_천주교_무료입장 명부)을 넣으면 그 내용으로 명부를 바꿈">엑셀 불러오기</button><input type="file" id="xlFile" accept=".xlsx,.xls" hidden></span></h2>
+    <div class="cl-tools"><input id="q" type="search" placeholder="이름 · 소속 · 연락처로 찾기" data-ime="ko" autocomplete="off"><label class="hint"><input type="checkbox" id="onlyYear"> 올해만</label><span class="hint">팀이 함께 봅니다</span></div>
     <div class="tw"><table class="cl-t"><thead><tr><th>방문일</th><th>소속</th><th>이름</th><th>직책</th><th>연락처</th><th>비고</th><th>회차</th><th title="같은 이름 · 연락처의 올해 방문 횟수">올해</th><th></th></tr></thead><tbody id="body"></tbody></table></div>
   </section>
+  </div>
 </main>
 
 <!-- 삭제 · 엑셀로 바꾸기 확인 -->
@@ -42,9 +49,9 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/common.js?v=20261124h"></script>
-<script src="js/clergyorg.js?v=20261124h"></script>
-<script src="js/clergy.js?v=20261124h"></script>
-<script src="js/menu.js?v=20261124h"></script>
+<script src="js/common.js?v=20261124i"></script>
+<script src="js/clergyorg.js?v=20261124i"></script>
+<script src="js/clergy.js?v=20261124i"></script>
+<script src="js/menu.js?v=20261124i"></script>
 </body>
 </html>

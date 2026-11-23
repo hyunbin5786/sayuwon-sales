@@ -4,7 +4,8 @@
 //   - 열 때 · 다른 컴퓨터에서 바뀔 때(SY.live.onRev) 명부 전체를 받아 이 화면 안에서 찾음
 //   - 예전 저장(공유 기록 calls 의 clergy0 · clergy1 … 4만 자씩 묶음)은 처음 열 때 한 번 DB 로 옮기고 그 묶음은 지움 (moved)
 //  - 「엑셀 불러오기」: 명부 엑셀(머리줄에 방문일 · 소속 · 이름 · 직책 · 연락처 · 비고 · 회차)을 읽어 명부를 그 내용으로 바꿈 (확인 팝업 · clergyImport)
-//  - 「＋ 새로 추가」: 방문일 · 소속 · 이름 · 직책 · 연락처 → 회차(그해 방문 수 + 1) · 대구대교구 소속(js/clergyorg.js) 확인, 문제 없으면 바로 저장 · 3회차 이상 · 목록에 없는 소속이면 경고 팝업(그래도 저장 가능) · 줄 끝 × 로 지우기 (확인 팝업)
+//  - 화면 (2026-11-23): 1열 = 「새로 추가」 칸(늘 열려 있음 · 추가만) · 2열 = 명부 표(엑셀 불러오기 · 찾기 · × 지우기)
+//  - 「새로 추가」: 방문일 · 소속 · 이름 · 직책 · 연락처 → 회차(그해 방문 수 + 1) · 대구대교구 소속(js/clergyorg.js) 확인, 문제 없으면 바로 저장 · 3회차 이상 · 목록에 없는 소속이면 경고 팝업(그래도 저장 가능) · 줄 끝 × 로 지우기 (확인 팝업)
 //  - 회차는 서버가 넣는 순간 다시 셈 (둘이 같이 넣어도 맞음) · 추가 · 지우기는 한 줄씩이라 남이 고친 것을 덮어쓰지 않음
 (function(){
   const $ = s => document.querySelector(s), esc = SY.esc;
@@ -24,7 +25,7 @@
     return { rows: cur.flatMap(p=>p.rows).map(a=>({id:a[0], date:a[1]||'', org:a[2]||'', name:a[3]||'', pos:a[4]||'', phone:a[5]||'', note:a[6]||'', turn:a[7]||''})), parts: ps.map(p=>p.id) };
   }
   const fetchAll = async () => (await SY.call({action:'clergyList'})).items || [];
-  const setRO = on => { oldServer=on; $('#addBtn').disabled=on; $('#xlBtn').disabled=on; };
+  const setRO = on => { oldServer=on; $('#aOk').disabled=on; $('#xlBtn').disabled=on; };
   async function moveOld(){   // 예전 묶음 → DB (한 번)
     const old=fromItems((await SY.list()).items); if(!old.rows.length && !old.parts.length) return 0;
     if(old.rows.length) await SY.call({action:'clergyImport', rows:old.rows});
@@ -110,25 +111,26 @@
       if(d!==pick.value){ pick.value=d; pick.dispatchEvent(new Event('input',{bubbles:true})); } paint(); });
     pick.addEventListener('input', paint); pick.addEventListener('change', paint); paint();
   }
-  const closeAdd = () => { $('#addBox').hidden=true; $('#addBox').innerHTML=''; };
-  function openAdd(){ const t=SY.ymd(new Date());
+  // 1열 「새로 추가」 칸은 늘 열려 있음 (2026-11-23 · 2열이 명부 표). 저장하면 방문일 · 직책은 두고 소속 · 이름 · 연락처를 비움
+  const clearAdd = () => { ['aOrg','aName','aPhone'].forEach(id=>{ $('#'+id).value=''; }); $('#aHint').textContent=''; $('#aOrg').focus(); };
+  function buildAdd(){ const t=SY.ymd(new Date());
     $('#addBox').innerHTML = `<div class="cl-add"><label>방문일 <input type="date" id="aDate" value="${t}"></label><label>소속 <input id="aOrg" data-ime="ko" placeholder="본당 · 수녀원 · 기관"></label>`
       + `<label>이름 <input id="aName" data-ime="ko"></label><label>직책 <input id="aPos" list="posList" data-ime="ko" value="수녀"><datalist id="posList"><option>수녀</option><option>신부</option><option>신학생</option></datalist></label>`
       + `<label>연락처 <input id="aPhone" inputmode="tel"></label>`
-      + `<span class="cl-add-btns"><button type="button" class="btn" id="aNo">취소</button><button type="button" class="btn primary" id="aOk">저장</button></span><p class="hint" id="aHint"></p></div>`;
-    makeDateBox($('#aDate')); $('#addBox').hidden=false; $('#aOrg').focus(); }
+      + `<span class="cl-add-btns"><button type="button" class="btn" id="aNo">비우기</button><button type="button" class="btn primary" id="aOk">저장</button></span><p class="hint" id="aHint"></p></div>`;
+    makeDateBox($('#aDate')); }
   const formRow = () => ({date:$('#aDate').value, org:$('#aOrg').value.trim(), name:$('#aName').value.trim(), pos:$('#aPos').value.trim(), phone:$('#aPhone').value.trim(), note:'', turn:''});
   function turnHint(){ if(!$('#aHint')) return; const r=formRow(); if(!r.name && !r.org){ $('#aHint').textContent=''; return; }
     const out=[]; if(r.name && /^\d{4}/.test(r.date)){ const c=visitsIn(rows, r); out.push(c>=2 ? `<b class="bad">${r.date.slice(0,4)}년에 이미 ${c}회 방문 — ${c+1}회차 (연 2회 넘음)</b>` : `${r.date.slice(0,4)}년 <b>${c+1}회차</b>`); }
     if(r.org && !orgOk(r.org, rows)) out.push('<b class="bad">대구대교구 본당 · 기관 목록에 없는 소속</b>');
     $('#aHint').innerHTML = out.join(' · '); }
   document.addEventListener('input', e=>{ if(['aName','aPhone','aOrg','aDate'].includes(e.target.id)) turnHint(); if(e.target.id==='aPhone' && SY.phoneTyping) SY.phoneTyping(e.target, e.inputType); });
-  $('#addBtn').onclick=()=>{ if(!loaded){ toast('명부를 먼저 불러와 주세요.'); return; } openAdd(); };
+  buildAdd();
   async function saveNew(r){   // 회차는 서버가 넣는 순간 다시 셈
-    let turn=''; if(await change(async ()=>{ turn=((await SY.call({action:'clergyAdd', row:r})).item||{}).turn||''; }, ()=>`「${r.name}」을 명부에 넣었습니다${turn?' ('+turn+')':''}.`)) closeAdd(); }
+    let turn=''; if(await change(async ()=>{ turn=((await SY.call({action:'clergyAdd', row:r})).item||{}).turn||''; }, ()=>`「${r.name}」을 명부에 넣었습니다${turn?' ('+turn+')':''}.`)) clearAdd(); }
   document.addEventListener('click', async e=>{
-    if(e.target.id==='aNo'){ closeAdd(); return; }
-    if(e.target.id==='aOk'){ if(busy) return; const r=formRow();
+    if(e.target.id==='aNo'){ clearAdd(); return; }
+    if(e.target.id==='aOk'){ if(busy) return; if(!loaded || oldServer){ toast(oldServer ? '서버를 새로 올려야 추가할 수 있습니다.' : '명부를 먼저 불러와 주세요.'); return; } const r=formRow();
       if(!/^\d{4}-\d{2}-\d{2}$/.test(r.date)){ toast('방문일을 넣어 주세요.'); return; }
       const miss=[['org','소속','aOrg'],['name','이름','aName'],['pos','직책','aPos'],['phone','연락처','aPhone']].find(([k])=>!r[k]);
       if(miss){ toast(`${miss[1]}을(를) 적어 주세요.`); $('#'+miss[2]).focus(); return; }
@@ -171,6 +173,6 @@
       ()=>change(async ()=>{ for(let i=0;i<list.length;i+=1500) await SY.call({action:'clergyImport', rows:list.slice(i, i+1500), replace:i===0}); }, `명부를 엑셀 내용 ${list.length}명으로 바꿨습니다.`)); });
 
   load();
-  SY.live.onRev(()=>{ if($('#addBox').hidden) reload(); });   // 다른 컴퓨터에서 바뀌면 바로 다시 받음 (서버 「바뀜 기다리기」)
-  setInterval(()=>{ if(!document.hidden && $('#addBox').hidden) reload(); }, 300000);   // 놓친 것 대비 5분마다
+  SY.live.onRev(()=>reload());   // 다른 컴퓨터에서 바뀌면 바로 다시 받음 (서버 「바뀜 기다리기」)
+  setInterval(()=>{ if(!document.hidden) reload(); }, 300000);   // 놓친 것 대비 5분마다
 })();
