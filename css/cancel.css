@@ -45,3 +45,29 @@
 .cx-erp textarea{width:100%;box-sizing:border-box;min-height:64px;resize:vertical;border:1px dashed var(--pine);border-radius:8px;padding:8px 10px;font:13px/1.5 var(--sans);color:var(--ink);background:#fafcf8}
 .cx-erp textarea:focus{border-style:solid;outline:none}
 .cx-erp-ok{margin:0;font-size:12.5px;color:var(--pine);font-weight:600}
+/* 2026-11-23: 날짜 칸(방문일 방식) · 부분 취소 인원 · 증빙 서류 올리기 · 빠진 정보 · 정보 채우기 */
+.cx-row .dbox{position:relative;display:block}
+.cx-row .dbox .dtxt{width:170px;cursor:pointer;font-variant-numeric:tabular-nums}
+.cx-row .dbox .dtxt:not([readonly]){cursor:text}
+.cx-row .dbox .dpick{position:absolute;left:0;bottom:0;width:1px!important;height:1px!important;min-width:0!important;opacity:0;pointer-events:none;border:0;padding:0}
+.cx-cnt{display:inline-flex;align-items:center;gap:6px;color:var(--ink);font-size:14px}
+.cx-row .cx-cnt input{min-width:0;width:84px;text-align:right}
+.cx-row input.bad{border-color:#b5442c;background:#fdf1ee}
+.cx-cnt-msg{margin:0 0 9px;font-size:13px;color:var(--pine);font-weight:600}
+.cx-cnt-msg.bad,.cx-form .bad,#askMsg .bad,.cx-miss b{color:#b5442c}
+.cx-files{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+.cx-file{display:inline-flex;align-items:center;gap:2px;background:#eef2ea;border-radius:6px;padding:2px 4px 2px 8px;font-size:13px;margin:0 4px 2px 0}
+.cx-file a{color:var(--pine);text-decoration:none}
+.cx-file a:hover{text-decoration:underline}
+.cx-file button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:0 4px}
+.cx-up.busy,.cx-acts .busy{opacity:.6;pointer-events:none}
+.cx-edit{margin:0;padding:10px 12px;border:1px solid var(--pine);background:var(--pine-soft);border-radius:8px;font-size:13.5px;color:var(--ink);line-height:1.6}
+.cx-edit small{color:var(--muted)}
+.cx-tools .cx-ck{display:inline-flex;align-items:center;gap:5px;font-size:13.5px;cursor:pointer}
+.cx-tools .cx-ck b{display:inline-block;min-width:18px;padding:0 6px;border-radius:999px;background:#d9a91f;color:#fff;font-size:12px;text-align:center}
+.cx-tools .cx-ck b:empty{display:none}
+.cx-card.miss{border-color:#e0a35a}
+.cx-miss{font-size:13px;color:#8a5a12;background:#fdf0d8;border-radius:6px;padding:3px 8px;align-self:flex-start}
+.cx-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.cx-acts .btn{cursor:pointer}
+.cx-main .btn.sm{padding:4px 10px;font-size:12.5px}
