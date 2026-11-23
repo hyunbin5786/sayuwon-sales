@@ -51,7 +51,7 @@ function resetAll(){
   $('prices2').style.display = 'none';
   try { $('pw2').value = localStorage.getItem(PW_KEY) || ''; } catch { $('pw2').value = ''; }
   setWorkDate(new Date());        // 작업 날짜·요금 기준은 오늘로
-  $('src2').innerHTML = ''; go(2); window.scrollTo(0, 0);
+  $('src2').innerHTML = ''; go(1); window.scrollTo(0, 0);
   toast('모두 지웠습니다');
 }
 function go(n){
@@ -410,8 +410,14 @@ async function readSheet(file){
     $('in2').value = '';
     runCheck();
   } catch (e) {
-    // 엑셀 오류(비밀번호가 맞지 않음 등)면 바로 텍스트로 하기 단계로 (2026-11-20)
-    label.textContent = `⚠️ 엑셀 오류: ${e.message} — 텍스트로 하기로 넘어갔습니다`;
+    // 엑셀 오류(비밀번호가 맞지 않음 등): 1단계 텍스트 명단이 있으면 그대로 최종 인원(환불은 표에서 직접) · 없으면 1단계로 (2026-11-24)
+    if (state.source === 'text' && state.rows.length) {
+      label.textContent = `⚠️ 엑셀 오류: ${e.message} — 1단계 텍스트 명단을 그대로 씁니다 (환불은 표에서 직접 고침)`;
+      state.manual = !body2.length; computeFinal(); renderSrc2();
+      toast(`엑셀 오류 (${e.message}) · 텍스트 명단 그대로 최종 인원을 만들었습니다`);
+      return;
+    }
+    label.textContent = `⚠️ 엑셀 오류: ${e.message} — 1단계(텍스트)로 넘어갔습니다`;
     go(1); window.scrollTo(0, 0); setTimeout(() => $('inAll') && $('inAll').focus(), 0);
     toast(`엑셀 오류 (${e.message}) · 네이버 예약 텍스트를 붙여넣어 명단을 만들어 주세요`);
   }
@@ -612,11 +618,11 @@ function excelRows(qtyCols, vNameCol, vPhoneCol){
 function renderSrc2(){
   const box = $('src2'); if (!box) return;
   if (state.source === 'text') {
-    box.innerHTML = `<p class="hint" style="margin:10px 0 0"><span class="tag yellow">텍스트 명단</span> [엑셀이 안 될 때]에서 정리한 명단 ${state.rows.length}건을 씁니다${body2.length ? ' · 엑셀은 환불 반영과 점검에만' : ''}. <button type="button" class="btn ghost" id="backToExcel">엑셀로 명단 다시 만들기</button></p>`;
+    box.innerHTML = `<p class="hint" style="margin:10px 0 0"><span class="tag yellow">텍스트 명단</span> 1단계에서 정리한 명단 ${state.rows.length}건을 씁니다${body2.length ? ' · 엑셀은 환불 반영과 점검에만' : ''}. <button type="button" class="btn ghost" id="backToExcel">엑셀로 명단 다시 만들기</button></p>`;
   } else if (state.source === 'excel') {
     const x = state.excelInfo || { rows: [], problems: [], cancelled: 0 };
     box.innerHTML = `<p class="hint" style="margin:10px 0 0"><span class="tag ok">엑셀 명단</span> 네이버 엑셀에서 예약 ${x.rows.length}건${x.cancelled ? ` (전액환불 · 취소 ${x.cancelled}건 뺌)` : ''}으로 명단을 만들었습니다.</p>`
-      + (x.problems.length ? `<div class="hint" style="margin:8px 0 0;color:var(--bad)"><span class="tag bad">엑셀로 안 되는 것 ${x.problems.length}</span> ${x.problems.map(esc).join(' · ')}<br>표에서 직접 고치거나, 전산 오류라면 <button type="button" class="btn ghost" id="goText2">엑셀이 안 될 때 · 텍스트로 하기</button></div>` : '');
+      + (x.problems.length ? `<div class="hint" style="margin:8px 0 0;color:var(--bad)"><span class="tag bad">엑셀로 안 되는 것 ${x.problems.length}</span> ${x.problems.map(esc).join(' · ')}<br>표에서 직접 고치거나, 1단계에서 텍스트로 명단을 만드세요 <button type="button" class="btn ghost" id="goText2">← 1단계(텍스트)로</button></div>` : '');
   } else box.innerHTML = '';
   const b = $('backToExcel'); if (b) b.onclick = () => { state.source = null; state.manual = false; if (body2.length) compute2(); else renderSrc2(); toast('엑셀로 명단을 다시 만들었습니다'); };
   const g = $('goText2'); if (g) g.onclick = () => $('btnManual').click();
@@ -662,7 +668,7 @@ function checkAgainstExcel(out, ex){
   return fixes;
 }
 
-// 엑셀이 안 될 때: 텍스트 정리 화면으로 (2026-11-19 · 예전에는 1단계 표를 그대로 불러왔음)
+// 1단계(텍스트 정리)로 돌아가기
 $('btnManual').onclick = () => { go(1); window.scrollTo(0, 0); $('inAll').focus(); toast('네이버 예약 텍스트를 붙여넣어 명단을 만들어 주세요'); };
 // 텍스트 명단 → 최종 인원: 엑셀이 있으면 엑셀의 환불을 반영, 없으면 명단 그대로(직접 고침)
 $('text2final').onclick = () => {
@@ -670,7 +676,8 @@ $('text2final').onclick = () => {
   state.source = 'text'; state.finalEdits = {};
   state.manual = !body2.length;
   computeFinal(); renderSrc2();
-  goStep3();   // 텍스트로 만든 명단은 최종 인원 화면을 거치지 않고 바로 일괄등록 (2026-11-20 · 최대 인원을 넘으면 확인 팝업)
+  go(2); window.scrollTo(0, 0);   // 2단계 엑셀로 확인 (2026-11-24 · 4단계 흐름)
+  toast(body2.length ? '엑셀의 환불을 반영했습니다 · 최종 인원을 확인해 주세요' : '네이버 엑셀을 넣어 환불을 확인해 주세요 (엑셀이 없으면 표를 직접 고침)');
 };
 
 /* ---------- 최종 인원 (1단계 명단 + 환불 결과) ---------- */
@@ -720,7 +727,7 @@ function renderFinal(){
   const refunds = state.refunds, unmatched = state.manual ? [] : (state.unmatched || []);
   if (!state.rows.length) {
     $('res3').style.display = '';
-    $('stat3').innerHTML = ''; $('tbl3').innerHTML = '<div class="empty">명단이 비어 있습니다. 네이버 예약자관리 엑셀을 넣어 주세요 (엑셀이 안 되면 [엑셀이 안 될 때 · 텍스트로]).</div>';
+    $('stat3').innerHTML = ''; $('tbl3').innerHTML = '<div class="empty">명단이 비어 있습니다. 1단계에서 텍스트로 명단을 만들거나 네이버 예약자관리 엑셀을 넣어 주세요.</div>';
     $('unmatched3').innerHTML = ''; $('out3').value = '';
     return;
   }
@@ -800,7 +807,7 @@ function renderBulk(){
   const src = state.final.filter(r => r.status !== 'full' && r.adult + r.student > 0);
   if (!src.length) {
     $('stat4').innerHTML = '';
-    $('groups4').innerHTML = '<div class="card"><div class="empty">최종 인원이 없습니다. 1단계에서 네이버 엑셀을 넣어 최종 인원을 먼저 만들어 주세요.</div></div>';
+    $('groups4').innerHTML = '<div class="card"><div class="empty">최종 인원이 없습니다. 1 · 2단계에서 최종 인원을 먼저 만들어 주세요.</div></div>';
     return;
   }
   // 대리예약(실방문자가 있는 예약)은 따로 입력하므로 일괄등록 칸에서 뺌
@@ -850,7 +857,7 @@ function renderReview(){
   const src = state.final.filter(r => r.status !== 'full' && r.adult + r.student > 0);
   if (!src.length) {
     $('stat5').innerHTML = '';
-    $('tbl5').innerHTML = '<div class="empty">최종 인원이 없습니다. 1단계에서 최종 인원을 먼저 만들어 주세요.</div>';
+    $('tbl5').innerHTML = '<div class="empty">최종 인원이 없습니다. 1 · 2단계에서 최종 인원을 먼저 만들어 주세요.</div>';
     $('checkAll5').disabled = true;
     return;
   }
@@ -985,7 +992,7 @@ const TIPS = {
   todayBack: '작업 날짜를 오늘로 되돌리기',
   btnParse: '붙여넣은 텍스트를 다시 정리 (붙여넣으면 자동으로 정리됨)',
   btnCheck: '엑셀을 다시 읽어 최종 인원 계산',
-  btnManual: '엑셀로 명단이 안 만들어질 때 네이버 예약 텍스트로 명단 만들기',
+  btnManual: '1단계로 돌아가 네이버 예약 텍스트로 명단 만들기',
   btnColmap: '엑셀에서 어떤 열을 쓸지 직접 고르기',
   btnPrices: '관람권 가격 칸 열기/닫기',
   save1: '표에서 고친 내용을 저장 (최종 인원에 반영)',
@@ -999,7 +1006,7 @@ function tipFor(el){
   if (el.closest('#s5')) return ''; // 4단계는 말풍선 없이 버튼 모양(마우스 올림 효과)만
   if (el.id && TIPS[el.id]) return TIPS[el.id];
   const d = el.dataset;
-  if (d.s) return { 1: '엑셀이 안 될 때 · 네이버 예약 텍스트로 명단 만들기', 2: '1단계 · 네이버 엑셀 → 최종 인원', 4: '2단계 · 일괄등록 명단', 5: '3단계 · 등록 누락 확인' }[d.s];
+  if (d.s) return { 1: '1단계 · 네이버 예약 텍스트로 명단 만들기', 2: '2단계 · 네이버 엑셀로 확인 → 최종 인원', 4: '3단계 · 일괄등록 명단', 5: '4단계 · 등록 누락 확인' }[d.s];
   if (d.go) return '다음 단계로 이동';
   if (d.copy) return '아래 내용을 클립보드에 복사';
   if (d.sort) return d.sort === 'name' ? '누를 때마다 ▲ 가나다순 → ▼ 가나다 역순 → ↕ 원래 순서' : '누를 때마다 ▲ 적은 인원부터 → ▼ 많은 인원부터 → ↕ 원래 순서';
