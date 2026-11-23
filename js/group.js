@@ -1209,10 +1209,13 @@ const RENT_PLACE = { chabang:'몽몽차방', dangdu:'당두봉갈' }, DOCENT_KIN
 const isCoupon = k => /음료쿠폰/.test(LABEL[k]||'') || /음료쿠폰/.test(PROG_SRC[k]||'');   // 음료쿠폰(가가빈빈 · 몽몽차방)
 const bookCat = k => RENT_PLACE[k] ? 'rent' : (DOCENT_KIND[k] || isDocent(LABEL[k])) ? 'docent' : isCoupon(k) ? 'coupon' : 'prog';
 const BOOK_CATS = { rent:'대관', docent:'도슨트', prog:'프로그램', coupon:'음료쿠폰' };
-function bookRows(){ try{ return bookRows0(); }catch(_){ return []; } }   // 초기화 중(아래 정의 전)에 불려도 되게
-function bookRows0(){
-  const out=[];   // 지금 화면의 예약(내 단체)은 빼고 다른 단체 예약만
+function bookRows(withMe){ try{ return bookRows0(withMe); }catch(_){ return []; } }   // 초기화 중(아래 정의 전)에 불려도 되게
+// withMe: 예약 목록 창 · 내 일정 출력은 지금 열어 둔 예약도 (화면의 값으로, 「지금 이 예약」 표시 · 2026-11-23: 열어 둔 예약이 도슨트 명단에서 사라지던 것)
+//         그날 건수 · 「다른 예약 n건」은 예전처럼 다른 예약만
+function bookRows0(withMe){
+  const out=[];
   const recs = (cache||[]).filter(r=>isGroupRec(r) && r.id!==editingId && r.date && isBooked(stageOfRec(r))).map(r=>({r, x:xOf(r)}));
+  if(withMe && !BOOK_ONLY && rec && rec.date && isBooked(effStage(rec))) recs.push({r:{id:editingId||''}, x:rec, me:true});
   recs.forEach(({r,x,me})=>{
     const notes = Object.fromEntries(String(x.inotes||'').split(/\s*;\s*/).map(s=>{ const i=s.indexOf('='); return i>0 ? [s.slice(0,i).trim(), s.slice(i+1).trim()] : null; }).filter(Boolean));
     PROG_KEYS().forEach(k=>{ const v=x[k]; if(!v) return; const cat=bookCat(k), unit=UNIT(k);
@@ -1352,12 +1355,12 @@ function paintBook(){
   if(isMb){ paintMbDb(); $('#bookTitle').textContent='몽몽마방 예약 목록'; $('#bookSum').textContent = $('#mbdbSum').textContent; return; }
   const c=bookCatNow, today=todayYmd(), past=$('#bookPast').checked;
   const me=bkMe(), mine=$('#bookMine').checked && !!me;   // 내 담당만 보기 (2026-11-21)
-  const all=[...bookRows(), ...manualRows()].filter(x=>x.cat===c).sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99'))), list=all.filter(x=>(past || x.d>=today) && (!mine || isMine(x, me)));
+  const all=[...bookRows(true), ...manualRows()].filter(x=>x.cat===c).sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99'))), list=all.filter(x=>(past || x.d>=today) && (!mine || isMine(x, me)));
   $('#bookTitle').textContent = `${BOOK_CATS[c]} 예약 목록`; { const bs=$('#bookSum'); if(bs){ bs.textContent=''; bs.hidden=true; } }   // 건수 · 「단체 예약에서 자동 + 직접 추가」 문구는 없앰 (2026-11-21)
   $('#bookHead').innerHTML = `<tr>${BOOK_COLS[c].map(h=>`<th>${h}</th>`).join('')}</tr>`;
   const cell = x => c==='rent' ? [[x.place||'(장소 미정)', x.tm].filter(Boolean).join(' · ')+(x.hrs?` (${x.hrs}시간)`:'')] : c==='docent' ? [x.tm||'(미정)', (x.kind||'')+(x.place?` · ${x.place}`:'')+(x.hrs?` · ${x.hrs}시간`:'')] : [[x.item, x.tm].filter(Boolean).join(' · ')];
   $('#bookBody').innerHTML = list.map(x=>`<tr class="r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}"${x.manual?'':` data-bopen="${esc(x.id)}"`}><td>${esc(dateLabel(x.d))}</td><td><b>${esc(x.org)}</b></td><td class="num">${x.ppl?x.ppl+(c==='coupon'?'장':'명'):''}</td>${cell(x).map(v=>`<td>${esc(v)}</td>`).join('')}<td style="white-space:pre-line">${esc(x.staff)}</td><td class="note">${esc(x.note)}</td>`
-    + `<td class="acts">${x.manual ? `<button type="button" class="btn sm" data-bkedit="${esc(x.id)}">수정</button><button type="button" class="del" data-bkdel="${esc(x.id)}" title="빼기">×</button>` : '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>'}</td></tr>`).join('')
+    + `<td class="acts">${x.manual ? `<button type="button" class="btn sm" data-bkedit="${esc(x.id)}">수정</button><button type="button" class="del" data-bkdel="${esc(x.id)}" title="빼기">×</button>` : x.me ? '<span class="tag call" title="지금 화면에서 열어 둔 예약 (저장 전 내용도 바로)">지금 이 예약</span>' : '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>'}</td></tr>`).join('')
     || `<tr><td colspan="${BOOK_COLS[c].length}" class="empty">${mine?`담당 「${esc(me)}」인 ${past?'':'앞으로 있을 '}예약이 없습니다.`:all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다. 위 「＋ 직접 추가」로 넣으세요.'}</td></tr>`;
   labelCells('#bookBody', BOOK_COLS[c]);   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
 }
@@ -1481,7 +1484,7 @@ function bkTitle(x){ return x.cat==='docent' ? `도슨트${x.kind?' · '+x.kind:
 async function bookPrintImg(){
   const me=bkMe(); if(!me){ toast('내 이름을 먼저 적어 주세요.'); $('#bookMeName').focus(); return; }
   const t0=new Date(); t0.setHours(0,0,0,0); const days=[...Array(8)].map((_,i)=>{ const d=new Date(t0); d.setDate(d.getDate()+i); return ymd(d); });   // 오늘 + 7일 = 8일
-  const evs=[...bookRows(), ...manualRows()].filter(x=>days.includes(x.d) && isMine(x, me)).map(x=>({...x, se:bkTm(x)}));
+  const evs=[...bookRows(true), ...manualRows()].filter(x=>days.includes(x.d) && isMine(x, me)).map(x=>({...x, se:bkTm(x)}));
   const cv=document.createElement('canvas'), W=1080, PAD=36, TW=84, COLW=(W-PAD*2-TW)/4, HH=136, MINH=112, FONT=getComputedStyle(document.body).fontFamily || 'sans-serif';
   const ctx0=cv.getContext('2d'), f=(px,b)=>`${b?'700 ':''}${px}px ${FONT}`;
   const wrap=(ctx,text,w,max)=>{ const out=[]; let line=''; for(const ch of String(text||'')){ if(ctx.measureText(line+ch).width>w && line){ out.push(line); line=ch; if(out.length>=max) break; } else line+=ch; } if(out.length<max && line) out.push(line); if(out.length===max && ctx.measureText(out.join('')).width<ctx.measureText(String(text)).width-1){ let l=out[max-1]; while(l && ctx.measureText(l+'…').width>w) l=l.slice(0,-1); out[max-1]=l+'…'; } return out; };
