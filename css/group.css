@@ -935,9 +935,7 @@ input.tcfg-in{height:34px}
 .tcfg-ebtm{display:flex;align-items:center;gap:8px}
 .tcfg-ebtm .sp{flex:1}
 .tcfg-ebtm label.chk{display:flex;gap:6px;align-items:center;font-size:13px}
-.tmsg{margin-top:6px}
-.tmsg-h{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
-.tcfg-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}   /* 과업 문구 · 고객 안내 글 나란히 (2026-11-20) */
+.tcfg-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}   /* 과업 문구 · 과업 아래 안내 줄 나란히 */
 .tcfg-two label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted);min-width:0}
 .tcfg-two textarea.tcfg-in{height:76px;min-height:52px;max-height:200px}
 @media (max-width:620px){.tcfg-two{grid-template-columns:1fr}}

@@ -1,11 +1,11 @@
 // ===== 추후과업 메시지 관리 (2026-11-20 · 2026-11-21 모두 편집) =====
 // 단체예약의 자동 추후 과업을 모든 직원이 같이 고침. 원래 있는 과업도 새 과업과 똑같이 모든 칸을 편집:
 //   이름 · 언제 생길지(조건 — 원래 조건도 조건 칸으로 채워 둠, 빼거나 바꿀 수 있음) · 마감(원래 규칙이 골라져 있음) · 세부 과업(견적서 생성 · 전송 등 원래 것도)
-//   · 과업 문구(전산 비고 · 세금계산서 요청 등) · 고객 안내 글 · 끄기
+//   · 과업 문구(전산 비고 · 세금계산서 요청 등) · 과업 아래 안내 줄(바뀐 내용 등 · 2026-11-23 · 예전 「고객 안내 글」은 쓰지 않아 없앰) · 끄기
 // 원래 값 그대로인 칸은 저장하지 않음 → 코드의 원래 규칙 그대로. 고친 칸만 공유 기록에 저장
-// 공유 기록 한 줄(id taskcfg, 통화 구분 '추후과업설정')의 수정 기록 칸에 {b:{과업id:{title,when,due,docSubs,subs,note,msg,off,noAutoSubs}}, c:[{id,title,conds,due,subs,note,msg,off}], at, by}
+// 공유 기록 한 줄(id taskcfg, 통화 구분 '추후과업설정')의 수정 기록 칸에 {b:{과업id:{title,when,due,docSubs,subs,note,desc,off,noAutoSubs}}, c:[{id,title,conds,due,subs,note,desc,off}], at, by}   (예전에 저장된 msg 는 읽지 않고, 다음 저장 때 없어짐)
 //   (예전 b.conds = 원래 조건에 더하는 조건 → 열면 원래 조건 + 그것으로 보이고, 저장하면 when 으로 바뀜)
-// 문구 · 안내 글은 {단체명} 처럼 바꿔 넣는 말을 씀 → 예약마다 그 값으로
+// 문구 · 안내 줄은 {단체명} 처럼 바꿔 넣는 말을 씀 → 예약마다 그 값으로
 var TCFG_ID='taskcfg', TCFG_TYPE='추후과업설정';
 const TCFG_BASE_TITLES = {...AUTO_TASKS};   // 처음 이름 (되돌리기용)
 const TCFG_BASE_DOC = JSON.parse(JSON.stringify(DOC_SUBS));   // 원래 세부 과업 (견적서 · 거래명세서 · 대구대교구)
@@ -15,7 +15,7 @@ const TCFG_VARS = [
   ['단체명', r=>r.org||''], ['담당자', r=>((typeof contactsOf==='function' ? contactsOf(r)[0] : null)||{}).name || String(r.contact||'').split(/\s*\/\s*/)[0].trim()], ['방문일', r=>r.date ? dateLabel(r.date) : '방문일 미정'],
   ['입장시간', r=>r.tin||''], ['인원', r=>r.people ? r.people+'명' : ''], ['영업담당', r=>r.owner||''], ['결제방식', r=>r.pay||''], ['미정항목', r=>r.tbd||''], ['답변일', r=>r.tbdDate ? mdLabel(r.tbdDate) : ''], ['입장문', r=>r.gate||''],
   ['마감', (r,t)=>t ? mdLabel(taskDue(t)) : ''], ['마감기준', (r,t)=>!r.date ? '방문일 미정' : t && t.dueSet ? '직접 정한 날' : t && t.id==='staffbrief' ? staffFriName(r.date) : tbdLimitName(r.date)],
-  ['굿즈', r=>goodsText(r)||'없음'], ['빈담당', (r,t)=>((t&&t.missing)||[]).join(' · ')], ['바뀐내용', (r,t)=>((t&&t.changes)||[]).join(' · ')],
+  ['굿즈', r=>goodsText(r)||'없음'], ['빈담당', (r,t)=>((t&&t.missing)||[]).join(' · ')], ['바뀐내용', (r,t)=>(t && t.id==='pplchk' && typeof pplChanges==='function' ? pplChanges(t) : ((t&&t.changes)||[])).join(' · ')],
   ['몽몽마방인원', r=>r.mabangL ? r.mabangL+'명' : '인원 미정'], ['몽몽마방시간', r=>r.mabangTime||'(시간 미입력)'], ['몽몽마방메뉴', ()=>mbMenus().map(m=>m.name).join(' · ')],
   ['결제링크전송', r=>r.linkSent ? dtLabel(r.linkSent) : '(아직 안 보냄)'],
   ['전산비고', r=>erpNote(r)], ['답사비고', r=>tourNote(r)],
@@ -61,6 +61,8 @@ const TCFG_DEF_DUE = { tbdcall:{base:'tbdDate'}, onsitecall:{base:'prevThu'}, wk
 const tcfgDefDue = id => TCFG_DEF_DUE[id] || {base:'made', n:0};
 const TCFG_DEF_NOTE = { erp:'{전산비고}', erpfix:'{전산비고}', tour:'{답사비고}',
   tax:'[세금계산서] {단체명}\n1. 금액\n- 사유원 : {사유원금액}원\n- 신라 : {신라금액}원\n2. 사업자 등록증 : 파일 첨부\n3. 이메일 : {이메일}\n4. 발행일 : {방문일점}\n5. 실제 방문일 : {방문일점}\n감사합니다~' };
+// 과업 아래 안내 줄의 원래 틀 (과업 제목 아래에 자동으로 붙는 글). 지금 자동으로 붙는 것은 「전날 확인 변경 → 예약내역&전산 확인」의 바뀐 내용 하나
+const TCFG_DEF_DESC = { pplchk:'바뀐 내용: {바뀐내용}' };
 // 세부 과업 이름 → 원래 키 (체크 기록이 그대로 이어지게)
 const tcfgDocKey = (id, l) => { const b=(TCFG_BASE_DOC[id]||[]).find(x=>x[1]===l); if(b) return b[0]; let h=0; for(const ch of String(l)) h=(h*31+ch.charCodeAt(0))|0; return 'u'+(h>>>0).toString(36); };
 
@@ -122,14 +124,16 @@ const tcfgNoAutoSubs = id => !!((tcfg.b||{})[id]||{}).noAutoSubs;   // 미정 �
 function tcfgFill(tpl, r, base, t){ let s=String(tpl||''); s=s.replace(/\{자동문구\}/g, base||''); TCFG_VARS.forEach(([k,f])=>{ if(s.indexOf('{'+k+'}')<0) return; let v=''; try{ v=f(r,t); }catch(_){} s=s.split('{'+k+'}').join(String(v||'')); }); return s.trim(); }
 // 과업 문구 (전산 비고 · 세금계산서 요청 등): 고친 틀이 있으면 그 틀(비우면 없음), 없으면 원래 문구
 function tcfgNote(t, base){ const c=tcfgOf(t.id), tpl=c&&c.note; if(tpl==null) return base; return tcfgFill(tpl, rec, base, t); }
-// 고객 안내 글 (과업 안에 「안내 글 복사」)
-function tcfgMsg(t){ const c=tcfgOf(t.id), tpl=c&&c.msg; return tpl && String(tpl).trim() ? tcfgFill(tpl, rec, '', t) : ''; }
-function tcfgMsgHTML(t){ const m=tcfgMsg(t); if(!m) return '';
-  return `<div class="tmsg"><span class="tmsg-h">고객 안내 글</span><textarea class="tnote" readonly spellcheck="false">${esc(m)}</textarea><div class="tbtn"><button type="button" class="btn" data-tmsgcopy="${esc(t.id)}">안내 글 복사</button></div></div>`; }
-document.addEventListener('click', e=>{ const b=e.target.closest?.('[data-tmsgcopy]'); if(!b) return; const t=(typeof tasks!=='undefined'?tasks:[]).find(x=>x.id===b.dataset.tmsgcopy); if(t) copy(tcfgMsg(t), '고객 안내 글을 복사했습니다. 붙여넣으세요.'); });
+// 과업 아래 안내 줄 (2026-11-23): 단체 화면 추후 과업에서 과업 제목 아래에 자동으로 붙는 글 (예: 「바뀐 내용: 관람 인원 20 → 25 (단체 화면)」). 틀을 고칠 수 있고, 비우면 없음
+//  {바뀐내용} · {빈담당} 을 쓴 틀은 그 값이 하나도 없으면 줄을 안 보임 (바뀐 것이 없는데 「바뀐 내용:」만 보이지 않게)
+function tcfgDesc(t){ const c=tcfgOf(t.id), tpl=String(c && c.desc!=null ? c.desc : (TCFG_DEF_DESC[t.id]||'')); if(!tpl.trim()) return '';
+  const need=[['바뀐내용', x=>x.id==='pplchk' && typeof pplChanges==='function' ? pplChanges(x) : (x.changes||[])], ['빈담당', x=>x.missing||[]]].filter(([k])=>tpl.indexOf('{'+k+'}')>=0);
+  if(need.length && need.every(([,f])=>!f(t).length)) return '';
+  return tcfgFill(tpl, rec, '', t); }
+function tcfgDescHTML(t){ const s=tcfgDesc(t); return s ? `<div class="tk-chg tchg-line">${esc(s).replace(/\n/g,'<br>')}</div>` : ''; }
 
 // ===== 관리 팝업 =====
-// 고치는 대상 T: 'b:과업id' (원래 과업) · 'c:번호' (새 과업). 초안은 모든 칸을 채운 모양 {title, conds, due, subs, note, msg, off, autoSubs}
+// 고치는 대상 T: 'b:과업id' (원래 과업) · 'c:번호' (새 과업). 초안은 모든 칸을 채운 모양 {title, conds, due, subs, note, desc, off, autoSubs}
 let tcfgDraft=null, tcfgOpenId='', tcfgLastIn=null;
 const tcfgClone = o => JSON.parse(JSON.stringify(o));
 // 원래 과업의 지금 값 (저장된 고친 칸 + 나머지는 기본값)
@@ -137,7 +141,7 @@ function tcfgEff(id, b){ b=b||{};
   return { title: String(b.title||''), conds: tcfgClone(Array.isArray(b.when) ? b.when : [...(TCFG_DEF_WHEN[id]||[]), ...(b.conds||[])]),
     due: b.due && b.due.base && b.due.base!=='orig' ? {...b.due} : {...tcfgDefDue(id)},
     subs: TCFG_BASE_DOC[id] ? [...(Array.isArray(b.docSubs) ? b.docSubs : TCFG_BASE_DOC[id].map(x=>x[1])), ...(b.subs||[])] : [...(b.subs||[])],
-    note: b.note!=null ? b.note : (TCFG_DEF_NOTE[id]||''), msg: b.msg||'', off: !!b.off, autoSubs: !b.noAutoSubs }; }
+    note: b.note!=null ? b.note : (TCFG_DEF_NOTE[id]||''), desc: b.desc!=null ? b.desc : (TCFG_DEF_DESC[id]||''), off: !!b.off, autoSubs: !b.noAutoSubs }; }
 const tcfgCleanConds = cs => (cs||[]).map(q=>({k:q.k, v:String(q.v??'')})).filter(q=>{ const x=TCFG_CONDS.find(y=>y[0]===q.k); return x && (x[3]!=='num' || q.v!==''); });
 const tcfgDueNorm = d => { d=d||{}; return TCFG_N_DUE.has(d.base) ? {base:d.base, n:Math.max(0, parseInt(d.n)||0)} : {base:d.base||'made'}; };
 const tcfgSubsClean = s => (s||[]).map(x=>String(x||'').trim()).filter(Boolean);
@@ -150,16 +154,16 @@ function tcfgPack(id, e){ const o={};
   const subs=tcfgSubsClean(e.subs);
   if(TCFG_BASE_DOC[id]){ if(!tcfgEq(subs, TCFG_BASE_DOC[id].map(x=>x[1]))) o.docSubs=subs; } else if(subs.length) o.subs=subs;
   { const v=String(e.note||'').trim(); if(v!==String(TCFG_DEF_NOTE[id]||'').trim()) o.note=v; }
-  const m=String(e.msg||'').trim(); if(m) o.msg=m; if(e.off) o.off=true; if(id==='wkcheck' && !e.autoSubs) o.noAutoSubs=true;
+  { const v=String(e.desc||'').trim(); if(v!==String(TCFG_DEF_DESC[id]||'').trim()) o.desc=v; } if(e.off) o.off=true; if(id==='wkcheck' && !e.autoSubs) o.noAutoSubs=true;
   return o; }
 function tcfgPackC(c){ const o={id:c.id, title:String(c.title||'').trim(), due:tcfgDueNorm(c.due||{base:'visit',n:3})};
   const conds=tcfgCleanConds(c.conds); if(conds.length) o.conds=conds; const subs=tcfgSubsClean(c.subs); if(subs.length) o.subs=subs;
-  ['note','msg'].forEach(f=>{ const v=String(c[f]||'').trim(); if(v) o[f]=v; }); if(c.off) o.off=true; return o; }
+  ['note','desc'].forEach(f=>{ const v=String(c[f]||'').trim(); if(v) o[f]=v; }); if(c.off) o.off=true; return o; }
 function tcfgModal(){ let m=$('#tcfgModal'); if(m) return m;
   m=document.createElement('div'); m.className='modal'; m.id='tcfgModal'; m.hidden=true;
   m.innerHTML=`<section class="panel tcfg-pop" role="dialog" aria-modal="true" aria-labelledby="tcfgTitle">
     <div class="tcfg-head"><h2 id="tcfgTitle">추후과업 메시지 관리</h2><button type="button" class="btn" data-tcfgclose>닫기</button></div>
-    <p class="hint" style="margin:0 0 6px">단체예약에 자동으로 생기는 추후 과업의 <b>이름 · 언제 생길지 · 마감 · 세부 과업 · 과업 문구 · 고객 안내 글</b>을 모두 고칠 수 있습니다. 원래 있는 과업도 지금 규칙이 칸에 채워져 있습니다. 저장하면 모든 직원에게 같게 적용됩니다.</p>
+    <p class="hint" style="margin:0 0 6px">단체예약에 자동으로 생기는 추후 과업의 <b>이름 · 언제 생길지 · 마감 · 세부 과업 · 과업 문구 · 과업 아래 안내 줄</b>을 모두 고칠 수 있습니다. 원래 있는 과업도 지금 규칙이 칸에 채워져 있습니다. 저장하면 모든 직원에게 같게 적용됩니다.</p>
     <div class="tcfg-vars"><span class="hint">바꿔 넣는 말 (누르면 글 칸에 들어감):</span> <span id="tcfgVars"></span></div>
     <div id="tcfgBody" class="tcfg-body"></div>
     <div class="row-btns" style="margin-top:10px"><button type="button" class="btn" data-tcfgadd>＋ 새 과업 추가</button><small class="hint" id="tcfgMsg" style="margin:0 0 0 auto"></small><button type="button" class="btn" data-tcfgclose>취소</button><button type="button" class="btn primary" data-tcfgsave>저장</button></div>
@@ -170,7 +174,7 @@ function tcfgModal(){ let m=$('#tcfgModal'); if(m) return m;
   return m; }
 function tcfgOpen(){ tcfgApply();
   tcfgDraft={ b:Object.fromEntries(Object.keys(TCFG_BASE_TITLES).map(id=>[id, tcfgEff(id, (tcfg.b||{})[id])])),
-    c:tcfgClone(tcfg.c||[]).map(c=>({...c, conds:c.conds||[], subs:c.subs||[], due:c.due||{base:'visit',n:3}, note:c.note||'', msg:c.msg||''})) };
+    c:tcfgClone(tcfg.c||[]).map(c=>({...c, conds:c.conds||[], subs:c.subs||[], due:c.due||{base:'visit',n:3}, note:c.note||'', desc:c.desc||''})) };
   tcfgOpenId=''; tcfgLastIn=null; const m=tcfgModal();
   $('#tcfgVars').innerHTML = TCFG_VARS.map(v=>`<code data-tvar="${esc(v[0])}" title="눌러서 넣기">{${esc(v[0])}}</code>`).join(' ');
   const j=tcfgRead(); $('#tcfgMsg').textContent = j.at ? `마지막 저장 ${fmt(j.at)}${j.by?' · '+j.by:''}` : '';
@@ -199,7 +203,7 @@ function tcfgEdHTML(T, c, builtin, id){
     ${builtin && id==='wkcheck' ? `<label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> 미정 항목 · 아직 안 넣은 칸을 하나씩 세부 과업으로 자동으로 넣기</label>` : ''}
     <div class="tcfg-two">
       <label>과업 문구 <small class="hint">(「문구 복사」 버튼으로 복사 · 비우면 없음${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''})</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '')}</label>
-      <label>고객 안내 글 <small class="hint">(「안내 글 복사」 · 비우면 없음)</small>${tcfgTA(`data-tf="${T}|msg"`, c.msg, '안녕하세요 {담당자}님, 사유원입니다.')}</label>
+      <label>과업 아래 안내 줄 <small class="hint">(과업 제목 아래에 자동으로 붙는 글 · 예: 바뀐 내용 · 비우면 없음)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '바뀐 내용: {바뀐내용}')}</label>
     </div>
     <div class="tcfg-ebtm"><label class="chk"><input type="checkbox" data-tf="${T}|off"${c.off?' checked':''}> ${builtin?'이 과업을 자동으로 만들지 않음':'잠시 끄기'}</label><span class="sp"></span>${builtin ? `<button type="button" class="btn" data-tcreset="${T}">원래대로 되돌리기</button>` : `<button type="button" class="btn" data-tcdel="${T}">이 과업 삭제</button>`}</div></div>`; }
 function tcfgPaint(){ const d=tcfgDraft; if(!d) return; const body=$('#tcfgBody'), st=body.scrollTop;
@@ -237,11 +241,11 @@ document.addEventListener('mousedown', e=>{ if(e.target.closest?.('#tcfgModal [d
 document.addEventListener('click', async e=>{
   if(e.target.closest?.('#tcfgBtn')){ tcfgOpen(); return; }
   if(!e.target.closest?.('#tcfgModal') || !tcfgDraft) return; const d=tcfgDraft;
-  const tv=e.target.closest('[data-tvar]'); if(tv){ const el=tcfgLastIn; if(!el || !document.body.contains(el)){ toast('먼저 넣을 글 칸(과업 문구 · 고객 안내 글)을 누르세요.'); return; }
+  const tv=e.target.closest('[data-tvar]'); if(tv){ const el=tcfgLastIn; if(!el || !document.body.contains(el)){ toast('먼저 넣을 글 칸(과업 문구 · 과업 아래 안내 줄)을 누르세요.'); return; }
     const s='{'+tv.dataset.tvar+'}', a=el.selectionStart??el.value.length, b=el.selectionEnd??a; el.value=el.value.slice(0,a)+s+el.value.slice(b); el.focus(); el.selectionStart=el.selectionEnd=a+s.length; tcfgSet(el); return; }
   if(e.target.closest('[data-tcfgclose]')){ tcfgClose(); return; }
   const o=e.target.closest('[data-tcfgopen]'); if(o){ tcfgPendSubs(); tcfgOpenId = tcfgOpenId===o.dataset.tcfgopen ? '' : o.dataset.tcfgopen; tcfgPaint(); return; }
-  if(e.target.closest('[data-tcfgadd]')){ tcfgPendSubs(); const id='u'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); d.c.push({id, title:'', conds:[], due:{base:'visit', n:3}, subs:[], note:'', msg:''}); tcfgOpenId='c:'+(d.c.length-1); tcfgPaint(); setTimeout(()=>{ const t=document.querySelector(`#tcfgModal [data-tf="c:${d.c.length-1}|title"]`); t?.scrollIntoView({block:'center'}); t?.focus(); },0); return; }
+  if(e.target.closest('[data-tcfgadd]')){ tcfgPendSubs(); const id='u'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); d.c.push({id, title:'', conds:[], due:{base:'visit', n:3}, subs:[], note:'', desc:''}); tcfgOpenId='c:'+(d.c.length-1); tcfgPaint(); setTimeout(()=>{ const t=document.querySelector(`#tcfgModal [data-tf="c:${d.c.length-1}|title"]`); t?.scrollIntoView({block:'center'}); t?.focus(); },0); return; }
   const ca=e.target.closest('[data-tccadd]'); if(ca){ tcfgPendSubs(); const c=tcfgTarget(ca.dataset.tccadd); if(c){ (c.conds ||= []).push({k:'mb', v:''}); tcfgPaint(); } return; }
   const cd=e.target.closest('[data-tccdel]'); if(cd){ const [T,j]=cd.dataset.tccdel.split('|'), c=tcfgTarget(T); if(c && c.conds) c.conds.splice(+j,1); tcfgPaint(); return; }
   const sd=e.target.closest('[data-tsubdel]'); if(sd){ const [T,i]=sd.dataset.tsubdel.split('|'), c=tcfgTarget(T); if(c && c.subs) c.subs.splice(+i,1); tcfgPaint(); return; }
