@@ -2703,7 +2703,7 @@
     var r = curReq;
     el.innerHTML = '<div class="rq-head">' + reqBadge(r.status) + '<b>고객 견적 요청 · ' + esc(r.org) + ' ' + esc(r.name) + '님</b></div>' +
       '<div>연락처 ' + esc(r.phone) + ' · 이메일 ' + esc(r.email) + '</div>' +
-      '<div>방문 희망일 ' + esc(reqDateDisp(r.date)) + (r.pax ? ' · 인원 ' + esc(r.pax) + '명' : '') + ' · 접수 ' + esc(r.at) + '</div>' +
+      '<div>방문(예정)일 ' + esc(reqDateDisp(r.date)) + (r.pax ? ' · 인원 ' + esc(r.pax) + '명' : '') + ' · 접수 ' + esc(r.at) + '</div>' +
       (r.memo ? '<div class="rq-memo">' + esc(r.memo) + '</div>' : '') +
       (warn ? '<div class="warn">' + esc(warn) + '</div>' : '');
   }
@@ -2722,6 +2722,18 @@
       if(!state.useDate) state.useDate = r.date;
       else if(r.date && state.useDate !== r.date) warn = "붙여넣은 예약의 이용일(" + reqDateDisp(state.useDate) + ")이 고객 요청의 방문 희망일(" + reqDateDisp(r.date) + ")과 다릅니다.";
       if(r.pax && state.pax && Number(r.pax) !== Number(state.pax)) warn += (warn ? " " : "") + "예약 인원 " + state.pax + "명 / 요청 인원 " + r.pax + "명";
+    }
+    // 요청서에 고객이 고른 것을 문서 설정에 그대로 (2026-11-23): 요청사항의 [서류] · [결제] · [요청] 줄 (request.js memoText 가 만드는 줄)
+    //  서류 = 견적서 / 거래명세서 / 둘 다 · 견적서 발급일 → 견적일 · 결제 = 「현장에서 재결제」면 현장 결제, 아니면 인터넷 결제 · [요청](체험비로 바꾸기 등 내용 변경)이 있으면 내부용 + 외부용
+    var line = function(tag){ var m = String(r.memo || "").match(new RegExp("^\\[" + tag + "\\]\\s*(.*)$", "m")); return m ? m[1] : null; };
+    var docs = line("서류");
+    if(docs !== null){   // 새 요청서로 들어온 요청만 (예전 요청은 이 줄이 없음 → 설정을 건드리지 않음)
+      var q = /견적서/.test(docs), s = /거래명세서/.test(docs);
+      if(q || s){ state.docBoth = q && s; state.docType = q ? "quote" : "statement"; }
+      var qd = (docs.match(/견적서\s*\(발급일\s*(\d{4}-\d{2}-\d{2})\)/) || [])[1];
+      if(q && qd) state.quoteDate = qd;
+      state.payMode = /현장/.test(line("결제") || "") ? "site" : "online";
+      state.docUse = line("요청") ? "fake" : "real";
     }
     paintReqInfo(warn);
   }
