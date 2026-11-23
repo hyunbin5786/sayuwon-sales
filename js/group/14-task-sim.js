@@ -20,15 +20,17 @@ function recFromRecord(r){
 const simCache=new Map();   // 예약 id → {k, tasks} (그 예약 · 오늘 · 품목 · 과업 설정이 같으면 다시 계산하지 않음)
 let simVer=0;               // 품목 관리 · 추후과업 메시지 관리를 다시 받으면 올림 → 모두 다시 계산
 function simTasks(r){
-  const k=[r.saved||'', r.updated||'', String(r.history||'').length, todayYmd(), simVer, savedOwner()].join('|'), c=simCache.get(r.id);
-  if(c && c.k===k) return c.tasks;
-  const S={rec, tasks, erpList, editingId, touched};
+  const k=[r.saved||'', r.updated||'', r.callType||'', r.date||'', r.memo||'', todayYmd(), simVer, savedOwner()].join('|'), hs=String(r.history||''), c=simCache.get(r.id);
+  if(c && c.k===k && c.h===hs) return c.tasks;   // 과업(수정 기록 칸)이 한 글자라도 다르면 다시 계산 (2026-11-23 · 예전엔 길이만 봐서, 길이가 같은 변경이면 옛 과업이 그대로 나왔음)
+  // 2026-11-23: 열었을 때와 다르게 계산되던 곳을 맞춤 — ① 그 예약의 수정 기록(hist) · 메모(memos)도 그 예약 것으로 바꿔 놓고 계산 (예전엔 화면에 열려 있는 다른 예약의 수정 기록으로 「전산에 올린 때의 내용」을 되살렸음)
+  //  ② 예약상담 · 예약취소로 열리는 예약은 화면처럼 사전답사 · 대구대교구 · 직접 추가한 과업만 ③ 계산이 실패하면 조용히 넘어가지 않고 콘솔에 남김 (실패하면 아래 예전 방식으로 떨어져 화면에 없는 과업이 나올 수 있음)
+  const S={rec, tasks, erpList, editingId, touched, hist, memos};
   let out=null;
-  try{ const ph=parseHist(r); rec=recFromRecord(r); tasks=JSON.parse(JSON.stringify(ph.tasks||[])); erpList=ph.erp||[]; editingId=r.id; touched=new Set();
-    syncAutoTasks(); out=tasks; }
-  catch(e){ out=null; }
-  finally{ rec=S.rec; tasks=S.tasks; erpList=S.erpList; editingId=S.editingId; touched=S.touched; }
-  simCache.set(r.id, {k, tasks:out}); return out;
+  try{ const ph=parseHist(r); rec=recFromRecord(r); tasks=JSON.parse(JSON.stringify(ph.tasks||[])); erpList=ph.erp||[]; hist=ph.h||[]; memos=ph.memos||[]; editingId=r.id; touched=new Set();
+    syncAutoTasks(); out = quietStage(effStage(rec)) ? tasks.filter(consultTask) : tasks; }
+  catch(e){ out=null; try{ console.warn('simTasks', r.id, r.org, e); }catch(_){} }
+  finally{ rec=S.rec; tasks=S.tasks; erpList=S.erpList; editingId=S.editingId; touched=S.touched; hist=S.hist; memos=S.memos; }
+  simCache.set(r.id, {k, h:hs, tasks:out}); return out;
 }
 // 저장된 예약의 추후 과업 (열지 않은 예약도): 위 simTasks (열었을 때와 같은 규칙). 계산이 안 되면 예전 방식(저장된 과업 + 미정 · 현장 결제 · 점검)
 function tasksOf(r){
