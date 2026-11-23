@@ -270,7 +270,7 @@ const hasEdits = () => !!state && rows.some(r=>rowChanges(r).length);
 const saveSt = (txt, cls) => { const el=$('#saveSt'); if(el){ el.textContent=txt; el.className='save-st '+(cls||''); } };
 function scheduleAuto(){ const n=state ? rows.reduce((a,r)=>a+rowChanges(r).length,0) : 0; if(n) saveSt(`저장 안 한 수정 ${n}건 — 「수정 내용 저장」을 눌러 주세요`, 'wait'); else if(/저장 안 한/.test(($('#saveSt')||{}).textContent||'')) saveSt('', ''); }   // 이름은 그대로 (예전 자동 저장 자리) · 지금은 알림만
 window.addEventListener('beforeunload', e=>{ if(hasEdits()){ e.preventDefault(); e.returnValue=''; } });
-// 단체예약 칸 이름 (단체고객 전화응대 화면에서 표시할 칸)
+// 단체예약 칸 이름 (단체고객 응대 화면에서 표시할 칸)
 const GROUP_KEY = { name:'org', ppl:'people', time:'tin', bus:'vehicle', car:'vehicle', phone:'phone', gate:'gate' };
 async function saveEdits(auto){
   if(!state) return;
@@ -339,7 +339,7 @@ async function saveEdits(auto){
 }
 // 「수정 내용 저장」 (새 탭은 띄우지 않음, 2026-11-19)
 function onSaveClick(){ if(!state || saving) return; saveEdits(false); }
-// 「자세히」: 목록에서 가져온 단체(단체예약 연결) → 다음 탭에 그 예약 (단체고객 전화응대)
+// 「자세히」: 목록에서 가져온 단체(단체예약 연결) → 다음 탭에 그 예약 (단체고객 응대)
 document.addEventListener('click', e=>{ const b=e.target.closest?.('[data-open-rec]'); if(!b) return; e.preventDefault(); window.open(`group.html?open=${encodeURIComponent(b.dataset.openRec)}`, '_blank'); });
 // ===================== 여행사 등록 (2026-11-19): 아너드처럼 늘 단체로 들어가는 업체 =====================
 // ② 「여행사 등록」 → 단체명 · 입장문 · 메모 목록 (팀 공유: 공유 기록 id prepagency). 엑셀을 읽으면 이 목록을 먼저 보고,
@@ -417,7 +417,7 @@ function render(){
   $('#outHead').innerHTML = `${yy}(${DOW[new Date(s.date+'T00:00').getDay()]||''})<br>${total}명+@`;
   $('#outBody').innerHTML = list.map(r=>`<tr class="${r.inList?'':'new'}">`
     + `<td class="called no-print${(state.edit[r.key]||{}).called?' on':''}"><label title="이 고객에게 연락했는지 (이 브라우저에 기억)"><input type="checkbox" data-call="${esc(r.key)}"${(state.edit[r.key]||{}).called?' checked':''}></label></td>`   // 연락 체크 = 맨 앞 열 (2026-11-19)
-    + `<td class="name"><div class="nmw"><input class="nm${r._chg.has('name')?' chg':''}" data-e="${esc(r.key)}|name" value="${esc(r.name)}" data-ime="ko">${r.recId?`<button type="button" class="more no-print" data-open-rec="${esc(r.recId)}" title="자세히 — 다음 탭에 이 단체예약 열기 (단체고객 전화응대)" aria-label="자세히"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>`:''}</div></td><td class="num"><input class="pp${r._chg.has('ppl')?' chg':''}" data-e="${esc(r.key)}|ppl" value="${r.ppl}" inputmode="numeric"></td>`
+    + `<td class="name"><div class="nmw"><input class="nm${r._chg.has('name')?' chg':''}" data-e="${esc(r.key)}|name" value="${esc(r.name)}" data-ime="ko">${r.recId?`<button type="button" class="more no-print" data-open-rec="${esc(r.recId)}" title="자세히 — 다음 탭에 이 단체예약 열기 (단체고객 응대)" aria-label="자세히"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>`:''}</div></td><td class="num"><input class="pp${r._chg.has('ppl')?' chg':''}" data-e="${esc(r.key)}|ppl" value="${r.ppl}" inputmode="numeric"></td>`
     + `<td><input class="t${r._chg.has('time')?' chg':''}" data-e="${esc(r.key)}|time" data-tp="1" readonly value="${esc(r.time)}" placeholder="${esc(r.timeHint||'시간')}"></td>`
     + `<td><select class="gate ${esc(r.gate||'none')}${r._chg.has('gate')?' chg':''}" data-e="${esc(r.key)}|gate"><option value=""${r.gate?'':' selected'}>미정</option><option${r.gate==='치허문'?' selected':''}>치허문</option><option${r.gate==='곡신문'?' selected':''}>곡신문</option></select></td>`   // 입장문: 관리하는 사람이 고름 (추천 없음, 2026-11-19)
     + `<td class="veh${!r.bus && !r.car ? ' tbd' : ''}"><label>버스<input class="vn${r._chg.has('bus')?' chg':''}" data-e="${esc(r.key)}|bus" value="${esc(r.bus)}" inputmode="numeric" placeholder="-">대</label><label>승용<input class="vn${r._chg.has('car')?' chg':''}" data-e="${esc(r.key)}|car" value="${esc(r.car)}" inputmode="numeric" placeholder="-">대</label></td><td><input class="p${r._chg.has('phone')?' chg':''}" data-e="${esc(r.key)}|phone" value="${esc(r.phone)}"></td>`

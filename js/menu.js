@@ -9,14 +9,14 @@
   const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const I = (href, b, s, go) => ({href:base+href, b, s, go});
   const G = [
-    {k:'book', t:'예약보조', login:1, items:[ {sub:'고객응대 접수'}, I('personal.html','개인고객 전화응대'), I('group.html','단체고객 전화응대'),
+    {k:'book', t:'예약보조', login:1, items:[ {sub:'고객응대 접수'}, I('personal.html','개인고객 응대'), I('group.html','단체고객 응대'),
       {sub:'고객 응대 보조'}, I('status.html','예약 현황 공유'), I('naver.html','네이버 예약 → 사유원 전산 이관'), {...I('ment.html','전화응대 멘트'), guest:1}, I('document/','견적서 / 거래명세서 발급'), I('prep.html','다음날 고객 응대 준비'), I('clergy.html','대구대교구 무료입장 명부'), I('cancel.html','예약 취소 요청') ]},   // guest: 로그인하지 않아도 보이는 항목 (2026-11-18) · sep: 가로줄 = 아침 · 일과 중 · 하루 마무리에 하는 일 구분 (2026-11-19)
     {k:'ops', t:'운영보조', items:[ {sub:'예약현황 공유'}, {chips:[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']]},
       {...I('lost.html','분실물 찾기'), login:1}, {...I('accident.html','사고현황 접수'), login:1}, {...I('stock.html','재고확인'), login:1}, {...I('ship.html','스마트스토어 발송 보고'), login:1} ]},
     {k:'set', t:'기타 설정', login:1, items:[ I('./#catalog','품목관리','', 'catalog'), I('./#members','멤버관리','', 'members') ]},
   ];
   let st={}; try{ st=JSON.parse(localStorage.getItem('sy_menu_acc')||'{}')||{}; }catch(_){}
-  // 지금 화면 표시: 파일 이름이 같고, 메뉴 주소의 ?값(tab · p 등)이 지금 주소에도 있으면 (단체고객 전화응대는 나의 할일 · 예약 현황이 아닐 때만)
+  // 지금 화면 표시: 파일 이름이 같고, 메뉴 주소의 ?값(tab · p 등)이 지금 주소에도 있으면 (단체고객 응대는 나의 할일 · 예약 현황이 아닐 때만)
   const herePath = /\/document\//.test(location.pathname) ? 'document/' : (location.pathname.replace(/.*\//,'') || 'index.html'), hereQ = new URLSearchParams(location.search);
   const isHere = href => { const [p,q]=href.replace(/^(\.\.\/)?/,'').split('?'); if((p||'index.html')!==herePath) return false;
     if(!q) return p!=='group.html' || (!hereQ.get('my') && !hereQ.get('book'));

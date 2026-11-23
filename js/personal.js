@@ -1,4 +1,4 @@
-// ===== 개인고객 전화응대 (personal.html) =====
+// ===== 개인고객 응대 (personal.html) =====
 // 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 README 14절
 // 통화 기록(구분 · 보고전달자 · 예약 여부) · 추후 과업 · 통화 기록 전체 · 삭제된 통화 · 마감 알림 · 보고 글자 복사
 
@@ -100,7 +100,9 @@ const syncDates = () => document.querySelectorAll('input[type=date][data-dbox]')
 let reportShown='';   // 이 통화에서 보고 글자 팝업을 띄운 보고전달자 (저장할 때 보고전달자가 새로 정해졌으면 팝업)
 let autoT=null, lastAuto=null; const AUTO_SAVE_MS = 30000;   // 자동 저장 (아래 scheduleAuto)
 let cur=null, startedAt=null;   // cur: 지금 열어 둔 기록 (새 통화면 null)
-function blankForm(){ return {cat:'', reportTo:'', reserved:'', name:'', phone:'', date:'', people:'', note:'', tasks:[]}; }
+// 채널 (2026-11-23): 문의가 들어온 곳. 새 기록은 검정폰이 기본 · 하나만 고름. 기록의 history.channel + 비고 칸 「채널 …」 (예전 기록은 비어 있음 = 고른 것 없음)
+const CHANNELS = ['검정폰','보라폰','카카오톡','메일','기타'], CHANNEL_DEFAULT = '검정폰';
+function blankForm(){ return {cat:'', channel:CHANNEL_DEFAULT, reportTo:'', reserved:'', name:'', phone:'', date:'', people:'', note:'', tasks:[]}; }
 let form=blankForm(), saved=JSON.stringify(form);
 const todayYmd = () => ymd(new Date());
 const tasksOfItem = r => { try{ const h=JSON.parse(r.history||'{}'); return Array.isArray(h.tasks) ? h.tasks : []; }catch(_){ return []; } };
@@ -212,10 +214,10 @@ function toItem(f=form, base=cur){
   return { ...(base||{}), id, saved: base ? base.saved : new Date().toISOString(), callStart: base ? base.callStart : (startedAt||new Date()).toISOString(),
     takenBy: base ? (base.takenBy || user.name || '') : (user.name || ''), owner: user.name || '', callType: CALL_TYPE,
     summary: [first, open ? `추후 과업 ${open}건` : ''].filter(Boolean).join(' · '), date: f.date, people: f.people,
-    contact: f.name, phone: f.phone, note: f.note, memo: [f.cat&&`구분 ${f.cat}`, f.reportTo&&`보고전달자 ${f.reportTo}`, f.reserved&&`예약 여부 ${f.reserved}`].filter(Boolean).join(' / '),   // 시트 비고 칸에도 보이게
-    history: JSON.stringify({...h, h:h.h||[], tasks:f.tasks, cat:f.cat||'', reportTo:f.reportTo||'', reserved:f.reserved||''}) };
+    contact: f.name, phone: f.phone, note: f.note, memo: [f.cat&&`구분 ${f.cat}`, f.channel&&`채널 ${f.channel}`, f.reportTo&&`보고전달자 ${f.reportTo}`, f.reserved&&`예약 여부 ${f.reserved}`].filter(Boolean).join(' / '),   // 시트 비고 칸에도 보이게
+    history: JSON.stringify({...h, h:h.h||[], tasks:f.tasks, cat:f.cat||'', channel:f.channel||'', reportTo:f.reportTo||'', reserved:f.reserved||''}) };
 }
-function fromItem(r){ let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} return { cat:h.cat||'', reportTo:h.reportTo||'', reserved:h.reserved||'', name:r.contact||'', phone:r.phone||'', date:String(r.date||'').slice(0,10), people:r.people||'', note:r.note||'', tasks:tasksOfItem(r).map(t=>({...t})) }; }
+function fromItem(r){ let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} return { cat:h.cat||'', channel:h.channel||'', reportTo:h.reportTo||'', reserved:h.reserved||'', name:r.contact||'', phone:r.phone||'', date:String(r.date||'').slice(0,10), people:r.people||'', note:r.note||'', tasks:tasksOfItem(r).map(t=>({...t})) }; }
 // ===================== 구분 · 예약 여부 (하나 고르기, 다시 누르면 해제) =====================
 // 구분: 처음엔 기본(예약취소 · 결제링크 · 기타문의). ＋로 추가 · 칩의 ×로 삭제(기본도 삭제 가능) → 공유 기록 한 줄(id pcats, 통화 구분 '개인구분')에 전체 목록으로 저장 → 모든 사람 화면에 같게
 //  (예전 저장 모양 {cats:[추가한 것]} 은 기본 + 추가로 읽음, 새 모양은 {cats:[전체], full:true})
@@ -235,7 +237,9 @@ function paintChips(){
   // 구분 칩은 끌어서 순서를 바꿈 (모든 사람 목록 순서, 2026-11-18)
   $('#catChips').innerHTML = cats.map(c=>`<button type="button"${list.includes(c)?' draggable="true"':''} data-cat="${esc(c)}" class="${form.cat===c?'on':''}${list.includes(c)?'':' gone'}" aria-pressed="${form.cat===c}" title="누르면 고르기 · 끌어서 순서 바꾸기">${esc(c)}${list.includes(c)?`<span class="x" data-catdel="${esc(c)}" title="'${esc(c)}' 구분 삭제 (모든 사람에게서)">×</span>`:''}</button>`).join('') + `<button type="button" class="add" data-catadd title="구분 추가 (모든 사람에게 보임)">＋</button>`;
   // 보고전달자 칸은 없앰 (2026-11-18). 예전 통화에 적힌 보고전달자는 기록에만 남음
+  { const ch=$('#chChips'); if(ch) ch.innerHTML = CHANNELS.map(c=>`<button type="button" data-ch="${esc(c)}" class="${form.channel===c?'on':''}" aria-pressed="${form.channel===c}">${esc(c)}</button>`).join(''); }   // 채널
 }
+$('#chChips').addEventListener('click', e=>{ const b=e.target.closest('button[data-ch]'); if(!b || form.channel===b.dataset.ch) return; form.channel=b.dataset.ch; touch(); });   // 채널은 늘 하나 (다시 눌러도 해제 안 됨)
 $('#catChips').addEventListener('click', e=>{
   const x=e.target.closest('[data-catdel]');
   if(x){ e.stopPropagation(); const c=x.dataset.catdel; if(!confirm(`'${c}' 구분을 삭제할까요?\n모든 사람의 구분 목록에서 빠집니다. (이미 저장된 통화의 구분은 그대로 남습니다)`)) return;
@@ -462,7 +466,7 @@ paintForm(); renderLists(); paintSync(); tryOpen(); flush();
 // ===== 삭제 확인 팝업 (추후 과업 삭제 등): 「정말로 삭제할 건가요?」 → 삭제 · 취소 (Enter = 삭제, Esc = 취소) =====
 let askOk=null;
 function askDelete(msg, ok, title='삭제 확인', yes='삭제'){ askOk=ok; document.getElementById('askTitle').textContent=title; document.getElementById('askYes').textContent=yes; document.getElementById('askMsg').textContent=msg; document.getElementById('askModal').hidden=false; setTimeout(()=>document.getElementById('askNo').focus(),0); }
-// ===== 단체고객 전화응대로 변경 (2026-11-19): 듣다 보니 단체 문의인 통화 → 같은 기록을 단체 예약(예약상담)으로 바꿔 단체 화면에서 이어서 =====
+// ===== 단체고객 응대로 변경 (2026-11-19): 듣다 보니 단체 문의인 통화 → 같은 기록을 단체 예약(예약상담)으로 바꿔 단체 화면에서 이어서 =====
 // 성함 · 연락처 · 방문일 · 인원 · 문의 내용(메모) · 지금까지 기록은 그대로, 개인고객 자동 과업(문의 처리)은 뺌, 영업 담당 = 바꾼 사람
 async function toGroup(){
   if(!hasContent()){ toast('문의 내용이나 고객 정보를 넣어 주세요.'); return; }
@@ -472,8 +476,8 @@ async function toGroup(){
   let h={}; try{ h=JSON.parse(it.history||'{}')||{}; }catch(_){}
   const g={ ...it, callType:'예약상담', owner:user.name||it.takenBy||'', memo:'', pay:'미정', vehicle:'미정',
     summary:`예약상담 · ${String(it.note||'').split(/\n/)[0].slice(0,60)}`.replace(/ · $/,''),
-    history: JSON.stringify({ h:[...(h.h||[]), {t:now, by:user.name||'', what:'[변경] 개인고객 전화응대 → 단체고객 전화응대 (예약상담)'}], tasks:(h.tasks||[]).filter(t=>t.id!=='inqcheck'), erp:[], memos:[] }) };
-  $('#toGroupBtn').disabled=true; toast('단체고객 전화응대로 바꾸는 중…');
+    history: JSON.stringify({ h:[...(h.h||[]), {t:now, by:user.name||'', what:'[변경] 개인고객 응대 → 단체고객 응대 (예약상담)'}], tasks:(h.tasks||[]).filter(t=>t.id!=='inqcheck'), erp:[], memos:[] }) };
+  $('#toGroupBtn').disabled=true; toast('단체고객 응대로 바꾸는 중…');
   try{
     pending=pending.filter(p=>!(p.item && p.item.id===g.id)); writeJSON(PEND_LS,pending);
     await SY.call({action:'put', item:g});
@@ -482,7 +486,7 @@ async function toGroup(){
     location.href='group.html?open='+encodeURIComponent(g.id);
   }catch(e){ $('#toGroupBtn').disabled=false; handleErr(e); toast('바꾸지 못했습니다. 잠시 뒤 다시 눌러 주세요.'); }
 }
-$('#toGroupBtn').onclick=()=>askDelete('이 통화를 단체고객 전화응대로 옮깁니다. 단계는 「예약상담」이 되고, 성함 · 연락처 · 방문일 · 인원 · 문의 내용은 그대로 가져갑니다. 개인고객 목록에서는 빠집니다.', toGroup, '단체고객 전화응대로 변경', '변경');
+$('#toGroupBtn').onclick=()=>askDelete('이 통화를 단체고객 응대로 옮깁니다. 단계는 「예약상담」이 되고, 성함 · 연락처 · 방문일 · 인원 · 문의 내용은 그대로 가져갑니다. 개인고객 목록에서는 빠집니다.', toGroup, '단체고객 응대로 변경', '변경');
 const closeAsk = () => { document.getElementById('askModal').hidden=true; askOk=null; };
 document.getElementById('askNo').onclick = closeAsk;
 document.getElementById('askYes').onclick = () => { const f=askOk; closeAsk(); if(f) f(); };

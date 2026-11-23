@@ -1,5 +1,5 @@
 // !! 자동으로 합친 파일 — 직접 고치지 마세요. 소스는 js/group/*.js, 고친 뒤 tools/build.ps1 실행 (README 14절) !!
-// ===== 단체고객 전화응대 (group.html) =====
+// ===== 단체고객 응대 (group.html) =====
 // 구역 지도 · 데이터 모양 · 자주 하는 수정은 README 14절. 공통 도구(SY: 주소 · 날짜 · 전화 · esc)는 js/common.js
 // 예약 칸 · 예약 내역(가격 · 할인) · 추후 과업 · 전산 내역 · 예약 현황 · 단체예약 목록 · 나의 할일 · 잠금 · 메모 · 알림
 
@@ -1550,7 +1550,7 @@ $('#bookPast').onchange=paintBook;
 $('#bookModal').addEventListener('mousedown', e=>{ if(e.target.id==='bookModal') bookShut(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#bookModal').hidden && !BOOK_ONLY){ e.preventDefault(); $('#bookModal').hidden=true; } });
 ['#bookBody','#mbdbBody'].forEach(sel=>$(sel).addEventListener('click', e=>{ if(e.target.closest('button')) return; const tr=e.target.closest('tr[data-bopen]'); if(!tr || !tr.dataset.bopen) return; const r=cache.find(x=>x.id===tr.dataset.bopen); if(!r || BOOK_GUEST) return;
-  if(BOOK_ONLY){ BOOK_ONLY=''; document.documentElement.classList.remove('book-only'); history.replaceState(null,'','group.html'); document.title='단체고객 전화응대 · 사유원 운영 보조 시스템'; $('#crumb').textContent='단체고객 전화응대'; }   // 공유 페이지 → 단체 화면으로 바뀌며 그 예약을 엶 (나의 할일 단독 화면과 같음)
+  if(BOOK_ONLY){ BOOK_ONLY=''; document.documentElement.classList.remove('book-only'); history.replaceState(null,'','group.html'); document.title='단체고객 응대 · 사유원 운영 보조 시스템'; $('#crumb').textContent='단체고객 응대'; }   // 공유 페이지 → 단체 화면으로 바뀌며 그 예약을 엶 (나의 할일 단독 화면과 같음)
   $('#bookModal').hidden=true; openRecordG(r); }));
 
 // 몽몽마방 예약 목록 (직접 추가 · 수정 · 빼기)
@@ -3912,7 +3912,7 @@ $('#myModal').addEventListener('mousedown', e=>{ if(e.target.id==='myModal' && !
 $('#myBody').addEventListener('click', e=>{ if(e.target.closest('.my-ck, .etc-subadd, .etc-subck, [data-etcdone], .tk-ctl:not(.tk-src), .tk-sub, .tk-in, .tk-when')) return; const pe=e.target.closest('[data-popen]');
   if(MY_EMBED){ const ge=e.target.closest('[data-myopen]'); if(pe||ge) window.parent.postMessage({type:'sy-my', ev:'go', url: pe ? 'personal.html?open='+encodeURIComponent(pe.dataset.popen) : 'group.html?open='+encodeURIComponent(ge.dataset.myopen)+(erpAfterOpen===ge.dataset.myopen?'&erp=1':'')}, '*'); erpAfterOpen=''; return; }   // 팝업 안: 바깥 화면이 그 화면으로 이동
   if(pe){ guardLeave(()=>{ location.href='personal.html?open='+encodeURIComponent(pe.dataset.popen); }); return; } const el=e.target.closest('[data-myopen]'); if(!el) return; const r=cache.find(x=>x.id===el.dataset.myopen); if(!r) return;
-  if(MY_ONLY){ document.documentElement.classList.remove('my-only'); history.replaceState(null,'','group.html'); document.title='단체고객 전화응대 · 사유원 운영 보조 시스템'; $('#crumb').textContent='단체고객 전화응대'; $('#myModal').hidden=true; openRecordG(r); erpPasteAfter(r.id); return; }   // 단체 줄 → 단체 화면으로 바뀌며 그 예약을 엶
+  if(MY_ONLY){ document.documentElement.classList.remove('my-only'); history.replaceState(null,'','group.html'); document.title='단체고객 응대 · 사유원 운영 보조 시스템'; $('#crumb').textContent='단체고객 응대'; $('#myModal').hidden=true; openRecordG(r); erpPasteAfter(r.id); return; }   // 단체 줄 → 단체 화면으로 바뀌며 그 예약을 엶
   closeMy(); openRecordG(r); erpPasteAfter(r.id); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#myModal').hidden){ e.preventDefault(); closeMy(); } });
 

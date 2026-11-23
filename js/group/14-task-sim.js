@@ -261,7 +261,7 @@ $('#myModal').addEventListener('mousedown', e=>{ if(e.target.id==='myModal' && !
 $('#myBody').addEventListener('click', e=>{ if(e.target.closest('.my-ck, .etc-subadd, .etc-subck, [data-etcdone], .tk-ctl:not(.tk-src), .tk-sub, .tk-in, .tk-when')) return; const pe=e.target.closest('[data-popen]');
   if(MY_EMBED){ const ge=e.target.closest('[data-myopen]'); if(pe||ge) window.parent.postMessage({type:'sy-my', ev:'go', url: pe ? 'personal.html?open='+encodeURIComponent(pe.dataset.popen) : 'group.html?open='+encodeURIComponent(ge.dataset.myopen)+(erpAfterOpen===ge.dataset.myopen?'&erp=1':'')}, '*'); erpAfterOpen=''; return; }   // 팝업 안: 바깥 화면이 그 화면으로 이동
   if(pe){ guardLeave(()=>{ location.href='personal.html?open='+encodeURIComponent(pe.dataset.popen); }); return; } const el=e.target.closest('[data-myopen]'); if(!el) return; const r=cache.find(x=>x.id===el.dataset.myopen); if(!r) return;
-  if(MY_ONLY){ document.documentElement.classList.remove('my-only'); history.replaceState(null,'','group.html'); document.title='단체고객 전화응대 · 사유원 운영 보조 시스템'; $('#crumb').textContent='단체고객 전화응대'; $('#myModal').hidden=true; openRecordG(r); erpPasteAfter(r.id); return; }   // 단체 줄 → 단체 화면으로 바뀌며 그 예약을 엶
+  if(MY_ONLY){ document.documentElement.classList.remove('my-only'); history.replaceState(null,'','group.html'); document.title='단체고객 응대 · 사유원 운영 보조 시스템'; $('#crumb').textContent='단체고객 응대'; $('#myModal').hidden=true; openRecordG(r); erpPasteAfter(r.id); return; }   // 단체 줄 → 단체 화면으로 바뀌며 그 예약을 엶
   closeMy(); openRecordG(r); erpPasteAfter(r.id); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#myModal').hidden){ e.preventDefault(); closeMy(); } });
 
