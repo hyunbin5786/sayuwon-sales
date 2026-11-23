@@ -247,7 +247,8 @@
   let cardUp=null;   // 증빙을 올리는 중인 요청 id
   // 요청 목록 = 표 하나 (2026-11-23): 요청 한 건 = 한 줄 (계속 쌓이므로 아래로 늘어남). 빠진 칸은 빨간 「빠짐」
   const MISS_ROW={'방문일':'date','예약자 이름':'name','연락처':'phone','예약 번호':'no','취소 사유':'why','사유 자세히':'why','취소할 인원':'kind','증빙 서류 파일':'doc','환불 계좌 은행':'acc','환불 계좌번호':'acc','예금주 이름':'acc'};
-  const COLS=['상태','예약자 · 연락처','방문일','예약 번호','취소 내용','전산 예약','취소 사유','증빙 서류','환불 계좌','요청','처리'];
+  // 2026-11-23: 「전산 예약」 열은 뺌 (내용은 「정보 채우기」로 열면 위 안내 줄에 보이고, 찾기에도 걸림)
+  const COLS=['상태','예약자 · 연락처','방문일','예약 번호','취소 내용','취소 사유','증빙 서류','환불 계좌','요청','처리'];
   const table = rows => `<div class="cx-tbw"><table class="cx-tb"><thead><tr>${COLS.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
   function card(r){
     const miss=r.done ? [] : missOf(r), mk=new Set(miss.map(m=>MISS_ROW[m]));
@@ -262,7 +263,6 @@
       + td('date', /^\d{4}-\d{2}-\d{2}$/.test(r.date||'') ? `${+r.date.slice(5,7)}/${+r.date.slice(8,10)} (${SY.DOW[new Date(r.date+'T00:00').getDay()]})${r.date.slice(0,4)!==String(new Date().getFullYear())?`<br><small>${r.date.slice(0,4)}년</small>`:''}` : esc(r.date||''), 'c-nw')
       + td('no', r.no ? `<button type="button" class="cx-no" data-copy="${esc(r.no)}" title="예약 번호 복사">${esc(r.no)}</button>` : '')
       + td('kind', `<b class="${r.kind==='전체 환불'?'all':''}">${esc(r.kind||'')}</b>${cut?`<br><small>${esc(cut)}</small>`:''}`, 'c-nw')
-      + td('erp', r.erp ? `<small>${esc(r.erp)}</small>` : '', 'c-erp')
       + td('why', esc(why))
       + td('doc', `<div class="cx-files">${r.doc?`<i class="doc">${esc(r.doc)}</i>`:'<span class="cx-none">필요 없음</span>'}${fileLinks(r.files)}${mk.has('doc')?'<span class="cx-gap">파일 빠짐</span>':''}${up}</div>`, 'c-doc')
       + td('acc', r.acc ? `<small>${esc(r.acc)}</small>` : '', 'c-acc')
