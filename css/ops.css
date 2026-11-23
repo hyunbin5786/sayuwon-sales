@@ -159,3 +159,5 @@ body.pg-lost main{max-width:1600px}
 .lost-ph img.bad{cursor:default}
 .lost-ph small{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.6);color:#fff;border-radius:999px;padding:0 6px;font-size:11px}
 @media (max-width:1000px){.lost-cols{grid-template-columns:1fr}}
+/* 두 대시보드의 한 줄 높이를 같게 (2026-11-24): 습득 사진(76px)에 맞춰 분실물 신고 줄도 같은 높이 */
+.lost-board .tbl tbody td{height:93px}   /* 사진 76px + 위아래 여백 + 줄 */

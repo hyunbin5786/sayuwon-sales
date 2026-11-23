@@ -26,9 +26,9 @@ const OPS_PAGE =
     normalize:d=>{ d.status = lostStatus(d); },
     // 두 대시보드 (opsboard.js renderLost)
     boards:[
-      { kind:'분실 신고', title:'분실 신고', add:'분실 신고 접수', open:['찾는 중'],
+      { kind:'분실 신고', title:'분실물 신고', add:'분실 신고 접수', open:['찾는 중'],
         cols:[['date','접수일',v=>opsDateLabel(v)],['item','물품',(v,d)=>(v||'')+(d.feature?` · ${d.feature}`:'')],['place','분실 장소'],['person','신고자'],['phone','연락처']] },
-      { kind:'습득', title:'습득', add:'습득물 접수', open:['보관중'], photo:true,
+      { kind:'습득', title:'분실물 습득', add:'습득물 접수', open:['보관중'], photo:true,
         cols:[['date','접수일',v=>opsDateLabel(v)],['item','물품',(v,d)=>(v||'')+(d.feature?` · ${d.feature}`:'')],['place','발견 장소'],['storage','보관 위치']] } ],
     cols:[['date','접수일',v=>opsDateLabel(v)],['kind','구분'],['item','물품'],['status','상태']],
     status:'status', open:['보관중','찾는 중'], summary:d=>`${lostKind(d)} ${d.item||''} · ${lostStatus(d)}` };
