@@ -75,7 +75,13 @@ try {
   Copy-Item -LiteralPath $tmp -Destination $file -Force
   $size = '{0:N2} MB' -f ((Get-Item -LiteralPath $file).Length / 1MB)
   Remove-Item -LiteralPath $tmp -Force
-  Write-Log ("성공  " + (Split-Path $file -Leaf) + "  $size  (" + ($counts -join ' · ') + ")")
+  # 예전 백업 정리: 새 파일이 제대로 저장된 뒤에만, 최신 $keep 개(기본 1)만 남기고 지움. 이름이 sayuwon-backup-*.json 인 파일만 건드림. backup-config.json 에 "keep": 4 처럼 적으면 그만큼 남김 (0 = 지우지 않음)
+  $keep = 1; if ($null -ne $cfg.keep -and "$($cfg.keep)" -match '^\d+$') { $keep = [int]$cfg.keep }
+  $removed = 0
+  if ($keep -gt 0 -and (Get-Item -LiteralPath $file).Length -gt 1000) {
+    Get-ChildItem -LiteralPath $dest -Filter 'sayuwon-backup-*.json' -File | Sort-Object Name -Descending | Select-Object -Skip $keep | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force; $removed++ }
+  }
+  Write-Log ("성공  " + (Split-Path $file -Leaf) + "  $size  (" + ($counts -join ' · ') + ")" + $(if ($removed) { "  · 예전 백업 $removed 개 지움" } else { '' }))
   exit 0
 } catch {
   $m = $_.Exception.Message
