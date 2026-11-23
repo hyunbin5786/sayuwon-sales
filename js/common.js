@@ -98,6 +98,30 @@ const SY = Object.freeze({
     };
     // fresh: 방금 저장한 뒤 다시 받을 때 (이미 가고 있는 요청을 같이 쓰지 않음)
     return (opt={}) => { if(inflight && !opt.full && !opt.fresh) return inflight; const p=go(!!opt.full).finally(()=>{ if(inflight===p) inflight=null; }); inflight=p; return p; }; })(),
+  // ===== 바로 알리기 (2026-11-23): 기록을 저장 · 삭제하는 순간, 같은 브라우저에 열려 있는 모든 화면(다른 탭 · 나의 할일 팝업 · 첫 화면 대시보드)에 그 기록을 그대로 보냄 =====
+  //  예전: 저장한 화면만 바로 바뀌고, 다른 화면은 20~30초마다 서버에서 다시 받을 때에야 바뀜 → 끝낸 과업이 한동안 남아 있다가 갑자기 사라짐
+  //  SY.live.post({t:'put', item} 또는 {t:'del', id})  저장 · 삭제를 알림 (서버 저장과 별개 — 서버에는 지금까지처럼 따로 올라감) + 같이 쓰는 사본(IndexedDB)에도 바로 넣어 새로 여는 화면도 처음부터 최신
+  //  SY.live.on(fn)                                   알림을 받으면 fn(m)
+  //  SY.live.apply(items)                             서버에서 받은 목록에, 방금 알림 받은(보낸) 기록을 덮어 돌려줌 — 서버에 아직 안 올라갔거나 먼저 떠난 요청이 옛 목록을 들고 와도 되돌아가지 않게.
+  //                                                   서버 쪽 그 줄의 수정 일시(updated)가 바뀌면(= 서버가 더 새것을 줌) 그때부터는 서버 것 · 길어도 5분
+  live: (()=>{ let ch=null; const subs=[], over=new Map();
+    const idOf = m => m.t==='del' ? m.id : (m.item || {}).id;
+    const take = m => { const id=idOf(m); if(!id) return false; over.set(id, {m, at:Date.now()}); return true; };
+    try{ ch=new BroadcastChannel('sy-live'); ch.onmessage = e => { const m=e.data; if(!m || !take(m)) return; subs.forEach(f=>{ try{ f(m); }catch(_){} }); }; }catch(_){ ch=null; }
+    const patch = async m => { try{ const st=await SY.idb.get('sy_list_v1'); if(!st || !Array.isArray(st.items)) return; const id=idOf(m), i=st.items.findIndex(x=>x.id===id);
+      if(m.t==='del'){ if(i<0) return; st.items.splice(i,1); } else { const it={...m.item}; delete it._pending; if(i>=0) st.items[i]={...st.items[i], ...it}; else st.items.push(it); }
+      await SY.idb.set('sy_list_v1', st); }catch(_){} };
+    return {
+      post: m => { if(!take(m)) return; try{ ch && ch.postMessage(JSON.parse(JSON.stringify(m))); }catch(_){} patch(m); },
+      on: f => { subs.push(f); },
+      apply: items => { if(!over.size) return items; const now=Date.now(), map=new Map((items||[]).map(x=>[x.id, x]));
+        over.forEach((o, id)=>{ const s=map.get(id), stamp = s ? String(s.updated||'') : null;
+          if(o.base===undefined) o.base=stamp;
+          if(now-o.at > 300000 || stamp!==o.base){ over.delete(id); return; }   // 5분이 지났거나 서버가 그 뒤에 바뀐 줄을 줌 → 서버 것
+          if(s && s._pending) return;   // 이 화면이 아직 올리는 중인 것이 더 새것
+          if(o.m.t==='del') map.delete(id); else map.set(id, s ? {...s, ...o.m.item, updated:s.updated} : o.m.item); });
+        return [...map.values()]; },
+    }; })(),
 });
 // ===== 로컬 미리보기 전용 (운영 주소에서는 절대 읽지 않음) — localhost 에서 주소 끝에 ?mock=1 을 한 번 붙이면 그 브라우저에 기억 (끄기 ?mock=0) =====
 //   js/devcf.js 가 서버 코드 cloudflare/worker.js 를 브라우저 안 SQLite 로 돌림 → 진짜 DB 에는 아무것도 가지 않음

@@ -39,6 +39,7 @@ async function pull(inFlush){
   if(flushing && !inFlush) return;
   try{
     const j=await SY.list();   // 같이 쓰는 사본 + 바뀐 것만 (2026-11-21)
+    j.items=SY.live.apply(j.items||[]);   // 방금 다른 화면이 고친 기록이 옛 목록으로 되돌아가지 않게
     items=(j.items||[]).filter(r=>r.callType===CALL_TYPE); writeJSON(CACHE_LS, items.slice(-500));
     { const pc=(j.items||[]).find(r=>r.id==='pcats'); if(pc && !pending.some(p=>p.action==='put' && p.item.id==='pcats')){ pcatRec=pc; writeJSON(PCATS_LS, pc); } paintChips(); if(!memberNames.length) loadMembers(); }   // 모두가 추가한 구분 · 멤버 이름
     groupMine=(j.items||[]).filter(r=>r.callType!==CALL_TYPE && ['단체예약','예약상담','가예약','예약확정','예약접수','상담','공식예약'].includes(r.callType||'단체예약') && (r.owner||r.takenBy)===(user.name||''));   // 마감 알림용: 내가 영업 담당인 단체 예약
@@ -52,8 +53,18 @@ function put(item){
   pending = pending.filter(p=>!(p.action==='put' && p.item.id===item.id)); pending.push({action:'put', item}); writeJSON(PEND_LS,pending);
   const i=items.findIndex(x=>x.id===item.id); if(i>=0) items[i]=item; else items.push(item);
   writeJSON(CACHE_LS, items.slice(-500));
+  SY.live.post({t:'put', item});   // 다른 화면(나의 할일 팝업 · 첫 화면 · 단체 화면)에 바로 (js/common.js SY.live, 2026-11-23)
   renderLists(); paintSync(); flush(); paintMyCount();
 }
+// 다른 화면(나의 할일 팝업 등)이 개인고객 통화를 고치면(과업 체크) 그 순간 받아 다시 그림 (2026-11-23)
+SY.live.on(m=>{ try{
+  if(m.t==='del'){ const n=items.length; items=items.filter(x=>x.id!==m.id); if(items.length!==n){ writeJSON(CACHE_LS, items.slice(-500)); renderLists(); paintMyCount(); } return; }
+  const it=m.item; if(!it || it.callType!==CALL_TYPE || pending.some(p=>p.action==='put' && p.item.id===it.id)) return;
+  const i=items.findIndex(x=>x.id===it.id); if(i>=0) items[i]=it; else items.push(it);
+  writeJSON(CACHE_LS, items.slice(-500));
+  if(cur && cur.id===it.id && !isDirty()){ cur=it; form=fromItem(it); saved=JSON.stringify(form); paintForm(true); }   // 그 통화를 열어 두었고 고치던 것이 없으면 새 내용으로
+  renderLists(); paintMyCount();
+}catch(e){ console.warn('live', e); } });
 // (팀 비밀번호 입력 칸은 없앰 · 2026-11-21 — 서버는 로그인으로 확인)
 
 // ===================== 날짜 칸 (단체 화면 방문일과 같은 방식) =====================

@@ -217,7 +217,7 @@ async function loadDash(){
       try{ localStorage.setItem('sy_dash_req', JSON.stringify(lastReq)); }catch(_){} }
     if(!j.ok){ if(j.error==='bad_key'){ $('#dashKey').hidden=false; $('#dashBody').innerHTML='<p class="err">'+SY.authFail()+'</p>'; return; } throw new Error(j.error); }
     const names = m && m.ok ? (m.members||[]).map(x=>String(x.name||'').trim()).filter(Boolean) : ((dashData && dashData.names)||[]);
-    lastItems=j.items||[]; startEngine();
+    lastItems=SY.live.apply(j.items||[]); startEngine();   // 방금 다른 화면이 고친 기록이 옛 목록으로 되돌아가지 않게
     dashData = {recs:dashRecs(lastItems), names, at:Date.now()};
     try{ localStorage.setItem(DASH_LS, JSON.stringify(dashData)); }catch(_){}
     renderDash();
@@ -259,6 +259,15 @@ document.addEventListener('click', e=>{
   const w=e.target.closest('[data-dwho]'); if(w){ dashWho = dashWho===w.dataset.dwho ? '' : w.dataset.dwho; renderDash(); }
 });
 if($('#dashQ')) $('#dashQ').addEventListener('input', ()=>renderDash());
+// 바로 알리기 (2026-11-23 · js/common.js SY.live): 단체 · 개인고객 화면 · 나의 할일 팝업에서 과업을 끝내면(기록을 저장하면) 그 순간 대시보드에서도 빠짐 — 20초마다 다시 받기를 기다리지 않음
+SY.live.on(m=>{ try{
+  if(!getUser()) return; if(!lastItems){ dashSoon(200); return; }
+  const id = m.t==='del' ? m.id : m.item.id, i=lastItems.findIndex(x=>x.id===id);
+  if(m.t==='del'){ if(i>=0) lastItems.splice(i,1); } else if(i>=0) lastItems[i]={...lastItems[i], ...m.item}; else lastItems.push(m.item);
+  dashData={...(dashData||{names:[]}), recs:dashRecs(lastItems), at:Date.now()};
+  try{ localStorage.setItem(DASH_LS, JSON.stringify(dashData)); }catch(_){}
+  if(!$('#menuView').hidden) renderDash();
+}catch(e){ console.warn('live', e); } });
 $('#dashReload').onclick = () => loadDash();
 // (대시보드 팀 비밀번호 칸은 없앰 · 2026-11-21 — 로그인으로 확인)
 // 대시보드 새로 받기 (2026-11-18 · 거의 실시간): 20초마다 · 이 창으로 돌아오면 · 다른 탭(단체 · 개인고객 · 나의 할일)에서 저장하면 바로

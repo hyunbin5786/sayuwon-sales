@@ -1741,8 +1741,18 @@ function merged(){
   [...pc, ...pp.filter(p=>p.action==='put').map(p=>p.item)].forEach(x=>{ if(!x || !x.id) return; const t=String(x._localAt || (x.callType==='개인고객' && x.updated) || ''); if(!t) return; const s=m.get(x.id);
     if(!s || String(s.updated||'') < t) m.set(x.id, x); });
   pp.forEach(p=>{ if(p.action==='delete') m.delete(p.id); });
-  return [...m.values()];
+  return SY.live.apply([...m.values()]);   // 다른 화면이 방금 저장 · 삭제한 기록 (바로 알리기 · js/common.js SY.live, 2026-11-23)
 }
+// 다른 화면(다른 탭 · 나의 할일 팝업 · 개인고객 화면)이 기록을 저장 · 삭제하면 그 순간 받아 다시 그림 (2026-11-23) — 서버에서 다시 받기(30초마다)를 기다리지 않음
+let liveT=0;
+SY.live.on(m=>{ const id = m.t==='del' ? m.id : m.item.id; cache=merged(); clearTimeout(liveT);
+  liveT=setTimeout(()=>{ if(!window.__tasksReady) return;
+    try{
+      // 그 예약을 이 화면에서도 열어 두었고 고치던 것이 없으면: 새 내용으로 다시 엶 (화면의 과업이 옛 상태로 남았다가 저장되어 되돌아가지 않게)
+      if(m.t==='put' && editingId===id && !saving && !lockOwner && !isDirty() && $('#listModal').hidden && !document.activeElement?.closest?.('#taskList, #form')){ const r=cache.find(x=>x.id===id); if(r){ const y=window.scrollY; openRecord(r); window.scrollTo(0,y); } }
+      paintMyCount(); if(!$('#listModal').hidden) renderList();
+      if(!$('#myModal').hidden && !(typeof etcEdit!=='undefined' && etcEdit && document.activeElement?.closest?.('.etc-edit')) && !document.activeElement?.matches?.('.tk-memoin, .tk-subin, .tk-in')) renderMy();
+    }catch(e){ console.warn('live', e); } }, 30); });
 window.addEventListener('storage', e=>{ if(!/^sayuwon_personal_(pending|cache)$/.test(e.key||'')) return; cache=merged();
   if(window.__tasksReady){ paintMyCount(); if(!$('#myModal').hidden) renderMy(); } });   // 다른 창(개인고객)에서 과업을 체크하면 나의 할일에 바로
 function paintSync(){
@@ -1817,13 +1827,15 @@ async function pull(inFlush){
 const store={
   async list(){ await cacheReady; cache = merged(); if(typeof applySpd==='function') applySpd(); if(typeof tcfgApply==='function') tcfgApply(); return cache; },
   async put(item){
-    pending=pending.filter(p=>!(p.action==='put'&&p.item.id===item.id)); pending.push({action:'put',item}); writeJSON(PEND_LS,pending); paintSync(); flush();
+    pending=pending.filter(p=>!(p.action==='put'&&p.item.id===item.id)); pending.push({action:'put',item}); writeJSON(PEND_LS,pending); paintSync();
+    SY.live.post({t:'put', item});   // 다른 화면에 바로 (나의 할일 · 첫 화면)
+    flush();
   },
   async del(id, keepPut){   // keepPut: 바로 앞에 넣은 저장(삭제 사유 기록)을 먼저 보내고 삭제
     const local=pending.some(p=>p.action==='put'&&p.item.id===id) && !serverItems.some(x=>x.id===id);
     if(!(keepPut && !local)) pending=pending.filter(p=>!(p.action==='put'&&p.item.id===id));
     if(!local) pending.push({action:'del',id});
-    writeJSON(PEND_LS,pending); paintSync(); flush();
+    writeJSON(PEND_LS,pending); paintSync(); SY.live.post({t:'del', id}); flush();
   }
 };
 // (팀 비밀번호 입력 칸은 없앰 · 2026-11-21 — 서버는 로그인으로 확인, 안 되면 「로그인 확인 필요」 안내만)
