@@ -457,3 +457,4 @@ html.reqhtml, html.reqhtml body{height:auto; min-height:100%; overflow:visible}
 .reqpage .optrow .opt{align-items:center; min-height:48px; box-sizing:border-box}
 /* 숨긴 칸은 정말 안 보이게 (.field 의 display 가 hidden 속성을 이겨서, 체크하지 않은 서류의 발급일 칸이 늘 보이던 것 · 2026-11-23) */
 .reqpage [hidden]{display:none !important}
+.reqtitle{margin:0; font-family:'Noto Serif KR',serif; font-weight:700; font-size:21px; line-height:1.4; color:var(--ink); word-break:keep-all}
