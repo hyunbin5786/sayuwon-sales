@@ -1,10 +1,10 @@
 // ===== 예약 취소 요청 (cancel.html · 2026-11-19) =====
 // 직원이 취소 담당자에게 예약 취소 처리를 부탁하는 요청서 (예전 엑셀 「사유원 예약 취소 요청」을 옮김)
-//  ① 취소 요청하기: 방문일 · 예약 사이트 · 예약자 이름 · 연락처 · 예약 번호 · 취소 내용(전체 환불 / 부분 취소 + 취소할 인원) · 취소 사유(고르기 + 자세히) · 증빙 서류(+ 파일 올리기) · 환불 계좌(가상계좌 결제 시) · 요청자 = 로그인 이름
+//  ① 취소 요청하기: 방문일 · 예약 사이트 · 예약자 이름 · 연락처 · 예약 번호 · 취소 내용(전체 환불 / 부분 취소 + 취소할 인원) · 취소 사유(하나만 · 기타면 자세히) · 증빙 서류(+ PDF · JPG · PNG 올리기) · 환불 계좌(가상계좌 결제 시: 은행 · 계좌번호 · 본인 / 타인 계좌 + 이름) · 요청자 = 로그인 이름
 //     빠진 정보가 있어도 보낼 수 있음 (확인 팝업) → 요청 목록에서 「정보 채우기」 · 「증빙 올리기」로 나중에 채움 (2026-11-23)
 //  ② 요청 목록 · 처리: 처리 전 / 처리 완료 / 전체 · 「정보 덜 된 것만」 · 찾기 · 「처리 완료」(처리 메모 · 처리한 사람 · 시각) · 「되돌리기」 · 「엑셀 불러오기」(예전 엑셀 줄을 더함)
 //  저장: 공유 기록(calls) 통화 구분 「취소요청」, 4만 자씩 나눠 id cxreq0 · cxreq1 … ({part, of, at, rows:[요청…]}). 저장 직전 최신 목록을 다시 받아 그 위에 반영
-//  요청 한 줄: {id, at, by, date, site, name, phone, no, kind, amt(취소 내용 글), ppl(예약 인원), cnt(취소할 인원), erp(전산 예약 상품 · 인원 · 금액), why, whyTxt, doc, files:[{name,url,at,by}], acc, done, edited}
+//  요청 한 줄: {id, at, by, date, site, name, phone, no, kind, amt(취소 내용 글), ppl(예약 인원), cnt(취소할 인원), erp(전산 예약 상품 · 인원 · 금액), why, whyTxt, doc, files:[{name,url,at,by}], acc(글), accBank, accNo, accOwn(본인|타인), accName, done, edited}
 (function(){
   const $ = s => document.querySelector(s), esc = SY.esc;
   const user = SY.user() || {}; $('#me').innerHTML = user.name ? `👤 <b>${esc(user.name)}</b>` : '';
@@ -51,7 +51,9 @@
   //  환불 계좌는 가상계좌 결제일 때만 필요해서(결제 방법은 이 화면이 모름) 빠진 정보로 세지 않음
   function missOf(r){
     return [ !r.date && '방문일', !r.name && '예약자 이름', !r.phone && '연락처', !r.no && '예약 번호', !r.why && !r.whyTxt && '취소 사유',
+      r.why==='기타' && !r.whyTxt && '사유 자세히',
       r.kind==='부분 취소' && !r.cnt && !r.amt && '취소할 인원',
+      (r.accBank || r.accNo) && !r.accBank && '환불 계좌 은행', (r.accBank || r.accNo) && !r.accNo && '환불 계좌번호', r.accOwn==='타인' && !r.accName && '예금주 이름',
       (r.doc==='받음' || r.doc==='받을 예정') && !(r.files||[]).length && '증빙 서류 파일' ].filter(Boolean);
   }
   const partTxt = (cnt, ppl) => cnt ? `${cnt}명 취소${ppl ? ` (${ppl}명 → ${ppl-cnt}명)` : ''}` : '';
@@ -61,11 +63,13 @@
     if(!SY.getKey()){ $('#keyBox').hidden=false; toast(SY.authFail()); return []; }
     const out=[];
     for(const file of [...fileList]){
-      if(!/^(image\/|application\/pdf$)/.test(file.type)){ toast(`「${file.name}」 — 사진이나 PDF만 올릴 수 있습니다.`); continue; }
+      // PDF · JPG(JPEG) · PNG — 컴퓨터에 따라 종류가 비어 있거나 image/jpg 로 오면 확장자로 정함
+      const ext=(file.name.match(/\.([a-z0-9]+)$/i)||[])[1]?.toLowerCase()||'', mime={pdf:'application/pdf', jpg:'image/jpeg', jpeg:'image/jpeg', jfif:'image/jpeg', png:'image/png'}[ext] || (file.type==='image/jpg' ? 'image/jpeg' : file.type);
+      if(!/^(application\/pdf|image\/jpeg|image\/png)$/.test(mime)){ toast(`「${file.name}」 — PDF · JPG · PNG 파일만 올릴 수 있습니다.`, 3400); continue; }
       if(file.size > 10*1024*1024){ toast(`「${file.name}」 — 10MB 이하 파일만 올릴 수 있습니다.`); continue; }
       try{
         const data = await new Promise((ok,no)=>{ const fr=new FileReader(); fr.onload=()=>ok(String(fr.result).split(',')[1]); fr.onerror=()=>no(fr.error); fr.readAsDataURL(file); });
-        const j = await SY.call({action:'upload', name:file.name, mime:file.type, data, org:info.name||'예약자', date:info.date||'', kind:'취소 증빙'});
+        const j = await SY.call({action:'upload', name:file.name, mime, data, org:info.name||'예약자', date:info.date||'', kind:'취소 증빙'});
         out.push({name:j.file.name, url:j.file.url, at:j.file.at, by:user.name||''});
       }catch(e){ toast(`「${file.name}」을(를) 올리지 못했습니다: ${e.message||e.code}`, 4000); }
     }
@@ -81,11 +85,19 @@
   let editId=null, formFiles=[], origUrls=new Set(), formErp='', upBusy=false;
   const segVal = id => ($(`#${id} button.on`)||{}).dataset?.v || '';
   const setSeg = (id, v) => document.querySelectorAll(`#${id} button`).forEach(b=>b.classList.toggle('on', b.dataset.v===v));
-  const chipVals = () => [...document.querySelectorAll('#fWhy button.on')].map(b=>b.dataset.v);
-  document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('.seg button, .chips button'); if(!b) return;
-    const box=b.parentElement; if(box.classList.contains('chips')) b.classList.toggle('on'); else { box.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b)); if(box.id==='flt'){ flt=b.dataset.v; render(); } }
+  document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('.seg button'); if(!b) return;
+    const box=b.parentElement; box.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b)); if(box.id==='flt'){ flt=b.dataset.v; render(); }
     if(box.id==='fKind'){ syncKind(); if(segVal('fKind')==='부분 취소') setTimeout(()=>$('#fCnt').focus(),0); }
+    if(box.id==='fWhy'){ syncWhy(); if(segVal('fWhy')==='기타') setTimeout(()=>$('#fWhyTxt').focus(),0); }
+    if(box.id==='fAccOwn'){ syncAcc(); if(segVal('fAccOwn')==='타인') setTimeout(()=>$('#fAccName').focus(),0); }
     if(box.id==='fDoc') syncDoc(); });
+  // 취소 사유: 하나만 · 「기타」면 사유 자세히 (2026-11-23)
+  const syncWhy = () => { $('#fWhyTxtBox').hidden = segVal('fWhy')!=='기타'; };
+  // 환불 계좌: 은행 · 계좌번호 · 예금주(본인 = 예약자 이름 / 타인이면 이름 적기) → acc 글로도 저장 (목록 · 엑셀과 같은 모양)
+  const syncAcc = () => { $('#fAccNameBox').hidden = segVal('fAccOwn')!=='타인'; };
+  function accOf(name){ const bank=$('#fBank').value, no=$('#fAccNo').value.trim(), own=segVal('fAccOwn')||'본인', nm=own==='타인' ? $('#fAccName').value.trim() : '';
+    if(!bank && !no) return {accBank:'', accNo:'', accOwn:'', accName:'', acc:''};
+    return {accBank:bank, accNo:no, accOwn:own, accName:nm, acc:[bank, no].filter(Boolean).join(' ') + ` · 예금주 ${own==='타인' ? `타인 계좌 (${nm||'이름 없음'})` : `본인${name?` (${name})`:''}`}`}; }
   $('#fPhone').addEventListener('input', e=>{ if(SY.phoneTyping) SY.phoneTyping(e.target, e.inputType); });
 
   // 날짜 칸: 단체 방문일과 같은 방식 (칸 안에 「날짜 (요일)」 · 누르면 달력 · 한 번 더 누르거나 숫자를 치면 직접 입력)
@@ -162,12 +174,11 @@
   }
   $('#fErp').addEventListener('input', fillFromErp);
 
-  function resetForm(){ ['fErp','fName','fPhone','fNo','fWhyTxt','fAcc','fCnt','fPpl'].forEach(id=>$('#'+id).value=''); setDate(''); $('#fErpOk').hidden=true;
-    [['fSite','홈페이지'],['fKind','전체 환불'],['fDoc','']].forEach(([id,v])=>setSeg(id,v));
-    document.querySelectorAll('#fWhy button').forEach(b=>b.classList.remove('on'));
+  function resetForm(){ ['fErp','fName','fPhone','fNo','fWhyTxt','fBank','fAccNo','fAccName','fCnt','fPpl'].forEach(id=>$('#'+id).value=''); setDate(''); $('#fErpOk').hidden=true;
+    [['fSite','홈페이지'],['fKind','전체 환불'],['fDoc',''],['fWhy',null],['fAccOwn','본인']].forEach(([id,v])=>setSeg(id,v));
     editId=null; formFiles=[]; origUrls=new Set(); formErp='';
     $('#fEditBar').hidden=true; $('#fEditCancel').hidden=true; $('#fReset').hidden=false; $('#fSend').textContent='취소 요청 보내기';
-    syncKind(); syncDoc(); }
+    syncKind(); syncDoc(); syncWhy(); syncAcc(); }
   $('#fReset').onclick=resetForm;
   $('#fEditCancel').onclick=()=>{ resetForm(); setTab('list'); };
 
@@ -176,15 +187,17 @@
     resetForm(); editId=r.id;
     setDate(r.date); setSeg('fSite', r.site||'홈페이지'); $('#fName').value=r.name||''; $('#fPhone').value=r.phone||''; $('#fNo').value=r.no||'';
     setSeg('fKind', r.kind==='부분 취소' ? '부분 취소' : '전체 환불'); $('#fCnt').value=r.cnt||''; $('#fPpl').value=r.ppl||'';
-    const whys=String(r.why||'').split(/,\s*/).filter(Boolean), chipSet=new Set([...document.querySelectorAll('#fWhy button')].map(b=>b.dataset.v));
-    document.querySelectorAll('#fWhy button').forEach(b=>b.classList.toggle('on', whys.includes(b.dataset.v)));
-    const extra=whys.filter(w=>!chipSet.has(w)); $('#fWhyTxt').value=[...extra, r.whyTxt].filter(Boolean).join(' · ');
+    // 취소 사유: 하나만. 예전 요청(여러 개 · 지금 없는 사유 · 엑셀 글)은 고를 수 있는 것 하나만 고르고, 나머지는 「기타 + 사유 자세히」로
+    const whys=String(r.why||'').split(/,\s*/).filter(Boolean), opts=[...document.querySelectorAll('#fWhy button')].map(b=>b.dataset.v);
+    const pick=whys.length===1 && opts.includes(whys[0]) ? whys[0] : (whys.length || r.whyTxt) ? '기타' : null;
+    setSeg('fWhy', pick); $('#fWhyTxt').value = pick==='기타' ? [...whys.filter(w=>w!=='기타'), r.whyTxt].filter(Boolean).join(' · ') : '';
     setSeg('fDoc', r.doc||''); formFiles=[...(r.files||[])]; origUrls=new Set(formFiles.map(f=>f.url)); formErp=r.erp||'';
-    $('#fAcc').value=r.acc||'';
+    if(r.accBank!=null || r.accNo!=null){ $('#fBank').value=r.accBank||''; $('#fAccNo').value=r.accNo||''; setSeg('fAccOwn', r.accOwn||'본인'); $('#fAccName').value=r.accName||''; }
+    else if(r.acc) $('#fAccNo').value=r.acc;   // 예전 요청: 한 줄로 적힌 계좌는 계좌번호 칸에 (은행 · 예금주는 다시 골라 주세요)
     const miss=missOf(r);
     $('#fEditBar').innerHTML=`✎ <b>${esc(r.name||'(이름 없음)')}</b> 님 취소 요청을 고치는 중 <small>(요청 ${esc(r.by||'')}${r.at?` · ${esc(atLab(r.at))}`:''})</small>${miss.length?`<br><span class="bad">빠진 정보: ${esc(miss.join(' · '))}</span>`:''}${r.erp?`<br><small>전산 예약: ${esc(r.erp)}</small>`:(r.amt && r.kind!=='부분 취소'?`<br><small>예전 자세히: ${esc(r.amt)}</small>`:'')}`;
     $('#fEditBar').hidden=false; $('#fEditCancel').hidden=false; $('#fReset').hidden=true; $('#fSend').textContent='고친 내용 저장';
-    syncKind(); syncDoc(); setTab('req'); window.scrollTo({top:0, behavior:'smooth'});
+    syncKind(); syncDoc(); syncWhy(); syncAcc(); setTab('req'); window.scrollTo({top:0, behavior:'smooth'});
   }
 
   $('#fSend').onclick=async()=>{
@@ -192,7 +205,8 @@
     const kind=segVal('fKind'), part=kind==='부분 취소', cnt=part ? (+$('#fCnt').value||0) : 0, ppl=+$('#fPpl').value||0;
     const err=cntCheck(); if(err){ toast(err, 3600); $('#fCnt').focus(); return; }
     const f={ date:$('#fDate').value, site:segVal('fSite'), name:$('#fName').value.trim(), phone:$('#fPhone').value.trim(), no:$('#fNo').value.trim(),
-      kind, cnt: cnt||'', ppl: ppl||'', erp:formErp, why:chipVals().join(', '), doc:segVal('fDoc'), whyTxt:$('#fWhyTxt').value.trim(), acc:$('#fAcc').value.trim() };
+      kind, cnt: cnt||'', ppl: ppl||'', erp:formErp, why:segVal('fWhy'), doc:segVal('fDoc'), whyTxt: segVal('fWhy')==='기타' ? $('#fWhyTxt').value.trim() : '' };
+    Object.assign(f, accOf(f.name));
     if(!f.name && !f.phone && !f.no){ toast('예약자 이름 · 연락처 · 예약 번호 중 하나는 적어 주세요.', 3200); $('#fName').focus(); return; }
     const id=editId, files=[...formFiles], orig=origUrls;
     const build = old => { const amt = part && cnt ? partTxt(cnt, ppl) : part ? (old?.amt||'') : (old && old.erp==null ? (old.amt||'') : '');   // 예전 줄(전산 예약 칸이 없던 때)의 「자세히」는 남김
@@ -294,6 +308,6 @@
       ()=>change(list=>{ const h=new Set(list.map(key)); return [...list, ...fresh.filter(r=>!h.has(key(r)))]; }, `${fresh.length}건을 목록에 더했습니다.`)); });
 
   let t0='req'; try{ t0=localStorage.getItem('sy_cx_tab')||'req'; }catch(_){} if(/[?&]tab=list/.test(location.search)) t0='list';
-  syncKind(); syncDoc(); setTab(t0); load();
+  syncKind(); syncDoc(); syncWhy(); syncAcc(); setTab(t0); load();
   setInterval(()=>{ if(!document.hidden && loaded && !busy && !cardUp) fetchAll().then(r=>{ const ae=document.activeElement; if(ae && ae.classList.contains('cx-memo')) return; reqs=r.rows; render(); }).catch(()=>{}); }, 30000);   // 30초마다 새 요청 · 처리 받아 옴
 })();

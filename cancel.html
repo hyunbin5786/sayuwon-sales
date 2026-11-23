@@ -6,9 +6,9 @@
 <title>예약 취소 요청 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261124i">
-<link rel="stylesheet" href="css/cancel.css?v=20261124i">
-<link rel="stylesheet" href="css/menu.css?v=20261124i">
+<link rel="stylesheet" href="css/prep.css?v=20261124j">
+<link rel="stylesheet" href="css/cancel.css?v=20261124j">
+<link rel="stylesheet" href="css/menu.css?v=20261124j">
 </head>
 <body>
 <!-- 고객 응대 보조 · 예약 취소 요청 (2026-11-19): 직원이 취소 담당자에게 예약 취소 처리를 요청 → 담당자가 처리 완료 표시.
@@ -48,20 +48,25 @@
         <label id="fCntBox" hidden>취소할 인원 <span class="cx-cnt"><input type="number" id="fCnt" min="1" step="1" inputmode="numeric"> 명</span></label>
         <p class="cx-cnt-msg" id="fCntMsg" hidden></p>
       </div>
+      <!-- 취소 사유 (2026-11-23): 하나만 고름 · 「기타」면 사유 자세히 -->
       <div class="cx-row">
-        <div class="cx-f grow"><span class="lb">취소 사유</span><span class="chips" id="fWhy"><button type="button" data-v="고객 직접 취소 불가">고객 직접 취소 불가</button><button type="button" data-v="날씨 (폭우 · 태풍)">날씨 (폭우 · 태풍)</button><button type="button" data-v="질병 · 사고">질병 · 사고</button><button type="button" data-v="인원 변경">인원 변경</button><button type="button" data-v="현장 재결제">현장 재결제</button><button type="button" data-v="기타">기타</button></span></div>
+        <div class="cx-f"><span class="lb">취소 사유</span><span class="seg" id="fWhy"><button type="button" data-v="고객 직접 취소 불가">고객 직접 취소 불가</button><button type="button" data-v="날씨 (폭우 · 태풍)">날씨 (폭우 · 태풍)</button><button type="button" data-v="질병 · 사고">질병 · 사고</button><button type="button" data-v="기타">기타</button></span></div>
+        <label class="grow" id="fWhyTxtBox" hidden>사유 자세히 <input id="fWhyTxt" data-ime="ko" placeholder="예: 차량 고장으로 당일 방문 불가"></label>
       </div>
+      <!-- 증빙 서류 + 올리기 (2026-11-23): PDF · JPG · PNG · 나중에 요청 목록에서도 올릴 수 있음 -->
       <div class="cx-row">
         <div class="cx-f"><span class="lb">증빙 서류</span><span class="seg" id="fDoc"><button type="button" data-v="" class="on">필요 없음</button><button type="button" data-v="받음">받음</button><button type="button" data-v="받을 예정">받을 예정</button></span></div>
-        <label class="grow">사유 자세히 <input id="fWhyTxt" data-ime="ko" placeholder="예: 차량 고장으로 당일 방문 불가 · 서류 카카오톡으로 받음"></label>
+        <div class="cx-f grow" id="fFilesRow" hidden><span class="lb">증빙 서류 파일 <small>PDF · JPG · PNG, 10MB 이하 · 나중에 요청 목록에서 올려도 됩니다</small></span>
+          <div class="cx-files"><span id="fFiles"></span><label class="btn line-g cx-up" id="fUpBtn">증빙 서류 올리기<input type="file" id="fUp" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple hidden></label></div></div>
       </div>
-      <!-- 증빙 서류 올리기 (2026-11-23): 사진 · PDF · 나중에 요청 목록에서도 올릴 수 있음 -->
-      <div class="cx-row" id="fFilesRow" hidden>
-        <div class="cx-f grow"><span class="lb">증빙 서류 파일 <small>사진 · PDF, 10MB 이하 · 나중에 요청 목록에서 올려도 됩니다</small></span>
-          <div class="cx-files"><span id="fFiles"></span><label class="btn line-g cx-up" id="fUpBtn">증빙 서류 올리기<input type="file" id="fUp" accept="image/*,application/pdf" multiple hidden></label></div></div>
-      </div>
-      <div class="cx-row">
-        <label class="grow">환불 계좌 (가상계좌 결제 시 추가) <input id="fAcc" data-ime="ko" placeholder="은행 · 계좌번호 · 예금주"></label>
+      <!-- 환불 계좌 (2026-11-23): 은행(고르기) · 계좌번호 · 예금주(본인 = 예약자 / 타인이면 이름) -->
+      <div class="cx-f cx-acc"><span class="lb">환불 계좌 (가상계좌 결제 시 추가)</span>
+        <div class="cx-row">
+          <label>은행 <select id="fBank"><option value="">은행 고르기</option><option>KB국민은행</option><option>신한은행</option><option>우리은행</option><option>하나은행</option><option>NH농협은행</option><option>지역농협 · 축협</option><option>IBK기업은행</option><option>iM뱅크 (대구은행)</option><option>BNK부산은행</option><option>BNK경남은행</option><option>광주은행</option><option>전북은행</option><option>제주은행</option><option>SC제일은행</option><option>한국씨티은행</option><option>KDB산업은행</option><option>수협은행</option><option>새마을금고</option><option>신협</option><option>우체국</option><option>저축은행</option><option>카카오뱅크</option><option>케이뱅크</option><option>토스뱅크</option><option>기타</option></select></label>
+          <label class="grow">계좌번호 <input id="fAccNo" inputmode="numeric" autocomplete="off"></label>
+          <div class="cx-f"><span class="lb">예금주</span><span class="seg" id="fAccOwn"><button type="button" data-v="본인" class="on">본인 계좌</button><button type="button" data-v="타인">타인 계좌</button></span></div>
+          <label id="fAccNameBox" hidden>예금주 이름 <input id="fAccName" data-ime="ko"></label>
+        </div>
       </div>
       <div class="cx-btns"><button type="button" class="btn" id="fReset">비우기</button><button type="button" class="btn" id="fEditCancel" hidden>고치기 그만</button><button type="button" class="btn primary" id="fSend">취소 요청 보내기</button></div>
     </div>
@@ -88,8 +93,8 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/common.js?v=20261124i"></script>
-<script src="js/cancel.js?v=20261124i"></script>
-<script src="js/menu.js?v=20261124i"></script>
+<script src="js/common.js?v=20261124j"></script>
+<script src="js/cancel.js?v=20261124j"></script>
+<script src="js/menu.js?v=20261124j"></script>
 </body>
 </html>
