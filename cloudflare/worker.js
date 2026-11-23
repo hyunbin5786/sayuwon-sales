@@ -379,14 +379,23 @@ async function ensureClergy(env) {   // 표가 없으면 만듦 (schema.sql 을 
     q(env, 'CREATE INDEX IF NOT EXISTS clergy_who ON clergy(who)'),
     q(env, 'CREATE INDEX IF NOT EXISTS clergy_date ON clergy(visit_date)'),
   ]);
+  await clergyRewho(env);
   clergyReady = true;
 }
 const clT = (v, n) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
-const clWho = (name, phone) => normName(name) + '|' + String(phone || '').replace(/\D/g, '');
+// 같은 사람 = 소속 · 이름 · 연락처가 모두 같음 (2026-11-23 · 화면 js/clergy.js 의 who 와 같은 규칙). 회차는 이것으로 셈
+const clOrg = v => normName(v).replace(/^\((재|복|사)\)/, '').replace(/^천주교/, '');
+const clWho = (org, name, phone) => clOrg(org) + '|' + normName(name) + '|' + String(phone || '').replace(/\D/g, '');
+async function clergyRewho(env) {   // 예전 규칙(이름 · 연락처)으로 적힌 who 를 한 번 다시 적음 (kv clergy_who = '2')
+  if ((await kvGet(env, 'clergy_who')) === '2') return;
+  const list = (await rows(env, 'SELECT id, org, name, phone FROM clergy')).map(r => ({ id: r.id, w: clWho(r.org, r.name, r.phone) }));
+  if (list.length) await q(env, "UPDATE clergy SET who=j.w FROM (SELECT json_extract(value,'$.id') AS id, json_extract(value,'$.w') AS w FROM json_each(?)) AS j WHERE clergy.id=j.id", JSON.stringify(list)).run();
+  await kvSet(env, 'clergy_who', '2');
+}
 function clRow(r, by, i) {
   const o = { id: 'c' + rand(6) + (i == null ? '' : i.toString(36)), date: clT(r.date, 10), org: clT(r.org, 80), name: clT(r.name, 40), pos: clT(r.pos, 30),
     phone: clT(r.phone, 30), note: clT(r.note, 300), turn: clT(r.turn, 20), added: kstStamp(), by: clT(by, 20), updated: iso() };
-  o.who = clWho(o.name, o.phone);
+  o.who = clWho(o.org, o.name, o.phone);
   return o;
 }
 const CL_JSON = "json_object('id',id,'date',visit_date,'org',org,'name',name,'pos',pos,'phone',phone,'note',note,'turn',turn,'added',added,'by',\"by\")";

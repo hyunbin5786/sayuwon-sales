@@ -59,7 +59,9 @@
 
   // ---------- 화면 ----------
   const year = () => String(new Date().getFullYear());
-  const who = r => r.name.replace(/\s/g,'')+'|'+digits(r.phone);
+  // 같은 사람 = 소속 · 이름 · 연락처가 모두 같을 때 (2026-11-23) — 회차 · 올해 횟수는 이것으로 셈. 서버 worker.js clWho 와 같은 규칙
+  const orgKey = s => String(s||'').replace(/\s/g,'').replace(/^\((재|복|사)\)/,'').replace(/^천주교/,'');
+  const who = r => orgKey(r.org)+'|'+String(r.name||'').replace(/\s/g,'')+'|'+digits(r.phone);
   const yearCount = () => { const m={}; rows.forEach(r=>{ if(String(r.date).startsWith(year())) m[who(r)]=(m[who(r)]||0)+1; }); return m; };
   const dLab = d => /^\d{4}-\d{2}-\d{2}$/.test(d) ? SY.dateDisp(d) : d;
   function render(){
@@ -79,21 +81,24 @@
   //  회차 = 그 방문일 해에 같은 사람(이름 + 연락처 숫자)이 명부에 있는 수 + 1 → 3회차부터(연 2회 넘음) 경고
   //  소속 = js/clergyorg.js(대교구 누리집 본당 164곳 · 교구 기관 · 교구에서 일하는 수도회) 또는 명부에 이미 적힌 소속이면 통과, 아니면 경고
   //  경고가 있으면 팝업에 경고 문구 → 「그래도 저장」을 누르면 저장 (취소하면 고쳐서 다시)
-  const nz = s => String(s||'').replace(/\s/g,'').replace(/^\((재|복|사)\)/,'').replace(/^천주교/,'');
+  // 소속 자동 검색 (2026-11-23): 대구대교구 누리집은 프로그램이 읽는 것을 막아(방화벽) 직접 검색할 수 없음 → 누리집에서 옮겨 둔 목록(js/clergyorg.js)과 명부에 이미 있는 소속에서 찾음
+  //  찾으면 칸 아래에 「✓ 대구대교구 ○○ 본당」 · 없으면 저장할 때 팝업 → 관리자가 「승인하고 등록」을 누르면 등록 (비고에 「소속 승인 (이름)」)
+  const nz = orgKey;
   const ORG = window.CLERGY_ORG || {parish:[], order:[], word:[], inst:[]};
-  function orgOk(org, list){
-    const n=nz(org); if(!n) return false;
-    if(ORG.word.some(w=>n.includes(w))) return true;
-    if(ORG.parish.some(p=>n===p || n===p+'성당' || n===p+'본당' || n.includes(p+'성당') || n.includes(p+'본당') || n.includes(p+'주교좌') || n.includes(p+'공소'))) return true;
-    if(ORG.order.some(o=>n.includes(o))) return true;
-    if(ORG.inst.some(i=>n===i || (i.length>=4 && n.includes(i)) || (n.length>=4 && i.includes(n)))) return true;
-    return (list||[]).some(r=>r.org && nz(r.org)===n);   // 명부에 이미 적힌 소속
+  function orgFind(org, list){   // 찾은 이름 (없으면 '')
+    const n=nz(org); if(!n) return '';
+    const w=ORG.word.find(w=>n.includes(w)); if(w) return `대구대교구 (${w})`;
+    const p=ORG.parish.find(p=>n===p || n===p+'성당' || n===p+'본당' || n.includes(p+'성당') || n.includes(p+'본당') || n.includes(p+'주교좌') || n.includes(p+'공소')); if(p) return `대구대교구 ${p} 본당`;
+    const o=ORG.order.find(o=>n.includes(o)); if(o) return `대구대교구 수도회 · ${o}`;
+    const i=ORG.inst.find(i=>n===i || (i.length>=4 && n.includes(i)) || (n.length>=4 && i.includes(n))); if(i) return `대구대교구 기관 · ${i}`;
+    return (list||[]).some(r=>r.org && nz(r.org)===n) ? '명부에 이미 있는 소속' : '';
   }
+  const orgOk = (org, list) => !!orgFind(org, list);
   const visitsIn = (list, r) => { const y=String(r.date).slice(0,4); return list.filter(x=>who(x)===who(r) && String(x.date).slice(0,4)===y).length; };
+  const ORG_LINK = '<a href="https://www.daegu-archdiocese.or.kr/page/org.html?srl=inst&amp;kind=f" target="_blank" rel="noopener">천주교 대구대교구 기관 검색</a>';
   function warnsFor(r, list){
     const w=[], c=visitsIn(list, r);
-    if(c>=2) w.push(`<b>${esc(r.name)}</b> 님은 ${esc(String(r.date).slice(0,4))}년에 이미 <b>${c}회</b> 방문했습니다 — 이번이 <b>${c+1}회차</b>로 연 2회를 넘습니다.`);
-    if(!orgOk(r.org, list)) w.push(`소속 <b>「${esc(r.org)}」</b>은 대구대교구 본당 · 기관 목록에 없습니다 — <a href="https://www.daegu-archdiocese.or.kr/page/area.html?srl=church_search" target="_blank" rel="noopener">대교구 본당 찾기</a>에서 대구대교구 소속인지 확인해 주세요.`);
+    if(c>=2) w.push(`<b>${esc(r.name)}</b> 님(같은 소속 · 연락처)은 ${esc(String(r.date).slice(0,4))}년에 이미 <b>${c}회</b> 방문했습니다 — 이번이 <b>${c+1}회차</b>로 연 2회를 넘습니다.`);
     return w;
   }
   // 날짜 칸: 단체 방문일과 같은 방식 (칸 안에 「날짜 (요일)」 · 누르면 달력 · 한 번 더 누르거나 숫자를 치면 직접 입력)
@@ -122,7 +127,7 @@
   const formRow = () => ({date:$('#aDate').value, org:$('#aOrg').value.trim(), name:$('#aName').value.trim(), pos:$('#aPos').value.trim(), phone:$('#aPhone').value.trim(), note:'', turn:''});
   function turnHint(){ if(!$('#aHint')) return; const r=formRow(); if(!r.name && !r.org){ $('#aHint').textContent=''; return; }
     const out=[]; if(r.name && /^\d{4}/.test(r.date)){ const c=visitsIn(rows, r); out.push(c>=2 ? `<b class="bad">${r.date.slice(0,4)}년에 이미 ${c}회 방문 — ${c+1}회차 (연 2회 넘음)</b>` : `${r.date.slice(0,4)}년 <b>${c+1}회차</b>`); }
-    if(r.org && !orgOk(r.org, rows)) out.push('<b class="bad">대구대교구 본당 · 기관 목록에 없는 소속</b>');
+    if(r.org){ const f=orgFind(r.org, rows); out.push(f ? `<b class="ok">✓ ${esc(f)}</b>` : '<b class="bad">대구대교구에서 찾지 못함 — 저장할 때 관리자 승인</b>'); }
     $('#aHint').innerHTML = out.join(' · '); }
   document.addEventListener('input', e=>{ if(['aName','aPhone','aOrg','aDate'].includes(e.target.id)) turnHint(); if(e.target.id==='aPhone' && SY.phoneTyping) SY.phoneTyping(e.target, e.inputType); });
   buildAdd();
@@ -135,8 +140,12 @@
       const miss=[['org','소속','aOrg'],['name','이름','aName'],['pos','직책','aPos'],['phone','연락처','aPhone']].find(([k])=>!r[k]);
       if(miss){ toast(`${miss[1]}을(를) 적어 주세요.`); $('#'+miss[2]).focus(); return; }
       let latest=rows; try{ st('확인 중…', 'wait'); latest=await fetchAll(); rows=latest; st('', ''); }catch(_){ st('', ''); }   // 최신 명부로 확인
-      const w=warnsFor(r, latest);
-      if(!w.length){ await saveNew(r); return; }   // 문제 없으면 바로 저장
+      const w=warnsFor(r, latest), found=orgOk(r.org, latest);
+      if(!w.length && found){ await saveNew(r); return; }   // 문제 없으면 바로 저장
+      if(!found){   // 소속을 찾지 못함 → 관리자 승인 팝업 (검색이 안 되는 것일 수도 있어서 승인하면 그대로 등록)
+        ask(`<span class="bad">⚠ 소속을 대구대교구에서 찾지 못했습니다</span><br>「<b>${esc(r.org)}</b>」을 대구대교구 본당 · 기관 목록과 명부에서 찾아봤지만 없습니다. 검색이 안 되는 것일 수도 있으니 ${ORG_LINK}에서 확인해 주세요.`
+          + (w.length ? `<br><br>${w.map(x=>'· '+x).join('<br>')}` : '') + `<br><br><b>관리자가 승인하면 그대로 등록합니다.</b>`,
+          '승인하고 등록', ()=>saveNew({...r, note:`소속 승인 (${user.name||''})`})); return; }
       ask(`<span class="bad">⚠ 확인해 주세요</span><br>${w.map(x=>'· '+x).join('<br>')}<br><br>그래도 명부에 저장할까요?`, '그래도 저장', ()=>saveNew(r)); return; }
     const d=e.target.closest && e.target.closest('[data-del]'); if(d){ const r=rows.find(x=>x.id===d.dataset.del); if(!r) return;
       ask(`<b>${esc(dLab(r.date))} · ${esc(r.name)}</b> 줄을 명부에서 지울까요? (팀이 함께 보는 명부에서 지워집니다)`, '지우기', ()=>change(()=>SY.call({action:'clergyDel', id:r.id}), `「${r.name}」 줄을 지웠습니다.`)); }

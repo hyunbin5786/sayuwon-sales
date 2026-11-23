@@ -35,3 +35,4 @@
 .cl-add .dbox .dpick{position:absolute;left:0;bottom:0;width:1px!important;height:1px!important;opacity:0;pointer-events:none;border:0;padding:0}
 #askMsg .bad{color:#b5442c;font-weight:700}
 #askMsg a{color:var(--pine)}
+.cl-add .ok{color:var(--pine)}
