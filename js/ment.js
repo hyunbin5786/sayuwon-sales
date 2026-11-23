@@ -28,10 +28,6 @@
 
   const toast = (m, ms=2200) => { const t=$('#toast'); t.textContent=m; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>{ t.hidden=true; }, ms); };
   const setSync = t => { $('#sync').textContent=t; };
-  async function api(body){
-    const r=await fetch(SY.API_URL,{method:'POST',body:JSON.stringify({...body,key:SY.getKey()})});
-    const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j;
-  }
   const needDeploy = e => e && e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 이미지를 쓸 수 있습니다 (apps-script/group-intake.gs).' : '';
   // 불러오기: 팀 비밀번호 없이 (Apps Script mentList · 2026-11-18, 주로 휴대폰). 예전 배포면 비밀번호가 있는 기기만 전체 목록에서
   const applyRow = r => { row = r ? {...(row||{}), ...r} : row; let h=null; try{ h=r ? JSON.parse(r.history||'{}') : null; }catch(_){}
@@ -41,9 +37,9 @@
   async function pull(){
     if(pushing) return;   // 저장 중에는 다시 읽지 않음 (저장 전 내용으로 덮어쓰지 않게)
     setSync('불러오는 중…');
-    try{ const j=await api({action:'mentList'}); applyRow(j.ment||null); return; }
+    try{ const j=await SY.call({action:'mentList'}); applyRow(j.ment||null); return; }
     catch(e){
-      if(SY.getKey()){ try{ const j=await api({action:'list'}); applyRow((j.items||[]).find(r=>r.id===ID)||null); return; } catch(_){} }
+      if(SY.getKey()){ try{ const j=await SY.call({action:'list'}); applyRow((j.items||[]).find(r=>r.id===ID)||null); return; } catch(_){} }
       failed=true; setSync('연결 안 됨 · 잠시 뒤 다시'); if(!loaded && !edit) render(); }
   }
   async function push(what){
@@ -52,7 +48,7 @@
     const item={...(row||{}), id:ID, callType:TYPE, saved:(row&&row.saved)||now, takenBy:user.name, summary:`전화응대 멘트 ${items.length}개`, history:JSON.stringify({items, at:now, by:user.name})};
     delete item.date; delete item.org;
     SY.writeJSON(CACHE_LS, items); render(); setSync('저장 중…');
-    pushing=true; try{ await api({action:'put', item}); row=item; pushing=false; setSync(''); toast(what); return true; }
+    pushing=true; try{ await SY.call({action:'put', item}); row=item; pushing=false; setSync(''); toast(what); return true; }
     catch(e){ pushing=false; setSync('저장 못 함'); if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast(SY.authFail(), 4000); } else toast('저장하지 못했습니다: '+(e.code||e.message)); return false; }   // 고치기만 비밀번호 필요
   }
 
@@ -60,7 +56,7 @@
   // 불러오기 (한 번 받은 것은 이 창에 기억)
   function loadImg(id){
     if(imgCache[id]) return Promise.resolve(imgCache[id]);
-    if(!imgWait[id]) imgWait[id]=api({action:'mentImgGet', id}).then(j=>{ imgCache[id]=`data:${j.file.mime};base64,${j.file.data}`; return imgCache[id]; }).catch(e=>{ delete imgWait[id]; throw e; });
+    if(!imgWait[id]) imgWait[id]=SY.call({action:'mentImgGet', id}).then(j=>{ imgCache[id]=`data:${j.file.mime};base64,${j.file.data}`; return imgCache[id]; }).catch(e=>{ delete imgWait[id]; throw e; });
     return imgWait[id];
   }
   function paintImgs(){   // 화면의 작은 그림들 채우기
@@ -80,7 +76,7 @@
     for(const f of list){
       uploading++; paintDraft();
       try{ const {mime, url}=await shrink(f), name=`${($('#list .ment-edit .m-title')?.value||'멘트').trim()||'멘트'} ${draftImgs.length+1}`;
-        const j=await api({action:'mentImgPut', name:name+(mime==='image/png'?'.png':'.jpg'), mime, data:url.split(',')[1]});
+        const j=await SY.call({action:'mentImgPut', name:name+(mime==='image/png'?'.png':'.jpg'), mime, data:url.split(',')[1]});
         imgCache[j.file.id]=url; draftImgs.push({id:j.file.id, name:j.file.name}); }
       catch(e){ toast(needDeploy(e) || ('이미지를 올리지 못했습니다: '+(e.code||e.message)), 4000); }
       finally{ uploading--; paintDraft(); }
@@ -170,7 +166,7 @@
       const ok=await push(want ? `「${m.title}」 즐겨찾기 저장 중…` : `「${m.title}」 즐겨찾기 빼는 중…`);
       if(!ok){ items=items.map(x=>x.id===id ? {...x, fav:m.fav} : x); SY.writeJSON(CACHE_LS, items); render(); return; }   // 저장 못 하면 되돌림 (팀 비밀번호 칸이 뜸)
       // 공유 기록에 정말 들어갔는지 다시 읽어서 확인 (휴대폰과 같은 길로)
-      try{ const j=await api({action:'mentList'}); let h={}; try{ h=JSON.parse((j.ment||{}).history||'{}'); }catch(_){}
+      try{ const j=await SY.call({action:'mentList'}); let h={}; try{ h=JSON.parse((j.ment||{}).history||'{}'); }catch(_){}
         const s=(h.items||[]).find(x=>x.id===id); toast(s && !!s.fav===want ? (want ? `「${m.title}」 즐겨찾기 · 휴대폰에도 맨 위에 보입니다.` : `「${m.title}」 즐겨찾기를 뺐습니다 (휴대폰에도).`) : '즐겨찾기가 공유 기록에 저장되지 않았습니다. 잠시 뒤 다시 눌러 주세요.', 3500); }
       catch(_){ toast('저장은 했지만 확인하지 못했습니다. 휴대폰에서 새로고침해 보세요.', 3500); }
       return; }

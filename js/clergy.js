@@ -9,7 +9,6 @@
   const user = SY.user() || {}; $('#me').innerHTML = user.name ? `👤 <b>${esc(user.name)}</b>` : '';
   let toastT; const toast = (m, ms=2600) => { const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), ms); };
   const st = (txt, cls) => { const el=$('#st'); el.textContent=txt; el.className='save-st '+(cls||''); };
-  async function callApi(body){ const r=await fetch(SY.API_URL,{method:'POST',body:JSON.stringify({...body,key:SY.getKey()})}); const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j; }
   const TYPE='무료입장명부', PART=i=>'clergy'+i, MAXC=40000;
   const digits = s => String(s||'').replace(/\D/g,'');
   const newId = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -34,8 +33,8 @@
     list.forEach(r=>{ const a=[r.id, r.date, r.org, r.name, r.pos, r.phone, r.note, r.turn], n=JSON.stringify(a).length+1; if(size+n>MAXC && cur.length){ packs.push(cur); cur=[]; size=0; } cur.push(a); size+=n; });
     if(cur.length || !packs.length) packs.push(cur);
     const old=(await fetchAll()).parts;
-    for(let i=0;i<packs.length;i++) await callApi({action:'put', item:{id:PART(i), callType:TYPE, saved:at, takenBy:by, owner:by, summary:`대구대교구 무료입장 명부 ${i+1}/${packs.length} · ${list.length}명`, history:JSON.stringify({part:i, of:packs.length, at, rows:packs[i]})}});
-    for(const id of old) if(+id.slice(6)>=packs.length) await callApi({action:'del', id});   // 남는 묶음은 지움
+    for(let i=0;i<packs.length;i++) await SY.call({action:'put', item:{id:PART(i), callType:TYPE, saved:at, takenBy:by, owner:by, summary:`대구대교구 무료입장 명부 ${i+1}/${packs.length} · ${list.length}명`, history:JSON.stringify({part:i, of:packs.length, at, rows:packs[i]})}});
+    for(const id of old) if(+id.slice(6)>=packs.length) await SY.call({action:'del', id});   // 남는 묶음은 지움
     rows=list;
   }
   // 최신 명부를 받아 바꾼 뒤 저장 (추가 · 지우기)

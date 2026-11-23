@@ -19,7 +19,7 @@
   let pushT=null, pushing=false;
   async function pushShare(){ pushT=null; if(!SY.getKey()) return; pushing=true;
     try{ const now=st.at||new Date().toISOString(), item={id:SHARE_ID, callType:SHARE_TYPE, saved:now, takenBy:me, owner:me, summary:`예약 현황 공유 ${st.days.map(d=>d.date).join(' · ')}`, history:JSON.stringify({st, at:now, by:me})};
-      const r=await fetch(SY.API_URL,{method:'POST', body:JSON.stringify({action:'put', item, key:SY.getKey()})}), j=await r.json(); if(!j.ok) throw new Error(j.error); paintShare(`공유됨 · ${hm(now)} ${me}`); }
+      await SY.call({action:'put', item}); paintShare(`공유됨 · ${hm(now)} ${me}`); }
     catch(e){ paintShare('공유 못 함 · 잠시 뒤 다시', true); }
     finally{ pushing=false; } }
   const save = () => { st.at=new Date().toISOString(); st.by=me; SY.writeJSON(LS, st); clearTimeout(pushT); paintShare('공유 중…'); pushT=setTimeout(pushShare, 1500); };

@@ -1,0 +1,4 @@
+# 줄바꿈은 LF 로 통일 (tools/build.ps1 이 js/group/*.js 를 바이트 그대로 이어 붙여 js/group.js 를 만들기 때문에, 받는 컴퓨터마다 줄바꿈이 달라지면 안 됨)
+* text=auto eol=lf
+*.png binary
+*.jpg binary

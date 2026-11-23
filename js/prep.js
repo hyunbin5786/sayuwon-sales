@@ -13,10 +13,8 @@ const digits = s => String(s||'').replace(/\D/g,'');
 const norm = s => String(s||'').replace(/\s/g,'').toLowerCase();
 
 // ===================== 공유 기록 (단체예약) =====================
-const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
-const KEY_LS=SY.KEY_LS, GROUP_CACHE_LS='sayuwon_intake_cache';
+const GROUP_CACHE_LS='sayuwon_intake_cache';
 const getKey = SY.getKey;
-async function callApi(body){ const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})}); const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j; }
 const GROUP_TYPES=['예약확정','예약접수','공식예약'];   // 연결은 예약확정만 (2026-11-18 · 예약상담 · 가예약 · 예약취소는 가져오지 않음 · 예약접수 · 공식예약 = 예전 이름)
 const isConfirmed = r => GROUP_TYPES.includes(r.callType) || (/^adm/.test(r.id||'') && (r.callType||'단체예약')==='단체예약');   // 관리자 사이트에서 온 예약도 확정
 const memoVal = (r, label) => { const p=String(r.memo||'').split(' / ').map(s=>s.trim()).find(s=>s.startsWith(label+' ')); return p ? p.slice(label.length+1).trim() : ''; };   // 비고 칸 「입장문 치허문」 등
@@ -130,7 +128,7 @@ async function pushNow(){
   pushing=true; const at=new Date().toISOString(), by=user.name||'';
   const st={...state, at, by}, body=JSON.stringify(packState(st));
   if(body.length>48000){ shareSt('너무 커서 팀에 못 올림 (이 PC에만 저장)', 'bad'); pushing=false; return false; }
-  try{ await callApi({action:'put', item:{id:PREP_ID(state.date), callType:'응대준비', saved:at, takenBy:by, owner:by, summary:`다음날 고객 응대 준비 ${state.date} · ${state.rows.length}건 · ${by}`.slice(0,120), history:body}});
+  try{ await SY.call({action:'put', item:{id:PREP_ID(state.date), callType:'응대준비', saved:at, takenBy:by, owner:by, summary:`다음날 고객 응대 준비 ${state.date} · ${state.rows.length}건 · ${by}`.slice(0,120), history:body}});
     state.at=at; state.by=by; try{ localStorage.setItem(STATE_LS, JSON.stringify(state)); }catch(_){} histAdd(state.date, at);
     shareSt(`팀과 공유됨 · 최종 편집 ${editLab(at)}`, 'ok'); return true; }
   catch(e){ shareSt('팀에 못 올림 — 잠시 뒤 다시 올립니다', 'bad'); pushT=setTimeout(pushNow, 15000); return false; }
@@ -319,7 +317,7 @@ async function saveEdits(auto){
         fx.changes=[...new Set([...(fx.changes||[]).filter(c=>!/^전산 비고/.test(c)), ...lines])]; fx.v=4; h.tasks=ts; nFix++;
       }
       it.history=JSON.stringify(h); it.saved=now;
-      await callApi({action:'put', item:it}); nGroup++;
+      await SY.call({action:'put', item:it}); nGroup++;
       const gi=groups.findIndex(g=>g.id===it.id); if(gi>=0) groups[gi]=it; else groups.push(it);
     }
     // 저장 확인: 다시 받아서 표의 값이 정말 들어갔는지
@@ -369,7 +367,7 @@ $('#agOk').onclick=async()=>{
   agencies=agEdit.map(a=>({name:String(a.name||'').trim(), gate:a.gate||'', time:fmtT(a.time), bus:num(a.bus), car:num(a.car), memo:String(a.memo||'').trim()})).filter(a=>a.name);   // 도착시간 · 차량 (2026-11-20, 비워 두면 없음)
   try{ localStorage.setItem(AGENCY_LS, JSON.stringify(agencies)); }catch(_){}
   $('#agModal').hidden=true; if(state) build(false); toast(`여행사 ${agencies.length}곳을 저장했습니다.`);
-  if(getKey()) try{ await callApi({action:'put', item:{id:AGENCY_ID, callType:'응대준비설정', saved:new Date().toISOString(), takenBy:user.name||'', owner:user.name||'', summary:`다음날 고객 응대 준비 · 여행사 ${agencies.length}곳`, history:JSON.stringify({list:agencies})}}); }catch(_){ toast('여행사 목록을 팀에 올리지 못했습니다.'); }
+  if(getKey()) try{ await SY.call({action:'put', item:{id:AGENCY_ID, callType:'응대준비설정', saved:new Date().toISOString(), takenBy:user.name||'', owner:user.name||'', summary:`다음날 고객 응대 준비 · 여행사 ${agencies.length}곳`, history:JSON.stringify({list:agencies})}}); }catch(_){ toast('여행사 목록을 팀에 올리지 못했습니다.'); }
 };
 // ===================== 안내 명단 (2026-11-19): 해오름 산책 · 선셋디너처럼 고객님께 따로 알려야 하는 상품 =====================
 // ② 티켓 발권 대상 위에 그날 엑셀의 상품 이름을 모두 띄우고 체크 → 체크한 상품을 예약한 고객을 ③ 표 아래 · 이미지 · 엑셀에 「이름(n명, 전화번호)」
@@ -393,7 +391,7 @@ function noticeBoxHTML(){ const ps=allProds().sort((a,b)=>(noticeOn(b[0])-notice
   return `<div class="notice-box"><b>안내 명단 상품</b> <small class="hint">체크한 상품을 예약한 고객은 위 표 아래 · 이미지 · 엑셀에 「이름(명수, 전화번호)」로 (팀 공유 · 다음 날에도 그대로)</small><div class="nb-list">`
     + ps.map(([p,n])=>`<label class="${noticeOn(p)?'on':''}"><input type="checkbox" data-notice="${esc(p)}"${noticeOn(p)?' checked':''}> ${esc(p)}${noticeOn(p)?` <small>${n}명</small>`:''}</label>`).join('') + `</div></div>`; }
 async function noticeSave(){ try{ localStorage.setItem(NOTICE_LS, JSON.stringify(noticeSel)); }catch(_){}
-  if(!getKey()) return; try{ await callApi({action:'put', item:{id:NOTICE_ID, callType:'응대준비설정', saved:new Date().toISOString(), takenBy:user.name||'', owner:user.name||'', summary:'다음날 고객 응대 준비 · 안내 명단 상품', history:JSON.stringify({sel:noticeSel})}}); }catch(_){ toast('안내 명단 상품 고른 것을 팀에 올리지 못했습니다.'); } }
+  if(!getKey()) return; try{ await SY.call({action:'put', item:{id:NOTICE_ID, callType:'응대준비설정', saved:new Date().toISOString(), takenBy:user.name||'', owner:user.name||'', summary:'다음날 고객 응대 준비 · 안내 명단 상품', history:JSON.stringify({sel:noticeSel})}}); }catch(_){ toast('안내 명단 상품 고른 것을 팀에 올리지 못했습니다.'); } }
 function noticeFrom(items){ const r=(items||[]).find(x=>x.id===NOTICE_ID); if(!r) return; try{ const j=JSON.parse(r.history||'{}'); if(j && j.sel){ noticeSel=j.sel; try{ localStorage.setItem(NOTICE_LS, JSON.stringify(noticeSel)); }catch(_){} } }catch(_){} }
 document.addEventListener('change', e=>{ const p=e.target.dataset && e.target.dataset.notice; if(p==null) return; noticeSel[p]=e.target.checked; render(); noticeSave(); });
 // ===================== 화면 =====================
@@ -444,7 +442,7 @@ document.addEventListener('input', e=>{ const t=e.target; if(t.tagName==='TEXTAR
 document.addEventListener('click', e=>{ if(e.target.id==='clearBtn' && state){ $('#clrMsg').innerHTML=`<b>${esc(dLab(state.date))}</b> 엑셀 · 고른 줄 · 표에서 고친 내용 · 연락 체크를 지웁니다.<br>팀이 함께 보는 내용이라 <b>다른 사람 화면에서도 지워집니다.</b> (단체예약에 이미 올린 내용은 그대로)`; $('#clrModal').hidden=false; setTimeout(()=>$('#clrNo').focus(), 0); } });
 $('#clrNo').onclick=()=>{ $('#clrModal').hidden=true; };
 $('#clrYes').onclick=async()=>{ $('#clrModal').hidden=true; if(!state) return; const d=state.date; clearTimeout(pushT);
-  if(getKey()){ try{ await callApi({action:'del', id:PREP_ID(d)}); }catch(_){ toast('팀 공유 내용을 지우지 못했습니다. 잠시 뒤 다시 해 주세요.'); return; } }
+  if(getKey()){ try{ await SY.call({action:'del', id:PREP_ID(d)}); }catch(_){ toast('팀 공유 내용을 지우지 못했습니다. 잠시 뒤 다시 해 주세요.'); return; } }
   state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); shareSt('', ''); toast(`${dLab(d)} 내용을 지웠습니다.`); };
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#clrModal').hidden) $('#clrModal').hidden=true; });
 // 표 내용 (엑셀 · 이미지 공통): 도착 시간 순

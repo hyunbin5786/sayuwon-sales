@@ -15,15 +15,10 @@ const user = readJSON('sy_user', {}) || {};
 $('#me').innerHTML = user.name ? `👤 <b>${esc(user.name)}</b>` : '';
 
 // ===================== 공유 기록 (단체 화면과 같은 Apps Script · 같은 팀 비밀번호) =====================
-const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
-const KEY_LS=SY.KEY_LS, PEND_LS='sayuwon_personal_pending', CACHE_LS='sayuwon_personal_cache';
+const PEND_LS='sayuwon_personal_pending', CACHE_LS='sayuwon_personal_cache';
 const CALL_TYPE='개인고객';
 const getKey=SY.getKey;   // 팀 비밀번호 대신 로그인 (2026-11-21, js/common.js)
 let pending = readJSON(PEND_LS, []), items = readJSON(CACHE_LS, []), flushing=false, retryT=null;
-async function callApi(body){
-  const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})});   // Content-Type 없이 (Apps Script 사전 확인 요청 없이)
-  const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j;
-}
 function paintSync(state){
   const c=$('#syncChip'), n=pending.length;
   const txt = state==='error' ? `연결 끊김 · ${n}건 대기 · 다시 시도 중` : n ? `올리는 중 ${n}건` : '';
@@ -35,7 +30,7 @@ async function flush(){
   if(flushing) return; if(!getKey()){ paintSync('needkey'); return; }
   flushing=true;
   try{
-    while(pending.length){ await callApi(pending[0]); pending.shift(); writeJSON(PEND_LS,pending); paintSync(); }
+    while(pending.length){ await SY.call(pending[0]); pending.shift(); writeJSON(PEND_LS,pending); paintSync(); }
     await pull(true);
   }catch(e){ handleErr(e); } finally{ flushing=false; }
 }
@@ -248,7 +243,7 @@ $('#catChips').addEventListener('dragend', ()=>{ catDrag=null; document.querySel
 // 멤버 이름 (멤버관리 · 공유 시트 members 탭): 이 브라우저에 기억해 두고 열 때마다 새로
 const MEMBERS_LS='sayuwon_member_names';
 let memberNames = readJSON(MEMBERS_LS, []);
-async function loadMembers(){ if(!getKey()) return; try{ const j=await callApi({action:'members'}); memberNames=(j.members||[]).map(m=>String(m.name||'').trim()).filter(Boolean); writeJSON(MEMBERS_LS, memberNames); paintChips(); }catch(_){} }
+async function loadMembers(){ if(!getKey()) return; try{ const j=await SY.call({action:'members'}); memberNames=(j.members||[]).map(m=>String(m.name||'').trim()).filter(Boolean); writeJSON(MEMBERS_LS, memberNames); paintChips(); }catch(_){} }
 setTimeout(loadMembers, 500); setInterval(loadMembers, 2*60e3); window.addEventListener('focus', loadMembers);   // 새 멤버는 2분마다 · 이 창으로 돌아올 때 다시 받아 자동으로 추가
 // 예약 여부 칸은 없앰 (2026-11-18 · 안 씀). 예전 통화에 적힌 값은 기록에만 남음
 // ===================== 카카오톡 보고용 글자 복사 =====================
@@ -355,7 +350,7 @@ async function setAllTrash(on){
   allTrash=on; $('#allName').textContent = on ? '삭제된 개인고객 통화' : '개인고객 통화 기록 전체'; $('#allTrash').textContent = on ? '← 통화 기록 전체' : '삭제된 통화';
   $('#allHead').innerHTML = on ? TRASH_HEAD : ALL_HEAD; $('#allSearch').value=''; $('#allFlt').hidden=on; renderAll();
   if(on){ trashItems=null; trashErr=''; renderAll();
-    try{ const j=await callApi({action:'deleted'}); trashItems=j.items||[]; }
+    try{ const j=await SY.call({action:'deleted'}); trashItems=j.items||[]; }
     catch(e){ trashErr = e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 삭제된 통화가 보입니다 (apps-script/group-intake.gs 의 deleted).' : '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
     if(allTrash) renderAll(); }
 }
@@ -469,7 +464,7 @@ async function toGroup(){
   $('#toGroupBtn').disabled=true; toast('단체고객 전화응대로 바꾸는 중…');
   try{
     pending=pending.filter(p=>!(p.item && p.item.id===g.id)); writeJSON(PEND_LS,pending);
-    await callApi({action:'put', item:g});
+    await SY.call({action:'put', item:g});
     items=items.filter(x=>x.id!==g.id); writeJSON(CACHE_LS, items.slice(-500));
     saved=JSON.stringify(form=blankForm()); cur=null;   // 떠날 때 「저장하지 않은 내용」 경고가 안 뜨게
     location.href='group.html?open='+encodeURIComponent(g.id);

@@ -2,15 +2,10 @@
 // 공유 기록(구글 시트 calls, 단체 화면과 같은 Apps Script)에 한 줄 = 한 건으로 저장. 통화 구분(callType)으로 나눔:
 //   개인업무 · 분실물 · 사고 · 재고. 내용은 '수정 기록' 칸(history)에 JSON {kind, d:{…}, log:[…]}
 //   (방문일 · 업체 칸은 비워 둠 → 단체 화면의 '그날 예약 현황' 등에 섞이지 않게)
-const OPS_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
-const OPS_KEY_LS = SY.KEY_LS;   // 팀 비밀번호 (단체 · 개인고객 화면과 같이 씀)
 const OPS_TYPES = { task:'개인업무', lost:'분실물', accident:'사고', stock:'재고', ship:'스마트스토어' };
 const opsKey = SY.getKey;   // 팀 비밀번호 대신 로그인 (2026-11-21, js/common.js)
-async function opsApi(body){
-  const r=await fetch(OPS_URL,{method:'POST',body:JSON.stringify({...body,key:opsKey()})});
-  const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j;
-}
-const opsUser = () => { try{ return JSON.parse(localStorage.getItem('sy_user')||'{}')||{}; }catch(_){ return {}; } };
+// 서버 요청은 SY.call (js/common.js)
+const opsUser = () => SY.readJSON(SY.USER_LS, {}) || {};
 const opsYmd = d => { const x=new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; };
 const opsToday = () => opsYmd(new Date());
 const OPS_DOW = ['일','월','화','수','목','금','토'];
@@ -43,7 +38,6 @@ const opsRepeatLabel = d => d.repeat==='daily' ? '매일' : d.repeat==='weekly' 
 // 단체 화면과 같은 자료: 견적서 코드(document/js/document.js)의 CATALOG_RAW · GOODS + 품목관리에서 고친 것(공유 · edits · added)
 // 단체 화면이 받아 둔 것(sayuwon_quote_cat)을 바로 쓰고, 새로 받아서 바꿈
 const OPS_QUOTE_DATA = 'document/js/document.js';
-const OPS_QUOTE_SHARED = "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec";
 function opsGoodsFrom(qc){
   if(!qc || !qc.raw) return [];
   const ns=s=>String(s||'').replace(/\s/g,''), isG=src=>(qc.goods||[]).some(x=>ns(x)===ns(src)), out=[], seen={};
@@ -55,7 +49,7 @@ function opsGoodsFrom(qc){
 let opsGoodsCache = opsGoodsFrom(SY.readJSON('sayuwon_quote_cat', null));
 async function opsLoadGoods(){
   try{
-    const [html, shared] = await Promise.all([fetch(OPS_QUOTE_DATA+'?t='+Date.now()).then(r=>r.text()), fetch(OPS_QUOTE_SHARED).then(r=>r.json()).catch(()=>null)]);
+    const [html, shared] = await Promise.all([fetch(OPS_QUOTE_DATA+'?t='+Date.now()).then(r=>r.text()), SY.quote.get().catch(()=>null)]);
     const m=html.match(/var CATALOG_RAW = \[([\s\S]*?)\];/); if(!m) return opsGoodsCache;
     const raw=[...m[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]);
     const gm=html.match(/\[([^\]]*)\]\.forEach\(function\(n\)\{\s*GOODS\[n\]/), goods=gm ? [...gm[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]) : [];

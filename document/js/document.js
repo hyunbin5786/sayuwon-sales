@@ -142,15 +142,14 @@
   }
 
   // 품목 관리에서 바꾼 내용: { edits:{예약상품명:{…}}, added:[{uid,…}] }
-  // SHARED_URL(구글 시트 Apps Script 웹 앱)이 있으면 모두가 같은 목록을 쓰고, 없으면 이 브라우저에만 저장
-  var SHARED_URL = "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec";
+  // 모두가 같은 목록을 씀: 견적서 서버(SY.quote · ../js/common.js). 예전의 「주소가 없으면 이 브라우저에만 저장」 방식은 없앰 (2026-11-23)
   var CAT_KEY = "sy_catalog_v1";            // 예전: 브라우저마다 따로 저장하던 목록
   var SHARED_CACHE = "sy_catalog_shared";   // 공유 목록을 바로 띄우기 위한 사본
   function readLS(k){ try { return JSON.parse(localStorage.getItem(k) || "{}") || {}; } catch(e){ return {}; } }
   function hasEdits(d){ return !!d && (Object.keys(d.edits || {}).length > 0 || (d.added || []).length > 0); }
   var legacyEdits = readLS(CAT_KEY);
-  var catEdits = SHARED_URL ? readLS(SHARED_CACHE) : legacyEdits;
-  function saveCatEdits(){ try { localStorage.setItem(SHARED_URL ? SHARED_CACHE : CAT_KEY, JSON.stringify(catEdits)); } catch(e){} }
+  var catEdits = readLS(SHARED_CACHE);
+  function saveCatEdits(){ try { localStorage.setItem(SHARED_CACHE, JSON.stringify(catEdits)); } catch(e){} }
 
   // ---- 공유 목록 동기화: 바꾼 내용을 작업(op) 단위로 보내 서버에서 합친다 ----
   // 품목 관리에서 고친 내용은 바로 올리지 않고 모아 두었다가 「저장」을 누르면 공유 목록에 반영한다
@@ -161,10 +160,9 @@
     syncState = s;
     var el = document.getElementById("cat-sync"); if(el) el.textContent = syncText();
     var b = document.getElementById("cat-save");
-    if(b){ b.hidden = !SHARED_URL; b.disabled = syncBusy || !catDirty(); b.textContent = syncBusy ? "저장 중…" : "저장"; }
+    if(b){ b.hidden = false; b.disabled = syncBusy || !catDirty(); b.textContent = syncBusy ? "저장 중…" : "저장"; }
   }
   function syncText(){
-    if(!SHARED_URL) return "수정한 내용은 이 브라우저에 저장됩니다.";
     if(syncState === "saving") return "공유 목록에 저장 중…";
     if(syncState === "error") return "저장하지 못했습니다. 인터넷 연결을 확인하고 「저장」을 다시 눌러 주세요.";
     if(syncState === "saved") return "저장했습니다. 모두에게 반영됩니다.";
@@ -173,7 +171,6 @@
   }
   var autoSaveT = null;
   function queueOp(op){
-    if(!SHARED_URL) return;
     syncQ.push(op); setSync("dirty");
     clearTimeout(autoSaveT); autoSaveT = setTimeout(flushOps, 2000);   // 자동 저장: 마지막으로 고치고 2초 뒤 (「저장」을 눌러도 바로 저장)
   }
@@ -194,8 +191,7 @@
     if(syncBusy){ if(syncQ.length) autoSaveT = setTimeout(flushOps, 1500); return; }   // 저장 중이면 끝난 뒤 이어서
     if(!syncQ.length) return;
     var ops = syncQ; syncQ = []; syncBusy = true;
-    fetch(SHARED_URL, { method:"POST", body: JSON.stringify({ ops: ops }) })
-      .then(function(r){ return r.json(); })
+    SY.quote.post({ ops: ops })
       .then(function(res){
         syncBusy = false;
         if(res && res.ok === false) throw new Error(res.error || "save failed");
@@ -208,8 +204,8 @@
     setSync("saving");
   }
   function pullShared(){
-    if(!SHARED_URL || syncQ.length || syncBusy) return;
-    fetch(SHARED_URL).then(function(r){ return r.json(); })
+    if(syncQ.length || syncBusy) return;
+    SY.quote.get()
       .then(function(res){ if(!syncQ.length && !syncBusy && res && res.data) { applyShared(res.data); setSync(""); } })
       .catch(function(){});
   }
@@ -217,7 +213,7 @@
   // 예전에 이 브라우저에서 고친 목록이 있으면, 그 목록으로 공유 목록을 통일할 수 있게
   function paintUpload(){
     var b = document.getElementById("cat-upload"); if(!b) return;
-    b.hidden = !(SHARED_URL && hasEdits(legacyEdits));
+    b.hidden = !hasEdits(legacyEdits);
   }
 
   var CATALOG = [];
@@ -277,10 +273,8 @@
     CATALOG = list;
   }
   buildCatalog();
-  if(SHARED_URL){
-    pullShared();
-    window.addEventListener("focus", pullShared);   // 다른 탭·창에서 돌아오면 최신 목록으로
-  }
+  pullShared();
+  window.addEventListener("focus", pullShared);   // 다른 탭·창에서 돌아오면 최신 목록으로
 
   function product(id){
     for(var i=0;i<CATALOG.length;i++){ if(CATALOG[i].id === id) return CATALOG[i]; }
@@ -1307,38 +1301,12 @@
   }
   // ---------- 단체 예약 도우미에서 열었을 때: 출력한 파일을 도우미의 구글 드라이브 폴더에도 저장 ----------
   // 도우미(sayuwon-sales)와 같은 사이트라 로그인(이름 · 사번)으로 확인 (2026-11-21 · 팀 비밀번호 없음). 올린 링크는 sy_intake_docs 로 도우미에 돌려준다.
-  var INTAKE_URL = "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec";
   var intakeLink = null;
   var intakeMail = "";   // 단체고객에서 넘어온 담당자 이메일(맨 위 것) → 메일 받는 사람 (2026-11-21)
   // 2026-11-21: 출력한 파일을 드라이브에 올려 단체 과업에 붙이던 것은 없앰 (모든 내용은 발급 내역에서). 출력했다는 것만 단체 화면에 알려 과업 「생성」을 체크
   function noteIntakeIssued(){
     if(!intakeLink || !intakeLink.recId) return;
     try { var list = JSON.parse(localStorage.getItem("sy_intake_docs") || "[]"); list.push({ recId: intakeLink.recId, doc: state.docType, files: [], at: new Date().toISOString() }); localStorage.setItem("sy_intake_docs", JSON.stringify(list)); } catch(e){}
-  }
-  function blobB64(b){ return new Promise(function(ok, no){ var fr = new FileReader(); fr.onload = function(){ ok(String(fr.result).split(",")[1]); }; fr.onerror = function(){ no(fr.error); }; fr.readAsDataURL(b); }); }
-  async function toIntakeDrive(files){   // 쓰지 않음 (예전 드라이브 저장)
-    var key = "", who = null; try { key = localStorage.getItem("sayuwon_intake_key") || ""; var u = JSON.parse(localStorage.getItem("sy_user") || "null"); if(u && u.name && u.emp) who = {name:u.name, emp:u.emp}; } catch(e){}   // 팀 비밀번호 대신 로그인 (2026-11-21)
-    var base = elStatus.textContent;
-    if(!key && !who){ status(base + " · 드라이브 저장은 로그인한 뒤 가능합니다.", "err"); return; }
-    var link = intakeLink, done = [];
-    status(base + " · 구글 드라이브에 올리는 중…", "ok");
-    try{
-      for(var i=0; i<files.length; i++){
-        // 사유원_견적서_수신_20261105_내부용.pdf → "견적서 내부용" (드라이브 이름: 방문일 단체명 견적서 내부용.pdf)
-        var parts = files[i].name.replace(/\.(pdf|xlsx)$/, "").split("_");
-        var kind = [parts[1], parts[4]].filter(Boolean).join(" ") + (/\.xlsx$/.test(files[i].name) ? " 엑셀" : "");
-        var r = await fetch(INTAKE_URL, { method:"POST", body: JSON.stringify({ key: key, who: who, action: "upload", name: files[i].name, mime: files[i].mime,
-          data: await blobB64(files[i].blob), org: link.org, date: link.date, kind: kind }) }).then(function(x){ return x.json(); });
-        if(!r.ok) throw new Error(r.error === "bad_action" ? "도우미 Apps Script를 새 버전으로 배포해야 합니다" : r.error);
-        done.push({ name: r.file.name, url: r.file.url, at: r.file.at });
-      }
-      var list = []; try { list = JSON.parse(localStorage.getItem("sy_intake_docs") || "[]"); } catch(e){}
-      list.push({ recId: link.recId, doc: state.docType, files: done, at: new Date().toISOString() });
-      localStorage.setItem("sy_intake_docs", JSON.stringify(list));
-      status(base + " · 구글 드라이브에도 저장했습니다 (도우미 과업에 링크)", "ok");
-    } catch(err){
-      status(base + " · 드라이브 저장 실패: " + (err && err.message || err), "err");
-    }
   }
 
   // 출력: 사유원 · 신라철강 양식을 모두 담은 PDF + 엑셀 한 개를 함께 저장
@@ -2045,7 +2013,7 @@
     var first = document.querySelector('#cat-body input[data-f="src"]'); if(first) first.focus();
   });
   document.getElementById("cat-reset").addEventListener("click", function(){
-    if(!confirm("품목 관리에서 바꾸거나 추가한 내용을 모두 지우고 기본 품목 리스트로 되돌릴까요?" + (SHARED_URL ? "\n공유 목록이라 모두에게 적용됩니다." : ""))) return;
+    if(!confirm("품목 관리에서 바꾸거나 추가한 내용을 모두 지우고 기본 품목 리스트로 되돌릴까요?" + "\n공유 목록이라 모두에게 적용됩니다.")) return;
     catEdits = {}; queueOp({ op:"reset" }); saveCatEdits(); buildCatalog(); renderCatalog();
   });
   document.getElementById("cat-upload").addEventListener("click", function(){
@@ -2373,14 +2341,13 @@
     return list.map(function(h){ return m[h.id] ? Object.assign({}, h, { canceled: m[h.id].canceled, cancelNote: m[h.id].cancelNote }) : h; });
   }
   function flushHistory(){
-    if(!SHARED_URL || histBusy || (!histPending.length && !histCancel.length)) return Promise.resolve();
+    if(histBusy || (!histPending.length && !histCancel.length)) return Promise.resolve();
     histBusy = true;
     var sending = histPending.slice(), cancels = histCancel.slice();
     var body = {};
     if(sending.length) body.history = sending;
     if(cancels.length) body.cancel = cancels;
-    return fetch(SHARED_URL, { method:"POST", body: JSON.stringify(body) })
-      .then(function(r){ return r.json(); })
+    return SY.quote.post(body)
       .then(function(res){
         histBusy = false;
         if(sending.length){
@@ -2407,8 +2374,7 @@
       .catch(function(){ histBusy = false; if(!elHist.hidden) renderHistory(); });
   }
   function loadHistory(){
-    if(!SHARED_URL) return Promise.resolve();
-    return fetch(SHARED_URL + "?history=1&limit=500").then(function(r){ return r.json(); })
+    return SY.quote.get("history=1&limit=500")
       .then(function(res){
         if(res && Array.isArray(res.history)){ histServer = true; histList = res.history; writeArr(HIST_CACHE, histList.slice(0, 300)); }
         else histServer = false;
@@ -2431,8 +2397,7 @@
     if(histFocus) groups = groups.filter(function(g){ return g.versions.some(histFocusHit); });
     if(q) groups = groups.filter(function(g){ return g.versions.some(function(h){ return [h.client, h.sender, h.doc, fmtAt(h.at)].join(" ").toLowerCase().indexOf(q) >= 0; }); });
     document.getElementById("hist-count").textContent = "· 문서 " + groupVersions(all).length + "건 (발급 " + all.length + "번)";
-    var st = !SHARED_URL ? "이 브라우저에만 저장됩니다."
-      : histServer === false ? "⚠ 공유 저장소(Apps Script)를 업데이트해야 다른 사람과 공유됩니다. 지금은 이 브라우저에 보관 중입니다."
+    var st = histServer === false ? "⚠ 공유 저장소(Apps Script)를 업데이트해야 다른 사람과 공유됩니다. 지금은 이 브라우저에 보관 중입니다."
       : histServer ? "공유 내역입니다. 누가 발급해도 모두에게 보입니다." : "불러오는 중…";
     if(cancelServer === false && histCancel.length) st += " ⚠ 발급 취소를 다른 사람과 공유하려면 Apps Script를 새 버전으로 다시 배포해야 합니다 (지금은 이 브라우저에만 표시).";
     document.getElementById("hist-status").textContent = st;
@@ -2582,12 +2547,10 @@
     try{
       await flushHistory();
       var list = null;
-      if(SHARED_URL){
-        try {
-          var res = await fetch(SHARED_URL + "?history=1&limit=1000000").then(function(r){ return r.json(); });
-          if(res && Array.isArray(res.history)) list = res.history;
-        } catch(e){}
-      }
+      try {
+        var res = await SY.quote.get("history=1&limit=1000000");
+        if(res && Array.isArray(res.history)) list = res.history;
+      } catch(e){}
       if(!list){ list = histList; st.textContent = "⚠ 공유 저장소에 연결하지 못해 이 화면에 있는 내역만 받습니다."; }
       // 아직 못 올린 내역 · 취소 표시까지 합친다
       var have = {}; list.forEach(function(h){ have[h.id] = true; });
@@ -2665,15 +2628,8 @@
   //  · 예약 정보를 붙여넣고 「자동 채우기」: 품목 · 인원 · 이용일은 예약에서, 수신(단체명) · 수신 담당자는 요청에서
   //  · 「붙여넣기 없이 초안으로 시작」: 수신 · 담당자 · 이용일 · 인원 + 기본 관람 한 줄
   // 출력하면 요청 상태 「출력」, 「끝난 요청으로」 누르면 「완료」. 메일 받는 사람 = 고객이 적은 이메일
-  var REQ_PAGE = "https://hyunbin5786.github.io/sayuwon-sales/document/request.html";
+  var REQ_PAGE = new URL("request.html", location.href).href.split(/[?#]/)[0];   // 고객에게 보내는 주소 = 지금 사이트의 document/request.html (사이트 주소가 바뀌어도 그대로)
   var reqItems = null, curReq = null;
-  function reqApi(body){
-    var key = "", who = null;
-    try { key = localStorage.getItem("sayuwon_intake_key") || ""; var u = JSON.parse(localStorage.getItem("sy_user") || "null"); if(u && u.name && u.emp) who = {name:u.name, emp:u.emp}; } catch(e){}
-    body.key = key; body.who = who;
-    return fetch(INTAKE_URL, { method:"POST", body: JSON.stringify(body) }).then(function(x){ return x.json(); })
-      .then(function(j){ if(!j.ok){ var e = new Error(j.error || "error"); e.code = j.error; throw e; } return j; });
-  }
   function reqErrText(e){
     var c = e && e.code;
     if(c === "bad_key") return "로그인 정보를 확인할 수 없습니다. 첫 화면에서 다시 로그인해 주세요.";
@@ -2699,7 +2655,7 @@
   function loadReqs(){
     var box = document.getElementById("req-list");
     if(reqItems === null) box.innerHTML = '<div class="reqempty">불러오는 중…</div>';
-    return reqApi({ action:"quoteReqList" }).then(function(j){ reqItems = j.items || []; renderReqList(); })
+    return SY.call({ action:"quoteReqList" }).then(function(j){ reqItems = j.items || []; renderReqList(); })
       .catch(function(e){ box.innerHTML = '<div class="reqempty">' + esc(reqErrText(e)) + '</div>'; });
   }
   function paintReqPick(){
@@ -2740,7 +2696,7 @@
   }
   function reqMark(status){
     var r = curReq; if(!r || !r.id) return Promise.resolve();
-    return reqApi({ action:"quoteReqMark", id: r.id, status: status }).then(function(j){
+    return SY.call({ action:"quoteReqMark", id: r.id, status: status }).then(function(j){
       if(j.item){ Object.keys(j.item).forEach(function(k){ r[k] = j.item[k]; }); }
       if(reqItems) reqItems = reqItems.filter(function(x){ return x.id !== r.id || status !== "삭제"; }).map(function(x){ return x.id === r.id ? r : x; });
       renderReqList(); paintReqInfo();

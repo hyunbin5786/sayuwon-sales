@@ -8,7 +8,6 @@
   const user = SY.user() || {}; $('#me').innerHTML = user.name ? `👤 <b>${esc(user.name)}</b>` : '';
   let toastT; const toast = (m, ms=2600) => { const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), ms); };
   const st = (txt, cls) => { const el=$('#st'); el.textContent=txt; el.className='save-st '+(cls||''); };
-  async function callApi(body){ const r=await fetch(SY.API_URL,{method:'POST',body:JSON.stringify({...body,key:SY.getKey()})}); const j=await r.json(); if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; } return j; }
   const TYPE='취소요청', PART=i=>'cxreq'+i, MAXC=40000;
   const digits = s => String(s||'').replace(/\D/g,'');
   const newId = () => 'x'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -29,8 +28,8 @@
     list.forEach(r=>{ const n=JSON.stringify(r).length+1; if(size+n>MAXC && cur.length){ packs.push(cur); cur=[]; size=0; } cur.push(r); size+=n; });
     if(cur.length || !packs.length) packs.push(cur);
     const old=(await fetchAll()).parts;
-    for(let i=0;i<packs.length;i++) await callApi({action:'put', item:{id:PART(i), callType:TYPE, saved:at, takenBy:by, owner:by, summary:`예약 취소 요청 ${i+1}/${packs.length} · ${list.length}건 · 처리 전 ${list.filter(r=>!r.done).length}건`, history:JSON.stringify({part:i, of:packs.length, at, rows:packs[i]})}});
-    for(const id of old) if(+id.slice(5)>=packs.length) await callApi({action:'del', id});
+    for(let i=0;i<packs.length;i++) await SY.call({action:'put', item:{id:PART(i), callType:TYPE, saved:at, takenBy:by, owner:by, summary:`예약 취소 요청 ${i+1}/${packs.length} · ${list.length}건 · 처리 전 ${list.filter(r=>!r.done).length}건`, history:JSON.stringify({part:i, of:packs.length, at, rows:packs[i]})}});
+    for(const id of old) if(+id.slice(5)>=packs.length) await SY.call({action:'del', id});
     reqs=list;
   }
   async function change(fn, okMsg){

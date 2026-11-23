@@ -4,8 +4,7 @@
 // 로그인 정보: localStorage 'sy_user' = {name, emp, at}. 같은 주소(hyunbin5786.github.io)의 단체 화면 · 견적서 사이트가 함께 씀
 const $ = s => document.querySelector(s);
 const USER_KEY = 'sy_user';
-const ONLINE = /github\.io$/.test(location.hostname);
-const QUOTE = ONLINE ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/index.html';   // 견적서 · 거래명세서 (이 사이트 안 document/, 예전 주소 sayuwon-invoice-quotation 도 그대로 있음)
+const QUOTE = 'document/index.html';   // 견적서 · 거래명세서 (이 사이트 안 document/, 예전 주소 sayuwon-invoice-quotation 도 그대로 있음)
 const getUser = () => { try{ const u=JSON.parse(localStorage.getItem(USER_KEY)||'null'); return u && u.name && u.emp ? u : null; }catch(_){ return null; } };
 const setLS = (k,v) => { try{ v==null ? localStorage.removeItem(k) : localStorage.setItem(k,v); }catch(_){} };
 
@@ -32,13 +31,7 @@ function paint(){
 const esc = SY.esc;   // 공통 도구 (js/common.js)
 
 // ===================== 공유 저장소 (단체 화면과 같은 Apps Script) =====================
-const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
-const KEY_LS = SY.KEY_LS;   // 예전 팀 비밀번호 저장 이름 (2026-11-21부터 로그인으로 확인)
 const getKey = SY.getKey;
-async function callApi(body){
-  const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})});   // Content-Type 없이 (Apps Script 사전 확인 요청 없이)
-  return r.json();
-}
 
 // ===================== 로그인: 멤버 목록(이름 + 사번)과 맞아야 =====================
 $('#loginForm').addEventListener('submit', async e=>{
@@ -47,7 +40,7 @@ $('#loginForm').addEventListener('submit', async e=>{
   if(!name || !emp){ err.textContent='이름과 사번을 모두 넣어 주세요.'; return; }
   if(!/^[0-9A-Za-z-]{2,20}$/.test(emp)){ err.textContent='사번은 숫자 · 영문으로 넣어 주세요.'; return; }
   err.textContent='확인하는 중…'; btn.disabled=true;
-  let j=null; try{ j=await callApi({action:'login', name, emp}); }catch(_){ j=null; }
+  let j=null; try{ j=await SY.callRaw({action:'login', name, emp}); }catch(_){ j=null; }
   btn.disabled=false;
   if(!j){ err.textContent='확인하지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요.'; return; }
   let setup='';
@@ -84,7 +77,7 @@ function paintMembers(){
 }
 async function memberCall(body){
   $('#memberErr').textContent='';
-  let j=null; try{ j=await callApi(body); }catch(_){}
+  let j=null; try{ j=await SY.callRaw(body); }catch(_){}
   if(!j){ $('#memberErr').textContent='연결하지 못했습니다. 잠시 뒤 다시 해 주세요.'; return null; }
   if(j.error==='bad_key'){ $('#memberBody').hidden=true; $('#memberKey').hidden=false; $('#memberKeyErr').textContent = ''; return null; }
   if(j.error==='bad_action' || (j.ok && !j.members)){ $('#memberErr').textContent='공유 저장소(Apps Script)를 새 버전으로 배포해야 멤버관리를 쓸 수 있습니다.'; $('#memberBody').hidden=false; $('#memberKey').hidden=true; return null; }
@@ -123,7 +116,7 @@ const askClose = () => $('#catFrame').contentWindow?.postMessage({type:'sy-catal
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#catWrap').hidden){ e.preventDefault(); askClose(); } });
 paint();
 // 이미 로그인한 브라우저도 첫 화면을 열 때 다시 확인: 멤버에서 빠졌거나 이름 · 사번이 다르면 로그아웃
-(async()=>{ const u=getUser(); if(!u) return; let j=null; try{ j=await callApi({action:'login', name:u.name, emp:u.emp}); }catch(_){ return; }
+(async()=>{ const u=getUser(); if(!u) return; let j=null; try{ j=await SY.callRaw({action:'login', name:u.name, emp:u.emp}); }catch(_){ return; }
   if(!j || !j.ok) return;   // 연결 안 됨 · 예전 버전이면 그대로 둠
   if(!j.member){ [USER_KEY,'sayuwon_owner','sy_sender','sy_dash_cache'].forEach(k=>setLS(k,null)); view='menu'; paint(); window.syMenu && window.syMenu(false); $('#loginErr').textContent='등록된 멤버가 아니어서 로그아웃했습니다. 이름과 사번을 다시 확인해 주세요.'; return; }
   const setup = j.empty ? 'empty' : ''; if((u.setup||'')!==setup){ u.setup=setup; setLS(USER_KEY, JSON.stringify(u)); paint(); } })();
@@ -208,7 +201,7 @@ async function loadDash(){
   if(dashData) renderDash(); else $('#dashBody').innerHTML='<p class="hint">불러오는 중…</p>';
   if(dashLoading) return; dashLoading=true;
   try{
-    const [j, m] = await Promise.all([SY.list(), callApi({action:'members'}).catch(()=>null)]);   // 목록 · 멤버를 함께 받음
+    const [j, m] = await Promise.all([SY.list(), SY.callRaw({action:'members'}).catch(()=>null)]);   // 목록 · 멤버를 함께 받음
     if(!j.ok){ if(j.error==='bad_key'){ $('#dashKey').hidden=false; $('#dashBody').innerHTML='<p class="err">'+SY.authFail()+'</p>'; return; } throw new Error(j.error); }
     const names = m && m.ok ? (m.members||[]).map(x=>String(x.name||'').trim()).filter(Boolean) : ((dashData && dashData.names)||[]);
     lastItems=j.items||[]; startEngine();

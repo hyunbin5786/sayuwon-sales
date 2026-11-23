@@ -37,7 +37,7 @@
     if(!it.agree) return showErr('need_agree', 'q-agree');
     send.disabled = true; send.textContent = '보내는 중…';
     try{
-      const r = await fetch(SY.API_URL, { method:'POST', body: JSON.stringify({ action:'quoteReqAdd', item: it }) }).then(x => x.json());
+      const r = await SY.callRaw({ action:'quoteReqAdd', item: it });
       if(!r.ok) throw Object.assign(new Error(r.error), { code: r.error });
       form.hidden = true; $('req-done').hidden = false;
       $('req-done-text').textContent = `${it.org} ${it.name}님, 방문 희망일 ${SY.dateDisp(it.date)}${it.pax ? ' · ' + it.pax + '명' : ''} 견적 요청을 받았습니다. 확인 후 ${it.email} 로 견적서를 보내 드리겠습니다.`;

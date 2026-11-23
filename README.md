@@ -4,47 +4,69 @@
 
 사유원 예약 · 운영팀이 전화 응대 · 단체 예약 접수 · 다음날 응대 준비 · 견적서 발급 · 할 일 관리 · 분실물 · 사고 · 재고를 한곳에서 하는 웹 시스템입니다. 화면은 GitHub Pages(정적 HTML · CSS · JS), 공유 기록은 구글 시트(Apps Script 웹 앱)에 있습니다.
 
+> **2026-11-23 전체 리팩토링** — 동작은 그대로 두고 코드 구조만 정리했습니다 (DB · 배포 방식을 바꾸기 전 준비). 무엇을 바꿨는지는 15절, 어떻게 확인했는지는 16절, DB · 배포를 옮길 때 알아야 할 것은 17절에 있습니다. 코드를 고칠 때는 13절 · 14절부터 보세요.
+
 ---
 
 ## 1. 폴더 구조
 
 ```
 index.html            첫 화면: 로그인 · 아코디언 메뉴 · 대시보드(모두의 할일) · 품목관리(#catalog) · 멤버관리(#members)
-lost.html · accident.html · stock.html · ship.html   운영보조 (2026-11-21 페이지마다 나눔: 분실물 찾기 · 사고현황 접수 · 재고확인 · 스마트스토어 발송 보고 · 동작은 js/같은이름.js) · ops.html = 예전 주소(?p=…)를 그 페이지로 넘김
 personal.html         1. 개인고객 전화응대
-group.html            2. 단체고객 전화응대 (+ 7. 나의 할일 = group.html?my=1)
+group.html            2. 단체고객 전화응대 (+ 나의 할일 = group.html?my=1 · 예약 현황 공유 = group.html?book=mb|rent|docent|prog|coupon)
 prep.html             3. 다음날 고객 응대 준비
-naver.html            네이버 예약 → 사유원 전산 이관 (한 파일 · 엑셀이 먼저, 안 되면 텍스트로 · 엑셀 읽기는 cdnjs xlsx)
 status.html           예약 현황 공유 (방문자내역 엑셀 → 날짜마다 공지용 표 · 직접 고치기 · 사진으로 저장)
+naver.html            네이버 예약 → 사유원 전산 이관 (엑셀이 먼저, 안 되면 텍스트로 · 엑셀 읽기는 cdnjs xlsx) — 모양 css/naver.css · 동작 js/naver.js
 ment.html             전화응대 멘트 (자주 쓰는 안내 멘트 · 복사 · 수정 · 추가, 로그인 없이 보기)
+clergy.html           대구대교구 무료입장 명부
+cancel.html           예약 취소 요청
+lost.html · accident.html · stock.html · ship.html   운영보조: 분실물 찾기 · 사고현황 접수 · 재고확인 · 스마트스토어 발송 보고
+ops.html              예전 주소(ops.html?p=…)를 위 운영보조 페이지로 넘김
 mypage.html           예전 주소 → group.html?my=1 로 넘김
-document/             4. 견적서 / 거래명세서 (+ 5. 품목관리 창 = document/?catalog=1)
+document/             4. 견적서 / 거래명세서 (+ 품목관리 창 = document/?catalog=1)
   index.html
   css/document.css
-  js/document.js      견적서 · 품목 목록(CATALOG_RAW · 굿즈 · 단체 프로그램 · TAX_SPLIT)
+  js/document.js      견적서 · 품목 목록(CATALOG_RAW · 굿즈 · 단체 프로그램 · TAX_SPLIT) · 발급 내역 · 고객 견적 요청 목록
   js/datebox.js       날짜 칸
-  request.html        고객 견적 요청 (고객이 로그인 없이 입력 · 휴대폰용, 2026-11-21)
+  request.html        고객 견적 요청 (고객이 로그인 없이 입력 · 휴대폰용)
   js/request.js       고객 견적 요청 보내기
+manual/               화면별 매뉴얼 (manual/페이지.html · 사진 manual/img/) — 지금 있는 것: status
 css/
-  portal.css  group.css  personal.css  prep.css  ops.css
-  mypop.css           나의 할일 팝업 (첫 화면 · 개인고객 · 다음날 준비 공통)
+  portal.css  group.css  personal.css  prep.css  status.css  ment.css  clergy.css  cancel.css  naver.css
+  ops.css             운영보조 4개 화면 + 멘트 · 취소 · 대구대교구가 같이 쓰는 기본 모양
+  menu.css            모든 화면 헤더 · ☰ 메뉴 · 매뉴얼 창
+  mypop.css           나의 할일 팝업
 js/
-  common.js           공통 SY (공유 주소 · 팀 비밀번호 이름 · esc · ymd · 날짜 · 전화 · 저장소 읽기/쓰기) — 모든 화면이 맨 먼저
-  portal.js  group.js  personal.js  prep.js  lost.js accident.js stock.js ship.js
-  opslib.js           운영보조 공통 (공유 기록 · 반복 업무 계산 · 대시보드도 씀)
+  common.js           ★ 공통 SY: 서버 요청(SY.call · SY.callRaw · SY.beacon · SY.quote) · 공유 기록 사본(SY.list) · esc · 날짜 · 전화 · 저장소 — 모든 화면이 맨 먼저
+  devmock.js          로컬 미리보기 전용 가짜 서버 (localhost + ?mock=1 일 때만 읽힘 · 13절)
+  group.js            ★ 자동으로 합친 파일 (직접 고치지 않음) ← js/group/*.js 를 tools/build.ps1 이 이어 붙임
+  group/              단체 화면 소스 16개 (01-fields.js … 16-etc-tasks.js · 14-3절 지도)
+  taskcfg.js          추후과업 메시지 관리 (단체 화면)
+  mytask.js           나의 할일 보조 (단체 화면)
+  portal.js  personal.js  prep.js  status.js  ment.js  clergy.js  cancel.js  naver.js
+  clergyorg.js        대구대교구 본당 · 기관 목록 (자료)
+  opslib.js           운영보조 공통 도구 (통화 구분 이름 · 반복 업무 계산 · 굿즈 목록 — 대시보드 · 나의 할일도 씀)
+  opsboard.js         ★ 운영보조 화면 엔진 (분실물 · 사고 · 재고 · 스마트스토어가 같이 씀)
+  lost.js  accident.js  stock.js  ship.js   그 페이지의 칸 정의만 (OPS_PAGE) — 동작은 opsboard.js
+  naverxl.js  naverimg.js   네이버 예약자관리 엑셀 읽기 · 이미지 (예약 현황 공유)
   ime.js              칸별 한글/영어 입력 (단체 · 개인고객 공통)
-  mypop.js            나의 할일 팝업 (첫 화면 · 개인고객 · 다음날 준비 공통)
-  timepick.js         시각 고르기 (data-tp="1" 한 시각 · data-tp="range" 시간대 → 스크롤로 시(06~19) · 분, 단체 · 운영보조)
-  menu.js             전체 메뉴 (모든 화면 헤더의 ☰ · 화면 위에 뜨는 아코디언, css/menu.css)
-  keepsize.js         메모 칸 크기 기억 (단체 · 개인고객: 위아래로 늘린 크기를 이 브라우저에 기억, 저장 · 다시 그려도 그대로)
+  mypop.js            나의 할일 팝업 (첫 화면 · 개인고객 · 다음날 준비 · 운영보조 공통)
+  timepick.js         시각 고르기 (data-tp="1" 한 시각 · data-tp="range" 시간대 → 스크롤로 시(06~19) · 분)
+  menu.js             전체 메뉴 (모든 화면 헤더의 ☰ · 화면 위에 뜨는 아코디언) · 매뉴얼 버튼
+  keepsize.js         메모 칸 크기 기억 · 자동 높이
+tools/
+  build.ps1           js/group/*.js → js/group.js 합치기 (-Check: 같은지 확인만)
 apps-script/
-  group-intake.gs     공유 기록 · 멤버 · 관리자 사이트 가져오기 (Apps Script에 붙여 넣는 코드)
+  group-intake.gs     공유 기록 서버: 기록 · 멤버 · 파일 올리기 · 관리자 사이트 가져오기 (Apps Script에 붙여 넣는 코드)
+.claude/              로컬 미리보기 서버 (serve.ps1 · 저장소에 올리지 않음)
 ```
 
 - HTML에는 화면 틀만, 모양은 `css/`, 동작은 `js/`에 있습니다. 로그인 확인처럼 화면이 그려지기 전에 돌아야 하는 몇 줄만 HTML `<head>` 안에 남겨 두었습니다
-- **CSS · JS를 고치면 HTML의 `?v=날짜` 를 바꿔 주세요** (예: `js/group.js?v=20261114` → `?v=20261115`). 그래야 브라우저가 예전 파일을 쓰지 않습니다
+- **CSS · JS를 고치면 HTML의 `?v=날짜` 를 바꿔 주세요.** 2026-11-23부터 **모든 HTML의 모든 파일이 같은 값**을 씁니다 (지금 `?v=20261123a`). 무엇을 고쳤든 모든 HTML에서 한꺼번에 다음 값(`20261123b` · 다음 날이면 `20261124a`)으로 바꾸면 됩니다 — 파일마다 따로 세지 않음. 그래야 브라우저가 예전 파일을 쓰지 않습니다
+- **`js/group.js` 는 직접 고치지 않습니다.** `js/group/` 안의 파일을 고친 뒤 `tools/build.ps1` 을 실행합니다 (13절)
+- **사이트 주소를 코드에 적지 않습니다** (2026-11-23): 화면끼리는 `document/index.html` 같은 상대 주소로만 엽니다. 예전에는 `github.io` 일 때와 아닐 때를 갈라 `https://hyunbin5786.github.io/sayuwon-sales/…` 를 적어 두었는데 모두 없앴습니다 → 배포하는 곳이 바뀌어도 코드를 고칠 필요 없음. (고객에게 보내는 견적 요청 주소도 지금 사이트 주소에서 만듦)
 - **맨 위 헤더 고정** (2026-11-19, `css/menu.css`): 모든 화면의 맨 위 헤더(사유원 운영 보조 시스템 · 메뉴 · 나의 할일)는 스크롤해도 위에 고정, 나머지만 스크롤 (예약 현황 공유의 미리보기도 헤더 아래에 붙음) · 헤더는 z-index 12 라 모든 팝업(나의 할일 · 예약 목록 · 붙여넣기 등)이 헤더 앞에 뜸
-- 단체 · 개인고객 화면은 품목 · 가격을 `document/js/document.js` 를 읽어서 가져옵니다 (견적서 코드의 `CATALOG_RAW` 등). 견적서 코드를 옮기거나 이름을 바꾸면 `js/group.js` · `js/personal.js` 의 `QUOTE_DATA` 도 같이 바꿉니다
+- 단체 · 개인고객 · 운영보조 화면은 품목 · 가격을 `document/js/document.js` **파일 글자를 읽어서** 가져옵니다 (견적서 코드의 `CATALOG_RAW` 등을 정규식으로 찾음 — `js/group/10-price.js` `parseQuotePage()` · `js/opslib.js` `opsLoadGoods()`). 견적서 코드를 옮기거나 그 변수 이름 · 모양을 바꾸면 이 두 곳도 같이 바꿉니다 (17절 「남은 과제」)
 - 예전 견적서 사이트(https://hyunbin5786.github.io/sayuwon-invoice-quotation/, 저장소 `sayuwon-invoice-quotation`)도 그대로 열리지만, 이 시스템은 `document/` 를 씁니다
 - **수정발행 메일 문구** (2026-11-19, `document.js` `mailFill` · `lastRevise`): 수정발행으로 출력했으면(발급 내역의 「수정발행」, 또는 같은 문서가 앞서 있어 수정발행으로 남은 출력) 메일 제목 「[사유원] OO님 수정 견적서 송부드립니다.」, 본문에 「수정된 견적서 … 앞서 보내드린 견적서에서 내용이 변경되어 수정본으로 다시 보내드립니다」
 
@@ -56,7 +78,7 @@ apps-script/
 - **나의 할일 「↻ 새로고침」** (2026-11-21, `#myReloadBtn`): 나의 할일 머리줄 버튼 → 보낼 저장이 있으면 먼저 보내고, 공유 기록을 바로 새로 받아 다시 그림(누른 시각 알림). 평소엔 30초마다 · 창으로 돌아오면 저절로
 - **단체 화면 「불러오는 중」** (2026-11-21, `#gLoading` · `gLoadingWatch`): 단체 화면을 열면 예약 정보(사본 또는 서버)가 준비되고 열 예약(나의 할일 · 대시보드에서 누른 예약 · 새로고침 전 화면)을 다 열 때까지 빈 새 통화 화면 대신 「예약 정보를 불러오는 중…」(헤더는 그대로). 서버 오류 · 로그인 필요 · 20초가 지나면 걷음, 찾는 예약이 없으면 알림. 예약 현황 공유 · 나의 할일 화면은 제외
 - **예약 현황 공유(group.html?book=) 메뉴 버튼** (2026-11-21, `css/group.css` book-only): 헤더 맨 앞 「☰ 메뉴」 버튼이 보임(로그인 전에는 로그인 없이 볼 수 있는 메뉴만). 매뉴얼 · 새 통화 등 다른 헤더 버튼은 그대로 숨김
-- **팀 비밀번호 없앰 → 로그인으로 확인** (2026-11-21, `js/common.js` · Apps Script `authOk_` · api 6): 공유 기록 서버로 가는 모든 요청에 로그인(이름 + 사번)을 붙이고(`common.js` 가 fetch 에 `who`), 서버는 멤버 목록(5분 기억 · 멤버를 고치면 바로 새로)으로 확인. 화면의 팀 비밀번호 칸 · 연결 팝업 · 「팀 비밀번호」 안내는 모두 없앰(단체 · 개인고객 · 첫 화면 대시보드 · 멤버관리 · 다음날 준비 · 예약 현황 · 멘트 · 운영보조 · 예약 취소 · 대구대교구 · 견적서 드라이브 저장). 확인이 안 되면 「로그인 정보를 확인할 수 없습니다 · 첫 화면에서 다시 로그인」만. 예전에 팀 비밀번호를 기억한 브라우저는 그 비밀번호도 함께 보냄(서버 PASSCODE 속성이 있으면 그것도 통과). **서버(Apps Script)를 새 버전으로 배포해야 로그인만으로 됨**. 주의: 서버 주소가 공개 저장소에 있으므로 확인 자체를 없애지 않고 로그인으로 바꿈 (고객 개인정보 보호)
+- **팀 비밀번호 없앰 → 로그인으로 확인** (2026-11-21, `js/common.js` · Apps Script `authOk_` · api 6): 공유 기록 서버로 가는 모든 요청에 로그인(이름 + 사번)을 붙이고(`common.js` 의 `SY.sign` 이 요청마다 `who` — 2026-11-23 전에는 fetch 를 바꿔치기해서 붙였음), 서버는 멤버 목록(5분 기억 · 멤버를 고치면 바로 새로)으로 확인. 화면의 팀 비밀번호 칸 · 연결 팝업 · 「팀 비밀번호」 안내는 모두 없앰(단체 · 개인고객 · 첫 화면 대시보드 · 멤버관리 · 다음날 준비 · 예약 현황 · 멘트 · 운영보조 · 예약 취소 · 대구대교구 · 견적서 드라이브 저장). 확인이 안 되면 「로그인 정보를 확인할 수 없습니다 · 첫 화면에서 다시 로그인」만. 예전에 팀 비밀번호를 기억한 브라우저는 그 비밀번호도 함께 보냄(서버 PASSCODE 속성이 있으면 그것도 통과). **서버(Apps Script)를 새 버전으로 배포해야 로그인만으로 됨**. 주의: 서버 주소가 공개 저장소에 있으므로 확인 자체를 없애지 않고 로그인으로 바꿈 (고객 개인정보 보호)
 - **예약 현황 공유 = 휴대폰 · 로그인 없이** (2026-11-21, `bookPull` · `bookList_` · `bookAdd_` · css 「예약 현황 공유 휴대폰」): 로그인하지 않은 담당자 휴대폰은 `bookList`(그 목록에 필요한 칸만 · 고객 연락처 · 이메일 · 통화 메모 · 수정 기록 없음 · 비고(memo) 안의 전화번호 · 이메일도 지움 · 지난 120일부터)로 봄. 「＋ 직접 추가」는 로그인 없이도 — 「추가하는 사람 이름」을 적고(그 휴대폰에 기억) 한 건 추가(`bookAdd`, 고치기 · 빼기는 로그인한 사람만). 휴대폰(760px 미만): 큰 글씨(17~22px) · 큰 탭 버튼(3칸) · 예약 한 건 = 카드 한 장(칸 이름 + 내용) · 지난 예약은 흐리게 · 직접 추가 팝업도 칸 하나에 한 줄 · 큰 버튼. 컴퓨터 화면은 그대로
 - **단체 화면 빨리 열기 · 메뉴에서 들어오면 새 통화** (2026-11-21, `SY.idb` · `cacheWrite` · `restoreView`): 단체 기록 사본(수정 기록 포함)이 커지면 브라우저 저장소(사이트마다 약 5MB)에 못 써서 열 때마다 구글 시트(Apps Script, 몇 초)를 기다렸음 → 전체 사본은 IndexedDB 에 두고 열자마자 그것으로 그린 뒤 시트는 뒤에서 받음(빠진 기록 없음 · 수정 기록 그대로). localStorage 사본은 1.5MB 보다 작을 때만(크면 지워 저장 대기 칸 자리를 남김). 메뉴 · 링크로 단체 화면에 들어오면 늘 새 통화 — 지난번 열어 둔 예약 · 목록은 새로고침(F5) · 뒤로 가기일 때만 되살리고, 저장 안 한 입력이 있으면 그것은 되살림
 - **기록 불러오기 = 같이 쓰는 사본 + 바뀐 것만** (2026-11-21, `SY.list` · Apps Script `listSince_` · api 5): 예전엔 모든 화면(첫 화면 대시보드 20초마다 · 단체 30초마다 · 개인고객 · 다음날 준비 · 예약 현황 · 운영보조 · 취소 · 대구대교구)이 열 때마다 시트 전체(최대 2,000줄 × 38칸, 수정 기록 포함)를 따로 받았음. 지금은 전체 사본 하나를 IndexedDB(`sy_list_v1`)에 두고 모든 화면 · 창이 같이 씀 → 서버에 「since = 마지막으로 받은 서버 시각 − 90초」를 보내 그 뒤 저장(수정 일시) · 삭제(삭제 칸)된 줄만 받아 합침. 서버는 「수정 일시 · 삭제」 두 칸만 먼저 읽고 바뀐 줄만 통째로 읽음. 30분마다 한 번은 전체로 다시 맞춤. 같은 창에서 동시에 부르면 요청 하나로. 서버가 예전 버전이면 예전처럼 전체(그대로 동작). **Apps Script 를 새 버전으로 배포해야 바뀐 것만 받기가 켜짐**
@@ -70,7 +92,7 @@ apps-script/
 - **모든 시각 칸 = 스크롤해서 고르기** (2026-11-21, `js/timepick.js`): 다음날 고객 응대 준비의 표 「시간」 · 여행사 등록 「도착시간」도 단체 화면처럼 누르면 시 · 분 목록 (직접 치지 않음). 고르는 사이 화면이 다시 그려져 칸이 바뀌어도 같은 칸을 다시 찾아 넣음 (시를 고른 뒤 표가 다시 그려져도 분이 들어감)
 - **빠른 입력**: 글자를 치는 칸(메모 · 이름 · 이메일 · 비고 · 담당 · 문의 내용 · 과업 메모)은 값은 바로 넣고, 화면 다시 그리기는 치기를 멈추고 0.35초 뒤 한 번 (칸을 나가면 바로). 통화 메모와 같은 방식
 - **입력 칸 예시(예) …)는 넣지 않음** (2026-11-18 모두 뺌 · 필요한 곳만 요청 받아 넣기)
-- **팀 비밀번호**: 공유 기록을 읽고 쓰려면 필요. Apps Script 스크립트 속성 `PASSCODE` 에만 있고 저장소에는 없습니다. 한 번 넣으면 그 브라우저에 기억
+- **로그인으로 확인** (예전 「팀 비밀번호」 자리): 공유 기록을 읽고 쓰려면 로그인(이름 + 사번)이 멤버 목록에 있어야 합니다. 팀 비밀번호를 넣는 칸은 2026-11-21에 모두 없앴고, 예전에 기억해 둔 브라우저만 그 값도 함께 보냅니다 (Apps Script 스크립트 속성 `PASSCODE` — 없어도 됨)
 - **개인정보**: 고객 이름 · 연락처가 들어간 파일 · 데이터는 저장소에 넣지 않습니다 (공유 시트 · 각자 브라우저에만)
 
 ---
@@ -87,10 +109,10 @@ apps-script/
 | **예약보조** | 고객응대 접수: 개인고객 전화응대 · 단체고객 전화응대 | `personal.html` · `group.html` |
 | | 고객 응대 보조 (2026-11-19 순서): **예약 현황 공유** · 네이버 예약 → 사유원 전산 이관 · **전화응대 멘트** · 견적서 / 거래명세서 발급 · 다음날 고객 응대 준비 · 대구대교구 무료입장 명부 · 예약 취소 요청 | `status.html` · `naver.html` · `ment.html` · `document/` · `prep.html` — **전화응대 멘트는 로그인하지 않아도 보이고 복사 가능**(메뉴 · 첫 화면 로그인 전 칸에도, 팀 비밀번호는 필요) |
 | **운영보조** | 예약현황 공유: 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 | `group.html?book=mb · rent · docent · prog · coupon` — **로그인 없이 볼 수 있고**(팀 비밀번호는 필요), 로그인하지 않은 사람은 고치지 못함 |
-| | 분실물 찾기 | `ops.html?p=lost` — **초안**. 구분(습득 · 분실 신고) · 접수일 · 물품 · 특징 · 장소 · 보관 위치 · 습득자/신고자 · 연락처 · 상태(보관중 · 찾는 중 · 반환 완료 · 폐기) · 반환일 · 반환 받은 분 · 메모. 「진행 중」 기본 |
-| | 사고현황 접수 | `ops.html?p=accident` — **초안**. 날짜 · 시각 · 유형(부상 · 시설 파손 · 분실/도난 · 민원 · 기타) · 장소 · 관련자 · 연락처 · 내용 · 조치 · 상태(접수 · 처리 중 · 완료) · 담당 · 메모 |
-| | 재고확인 | `ops.html?p=stock` — **초안**. 품목 · 분류 · 위치 · 수량(− ＋ 로 바로) · 단위 · 최소 수량(이하면 빨강 · 「부족」) · 마지막 확인(날짜 · 사람) |
-| | 스마트스토어 발송 보고 | `ops.html?p=ship` — 주문일 · 발송일 · 수령일 · **상품명(품목관리 굿즈에서 고르기)** · 수량 · 총 주문금액 · 배송비 · 구매자명 · 수취인명 · 수취인연락처 · 수취인연락처2 · 기본배송지 · 상세배송지 · 우편번호 · 배송메세지. 상태 = 발송 전 · 발송 완료(발송일) · 수령 완료(수령일). 달(주문일)마다 **보고**(건수 · 수량 · 금액 · 배송비 · 발송 전 · 상품별) + 「보고 글자 복사」. **「엑셀 불러오기」**: 「★ 스마트스토어 발송내역.xlsx」처럼 달마다 시트 · 첫 줄 머리글. 시트를 골라(기본 = 가장 최근 시트) 새 줄만 올림(주문일 · 상품 · 수취인 · 연락처 · 수량이 같으면 이미 있음). 날짜는 엑셀 날짜 · 시각 포함 · `2024.07.31.수.` 모두 읽음, 상품명이 굿즈 이름과 같으면(띄어쓰기 무시) 그 이름으로. 파일은 브라우저 안에서만 읽음 · 통화 구분 `스마트스토어` |
+| | 분실물 찾기 | `lost.html` (예전 `ops.html?p=lost`) — **초안**. 구분(습득 · 분실 신고) · 접수일 · 물품 · 특징 · 장소 · 보관 위치 · 습득자/신고자 · 연락처 · 상태(보관중 · 찾는 중 · 반환 완료 · 폐기) · 반환일 · 반환 받은 분 · 메모. 「진행 중」 기본 |
+| | 사고현황 접수 | `accident.html` (예전 `ops.html?p=accident`) — **초안**. 날짜 · 시각 · 유형(부상 · 시설 파손 · 분실/도난 · 민원 · 기타) · 장소 · 관련자 · 연락처 · 내용 · 조치 · 상태(접수 · 처리 중 · 완료) · 담당 · 메모 |
+| | 재고확인 | `stock.html` (예전 `ops.html?p=stock`) — **초안**. 품목 · 분류 · 위치 · 수량(− ＋ 로 바로) · 단위 · 최소 수량(이하면 빨강 · 「부족」) · 마지막 확인(날짜 · 사람) |
+| | 스마트스토어 발송 보고 | `ship.html` (예전 `ops.html?p=ship`) — 주문일 · 발송일 · 수령일 · **상품명(품목관리 굿즈에서 고르기)** · 수량 · 총 주문금액 · 배송비 · 구매자명 · 수취인명 · 수취인연락처 · 수취인연락처2 · 기본배송지 · 상세배송지 · 우편번호 · 배송메세지. 상태 = 발송 전 · 발송 완료(발송일) · 수령 완료(수령일). 달(주문일)마다 **보고**(건수 · 수량 · 금액 · 배송비 · 발송 전 · 상품별) + 「보고 글자 복사」. **「엑셀 불러오기」**: 「★ 스마트스토어 발송내역.xlsx」처럼 달마다 시트 · 첫 줄 머리글. 시트를 골라(기본 = 가장 최근 시트) 새 줄만 올림(주문일 · 상품 · 수취인 · 연락처 · 수량이 같으면 이미 있음). 날짜는 엑셀 날짜 · 시각 포함 · `2024.07.31.수.` 모두 읽음, 상품명이 굿즈 이름과 같으면(띄어쓰기 무시) 그 이름으로. 파일은 브라우저 안에서만 읽음 · 통화 구분 `스마트스토어` |
 | **기타 설정** | 품목관리 | `#catalog` (메뉴에서는 한 페이지, 단체 · 견적서 화면의 「품목 관리」 버튼은 1200px 팝업) |
 | | 멤버관리 | `#members` |
 
@@ -98,7 +120,7 @@ apps-script/
 - **첫 화면 = 대시보드만 (화면에 꽉 차게, 2026-11-18)**: 위에 검색 칸 하나(전화번호 · 단체명 · 이름, 전화번호는 - 없이 일부만 쳐도). ① **개인고객 전화** ② **단체고객 전화** — 줄 = 통화 · 예약 하나, **접수자 이름 · 단체명(없으면 전화번호)** + 담당자 이름, 그 아래 **회색으로 오늘까지 할 과업 모두**(기한 지난 것은 빨강 「지남」). ③ **기타 개인 할일** — 업무 이름 · 담당 · 세부 과업 진행. ①②③ 열마다 「내일 마감도 보기」. ④ **개인 할일 보기** — 1행 1명, 오늘까지 할 것이 있는 개인고객 · 단체고객 · 기타 수(지남 표시), 이름을 누르면 ①②③을 그 사람 것만(다시 누르면 모두). 줄을 누르면 그 예약 · 통화 · 업무로. 단체는 방문 뒤 30일이 지난 예약 제외 · 예약상담은 사전답사 · 대구대교구 · 직접 추가한 과업만. **빠르게**: 마지막으로 받은 내용을 브라우저에 두고(`sy_dash_cache`, 로그아웃하면 지움) 열자마자 그린 뒤 새로 받아 다시 그림 · 목록과 멤버를 동시에 받음 · 3분마다 새로. 팀 비밀번호 필요
 - **개인 할일 보기 = 칸마다 숫자 3개 「오늘 · 이번주 · 전체」** (2026-11-18): 그때까지 할 일이 있는 예약 · 통화 · 업무 수. 이번주 = 오늘부터 6일 뒤까지(수요일이면 다음주 화요일). 기타 개인 업무는 다음 할 날까지 셈
 - **과업 완료가 거의 실시간으로** (2026-11-18): 대시보드는 20초마다 · 이 창으로 돌아오면 · 다른 탭(단체 · 개인고객)에서 저장하면 2.5초 뒤 새로 받음. 단체 화면은 30초마다, 개인고객 화면도 30초마다 · 창으로 돌아오면 공유 기록을 다시 받음(예전엔 개인고객은 처음 한 번만). 대시보드도 단체 화면과 같은 기준으로 끝난 과업을 뺌(`doneByRec`: 전산 등록 · 결제링크 전송 · 입금 확인 · 하위 과업 · 미정 항목이 다 정해진 미정 항목 확인 연락 · 현장 결제가 아닌 현장 결제 인원 확인 · 예전 기준 전산 예약 수정)
-- **운영보조 저장 방식** (`lost.html` 등 · `js/lost.js` 등 · `js/opslib.js`): 공유 시트 `calls` 한 줄 = 한 건, **통화 구분**이 `개인업무` · `분실물` · `사고` · `재고`. 내용은 수정 기록 칸에 JSON `{kind, d, log}`, 요약 칸에 한 줄. 방문일 · 업체 칸은 비워 둠(단체 화면 예약 현황에 섞이지 않게). Apps Script 고칠 것 없음
+- **운영보조 저장 방식** (`lost.html` 등 · 칸 `js/lost.js` 등 · 엔진 `js/opsboard.js` · 도구 `js/opslib.js`): 공유 시트 `calls` 한 줄 = 한 건, **통화 구분**이 `개인업무` · `분실물` · `사고` · `재고`. 내용은 수정 기록 칸에 JSON `{kind, d, log}`, 요약 칸에 한 줄. 방문일 · 업체 칸은 비워 둠(단체 화면 예약 현황에 섞이지 않게). Apps Script 고칠 것 없음
 
 ---
 
@@ -474,11 +496,13 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
 
 ## 11. 공유 기록 (구글 시트 · Apps Script)
 
-`apps-script/group-intake.gs` 를 웹 앱으로 배포한 주소(`SHARED_URL`)로 모든 화면이 같은 시트를 씁니다.
+`apps-script/group-intake.gs` 를 웹 앱으로 배포한 주소로 모든 화면이 같은 시트를 씁니다. 주소는 `js/common.js` 맨 위 `SY_BACKEND.API_URL` **한 곳에만** 있습니다 (견적서 서버 주소는 `SY_BACKEND.QUOTE_URL`).
 
-- 시트 `calls`: 한 줄 = 한 기록. **통화 구분** 칸으로 나눔 — 예약상담 · 가예약 · 예약확정 · 예약취소(예전: 단체예약 · 상담 · 예약접수 · 공식예약) = 단체, `개인고객` = 개인 통화, `몽몽마방예약`(id `mabangdb`) = 몽몽마방 예약 목록, `개인구분`(id `pcats`) = 개인고객 구분 목록, `예약현황추가`(id `bookdb`) = 직접 넣은 대관 · 도슨트 · 프로그램, `특별할인설정`(id `spdisc`) = 특별 할인 종류 (이름 · 할인율 · 증빙)
+- 시트 `calls`: 한 줄 = 한 기록. **통화 구분** 칸으로 나눔 — 예약상담 · 가예약 · 예약확정 · 예약취소(예전: 단체예약 · 상담 · 예약접수 · 공식예약) = 단체, `개인고객` = 개인 통화, 그 밖은 14-4절 표 (운영보조 · 설정 줄 · 목록 줄)
 - 시트 `members`: 이름 · 사번 · 추가 일시 · 추가한 사람 · 삭제
 - 시트 `quotereq` (2026-11-21): 고객 견적 요청 — ID · 접수 일시 · 단체명 · 담당자 · 연락처 · 이메일 · 방문 희망일 · 인원 · 요청사항 · 상태(접수 · 출력 · 완료) · 처리한 사람 · 처리 일시 · 삭제
+- 시트 `admin`: A1 칸에 관리자 사이트에서 가져온 사담 · 마방 현황(JSON), B1 에 가져온 시각
+- 구글 드라이브 폴더 `사유원 단체예약 서류`: 단체 화면에서 올린 사업자등록증 등 (사진 · PDF · 엑셀, 10MB 이하) · 그 안 `응대멘트 이미지` 폴더: 전화응대 멘트 사진 (5MB 이하)
 - 단체 화면에서 과세 · 비과세는 늘 **비과세(사유원) → 과세(신라)** 순서로 보입니다 (금액 칸 · 할인액 칸 · 기타 할인 · 할인 · 합계)
 - 열: ID · 저장 일시 · 통화 시작 · 받은 사람 · 통화 구분 · 요약 · 방문일 · 업체 · 담당 · 결제 · 차량 · 입퇴장 · 관람 · 사담 1부 · 사담 2부 · 사담 디너 · 마방 런치 · 마방 디너 · 차방 · 동행 · 당두 · 요가/명상 · 가가 바우처 · 티하우스 명상 · 가야금 · 유루 캐빈 · 고객 담당자 · 연락처 · 이메일 · 입장 · 퇴장 · 식사 여부 · 마방 메뉴 · 비고 · 통화 메모 · 수정 일시 · 삭제 · 수정 기록
 - 화면에서는 「가가 바우처」를 **음료쿠폰(가가빈빈)**이라고 부름 (품목관리 품명과 같게, 2026-11-18). 시트 열 이름은 그대로 `가가 바우처` (저장 키 `gaga`). 품목 고르기에서는 **굿즈 묶음**, 수량 단위는 개, 줄에는 비고만 — 8-1 품목 분류 지침 참고
@@ -487,130 +511,220 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
   - 수정 기록 칸(JSON): `{h: 수정 기록, tasks: 추후 과업, erp: 전산 내역, memos: 남긴 메모}` (개인 통화는 `{h, tasks, cat, reportTo, reserved}`)
   - 담당자가 여러 명이면 담당자 · 연락처 · 이메일 칸에 같은 순서로 ` / `
 - 지우면 줄을 없애지 않고 `삭제` 칸에 일시 → 「삭제된 예약」 · 「삭제된 통화」로 봄
-- 끊긴 사이 저장한 것은 브라우저에 모았다가 15초마다 다시 올림. 1분마다 · 창으로 돌아올 때 최신 목록
+- 끊긴 사이 저장한 것은 브라우저에 모았다가 15초마다 다시 올림. 30초마다 · 창으로 돌아올 때 최신 목록
+- 구글 시트 한 칸은 5만 자까지: 수정 기록이 45,000자를 넘으면 오래된 기록부터 덜어 냄(`fitHist`), 명부 · 취소 요청처럼 긴 목록은 4만 자씩 여러 줄(`clergy0` · `clergy1` …)로 나눠 저장
 
-**Apps Script 동작**: `list` · `put` · `del` · `deleted`(삭제된 기록) · `lock`(예약 고치는 중 표시) · `upload`(사업자등록증 → 드라이브 · 견적서 파일은 2026-11-21부터 안 올림) · `syncAdmin` · `login`(비밀번호 없이 이름 + 사번 확인만) · `members` · `memberAdd` · `memberDel` · `quoteReqAdd`(고객 견적 요청 · 로그인 없이 저장만) · `quoteReqList` · `quoteReqMark`
+### 서버 동작 목록 (화면 → 서버 요청)
+
+화면은 `SY.call({action:'…', …})` 로만 서버를 부릅니다 (`js/common.js`). 요청마다 `who:{name, emp}`(로그인)와 `key`(예전 팀 비밀번호를 기억한 브라우저만)가 자동으로 붙습니다. 응답은 늘 `{ok:true, …}` 또는 `{ok:false, error:'…'}`.
+
+| action | 로그인 | 보내는 것 → 받는 것 | 부르는 곳 |
+|---|---|---|---|
+| `login` | 필요 없음 | `name, emp` → `{member:true/false, empty?}` (멤버가 한 명도 없으면 `empty` · 누구나 통과) | 첫 화면 `portal.js` |
+| `mentList` | 필요 없음 | → `{ment:{history, saved}}` (멘트 한 줄만) | `ment.js` |
+| `mentImgGet` | 필요 없음 | `id` → `{file:{id, mime, data(base64)}}` (멘트 이미지 폴더 안 파일만) | `ment.js` |
+| `bookList` | 필요 없음 | → `{items}` 예약 현황에 쓰는 칸만 (고객 연락처 · 이메일 · 통화 메모 · 수정 기록 없음 · 비고 안의 전화 · 이메일도 지움 · 지난 120일부터) | `group/07-store.js` `bookPull()` |
+| `bookAdd` | 필요 없음 | `db`(mabangdb 또는 bookdb) `, row, by` → `{item}` (한 건 더하기만) | `group/06-booking-status.js` |
+| `quoteReqAdd` | 필요 없음 | `item{org,name,phone,email,date,pax,memo,agree,hp}` → `{id}` (10분에 30건까지 · `hp` 가 차 있으면 버림) | `document/js/request.js` |
+| `quoteReqList` · `quoteReqMark` | 필요 | → `{items}` / `id, status`(접수 · 출력 · 완료 · 삭제) → `{item}` | `document/js/document.js` |
+| `members` · `memberAdd` · `memberDel` | 필요 | → `{members}` / `list[{name,emp}], by` / `emp, by` | `portal.js` · `personal.js` |
+| `list` | 필요 | (`since` 없음) → `{items(최근 2,000줄), now, admin, api}` / `since`(ISO 일시) → `{items(그 뒤 바뀐 줄 · 삭제된 줄은 deleted 가 채워짐), delta:true, now}` | **`SY.list()` 하나** (`common.js`) |
+| `put` | 필요 | `item{id, callType, …38칸}` → `{id}` (같은 id 가 있으면 그 줄을 덮어씀 · `updated` 는 서버가 적음) | 거의 모든 화면 |
+| `del` | 필요 | `id` → `{id}` (줄을 지우지 않고 삭제 칸에 일시) | 단체 · 개인 · 운영보조 · 준비 · 취소 · 명부 |
+| `deleted` | 필요 | → `{items}` 삭제 표시된 줄 (보기 전용) | 단체 · 개인 목록 |
+| `lock` | 필요 | `id, sid, by, release?` → `{locked:true, by, at}` 또는 `{locked:false}` (2분 30초 유지) | `group/15-lock-popups.js` |
+| `upload` | 필요 | `name, mime, data(base64), org, date, kind` → `{file:{id, name, url, at}}` (드라이브) | `group/09-tasks.js` (사업자등록증) |
+| `mentImgPut` | 필요 | `name, mime, data` → `{file:{id, name, at}}` | `ment.js` |
+| `syncAdmin` | 필요 | → `{result, admin}` (관리자 사이트에서 지금 가져오기) | 단체예약 목록 창 |
+
+견적서 서버(다른 Apps Script · `SY.quote`): `SY.quote.get()` → `{data:{edits, added}}`(품목 관리에서 바꾼 것) · `SY.quote.get('history=1&limit=500')` → `{history:[…]}`(발급 내역) · `SY.quote.post({ops:[…]})`(op = set · setAdded · delAdded · add · reset · replace) → `{ok, data}` · `SY.quote.post({history:[…], cancel:[…]})` → `{ok, saved}`. 이 서버는 로그인 확인이 없습니다 (주소를 아는 사람은 누구나 — 17절 참고). 이 서버의 코드는 이 저장소에 없고 저장소 `sayuwon-invoice-quotation` 쪽에 있습니다.
 
 ### 설치 · 다시 배포
 
 1. script.google.com 프로젝트에 `apps-script/group-intake.gs` 를 붙여넣고 저장
-2. 프로젝트 설정 → 스크립트 속성: `PASSCODE`(팀 비밀번호), `ADMIN_ID` · `ADMIN_PW`(관리자 사이트 계정, 조회 전용 권장)
+2. 프로젝트 설정 → 스크립트 속성: `ADMIN_ID` · `ADMIN_PW`(관리자 사이트 계정, 조회 전용 권장) · (`PASSCODE` 는 예전 팀 비밀번호 — 없어도 됨) · `SHEET_ID` · `UPLOAD_FOLDER_ID` 는 처음 실행 때 저절로 생김
 3. `setup` 실행 → 시트 만들기 / `setupUpload` 실행 → 드라이브 권한(폴더 `사유원 단체예약 서류`, 팀원 계정에 공유)
 4. `testAdmin` → 로그 확인 / `setupAdminSync` → 15분마다 자동
 5. 배포 → 웹 앱(실행: 나 / 액세스: 모든 사용자). 코드를 고치면 **배포 관리 → 편집 → 새 버전**(주소 그대로)
 6. (2026-11-18) 전화응대 멘트 이미지(`mentImgPut` · `mentImgGet`) · 비밀번호 없는 멘트 읽기(`mentList`)를 쓰려면 위 5의 **새 버전 배포** (드라이브 권한은 `setupUpload` 실행으로 한 번 승인 — 구글 계정이 여러 개면 스크립트 주인 계정만 로그인한 창에서). 폴더 `응대멘트 이미지`는 처음 올릴 때 저절로 생김
 7. (2026-11-21) 고객 견적 요청(`quoteReqAdd` · `quoteReqList` · `quoteReqMark`)을 쓰려면 위 5의 **새 버전 배포**. 시트 `quotereq` 는 첫 요청 때 저절로 생김
+8. (2026-11-23) 이번 리팩토링은 Apps Script 를 **고치지 않았습니다** — 다시 배포할 것 없음
 
 ### 관리자 사이트(admin.sayuwon.com) 자동 가져오기
 
-15분마다 조회만: 사담 · 마방 날짜별 정원 · 현재 인원(확인해 주세요 팝업의 자리 부족 · 마감 경고), **15명 이상 예약**(180일 안 예약 완료 건 → 단체예약 목록에 「전화 필요」로, 관리자 예약번호로 한 번만).
+15분마다 조회만: 사담 · 마방 날짜별 정원 · 현재 인원(확인해 주세요 팝업의 자리 부족 · 마감 경고), **15명 이상 예약**(180일 안 예약 완료 건 → 단체예약 목록에 「전화 필요」로, 관리자 예약번호 `adm번호` 로 한 번만).
 
 ---
 
 ## 12. 이 브라우저에만 기억하는 것
 
-로그인(`sy_user`) · 팀 비밀번호 · 저장 대기 · 마지막으로 받은 목록 · 품목 · 멤버 이름 · 목록 정렬 · 나의 할일 탭 · 알림 본 시각 · 단체 화면 보던 상태 · 다음날 준비 화면의 엑셀 · 고친 내용 · 메모 칸 크기(`sy_ta_size`). 다른 컴퓨터에서는 처음 한 번 다시 넣어야 합니다.
+로그인(`sy_user`) · 저장 대기 · 마지막으로 받은 목록 · 품목 · 멤버 이름 · 목록 정렬 · 나의 할일 탭 · 알림 본 시각 · 단체 화면 보던 상태 · 다음날 준비 화면의 엑셀 · 고친 내용 · 메모 칸 크기(`sy_ta_size`). 다른 컴퓨터에서는 처음 한 번 다시 넣어야 합니다. 이름 전체 목록은 14-5절.
 
 ## 13. 고칠 때
 
-- 로컬 미리보기: `.claude/serve.ps1`(저장소에 올리지 않음)로 이 폴더를 띄워 봅니다. CSS · JS 파일 형식을 맞게 보내야 화면이 제대로 보입니다
-- 테스트할 때는 공유 시트에 쓰지 않도록 `callApi` 를 가짜로 바꿔 확인합니다
-- CSS · JS를 고치면 HTML의 `?v=` 를 바꾸고, README도 같이 고칩니다
+**순서: 고치기 → (단체 화면이면) 합치기 → 가짜 서버로 확인 → `?v=` 바꾸기 → README 고치기 → 올리기**
 
-## 14. 코드 구조 (고칠 때 보는 지도, 2026-11-18 정리)
+- **로컬 미리보기**: `.claude/serve.ps1`(저장소에 올리지 않음)로 이 폴더를 띄워 봅니다 — `powershell -ExecutionPolicy Bypass -File .claude/serve.ps1 -Port 8767` → http://localhost:8767/ . CSS · JS 파일 형식을 맞게 보내야 화면이 제대로 보입니다
+- **가짜 서버로 시험하기** (2026-11-23, `js/devmock.js`): 로컬 주소 끝에 `?mock=1` 을 한 번 붙여 열면(예: `http://localhost:8767/index.html?mock=1`) 그 브라우저는 계속 가짜 서버를 씁니다 — 화면 오른쪽 아래에 빨간 「가짜 서버 (시험용)」 표시. **진짜 구글 시트에는 아무것도 가지 않습니다.** 끄기는 `?mock=0`
+  - 로그인: 이름 `테스트` · 사번 `T001` (또는 `김영업` · `T002`). 가상 단체 예약 2건 · 개인 통화 1건이 들어 있음
+  - 내용은 그 브라우저 `localStorage` 의 `sy_mock_db` 에만. 처음 상태로: 개발자 도구 콘솔에서 `SY_MOCK.reset()` 뒤 새로고침. 무엇을 보냈는지: `SY_MOCK.log`, 지금 내용: `SY_MOCK.db`
+  - `localhost` · `127.0.0.1` 에서만 읽습니다. 운영 주소에서는 `?mock=1` 을 붙여도 아무 일도 없음 (`js/common.js` 맨 아래)
+  - 가짜 서버는 11절 「서버 동작 목록」을 그대로 흉내 냅니다. 품목 · 가격 기본 목록(`document/js/document.js` 파일)과 글꼴 · 엑셀 도구(CDN)는 진짜 그대로 읽음
+  - 예전 방식(「`callApi` 를 가짜로 바꿔 확인」)은 없앴습니다 — 화면마다 있던 `callApi` · `opsApi` · `api` · `reqApi` 가 모두 `SY.call` 하나가 됨
+- **단체 화면(`js/group.js`) 고치기**: `js/group/` 안의 구역 파일(14-3절)을 고친 뒤 합칩니다
+  - 합치기: `powershell -ExecutionPolicy Bypass -File tools/build.ps1` → `js/group.js` 를 다시 만듦
+  - 확인만: `powershell -ExecutionPolicy Bypass -File tools/build.ps1 -Check` → 소스와 다르면 오류로 끝남 (올리기 전에 한 번)
+  - `js/group.js` 를 직접 고치면 다음에 합칠 때 사라집니다 (파일 첫 줄에 경고가 있음)
+  - 구역 파일은 이름 순서대로 그대로 이어 붙입니다. **파일 순서 · 번호를 바꾸지 마세요** (뒤 파일이 앞 파일에서 만든 이름을 씀). 새 구역은 맞는 파일 안에 넣거나, 사이 번호(`07a-…js`)로 파일을 더합니다
+  - 왜 이렇게: 브라우저가 파일 16개를 따로 읽게 하면, 앞 파일이 서버 응답을 받은 순간 아직 안 읽힌 뒤 파일의 함수를 불러 오류가 날 수 있습니다(파일을 읽는 사이에 응답이 끼어듦). 한 파일로 합쳐 두면 예전과 똑같이 돎
+- **운영보조 화면 고치기**: 칸 · 목록 열은 `js/lost.js` 등 페이지 파일의 `OPS_PAGE`, 동작(목록 · 팝업 · 저장)은 `js/opsboard.js` (네 화면에 같이 적용됨)
+- **서버 요청을 새로 만들 때**: `await SY.call({action:'…'})` (오류는 `e.code` 로 — `bad_key` 면 `SY.authFail()` 문구). `fetch` 로 서버 주소를 직접 부르지 않습니다. 새 action 은 `apps-script/group-intake.gs` 의 `doPost` 와 `js/devmock.js` 양쪽에 넣고 11절 표에 한 줄
+- CSS · JS를 고치면 모든 HTML 의 `?v=` 를 한꺼번에 바꾸고(1절), README도 같이 고칩니다
+- 글자 인코딩은 UTF-8, 줄바꿈은 LF. PowerShell 스크립트(`tools/build.ps1`)만 한글이 깨지지 않게 UTF-8 BOM 으로 저장돼 있습니다
+
+## 14. 코드 구조 (고칠 때 보는 지도, 2026-11-23 다시 정리)
 
 ### 14-1. 화면 ↔ 파일 (불러오는 순서)
 
-모든 화면은 **HTML(틀) + CSS(모양) + JS(동작)** 입니다. HTML `<head>` 에는 "로그인 안 했으면 첫 화면으로" 한 줄만 있고, 나머지는 `js/` 에 있습니다. JS는 아래 순서로 읽습니다 (앞의 것이 뒤에서 쓰는 이름을 만들어 둠).
+모든 화면은 **HTML(틀) + CSS(모양) + JS(동작)** 입니다. HTML `<head>` 에는 "로그인 안 했으면 첫 화면으로" 한 줄만 있고, 나머지는 `js/` 에 있습니다. JS는 아래 순서로 읽습니다 (앞의 것이 뒤에서 쓰는 이름을 만들어 둠). **서버를 쓰는 화면은 모두 `common.js` 가 맨 먼저입니다.**
 
 | 화면 | HTML | CSS | JS (읽는 순서) |
 |---|---|---|---|
 | 첫 화면 · 대시보드 · 품목관리 · 멤버관리 | `index.html` | `portal.css` · `mypop.css` · `menu.css` | `common.js` → `opslib.js` → `portal.js` → `mypop.js` → `menu.js` |
-| 개인고객 전화응대 | `personal.html` | `personal.css` · `mypop.css` · `menu.css` | `common.js` → `personal.js` → `mypop.js` → `ime.js` → `keepsize.js` → `menu.js` |
-| 단체고객 전화응대 · 나의 할일(`?my=1`) · 예약 현황 공유(`?book=…`) | `group.html` | `group.css` · `menu.css` | `common.js` → `opslib.js` → `group.js` → `ime.js` → `keepsize.js` → `menu.js` → `timepick.js` |
-| 다음날 고객 응대 준비 | `prep.html` | `prep.css` · `mypop.css` · `menu.css` | (exceljs · html2canvas) → `common.js` → `prep.js` → `mypop.js` → `menu.js` |
-| 운영보조 (2026-11-21 페이지마다: 분실물 `lost.html` · 사고 `accident.html` · 재고 `stock.html` · 스마트스토어 `ship.html`) | 각 페이지 | `ops.css` · `mypop.css` · `menu.css` (같이 씀) · `js/lost.js` 등 페이지마다 따로 |
-| 네이버 이관 | `naver.html` (한 파일에 CSS · JS) | `menu.css` (파일 안 `<style>` 끝의 「다른 화면과 같은 모양으로」 덮어쓰기 = 사유원 색 · 글꼴 · 버튼 높이 34px, 어두운 모드도 밝게) | (cdnjs xlsx) → 파일 안 스크립트 → `menu.js` |
+| 개인고객 전화응대 | `personal.html` | `personal.css` · `mypop.css` · `menu.css` | `common.js` → `personal.js` → `mypop.js` → (hangul-js) → `ime.js` → `keepsize.js` → `menu.js` |
+| 단체고객 전화응대 · 나의 할일(`?my=1`) · 예약 현황 공유(`?book=…`) | `group.html` | `group.css` · `menu.css` | (hangul-js) → `common.js` → `opslib.js` → **`group.js`** (= `js/group/*.js` 를 합친 것) → `taskcfg.js` → `mytask.js` → `ime.js` → `keepsize.js` → `menu.js` → `timepick.js` |
+| 다음날 고객 응대 준비 | `prep.html` | `prep.css` · `mypop.css` · `menu.css` | (exceljs · html2canvas) → `common.js` → `prep.js` → `mypop.js` → `menu.js` → `timepick.js` |
+| 운영보조: 분실물 `lost.html` · 사고 `accident.html` · 재고 `stock.html` · 스마트스토어 `ship.html` | 각 페이지 (틀은 넷이 같음) | `ops.css` · `mypop.css` · `menu.css` | `common.js` → `opslib.js` → **(페이지).js** (칸 정의 `OPS_PAGE`) → **`opsboard.js`** (엔진) → `mypop.js` → `ime.js` → `keepsize.js` → `menu.js` → `timepick.js` |
+| 예약 현황 공유 | `status.html` | `status.css` · `menu.css` 등 | (html2canvas) → `common.js` → (xlsx) → `naverxl.js` → `naverimg.js` → `status.js` → `ime.js` → `menu.js` |
+| 네이버 이관 | `naver.html` | `naver.css` (끝의 「다른 화면과 같은 모양으로」 덮어쓰기 = 사유원 색 · 글꼴 · 버튼 높이 34px, 어두운 모드도 밝게) · `menu.css` | (cdnjs xlsx) → `naver.js` → `menu.js` — 서버를 쓰지 않아 `common.js` 없음 (자체 `$` · `esc`) |
 | 전화응대 멘트 | `ment.html` | `ops.css` · `ment.css` · `menu.css` | `common.js` → `ment.js` → `ime.js` → `keepsize.js` → `menu.js` |
-| 견적서 / 거래명세서 | `document/index.html` | `document/css/document.css` (끝에 「다른 화면과 같은 색」 덮어쓰기 = 초록 #3f5236 등 사유원 팔레트 · 어두운 모드도 밝게, 2026-11-18) · `../css/menu.css` | `document/js/datebox.js` · `document/js/document.js` · `../js/menu.js` |
-| 예전 주소 | `mypage.html` | — | `group.html?my=1` 로 넘김 |
+| 대구대교구 무료입장 명부 | `clergy.html` | `ops.css` · `clergy.css` · `menu.css` | (xlsx) → `common.js` → `clergyorg.js` → `clergy.js` → `menu.js` |
+| 예약 취소 요청 | `cancel.html` | `ops.css` · `cancel.css` · `menu.css` | (xlsx) → `common.js` → `cancel.js` → `menu.js` |
+| 견적서 / 거래명세서 | `document/index.html` | `document/css/document.css` (끝에 「다른 화면과 같은 색」 덮어쓰기 = 초록 #3f5236 등 사유원 팔레트 · 어두운 모드도 밝게) · `../css/menu.css` | (exceljs · html2canvas · jspdf · hangul-js) → **`../js/common.js`** (2026-11-23부터 · 서버 요청용) → `document/js/document.js` → `document/js/datebox.js` → `../js/menu.js` |
+| 고객 견적 요청 | `document/request.html` | 파일 안 | `../js/common.js` → `js/request.js` → `js/datebox.js` |
+| 예전 주소 | `mypage.html` · `ops.html` | — | `group.html?my=1` · 운영보조 페이지로 넘김 |
+
+바깥에서 읽는 것(CDN): 구글 글꼴(Noto Serif KR · Noto Sans KR) · `xlsx 0.18.5`(cdnjs) · `exceljs 4.4.0` · `hangul-js 0.2.6`(jsdelivr) · `html2canvas 1.4.1` · `jspdf 2.5.1`(cdnjs).
 
 ### 14-2. 공통 파일 (여러 화면이 같이 씀)
 
 | 파일 | 하는 일 · 안에 있는 것 |
 |---|---|
-| `js/common.js` | **`SY` 하나**: `API_URL`(공유 기록 Apps Script 주소) · `KEY_LS`(팀 비밀번호 저장 이름) · `USER_LS` · `DOW` · `esc()` · `ymd()` · `readJSON()` · `writeJSON()` · `getKey()` · `user()` · `dateDisp()`(2026-12-05 (토)) · `parseDateText()`(12/5 · 1205 · 12월 5일 → 날짜) · `fmtPhone()`(어떤 번호든 -) · `phoneTyping()`(치는 동안 - · 자동 010- 떼기). 각 화면은 `const esc = SY.esc` 처럼 받아 씀. **주소 · 날짜 · 전화 규칙을 바꿀 땐 여기 한 곳만** |
-| `js/opslib.js` | 운영보조 공통: `OPS_TYPES`(통화 구분 개인업무 · 분실물 · 사고 · 재고) · `opsApi()` · `opsParse()`(history JSON 읽기) · 반복 업무 계산 `opsOccurs()` · `opsPending()` · `opsRepeatLabel()`. 첫 화면 대시보드 · 단체 화면 나의 할일도 씀 |
-| `js/menu.js` + `css/menu.css` | 모든 화면 헤더 맨 앞 「☰ 메뉴」 · 화면 위에 뜨는 아코디언(묶음 G 배열) · 지금 화면 표시 · 「나의 할일」 버튼이 없는 화면(네이버 · 견적서)에 버튼과 팝업을 붙임. 메뉴 항목은 `G` 배열만 고치면 됨 |
+| `js/common.js` | **`SY_BACKEND`** = 서버 주소 둘(`API_URL` 공유 기록 · `QUOTE_URL` 견적서) + 보내는 방법 넷(`main` · `beacon` · `quoteGet` · `quotePost`) — **서버 · DB 를 바꿀 때 고치는 곳은 여기 하나**. **`SY`** = 화면이 쓰는 도구: `call()` · `callRaw()` · `beacon()` · `quote.get()` · `quote.post()` · `sign()`(요청에 로그인 붙이기) · `list()` · `listCached()`(공유 기록 사본 · 바뀐 것만 받기) · `idb`(IndexedDB 키-값) · `API_URL` · `KEY_LS` · `USER_LS` · `DOW` · `esc()` · `ymd()` · `readJSON()` · `writeJSON()` · `getKey()`(서버를 쓸 수 있는 상태인지 = 로그인했거나 예전 비밀번호가 있음) · `authFail()` · `user()` · `dateDisp()`(2026-12-05 (토)) · `parseDateText()`(12/5 · 1205 · 12월 5일 → 날짜) · `fmtPhone()`(어떤 번호든 -) · `phoneTyping()`(치는 동안 - · 자동 010- 떼기). 맨 아래: localhost + `?mock=1` 이면 `devmock.js` 를 이어서 읽음. 각 화면은 `const esc = SY.esc` 처럼 받아 씀 |
+| `js/devmock.js` | 로컬 전용 가짜 서버: `SY_BACKEND` 의 보내는 방법 넷을 바꿔치기 · `SY_MOCK`(`db` · `log` · `reset()`) · 13절 |
+| `js/opslib.js` | 운영보조 공통 도구: `OPS_TYPES`(통화 구분 개인업무 · 분실물 · 사고 · 재고 · 스마트스토어) · `opsKey()` · `opsUser()` · `opsYmd()` · `opsToday()` · `opsDateLabel()` · `opsId()` · `opsParse()`(history JSON 읽기) · 반복 업무 계산 `opsOccurs()` · `opsPending()` · `opsRepeatLabel()` · 굿즈 목록 `opsGoodsFrom()` · `opsLoadGoods()`. 첫 화면 대시보드 · 단체 화면 나의 할일도 씀 |
+| `js/opsboard.js` | 운영보조 화면 엔진: 페이지 파일이 만든 `OPS_PAGE` 로 목록(`render` · 재고 `renderStock` · 스마트스토어 `renderShip`) · 추가/고치기 팝업(`openEdit` · `fieldHTML` · `paintForm`) · 저장(`putRow` · `delRow` · `pull`) · 삭제 확인(`askDelete`) · 스마트스토어 보고 · 엑셀 불러오기 |
+| `js/menu.js` + `css/menu.css` | 모든 화면 헤더 맨 앞 「☰ 메뉴」 · 화면 위에 뜨는 아코디언(묶음 G 배열) · 지금 화면 표시 · 「나의 할일」 버튼이 없는 화면(네이버 · 견적서)에 버튼과 팝업을 붙임 · 📖 매뉴얼 버튼. 메뉴 항목은 `G` 배열만 고치면 됨 |
 | `js/mypop.js` + `css/mypop.css` | 「나의 할일」 팝업 (`group.html?my=1&embed=1` 을 iframe 으로). 팝업 안에서 과업을 누르면 `postMessage({type:'sy-my', ev:'go', url})` 로 바깥 화면이 이동 |
-| `js/timepick.js` | 시각 칸 `data-tp="1"`(한 시각) · `data-tp="range"`(시간대)에 스크롤 시 · 분 고르기 (24시간 · 5분). 고르면 input · change · focusout 을 보내서 각 칸의 원래 저장 처리가 돌아감. 새 시각 칸은 이 속성만 붙이면 됨 |
+| `js/timepick.js` | 시각 칸 `data-tp="1"`(한 시각) · `data-tp="range"`(시간대)에 스크롤 시 · 분 고르기 (06~19시 · 5분). 고르면 input · change · focusout 을 보내서 각 칸의 원래 저장 처리가 돌아감. 새 시각 칸은 이 속성만 붙이면 됨 |
 | `js/ime.js` | 한글 먼저 입력 (`data-ime="ko"` 칸 · 헤더 「한/A」 `#ko-toggle`). 버튼이 없는 화면은 아무것도 안 함 |
-| `js/keepsize.js` | 메모 칸(textarea) 크기를 늘리면 기억 (`sy_ta_size`) · **자동 높이**(2026-11-18): 스크롤 없이 줄이 늘면 칸이 아래로 늘어남, 처음 크기(또는 손으로 맞춘 크기)보다는 작아지지 않음 · 붙여넣기 칸(`erpIn` · `consultBox` · `baImp`, `data-nogrow`)은 뺌 · 단체 · 개인고객 · 운영보조 · 전화응대 멘트 |
+| `js/keepsize.js` | 메모 칸(textarea) 크기를 늘리면 기억 (`sy_ta_size`) · **자동 높이**: 스크롤 없이 줄이 늘면 칸이 아래로 늘어남, 처음 크기(또는 손으로 맞춘 크기)보다는 작아지지 않음 · 붙여넣기 칸(`erpIn` · `consultBox` · `baImp`, `data-nogrow`)은 뺌 |
 
-### 14-3. `js/group.js` 안 구역 지도 (위에서 아래로, 파일에서 `// =====` 로 찾기)
+### 14-3. 단체 화면 소스 지도 (`js/group/` → 합쳐서 `js/group.js`)
 
-| 구역 | 내용 |
+위에서 아래로 이 순서대로 이어 붙습니다. 파일 안에서는 `// =====` 로 구역을 찾습니다.
+
+| 파일 | 구역 · 안에 있는 것 (주요 함수) |
 |---|---|
-| 필드 정의 | `FIELDS` [묶음, 키, 이름, 엑셀 열, 칸 모양, 물어볼 말] · `CFIELDS`(담당자 성함 · 연락처 · 이메일 · 메모) · `KEYS` · `LABEL` · 프로그램 딸린 칸(`stf_` 담당 · `tm_` 시간대 · `crs_` 코스 · `plc_` 장소) · `PROG_SRC`(프로그램 → 견적서 품목) |
-| 상태 | `rec`(지금 예약 칸 값) · `touched` · `tasks` · `hist` · `editingId` · `contactsOf()` · `REQUIRED()` · `MEMO_PARTS`(비고 칸에 모아 저장하는 값 목록) · `TBD_KEYS`(미정) |
-| 칸 렌더 | `fieldHTML()` · `renderForm()` · `paintFields()`(값 · 빨강/노랑/초록 색) · 날짜 칸 · 시각 · 전화 입력 처리 · **글자 칸은 `repaintSoon()` 으로 멈춘 뒤 다시 그림** |
-| 예약 항목 줄 | `itemRows` · `itemRowHTML()` · `renderItems()` · `paintItemPrices()`(할인 버튼 · 특별할인 · 할인액) · `setItemQty()` · `syncPeopleFromArea()`(관람 인원 자동) |
-| 품목마다 특별 할인 | `rec.isp` · `openSp()` · `spBtnHTML()` |
-| 그날 예약 현황 · 예약 목록 창 · 예약 현황 공유 | `bookRows()` · `openBook()` · `?book=` 페이지 |
-| 예약 목록 직접 추가 · 수정 = 팝업 (2026-11-21) | 목록 머리의 「＋ 직접 추가」 · 줄의 「수정」을 누르면 같은 칸(날짜 · 업체 · 인원 · 시간 · 장소/종류/쿠폰 · 담당 · 비고, 엑셀 표 넣기 포함)이 팝업(`#bookAddModal` · `bookAddOpen`)으로 · 추가 · 고치기 · 취소 · Esc 로 닫힘. 목록 아래에 늘 있던 칸은 없앰. 보기 전용(로그인 안 함)은 버튼 없음 |
-| 복사 · 저장 | `copy()` · `store`(list · put · del) · `pending` 대기열 · `flush()` · `pull()` · `merged()`(시트 + 대기 + 개인고객 화면 최신본) |
-| 수정 기록 · 자동 저장 | `snap()` · `diffSnap()` · `save()` · `scheduleAuto()`(30초) · `paintDirty()`(노란 점) · `guardLeave()` |
-| 추후 과업 | `AUTO_TASKS` · `syncAutoTasks()`(조건으로 생기고 빠짐) · `autoDue()`(마감) · `renderTasks()` · `taskAuto()`(전산 비고 · 일정 전달 등 문구) · 사전답사 `tourNote()` |
-| 가격표 · 할인 | `quoteBlocks()`(견적서 블록 · 할인 줄 · `b.gN`) · `blockMoney()` · `groupRate()`(19명까지 5% · 20명부터 10%) · `followDiscBand()` · `SPECIAL` · 특별 할인 편집(`spdisc` 줄) |
-| 전산 내역 | `parseErp()` · `erpFields()` · `erpCompare()` · `erpMissing()` · `erpCheck()` · `erpNote()`(전산 비고 문구) |
-| 견적서 · 단계 · 단체상담 입력 · 엑셀 · 삭제 · 목록 | `openQuote()`(`sy_intake_handoff`) · `STAGES` · `parseConsult()` · 목록 창 |
-| 나의 할일 | `renderMy()`(탭 전체 · 개인 · 단체 · 기타) · `myPersonalOpen()` · `myEtcOpen()` |
-| 잠금 · 동시 수정 · 마감 알림 · 미정 기한 · 화면 기억 | `lockOwner` · `acquireEdit()` · `checkDue` · `tbdLimit()` · `sayuwon_view` |
-| 비고 멘트 · 사전답사 팝업 · 삭제 확인 · 기타 개인 업무 | `#noteModal` · `#tourModal` · `askDelete()` · `etcSection()` · `etcEditHTML()` · `etcPut()` (기타 개인 업무 전부) · `etcAddHTML()` |
+| `01-fields.js` | **필드 정의**: `FIELDS` [묶음, 키, 이름, 엑셀 열, 칸 모양, 물어볼 말] · `CFIELDS`(담당자 성함 · 연락처 · 이메일 · 메모) · `KEYS` · `LABEL` · 프로그램 딸린 칸(`stf_` 담당 · `tm_` 시간대 · `crs_` 코스 · `plc_` 장소) · `PROG_SRC`(프로그램 → 견적서 품목) · `layoutProg()` · `addCatalogProgs()` · `staffDefaults()` |
+| `02-state-form.js` | **상태**: `rec`(지금 예약 칸 값) · `touched` · `tasks` · `hist` · `editingId` · `blank()` · `resetState()` · `savedOwner()` · `contactsOf()` · `joinContacts()` · `splitContacts()` · `REQUIRED()` · **`MEMO_PARTS`**(비고 칸에 모아 저장하는 값 목록) · **`packExtra()` · `unpackExtra()`**(비고 칸 쓰기 · 읽기) · `TBD_KEYS`(미정) · 몽몽마방 메뉴 · 굿즈 칸(`mbMenus()` · `goodsHTML()`) · 항목 할인(`setItemDisc()` · `setItemDamt()`) |
+| `03-special-discount.js` | **품목마다 특별 할인**(`rec.isp` · `openSp()` · `spBtnHTML()` · `spApply()`) · **예약 내역 줄**: `itemRows` · `itemQty()` · `setItemQty()` · `syncPeopleFromArea()`(관람 인원 자동) · `itemSelectHTML()` · `itemRowHTML()` · `renderItems()` · `clearItem()` |
+| `04-erp-match.js` | **전산 ↔ 예약 내역 맞추기**: 전산 같은 품목(`erpSameMap` · `erpSameApply()`) · `erpKeyOf()` · `erpByKey()` · 전산 할인 버튼(`erpDiscInfo()` · `erpDiscBtns()`) · 줄 금액(`rowMoneyOf()` · `discRowHTML()`) · **`paintItemPrices()`**(할인 버튼 · 특별할인 · 할인액) · 전산에만 있는 상품 빼기 · 품목 관리에 없는 전산 상품 자동 추가(`SY.quote.post`) |
+| `05-item-rows.js` | **칸 렌더**: `fieldHTML()` · `buildForm()` · `renderForm()` · `renderContacts()` · **`paintFields()`**(값 · 빨강/노랑/초록 색) · `paintItemState()` · `repaintSoon()` · `repaintNow()`(글자 칸은 멈춘 뒤 다시 그림) · 날짜 · 시각 · 전화 · 차량 입력(`fmtRange()` · `fmtTime()` · `vehParts()`) · **미정 기한 `tbdLimit()`** · `followDiscBand()` · `renderSide()` · 결제링크 · 세미나 안내 팝업 · `readback()` |
+| `06-booking-status.js` | **그날 예약 현황**(`renderInfo()` · `renderDayAll()`) · **삭제된 단체 예약**(`openTrash()`) · **예약 목록 창**(몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰: `bookRows()` · `openBook()` · `paintBook()`) · **직접 추가 · 수정 팝업**(`bookAddOpen()` · `bookAddSave()` · 엑셀 표 넣기 `bookImpParse()`) · 수정 기록 `booklog`(`bkLogAdd()` · `openBkLog()` · 빼기 `openBkDel()`) · **예약 현황 공유 페이지**(`?book=` · `bookPageSync()`) · **내 담당**(`bkMe()`) · 출력 이미지(`bookPrintImg()`) · 몽몽마방 목록(`mbDb()` · `mbDbSave()`) · 「확인해 주세요」 경고(`fieldWarnings()` · `checkWarn()`) |
+| `07-store.js` | **통화 메모 · 통화 시간**(`startTimer()`) · `toast()` · **복사**(`copy()` · `reportText()`) · **저장**: `pending` 대기열 · `serverItems` · `cacheReady` · `cacheWrite()` · **`merged()`**(서버 + 대기 + 개인고객 화면 최신본) · `paintSync()` · `paintDbTime()` · `fitHist()` · `handleErr()` · `bookPull()` · **`flush()` · `pull()` · `store`**(list · put · del) · 30초마다 · 창으로 돌아올 때 다시 받기 |
+| `08-history-save.js` | **수정 기록 · 자동 저장**: `snap()` · `diffSnap()` · `parseHist()` · `renderHist()` · 되돌리기(`canRevertTo()` · `stateAt()`) · **`save()`** · `scheduleAuto()`(30초) · `paintDirty()`(노란 점) · `guardLeave()` |
+| `09-tasks.js` | **추후 과업**: `AUTO_TASKS` · **`syncAutoTasks()`**(조건으로 생기고 빠짐) · **`autoDue()`**(마감) · `renderTasks()` · 과업 문구(`erpNote()` 전산 비고 · `taxMsg()` · `staffMsg()`) · `erpCheck()` · 사전답사 값(`tourParse()`) · 서류 올리기(`uploadFile()` → `upload`) · 견적서 출력 표시 받기(`takeDocs()`) · 입금 확인 알림(`checkPayPopup()`) · **단체예약 목록 그리기**(`renderList()` · 캘린더 `renderListCal()`) · **`openRecord()`** · **`newCall()`** · 관리자 사이트 지금 가져오기(`syncAdmin`) · 단축키 |
+| `10-price.js` | **가격표**: `QUOTE_PAGE` · `QUOTE_DATA` · `parseQuotePage()` · `loadQuotePrices()` · 품목 관리 창(`openCatalog()`) · `catalogItems()` · `priceSections()` · **특별 할인 종류 편집**(`spdisc` 줄 · `openSpd()` · `saveSpd()` · `applySpd()`) · **`groupRate()`**(19명까지 5% · 20명부터 10%) · **학생** 인원(`setItemStu()` · `stuSplitOf()`) · `blockMoney()` · `renderPrice()` |
+| `11-erp-paste.js` | **전산 내역 붙여넣기**: `parseErp()` · `erpTotals()` · `erpMissing()` · `renderErp()` · `erpFields()` · `fillFromErp()` · **`erpCompare()`** · `openErpDiff()`(전산 내역과 예약 내용이 다릅니다) · `takeErpText()` |
+| `12-quote-stage-list.js` | **견적서 발급**: `QUOTE_URL` · **`quoteBlocks()`**(견적서 블록 · 할인 줄) · `openQuote()`(`sy_intake_handoff`) · 발급 내역 `loadQuoteHist()` · `paintDocBtns()` · 다른 창과 맞추기 `liveSync()` · **예약 단계**(`renderStage()` · `setStage()` · `openCancel()`) · **단체상담 입력**(`parseConsult()`) · **엑셀로 내려받기**(`downloadXlsx()`) · **목록 '수정'**(`openFix()`) · **삭제 사유**(`openDel()`) · **단체예약 목록 창**(`openList()`) |
+| `13-start-my.js` | **시작**(`flush()` 첫 호출 · `window.__tasksReady`) · `myRecords()`(내가 영업 담당인 예약) · `syncSavedTasks()` · `settleTasks()` |
+| `14-task-sim.js` | **열지 않은 예약의 추후 과업 = 열었을 때와 똑같이**: `recFromRecord()` · `simTasks()` · `tasksOf()` · `dueTasks()` · `simVer` / **나의 할일**: `renderMy()`(탭 전체 · 개인 · 단체 · 기타) · `openMy()` · `closeMy()` · `paintMyCount()` · `myPersonalOpen()` · 오늘 마감 · 오늘 완료(`todayDueHTML()` · `doneTodayHTML()`) · 바깥에서 예약 열기(`tryOpenG()`) |
+| `15-lock-popups.js` | **남이 담당인 예약**(`notMineMsg()` · 담당자에게 메모 `saveMemos()` · `checkMemoPopup()`) · **두 PC 동시 수정 막기**(`EDIT_SID` · `acquireEdit()` · `releaseEdit()` · `paintLock()`) · **마감 알림 팝업**(`openLate()`) · **미정 기한 알림**(`checkTbdPopup()`) · **보던 화면 기억**(`saveView()` · `restoreView()` · `sayuwon_view`) · **비고 멘트 재출력**(`#noteModal`) · **사전답사**(`openTour()` · `setTour()`) · **삭제 확인**(`askDelete()`) |
+| `16-etc-tasks.js` | **기타 개인 업무**(`etcSection()` · `etcEditHTML()` · `etcPut()` · `etcAddHTML()` · `myEtcOpen()`) · **개인 업무 구분**(`개인업무목록` · `etcCats()` · `etcSaveCats()`) · **매주 목요일 다음주 예약 점검**(`주간점검` · `weekTask()` · `wkSave()`) |
 
-다른 JS 파일도 같은 모양입니다: `personal.js`(공유 기록 → 날짜 칸 → 칸 · 과업 → 구분 · 보고 → 저장 · 자동 저장 → 목록 · 통화 기록 전체 · 삭제 → 마감 알림 · 나의 할일 숫자 · 보고 글자 미리보기 · 삭제 확인 · 노란 점) · `portal.js`(로그인 → 멤버관리 → 품목관리 → 대시보드) · `ops.js`(화면별 칸 `BOARDS` → 공유 기록 → 목록 → 추가 · 고치기 → 세부 과업).
+`js/taskcfg.js`(추후과업 메시지 관리 · 설정 줄 `taskcfg`) 와 `js/mytask.js`(나의 할일 보조)는 `group.js` 뒤에 따로 읽습니다.
+
+다른 JS 파일도 같은 모양입니다: `personal.js`(공유 기록 → 날짜 칸 → 칸 · 과업 → 구분 · 보고 → 저장 · 자동 저장 → 목록 · 통화 기록 전체 · 삭제 → 마감 알림 · 나의 할일 숫자 · 보고 글자 미리보기 · 삭제 확인 · 노란 점) · `portal.js`(로그인 → 멤버관리 → 품목관리 → 대시보드).
 
 ### 14-4. 데이터 (공유 시트 `calls` 한 줄 = 한 기록)
 
-- **열**: `apps-script/group-intake.gs` 의 `COLS` (id · 저장 일시 · 통화 시작 · 받은 사람 · **통화 구분** · 요약 · 방문일 · 업체 · 담당 · 결제 · … · 고객 담당자 · 연락처 · 이메일 · 입장 · 퇴장 · … · **비고(memo)** · 통화 메모(note) · 수정 일시 · 삭제 · **수정 기록(history)**). 열에 없는 값은 비고 · 수정 기록 칸에 넣습니다
-- **통화 구분(callType)으로 종류를 나눔**: `예약상담` · `가예약` · `예약확정` · `예약취소`(예전 `단체예약` · `상담` · `예약접수` · `공식예약`) = 단체 (예약취소는 대시보드 · 다음날 준비 · 개인고객 알림에서 빠짐) / `개인고객` / `개인업무` · `분실물` · `사고` · `재고` · `스마트스토어` = 운영보조 / 특별한 줄: `mabangdb`(몽몽마방 목록) · `bookdb`(예약 현황 직접 추가) · `pcats`(개인 구분, `개인구분`) · `spdisc`(특별 할인 종류, `특별할인설정`)
+- **열**: `apps-script/group-intake.gs` 의 `COLS` (id · 저장 일시 · 통화 시작 · 받은 사람 · **통화 구분** · 요약 · 방문일 · 업체 · 담당 · 결제 · … · 고객 담당자 · 연락처 · 이메일 · 입장 · 퇴장 · … · **비고(memo)** · 통화 메모(note) · 수정 일시 · 삭제 · **수정 기록(history)**). 열에 없는 값은 비고 · 수정 기록 칸에 넣습니다. 모든 칸은 글자로 저장 (날짜 · 전화번호가 숫자로 바뀌지 않게)
+- **id**: 영문 소문자 · 숫자 4~40자 (화면이 만듦). 관리자 사이트에서 온 예약은 `adm` + 예약 번호
+- **통화 구분(callType)으로 종류를 나눔** — 한 시트에 아래가 모두 섞여 있습니다
+
+| 종류 | 통화 구분 (callType) | id | 내용이 들어 있는 곳 | 쓰는 화면 |
+|---|---|---|---|---|
+| 단체 예약 | `예약상담` · `가예약` · `예약확정` · `예약취소` (예전 `단체예약` · `상담` · `예약접수` · `공식예약`) | 무작위 / `adm…` | 열 전체 + 비고(묶음) + 수정 기록 `{h, tasks, erp, memos}` | 단체 · 대시보드 · 준비 · 예약 현황 |
+| 개인 통화 | `개인고객` | 무작위 | 담당자 · 연락처 · 통화 메모 + 수정 기록 `{h, tasks, cat, reportTo, reserved}` | 개인고객 · 대시보드 · 나의 할일 |
+| 기타 개인 업무 | `개인업무` | 무작위 | 수정 기록 `{kind:'task', d:{title, repeat, dows, dom, start, due, memo, owner, done, subs}, log}` | 나의 할일 · 대시보드 |
+| 분실물 · 사고 · 재고 · 스마트스토어 | `분실물` · `사고` · `재고` · `스마트스토어` | 무작위 | 수정 기록 `{kind, d:{칸들}, log}` · 요약 칸에 한 줄 | 운영보조 |
+| 몽몽마방 예약 목록 | `몽몽마방예약` | `mabangdb` (한 줄) | 수정 기록 `{rows:[…], at, by}` | 예약 현황 |
+| 예약 현황 직접 추가 (대관 · 도슨트 · 프로그램) | `예약현황추가` | `bookdb` (한 줄) | 수정 기록 `{rows:[…]}` | 예약 현황 |
+| 예약 현황 수정 기록 | `예약현황기록` | `booklog` (한 줄) | 수정 기록 (추가 · 수정 · 빼기 사유) | 예약 현황 |
+| 예약 현황 공유 표 | `예약현황공유` | `statusdb` (한 줄) | 수정 기록 (화면 내용 전체) | `status.html` |
+| 전화응대 멘트 | `응대멘트` | `mentdb` (한 줄) | 수정 기록 `{items:[{id, title, body, imgs:[드라이브 파일 id], fav}]}` | 멘트 |
+| 대구대교구 명부 | `무료입장명부` | `clergy0` · `clergy1` … (4만 자씩) | 수정 기록 `{part, of, at, rows:[[id, 방문일, 소속, 이름, 직책, 연락처, 비고, 회차]]}` | 명부 |
+| 예약 취소 요청 | `취소요청` | `cxreq0` · `cxreq1` … (4만 자씩) | 수정 기록 `{part, of, at, rows:[{id, at, by, date, site, name, phone, no, kind, amt, why, doc, whyTxt, acc, done}]}` | 취소 요청 |
+| 다음날 준비 (날짜마다) | `응대준비` | `prep` + 날짜 숫자 (예 `prep20261124`) | 수정 기록 | 다음날 준비 |
+| 다음날 준비 설정 | `응대준비설정` | `prepagency`(여행사 등록) · `prepnotice`(공지) | 수정 기록 | 다음날 준비 |
+| 개인고객 구분 목록 | `개인구분` | `pcats` (한 줄) | 수정 기록 | 개인고객 |
+| 특별 할인 종류 | `특별할인설정` | `spdisc` (한 줄) | 수정 기록 (이름 · 할인율 · 증빙) | 단체 |
+| 추후과업 메시지 설정 | `추후과업설정` | `taskcfg` (한 줄) | 수정 기록 | 단체 |
+| 개인 업무 구분 (사람마다) | `개인업무목록` | `el` + 이름 해시 | 수정 기록 | 나의 할일 |
+| 다음주 예약 점검 (사람 · 주마다) | `주간점검` | 이름 · 목요일로 만든 id | 수정 기록 | 나의 할일 |
+
 - **비고 칸(memo)** = `이름 값 / 이름 값 / …` (칸 구분은 ` / `). `MEMO_PARTS` 목록 + 특별 할인 · 추가 프로그램 · 프로그램 담당/시간대/코스/장소 · 담당자 메모(`담당자 메모 0=… ¦ 1=…`). 읽기는 `unpackExtra()`, 쓰기는 `packExtra()` — **새 값을 저장하려면 `FIELDS`(숨은 칸 `굿즈` 묶음) + `MEMO_PARTS` 에 한 줄씩**
 - **수정 기록 칸(history, JSON)**: 단체 `{h:[수정 기록], tasks:[과업], erp:[전산 내역], memos:[담당자에게 메모]}` · 개인고객 `{h, tasks, cat, reportTo, reserved}` · 운영보조 `{kind, d:{내용}, log:[]}`
 - **과업 하나**: `{id, title, done, doneAt, doneBy, due, dueSet, memo, at, subs:{생성:true…}, xsubs:[{id,title,done}], custom, removed, manualDone, noteEdit}` — 자동 과업 id 는 `AUTO_TASKS` 의 키, 직접 추가는 `custom:true`, 지운 자동 과업은 `removed:1`(다시 안 생김)
+- **파일(이미지)**: 시트에는 드라이브 파일 id · 링크만 들어 있고 파일은 드라이브에 따로 있습니다 (단체 서류 = 과업의 파일 링크 · 멘트 이미지 = `imgs` 의 파일 id → `mentImgGet` 으로 base64 를 받아 보여 줌)
 - **Apps Script 를 고치면** 사용자가 새 버전으로 배포해야 합니다. 화면만 고칠 땐 필요 없음
 
-### 14-5. 브라우저 저장소 (localStorage) 이름
+### 14-5. 브라우저 저장소 이름
+
+localStorage (그 브라우저 · 그 사이트 주소에만 — **사이트 주소가 바뀌면 처음부터 다시**: 로그인 · 저장 대기 중인 것 포함):
 
 | 이름 | 내용 |
 |---|---|
-| `sy_user` · `sayuwon_owner` · `sy_sender` | 로그인 이름 · 사번 / 단체 영업 담당 / 견적서 담당 |
-| `sayuwon_intake_key` | 팀 비밀번호 |
-| `sayuwon_intake_pending` · `sayuwon_intake_cache` · `sayuwon_intake_v1` | 단체: 올릴 대기열 · 마지막으로 받은 목록 · (공유 주소가 없을 때) 이 브라우저 저장 |
+| `sy_user` · `sayuwon_owner` · `sy_sender` · `sy_senders` | 로그인 이름 · 사번 / 단체 영업 담당 / 견적서 담당 |
+| `sayuwon_intake_key` | 예전 팀 비밀번호 (기억해 둔 브라우저만 · 새로 넣는 곳은 없음) |
+| `sayuwon_intake_pending` · `sayuwon_intake_cache` | 단체: 올릴 대기열 · 마지막으로 받은 목록(1.5MB 보다 작을 때만) |
 | `sayuwon_personal_pending` · `sayuwon_personal_cache` | 개인고객: 대기열 · 받은 목록 |
-| `sy_ops_cache_task · lost · accident · stock` | 운영보조 화면별 받은 목록 |
+| `sy_ops_cache_lost · accident · stock · ship` | 운영보조 화면별 받은 목록 |
 | `sy_dash_cache` | 첫 화면 대시보드 (바로 그리기용, 로그아웃하면 지움) |
-| `sayuwon_quote_cat` · `sy_catalog_shared` | 견적서 품목 목록 |
+| `sayuwon_quote_cat` · `sy_catalog_shared` · `sy_catalog_v1` | 품목 목록 (단체가 받아 둔 것 · 견적서가 받아 둔 것 · 예전 브라우저별 목록) |
+| `sy_history_cache` · `sy_history_pending` · `sy_history_cancel` | 견적서 발급 내역 사본 · 못 올린 내역 · 발급 취소 |
 | `sayuwon_intake_admin` | 관리자 사이트 사담 · 마방 현황 |
-| `sayuwon_view` · `sayuwon_my_tab` · `sayuwon_list_sort` · `sy_menu_acc` · `sy_ta_size` | 보던 화면(단체 화면만 · **나의 할일 팝업 · 단독 화면에서는 되살리지 않음**: 팝업 안에 단체예약 목록 · 열어 둔 예약이 뜨지 않게, 2026-11-18) · 나의 할일 탭 · 목록 정렬 · 메뉴 펼침 · 메모 칸 크기 |
-| `sy_intake_handoff` · `sy_intake_docs` | 단체 → 견적서로 넘기는 예약(업체 · 담당자 · **담당자 이메일 중 맨 위 것 → 메일 받는 사람**, 2026-11-21) · 견적서가 돌려주는 파일 링크 |
+| `sayuwon_view` · `sayuwon_my_tab` · `sy_my_col` · `sayuwon_list_sort` · `sayuwon_list_show` · `sayuwon_list_view` · `sy_menu_acc` · `sy_ta_size` · `sy_done_today_open` · `sy_cx_tab` | 보던 화면(단체 화면만 · 나의 할일 팝업 · 단독 화면에서는 되살리지 않음) · 나의 할일 탭 · 열 · 목록 정렬 · 보기 · 메뉴 펼침 · 메모 칸 크기 · 접힘 · 취소 요청 탭 |
+| `sy_intake_handoff` · `sy_intake_docs` | 단체 → 견적서로 넘기는 예약(업체 · 담당자 · 담당자 이메일 중 맨 위 것 → 메일 받는 사람) · 견적서가 「출력했다」고 돌려주는 표시 |
 | `sayuwon_task_slot` · `sayuwon_task_snooze` · `sayuwon_paycheck_seen` | 마감 알림 · 입금 확인 알림을 본 시각 |
-| 그 밖 | `sayuwon_pcats`(개인 구분) · `sayuwon_member_names` · `sayuwon_db_time` · `sy_edit_sid` · `sayuwon_prep_state` · `sy_history_*`(견적서 발급 내역) · `sy_senders` |
+| `sayuwon_pcats` · `sy_etc_cat` · `sayuwon_member_names` · `sayuwon_db_time` | 개인 구분 · 개인 업무 구분 · 멤버 이름 · DB 저장/동기화 시각 |
+| `sayuwon_prep_state` · `sayuwon_prep_agency` · `sayuwon_prep_notice` | 다음날 준비: 화면 상태(엑셀 · 고친 내용) · 여행사 등록 · 공지 |
+| `sy_status_v1` · `sy_status_nvimg_map2` | 예약 현황 공유 표 · 네이버 이미지 맞춤 |
+| `sy_ment_cache` · `sy_ment_fav` | 멘트 사본 · (예전) 이 브라우저 즐겨찾기 |
+| `sy_book_me` · `sy_guest_name` | 예약 현황 「내 이름」 · 로그인 없이 추가할 때 적은 이름 |
+| `sy_mock` · `sy_mock_db` | (로컬 전용) 가짜 서버 켬 · 가짜 서버 내용 |
+
+- sessionStorage (창 하나): `sy_edit_sid`(고치는 중 표시용 창 번호) · `sayuwon_paycheck_seen` · `sy_ment_fresh`
+- IndexedDB `sayuwon` → `kv` 저장소 → `sy_list_v1` = `{items, since, fullAt, api}` 공유 기록 전체 사본 (모든 화면 · 창이 같이 씀 · `SY.list`)
+- 없앤 것: `sayuwon_intake_v1`(공유 주소가 없을 때 이 브라우저에만 저장하던 목록 — 2026-11-23 그 방식을 없앰)
 
 ### 14-6. 자주 하는 수정 (어디를 고치나)
 
 - **메뉴 항목 추가 · 이름 변경**: `js/menu.js` 의 `G`
-- **단체 예약 칸 추가**: `FIELDS` 에 한 줄 (시트 열이 없으면 `MEMO_PARTS` 에도) → `README` 5절
-- **자동 과업 추가**: `AUTO_TASKS`(이름) · `syncAutoTasks()`(생기는 조건) · `autoDue()`(마감) · `ORDER`(순서) · `SUB`(설명) · 필요하면 `taskAuto()`(복사 문구)
-- **전산 비고 문구**: `erpNote()` · 사전답사 `tourNote()`
-- **할인 규칙**: `groupRate()` · `quoteBlocks()` · `SPECIAL`
-- **운영보조 화면의 칸**: 페이지마다 `js/lost.js` · `accident.js` · `stock.js` · `ship.js` 의 `BOARDS` (그 페이지 것만) (칸 종류 text · tel · num · date · time · select · textarea · repeat · dows · dom · subs)
+- **단체 예약 칸 추가**: `js/group/01-fields.js` 의 `FIELDS` 에 한 줄 (시트 열이 없으면 `02-state-form.js` 의 `MEMO_PARTS` 에도) → `README` 5절
+- **자동 과업 추가**: `js/group/09-tasks.js` 의 `AUTO_TASKS`(이름) · `syncAutoTasks()`(생기는 조건) · `autoDue()`(마감) · `ORDER`(순서) · `SUB`(설명) · 필요하면 `taskAuto()`(복사 문구) — 열지 않은 예약 계산(`14-task-sim.js`)도 같은 규칙을 쓰는지 확인
+- **전산 비고 문구**: `js/group/09-tasks.js` 의 `erpNote()` · 사전답사 문구는 `15-lock-popups.js` 의 사전답사 구역
+- **할인 규칙**: `js/group/10-price.js` 의 `groupRate()` · `12-quote-stage-list.js` 의 `quoteBlocks()` · 특별 할인 종류는 화면의 「편집」(설정 줄 `spdisc`)
+- **운영보조 화면의 칸**: 그 페이지 파일(`js/lost.js` · `accident.js` · `stock.js` · `ship.js`)의 `OPS_PAGE` (칸 종류 text · tel · num · date · time · select · textarea · goods · repeat · dows · dom · subs). 네 화면 공통 동작은 `js/opsboard.js`
 - **대시보드**: `js/portal.js` 의 `dashRecs()`(무엇을 모으나) · `renderDash()`(어떻게 보이나)
-- **날짜 · 전화 · 공유 주소**: `js/common.js`
-- 고친 뒤: HTML 의 `?v=` 바꾸기 → 로컬에서 가짜 `callApi` · `store.put` 으로 확인 → README 고치기 → 올리기
+- **날짜 · 전화 규칙**: `js/common.js` 의 `SY`
+- **서버 주소 · 서버로 보내는 방법**: `js/common.js` 의 `SY_BACKEND`
+- 고친 뒤: (단체면) `tools/build.ps1` → 로컬에서 `?mock=1` 로 확인 → 모든 HTML 의 `?v=` 바꾸기 → README 고치기 → 올리기
 
 ## 대구대교구 무료입장 명부 (`clergy.html`, 2026-11-19)
 
-- 천주교 대구대교구 수녀 · 신부 · 신학생 무료입장(연 2회) 명부. 메뉴 › 예약보조 › 고객 응대 보조. 팀 비밀번호가 있어야 보임
+- 천주교 대구대교구 수녀 · 신부 · 신학생 무료입장(연 2회) 명부. 메뉴 › 예약보조 › 고객 응대 보조. 로그인해야 보임
 - 공유 기록(calls)에 통화 구분 「무료입장명부」로 저장 — 한 칸 5만 자 제한이라 4만 자씩 나눠 id `clergy0` · `clergy1` …(`{part, of, at, rows}`). **명부 내용은 이 저장소에 넣지 않음**
 - 「엑셀 불러오기」: 명부 엑셀(머리줄 방문일 · 소속 · 이름 · 직책 · 연락처 · 비고 · 회차, 날짜 칸이 비면 위 줄 날짜)을 읽어 확인 팝업 뒤 명부를 그 내용으로 바꿈
 - 「＋ 새로 추가」 (2026-11-21 바꿈): **방문일 · 소속 · 이름 · 직책 · 연락처**만 넣고 「저장」 (방문일은 단체 방문일 방식 칸 · 다섯 칸 모두 필요, 비고 · 회차 칸은 없앰). 저장 전에 최신 명부를 다시 받아 확인:
@@ -621,9 +735,125 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
 
 ## 예약 취소 요청 (`cancel.html`, 2026-11-19)
 
-- 직원이 예약 취소 담당자에게 취소 처리를 부탁하는 요청서 (예전 엑셀 「사유원 예약 취소 요청」을 옮김). 메뉴 › 예약보조 › 고객 응대 보조. 팀 비밀번호가 있어야 보임
+- 직원이 예약 취소 담당자에게 취소 처리를 부탁하는 요청서 (예전 엑셀 「사유원 예약 취소 요청」을 옮김). 메뉴 › 예약보조 › 고객 응대 보조. 로그인해야 보임
 - **전산 예약 붙여넣기** (2026-11-21, `parseErpCx` · `fillFromErp`): 요청서 맨 위 칸에 전산 예약 내역을 그대로 붙여 넣으면 방문일 · 예약자 이름 · 연락처 · 예약 사이트(홈페이지) · 자세히(상품 · 인원 · 금액, 상품이 여러 개면 「+」로 잇고 합계)가 저절로 채워짐 (고칠 수 있음). 취소 내용 · 사유 · 증빙만 골라 보내면 됨. 「비우기」면 붙여넣기 칸도 비움
 - **취소 요청하기** 탭: 방문일 · 예약 사이트(홈페이지 · 네이버 · 키오스크 · 기타) · 예약자 이름 · 연락처 · 예약 번호 · 취소 내용(전체 환불 / 부분 취소 + 자세히: 「2명 취소 (5명 → 3명)」 등) · 취소 사유(고객 직접 취소 불가 · 날씨 · 질병 · 사고 · 인원 변경 · 현장 재결제 · 기타 — 여러 개 + 자세히) · 증빙 서류(필요 없음 · 받음 · 받을 예정) · 가상계좌면 환불 계좌. 요청자 = 로그인 이름, 요청 시각 자동. 빠진 칸은 알림
 - **요청 목록 · 처리** 탭(탭에 처리 전 건수): 처리 전(오래된 요청부터 · 노란 카드) · 처리 완료 · 전체 · 찾기(예약자 · 연락처 · 예약 번호 · 요청자). 카드마다 처리 메모 + 「처리 완료」(확인 팝업 → 처리한 사람 · 시각 · 메모) · 「되돌리기」 · 예약 번호를 누르면 복사. 30초마다 새 요청 · 처리를 받아 옴
 - 「엑셀 불러오기」: 예전 엑셀 줄을 목록에 더함(같은 예약 번호 + 이름은 건너뜀, 맨 위 보기 줄 홍길동은 뺌, 처리 여부에 「완료」가 있으면 처리 완료)
 - 저장: 공유 기록(calls) 통화 구분 「취소요청」, 4만 자씩 나눠 id `cxreq0` · `cxreq1` … — 저장 직전 최신 목록을 다시 받아 그 위에 반영. **요청 내용은 이 저장소에 넣지 않음**
+
+---
+
+## 15. 2026-11-23 전체 리팩토링 기록
+
+**목표**: 화면 동작은 하나도 바꾸지 않고, DB · 배포 방식을 바꾸기 쉽게 코드 구조만 정리. 브랜치 `refactor/api-layer`. Apps Script 는 고치지 않음 (다시 배포할 것 없음).
+
+### 15-1. 바꾼 것
+
+| # | 무엇을 | 예전 | 지금 | 왜 |
+|---|---|---|---|---|
+| 1 | **서버 요청을 한 곳으로** | 화면마다 서버 주소로 `fetch` 하는 함수를 따로 가짐: `callApi`(단체 · 개인 · 첫 화면 · 준비 · 취소 · 명부) · `opsApi`(운영보조) · `api`(멘트) · `reqApi`(견적서) + 그냥 `fetch`(예약 현황 2곳 · 잠금 풀기 · 고객 견적 요청 · 예약 현황 공유 표) — 열 곳이 넘음. 공유 기록 주소가 3곳(`common.js` 2번 · `document.js`), 견적서 서버 주소가 3곳(`group.js` · `opslib.js` · `document.js`)에 적혀 있었음 | `js/common.js` 의 `SY.call` · `SY.callRaw` · `SY.beacon` · `SY.quote.get/post` 만 씀. 주소는 `SY_BACKEND` 한 곳 | DB · 서버를 바꿀 때 `SY_BACKEND` 만 바꾸면 됨 |
+| 2 | **`window.fetch` 바꿔치기 없앰** | `common.js` 가 브라우저의 `fetch` 자체를 바꿔서, 서버 주소로 가는 요청이면 몰래 로그인(`who`)을 끼워 넣었음 | `SY.sign()` 이 요청을 만들 때 로그인을 붙임 | 브라우저 기본 기능을 바꾸는 것은 다른 코드 · 라이브러리와 엉키기 쉬움. 잠금 풀기(`sendBeacon`)는 `fetch` 가 아니라서 로그인이 빠진 채 가고 있었음 → 이제 붙음 |
+| 3 | **운영보조 4개 화면을 엔진 하나로** | `js/lost.js` · `accident.js` · `stock.js` · `ship.js` 가 각 240줄 · 27KB, 칸 정의 10줄만 다르고 나머지는 글자 하나까지 같은 사본 (합쳐 110KB) | 엔진 `js/opsboard.js` 하나(27KB) + 페이지마다 칸 정의 파일(1~2KB) | 버그를 고치면 네 곳을 똑같이 고쳐야 했음. 페이지마다 다르게 발전시키는 것은 `OPS_PAGE` 값으로 계속 가능 |
+| 4 | **단체 화면 소스를 16개 파일로** | `js/group.js` 한 파일 4,400줄 · 520KB | 소스는 `js/group/01-…16-….js`, 화면이 읽는 `js/group.js` 는 `tools/build.ps1` 이 이어 붙여 만듦 | 한 파일이 너무 커서 읽기 · 고치기 · 검토가 어려웠음. 브라우저가 읽는 것은 여전히 한 파일이라 동작은 같음 (13절 「왜 이렇게」) |
+| 5 | **네이버 이관 화면의 CSS · JS 를 파일로** | `naver.html` 한 파일 1,294줄 · 91KB (안에 `<style>` 120줄 · `<script>` 1,030줄) | `naver.html`(틀 144줄) + `css/naver.css` + `js/naver.js` | 다른 화면과 같은 구조 (HTML = 틀 · CSS = 모양 · JS = 동작), 브라우저가 CSS · JS 를 따로 기억 |
+| 6 | **사이트 주소를 코드에서 뺌** | `github.io` 인지 보고 `https://hyunbin5786.github.io/sayuwon-sales/…` 절대 주소와 상대 주소를 갈라 씀 (`portal.js` · `group.js` 3곳 · `index.html` · `document.js`의 고객 견적 요청 주소). `naver.html` 은 `github.io` 일 때만 로그인 확인 | 모두 상대 주소. 고객 견적 요청 주소는 지금 사이트 주소에서 만듦. 네이버 이관도 다른 화면처럼 늘 로그인 확인 | 배포하는 곳이 바뀌어도 코드를 안 고쳐도 됨 |
+| 7 | **안 쓰는 코드 지움** | ① 「공유 주소가 비어 있으면 이 브라우저에만 저장」 방식 (`group.js` 의 `SHARED_URL` · `LKEY` · `syncState 'off'` 갈래 14곳 · `document.js` 의 `SHARED_URL` 갈래 13곳) — 주소는 늘 있어서 한 번도 돌지 않는 코드 ② `document.js` 의 `toIntakeDrive()` · `blobB64()` · `INTAKE_URL` (2026-11-21에 「쓰지 않음」으로 남겨 둔 드라이브 올리기) ③ 화면마다의 `SHARED_URL` · `KEY_LS` · `OPS_URL` · `OPS_KEY_LS` 같은 별명 | 지움 | 읽는 사람이 「이 갈래는 언제 도나」를 따져야 했음 |
+| 8 | **견적서 화면이 `common.js` 를 읽음** | `document/index.html` 은 `common.js` 없이 로그인 · 주소를 따로 다룸 | `../js/common.js` 를 먼저 읽고 `SY.call` · `SY.quote` 를 씀 | 1번을 견적서 화면까지 |
+| 9 | **`?v=` 를 하나로** | 파일마다 다른 값 (`20261118r` · `20261121c` · `20261122ae` …) | 모든 HTML · 모든 파일 `?v=20261123a` | 무엇을 바꿨는지 따질 필요 없이 한꺼번에 올림. (배포 방식이 바뀌면 이 손작업 자체를 없앨 수 있음 — 17절) |
+| 10 | **가짜 서버** | 시험하려면 화면마다 `callApi` 를 손으로 가짜로 바꿔야 했음 | `js/devmock.js` (localhost + `?mock=1`) | 진짜 시트를 건드리지 않고 모든 화면을 시험. 새 DB 로 옮길 때도 「새 서버가 이 동작 목록대로 답하는지」의 기준이 됨 |
+
+크기: 손으로 고치는 코드(HTML · CSS · JS · Apps Script — 합친 group.js 와 가짜 서버는 빼고)는 약 1,666KB → 약 1,585KB (운영보조 사본 · 죽은 코드가 빠짐). 새 파일 `js/opsboard.js` · `js/devmock.js` · `js/naver.js` · `css/naver.css` · `js/group/*.js`(16개) · `tools/build.ps1`.
+
+### 15-2. 일부러 바꾸지 않은 것
+
+- **화면 동작 · 문구 · 모양 · 저장 형식**: 그대로. 시트에 저장되는 값도 한 글자도 다르지 않음
+- **Apps Script (`apps-script/group-intake.gs`)**: 그대로. 어차피 DB 를 옮기면 통째로 바뀔 부분이라 손대지 않음
+- **줄이 긴 코드 모양**: 한 줄에 여러 문장이 있는 모양은 그대로 둠. 자동 정리 도구로 다시 줄을 나누면 4만 줄이 바뀌어 「무엇이 바뀌었는지」 볼 수 없게 되고, 동작이 같다는 것을 확인할 길이 없음
+- **`document/js/document.js` (242KB · 한 덩어리)**: 서버 요청과 죽은 코드만 정리. 전체가 함수 하나 안에 들어 있어 단체 화면처럼 그냥 자를 수 없음 — 남은 과제
+- **화면마다 있는 `$` · `toast` · 날짜 칸 코드**: 조금씩 다르게 생긴 것(숨김 방식 · 시간)이 섞여 있어 합치면 모양이 달라질 수 있음 — 남은 과제
+
+### 15-3. 이번에 찾은 것 (고치지 않고 적어 둠)
+
+- **품목 · 가격 기본 목록을 코드 글자에서 정규식으로 읽음**: 단체 · 운영보조 화면이 `document/js/document.js` 를 글자로 받아 `var CATALOG_RAW = [...]` 를 찾아 씁니다. 견적서 코드에서 그 줄의 모양(띄어쓰기 하나)만 바꿔도 단체 화면 가격이 조용히 안 나옵니다. 품목 자료를 자료 파일(또는 DB 표)로 떼어 내는 것이 맞음 → DB 이관 때 같이
+- **견적서 서버에는 로그인 확인이 없음**: 품목 가격 · 발급 내역(고객 이름 · 금액이 들어 있음)을 주소만 알면 읽고 쓸 수 있고, 그 주소는 공개 저장소에 있습니다
+- **로그인 = 이름 + 사번이 맞는지뿐**: 비밀번호가 아니고, 요청마다 그 두 값을 그대로 보냅니다. 멤버 한 사람의 이름 · 사번을 아는 사람은 고객 연락처가 든 전체 기록을 받을 수 있음. DB 를 옮길 때 진짜 로그인(계정 · 권한)으로 바꾸는 것이 가장 큰 개선
+- **한 시트에 스무 가지 가까운 종류가 섞여 있음** (14-4절 표): 설정 · 명부 · 멘트까지 예약 기록과 같은 표에 있고, 긴 목록은 5만 자 제한 때문에 4만 자씩 잘라 넣음. 「마지막에 저장한 사람이 이김」 방식이라 두 사람이 같은 목록 줄(명부 · 취소 요청 · 몽몽마방 목록)을 동시에 고치면 한쪽이 사라질 수 있음 (저장 직전에 다시 받아 줄이긴 함)
+- **비고 칸에 스무 가지쯤 되는 값을 ` / ` 로 이어 붙임**: 값 안에 ` / ` 가 들어가면 깨질 수 있는 모양. DB 로 옮기면 칸(또는 JSON 칸)으로 풀어야 함
+- **`README` 2절 · 3절 · 5~10절의 날짜별 변경 기록**: 그때그때의 사실이라 그대로 두었습니다. 지금 구조와 다른 표현(`ops.js` · `ops.html?p=…` · 「팀 비밀번호 필요」)이 남아 있으면 1절 · 11절 · 13절 · 14절이 맞는 내용입니다
+
+## 16. 검증 기록 (2026-11-23)
+
+**방법**: 로컬 미리보기(`serve.ps1`) + 가짜 서버(`?mock=1`)에서 화면마다 열어 브라우저 콘솔 오류를 보고, 주요 동작을 실제로 눌러 가짜 서버에 도착한 요청(`SY_MOCK.log`)과 저장된 값(`SY_MOCK.db`)을 확인. 합친 `js/group.js` 는 나누기 전 파일과 바이트 단위로 같은지 비교(`cmp`) 뒤에 수정 시작, 운영보조 엔진은 네 파일에서 칸 정의를 뺀 나머지가 글자까지 같은지 확인 뒤 합침.
+
+| 화면 | 확인한 것 | 결과 |
+|---|---|---|
+| 첫 화면 | 로그인(맞는 이름 · 사번 → 들어감 / 틀린 것 → 「이름과 사번이 맞지 않습니다」) · 대시보드 4칸 그리기 · 멤버관리 추가(`memberAdd` → `members`) | 정상 |
+| 단체고객 | 열기(콘솔 오류 없음) · 새 예약 입력 → 저장(`put` 에 로그인 `who` 가 붙음 · 예약상담 · 비고 묶음 · 수정 기록 「처음 저장」) → `list` 다시 받기 · 단체예약 목록 창 · 목록에서 예약 열기(`lock` 잡음 · 자동 과업 4개 생김 · `put`) · 새 통화(`lock` 풀림) · 다른 창이 고치는 중인 예약 열기(🔒 「○○님이 다른 PC(창)에서 이 예약을 고치는 중입니다」 · 읽기 전용) · 삭제(`del` → 목록에서 빠짐) · 삭제된 예약 보기(`deleted`) · 나의 할일 창 · 멤버가 아닌 로그인(`bad_key` → 「로그인 정보를 확인할 수 없습니다」) | 정상 |
+| 나의 할일 (`?my=1` · 팝업 `embed=1`) | 탭 · 오늘 마감 과업 그리기 · 다음날 준비 화면에서 팝업으로 열기 | 정상 |
+| 예약 현황 공유 (`?book=mb`) | 로그인한 채: 목록 · 직접 추가 · 수정 기록 버튼 / 로그인 없이: `bookList` 만 부름(`who` 없음) · 목록 보임 | 정상 |
+| 개인고객 | 열기 · 저장(`put` → `list`) | 정상 |
+| 다음날 준비 | 열기 · 단체예약 연결(`list`) | 열림 정상 (엑셀을 넣는 흐름은 아래 「못 한 것」) |
+| 분실물 | 추가(`put` · 통화 구분 `분실물` · 요약 · `{kind, d, log}`) → 고치기(상태 「반환 완료」로 바꾸면 반환일 = 오늘) → 삭제(확인 팝업 → `del`) | 정상 |
+| 사고현황 | 칸 11개 · 담당 = 로그인 이름 | 정상 |
+| 재고 | 추가 · ＋ 로 수량 3 → 4 · 최소 5 라서 「부족 1」 | 정상 |
+| 스마트스토어 | 엑셀 불러오기 버튼 · 칸 15개 · 굿즈 목록 35개(품목 파일에서 읽음) · 보고 표 | 정상 |
+| 전화응대 멘트 | 로그인한 채: 목록 · 추가(`put` → `mentdb`) / 로그인 없이: `mentList` 로 보기 · 복사만 | 정상 |
+| 예약 현황 공유 표 (`status.html`) | 열기 | 열림 정상 |
+| 예약 취소 요청 | 요청 보내기(`list` → `put` `cxreq0`) · 요청 목록 탭에 처리 전 1건 | 정상 |
+| 대구대교구 명부 | 새로 추가(회차 「2026년 1회차」 미리 보임 → `put` `clergy0`) · 표에 보임 | 정상 |
+| 네이버 이관 | 열기 (CSS · JS 를 파일로 뺀 뒤 모양 같음 · 콘솔 오류 없음) | 열림 정상 |
+| 견적서 | 열기 · 고객 견적 요청 목록(`quoteReqList`) · 요청 고르기 · 「끝난 요청으로」(`quoteReqMark:완료` · 처리한 사람 = 로그인 이름) · 품목 관리 창(`?catalog=1` · 79개 · 「공유 목록입니다」) | 정상 |
+| 고객 견적 요청 | 입력 → 보내기(`quoteReqAdd`) → 접수 안내 | 정상 |
+| 로그인 안 한 채 다른 화면 열기 | 첫 화면으로 넘어감 | 정상 |
+| 진짜 서버와 연결 | 가짜 서버를 끄고 `login` 을 없는 이름으로 한 번(읽기만) → `{ok:true, member:false}` | 진짜 서버로 가는 방법이 예전과 같음 |
+| 합치기 도구 | `tools/build.ps1` → `-Check` 「같음」 | 정상 |
+
+**못 한 것 (올리기 전에 사람이 한 번 눌러 보면 좋은 것)** — 가짜 자료로는 만들기 어렵거나 진짜 파일이 있어야 하는 흐름입니다. 이번에 이 부분의 코드는 서버 요청 한 줄(`callApi` → `SY.call`) 말고는 건드리지 않았습니다.
+
+- 엑셀을 넣는 흐름: 다음날 준비(방문자내역) · 예약 현황 공유 표 · 네이버 이관 · 스마트스토어 · 취소 요청 · 명부의 「엑셀 불러오기」
+- 파일 올리기: 단체 화면 서류(사업자등록증) · 멘트 이미지 (가짜 서버는 받는 척만 함)
+- 견적서 · 거래명세서 출력(PDF · 엑셀) · 발급 내역 저장 · 발급 취소 · 수정발행
+- 단체 화면의 전산 내역 붙여넣기 · 대조 · 품목 자동 추가, 특별 할인, 사전답사, 단체상담 입력, 엑셀로 내려받기
+- 관리자 사이트 「지금 가져오기」(`syncAdmin` — 가짜 서버는 빈 답)
+- 실제 휴대폰 화면 · 여러 사람이 동시에 쓰는 상황 · 오래 켜 둔 창(30초 · 1분마다 다시 받기)
+
+## 17. DB · 배포를 옮길 때 (준비 메모 — 아직 정하지 않음)
+
+### 17-1. 지금 구조에서 옮겨야 하는 것
+
+| 무엇 | 지금 있는 곳 | 양 · 성격 |
+|---|---|---|
+| 공유 기록 | 구글 시트 `calls` (38칸 · 글자) | 줄마다 종류가 다름 (14-4절 표). 예약 · 통화는 건마다 한 줄, 설정 · 목록은 한 줄에 JSON |
+| 멤버 | 구글 시트 `members` | 이름 · 사번 (비밀번호 없음) |
+| 고객 견적 요청 | 구글 시트 `quotereq` | 고객이 직접 넣는 개인정보 (이름 · 연락처 · 이메일) |
+| 관리자 사이트 현황 | 구글 시트 `admin` A1 (JSON) | 15분마다 덮어씀 |
+| 파일 (이미지 · PDF · 엑셀) | 구글 드라이브 폴더 2개 | 단체 서류(사업자등록증 등) · 멘트 이미지. 시트에는 파일 id · 링크만 |
+| 품목 관리에서 바꾼 것 · 견적서 발급 내역 | **다른** Apps Script · 시트 (`sayuwon-invoice-quotation`) | 발급 내역에 고객 이름 · 금액 · 견적 내용 전체(snapshot) |
+| 품목 · 가격 기본 목록 | 코드 (`document/js/document.js` 의 `CATALOG_RAW` 등) | 정규식으로 읽음 (15-3절) |
+| 서버가 하는 일 | Apps Script | 로그인 확인 · 저장/삭제 표시 · 바뀐 것만 주기 · 고치는 중 표시(2분 30초) · 파일 받기 · 요청 수 제한 · **15분마다 관리자 사이트에서 가져오기**(아이디 · 비밀번호는 서버 안에만) |
+
+### 17-2. 새 DB 가 갖춰야 할 것
+
+1. **글자 자료와 파일(이미지)을 한곳에서** — 같은 로그인 · 같은 권한으로 (지금: 시트 + 드라이브 링크)
+2. **빠른 읽기 · 쓰기** — 지금 Apps Script 는 요청 하나에 1~몇 초. 바뀐 것만 받기 · 실시간 알림이 되면 30초마다 다시 받는 코드를 줄일 수 있음
+3. **진짜 로그인과 권한** — 로그인 없이: 멘트 읽기 · 예약 현황(연락처 뺀 칸만) 읽기 + 한 건 추가 · 고객 견적 요청 넣기만. 그 밖은 멤버만
+4. **서버 쪽에서 도는 예약 작업** — 15분마다 관리자 사이트 조회 (비밀번호를 브라우저에 두면 안 됨)
+5. **브라우저에서 바로 부를 수 있을 것** — 화면이 정적 파일이라 중간 서버 없이 쓰려면 DB 가 직접 요청을 받고 줄 단위 권한을 걸 수 있어야 함
+6. 한국에서 가까운 서버 위치, 무료 또는 적은 비용, 자료 내보내기(백업)가 쉬울 것
+
+### 17-3. 옮기는 순서 (제안)
+
+1. 새 서버에 11절 「서버 동작 목록」과 같은 답을 주는 층을 만들고, `js/common.js` 의 `SY_BACKEND` 만 그쪽으로 바꿈 → 화면 코드는 그대로 (가짜 서버 `devmock.js` 가 그 기준)
+2. 구글 시트 → 새 DB 로 자료 옮기기 (종류별 표로 나누기 · 비고 묶음 풀기는 2단계로 미뤄도 됨: 처음엔 지금 38칸 모양 그대로)
+3. 드라이브 파일 → 새 파일 저장소, 시트의 파일 id · 링크를 새 주소로
+4. 견적서 서버(품목 · 발급 내역)도 같은 DB 로 — `SY.quote` 만 바꾸면 됨
+5. 로그인을 진짜 계정으로, 표를 종류별로, 품목 기본 목록을 코드에서 DB 로 — 화면 코드를 고치는 단계
+6. 배포: 사이트 주소가 바뀌면 각자 브라우저에 기억해 둔 것(14-5절 · 로그인 · **저장 대기 중인 것**)이 새 주소에는 없음 → 옮기는 날 「저장 대기 0건」을 확인하고 공지. 주소를 그대로 두는 방법(같은 도메인)을 먼저 검토. 배포 도구가 파일 이름에 버전을 붙여 주면 `?v=` 손작업과 `tools/build.ps1` 결과물을 저장소에 넣는 일을 없앨 수 있음
+
+### 17-4. 남은 과제 (리팩토링 다음 차례)
+
+- `document/js/document.js` 나누기 · 품목 자료를 코드에서 떼어 내기
+- 화면마다 있는 작은 도구(`$` · `toast` · 날짜 칸 · 삭제 확인 팝업) 하나로
+- 단체 화면 `07-store.js` 의 저장 대기열(`pending` · `flush` · `pull`)과 개인고객 화면의 같은 코드 하나로
+- 자동 시험: 지금은 사람이(또는 Claude 가) 가짜 서버로 눌러 봄 — 배포 도구가 생기면 화면 시험을 자동으로

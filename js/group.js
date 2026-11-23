@@ -1,3 +1,4 @@
+// !! 자동으로 합친 파일 — 직접 고치지 마세요. 소스는 js/group/*.js, 고친 뒤 tools/build.ps1 실행 (README 14절) !!
 // ===== 단체고객 전화응대 (group.html) =====
 // 구역 지도 · 데이터 모양 · 자주 하는 수정은 README 14절. 공통 도구(SY: 주소 · 날짜 · 전화 · esc)는 js/common.js
 // 예약 칸 · 예약 내역(가격 · 할인) · 추후 과업 · 전산 내역 · 예약 현황 · 단체예약 목록 · 나의 할일 · 잠금 · 메모 · 알림
@@ -660,7 +661,7 @@ document.addEventListener('click', async e=>{ const b=e.target.closest('#itemsBo
   b.disabled=true; b.textContent='추가하는 중…';
   const item={uid:Date.now(), src:name, name, kind, form: kind==='view'?'sayuwon':'shilla', price:unit, disc: kind==='view'};
   try{
-    const r=await fetch(QUOTE_SHARED_URL, {method:'POST', body:JSON.stringify({ops:[{op:'add', item}]})}).then(r=>r.json());
+    const r=await SY.quote.post({ops:[{op:'add', item}]});
     if(!r || r.ok===false) throw new Error((r && r.error) || '저장 실패');
     if(r.data && quoteCat){ quoteCat.added=r.data.added||quoteCat.added; quoteCat.edits=r.data.edits||quoteCat.edits; writeJSON('sayuwon_quote_cat', quoteCat); }
     else if(quoteCat){ (quoteCat.added ||= []).unshift(item); writeJSON('sayuwon_quote_cat', quoteCat); }
@@ -1263,7 +1264,7 @@ function paintTrash(){
     || `<tr><td colspan="8" class="empty">${q?'찾은 예약이 없습니다.':'삭제된 단체 예약이 없습니다.'}</td></tr>`;
 }
 async function openTrash(){ $('#trashModal').hidden=false; $('#trashSearch').value=''; trashItems=null; trashErr=''; paintTrash();
-  try{ const j=await callApi({action:'deleted'}); trashItems=j.items||[]; }
+  try{ const j=await SY.call({action:'deleted'}); trashItems=j.items||[]; }
   catch(e){ trashErr = e.code==='bad_action' ? 'Apps Script를 새 버전으로 배포해야 삭제된 예약이 보입니다 (apps-script/group-intake.gs 의 deleted).' : '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
   paintTrash(); }
 $('#trashBtn').onclick=openTrash;
@@ -1395,7 +1396,7 @@ async function bookAddSave(){
     if(c==='mb' && !ppl){ toast('인원을 적어 주세요.'); $('#baPpl').focus(); return false; }
     try{ localStorage.setItem('sy_guest_name', by); }catch(_){}
     const row = c==='mb' ? {d, t:tm, n:org, p:String(ppl), m:v('baItem')} : {cat:c, d, org, ppl:String(ppl), tm, place:c==='rent'?v('baPlace'):'', kind:c==='docent'?v('baKind'):'', item:(c==='prog'||c==='coupon')?v('baItem'):'', staff:v('baStaff'), note:v('baNote')};
-    try{ const r=await fetch(SY.API_URL,{method:'POST', body:JSON.stringify({action:'bookAdd', db: c==='mb'?MBDB_ID:BKDB_ID, row, by})}), j=await r.json();
+    try{ const j=await SY.callRaw({action:'bookAdd', db: c==='mb'?MBDB_ID:BKDB_ID, row, by});
       if(!j.ok){ toast(j.error==='bad_action' || j.error==='bad_key' ? '서버(Apps Script)를 새 버전으로 배포해야 로그인 없이 추가할 수 있습니다.' : '추가하지 못했습니다: '+j.error, 4000); return false; } }
     catch(e){ toast('추가하지 못했습니다 (인터넷 연결). 잠시 뒤 다시 눌러 주세요.'); return false; }
     await bookPull(); toast(`${c==='mb'?'몽몽마방':BOOK_CATS[c]} 예약을 추가했습니다 (${by}).`); return true; }
@@ -1709,9 +1710,8 @@ $('#readRegen').onclick=()=>{ rec.readEdit=''; rec.readDone=''; touched.add('rea
 $('#readDone').addEventListener('change', e=>{ rec.readDone = e.target.checked ? new Date().toISOString() : ''; if(e.target.checked) rec.readEdit=''; touched.add('readDone'); startTimer(); renderSide(); });
 
 // ===================== 저장: 구글 시트(Apps Script) → 주소가 비어 있으면 이 브라우저 =====================
-// SHARED_URL: group-intake.gs 를 웹 앱으로 배포한 주소 (README 참고). 비밀번호는 코드에 넣지 않고 각자 브라우저에 기억
-const SHARED_URL = SY.API_URL;   // 공유 기록 Apps Script (js/common.js)
-const LKEY='sayuwon_intake_v1', KEY_LS=SY.KEY_LS, PEND_LS='sayuwon_intake_pending', CACHE_LS='sayuwon_intake_cache';
+// 서버로 가는 요청은 모두 SY.call (js/common.js). 예전의 「공유 주소가 없으면 이 브라우저에만 저장」 방식은 없앰 (2026-11-23 · 주소는 늘 있음)
+const PEND_LS='sayuwon_intake_pending', CACHE_LS='sayuwon_intake_cache';
 const readJSON=SY.readJSON;
 const writeJSON=SY.writeJSON;
 let pending = readJSON(PEND_LS,[]);        // 아직 시트에 못 올린 저장·삭제 [{action:'put',item}|{action:'del',id}]
@@ -1725,16 +1725,9 @@ function cacheWrite(items){   // 전체 사본은 SY.list 가 IndexedDB 에 둠 
   try{ const s=JSON.stringify(items.slice(-1000)); if(s.length < 1.5e6) localStorage.setItem(CACHE_LS, s); else localStorage.removeItem(CACHE_LS); }catch(_){ try{ localStorage.removeItem(CACHE_LS); }catch(__){} } }
 const ADMIN_LS='sayuwon_intake_admin';
 let adminData = readJSON(ADMIN_LS,null);   // 관리자 사이트 사담·마방 현황 {updated, days:{날짜:{L1,L2,D,MB}}}
-let syncState = SHARED_URL ? 'loading' : 'off', flushing=false, retryTimer=null;
+let syncState = 'loading', flushing=false, retryTimer=null;
 const getKey=SY.getKey;   // 팀 비밀번호 대신 로그인 (2026-11-21, js/common.js)
 
-async function callApi(body){
-  // Content-Type 을 붙이지 않아야 Apps Script 로 사전 확인 요청 없이 바로 간다
-  const r=await fetch(SHARED_URL,{method:'POST',body:JSON.stringify({...body,key:getKey()})});
-  const j=await r.json();
-  if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; }
-  return j;
-}
 function merged(){
   const m=new Map(serverItems.map(x=>[x.id,x]));
   pending.forEach(p=>{ if(p.action==='put') m.set(p.item.id,{...p.item,_pending:true}); else m.delete(p.id); });
@@ -1751,12 +1744,12 @@ window.addEventListener('storage', e=>{ if(!/^sayuwon_personal_(pending|cache)$/
 function paintSync(){
   const chip=$('#syncChip'), n=pending.length;
   // 연결돼 있으면 아무것도 안 보임. 문제가 있을 때만 헤더에 표시 (비밀번호 문제는 팝업)
-  const txt={ off:'이 브라우저에만 저장', loading:'', ok: n?`올리는 중 ${n}건`:'', error: n?`연결 끊김 · ${n}건 대기 · 다시 시도 중`:'연결 끊김 · 다시 시도 중', needkey:'' }[syncState];
+  const txt={ loading:'', ok: n?`올리는 중 ${n}건`:'', error: n?`연결 끊김 · ${n}건 대기 · 다시 시도 중`:'연결 끊김 · 다시 시도 중', needkey:'' }[syncState];
   chip.textContent=txt; chip.hidden=!txt; chip.title = syncState==='error' && lastSyncErr ? `마지막 오류: ${lastSyncErr}
-15초마다 다시 보냅니다. 저장 대기 중인 내용은 이 브라우저에 남아 있으니 창을 닫아도 다음에 열면 이어서 보냅니다.` : ''; chip.className='sync '+(syncState==='error'||syncState==='off'?'warn':'');
+15초마다 다시 보냅니다. 저장 대기 중인 내용은 이 브라우저에 남아 있으니 창을 닫아도 다음에 열면 이어서 보냅니다.` : ''; chip.className='sync '+(syncState==='error'?'warn':'');
   const km=$('#keyModal'); km.hidden = syncState!=='needkey' || !!BOOK_GUEST;   // 로그인 확인 안내 (예약 현황 공유를 로그인 없이 볼 때는 안 띄움)
   paintDbTime();
-  $('#storeHint').textContent = !SHARED_URL ? '이 브라우저에만 저장됩니다 (공유 주소 연결 전)' : syncState==='ok' ? '구글 시트에 저장 · 모두가 같은 목록을 봅니다' : syncState==='needkey' ? '로그인을 확인하지 못했습니다 · 첫 화면에서 다시 로그인' : syncState==='error' ? '연결이 안 돼 이 브라우저에 모아 두었다가 다시 올립니다' : '불러오는 중…';
+  $('#storeHint').textContent = syncState==='ok' ? '구글 시트에 저장 · 모두가 같은 목록을 봅니다' : syncState==='needkey' ? '로그인을 확인하지 못했습니다 · 첫 화면에서 다시 로그인' : syncState==='error' ? '연결이 안 돼 이 브라우저에 모아 두었다가 다시 올립니다' : '불러오는 중…';
 }
 // 구글 시트(Apps Script) DB에 마지막으로 저장된 시각 (이 브라우저에서 올린 것) · 마지막으로 받아 온 시각
 var DBT_LS = 'sayuwon_db_time';   // var: paintSync가 먼저 불려도 되게
@@ -1764,7 +1757,6 @@ var dbTime = readJSON(DBT_LS, {});
 const markDb = k => { dbTime[k]=new Date().toISOString(); writeJSON(DBT_LS, dbTime); paintDbTime(); };
 function paintDbTime(){
   const el=$('#dbTime'); if(!el || !dbTime) return;
-  if(!SHARED_URL){ el.hidden=true; return; }
   const n=pending.length, last=[dbTime.saved, dbTime.cat].filter(Boolean).sort().pop(), t=last || dbTime.pulled;   // 예약 저장 · 품목 관리 저장 중 최근 것
   el.hidden = !t && !n;
   el.textContent = (last ? `DB 저장 ${dtLabel(last)}` : t ? `DB 동기화 ${dtLabel(t)}` : '') + (n ? ` · 저장 대기 ${n}건` : '');
@@ -1784,13 +1776,13 @@ function handleErr(e){
 }
 // 예약 현황 공유를 로그인 없이 볼 때 (2026-11-21 · 담당자 휴대폰): 그 목록에 필요한 칸만 받는 bookList (고객 연락처 · 메모 · 수정 기록 없음)
 async function bookPull(){
-  try{ const r=await fetch(SY.API_URL,{method:'POST', body:JSON.stringify({action:'bookList'})}), j=await r.json();
+  try{ const j=await SY.callRaw({action:'bookList'});
     if(!j.ok){ syncState='error'; lastSyncErr = j.error==='bad_action' || j.error==='bad_key' ? '서버(Apps Script)를 새 버전으로 배포해야 로그인 없이 볼 수 있습니다' : String(j.error||''); paintSync(); if($('#bookSum')) $('#bookSum').textContent=lastSyncErr; return; }
     serverItems=j.items||[]; cache=merged(); syncState='ok'; paintSync(); renderDayAll(); if(!$('#bookModal').hidden) paintBook(); }
   catch(e){ syncState='error'; lastSyncErr='인터넷 연결'; paintSync(); }
 }
 async function flush(){
-  if(!SHARED_URL || flushing) return;
+  if(flushing) return;
   if(BOOK_GUEST) return bookPull();
   if(!getKey()){ syncState='needkey'; paintSync(); return; }
   flushing=true;
@@ -1798,7 +1790,7 @@ async function flush(){
     do {   // 보내는 사이 새로 쌓인 것(예: 삭제 사유 저장 뒤 삭제)까지 이어서 보냄
     while(pending.length){
       if(pending[0].action==='put' && fitHist(pending[0].item)) writeJSON(PEND_LS,pending);   // 예전에 쌓인 저장도 시트 칸 크기에 맞춰
-      await callApi(pending[0]);
+      await SY.call(pending[0]);
       pending.shift(); writeJSON(PEND_LS,pending); dbTime.saved=new Date().toISOString(); writeJSON(DBT_LS, dbTime); paintSync();
     }
     await pull(true);
@@ -1807,7 +1799,6 @@ async function flush(){
   finally{ flushing=false; }
 }
 async function pull(inFlush){
-  if(!SHARED_URL) return;
   if(BOOK_GUEST) return bookPull();
   if(!getKey()){ syncState='needkey'; paintSync(); return; }
   if(flushing && !inFlush) return;
@@ -1820,13 +1811,11 @@ async function pull(inFlush){
   }catch(e){ if(inFlush) throw e; handleErr(e); }
 }
 const store={
-  async list(){ if(SHARED_URL) await cacheReady; cache = SHARED_URL ? merged() : readJSON(LKEY,[]); if(typeof applySpd==='function') applySpd(); if(typeof tcfgApply==='function') tcfgApply(); return cache; },
+  async list(){ await cacheReady; cache = merged(); if(typeof applySpd==='function') applySpd(); if(typeof tcfgApply==='function') tcfgApply(); return cache; },
   async put(item){
-    if(!SHARED_URL){ const l=readJSON(LKEY,[]); const i=l.findIndex(x=>x.id===item.id); if(i>=0) l[i]=item; else l.push(item); writeJSON(LKEY,l); return; }
     pending=pending.filter(p=>!(p.action==='put'&&p.item.id===item.id)); pending.push({action:'put',item}); writeJSON(PEND_LS,pending); paintSync(); flush();
   },
   async del(id, keepPut){   // keepPut: 바로 앞에 넣은 저장(삭제 사유 기록)을 먼저 보내고 삭제
-    if(!SHARED_URL){ writeJSON(LKEY,readJSON(LKEY,[]).filter(x=>x.id!==id)); return; }
     const local=pending.some(p=>p.action==='put'&&p.item.id===id) && !serverItems.some(x=>x.id===id);
     if(!(keepPut && !local)) pending=pending.filter(p=>!(p.action==='put'&&p.item.id===id));
     if(!local) pending.push({action:'del',id});
@@ -2309,13 +2298,13 @@ const autoSave = () => { if(editingId) save({auto:true}); };   // 과업 체크 
 // 사업자등록증 올리기 → Apps Script 가 구글 드라이브에 저장하고 링크를 돌려줌 → 과업에 링크 보관
 let upBusy=false;
 async function uploadFile(t, file){
-  if(!SHARED_URL || !getKey()){ toast('공유 기록에 연결된 뒤에 올릴 수 있습니다.'); return; }
+  if(!getKey()){ toast('공유 기록에 연결된 뒤에 올릴 수 있습니다.'); return; }
   if(!/^(image\/|application\/pdf$)/.test(file.type)){ toast('사진이나 PDF만 올릴 수 있습니다.'); return; }
   if(file.size > 10*1024*1024){ toast('10MB 이하 파일만 올릴 수 있습니다.'); return; }
   upBusy=true; renderTasks();
   try{
     const data = await new Promise((ok,no)=>{ const fr=new FileReader(); fr.onload=()=>ok(String(fr.result).split(',')[1]); fr.onerror=()=>no(fr.error); fr.readAsDataURL(file); });
-    const j = await callApi({action:'upload', name:file.name, mime:file.type, data, org:rec.org||'', date:rec.date||'', kind:'사업자등록증'});
+    const j = await SY.call({action:'upload', name:file.name, mime:file.type, data, org:rec.org||'', date:rec.date||'', kind:'사업자등록증'});
     (t.files ||= []).push({name:j.file.name, url:j.file.url, at:j.file.at});
     toast(editingId ? '올렸습니다.' : '올렸습니다. 예약을 저장하면 링크가 함께 저장됩니다.');
     upBusy=false; renderTasks(); autoSave();
@@ -2554,10 +2543,9 @@ function openRecord(r){
 
 // 관리자 사이트에서 지금 가져오기 (평소에는 Apps Script 가 15분마다 자동으로)
 $('#adminSyncBtn').onclick=async()=>{
-  if(!SHARED_URL){ toast('공유 저장소가 연결돼 있어야 합니다.'); return; }
   const b=$('#adminSyncBtn'); b.disabled=true; b.textContent='가져오는 중…';
   try{
-    const j=await callApi({action:'syncAdmin'});
+    const j=await SY.call({action:'syncAdmin'});
     if(j.admin) { adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
     toast(`가져왔습니다 · 15명 이상 ${j.result.big}건 중 새로 ${j.result.added}건 등록`);
     await pull();
@@ -2580,11 +2568,11 @@ $('#newBtn').onclick=async()=>{   // 새 통화: 고치던 내용이 있으면 �
 // ===================== 가격표 =====================
 // 가격은 견적서&거래명세서 사이트에서 그때그때 읽어 온다 → 그 사이트의 품목·가격이 바뀌면 여기도 바뀜
 //  · 기본 품목: 그 사이트 페이지의 CATALOG_RAW (품목 | 가격 | 할인 대상)와 굿즈·단체 프로그램 목록
-//  · 품목 관리에서 바꾼 것: 공유 시트(QUOTE_SHARED_URL)의 가격·숨김·추가 품목
+//  · 품목 관리에서 바꾼 것: 견적서 서버(SY.quote)의 가격·숨김·추가 품목
 // 불러오기 전이나 실패하면 마지막으로 받은 것을 쓴다
-const QUOTE_PAGE = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/index.html';   // 견적서 사이트 (이 사이트 안 document/ · 예전 주소 sayuwon-invoice-quotation 도 그대로)
-const QUOTE_DATA = (/github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/document/' : 'document/') + 'js/document.js';   // 품목 목록(CATALOG_RAW · 굿즈 · 단체 프로그램 · TAX_SPLIT)이 들어 있는 견적서 코드
-const QUOTE_SHARED_URL = "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec";
+const QUOTE_PAGE = 'document/index.html';   // 견적서 사이트 (이 사이트 안 document/ · 예전 주소 sayuwon-invoice-quotation 도 그대로)
+const QUOTE_DATA = 'document/js/document.js';   // 품목 목록(CATALOG_RAW · 굿즈 · 단체 프로그램 · TAX_SPLIT)이 들어 있는 견적서 코드
+// 견적서 서버(품목 관리에서 바꾼 것 · 발급 내역)는 SY.quote (js/common.js)
 const PRICE_EXCLUDE = /쉐프\s*특선|^네이버/;   // 가격표에서 뺀 품목 (음료쿠폰(몽몽차방)은 품목 관리에서 굿즈가 되어 가격표에도 보임, 2026-11-18)
 let quoteCat = readJSON('sayuwon_quote_cat', null), priceLoaded = null;
 const normSrc = s => String(s||'').replace(/\s/g,'');
@@ -2600,7 +2588,7 @@ async function loadQuotePrices(){
   try{
     const [html, shared] = await Promise.all([
       fetch(QUOTE_DATA + '?t=' + Date.now()).then(r=>r.text()),
-      fetch(QUOTE_SHARED_URL).then(r=>r.json()).catch(()=>null)
+      SY.quote.get().catch(()=>null)
     ]);
     const p = parseQuotePage(html);
     const data = (shared && shared.data) || (quoteCat && {edits:quoteCat.edits, added:quoteCat.added}) || {};
@@ -2611,7 +2599,7 @@ async function loadQuotePrices(){
   paintFields(); renderPrice(); if(window.__tasksReady) renderTasks();   // 몽몽마방 메뉴 · 가격도 새로
 }
 // 품목 관리: 견적서 사이트를 ?catalog=1 로 띄우면 품목 관리 창만 나옴. 저장 · 닫기를 알려 주면 가격 · 메뉴를 다시 불러옴
-const QUOTE_CAT_URL = /github\.io$/.test(location.hostname) ? 'https://hyunbin5786.github.io/sayuwon-sales/#catalog' : './#catalog';   // 품목관리 = 시스템의 #catalog (팝업 안에서는 품목 관리 창으로 바뀜)
+const QUOTE_CAT_URL = './#catalog';   // 품목관리 = 시스템의 #catalog (팝업 안에서는 품목 관리 창으로 바뀜)
 function openCatalog(){ const [u,h]=QUOTE_CAT_URL.split('#'); $('#catFrame').src = u + '?t=' + Date.now() + '#' + h; $('#catModal').hidden = false; }
 function closeCatalogModal(){ $('#catModal').hidden = true; $('#catFrame').src = 'about:blank'; loadQuotePrices(); }
 document.addEventListener('click', e=>{ if(e.target.closest('[data-open-cat]')){ e.preventDefault(); openCatalog(); } });
@@ -3244,7 +3232,7 @@ function liveSync(){
 // 견적서 · 거래명세서 · 사전답사 버튼: 넘기기 전에 공유 기록의 최신 내용(다른 화면 · 다음날 고객 응대 준비에서 고친 것)으로 다시 불러옴 (2026-11-19)
 //  이 화면에서 고치던 것이 있으면 그것이 지금 내용 → 그대로
 async function freshRec(){
-  if(!editingId || !SHARED_URL || isDirty()) return false;
+  if(!editingId || isDirty()) return false;
   try{ await pull(); }catch(_){ return false; }
   const r=(await store.list()||[]).find(x=>x.id===editingId); if(!r) return false;
   if(!openedRaw || rawPick(r)===openedRaw) return false;
@@ -3277,7 +3265,7 @@ var quoteHist=null, quoteHistAt=0;   // var: paintDocBtns 가 먼저 불려도 �
 const QH_DATE = v => { v=String(v||''); if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v; const d=new Date(v); return isNaN(d) ? v.slice(0,10) : ymd(d); };
 async function loadQuoteHist(force){
   if(BOOK_ONLY || (!force && Date.now()-quoteHistAt<60000)) return; quoteHistAt=Date.now();
-  try{ const j=await fetch(QUOTE_SHARED_URL+'?history=1&limit=500').then(r=>r.json());
+  try{ const j=await SY.quote.get('history=1&limit=500');
     if(j && Array.isArray(j.history)){ quoteHist=j.history.map(h=>({ id:h.id, at:h.at, doc:h.doc, client:h.client, date:QH_DATE((h.snapshot&&h.snapshot.useDate)||h.useDate), rec:(h.snapshot&&h.snapshot.intakeRec)||'', canceled:h.canceled })); paintDocBtns(); } }catch(_){}
 }
 var DOC_KO = { quote:'견적서', statement:'거래명세서', stmt:'거래명세서' };
@@ -3576,7 +3564,7 @@ document.addEventListener('keydown', e=>{
 // ===================== 시작 =====================
 resetState(); buildForm(); mergePriceLayout(); renderForm();
 paintSync(); renderList();
-if(SHARED_URL) flush();
+flush();
 window.__priceReady=true; renderPrice(); loadQuotePrices();
 // ===================== 공통: 저장된 예약 하나 읽기 =====================
 const xOf = r => ({...r, ...unpackExtra(r)});   // 비고 칸에 모아 둔 값(미정 · 입력 기한 등)까지 펼침
@@ -3888,9 +3876,9 @@ const memoLi = (m, own) => `<li class="${own && !m.seen ? 'new' : ''}"><small>${
 var editLockBy='', editHeld='', editRetryT=null;
 const EDIT_SID = (()=>{ try{ let s=sessionStorage.getItem('sy_edit_sid'); if(!s){ s=Date.now().toString(36)+Math.random().toString(36).slice(2,8); sessionStorage.setItem('sy_edit_sid', s); } return s; }catch(_){ return Math.random().toString(36).slice(2); } })();   // 창마다 (새로고침해도 그대로)
 async function acquireEdit(id){
-  if(!SHARED_URL || !id || !getKey()) return;
+  if(!id || !getKey()) return;
   try{
-    const j=await callApi({action:'lock', id, sid:EDIT_SID, by:savedOwner()||''});
+    const j=await SY.call({action:'lock', id, sid:EDIT_SID, by:savedOwner()||''});
     if(editingId!==id) return;   // 그사이 다른 예약을 열었으면 무시
     if(j.locked){ const was=editLockBy; editLockBy=j.by||'다른 직원'; editHeld=''; if(!was) paintLock(); clearTimeout(editRetryT); editRetryT=setTimeout(()=>acquireEdit(id), 30000); return; }
     editHeld=id; clearTimeout(editRetryT);
@@ -3899,11 +3887,11 @@ async function acquireEdit(id){
 }
 function releaseEdit(beacon){
   clearTimeout(editRetryT); const id=editHeld; editHeld=''; editLockBy='';
-  if(!id || !SHARED_URL || !getKey()) return;
-  const body=JSON.stringify({action:'lock', release:true, id, sid:EDIT_SID, key:getKey()});
-  if(beacon && navigator.sendBeacon){ try{ navigator.sendBeacon(SHARED_URL, body); return; }catch(_){} }
+  if(!id || !getKey()) return;
+  const body={action:'lock', release:true, id, sid:EDIT_SID};
+  if(beacon){ SY.beacon(body); return; }
   setTimeout(()=>{ if(editingId===id){ if(!editLockBy) editHeld=id; return; }   // 같은 예약을 바로 다시 열었으면 풀지 않음
-    fetch(SHARED_URL, {method:'POST', body, keepalive:true}).catch(()=>{}); }, 0);
+    SY.call(body).catch(()=>{}); }, 0);
 }
 setInterval(()=>{ if(editHeld && editHeld===editingId) acquireEdit(editHeld); }, 60000);   // 고치는 중 표시 연장
 window.addEventListener('pagehide', ()=>releaseEdit(true));
@@ -4099,7 +4087,7 @@ window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs(); checkTbdPo
   const top=()=>{ const h=document.querySelector('body > header'); if(h) H.style.setProperty('--gl-top', Math.round(h.getBoundingClientRect().bottom)+'px'); }; top();
   let hasCache=false; cacheReady.then(()=>{ hasCache=(serverItems||[]).length>0; });
   const tick=()=>{ top();
-    const failed = !SHARED_URL || ['error','needkey','off'].includes(syncState);
+    const failed = ['error','needkey'].includes(syncState);
     const data = pulledOnce || hasCache || failed;
     const waitOpen = !failed && ((openGId && !(pulledOnce && !(cache||[]).some(x=>x.id===openGId))) || restoring);   // 서버에서 받은 뒤에도 그 예약이 없으면 기다리지 않음
     if((data && !waitOpen) || Date.now()-t0>20000){ H.classList.remove('g-loading'); if(openGId && pulledOnce) toast('열려던 예약을 찾지 못했습니다. 단체예약 목록에서 찾아 주세요.'); return; }

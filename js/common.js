@@ -1,19 +1,37 @@
-// ===== 공통 (모든 화면이 맨 먼저 읽음, 2026-11-18 리팩토링) =====
+// ===== 공통 (모든 화면이 맨 먼저 읽음) =====
 // 여러 파일에 똑같이 복사돼 있던 설정 · 작은 도구를 한곳에. 각 화면은 이것을 그대로 쓰거나 (const esc = SY.esc) 감싸서 씀
-//  - API_URL: 공유 기록(구글 시트 calls · members) Apps Script 웹 앱 주소 (단체 · 개인 · 다음날 준비 · 첫 화면 · 운영보조 공통)
-//  - KEY_LS: 팀 비밀번호를 기억하는 브라우저 저장소 이름 · USER_LS: 로그인(이름 · 사번)
-//  견적서 품목 목록(QUOTE_SHARED_URL)은 다른 Apps Script 라서 js/group.js · document/js/document.js 에 따로 있음
-// ===== 팀 비밀번호 대신 로그인 (2026-11-21) =====
-// 공유 기록 서버(API_URL)로 가는 모든 요청에 로그인(이름 + 사번)을 붙임 → 서버가 멤버 목록으로 확인. 화면마다 팀 비밀번호를 넣는 칸은 없앰
-// (예전에 기억해 둔 팀 비밀번호가 있으면 함께 보냄 — 서버가 아직 예전 버전이어도 끊기지 않게)
-(function(){ const API="https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec", f0=window.fetch.bind(window);
-  window.fetch = (u, o) => { try{ if(String(u)===API && o && typeof o.body==='string'){ const b=JSON.parse(o.body), us=JSON.parse(localStorage.getItem('sy_user')||'null');
-      if(us && us.name && us.emp && !b.who) b.who={name:us.name, emp:us.emp}; o={...o, body:JSON.stringify(b)}; } }catch(_){} return f0(u, o); }; })();
+//
+// ── 서버(공유 기록)로 가는 길은 이 파일 하나 (2026-11-23 리팩토링) ──
+//  화면 코드는 fetch 로 서버 주소를 직접 부르지 않고 아래 넷만 씀. DB · 서버를 바꿀 때는 맨 아래 SY_BACKEND(주소 · 보내는 방법)만 바꾸면 됨
+//   SY.call(body)     공유 기록 서버에 요청 {action:'put'|'del'|'list'|…} → 응답(JSON). ok 가 아니면 Error(e.code = 서버가 준 error) 를 던짐
+//   SY.callRaw(body)  같은 요청, 던지지 않고 응답 그대로 (로그인 확인처럼 ok:false 도 직접 보는 곳)
+//   SY.beacon(body)   창을 닫는 순간에 보내는 요청 (고치는 중 표시 풀기) — 응답을 기다리지 않음
+//   SY.quote.get(query) · SY.quote.post(body)   견적서 서버 (품목 목록 · 발급 내역 — 다른 Apps Script)
+//  모든 요청에 로그인(이름 + 사번 = who)과 예전 팀 비밀번호(key · 기억해 둔 브라우저만)를 붙임 → 서버가 멤버 목록으로 확인
+//
+//  로컬 미리보기에서 진짜 시트에 쓰지 않고 시험하기: 주소 끝에 ?mock=1 (끄기 ?mock=0) → js/devmock.js 가 가짜 서버가 됨 (localhost 에서만 · README 13절)
+const SY_BACKEND = {
+  API_URL:   "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec",   // 공유 기록 (apps-script/group-intake.gs)
+  QUOTE_URL: "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec",   // 견적서 품목 목록 · 발급 내역 (저장소 sayuwon-invoice-quotation 의 Apps Script)
+  // Content-Type 을 붙이지 않아야 Apps Script 로 사전 확인(preflight) 요청 없이 바로 감
+  main(body){ return fetch(this.API_URL, {method:'POST', body:JSON.stringify(body)}).then(r=>r.json()); },
+  beacon(body){ const s=JSON.stringify(body); try{ if(navigator.sendBeacon && navigator.sendBeacon(this.API_URL, s)) return; }catch(_){} fetch(this.API_URL, {method:'POST', body:s, keepalive:true}).catch(()=>{}); },
+  quoteGet(query){ return fetch(this.QUOTE_URL + (query ? '?'+query : '')).then(r=>r.json()); },
+  quotePost(body){ return fetch(this.QUOTE_URL, {method:'POST', body:JSON.stringify(body)}).then(r=>r.json()); },
+};
 const SY = Object.freeze({
-  API_URL: "https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec",
+  API_URL: SY_BACKEND.API_URL,
   KEY_LS: 'sayuwon_intake_key',
   USER_LS: 'sy_user',
   DOW: '일월화수목금토',
+  // ---- 서버 요청 ----
+  // 요청에 로그인 · 예전 팀 비밀번호를 붙임 (이미 who 가 있으면 그대로)
+  sign: body => { const b={...body}, u=SY.user(); let k=''; try{ k=localStorage.getItem(SY.KEY_LS)||''; }catch(_){}
+    if(k && b.key==null) b.key=k; if(u && !b.who) b.who={name:u.name, emp:u.emp}; return b; },
+  callRaw: body => SY_BACKEND.main(SY.sign(body)),
+  call: async body => { const j=await SY_BACKEND.main(SY.sign(body)); if(!j || !j.ok){ const e=new Error((j && j.error)||'error'); e.code=j && j.error; throw e; } return j; },
+  beacon: body => SY_BACKEND.beacon(SY.sign(body)),
+  quote: Object.freeze({ get: query => SY_BACKEND.quoteGet(query||''), post: body => SY_BACKEND.quotePost(body) }),
   // HTML 에 넣을 글자 (따옴표까지 바꿈)
   esc: s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
   // 날짜 → "YYYY-MM-DD" (그 컴퓨터 시간 기준)
@@ -72,9 +90,8 @@ const SY = Object.freeze({
     const go = async (full) => {
       const st=await SY.idb.get('sy_list_v1'), now0=Date.now();
       const delta = !full && st && Array.isArray(st.items) && st.api>=5 && st.since && now0-(st.fullAt||0) < 30*60000;
-      const body={action:'list', key:SY.getKey()}; if(delta) body.since=new Date(Date.parse(st.since)-90000).toISOString();
-      const r=await fetch(SY.API_URL,{method:'POST', body:JSON.stringify(body)}), j=await r.json();
-      if(!j.ok){ const e=new Error(j.error||'error'); e.code=j.error; throw e; }
+      const body={action:'list'}; if(delta) body.since=new Date(Date.parse(st.since)-90000).toISOString();
+      const j=await SY.call(body);
       let items;
       if(j.delta && delta){ const m=new Map(st.items.map(x=>[x.id,x])); (j.items||[]).forEach(x=>{ if(x.deleted) m.delete(x.id); else m.set(x.id, x); }); items=[...m.values()]; }
       else items=(j.items||[]).filter(x=>!x.deleted);
@@ -84,3 +101,9 @@ const SY = Object.freeze({
     // fresh: 방금 저장한 뒤 다시 받을 때 (이미 가고 있는 요청을 같이 쓰지 않음)
     return (opt={}) => { if(inflight && !opt.full && !opt.fresh) return inflight; const p=go(!!opt.full).finally(()=>{ if(inflight===p) inflight=null; }); inflight=p; return p; }; })(),
 });
+// ===== 로컬 미리보기 전용: 가짜 서버 (js/devmock.js) — localhost 에서 ?mock=1 을 한 번 붙이면 켜짐 (운영 주소에서는 절대 읽지 않음) =====
+(function(){ if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+  try{ const q=new URLSearchParams(location.search).get('mock'); if(q==='1') localStorage.setItem('sy_mock','1'); if(q==='0') localStorage.removeItem('sy_mock');
+    if(localStorage.getItem('sy_mock')!=='1') return;
+    const me=document.currentScript && document.currentScript.src; if(me) document.write('<script src="'+me.replace(/common\.js.*$/, 'devmock.js')+'"><\/script>');
+  }catch(_){} })();
