@@ -3829,13 +3829,13 @@ function renderMy(){ paintMySet();
   const colSel = (n, v) => `<label class="my-colpick">구분 <select data-mycol="${n}">${order.map(c=>`<option value="${esc(c)}"${c===v?' selected':''}>${esc(catLabel(c))}</option>`).join('')}</select></label>`;
   const v2=pick(2), v3=pick(3);
   $('#mySum').textContent = `개인예약 ${nP} · 단체예약 ${nG} · 기타 개인 업무 ${myEtcOpen().length}개`;
-  $('#myBody').innerHTML = `<div class="my-cols three"><div class="my-col"><h3 class="my-h">개인 업무 입력</h3>${etcAddHTML()}${todayDueHTML()}${doneTodayHTML()}</div><div class="my-col">${colSel(2, v2)}${secOf(v2)}</div><div class="my-col">${colSel(3, v3)}${secOf(v3)}</div></div>`;
+  $('#myBody').innerHTML = `<div class="my-cols three"><div class="my-col"><h3 class="my-h">개인 업무 입력</h3>${etcAddHTML()}${myQuoteReqHTML()}${todayDueHTML()}${doneTodayHTML()}</div><div class="my-col">${colSel(2, v2)}${secOf(v2)}</div><div class="my-col">${colSel(3, v3)}${secOf(v3)}</div></div>`;
 }
 document.addEventListener('change', e=>{ const n=e.target.dataset && e.target.dataset.mycol; if(!n) return; try{ localStorage.setItem('sy_my_col'+n, e.target.value); }catch(_){} renderMy(); });
 function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
-  const mm=myNewMemos().length, t=[n&&`과업 ${n}`, mm&&`메모 ${mm}`].filter(Boolean).join(' · ');   // 수정 표시는 없앰 · 내 예약에 확인 안 한 메모 수
+  const mm=myNewMemos().length, nq=savedOwner() ? myQuoteReqs().length : 0, t=[n&&`과업 ${n}`, nq&&`견적 요청 ${nq}`, mm&&`메모 ${mm}`].filter(Boolean).join(' · ');   // 수정 표시는 없앰 · 내 예약에 확인 안 한 메모 수
   $('#myCount').hidden=!t; $('#myCount').textContent=t; }
-function openMy(fromGroup){ myTab='main'; $('#myModal').hidden=false; renderMy();   // 나의 할일 버튼은 어디서든 메인부터 (2026-11-19)
+function openMy(fromGroup){ myTab='main'; $('#myModal').hidden=false; renderMy(); loadMyQuoteReq();   // 나의 할일 버튼은 어디서든 메인부터 (2026-11-19)
   if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
 // group.html?open=예약ID → 그 예약을 엶 (팝업 나의 할일에서 단체 줄을 누른 경우 · 목록을 받은 뒤)
 let openGId = new URLSearchParams(location.search).get('open'), openGErp = new URLSearchParams(location.search).get('erp')==='1';
@@ -4405,3 +4405,28 @@ document.addEventListener('change', async e=>{
 // 예약 현황 아래 그날 목록: 단체 예약에서 온 줄을 누르면 그 예약 열기 (고치던 것은 openRecordG 가 먼저 물어봄)
 document.addEventListener('click', e=>{ const li=e.target.closest?.('#dayAll li[data-bopen]'); if(!li || !li.dataset.bopen) return; const r=cache.find(x=>x.id===li.dataset.bopen); if(r) openRecordG(r); });
 $('#cancelWhyTxt')?.addEventListener('click', openCancel);   // 사유를 누르면 고치기
+
+// ===== 고객 견적 요청 → 견적서 · 거래명세서 담당자의 나의 할일 (2026-11-23) =====
+// 멤버관리에서 「견적서 · 거래명세서 담당」으로 체크한 사람(서버 kv role:quote)에게, 아직 「접수」인 고객 견적 요청을 메인 1열 「오늘 마감」 위에 보여 줌.
+// 담당이 아무도 없으면 모두에게 (담당 미지정 안내와 함께). 누르면 견적서 화면 — 거기서 출력 · 「끝난 요청으로」 하면 사라짐. 첫 화면 대시보드(js/portal.js lastReq)와 같은 기준
+const MYQR_LS = 'sy_my_quotereq';
+let myQR = (()=>{ try{ return JSON.parse(localStorage.getItem(MYQR_LS)||'null') || {items:[], owners:[]}; }catch(_){ return {items:[], owners:[]}; } })(), myQRBusy=false;
+const myQuoteReqs = () => { const me=savedOwner(); return me && (!(myQR.owners||[]).length || myQR.owners.includes(me)) ? (myQR.items||[]) : []; };
+async function loadMyQuoteReq(){
+  if(myQRBusy || /[?&]engine=/.test(location.search) || typeof SY==='undefined' || !SY.callRaw) return; myQRBusy=true;
+  try{ const [m, qr] = await Promise.all([SY.callRaw({action:'members'}).catch(()=>null), SY.callRaw({action:'quoteReqList'}).catch(()=>null)]);
+    if(m && m.ok && qr && qr.ok){ const up=s=>String(s||'').trim().toUpperCase(), es=((m.roles||{}).quote||[]).map(up);
+      myQR={items:(qr.items||[]).filter(r=>(r.status||'접수')==='접수').map(r=>({org:r.org, name:r.name, date:r.date, pax:r.pax, at:r.at})), owners:(m.members||[]).filter(x=>es.includes(up(x.emp))).map(x=>String(x.name||'').trim()).filter(Boolean)};
+      try{ localStorage.setItem(MYQR_LS, JSON.stringify(myQR)); }catch(_){}
+      paintMyCount(); if(!$('#myModal').hidden && myTab==='main' && !document.activeElement?.closest?.('#myBody input, #myBody textarea, #myBody select')) renderMy(); }   // 입력 중이면 다시 그리지 않음
+  }catch(_){} finally{ myQRBusy=false; }
+}
+function myQuoteReqHTML(){
+  const L=myQuoteReqs(); if(!L.length) return '';
+  const today=ymd(new Date()), late=L.filter(r=>String(r.at||'').slice(0,10)<today).length;
+  return `<h3 class="my-h sub">고객 견적 요청 <small>${L.length}건${late?` · <b class="late">지난 요청 ${late}건</b>`:''}${(myQR.owners||[]).length?'':' · 담당 미지정 (멤버관리에서 지정)'}</small></h3>`
+    + `<ul class="pc-list">${L.map(r=>{ const d=String(r.at||'').slice(0,10);
+        return `<li class="r my-tg"><a class="who" href="document/index.html" target="_top" style="color:inherit;text-decoration:none"><span class="tag">견적</span> <b>${esc(r.org||'')}</b>${r.name?` · ${esc(r.name)}님`:''}${r.date?` · 방문 ${esc(dateLabel(String(r.date).slice(0,10)))}`:''}${r.pax?` · ${esc(r.pax)}명`:''}<br>`
+          + `<span class="my-task${d<today?' late':' today'}">견적서 · 거래명세서 발급 <small>접수 ${esc(String(r.at||'').slice(5,16))}</small></span></a></li>`; }).join('')}</ul>`;
+}
+if(!/[?&]engine=/.test(location.search)){ setTimeout(loadMyQuoteReq, 1500); setInterval(()=>{ if(document.visibilityState==='visible') loadMyQuoteReq(); }, 60e3); }

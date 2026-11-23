@@ -215,13 +215,13 @@ function renderMy(){ paintMySet();
   const colSel = (n, v) => `<label class="my-colpick">구분 <select data-mycol="${n}">${order.map(c=>`<option value="${esc(c)}"${c===v?' selected':''}>${esc(catLabel(c))}</option>`).join('')}</select></label>`;
   const v2=pick(2), v3=pick(3);
   $('#mySum').textContent = `개인예약 ${nP} · 단체예약 ${nG} · 기타 개인 업무 ${myEtcOpen().length}개`;
-  $('#myBody').innerHTML = `<div class="my-cols three"><div class="my-col"><h3 class="my-h">개인 업무 입력</h3>${etcAddHTML()}${todayDueHTML()}${doneTodayHTML()}</div><div class="my-col">${colSel(2, v2)}${secOf(v2)}</div><div class="my-col">${colSel(3, v3)}${secOf(v3)}</div></div>`;
+  $('#myBody').innerHTML = `<div class="my-cols three"><div class="my-col"><h3 class="my-h">개인 업무 입력</h3>${etcAddHTML()}${myQuoteReqHTML()}${todayDueHTML()}${doneTodayHTML()}</div><div class="my-col">${colSel(2, v2)}${secOf(v2)}</div><div class="my-col">${colSel(3, v3)}${secOf(v3)}</div></div>`;
 }
 document.addEventListener('change', e=>{ const n=e.target.dataset && e.target.dataset.mycol; if(!n) return; try{ localStorage.setItem('sy_my_col'+n, e.target.value); }catch(_){} renderMy(); });
 function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
-  const mm=myNewMemos().length, t=[n&&`과업 ${n}`, mm&&`메모 ${mm}`].filter(Boolean).join(' · ');   // 수정 표시는 없앰 · 내 예약에 확인 안 한 메모 수
+  const mm=myNewMemos().length, nq=savedOwner() ? myQuoteReqs().length : 0, t=[n&&`과업 ${n}`, nq&&`견적 요청 ${nq}`, mm&&`메모 ${mm}`].filter(Boolean).join(' · ');   // 수정 표시는 없앰 · 내 예약에 확인 안 한 메모 수
   $('#myCount').hidden=!t; $('#myCount').textContent=t; }
-function openMy(fromGroup){ myTab='main'; $('#myModal').hidden=false; renderMy();   // 나의 할일 버튼은 어디서든 메인부터 (2026-11-19)
+function openMy(fromGroup){ myTab='main'; $('#myModal').hidden=false; renderMy(); loadMyQuoteReq();   // 나의 할일 버튼은 어디서든 메인부터 (2026-11-19)
   if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
 // group.html?open=예약ID → 그 예약을 엶 (팝업 나의 할일에서 단체 줄을 누른 경우 · 목록을 받은 뒤)
 let openGId = new URLSearchParams(location.search).get('open'), openGErp = new URLSearchParams(location.search).get('erp')==='1';
