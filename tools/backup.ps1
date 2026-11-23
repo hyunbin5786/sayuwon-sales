@@ -28,7 +28,7 @@ if ($SelfTest) {
 }
 
 if (-not (Test-Path $cfgPath)) {
-  $tpl = "{`r`n  `"name`": `"`",`r`n  `"emp`": `"`",`r`n  `"dest`": `"\\\\117.52.31.188\\티시그린\\11. 운영보조플랫폼 자료다운`"`r`n}`r`n"
+  $tpl = "{`r`n  `"name`": `"`",`r`n  `"emp`": `"`",`r`n  `"dest`": `"\\\\117.52.31.188\\티시그린\\11. 운영보조플랫폼 자료다운`",`r`n  `"keep`": 4`r`n}`r`n"
   [IO.File]::WriteAllText($cfgPath, $tpl, (New-Object Text.UTF8Encoding $true))
   "설정 파일을 만들었습니다: $cfgPath"
   '메모장으로 열어 name(이름) 과 emp(사번) 의 "" 안에 로그인할 때 쓰는 값을 적고 저장한 뒤 다시 실행해 주세요.'
