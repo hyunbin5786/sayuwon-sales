@@ -6,9 +6,9 @@
 <title>예약 취소 요청 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261124e">
-<link rel="stylesheet" href="css/cancel.css?v=20261124e">
-<link rel="stylesheet" href="css/menu.css?v=20261124e">
+<link rel="stylesheet" href="css/prep.css?v=20261124d">
+<link rel="stylesheet" href="css/cancel.css?v=20261124f">
+<link rel="stylesheet" href="css/menu.css?v=20261124d">
 </head>
 <body>
 <!-- 고객 응대 보조 · 예약 취소 요청 (2026-11-19): 직원이 취소 담당자에게 예약 취소 처리를 요청 → 담당자가 처리 완료 표시.
@@ -23,11 +23,12 @@
   </section>
   <nav class="cx-tabs" id="tabs"><button type="button" data-tab="req" class="on">취소 요청하기</button><button type="button" data-tab="list">요청 목록 · 처리 <b id="openN"></b></button><span class="save-st" id="st"></span></nav>
 
-  <!-- ① 취소 요청하기 -->
+  <!-- ① 취소 요청하기 (요청 목록의 「정보 채우기」로 열면 그 요청을 고침) -->
   <section class="panel" id="pReq">
-    <h2>취소 요청하기 <small>취소 담당자에게 처리를 부탁합니다 · 요청자 = 로그인한 이름</small></h2>
+    <h2>취소 요청하기 <small>취소 담당자에게 처리를 부탁합니다 · 요청자 = 로그인한 이름 · 빠진 정보는 나중에 채워도 됩니다</small></h2>
     <div class="cx-form">
-      <!-- 전산 예약 붙여넣기 (2026-11-21): 붙여 넣으면 방문일 · 예약자 이름 · 연락처 · 예약 사이트(홈페이지) · 자세히(상품 · 인원 · 금액)가 저절로 -->
+      <p class="cx-edit" id="fEditBar" hidden></p>
+      <!-- 전산 예약 붙여넣기 (2026-11-21): 붙여 넣으면 방문일 · 예약자 이름 · 연락처 · 예약 사이트(홈페이지) · 예약 인원 · 상품 · 금액이 저절로 -->
       <div class="cx-erp"><label class="grow">전산 예약 붙여넣기 <small>전산 예약 내역을 그대로 붙여 넣으면 아래 칸이 저절로 채워집니다 (고칠 수 있음)</small>
         <textarea id="fErp" rows="3" placeholder="방문일자(순번) · 상품정보 · 방문자정보 · 예약인원 · 금액 … 전산 예약 내역을 여기에 붙여 넣기"></textarea></label>
         <p class="cx-erp-ok" id="fErpOk" hidden></p></div>
@@ -38,11 +39,14 @@
       <div class="cx-row">
         <label>예약자 이름 <input id="fName" data-ime="ko"></label>
         <label>예약자 연락처 <input id="fPhone" inputmode="tel"></label>
-        <label>예약 번호 <input id="fNo" placeholder="A260506-00001 모양"></label>
+        <label>예약 번호 <input id="fNo"></label>
       </div>
       <div class="cx-row">
         <div class="cx-f"><span class="lb">취소 내용</span><span class="seg" id="fKind"><button type="button" data-v="전체 환불" class="on">전체 환불</button><button type="button" data-v="부분 취소">부분 취소</button></span></div>
-        <label class="grow">자세히 <input id="fAmt" data-ime="ko" placeholder="부분 취소: 2명 취소 (5명 → 3명) · 150,000원 중 50,000원 · 관람료만 …"></label>
+        <!-- 부분 취소 (2026-11-23): 몇 명을 취소할지 · 예약 인원(전산 예약에서)보다 많으면 에러 -->
+        <label id="fPplBox" hidden>예약 인원 <span class="cx-cnt"><input type="number" id="fPpl" min="1" step="1" inputmode="numeric"> 명</span></label>
+        <label id="fCntBox" hidden>취소할 인원 <span class="cx-cnt"><input type="number" id="fCnt" min="1" step="1" inputmode="numeric"> 명</span></label>
+        <p class="cx-cnt-msg" id="fCntMsg" hidden></p>
       </div>
       <div class="cx-row">
         <div class="cx-f grow"><span class="lb">취소 사유</span><span class="chips" id="fWhy"><button type="button" data-v="고객 직접 취소 불가">고객 직접 취소 불가</button><button type="button" data-v="날씨 (폭우 · 태풍)">날씨 (폭우 · 태풍)</button><button type="button" data-v="질병 · 사고">질병 · 사고</button><button type="button" data-v="인원 변경">인원 변경</button><button type="button" data-v="현장 재결제">현장 재결제</button><button type="button" data-v="기타">기타</button></span></div>
@@ -51,11 +55,15 @@
         <div class="cx-f"><span class="lb">증빙 서류</span><span class="seg" id="fDoc"><button type="button" data-v="" class="on">필요 없음</button><button type="button" data-v="받음">받음</button><button type="button" data-v="받을 예정">받을 예정</button></span></div>
         <label class="grow">사유 자세히 <input id="fWhyTxt" data-ime="ko" placeholder="예: 차량 고장으로 당일 방문 불가 · 서류 카카오톡으로 받음"></label>
       </div>
-      <div class="cx-row">
-        <label class="cx-ck"><input type="checkbox" id="fVa"> 가상계좌 결제 (환불 계좌 필요)</label>
-        <label class="grow" id="fAccBox" hidden>환불 계좌 <input id="fAcc" data-ime="ko" placeholder="은행 · 계좌번호 · 예금주"></label>
+      <!-- 증빙 서류 올리기 (2026-11-23): 사진 · PDF · 나중에 요청 목록에서도 올릴 수 있음 -->
+      <div class="cx-row" id="fFilesRow" hidden>
+        <div class="cx-f grow"><span class="lb">증빙 서류 파일 <small>사진 · PDF, 10MB 이하 · 나중에 요청 목록에서 올려도 됩니다</small></span>
+          <div class="cx-files"><span id="fFiles"></span><label class="btn line-g cx-up" id="fUpBtn">증빙 서류 올리기<input type="file" id="fUp" accept="image/*,application/pdf" multiple hidden></label></div></div>
       </div>
-      <div class="cx-btns"><button type="button" class="btn" id="fReset">비우기</button><button type="button" class="btn primary" id="fSend">취소 요청 보내기</button></div>
+      <div class="cx-row">
+        <label class="grow">환불 계좌 (가상계좌 결제 시 추가) <input id="fAcc" data-ime="ko" placeholder="은행 · 계좌번호 · 예금주"></label>
+      </div>
+      <div class="cx-btns"><button type="button" class="btn" id="fReset">비우기</button><button type="button" class="btn" id="fEditCancel" hidden>고치기 그만</button><button type="button" class="btn primary" id="fSend">취소 요청 보내기</button></div>
     </div>
   </section>
 
@@ -63,7 +71,9 @@
   <section class="panel" id="pList" hidden>
     <h2>요청 목록 · 처리 <small id="sum"></small>
       <span class="right"><button class="btn line-g" id="xlBtn" type="button" title="예전에 쓰던 「사유원 예약 취소 요청」 엑셀을 넣으면 그 줄들을 목록에 더함">엑셀 불러오기</button><input type="file" id="xlFile" accept=".xlsx,.xls" hidden></span></h2>
-    <div class="cx-tools"><span class="seg" id="flt"><button type="button" data-v="open" class="on">처리 전</button><button type="button" data-v="done">처리 완료</button><button type="button" data-v="all">전체</button></span><input id="q" type="search" placeholder="예약자 · 연락처 · 예약 번호 · 요청자로 찾기" data-ime="ko" autocomplete="off"></div>
+    <div class="cx-tools"><span class="seg" id="flt"><button type="button" data-v="open" class="on">처리 전</button><button type="button" data-v="done">처리 완료</button><button type="button" data-v="all">전체</button></span>
+      <label class="cx-ck"><input type="checkbox" id="fltMiss"> 정보 덜 된 것만 <b id="missN"></b></label>
+      <input id="q" type="search" placeholder="예약자 · 연락처 · 예약 번호 · 요청자로 찾기" data-ime="ko" autocomplete="off"></div>
     <div id="list"></div>
   </section>
 </main>
@@ -78,8 +88,8 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/common.js?v=20261124e"></script>
-<script src="js/cancel.js?v=20261124e"></script>
-<script src="js/menu.js?v=20261124e"></script>
+<script src="js/common.js?v=20261124d"></script>
+<script src="js/cancel.js?v=20261124f"></script>
+<script src="js/menu.js?v=20261124d"></script>
 </body>
 </html>
