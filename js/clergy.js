@@ -1,47 +1,57 @@
-// ===== 대구대교구 무료입장 명부 (clergy.html · 2026-11-19) =====
-// 천주교 대구대교구 수녀 · 신부 · 신학생 무료입장(연 2회) 명부. 팀 공유: 공유 기록(calls) 통화 구분 「무료입장명부」
-//  저장: 한 줄(시트 칸)에 5만 자까지라 4만 자씩 나눠 id clergy0 · clergy1 … ({part, of, at, rows:[[id, 방문일, 소속, 이름, 직책, 연락처, 비고, 회차]]})
-//  - 「엑셀 불러오기」: 명부 엑셀(머리줄에 방문일 · 소속 · 이름 · 직책 · 연락처 · 비고 · 회차)을 읽어 명부를 그 내용으로 바꿈 (확인 팝업)
+// ===== 대구대교구 무료입장 명부 (clergy.html · 2026-11-19 · 2026-11-23 DB 표로 옮김) =====
+// 천주교 대구대교구 수녀 · 신부 · 신학생 무료입장(연 2회) 명부. 팀 공유
+//  저장 (2026-11-23~): 서버 DB 의 명부 표 clergy (한 줄 = 한 번 방문 · cloudflare/worker.js 「대구대교구 무료입장 명부」 · README 22절)
+//   - 열 때 · 다른 컴퓨터에서 바뀔 때(SY.live.onRev) 명부 전체를 받아 이 화면 안에서 찾음
+//   - 예전 저장(공유 기록 calls 의 clergy0 · clergy1 … 4만 자씩 묶음)은 처음 열 때 한 번 DB 로 옮기고 그 묶음은 지움 (moved)
+//  - 「엑셀 불러오기」: 명부 엑셀(머리줄에 방문일 · 소속 · 이름 · 직책 · 연락처 · 비고 · 회차)을 읽어 명부를 그 내용으로 바꿈 (확인 팝업 · clergyImport)
 //  - 「＋ 새로 추가」: 방문일 · 소속 · 이름 · 직책 · 연락처 → 회차(그해 방문 수 + 1) · 대구대교구 소속(js/clergyorg.js) 확인, 문제 없으면 바로 저장 · 3회차 이상 · 목록에 없는 소속이면 경고 팝업(그래도 저장 가능) · 줄 끝 × 로 지우기 (확인 팝업)
-//  - 추가 · 지우기는 저장 직전에 최신 명부를 다시 받아 그 위에 반영 (여러 명이 같이 써도 덮어쓰지 않게)
+//  - 회차는 서버가 넣는 순간 다시 셈 (둘이 같이 넣어도 맞음) · 추가 · 지우기는 한 줄씩이라 남이 고친 것을 덮어쓰지 않음
 (function(){
   const $ = s => document.querySelector(s), esc = SY.esc;
   const user = SY.user() || {}; $('#me').innerHTML = user.name ? `👤 <b>${esc(user.name)}</b>` : '';
   let toastT; const toast = (m, ms=2600) => { const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), ms); };
   const st = (txt, cls) => { const el=$('#st'); el.textContent=txt; el.className='save-st '+(cls||''); };
-  const TYPE='무료입장명부', PART=i=>'clergy'+i, MAXC=40000;
+  const TYPE='무료입장명부';
   const digits = s => String(s||'').replace(/\D/g,'');
-  const newId = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  let rows=[], loaded=false, busy=false;
+  let rows=[], loaded=false, busy=false, oldServer=false;
 
   // ---------- 받기 · 저장 ----------
+  // 예전 저장 모양 (calls 의 clergy0 · clergy1 …) — DB 로 옮기기 · 서버가 아직 예전 버전일 때 보기만
   function fromItems(items){
     const ps=(items||[]).filter(x=>x.callType===TYPE && /^clergy\d+$/.test(x.id||'')).map(x=>{ let j=null; try{ j=JSON.parse(x.history||'null'); }catch(_){} return j && Array.isArray(j.rows) ? {...j, id:x.id} : null; }).filter(Boolean);
     if(!ps.length) return {rows:[], parts:[]};
     const at=ps.map(p=>String(p.at||'')).sort().pop(), cur=ps.filter(p=>String(p.at||'')===at).sort((a,b)=>a.part-b.part);   // 마지막으로 저장한 묶음만
     return { rows: cur.flatMap(p=>p.rows).map(a=>({id:a[0], date:a[1]||'', org:a[2]||'', name:a[3]||'', pos:a[4]||'', phone:a[5]||'', note:a[6]||'', turn:a[7]||''})), parts: ps.map(p=>p.id) };
   }
-  async function fetchAll(){ const j=await SY.list(); return fromItems(j.items); }   // 같이 쓰는 사본 + 바뀐 것만 (2026-11-21)
+  const fetchAll = async () => (await SY.call({action:'clergyList'})).items || [];
+  const setRO = on => { oldServer=on; $('#addBtn').disabled=on; $('#xlBtn').disabled=on; };
+  async function moveOld(){   // 예전 묶음 → DB (한 번)
+    const old=fromItems((await SY.list()).items); if(!old.rows.length && !old.parts.length) return 0;
+    if(old.rows.length) await SY.call({action:'clergyImport', rows:old.rows});
+    for(const id of old.parts) await SY.call({action:'del', id});   // 옮긴 묶음은 지움 (지워진 기록에 남음)
+    return old.rows.length;
+  }
   async function load(){
     if(!SY.getKey()){ $('#keyBox').hidden=false; $('#body').innerHTML='<tr><td colspan="9" class="hint">로그인하면 명부가 보입니다.</td></tr>'; return; }
     st('불러오는 중…', 'wait');
-    try{ const r=await fetchAll(); rows=r.rows; loaded=true; $('#keyBox').hidden=true; st('', ''); render(); }
-    catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast(SY.authFail()); } st('불러오지 못함 — 잠시 뒤 다시 열어 주세요', 'bad'); }
+    try{
+      let j=await SY.call({action:'clergyList'});
+      if(!j.moved){ const n=await moveOld(); if(n){ toast(`예전 명부 ${n}명을 DB 로 옮겼습니다.`); j=await SY.call({action:'clergyList'}); } }
+      rows=j.items||[]; loaded=true; setRO(false); $('#keyBox').hidden=true; st('', ''); render();
+    }catch(e){
+      if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast(SY.authFail()); st('불러오지 못함', 'bad'); return; }
+      if(e.code==='bad_action'){   // 서버(cloudflare/worker.js)를 아직 새로 올리지 않음 → 예전 명부를 보기만
+        try{ rows=fromItems((await SY.list()).items).rows; loaded=true; setRO(true); render(); st('서버를 새로 올려야 추가 · 엑셀 불러오기가 됩니다 (지금은 보기만)', 'bad'); return; }catch(_){}
+      }
+      st('불러오지 못함 — 잠시 뒤 다시 열어 주세요', 'bad');
+    }
   }
-  async function saveAll(list){
-    const at=new Date().toISOString(), by=user.name||'', packs=[]; let cur=[], size=0;
-    list.forEach(r=>{ const a=[r.id, r.date, r.org, r.name, r.pos, r.phone, r.note, r.turn], n=JSON.stringify(a).length+1; if(size+n>MAXC && cur.length){ packs.push(cur); cur=[]; size=0; } cur.push(a); size+=n; });
-    if(cur.length || !packs.length) packs.push(cur);
-    const old=(await fetchAll()).parts;
-    for(let i=0;i<packs.length;i++) await SY.call({action:'put', item:{id:PART(i), callType:TYPE, saved:at, takenBy:by, owner:by, summary:`대구대교구 무료입장 명부 ${i+1}/${packs.length} · ${list.length}명`, history:JSON.stringify({part:i, of:packs.length, at, rows:packs[i]})}});
-    for(const id of old) if(+id.slice(6)>=packs.length) await SY.call({action:'del', id});   // 남는 묶음은 지움
-    rows=list;
-  }
-  // 최신 명부를 받아 바꾼 뒤 저장 (추가 · 지우기)
+  async function reload(){ if(!loaded || busy || oldServer) return; try{ rows=await fetchAll(); render(); }catch(_){} }
+  // 서버에 한 번 보내고 명부를 다시 받음 (추가 · 지우기 · 엑셀)
   async function change(fn, okMsg){
     if(busy) return; if(!SY.getKey()){ $('#keyBox').hidden=false; toast(SY.authFail()); return; }
     busy=true; st('저장 중…', 'wait');
-    try{ const latest=(await fetchAll()).rows; await saveAll(fn(latest)); render(); st(`저장됨 ${new Date().toTimeString().slice(0,5)}`, 'ok'); if(okMsg) toast(okMsg); return true; }
+    try{ await fn(); rows=await fetchAll(); render(); st(`저장됨 ${new Date().toTimeString().slice(0,5)}`, 'ok'); if(okMsg) toast(typeof okMsg==='function' ? okMsg() : okMsg); return true; }
     catch(e){ st('저장 못 함 — 다시 해 주세요', 'bad'); toast(e.code==='bad_key' ? SY.authFail() : '저장하지 못했습니다: '+(e.code||e.message)); return false; }
     finally{ busy=false; }
   }
