@@ -3668,6 +3668,9 @@ function simTasks(r){
   const S={rec, tasks, erpList, editingId, touched, hist, memos};
   let out=null;
   try{ const ph=parseHist(r); rec=recFromRecord(r); tasks=JSON.parse(JSON.stringify(ph.tasks||[])); erpList=ph.erp||[]; hist=ph.h||[]; memos=ph.memos||[]; editingId=r.id; touched=new Set();
+    // 예약을 열면 화면이 채워 넣는 기본값도 똑같이 (2026-11-23): 굿즈 담당 = 영업 담당 (paintFields 의 syncGoodsStaff) · 결제링크가 아니면 현장 재결제 해제.
+    //  이것이 빠져서 굿즈가 있는 예약은 열면 과업이 없는데(담당이 채워짐) 나의 할일 · 첫 화면에는 「프로그램 · 굿즈 담당 입력」 · 「전산 예약 수정」(굿즈 담당이 지워진 것으로 봄)이 계속 떴음
+    syncGoodsStaff(); if(rec.pay!=='결제링크' && rec.onsite) rec.onsite='';
     syncAutoTasks(); out = quietStage(effStage(rec)) ? tasks.filter(consultTask) : tasks; }
   catch(e){ out=null; try{ console.warn('simTasks', r.id, r.org, e); }catch(_){} }
   finally{ rec=S.rec; tasks=S.tasks; erpList=S.erpList; editingId=S.editingId; touched=S.touched; hist=S.hist; memos=S.memos; }
