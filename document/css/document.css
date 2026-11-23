@@ -449,3 +449,9 @@ html.cat-page #cat-close{display:none !important}
 .reqmodal-btns{display:flex; gap:8px; margin-top:14px; position:sticky; bottom:0; background:#fff; padding-top:8px}
 .reqmodal-btns .btn{flex:1; padding:13px 8px; font-size:14.5px}
 @media (min-width:640px){ .reqmodal{align-items:center} .reqmodal-box{border-radius:14px} }
+/* 고객 견적 요청: 넓은 화면(매표소 PC · 태블릿)에서도 스크롤 (견적서 화면용 「화면에 꽉 차게 · 스크롤 없음」 규칙을 이 페이지에서는 끔, 2026-11-23) */
+html.reqhtml, html.reqhtml body{height:auto; min-height:100%; overflow:visible}
+/* 견적서 · 거래명세서 버튼 높이 같게 (나란히 놓인 두 번째 칸에 위 여백이 붙던 것) */
+.reqpage .optrow{align-items:stretch}
+.reqpage .field .optrow .opt + .opt{margin-top:0}
+.reqpage .optrow .opt{align-items:center; min-height:48px; box-sizing:border-box}
