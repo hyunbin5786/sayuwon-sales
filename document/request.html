@@ -4,7 +4,7 @@
 <!-- 고객 견적 요청 (2026-11-21): 고객님이 로그인 없이 휴대폰 · PC에서 직접 입력 → 공유 기록(quotereq 시트)에 한 건 저장.
      직원은 견적서 화면(document/) 1단계 「고객 견적 요청」 목록에서 열어 초안으로 채우고 검수 · 출력 · 메일 -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap">
-<link rel="stylesheet" href="css/document.css?v=20261123l">
+<link rel="stylesheet" href="css/document.css?v=20261123m">
 </head><body class="reqpage">
 <header class="reqhd"><span class="reqbrand">사유원</span><span class="reqcrumb">단체 견적 요청</span></header>
 <main class="reqwrap">
@@ -14,11 +14,12 @@
       <div class="field">
         <label for="q-resno">예약 번호</label>
         <input id="q-resno" type="text" maxlength="30" autocomplete="off" autocapitalize="characters">
-        <span class="hint">예약 확인 문자 · 예약 내역에 있는 번호입니다. 모르시면 비워 두셔도 됩니다</span>
+        <span class="hint">예약 확인 문자 · 예약 내역에 있는 번호입니다. 당일발권을 진행하신 경우 입력하지 않으셔도 됩니다</span>
       </div>
       <div class="field">
         <label for="q-org">단체명 <b class="req">*</b></label>
         <input id="q-org" type="text" maxlength="60" autocomplete="organization" required>
+        <span class="hint">단체 소속이 아닌 경우 담당자 성함과 동일하게 입력해 주세요</span>
       </div>
       <div class="field">
         <label for="q-name">담당자 성함 <b class="req">*</b></label>
@@ -103,7 +104,7 @@
   </section>
 </div>
 <script
- src="../js/common.js?v=20261123l"></script>
-<script src="js/request.js?v=20261123l"></script>
-<script src="js/datebox.js?v=20261123l"></script>
+ src="../js/common.js?v=20261123m"></script>
+<script src="js/request.js?v=20261123m"></script>
+<script src="js/datebox.js?v=20261123m"></script>
 </body></html>
