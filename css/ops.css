@@ -55,7 +55,8 @@ main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
 .st{font-weight:700}
 .st-보관중,.st-찾는\ 중,.st-접수{color:var(--amber)}
 .st-처리\ 중{color:var(--red)}
-.st-반환\ 완료,.st-완료{color:var(--pine)}
+.st-반환\ 완료,.st-완료,.st-처리완료{color:var(--pine)}
+.st-폐기{color:var(--muted)}
 /* 재고 */
 .tbl tr.low td{background:var(--red-soft)}
 .tbl tr.low td.qty b{color:var(--red)}
@@ -144,3 +145,17 @@ h3.sub + .tbl,h3.sub + .tlist{margin-bottom:18px}
 .ph-view{position:fixed;inset:0;z-index:90;background:rgba(20,20,16,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px}
 .ph-view[hidden]{display:none}
 .ph-view img{max-width:100%;max-height:calc(100% - 60px);object-fit:contain;border-radius:6px;background:#fff}
+/* 분실물 찾기: 분실 신고 | 습득 두 대시보드 (2026-11-24 · js/opsboard.js renderLost) */
+body.pg-lost main{max-width:1600px}
+.lost-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.lost-board{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fff;min-width:0}
+.lost-board .lb-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.lost-board .lb-head h3{margin:0;font:600 17px var(--serif)}
+.lost-board .lb-head h3 small{font:400 12px var(--sans,inherit);color:var(--muted)}
+.lost-board .lb-head .btn{margin-left:auto}
+.lost-board .tw{overflow-x:auto}
+.lost-ph{width:84px;position:relative}
+.lost-ph img{display:block;width:76px;height:76px;object-fit:cover;border-radius:7px;border:1px solid var(--line);background:#f2f1ec;cursor:zoom-in}
+.lost-ph img.bad{cursor:default}
+.lost-ph small{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.6);color:#fff;border-radius:999px;padding:0 6px;font-size:11px}
+@media (max-width:1000px){.lost-cols{grid-template-columns:1fr}}

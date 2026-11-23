@@ -54,6 +54,7 @@ function render(){
   const q=$('#q').value.trim().toLowerCase(), hit = d => !q || JSON.stringify(d).toLowerCase().includes(q);
   if(P==='stock') return renderStock(hit);
   if(P==='ship') return renderShip(hit);
+  if(B.boards) return renderLost(hit);
   const st=B.status, list=rows.filter(x=>hit(x.d) && (filter==='all' || (filter==='open' ? B.open.includes(x.d[st]) : x.d[st]===filter)))
     .sort((a,b)=>String(b.d.date||'').localeCompare(String(a.d.date||'')) || String(b.r.saved).localeCompare(String(a.r.saved)));
   const opts=[['open','진행 중'],['all','전체'], ...B.fields.find(f=>f.k===st).opts.map(o=>[o,o])];
@@ -73,8 +74,35 @@ function renderStock(hit){
       + `<td class="num">${d.min!==''&&d.min!=null?won(d.min):''}</td><td class="hint">${last?esc(opsDateLabel(opsYmd(last.at)))+' '+esc(last.by||''):''}</td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></td></tr>`; }).join('')}</tbody></table>`
     : `<p class="empty">${rows.length ? '부족한 품목이 없습니다.' : '아직 품목이 없습니다. 「＋ 품목 추가」로 넣어 주세요.'}</p>`;
 }
+// ---------- 분실물: 두 대시보드 (2026-11-24 · OPS_PAGE.boards — 분실 신고 | 습득, 상태도 따로 · js/lost.js) ----------
+//  대시보드마다 진행 중 · 전체 · 상태별로 걸러 보기 · 「＋ 접수」는 그 구분으로 열림 · 습득은 사진을 목록 옆에 작게 (누르면 크게)
+const lostFilter = {};
+function renderLost(hit){
+  $('#filters').innerHTML=''; $('#bSum').textContent=B.hint; $('#addBtn').hidden=true;
+  $('#list').innerHTML = `<div class="lost-cols">${B.boards.map((b, bi)=>{
+    const stOf=x=>lostStatus(x.d), all=rows.filter(x=>lostKind(x.d)===b.kind), f=lostFilter[bi]||'open';
+    const cnt=v=>v==='all' ? all.length : v==='open' ? all.filter(x=>b.open.includes(stOf(x))).length : all.filter(x=>stOf(x)===v).length;
+    const list=all.filter(x=>hit(x.d) && (f==='all' || (f==='open' ? b.open.includes(stOf(x)) : stOf(x)===f)))
+      .sort((a, c)=>String(c.d.date||'').localeCompare(String(a.d.date||'')) || String(c.r.saved).localeCompare(String(a.r.saved)));
+    const chips=[['open','진행 중'],['all','전체'], ...LOST_ST[b.kind].map(s=>[s,s])].map(([v,l])=>`<button type="button" class="chip${f===v?' on':''}" data-lf="${bi}|${esc(v)}">${esc(l)} <small>${cnt(v)}</small></button>`).join('');
+    const tr=x=>{ const s=stOf(x), ps=Array.isArray(x.d.photos) ? x.d.photos : [];
+      return `<tr class="${b.open.includes(s)?'':'closed'}">`
+        + (b.photo ? `<td class="lost-ph">${ps.length ? `<img data-phimg="${esc(ps[0].id)}" data-phview="${esc(ps[0].id)}" alt="${esc(x.d.item||'습득물')}" title="누르면 크게">${ps.length>1?`<small>+${ps.length-1}</small>`:''}` : '<span class="hint">사진 없음</span>'}</td>` : '')
+        + b.cols.map(([k,,fn])=>`<td>${esc(fn?fn(x.d[k], x.d):x.d[k]||'')}</td>`).join('')
+        + `<td class="st st-${esc(s)}">${esc(s)}</td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></td></tr>`; };
+    return `<section class="lost-board"><div class="lb-head"><h3>${esc(b.title)} <small>${all.length}건</small></h3><button type="button" class="btn primary" data-ladd="${esc(b.kind)}">＋ ${esc(b.add)}</button></div>`
+      + `<div class="filters">${chips}</div>`
+      + (list.length ? `<div class="tw"><table class="tbl"><thead><tr>${b.photo?'<th>사진</th>':''}${b.cols.map(c=>`<th>${c[1]}</th>`).join('')}<th>상태</th><th></th></tr></thead><tbody>${list.map(tr).join('')}</tbody></table></div>`
+        : `<p class="empty">${all.length ? '조건에 맞는 기록이 없습니다.' : `아직 ${esc(b.title)} 기록이 없습니다. 「＋ ${esc(b.add)}」로 넣어 주세요.`}</p>`)
+      + `</section>`; }).join('')}</div>`;
+  document.querySelectorAll('#list img[data-phimg]').forEach(im=>{ phLoad(im.dataset.phimg).then(u=>{ im.src=u; }).catch(()=>{ im.alt='사진을 불러오지 못함'; im.classList.add('bad'); }); });
+}
+if(B.boards) document.body.classList.add('pg-lost');
 
 document.addEventListener('click', e=>{
+  const lf=e.target.closest('[data-lf]'); if(lf){ const [bi, v]=lf.dataset.lf.split('|'); lostFilter[bi]=v; render(); return; }
+  const la=e.target.closest('[data-ladd]'); if(la){ openEdit(null, {kind:la.dataset.ladd}); return; }
+  const lv=e.target.closest('#list img[data-phview]'); if(lv){ if(lv.src) phOpen(lv.src); return; }
   const f=e.target.closest('[data-f]'); if(f){ filter=f.dataset.f; render(); return; }
   const ed=e.target.closest('[data-edit]'); if(ed){ openEdit(rows.find(x=>x.r.id===ed.dataset.edit)); return; }
   const pm=e.target.closest('[data-pm]'); if(pm){ const [id,dv]=pm.dataset.pm.split('|'), x=rows.find(y=>y.r.id===id); if(!x) return; const d={...x.d, qty:String(Math.max(0,(+x.d.qty||0)+(+dv)))}; putRow({...x, d}, `수량 ${x.d.qty||0} → ${d.qty}`); return; }
@@ -83,8 +111,10 @@ $('#q').addEventListener('input', ()=>render());
 
 // ---------- 추가 · 고치기 ----------
 let editRow=null, form={};
-function openEdit(row){
+function openEdit(row, preset){   // preset: 새로 넣을 때 먼저 채울 값 (분실물 대시보드의 구분 등)
   editRow=row||null; form = row ? {...row.d} : Object.fromEntries(B.fields.filter(f=>f.def).map(f=>[f.k, f.def()]));
+  if(preset) Object.entries(preset).forEach(([k, v])=>{ form[k]=v; if(B.onField) B.onField(k, form); });
+  if(B.normalize) B.normalize(form);   // 예전 기록 값을 지금 규칙으로 (분실물 상태)
   $('#eTitle').textContent = row ? `${B.title} · 고치기` : B.add;
   $('#eDel').hidden = !row; $('#eErr').textContent=''; paintForm(); $('#editModal').hidden=false;
   setTimeout(()=>$('#eFields input:not([type=hidden]):not([readonly]), #eFields textarea')?.focus(), 0);
@@ -93,7 +123,7 @@ function fieldHTML(f){
   const v=form[f.k]??'', id='e_'+f.k, lab=`<label for="${id}">${f.l}${f.req?' <i>*</i>':''}</label>`;
   if(f.type==='goods'){ const names=opsGoodsCache.map(g=>g.name), has=!v || names.includes(v);   // 품목관리의 굿즈 (엑셀에서 온 이름이 목록에 없으면 그 이름도 보임)
     return lab+`<select id="${id}" data-k="${f.k}"><option value=""${v?'':' selected'}>굿즈 고르기</option>${has?'':`<option selected>${esc(v)}</option>`}${names.map(n=>`<option${n===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`; }
-  if(f.type==='select') return lab+`<select id="${id}" data-k="${f.k}">${f.opts.map(o=>`<option${o===v?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  if(f.type==='select') return lab+`<select id="${id}" data-k="${f.k}">${(typeof f.opts==='function' ? f.opts(form) : f.opts).map(o=>`<option${o===v?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
   if(f.type==='repeat') return lab+`<div class="seg">${[['none','반복 없음'],['daily','매일'],['weekly','매주'],['monthly','매달']].map(([k,l])=>`<button type="button" class="${(v||'none')===k?'on':''}" data-rep="${k}">${l}</button>`).join('')}</div>`;
   if(f.type==='dows') return lab+`<div class="seg">${[1,2,3,4,5,6,0].map(i=>`<button type="button" class="${(form.dows||[]).includes(i)?'on':''}" data-dow="${i}">${OPS_DOW[i]}</button>`).join('')}</div>`;
   if(f.type==='dom') return lab+`<select id="${id}" data-k="dom">${Array.from({length:30},(_,i)=>i+1).map(i=>`<option value="${i}"${+v===i?' selected':''}>${i}일</option>`).join('')}<option value="31"${+v>=31?' selected':''}>말일</option></select>`;
@@ -136,10 +166,12 @@ $('#eFields').addEventListener('change', async e=>{ const inp=e.target.closest('
   phBusy--; paintForm(); if(fail) $('#eErr').textContent='사진을 올리지 못했습니다: '+fail; });
 $('#eFields').addEventListener('click', e=>{
   const x=e.target.closest('[data-phdel]'); if(x){ const [k,i]=x.dataset.phdel.split('|'); if(Array.isArray(form[k])){ form[k].splice(+i,1); paintForm(); } return; }
-  const v=e.target.closest('img[data-phview]'); if(v && v.src){ let o=$('#phView'); if(!o){ o=document.createElement('div'); o.id='phView'; o.className='ph-view'; o.innerHTML='<img alt="사진 크게 보기"><button type="button" class="btn primary">닫기</button>'; o.addEventListener('click', ()=>{ o.hidden=true; }); document.body.appendChild(o); }
-    o.querySelector('img').src=v.src; o.hidden=false; } });
+  const v=e.target.closest('img[data-phview]'); if(v && v.src) phOpen(v.src); });
+function phOpen(src){   // 사진 크게 보기 (고치기 팝업 · 분실물 습득 목록)
+  let o=$('#phView'); if(!o){ o=document.createElement('div'); o.id='phView'; o.className='ph-view'; o.innerHTML='<img alt="사진 크게 보기"><button type="button" class="btn primary">닫기</button>'; o.addEventListener('click', ()=>{ o.hidden=true; }); document.body.appendChild(o); }
+  o.querySelector('img').src=src; o.hidden=false; }
 $('#eFields').addEventListener('input', e=>{ const k=e.target.dataset.k; if(!k) return; let v=e.target.value; if(B.fields.find(f=>f.k===k)?.type==='num'){ v=v.replace(/[^\d.]/g,''); e.target.value=v; } form[k]=v; });
-$('#eFields').addEventListener('change', e=>{ const k=e.target.dataset.k; if(!k) return; form[k]=e.target.value; if(k==='status'){ if(form.status==='반환 완료' && !form.returnDate) form.returnDate=opsToday(); paintForm(); } else if(e.target.tagName==='SELECT' && B.fields.some(f=>f.show)) paintForm();   /* 구분을 바꾸면 그에 따라 보이는 칸(습득물 사진 등)도 바로 */ });   // 반환 완료면 반환일 = 오늘
+$('#eFields').addEventListener('change', e=>{ const k=e.target.dataset.k; if(!k) return; form[k]=e.target.value; if(B.onField) B.onField(k, form); if(k==='status'){ if(form.status==='반환 완료' && !form.returnDate) form.returnDate=opsToday(); paintForm(); } else if(e.target.tagName==='SELECT' && B.fields.some(f=>f.show)) paintForm();   /* 구분을 바꾸면 그에 따라 보이는 칸(습득물 사진 등)도 바로 */ });   // 반환 완료면 반환일 = 오늘
 $('#eFields').addEventListener('click', e=>{
   const r=e.target.closest('[data-rep]'); if(r){ form.repeat=r.dataset.rep; if(form.repeat==='weekly' && !(form.dows||[]).length) form.dows=[new Date().getDay()]; if(form.repeat==='monthly' && !form.dom) form.dom=String(new Date().getDate()); if(form.repeat!=='none' && !form.start) form.start=opsToday(); paintForm(); return; }
   const w=e.target.closest('[data-dow]'); if(w){ const i=+w.dataset.dow, s=new Set(form.dows||[]); s.has(i)?s.delete(i):s.add(i); form.dows=[...s]; paintForm(); return; }
