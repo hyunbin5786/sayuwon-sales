@@ -68,12 +68,12 @@ document.addEventListener('click', e=>{
 $('#brand').addEventListener('click', e=>{ if(!getUser()) return; e.preventDefault(); if(!$('#catWrap').hidden){ askClose(); return; } view='menu'; history.replaceState(null,'',location.pathname); paint(); });
 
 // ===================== 멤버관리 (로그인으로 확인, 2026-11-21) =====================
-let members=[];
+let members=[], roles=null;   // roles = {quote:[사번…]} 견적서 · 거래명세서 담당 (2026-11-23 · 서버가 예전 것이면 null)
 function paintMembers(){
   const u=getUser()||{};
   $('#memberHint').textContent = members.length ? `${members.length}명` : '';
-  $('#memberList').innerHTML = members.map(m=>`<tr class="${m.emp===u.emp?'me':''}"><td>${esc(m.name)}</td><td>${esc(m.emp)}</td><td class="hint">${esc(m.added||'')}${m.by?` · ${esc(m.by)}`:''}</td><td class="r"><button type="button" class="btn-sm del" data-mdel="${esc(m.emp)}" data-mname="${esc(m.name)}">빼기</button></td></tr>`).join('')
-    || '<tr><td colspan="4" class="hint">아직 멤버가 없습니다. 위에서 추가하면 그때부터 로그인할 때 이름 · 사번을 확인합니다.</td></tr>';
+  $('#memberList').innerHTML = members.map(m=>`<tr class="${m.emp===u.emp?'me':''}"><td>${esc(m.name)}</td><td>${esc(m.emp)}</td><td class="hint">${esc(m.added||'')}${m.by?` · ${esc(m.by)}`:''}</td><td><label class="mrole" title="고객 견적 요청이 이 사람의 할일로 나옵니다"><input type="checkbox" data-mrole="quote" data-emp="${esc(m.emp)}"${roles && (roles.quote||[]).some(x=>String(x).trim().toUpperCase()===String(m.emp).trim().toUpperCase())?' checked':''}> 담당</label></td><td class="r"><button type="button" class="btn-sm del" data-mdel="${esc(m.emp)}" data-mname="${esc(m.name)}">빼기</button></td></tr>`).join('')
+    || '<tr><td colspan="5" class="hint">아직 멤버가 없습니다. 위에서 추가하면 그때부터 로그인할 때 이름 · 사번을 확인합니다.</td></tr>';
 }
 async function memberCall(body){
   $('#memberErr').textContent='';
@@ -83,7 +83,7 @@ async function memberCall(body){
   if(j.error==='bad_action' || (j.ok && !j.members)){ $('#memberErr').textContent='멤버 목록을 받지 못했습니다: '+(j.error||''); $('#memberBody').hidden=false; $('#memberKey').hidden=true; return null; }
   if(!j.ok){ $('#memberErr').textContent='실패했습니다: '+(j.error||''); return null; }
   $('#memberKey').hidden=true; $('#memberBody').hidden=false;
-  members=j.members||[]; paintMembers(); return j;
+  members=j.members||[]; if(j.roles) roles=j.roles; paintMembers(); return j;
 }
 const loadMembers = () => { if(!getKey()){ $('#memberKey').hidden=false; $('#memberBody').hidden=true; return; } memberCall({action:'members'}); };
 // (멤버관리 팀 비밀번호 칸은 없앰 · 2026-11-21 — 로그인으로 확인)
@@ -107,6 +107,11 @@ document.addEventListener('click', async e=>{ const b=e.target.closest('[data-md
   const u=getUser()||{}, self=b.dataset.mdel===u.emp;
   if(!confirm(`${b.dataset.mname}(${b.dataset.mdel}) 님을 멤버에서 뺄까요?${self?'\n본인입니다. 빼면 다음 로그인부터 들어올 수 없습니다.':''}`)) return;
   memberCall({action:'memberDel', emp:b.dataset.mdel, by:u.name||''}); });
+// 견적서 · 거래명세서 담당 지정 (2026-11-23): 체크하면 바로 저장. 여러 명도 가능
+document.addEventListener('change', async e=>{ const c=e.target.closest('[data-mrole]'); if(!c) return;
+  const j=await memberCall({action:'memberRole', role:c.dataset.mrole, emp:c.dataset.emp, on:c.checked});
+  if(!j || !j.roles){ c.checked=!c.checked; if(j) $('#memberErr').textContent='담당 지정은 서버(Cloudflare Worker)를 새 코드로 바꾼 뒤부터 됩니다.'; return; }
+  dashSoon(300); });
 // 품목관리 (#catalog): 메뉴에서 열면 이 화면 안의 한 페이지 (헤더 아래 꽉 차게), 닫기(저장이 끝난 뒤) · ← 메뉴 로 메뉴에
 function openCatalog(){ $('#catFrame').src = QUOTE + (QUOTE.includes('?')?'&':'?') + 'catalog=1&page=1&t=' + Date.now();   /* page=1: 페이지 모양 (팝업 테두리 · × 없음) */ $('#catWrap').hidden=false; document.querySelector('main').hidden=true; $('#crumb').textContent='품목관리'; $('#crumb').hidden=false; if(location.hash!=='#catalog') history.replaceState(null,'','#catalog'); }
 function closeCatalog(){ $('#catWrap').hidden=true; document.querySelector('main').hidden=false; view='menu'; $('#crumb').hidden=true; $('#catFrame').src='about:blank'; history.replaceState(null,'',location.pathname); }
@@ -160,7 +165,7 @@ let dashTomorrow = new Set(), dashWho = '', dashLoading = false;
 // ===== 과업 계산 = 나의 할일과 똑같이 (2026-11-21) =====
 // 단체 예약의 과업은 단체 화면 규칙(group.js)으로 계산해야 저장 안 된 과업(아무도 그 예약을 아직 안 열었을 때)까지 나옴 →
 // 첫 화면에 보이지 않는 창(#dashEngine = group.html?my=1&embed=1)을 띄워 그 tasksOf 로 계산. 준비 전에는 저장된 과업으로 (예전처럼)
-let lastItems=null, engineWait=null;
+let lastItems=null, engineWait=null, lastReq=(()=>{ try{ return JSON.parse(localStorage.getItem('sy_dash_req')||'null')||{items:[], owners:[]}; }catch(_){ return {items:[], owners:[]}; } })();   // 고객 견적 요청(접수 상태) · 견적서 담당자 이름들
 function engine(){ try{ const w=$('#dashEngine').contentWindow; return w && typeof w.tasksOf==='function' && w.__tasksReady && w.eval('typeof quoteCat!=="undefined" && !!quoteCat') ? w : null; }catch(_){ return null; } }
 function startEngine(){ const f=$('#dashEngine'); if(!f || f.src || !getUser()) return; f.src='group.html?my=1&embed=1&engine=1&t='+Date.now();
   clearInterval(engineWait); let n=0; engineWait=setInterval(()=>{ n++; if(engine()){ clearInterval(engineWait); if(lastItems){ dashData={...(dashData||{}), recs:dashRecs(lastItems)}; renderDash(); } } else if(n>60) clearInterval(engineWait); }, 500); }
@@ -194,6 +199,9 @@ function dashRecs(items){
       if(days.length) recs.push({kind:'기타', owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({title:subTxt(day), due:day})), href:'group.html?my=1&tab=etc'});
     }
   });
+  // 고객 견적 요청 (2026-11-23): 아직 「접수」인 요청 = 견적서 · 거래명세서 담당자(멤버관리에서 지정)의 할일. 담당이 여럿이면 각자에게, 없으면 「담당 없음」. 마감 = 접수한 날
+  (lastReq.items||[]).forEach(r=>{ (lastReq.owners.length ? lastReq.owners : ['']).forEach(o=>recs.push({kind:'기타', owner:o, name:`견적 요청 · ${r.org||''} ${r.name?r.name+'님':''}`.trim(), q:[r.org,r.name,r.phone].join(' '),
+    tasks:[{title:'견적서 · 거래명세서 발급'+(r.date?` (방문 ${opsDateLabel(r.date)})`:''), due:String(r.at||'').slice(0,10)||opsToday()}], href:QUOTE})); });
   return recs;
 }
 async function loadDash(){
@@ -203,7 +211,10 @@ async function loadDash(){
   if(dashData) renderDash(); else $('#dashBody').innerHTML='<p class="hint">불러오는 중…</p>';
   if(dashLoading) return; dashLoading=true;
   try{
-    const [j, m] = await Promise.all([SY.list(), SY.callRaw({action:'members'}).catch(()=>null)]);   // 목록 · 멤버를 함께 받음
+    const [j, m, qr] = await Promise.all([SY.list(), SY.callRaw({action:'members'}).catch(()=>null), SY.callRaw({action:'quoteReqList'}).catch(()=>null)]);   // 목록 · 멤버 · 고객 견적 요청을 함께 받음
+    if(m && m.ok && qr && qr.ok){ const up=s=>String(s||'').trim().toUpperCase(), es=((m.roles||{}).quote||[]).map(up);
+      lastReq={items:(qr.items||[]).filter(r=>(r.status||'접수')==='접수').map(r=>({org:r.org, name:r.name, phone:r.phone, date:r.date, at:r.at})), owners:(m.members||[]).filter(x=>es.includes(up(x.emp))).map(x=>String(x.name||'').trim()).filter(Boolean)};
+      try{ localStorage.setItem('sy_dash_req', JSON.stringify(lastReq)); }catch(_){} }
     if(!j.ok){ if(j.error==='bad_key'){ $('#dashKey').hidden=false; $('#dashBody').innerHTML='<p class="err">'+SY.authFail()+'</p>'; return; } throw new Error(j.error); }
     const names = m && m.ok ? (m.members||[]).map(x=>String(x.name||'').trim()).filter(Boolean) : ((dashData && dashData.names)||[]);
     lastItems=j.items||[]; startEngine();

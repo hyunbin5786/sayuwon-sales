@@ -262,9 +262,9 @@ header.top{display:flex; align-items:flex-end; justify-content:space-between; ga
 .step.on b{background:var(--accent); color:#fff}
 .steparrow{color:var(--faint)}
 #parseinfo:not(:empty){margin-bottom:16px}
-.startbox{width:min(860px,100%)}
-.startbody{display:grid; grid-template-columns:1.4fr 1fr; gap:14px; padding:16px; overflow:auto}
-@media (max-width:700px){ .startbody{grid-template-columns:1fr} }
+.startbox{width:min(1240px,100%)}
+.startbody{display:grid; grid-template-columns:1.25fr 1.25fr .8fr; gap:14px; padding:16px; overflow:auto}   /* 1행 3열: 고객 견적 요청 · 붙여넣기 · 직접 생성 (2026-11-23) */
+@media (max-width:960px){ .startbody{grid-template-columns:1fr} }
 .startcard{border:1px solid var(--line); border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:10px; background:var(--surface-2)}
 .startcard h3{margin:0; font-size:15px}
 .startcard p{margin:0; font-size:12.5px; color:var(--muted); line-height:1.5}
@@ -401,11 +401,11 @@ html.cat-page #cat-close{display:none !important}
 #q-err:empty{display:none}
 .reqpage .btn.block{padding:14px; font-size:15px}
 /* 직원: 견적서 1단계 「고객 견적 요청」 목록 */
-.startcard.reqcard{grid-column:1 / -1; order:-1}   /* 새 요청이 먼저 보이게 맨 위 */
+.startcard.reqcard{order:-1; min-width:0}   /* 새 요청이 먼저 보이게 맨 왼쪽 (좁은 화면에서는 맨 위) */
 .reqtools{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
 .reqtools .grow{margin-right:auto}
 .reqtools label{font-size:12.5px; color:var(--muted); display:inline-flex; gap:5px; align-items:center}
-.reqlist{display:flex; flex-direction:column; gap:6px; max-height:260px; overflow:auto}
+.reqlist{display:flex; flex-direction:column; gap:6px; max-height:340px; overflow:auto}
 .reqitem{display:grid; grid-template-columns:auto 1fr auto; gap:4px 12px; align-items:center; padding:9px 12px; border:1px solid var(--line); border-radius:8px; background:var(--surface); cursor:pointer; text-align:left; font:inherit; color:inherit; width:100%}
 .reqitem:hover{border-color:var(--accent)}
 .reqitem.on{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}

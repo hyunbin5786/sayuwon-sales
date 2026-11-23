@@ -95,6 +95,20 @@ async function quotePost(env, req) {
 async function readMembers(env) {
   return (await rows(env, "SELECT name, emp, added, \"by\" FROM members WHERE deleted='' AND name<>'' AND emp<>'' ORDER BY rowid"));
 }
+// 담당 지정 (2026-11-23): kv 'role:quote' = 견적서 · 거래명세서 담당자의 사번 목록(JSON). 고객 견적 요청이 이 사람의 할일로 나옴 (표를 바꾸지 않으려고 kv 에 둠)
+const ROLES = ['quote'];
+async function readRoles(env) {
+  const out = {};
+  for (const r of ROLES) { try { const a = JSON.parse((await kvGet(env, 'role:' + r)) || '[]'); out[r] = Array.isArray(a) ? a.map(String) : []; } catch (x) { out[r] = []; } }
+  return out;
+}
+async function setRole(env, role, emp, on) {
+  if (!ROLES.includes(role)) throw fail('bad_role');
+  const e = normEmp(emp); if (!e) throw fail('bad_emp');
+  const cur = (await readRoles(env))[role].filter(x => normEmp(x) !== e);
+  if (on) cur.push(String(emp).trim());
+  await kvSet(env, 'role:' + role, JSON.stringify(cur));
+}
 async function memberLogin(env, name, emp) {
   const list = await readMembers(env);
   if (!list.length) return { ok: true, member: true, empty: true };   // 처음 설정: 멤버를 추가하기 전
@@ -379,9 +393,10 @@ export async function api(req, env, origin = '', ip = '') {
     return { ok: true, table: t, rows: rs, next: rs.length === lim ? rs[rs.length - 1].seq : null }; }
   if (a === 'quoteReqList') return { ok: true, items: await quoteReqList(env), api: 7 };
   if (a === 'quoteReqMark') { try { return { ok: true, item: await quoteReqMark(env, req), api: 7 }; } catch (e) { return err('', e); } }
-  if (a === 'members') return { ok: true, members: await readMembers(env) };
-  if (a === 'memberAdd') { try { return { ok: true, added: await addMembers(env, req.list || [], req.by), members: await readMembers(env) }; } catch (e) { return err('', e); } }
-  if (a === 'memberDel') { try { return { ok: true, removed: await delMember(env, req.emp, req.by), members: await readMembers(env) }; } catch (e) { return err('', e); } }
+  if (a === 'members') return { ok: true, members: await readMembers(env), roles: await readRoles(env) };
+  if (a === 'memberRole') { try { await setRole(env, String(req.role || ''), req.emp, !!req.on); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
+  if (a === 'memberAdd') { try { return { ok: true, added: await addMembers(env, req.list || [], req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
+  if (a === 'memberDel') { try { return { ok: true, removed: await delMember(env, req.emp, req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
   // 목록: since(ISO 일시)를 주면 그 뒤에 저장 · 삭제된 줄만 (delta · 삭제된 줄은 deleted 가 채워져 옴). 없으면 최근 2,000줄 중 지워지지 않은 것
   if (a === 'list') {
     const now = iso(), tail = ',"now":' + JSON.stringify(now) + ',"admin":' + (await adminRaw(env)) + ',"api":5';
