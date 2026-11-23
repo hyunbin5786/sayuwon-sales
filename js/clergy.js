@@ -117,27 +117,27 @@
       + `<label>연락처 <input id="aPhone" inputmode="tel"></label>`
       + `<span class="cl-add-btns"><button type="button" class="btn" id="aNo">취소</button><button type="button" class="btn primary" id="aOk">저장</button></span><p class="hint" id="aHint"></p></div>`;
     makeDateBox($('#aDate')); $('#addBox').hidden=false; $('#aOrg').focus(); }
-  const formRow = () => ({id:newId(), date:$('#aDate').value, org:$('#aOrg').value.trim(), name:$('#aName').value.trim(), pos:$('#aPos').value.trim(), phone:$('#aPhone').value.trim(), note:'', turn:''});
+  const formRow = () => ({date:$('#aDate').value, org:$('#aOrg').value.trim(), name:$('#aName').value.trim(), pos:$('#aPos').value.trim(), phone:$('#aPhone').value.trim(), note:'', turn:''});
   function turnHint(){ if(!$('#aHint')) return; const r=formRow(); if(!r.name && !r.org){ $('#aHint').textContent=''; return; }
     const out=[]; if(r.name && /^\d{4}/.test(r.date)){ const c=visitsIn(rows, r); out.push(c>=2 ? `<b class="bad">${r.date.slice(0,4)}년에 이미 ${c}회 방문 — ${c+1}회차 (연 2회 넘음)</b>` : `${r.date.slice(0,4)}년 <b>${c+1}회차</b>`); }
     if(r.org && !orgOk(r.org, rows)) out.push('<b class="bad">대구대교구 본당 · 기관 목록에 없는 소속</b>');
     $('#aHint').innerHTML = out.join(' · '); }
   document.addEventListener('input', e=>{ if(['aName','aPhone','aOrg','aDate'].includes(e.target.id)) turnHint(); if(e.target.id==='aPhone' && SY.phoneTyping) SY.phoneTyping(e.target, e.inputType); });
   $('#addBtn').onclick=()=>{ if(!loaded){ toast('명부를 먼저 불러와 주세요.'); return; } openAdd(); };
-  async function saveNew(r){   // 최신 명부로 회차를 다시 세어 넣음
-    if(await change(list=>{ const c=visitsIn(list, r); return [...list, {...r, turn:`${c+1}회차`}]; }, `「${r.name}」을 명부에 넣었습니다.`)) closeAdd(); }
+  async function saveNew(r){   // 회차는 서버가 넣는 순간 다시 셈
+    let turn=''; if(await change(async ()=>{ turn=((await SY.call({action:'clergyAdd', row:r})).item||{}).turn||''; }, ()=>`「${r.name}」을 명부에 넣었습니다${turn?' ('+turn+')':''}.`)) closeAdd(); }
   document.addEventListener('click', async e=>{
     if(e.target.id==='aNo'){ closeAdd(); return; }
     if(e.target.id==='aOk'){ if(busy) return; const r=formRow();
       if(!/^\d{4}-\d{2}-\d{2}$/.test(r.date)){ toast('방문일을 넣어 주세요.'); return; }
       const miss=[['org','소속','aOrg'],['name','이름','aName'],['pos','직책','aPos'],['phone','연락처','aPhone']].find(([k])=>!r[k]);
       if(miss){ toast(`${miss[1]}을(를) 적어 주세요.`); $('#'+miss[2]).focus(); return; }
-      let latest=rows; try{ st('확인 중…', 'wait'); latest=(await fetchAll()).rows; rows=latest; st('', ''); }catch(_){ st('', ''); }   // 최신 명부로 확인
+      let latest=rows; try{ st('확인 중…', 'wait'); latest=await fetchAll(); rows=latest; st('', ''); }catch(_){ st('', ''); }   // 최신 명부로 확인
       const w=warnsFor(r, latest);
       if(!w.length){ await saveNew(r); return; }   // 문제 없으면 바로 저장
       ask(`<span class="bad">⚠ 확인해 주세요</span><br>${w.map(x=>'· '+x).join('<br>')}<br><br>그래도 명부에 저장할까요?`, '그래도 저장', ()=>saveNew(r)); return; }
     const d=e.target.closest && e.target.closest('[data-del]'); if(d){ const r=rows.find(x=>x.id===d.dataset.del); if(!r) return;
-      ask(`<b>${esc(dLab(r.date))} · ${esc(r.name)}</b> 줄을 명부에서 지울까요? (팀이 함께 보는 명부에서 지워집니다)`, '지우기', ()=>change(list=>list.filter(x=>x.id!==r.id), `「${r.name}」 줄을 지웠습니다.`)); }
+      ask(`<b>${esc(dLab(r.date))} · ${esc(r.name)}</b> 줄을 명부에서 지울까요? (팀이 함께 보는 명부에서 지워집니다)`, '지우기', ()=>change(()=>SY.call({action:'clergyDel', id:r.id}), `「${r.name}」 줄을 지웠습니다.`)); }
   });
 
   // ---------- 확인 팝업 ----------
@@ -160,7 +160,7 @@
     const g=(r,k)=>C[k]>=0 ? String(r[C[k]]??'').replace(/^[\s\t]+|[\s\t]+$/g,'') : '';
     let last=''; const out=[];
     A.slice(hi+1).forEach(r=>{ const name=g(r,'name'); if(!name) return; let date=C.date>=0 ? toYmd(r[C.date]) : ''; if(!date) date=last; else last=date;
-      out.push({id:newId()+out.length.toString(36), date, org:g(r,'org'), name, pos:g(r,'pos'), phone:g(r,'phone'), note:g(r,'note'), turn:g(r,'turn')}); });
+      out.push({date, org:g(r,'org'), name, pos:g(r,'pos'), phone:g(r,'phone'), note:g(r,'note'), turn:g(r,'turn')}); });
     return out;
   }
   $('#xlBtn').onclick=()=>{ if(!SY.getKey()){ $('#keyBox').hidden=false; toast(SY.authFail()); return; } $('#xlFile').click(); };
@@ -168,8 +168,9 @@
     let list; try{ list=parseXl(await f.arrayBuffer()); }catch(err){ toast('엑셀을 읽지 못했습니다: '+(err.message||err), 4000); return; }
     if(!list.length){ toast('엑셀에서 명부 줄을 찾지 못했습니다.'); return; }
     ask(`엑셀에서 <b>${list.length}명</b>을 읽었습니다. 명부를 이 엑셀 내용으로 바꿀까요?${rows.length?`<br>(지금 명부 ${rows.length}명은 엑셀 내용으로 바뀝니다)`:''}`, '바꾸기',
-      ()=>change(()=>list, `명부를 엑셀 내용 ${list.length}명으로 바꿨습니다.`)); });
+      ()=>change(async ()=>{ for(let i=0;i<list.length;i+=1500) await SY.call({action:'clergyImport', rows:list.slice(i, i+1500), replace:i===0}); }, `명부를 엑셀 내용 ${list.length}명으로 바꿨습니다.`)); });
 
   load();
-  setInterval(()=>{ if(!document.hidden && loaded && !busy && $('#addBox').hidden) fetchAll().then(r=>{ rows=r.rows; render(); }).catch(()=>{}); }, 60000);   // 1분마다 남이 고친 것 받아 옴
+  SY.live.onRev(()=>{ if($('#addBox').hidden) reload(); });   // 다른 컴퓨터에서 바뀌면 바로 다시 받음 (서버 「바뀜 기다리기」)
+  setInterval(()=>{ if(!document.hidden && $('#addBox').hidden) reload(); }, 300000);   // 놓친 것 대비 5분마다
 })();
