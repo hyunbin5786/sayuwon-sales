@@ -2778,10 +2778,7 @@ function blockMoney(b, r){
   const fTx=u.tx*na + us.tx*ns, fTf=u.tf*na + us.tf*ns, full=fTx+fTf;
   const d=full-a.amount, aTf = full ? Math.round(d*fTf/full) : 0, aTx=d-aTf;   // 할인 버튼(%)으로 계산한 할인을 과세 · 비과세 비율로
   const ov=idamtMap(r||rec)[dkey(b.key||'')];
-  let dTx = ov ? Math.min(ov.tx, fTx) : aTx, dTf = ov ? Math.min(ov.tf, fTf) : aTf;
-  // 이 줄에 넣은 기타 할인(특별할인 팝업의 금액)과 % 할인을 합쳐 그 줄 정상가를 넘지 않게 (2026-11-23):
-  //  예) 관람 50,000원 1명에 기타 할인 -50,000원(전액)을 넣었는데 사전예약 5%(2,500원)가 또 빠져 예약 합계가 전산보다 2,500원 적게 나오던 것 — 전산은 그 줄 할인이 50,000원뿐
-  const ie=ispMap(r||rec)[dkey(b.key||'')]; if(ie && (ie.tf || ie.tx)){ dTf=Math.max(0, Math.min(dTf, fTf-ie.tf)); dTx=Math.max(0, Math.min(dTx, fTx-ie.tx)); }
+  const dTx = ov ? Math.min(ov.tx, fTx) : aTx, dTf = ov ? Math.min(ov.tf, fTf) : aTf;
   return { p, full, fTx, fTf, aTx, aTf, dTx, dTf, ov:!!ov, tx:fTx-dTx, tf:fTf-dTf, amount:full-dTx-dTf, disc:a.disc };
 }
 function renderPrice(){
