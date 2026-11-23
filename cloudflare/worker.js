@@ -348,6 +348,13 @@ async function importData(env, req) {
   await batch(qs); out.quotereq = qs.length;
   for (const f of (req.files || [])) { if (!f || !f.id || !f.data) continue; await saveFile(env, String(f.id), f.kind === 'doc' ? 'doc' : 'ment', String(f.name || ''), String(f.mime || ''), String(f.data), '이관'); out.files++; }
   if (req.admin) await kvSet(env, 'admin', JSON.stringify(req.admin));
+  if (Array.isArray(req.clergy) && req.clergy.length) {   // 무료입장 명부 (백업에서 되살리기 · 줄 그대로 · replace 면 같은 id 를 덮어씀)
+    await ensureClergy(env);
+    const C = ['id', 'visit_date', 'org', 'name', 'pos', 'phone', 'note', 'turn', 'who', 'added', 'by', 'updated', 'deleted'];
+    const list = req.clergy.filter(r => r && r.id).map(r => Object.fromEntries(C.map(k => [k, String(r[k] == null ? '' : r[k])])));
+    await q(env, 'INSERT OR ' + (req.replace ? 'REPLACE' : 'IGNORE') + ' INTO clergy (' + C.map(k => '"' + k + '"').join(',') + ') SELECT ' + C.map(k => "json_extract(value,'$." + k + "')").join(',') + ' FROM json_each(?)', JSON.stringify(list)).run();
+    await kvSet(env, 'clergy_moved', '1'); out.clergy = list.length;
+  }
   // 견적서 서버 자료: 발급 내역은 없는 id 만 더함 (있는 줄은 그대로 — 새 서버에서 한 발급 취소를 지우지 않게) · 품목 목록은 새 서버에 아직 없을 때만
   //   replace:true (tools/restore.html 의 「백업 때 모습으로 덮어쓰기」) 이면 발급 내역 · 품목 목록도 받은 것으로 바꿈
   const hs = (req.quoteHistory || []).filter(h => h && h.id).map(h => req.replace
@@ -355,6 +362,63 @@ async function importData(env, req) {
   await batch(hs); out.quoteHistory = hs.length;
   if (req.catalog && (req.replace || !(await kvGet(env, 'catalog')))) { await kvSet(env, 'catalog', JSON.stringify(req.catalog)); out.catalog = 1; }
   return out;
+}
+
+// ---------- 대구대교구 무료입장 명부 (clergy · 2026-11-23) ----------
+//  한 줄 = 한 번 방문. 화면(js/clergy.js)은 열 때 · 바뀔 때(rev) 명부 전체를 받아 그 안에서 찾음 (천여 줄 · 약 150KB)
+//  clergyList → {items:[{id, date, org, name, pos, phone, note, turn, added, by}], moved}
+//  clergyAdd {row} → 회차(그해 같은 사람 방문 수 + 1)를 서버가 세어 넣음 (넣는 문장 안에서 세므로 둘이 같이 넣어도 맞음)
+//  clergyDel {id} · clergyImport {rows, replace} (엑셀 불러오기 · replace 면 지금 명부를 지운 표시를 하고 바꿈 · 문장 하나로 모두 넣음 — D1 은 요청 하나에 쿼리 50번까지라)
+let clergyReady = false;
+async function ensureClergy(env) {   // 표가 없으면 만듦 (schema.sql 을 Console 에서 다시 돌리지 않아도 되게)
+  if (clergyReady) return;
+  await env.DB.batch([
+    q(env, 'CREATE TABLE IF NOT EXISTS clergy (id TEXT PRIMARY KEY, visit_date TEXT NOT NULL DEFAULT \'\', org TEXT NOT NULL DEFAULT \'\', name TEXT NOT NULL DEFAULT \'\', ' +
+      'pos TEXT NOT NULL DEFAULT \'\', phone TEXT NOT NULL DEFAULT \'\', note TEXT NOT NULL DEFAULT \'\', turn TEXT NOT NULL DEFAULT \'\', who TEXT NOT NULL DEFAULT \'\', ' +
+      'added TEXT NOT NULL DEFAULT \'\', "by" TEXT NOT NULL DEFAULT \'\', updated TEXT NOT NULL DEFAULT \'\', deleted TEXT NOT NULL DEFAULT \'\')'),
+    q(env, 'CREATE INDEX IF NOT EXISTS clergy_who ON clergy(who)'),
+    q(env, 'CREATE INDEX IF NOT EXISTS clergy_date ON clergy(visit_date)'),
+  ]);
+  clergyReady = true;
+}
+const clT = (v, n) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
+const clWho = (name, phone) => normName(name) + '|' + String(phone || '').replace(/\D/g, '');
+function clRow(r, by, i) {
+  const o = { id: 'c' + rand(6) + (i == null ? '' : i.toString(36)), date: clT(r.date, 10), org: clT(r.org, 80), name: clT(r.name, 40), pos: clT(r.pos, 30),
+    phone: clT(r.phone, 30), note: clT(r.note, 300), turn: clT(r.turn, 20), added: kstStamp(), by: clT(by, 20), updated: iso() };
+  o.who = clWho(o.name, o.phone);
+  return o;
+}
+const CL_JSON = "json_object('id',id,'date',visit_date,'org',org,'name',name,'pos',pos,'phone',phone,'note',note,'turn',turn,'added',added,'by',\"by\")";
+async function clergyList(env) {
+  const r = await q(env, "SELECT json_group_array(" + CL_JSON + ") AS j FROM (SELECT * FROM clergy WHERE deleted='' ORDER BY visit_date DESC, rowid)").first();
+  return { __raw: '{"ok":true,"items":' + ((r && r.j) || '[]') + ',"moved":' + (await kvGet(env, 'clergy_moved') ? 'true' : 'false') + ',"api":8}' };
+}
+async function clergyAdd(env, req) {
+  const o = clRow(req.row || {}, req.who && req.who.name);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date)) throw fail('bad_date');
+  if (!o.name) throw fail('no_name');
+  await q(env, 'INSERT INTO clergy (id, visit_date, org, name, pos, phone, note, turn, who, added, "by", updated, deleted) ' +
+    "SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, (SELECT COUNT(*) + 1 FROM clergy WHERE who=?8 AND deleted='' AND substr(visit_date,1,4)=substr(?2,1,4)) || '회차', ?8, ?9, ?10, ?11, ''",
+    o.id, o.date, o.org, o.name, o.pos, o.phone, o.note, o.who, o.added, o.by, o.updated).run();
+  const r = await q(env, 'SELECT ' + CL_JSON + ' AS j FROM clergy WHERE id=?', o.id).first();
+  return JSON.parse(r.j);
+}
+async function clergyDel(env, req) {
+  const id = String(req.id || ''), by = clT(req.who && req.who.name, 20);
+  const r = await q(env, "UPDATE clergy SET deleted=?, updated=? WHERE id=? AND deleted=''", kstStamp() + ' ' + by, iso(), id).run();
+  return (r.meta && r.meta.changes) || 0;
+}
+async function clergyImport(env, req, by) {
+  const list = (Array.isArray(req.rows) ? req.rows : []).slice(0, 5000).map((r, i) => clRow(r || {}, by, i)).filter(o => o.name);
+  const stmts = [];
+  if (req.replace) stmts.push(q(env, "UPDATE clergy SET deleted=?, updated=? WHERE deleted=''", kstStamp() + ' ' + clT(by, 20) + ' (엑셀로 바꿈)', iso()));
+  if (list.length) stmts.push(q(env, 'INSERT OR IGNORE INTO clergy (id, visit_date, org, name, pos, phone, note, turn, who, added, "by", updated, deleted) ' +
+    "SELECT json_extract(value,'$.id'), json_extract(value,'$.date'), json_extract(value,'$.org'), json_extract(value,'$.name'), json_extract(value,'$.pos'), json_extract(value,'$.phone'), " +
+    "json_extract(value,'$.note'), json_extract(value,'$.turn'), json_extract(value,'$.who'), json_extract(value,'$.added'), json_extract(value,'$.by'), json_extract(value,'$.updated'), '' FROM json_each(?)", JSON.stringify(list)));
+  stmts.push(q(env, "INSERT INTO kv (k, v) VALUES ('clergy_moved', '1') ON CONFLICT(k) DO UPDATE SET v='1'"));
+  await env.DB.batch(stmts);   // 한 묶음(트랜잭션) — 중간에 실패하면 지운 표시도 되돌아감
+  return list.length;
 }
 
 // 내려받기에 쓰는 SQL (표마다 · seq = 넣은 순서). 틀린 로그인 횟수 · 견적 요청 수 제한 같은 잠깐 쓰는 값은 뺌
@@ -365,6 +429,7 @@ const EXPORT_SQL = () => { const tail = ' WHERE rowid>? ORDER BY rowid LIMIT ?';
   quote_history: 'SELECT rowid AS seq, id, at, data FROM quote_history' + tail,
   files: 'SELECT rowid AS seq, id, kind, name, mime, size, at, "by" FROM files' + tail,
   file_chunks: 'SELECT rowid AS seq, id, n, data FROM file_chunks' + tail,
+  clergy: 'SELECT rowid AS seq, id, visit_date, org, name, pos, phone, note, turn, who, added, "by", updated, deleted FROM clergy' + tail,
   kv: "SELECT rowid AS seq, k, v FROM kv WHERE rowid>? AND k NOT LIKE 'fail:%' AND k<>'qr_rate' AND k<>'rev' ORDER BY rowid LIMIT ?",
 }; };
 
@@ -405,7 +470,11 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'quoteGet') return rawRows('history', await rows(env, 'SELECT data FROM (SELECT rowid AS r, data FROM quote_history ORDER BY rowid DESC LIMIT ?) ORDER BY r DESC', Number(req.limit) || 500), '');
   if (a === 'quotePost') { try { return await quotePost(env, req); } catch (e) { return err('', e); } }
   // 전체 내려받기 (백업 · 다른 DB 로 옮길 때): 표 하나를 넣은 순서대로 조금씩 — {table, after(마지막으로 받은 seq), limit} → {rows, next}. table 이 없으면 표 이름 목록
-  if (a === 'export') { const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };
+  if (a === 'clergyList') { await ensureClergy(env); return clergyList(env); }
+  if (a === 'clergyAdd') { try { await ensureClergy(env); const item = await clergyAdd(env, req); await bumpRev(env); return { ok: true, item, api: 8 }; } catch (e) { return err('', e); } }
+  if (a === 'clergyDel') { try { await ensureClergy(env); const n = await clergyDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 8 }; } catch (e) { return err('', e); } }
+  if (a === 'clergyImport') { try { await ensureClergy(env); const n = await clergyImport(env, req, req.who && req.who.name); await bumpRev(env); return { ok: true, imported: n, api: 8 }; } catch (e) { return err('', e); } }
+  if (a === 'export') { if (req.table === 'clergy') await ensureClergy(env); const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };
     const lim = t === 'file_chunks' ? 1 : Math.min(Number(req.limit) || 200, 500), rs = await rows(env, sql, Number(req.after) || 0, lim);
     return { ok: true, table: t, rows: rs, next: rs.length === lim ? rs[rs.length - 1].seq : null }; }
   if (a === 'wait') return waitRev(env, String(req.rev || ''));

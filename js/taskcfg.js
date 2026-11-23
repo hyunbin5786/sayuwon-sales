@@ -44,6 +44,8 @@ const TCFG_CONDS = [
   ['wantQuote','견적서 요청을 체크하면', r=>!!r.wantQuote],
   ['wantStmt', '거래명세서 요청을 체크하면', r=>!!r.wantStmt],
   ['erpChanged','전산 등록 뒤 예약 내용이 바뀌면', (r,ctx)=>!!(ctx && ctx.orig && ctx.orig.has('erpfix'))],
+  ['pplChanged','저장한 예약의 관람 인원이 바뀌면 (단체 화면 · 다음날 고객 응대 준비 · 이 과업 전용)', (r,ctx)=>!!(ctx && ctx.orig && ctx.orig.has('pplchk'))],
+  ['erpKeep','전산 내역을 붙여넣고 「예약 내용 그대로」를 고르면 (이 과업 전용)', (r,ctx)=>!!(ctx && ctx.orig && ctx.orig.has('erpkeep'))],
   ['weekend','주말 · 공휴일 방문이면', r=>!!(r.date && isRedDay(r.date))],
   ['pplMin', '관람 인원이 ○명 이상이면', r=>numOf(r.people), 'num'],
   ['pplMax', '관람 인원이 ○명 이하이면', r=>numOf(r.people), 'num'],
@@ -54,7 +56,7 @@ const TCFG_N_DUE = new Set(['made','visit']);
 const C_ = (k,v) => ({k, v:v||''});
 const TCFG_DEF_WHEN = { tour:[C_('tour')], clergy:[C_('clergy')], tbdcall:[C_('tbdMiss')], onsitecall:[C_('pay','현장 결제'),C_('date')], wkcheck:[C_('date')], mbcall:[C_('mbTime')], mbmenu:[C_('mbNoMenu')],
   progstaff:[C_('staffMiss')], staffbrief:[C_('date'),C_('progGoods')], goodsprep:[C_('goods')], erp:[C_('booked')], erpcheck:[C_('booked')], erpfix:[C_('erpChanged')],
-  quote:[C_('wantQuote')], stmt:[C_('wantStmt')], tax:[C_('pay','세금계산서')], linksend:[C_('pay','결제링크')], paycheck:[C_('pay','결제링크')] };
+  quote:[C_('wantQuote')], stmt:[C_('wantStmt')], tax:[C_('pay','세금계산서')], linksend:[C_('pay','결제링크')], paycheck:[C_('pay','결제링크')], pplchk:[C_('pplChanged')], erpkeep:[C_('erpKeep')] };
 const TCFG_DEF_DUE = { tbdcall:{base:'tbdDate'}, onsitecall:{base:'prevThu'}, wkcheck:{base:'prevThu'}, paycheck:{base:'linkNext'}, staffbrief:{base:'prevFri'}, goodsprep:{base:'visit', n:1} };
 const tcfgDefDue = id => TCFG_DEF_DUE[id] || {base:'made', n:0};
 const TCFG_DEF_NOTE = { erp:'{전산비고}', erpfix:'{전산비고}', tour:'{답사비고}',

@@ -49,6 +49,7 @@
       members: bySeq(T.members).filter(m => !m.deleted && m.name && m.emp),
       quotereq: bySeq(T.quotereq),
       history: bySeq(T.quote_history).map(r => parse(r.data)).filter(x => x && x.id),
+      clergy: bySeq(T.clergy),
       catalog: kv.catalog || null, admin: kv.admin || null,
       files: bySeq(T.files).map(f => ({ id: f.id, kind: f.kind, name: f.name, mime: f.mime, data: f.base64 != null ? f.base64 : (chunks[f.id] || []).join('') })) };
   }
@@ -78,6 +79,7 @@
       log('2) 넣는 중…');
       for (let i = 0; i < calls.length; i += 30) { const r = await imp({ calls: calls.slice(i, i + 30) }); (r.imported.skipped || []).forEach(id => log(`   ⚠ id 모양이 맞지 않아 건너뜀: ${id}`, 'err')); }
       if (calls.length) log(`   기록 ${calls.length}줄`);
+      if (B.clergy.length) { for (let i = 0; i < B.clergy.length; i += 1000) await imp({ clergy: B.clergy.slice(i, i + 1000) }); log(`   무료입장 명부 ${B.clergy.length}줄`); }
       const r1 = await imp({ members: B.members, quotereq: qr, catalog: B.catalog || undefined, admin: replace && B.admin ? B.admin : undefined });
       log(`   멤버 ${r1.imported.members}명 더함 (이미 있는 사람은 그대로) · 견적 요청 ${qr.length}건 · 품목 관리 내용 ${r1.imported.catalog ? '넣음' : '그대로 둠'}`);
       for (let i = 0; i < hist.length; i += 10) await imp({ quoteHistory: hist.slice(i, i + 10) });

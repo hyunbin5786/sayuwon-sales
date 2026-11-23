@@ -202,8 +202,11 @@ let erpPendingTask=null, erpDiffList=null;   // erpPendingTask: 붙여넣으면 
 function applyErpList(list, how, diff){
   erpList=list; touched.add('erpList');
   if(how==='fill'){ fillFromErp(list); nContacts=Math.max(nContacts, nContactsOf(rec)); renderContacts(); renderForm(); }
-  if(how==='keep' && diff && diff.length) tasks.push({id:'c'+Date.now().toString(36), title:'전산 예약을 예약 내용대로 수정', custom:true, done:false,
-    memo:diff.map(x=>`${x.label}: 예약 ${x.mine} / 전산 ${x.erp}`).join('\n'), at:new Date().toISOString(), due:todayYmd()});
+  if(how==='keep' && diff && diff.length && !(typeof tcfgOf==='function' && (tcfgOf('erpkeep')||{}).off)){   // 추후과업 메시지 관리의 「전산 예약을 예약 내용대로 수정」 (id erpkeep · 2026-11-23 · 예전엔 그때그때 새 과업 c…)
+    const memo=diff.map(x=>`${x.label}: 예약 ${x.mine} / 전산 ${x.erp}`).join('\n'), nowI=new Date().toISOString(), due=(typeof tcfgDue==='function' && tcfgDue('erpkeep', rec)) || todayYmd();
+    let k=tasks.find(x=>x.id==='erpkeep' && !x.removed);
+    if(!k) tasks.push({id:'erpkeep', title:AUTO_TASKS.erpkeep, custom:true, done:false, memo, at:nowI, due});
+    else { k.memo=memo; if(k.done){ k.done=false; k.doneAt=''; delete k.manualDone; k.at=nowI; k.due=due; delete k.dueSet; (k.xsubs||[]).forEach(x=>x.done=false); } } }
   if(erpPendingTask){ const t=tasks.find(x=>x.id===erpPendingTask);
     if(t){ t.done=true; t.doneAt=new Date().toISOString();
       if(t.id==='erp'){ rec.erp=ymd(new Date()); touched.add('erp'); }

@@ -94,8 +94,9 @@ function fitViewNow(){ if(!fitViewToPeople(rec)) return false; touched.add('view
 document.addEventListener('change', e=>{ if(e.target && e.target.id==='f_people') setTimeout(()=>{ pplTask(); if(fitViewNow()) toast(`관람 인원에 맞춰 예약 내역의 관람 줄 인원을 바꿨습니다 (${viewsParse(rec.views).map(x=>`${viewLabel(daySrc(x.src, rec))} ${x.qty}명`).join(', ')}).`, 3600); }, 0); });
 // 저장한 예약의 관람 인원이 바뀌면 추후 과업 「예약 내역&전산 내역 확인」 (설명: 인원수 변경에 따른 예약 내역 확인, 2026-11-19)
 function pplTask(){ const was=String((baseSnap||{}).people||'').trim(), now=String(rec.people||'').trim(); if(!editingId || !was || !now || was===now) return;
+  if(typeof tcfgOf==='function' && (tcfgOf('pplchk')||{}).off) return;   // 추후과업 메시지 관리에서 끔 (2026-11-23)
   let t=tasks.find(x=>x.id==='pplchk');
-  if(!t){ t={id:'pplchk', title:PPL_TITLE, custom:true, done:false, at:new Date().toISOString(), due:todayYmd(), pplFrom:was}; tasks.push(t); }
+  if(!t){ t={id:'pplchk', title:AUTO_TASKS.pplchk||PPL_TITLE, custom:true, done:false, at:new Date().toISOString(), due:(typeof tcfgDue==='function' && tcfgDue('pplchk', rec)) || todayYmd(), pplFrom:was}; tasks.push(t); }
   else if(t.done){ t.done=false; t.doneAt=''; t.at=new Date().toISOString(); t.due=todayYmd(); delete t.dueSet; t.pplFrom=was; t.changes=[]; }
   t.pplTo=now; t.changes=[...(t.changes||[]).filter(c=>!/^관람 인원 .* \(단체 화면\)$/.test(c)), `관람 인원 ${was} → ${now} (단체 화면)`]; renderTasks(); renderSide(); }   // 무엇이 바뀌었는지 과업 아래에 (2026-11-21)
 // 「예약 내역&전산 내역 확인」 아래에 보이는 바뀐 내용 (예전 기록은 pplFrom → pplTo 로)

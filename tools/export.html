@@ -35,12 +35,13 @@
   $('go').onclick = async () => {
     logEl.textContent = ''; $('go').disabled = true;
     try {
-      const out = { app: 'sayuwon-group-intake', format: 1, exportedAt: new Date().toISOString(), by: (SY.user() || {}).name || '', tables: { calls: [], members: [], quotereq: [], quote_history: [], kv: [], files: [] } }, T = out.tables;
+      const out = { app: 'sayuwon-group-intake', format: 1, exportedAt: new Date().toISOString(), by: (SY.user() || {}).name || '', tables: { calls: [], members: [], quotereq: [], quote_history: [], kv: [], files: [], clergy: [] } }, T = out.tables;
       await table('calls', r => T.calls.push({ seq: r.seq, id: r.id, call_type: r.call_type, visit_date: r.visit_date, updated: r.updated, deleted: r.deleted, data: parse(r.data) }));
       await table('members', r => T.members.push(r));
       await table('quotereq', r => T.quotereq.push(r));
       await table('quote_history', r => T.quote_history.push({ seq: r.seq, id: r.id, at: r.at, data: parse(r.data) }));
       await table('kv', r => T.kv.push({ seq: r.seq, k: r.k, v: parse(r.v) }));
+      await table('clergy', r => T.clergy.push(r));   // 대구대교구 무료입장 명부 (2026-11-23)
       const files = new Map(); await table('files', r => { const f = { ...r, base64: '' }; files.set(r.id, f); T.files.push(f); });
       if ($('withFiles').checked) await table('file_chunks', r => { const f = files.get(r.id); if (f) f.base64 += r.data; });
       else { T.files.forEach(f => delete f.base64); log('파일 내용은 넣지 않았습니다 (목록만).'); }

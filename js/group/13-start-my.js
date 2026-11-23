@@ -33,10 +33,10 @@ function settleTasks(list, r, x){
     .filter(t=>!(t.id==='erpfix' && !t.done && !(t.v===4 && (t.changes||[]).length) && !(t.changes||[]).some(c=>/전산 비고/.test(c)) && !t.memo && !(t.xsubs||[]).length))
     .map(t=>{ const u={...t};
       if(u.id==='staffbrief' && !u.dueSet && !u.done && r && r.date) u.due=staffFri(r.date);   // 열지 않은 예약도 방문 전주 금요일 (2026-11-21 · 직접 바꾼 마감은 그대로)
-      if(u.id==='erp') u.done = !!x.erp || /^adm/.test(r.id);
-      else if(u.id==='linksend') u.done = !!x.linkSent;
+      if(u.id==='erp') u.done = !!u.done || !!x.erp || /^adm/.test(r.id);   // 저장된 체크가 먼저 (2026-11-23)
+      else if(u.id==='linksend') u.done = !!u.done || !!x.linkSent;
       else if(u.id==='paycheck'){ if(x.paidAt) u.done=true; }
-      else if(u.id==='progstaff'){ try{ u.done = !missingStaff(x).length; }catch(_){} }
+      else if(u.id==='progstaff'){ if(!u.done){ try{ u.done = !missingStaff(x).length; }catch(_){} } }
       else { const ds=DOC_SUBS[u.id], st=[...(ds && u.subs ? ds.map(([k])=>!!u.subs[k]) : []), ...(u.xsubs||[]).map(s=>!!s.done)]; if(st.length && st.every(Boolean)) u.done=true; }
       return u; });
 }

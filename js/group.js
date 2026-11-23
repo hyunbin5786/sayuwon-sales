@@ -2037,7 +2037,13 @@ function tourWithDefaults(r, s){ const o=tourParse(s), c=contactsOf(r)[0]||{}, o
 const tourPeople = r => numOf(tourParse(r.tour).people);
 const tourNote = r => { const pay=tourPeople(r)-1; return `${String(r.org||'').trim()||'단체명'} 사전답사${pay>=1?`/${pay}명 현장결제 필요`:''}`; };   // 답사 1명은 무료 → 2명 이상이면 (인원 − 1)명 현장결제 필요 (2026-11-17)
 const tourMemo = r => String(r.tour||'').split(/\s*,\s*/).filter(Boolean).join('\n');
-const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', onsitecall:'현장 결제 인원 확인 연락', wkcheck:'다음주 예약 점검', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인', clergy:'대구대교구 정보 기입' };
+const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', onsitecall:'현장 결제 인원 확인 연락', wkcheck:'다음주 예약 점검', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인', clergy:'대구대교구 정보 기입',
+  pplchk:PPL_TITLE, erpkeep:'전산 예약을 예약 내용대로 수정' };   // 2026-11-23: 조건이 아니라 「일이 생겼을 때」 만들어지는 자동 과업 두 개도 추후과업 메시지 관리 목록에 (이름 · 마감 · 세부 과업 · 문구 · 끄기)
+// ===== 과업이 끝났는지 = 사람이 체크한 것 (2026-11-23) =====
+//  - 어느 화면(단체 화면 · 나의 할일 · 알림 · 첫 화면)에서든 체크하면 그 과업은 끝난 것 (t.done + t.manualDone). 코드가 「정말 끝났는지」 다시 따져서 되돌리지 않음
+//  - 체크를 막는 것도 없음: 전산 예약 · 전산 예약 수정 · 전산 내역 대조도 전산 내역을 붙여넣지 않아도 체크하면 완료 (붙여넣기는 버튼으로 따로)
+//  - 그대로 둔 것: ① 과업이 「생기는」 조건 ② 예약 내용이 바뀌어 조건이 사라지면 저절로 빠지거나 끝남 (담당을 채움 · 메뉴를 고름 · 전산 내역이 맞음 · 예약 내용이 전산에 올린 때로 돌아옴)
+//    ③ 체크한 「뒤에」 새 일이 생기면 다시 열림 (새로 바뀐 내용 · 새로 빈 담당 · 새 미정 항목)
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 // noMb: 몽몽마방 식사 금액은 빼고 (몽몽마방 결제가 '마방' = 손님이 식당에서 결제 → 전산 비고 현장결제 금액에 넣지 않음)
 function moneySplit(r, noMb){
@@ -2184,7 +2190,8 @@ function syncAutoTasks(){
   if((parseInt(rec.dClergy)||0)>0) want.push('clergy');   // 대구대교구 특별 할인 → 대구대교구 정보 기입 (예약자에게 정보 요청 · 대구대교구 시트 기입)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
   const e0=tasks.find(t=>t.id==='erp');
-  if(e0){ e0.done=!!rec.erp;
+  if(e0){ if(e0.done && e0.manualDone && !rec.erp){ rec.erp=ymd(new Date(e0.doneAt||Date.now())); touched.add('erp'); }   // 나의 할일 · 알림에서 체크한 전산 예약 → 전산 등록 날짜도
+    if(rec.erp) e0.done=true; else if(!e0.manualDone) e0.done=false;
     if(e0.done && e0.base && e0.base.v!==5){ const f0=tasks.find(t=>t.id==='erpfix'); const T=[e0.doneAt, f0&&f0.done&&f0.doneAt, /^\d{4}-\d{2}-\d{2}$/.test(rec.erp||'') ? rec.erp+'T23:59:59' : ''].filter(Boolean).sort().pop() || ''; e0.base = T ? erpBaseUp(e0.base, T) : erpSnap(); }   // 예전 기준(v:3 · v:4) → 수정 기록으로 되살림
     if(e0.done && !e0.base){ const f0=tasks.find(t=>t.id==='erpfix' && !t.done && (t.changes||[]).length && t.at); e0.base = f0 ? erpBaseUp({v:0}, new Date(new Date(f0.at).getTime()-1).toISOString()) : erpSnap(); }   // 기준이 없는데 (다음날 고객 응대 준비 등에서 생긴) 전산 예약 수정이 열려 있으면 그 전 내용을 기준으로
     if(!e0.done) delete e0.base; }
@@ -2209,9 +2216,9 @@ function syncAutoTasks(){
   // 방문일 · 답변일 · 결제링크 전송일을 따라가는 마감: 이미 지난 마감은 그 바탕(dueKey)이 그대로면 그대로 둠 (2026-11-21 · 예전엔 지나면 「방문일 전날 · 오늘」로 밀려 빨간 「지남」이 사라졌음)
   { const dk=[rec.date||'', rec.tbdDate||'', rec.linkSent||''].join('|'), td=todayYmd();
     tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const keep = t.due && t.due<td && (t.dueKey===undefined || t.dueKey===dk); if(!keep){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } t.dueKey=dk; } if(!t.due) t.due=taskDue(t); }); }
-  tasks.forEach(t=>{ if(!t.custom && !t.titleSet && AUTO_TASKS[t.id] && t.title!==AUTO_TASKS[t.id]) t.title=AUTO_TASKS[t.id]; if(t.id==='pplchk' && !t.titleSet && t.title!==PPL_TITLE) t.title=PPL_TITLE; });   // 추후과업 메시지 관리에서 바꾼 이름 (직접 고친 제목은 그대로)
+  tasks.forEach(t=>{ if(!t.custom && !t.titleSet && AUTO_TASKS[t.id] && t.title!==AUTO_TASKS[t.id]) t.title=AUTO_TASKS[t.id]; if((t.id==='pplchk' || t.id==='erpkeep') && !t.titleSet && AUTO_TASKS[t.id] && t.title!==AUTO_TASKS[t.id]) t.title=AUTO_TASKS[t.id]; });   // 추후과업 메시지 관리에서 바꾼 이름 (직접 고친 제목은 그대로)
   const fx=tasks.find(t=>t.id==='erpfix');
-  if(fx && !fx.removed){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; fx.v=4; } else if(!fx.done && e0 && e0.base){ fx.changes=[]; if(!(fx.xsubs||[]).length){ fx.done=true; fx.doneAt=new Date().toISOString(); fx.autoDone=true; } } }   // 예약 내용이 전산에 올린 때와 같아지면 저절로 완료 (2026-11-19)
+  if(fx && !fx.removed){ if(fixes.length){ const sig=fixes.join(' | '); if(fx.done && !(fx.manualDone && fx.ckSig===sig)){ fx.done=false; delete fx.manualDone; delete fx.ckSig; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; fx.v=4; } else if(!fx.done && e0 && e0.base){ fx.changes=[]; if(!(fx.xsubs||[]).length){ fx.done=true; fx.doneAt=new Date().toISOString(); fx.autoDone=true; } } }   // 예약 내용이 전산에 올린 때와 같아지면 저절로 완료 (2026-11-19)
   // 하위 과업: 견적서 · 거래명세서는 기본 3개(생성 · 전송 · NAS 업로드) + 누구나 직접 추가한 세부 과제(xsubs). 하위 과업이 있으면 모두 체크될 때 완료
   // (전산 예약 · 프로그램 담당 · 몽몽마방 메뉴처럼 칸을 채우면 끝나는 과업은 하위 과업과 상관없이 그 조건으로)
   tasks.forEach(t=>{ if(t.removed) return; const ds=DOC_SUBS[t.id]; if(ds && !t.subs) t.subs=Object.fromEntries(ds.map(([k])=>[k, !!t.done]));   // 삭제한 과업은 그대로
@@ -2220,10 +2227,15 @@ function syncAutoTasks(){
     const st=[...(ds ? ds.map(([k])=>!!t.subs[k]) : []), ...(t.xsubs||[]).map(x=>!!x.done)]; if(!st.length) return;
     const all=st.every(Boolean); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); } if(!all && t.done && !t.manualDone){ t.done=false; t.doneAt=''; } });   // 위 체크로 끝낸 과업(manualDone)은 하위 과업이 남아도 완료 그대로
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)) || (t.xsubs||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
-  const ps=tasks.find(t=>t.id==='progstaff' && !t.removed); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
-  const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
-  const ec=tasks.find(t=>t.id==='erpcheck'); if(ec){ const c=erpCheck(); const was=ec.done; ec.done=c.ok; ec.check=c; if(c.ok && !was) ec.doneAt=new Date().toISOString(); if(!c.ok) ec.doneAt=''; }   // 전산 내역 대조: 맞으면 자동 완료, 다르면 다시 열림
-  { const ls=tasks.find(t=>t.id==='linksend'); if(ls){ ls.done=!!rec.linkSent; ls.doneAt=rec.linkSent||''; }   // 결제링크 전송 = 버튼을 누른 일시
+  const ps=tasks.find(t=>t.id==='progstaff' && !t.removed); if(ps){ const had=String(ps.ckSig||'').split(',');
+    if(!ms.length) ps.done=true;   // 담당을 다 채움 → 저절로 끝남
+    else if(ps.done && ps.manualDone && ms.every(k=>had.includes(k))) ps.done=true;   // 직접 체크했고 그 뒤 새로 빈 담당이 없으면 그대로 완료
+    else { ps.done=false; delete ps.manualDone; delete ps.ckSig; }
+    ps.missing=ms.map(k=>LABEL[k]||k); ps.mk=ms.join(','); }
+  const mt=tasks.find(t=>t.id==='mbmenu'); if(mt){ if(!mbNeed) mt.done=true; else if(!mt.manualDone) mt.done=false; }   // 메뉴를 고르면 저절로 끝남 · 직접 체크했으면 그대로
+  const ec=tasks.find(t=>t.id==='erpcheck'); if(ec){ const c=erpCheck(); const was=ec.done; ec.check=c; if(c.ok){ ec.done=true; if(!was) ec.doneAt=new Date().toISOString(); } else if(!ec.manualDone){ ec.done=false; ec.doneAt=''; } }   // 전산 내역 대조: 맞으면 저절로 완료 · 직접 체크했으면 금액이 달라도 완료 그대로 (2026-11-23)
+  { const ls=tasks.find(t=>t.id==='linksend'); if(ls){ if(!rec.linkSent && ls.done && ls.manualDone){ rec.linkSent=ls.doneAt||new Date().toISOString(); touched.add('linkSent'); }   // 나의 할일 · 알림에서 체크한 것 → 전송 일시로
+      ls.done=!!rec.linkSent; ls.doneAt=rec.linkSent||''; }   // 결제링크 전송 = 버튼을 누른 일시
     const pc=tasks.find(t=>t.id==='paycheck'); if(pc){ if(rec.paidAt){ pc.done=true; pc.doneAt=rec.paidAt; } else if(pc.done){ rec.paidAt=pc.doneAt||new Date().toISOString(); touched.add('paidAt'); } } }   // 입금 확인 (알림 팝업에서 완료한 것도 일시로)
   const ORDER=['tour','clergy','onsitecall','wkcheck','mbcall','mbmenu','progstaff','staffbrief','goodsprep','erp','erpcheck','erpfix','quote','stmt','tax','linksend','paycheck'];
   // 순서: 마감일이 빠른 순, 마감일이 같으면 최근에 추가된 것이 위. 직접 옮긴 과업(ordSet)은 그 순서 그대로 두고,
@@ -2344,15 +2356,13 @@ $('#taskList').addEventListener('change', e=>{
   const up=e.target.dataset.tup;
   if(up){ const t=tasks.find(x=>x.id===up), f=e.target.files[0]; if(t && f) uploadFile(t, f); return; }
   const id=e.target.dataset.tk; if(!id) return; const t=tasks.find(x=>x.id===id); if(!t) return;
-  if(id==='erpcheck'){ e.target.checked=!!t.done; $('#erpPasteBtn')?.click(); return; }   // 체크 = 전산 내역 붙여넣는 칸을 엶 (맞으면 저절로 완료, 2026-11-20)
-  if((id==='erp' || (id==='erpfix' && erpItemsChanged())) && e.target.checked){ e.target.checked=false; askErpForTask(id); return; }   // 전산 예약 완료 = 전산 내역을 붙여넣어 예약 내용과 맞는지 확인한 뒤 · 전산 예약 수정은 예약 내역(품목 · 인원 · 할인)이 바뀐 때만 (2026-11-19, 그 밖엔 체크만)
-  if(id==='paycheck' && e.target.checked && !rec.linkSent){ e.target.checked=false; toast('결제링크 전송을 먼저 체크해 주세요. (결제링크를 보내기 전에는 입금 확인을 할 수 없습니다)'); return; }   // 결제링크 전송 전에는 입금 확인 불가
+  // 2026-11-23: 체크하면 바로 완료 — 전산 예약 · 전산 예약 수정 · 전산 내역 대조도 전산 내역 붙여넣기를 거치지 않고, 입금 확인도 결제링크 전송 체크와 상관없이 (전산 내역은 「전산 내역 붙여넣기」 버튼으로 따로)
   if(id==='linksend' && !e.target.checked && rec.paidAt){ if(!confirm('결제링크 전송을 해제하면 입금 확인도 함께 해제됩니다. 계속할까요?')){ e.target.checked=true; return; } rec.paidAt=''; touched.add('paidAt'); const pc=tasks.find(x=>x.id==='paycheck'); if(pc){ pc.done=false; pc.doneAt=''; delete pc.manualDone; } }   // 결제링크를 다시 보낼 때: 입금 확인도 함께 해제
   t.done=e.target.checked; t.doneAt=t.done?new Date().toISOString():'';
-  if(t.done){ t.manualDone=1;   // 맨 위 체크 = 아래 세부 과업(기본 하위 과업 · 직접 추가한 세부 과제)도 모두 처리한 것으로 (2026-11-23 · 나의 할일에서 완료할 때와 같게)
+  if(t.done){ t.manualDone=1; t.doneBy=savedOwner()||''; if(id==='progstaff') t.ckSig=missingStaff(rec).join(',');   // 맨 위 체크 = 아래 세부 과업(기본 하위 과업 · 직접 추가한 세부 과제)도 모두 처리한 것으로 (2026-11-23 · 나의 할일에서 완료할 때와 같게)
     const ds=DOC_SUBS[t.id]||[]; if(ds.length || t.subs){ t.subs=t.subs||{}; ds.forEach(([k])=>{ t.subs[k]=true; }); Object.keys(t.subs).forEach(k=>{ t.subs[k]=true; }); }
     (t.xsubs||[]).forEach(x=>{ x.done=true; }); }
-  else { delete t.manualDone; if(taskDue(t)<todayYmd()){ t.due=todayYmd(); t.dueSet=1; t.dueSetAt=new Date().toISOString(); }   /* 다시 열면 마감이 지났어도 오늘 마감 (2026-11-19) */ if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=false); (t.xsubs||[]).forEach(x=>x.done=false); }   // 끄면 세부 과업도 모두 해제 (2026-11-18)
+  else { delete t.manualDone; delete t.ckSig; if(taskDue(t)<todayYmd()){ t.due=todayYmd(); t.dueSet=1; t.dueSetAt=new Date().toISOString(); }   /* 다시 열면 마감이 지났어도 오늘 마감 (2026-11-19) */ if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=false); (t.xsubs||[]).forEach(x=>x.done=false); }   // 끄면 세부 과업도 모두 해제 (2026-11-18)
   if(id==='erp'){ rec.erp = t.done ? ymd(new Date()) : ''; touched.add('erp'); }
   if(id==='linksend' || id==='paycheck'){ const k=id==='linksend'?'linkSent':'paidAt'; rec[k] = t.done ? t.doneAt : ''; touched.add(k); paintFields(); }   // 과업 체크 = 예약 내용 버튼도 (일시 기록)
   if(id==='erpfix' && t.done){ const e=tasks.find(x=>x.id==='erp'); if(e) e.base=erpSnap(); t.changes=[]; }   // 전산에 고친 지금 내용을 기준으로
@@ -3080,8 +3090,11 @@ let erpPendingTask=null, erpDiffList=null;   // erpPendingTask: 붙여넣으면 
 function applyErpList(list, how, diff){
   erpList=list; touched.add('erpList');
   if(how==='fill'){ fillFromErp(list); nContacts=Math.max(nContacts, nContactsOf(rec)); renderContacts(); renderForm(); }
-  if(how==='keep' && diff && diff.length) tasks.push({id:'c'+Date.now().toString(36), title:'전산 예약을 예약 내용대로 수정', custom:true, done:false,
-    memo:diff.map(x=>`${x.label}: 예약 ${x.mine} / 전산 ${x.erp}`).join('\n'), at:new Date().toISOString(), due:todayYmd()});
+  if(how==='keep' && diff && diff.length && !(typeof tcfgOf==='function' && (tcfgOf('erpkeep')||{}).off)){   // 추후과업 메시지 관리의 「전산 예약을 예약 내용대로 수정」 (id erpkeep · 2026-11-23 · 예전엔 그때그때 새 과업 c…)
+    const memo=diff.map(x=>`${x.label}: 예약 ${x.mine} / 전산 ${x.erp}`).join('\n'), nowI=new Date().toISOString(), due=(typeof tcfgDue==='function' && tcfgDue('erpkeep', rec)) || todayYmd();
+    let k=tasks.find(x=>x.id==='erpkeep' && !x.removed);
+    if(!k) tasks.push({id:'erpkeep', title:AUTO_TASKS.erpkeep, custom:true, done:false, memo, at:nowI, due});
+    else { k.memo=memo; if(k.done){ k.done=false; k.doneAt=''; delete k.manualDone; k.at=nowI; k.due=due; delete k.dueSet; (k.xsubs||[]).forEach(x=>x.done=false); } } }
   if(erpPendingTask){ const t=tasks.find(x=>x.id===erpPendingTask);
     if(t){ t.done=true; t.doneAt=new Date().toISOString();
       if(t.id==='erp'){ rec.erp=ymd(new Date()); touched.add('erp'); }
@@ -3242,8 +3255,9 @@ function fitViewNow(){ if(!fitViewToPeople(rec)) return false; touched.add('view
 document.addEventListener('change', e=>{ if(e.target && e.target.id==='f_people') setTimeout(()=>{ pplTask(); if(fitViewNow()) toast(`관람 인원에 맞춰 예약 내역의 관람 줄 인원을 바꿨습니다 (${viewsParse(rec.views).map(x=>`${viewLabel(daySrc(x.src, rec))} ${x.qty}명`).join(', ')}).`, 3600); }, 0); });
 // 저장한 예약의 관람 인원이 바뀌면 추후 과업 「예약 내역&전산 내역 확인」 (설명: 인원수 변경에 따른 예약 내역 확인, 2026-11-19)
 function pplTask(){ const was=String((baseSnap||{}).people||'').trim(), now=String(rec.people||'').trim(); if(!editingId || !was || !now || was===now) return;
+  if(typeof tcfgOf==='function' && (tcfgOf('pplchk')||{}).off) return;   // 추후과업 메시지 관리에서 끔 (2026-11-23)
   let t=tasks.find(x=>x.id==='pplchk');
-  if(!t){ t={id:'pplchk', title:PPL_TITLE, custom:true, done:false, at:new Date().toISOString(), due:todayYmd(), pplFrom:was}; tasks.push(t); }
+  if(!t){ t={id:'pplchk', title:AUTO_TASKS.pplchk||PPL_TITLE, custom:true, done:false, at:new Date().toISOString(), due:(typeof tcfgDue==='function' && tcfgDue('pplchk', rec)) || todayYmd(), pplFrom:was}; tasks.push(t); }
   else if(t.done){ t.done=false; t.doneAt=''; t.at=new Date().toISOString(); t.due=todayYmd(); delete t.dueSet; t.pplFrom=was; t.changes=[]; }
   t.pplTo=now; t.changes=[...(t.changes||[]).filter(c=>!/^관람 인원 .* \(단체 화면\)$/.test(c)), `관람 인원 ${was} → ${now} (단체 화면)`]; renderTasks(); renderSide(); }   // 무엇이 바뀌었는지 과업 아래에 (2026-11-21)
 // 「예약 내역&전산 내역 확인」 아래에 보이는 바뀐 내용 (예전 기록은 pplFrom → pplTo 로)
@@ -3632,10 +3646,10 @@ function settleTasks(list, r, x){
     .filter(t=>!(t.id==='erpfix' && !t.done && !(t.v===4 && (t.changes||[]).length) && !(t.changes||[]).some(c=>/전산 비고/.test(c)) && !t.memo && !(t.xsubs||[]).length))
     .map(t=>{ const u={...t};
       if(u.id==='staffbrief' && !u.dueSet && !u.done && r && r.date) u.due=staffFri(r.date);   // 열지 않은 예약도 방문 전주 금요일 (2026-11-21 · 직접 바꾼 마감은 그대로)
-      if(u.id==='erp') u.done = !!x.erp || /^adm/.test(r.id);
-      else if(u.id==='linksend') u.done = !!x.linkSent;
+      if(u.id==='erp') u.done = !!u.done || !!x.erp || /^adm/.test(r.id);   // 저장된 체크가 먼저 (2026-11-23)
+      else if(u.id==='linksend') u.done = !!u.done || !!x.linkSent;
       else if(u.id==='paycheck'){ if(x.paidAt) u.done=true; }
-      else if(u.id==='progstaff'){ try{ u.done = !missingStaff(x).length; }catch(_){} }
+      else if(u.id==='progstaff'){ if(!u.done){ try{ u.done = !missingStaff(x).length; }catch(_){} } }
       else { const ds=DOC_SUBS[u.id], st=[...(ds && u.subs ? ds.map(([k])=>!!u.subs[k]) : []), ...(u.xsubs||[]).map(s=>!!s.done)]; if(st.length && st.every(Boolean)) u.done=true; }
       return u; });
 }
@@ -3762,7 +3776,7 @@ const doneTodayOpen = () => { try{ return localStorage.getItem(DONE_TODAY_LS)===
 function doneTodayHTML(){
   const today=ymd(new Date()), me=savedOwner(), isToday = s => { const x=new Date(s||''); return !isNaN(x) && ymd(x)===today; }, rows=[];
   const L=[];   // 같은 과업 줄 모양 (완료 = 줄 그음 · 체크를 풀면 다시 열림, 2026-11-21)
-  (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).tasks.filter(t=>t.done && !t.removed && !SELF_DONE.has(t.id) && isToday(t.doneAt)).forEach(t=>L.push(tkFromG(r, t))));
+  (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).tasks.filter(t=>t.done && !t.removed && t.id!=='erp' && isToday(t.doneAt)).forEach(t=>L.push(tkFromG(r, t))));
   (cache||[]).filter(r=>isPersonalRec(r) && (r.owner||r.takenBy)===me).forEach(r=>{ let ts=[]; try{ ts=(JSON.parse(r.history||'{}').tasks)||[]; }catch(_){} ts.filter(t=>t.done && isToday(t.doneAt)).forEach(t=>L.push(tkFromP(r, t))); });
   etcMine().forEach(o=>Object.entries(o.d.done||{}).filter(([,v])=>isToday(v&&v.at)).forEach(([day])=>L.push({...tkFromE(o, day), done:true, src:catLabel(etcCatOf(o.d))||ETC_NOCAT, srcAttr:''})));
   L.forEach(T=>rows.push(tkHTML(T)));
@@ -4005,7 +4019,8 @@ setInterval(()=>{ if(window.__tasksReady) checkMemoPopup(); }, 60000);
 // 마감이 오늘이거나 지난, 해결 안 된 과업(영업 담당이 있으면 내 예약만)을 해결될 때까지 계속 띄움: 열 때 · 9시 · '나중에'를 누르면 2시간 뒤 다시
 const TASK_SNOOZE_LS='sayuwon_task_snooze', SNOOZE_MS=2*3600e3, TASK_SLOT_LS='sayuwon_task_slot', QUIET_MS=30*60e3;
 const ALERT_HOURS=[8,11,13,17];   // 추후 과업 마감 알림 시각 (개인고객 화면과 같음)
-const SELF_DONE = new Set(['erp','erpcheck','erpfix','progstaff','mbmenu']);   // erp · erpfix: 전산 내역을 붙여넣어야 완료   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
+const SELF_DONE = new Set();   // 2026-11-23: 비움 — 전산 예약 · 전산 내역 대조 · 전산 예약 수정 · 담당 입력 · 몽몽마방 메뉴도 나의 할일 · 알림에서 바로 체크해 완료 (예전: 예약을 열어야만)
+// (예전 값) ['erp','erpcheck','erpfix','progstaff','mbmenu']   // erp · erpfix: 전산 내역을 붙여넣어야 완료   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
 function checkTbdPopup(force){
   if(BOOK_ONLY || MY_EMBED) return;   // 예약 현황 공유 페이지 · 나의 할일 팝업 안에서는 안 함
   // 마감 지난 과업: 열 때 · 1분마다 (나중에 = 2시간 뒤). 오늘 마감 과업: 오후 1시, 아직 안 끝났으면 오후 5시에 (시간마다 한 번)
@@ -4036,9 +4051,11 @@ $('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; };   // 다음 알림 �
 async function doneTask(id, tid){
   const r=cache.find(x=>x.id===id); if(!r) return;
   const now=new Date().toISOString(), base=tasksOf(r).find(t=>t.id===tid); if(!base) return;
-  if(editingId===id){ let t=tasks.find(x=>x.id===tid); if(!t){ t={...base}; tasks.push(t); } t.done=true; t.doneAt=now; if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=true); (t.xsubs||[]).forEach(x=>x.done=true); renderTasks(); await save({auto:true}); return; }
+  const mark = t => { t.done=true; t.doneAt=now; t.manualDone=1; t.doneBy=savedOwner()||'';   // 사람이 체크한 것 = 끝 (코드가 다시 따져서 되돌리지 않음, 2026-11-23)
+    if(t.id==='erpfix') t.ckSig=(base.changes||[]).join(' | '); if(t.id==='progstaff') t.ckSig=String(base.mk||''); };   // 체크한 때의 바뀐 내용 · 빈 담당 — 그 뒤 새로 생긴 것이 있을 때만 다시 열림
+  if(editingId===id){ let t=tasks.find(x=>x.id===tid); if(!t){ t={...base}; tasks.push(t); } mark(t); if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=true); (t.xsubs||[]).forEach(x=>x.done=true); renderTasks(); await save({auto:true}); return; }
   const ph=parseHist(r); let t=ph.tasks.find(x=>x.id===tid); if(!t){ t={...base, memo:'', at:now}; ph.tasks.push(t); }
-  t.done=true; t.doneAt=now; if(DOC_SUBS[t.id]) t.subs=Object.fromEntries(DOC_SUBS[t.id].map(([k])=>[k,true])); (t.xsubs||[]).forEach(x=>x.done=true); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료`});
+  mark(t); if(DOC_SUBS[t.id]) t.subs=Object.fromEntries(DOC_SUBS[t.id].map(([k])=>[k,true])); (t.xsubs||[]).forEach(x=>x.done=true); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료`});
   const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item);
   const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;   // 공유 기록에서 다시 받기 전에도 바로 반영
 }

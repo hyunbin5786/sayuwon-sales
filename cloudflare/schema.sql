@@ -56,3 +56,14 @@ CREATE TABLE IF NOT EXISTS kv (
 CREATE TABLE IF NOT EXISTS quote_history (
   id TEXT PRIMARY KEY, at TEXT NOT NULL DEFAULT '', data TEXT NOT NULL
 );
+
+-- 대구대교구 무료입장 명부 (2026-11-23 · clergy.html): 한 줄 = 한 번 방문. 예전에는 calls 의 clergy0 · clergy1 … 에 4만 자씩 묶어 넣었음
+--   who = 이름(띄어쓰기 뺌) | 연락처 숫자 — 같은 사람의 그해 방문 수(회차)를 셀 때 씀. 지우면 줄을 없애지 않고 deleted 에 일시 + 지운 사람
+--   서버(worker.js ensureClergy)가 처음 쓸 때 스스로 만들기도 함 (Console 에서 따로 실행하지 않아도 됨)
+CREATE TABLE IF NOT EXISTS clergy (
+  id TEXT PRIMARY KEY, visit_date TEXT NOT NULL DEFAULT '', org TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '',
+  pos TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', turn TEXT NOT NULL DEFAULT '',
+  who TEXT NOT NULL DEFAULT '', added TEXT NOT NULL DEFAULT '', "by" TEXT NOT NULL DEFAULT '', updated TEXT NOT NULL DEFAULT '', deleted TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS clergy_who ON clergy(who);
+CREATE INDEX IF NOT EXISTS clergy_date ON clergy(visit_date);
