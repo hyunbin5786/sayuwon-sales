@@ -1,0 +1,49 @@
+<!-- 첫 화면 매뉴얼 (2026-11-23) — 헤더 오른쪽 끝 「매뉴얼」 버튼으로 열림 (js/menu.js). 지금은 자료 백업 · 되살리기만 -->
+<h1>자료 백업 · 되살리기</h1>
+<p class="man-lead">이 시스템의 모든 자료(예약 · 통화 기록 · 멤버 · 견적서 발급 내역 · 품목 관리 내용 · 올린 이미지)는 공유 DB 한 곳에 있습니다.<br>
+DB 에 문제가 생겨도 되찾을 수 있도록 <b>백업 파일</b>을 받아 두고, 필요할 때 그 파일로 <b>되살립니다</b>.</p>
+
+<h2>갖춰진 것</h2>
+<table>
+  <thead><tr><th>무엇</th><th>어디서</th></tr></thead>
+  <tbody>
+    <tr><td><b>매주 자동 백업</b></td><td>백업 담당 컴퓨터의 <code>tools\backup.ps1</code> → 회사 네트워크 폴더 「11. 운영보조플랫폼 자료다운」</td></tr>
+    <tr><td><b>직접 내려받기</b></td><td><a href="https://hyunbin5786.github.io/sayuwon-sales/tools/export.html" target="_blank" rel="noopener">https://hyunbin5786.github.io/sayuwon-sales/tools/export.html</a></td></tr>
+    <tr><td><b>백업에서 되살리기</b></td><td><a href="https://hyunbin5786.github.io/sayuwon-sales/tools/restore.html" target="_blank" rel="noopener">https://hyunbin5786.github.io/sayuwon-sales/tools/restore.html</a></td></tr>
+  </tbody>
+</table>
+<div class="man-tip">백업 파일에는 <b>고객 연락처와 멤버의 이름 · 사번</b>이 들어 있습니다. 메일 · 메신저로 보내지 말고 정해진 폴더에만 두세요.</div>
+
+<h2>[1] 매주 자동 백업</h2>
+<ul>
+  <li><span class="n">1</span> 백업 담당 컴퓨터가 <b>매주 월요일 오전 9시</b>에 자료 전체를 받아 네트워크 폴더에 <code>sayuwon-backup-날짜-시각.json</code> 으로 저장합니다. 그 시각에 꺼져 있었으면 <b>다음에 켰을 때</b> 저장합니다.</li>
+  <li><span class="n">2</span> <b>최근 4개</b>(약 한 달치)만 남기고 더 오래된 것은 저절로 지웁니다.</li>
+  <li><span class="n">3</span> 같은 폴더의 <code>backup-log.txt</code> 에 「성공」 · 「실패」가 한 줄씩 남습니다. 가끔 열어서 최근 날짜에 「성공」이 있는지 봐 주세요.</li>
+</ul>
+<details><summary><code>백업이 실패로 남을 때</code> : 「로그인이 확인되지 않았습니다」 · 「저장할 폴더를 열 수 없습니다」</summary>
+  <p>「로그인이 확인되지 않았습니다」: 백업 설정에 적어 둔 사람이 멤버에서 빠진 경우입니다. 백업 담당 컴퓨터의 <code>tools\backup-config.json</code> 에서 이름 · 사번을 지금 멤버의 것으로 바꿉니다.<br>
+  「저장할 폴더를 열 수 없습니다」: 그 컴퓨터가 네트워크 폴더에 연결돼 있지 않은 경우입니다. 탐색기에서 그 폴더가 열리는지 확인한 뒤 다시 실행합니다.</p></details>
+<details><summary><code>백업 담당 컴퓨터를 바꿀 때</code> : 컴퓨터 교체 · 담당자 변경</summary>
+  <p>새 컴퓨터에 <code>tools\backup.ps1</code> 과 <code>tools\backup-config.json</code> 을 옮기고, 윈도우 작업 스케줄러에 매주 실행으로 등록합니다. 등록 명령은 저장소 README 20-6절에 있습니다.</p></details>
+
+<h2>[2] 직접 내려받기</h2>
+<ul>
+  <li><span class="n">1</span> 로그인한 브라우저에서 <a href="https://hyunbin5786.github.io/sayuwon-sales/tools/export.html" target="_blank" rel="noopener">https://hyunbin5786.github.io/sayuwon-sales/tools/export.html</a> 을 엽니다.</li>
+  <li><span class="n">2</span> <b>내려받기</b>를 누르면 그 순간의 자료 전체가 파일 하나로 이 컴퓨터에 내려받아집니다. DB 는 읽기만 합니다.</li>
+  <li><span class="n">3</span> 큰 작업(자료 정리 · 되살리기)을 하기 <b>직전에</b> 한 번 받아 두면 좋습니다.</li>
+</ul>
+
+<h2>[3] 백업에서 되살리기</h2>
+<ul>
+  <li><span class="n">1</span> 로그인한 브라우저에서 <a href="https://hyunbin5786.github.io/sayuwon-sales/tools/restore.html" target="_blank" rel="noopener">https://hyunbin5786.github.io/sayuwon-sales/tools/restore.html</a> 을 엽니다.</li>
+  <li><span class="n">2</span> <b>백업 파일</b>을 고릅니다. 백업 시각과 들어 있는 줄 수가 보입니다.</li>
+  <li><span class="n">3</span> <b>방식</b>을 고릅니다.
+    <ul><li><b>빠진 것만 채우기</b> — 지금 DB 에 없는 것만 넣습니다. 있는 것은 건드리지 않습니다. (실수로 사라진 것을 되찾을 때)</li>
+        <li><b>백업 때 모습으로 덮어쓰기</b> — 같은 기록을 백업 내용으로 바꿉니다. <b>백업 뒤에 고친 내용은 사라집니다.</b> (내용이 잘못 바뀌었을 때)</li></ul></li>
+  <li><span class="n">4</span> <b>MIGRATE_KEY</b> 를 넣고 <b>되살리기 시작</b>을 누릅니다. 끝나면 백업과 대조한 결과가 나옵니다.</li>
+</ul>
+<div class="man-tip">되살리기는 <b>모두가 쓰는 자료를 바꾸는 일</b>입니다. 시작하기 전에 [2] 직접 내려받기로 지금 상태를 먼저 받아 두세요.</div>
+<details><summary><code>MIGRATE_KEY 가 무엇인가요</code> : 되살리기를 아무나 못 하게 막는 열쇠</summary>
+  <p>서버(Cloudflare)에 넣어 두는 비밀 값입니다. 평소에는 서버에서 지워 두고, 되살릴 때만 Cloudflare → <code>sayuwon-api</code> → Settings → Variables and Secrets 에 넣었다가 끝나면 다시 지웁니다. 값은 시스템 관리자가 정합니다.</p></details>
+<details><summary><code>어느 방식이든 바뀌지 않는 것</code> : 백업 뒤에 새로 생긴 것 · 멤버</summary>
+  <p>백업 뒤에 새로 만든 기록은 지우지 않습니다. 멤버는 백업에 있는데 지금 없는 사람만 더하고, 지금 멤버를 빼지는 않습니다.</p></details>

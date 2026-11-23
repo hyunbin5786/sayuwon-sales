@@ -86,6 +86,10 @@ header .man-btn svg{flex:none}
 .man-body summary{cursor:pointer;font-weight:600}
 .man-body summary code,.man-body code{font:600 13.5px ui-monospace,Consolas,monospace;background:#efece4;border-radius:5px;padding:1px 6px;color:#7a4b12}
 .man-body .man-tip{background:#fbf3e3;border-radius:10px;padding:10px 14px;margin:10px 0;font-size:14.5px}
+.man-body table{border-collapse:collapse;width:100%;margin:8px 0 14px;font-size:14.5px}
+.man-body th,.man-body td{border:1px solid #e2e0d8;padding:7px 10px;text-align:left;vertical-align:top;word-break:break-all}
+.man-body th{background:#f3f1ea;font-weight:600}
+.man-body td:first-child{white-space:nowrap;word-break:keep-all}
 .man-wait{color:#77736a;text-align:center;padding:40px 0}
 .man-zoom{position:fixed;inset:0;z-index:1600;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px}
 .man-zoom img{max-width:100%;max-height:100%;border-radius:8px}
