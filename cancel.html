@@ -6,9 +6,9 @@
 <title>예약 취소 요청 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261124k">
-<link rel="stylesheet" href="css/cancel.css?v=20261124k">
-<link rel="stylesheet" href="css/menu.css?v=20261124k">
+<link rel="stylesheet" href="css/prep.css?v=20261124l">
+<link rel="stylesheet" href="css/cancel.css?v=20261124l">
+<link rel="stylesheet" href="css/menu.css?v=20261124l">
 </head>
 <body>
 <!-- 고객 응대 보조 · 예약 취소 요청 (2026-11-19): 직원이 취소 담당자에게 예약 취소 처리를 요청 → 담당자가 처리 완료 표시.
@@ -21,7 +21,9 @@
   <section class="panel" id="keyBox" hidden>
     <div class="keybox"><span class="hint">로그인 정보를 확인할 수 없습니다. <a href="./">첫 화면</a>에서 다시 로그인해 주세요 (팀 비밀번호는 없앰 · 2026-11-21).</span></div>
   </section>
-  <nav class="cx-tabs" id="tabs"><button type="button" data-tab="req" class="on">취소 요청하기</button><button type="button" data-tab="list">요청 목록 · 처리 <b id="openN"></b></button><span class="save-st" id="st"></span></nav>
+  <!-- 2026-11-23: 탭 대신 2열 — 1열 취소 요청하기 · 2열 요청 목록 · 처리 (좁은 화면에서는 위아래) -->
+  <div class="cx-top"><span class="save-st" id="st"></span></div>
+  <div class="cx-cols">
 
   <!-- ① 취소 요청하기 (요청 목록의 「정보 채우기」로 열면 그 요청을 고침) -->
   <section class="panel" id="pReq">
@@ -73,14 +75,15 @@
   </section>
 
   <!-- ② 요청 목록 · 처리 -->
-  <section class="panel" id="pList" hidden>
-    <h2>요청 목록 · 처리 <small id="sum"></small>
+  <section class="panel" id="pList">
+    <h2>요청 목록 · 처리 <b class="cx-n" id="openN" title="처리 전"></b> <small id="sum"></small>
       <span class="right"><button class="btn line-g" id="xlBtn" type="button" title="예전에 쓰던 「사유원 예약 취소 요청」 엑셀을 넣으면 그 줄들을 목록에 더함">엑셀 불러오기</button><input type="file" id="xlFile" accept=".xlsx,.xls" hidden></span></h2>
     <div class="cx-tools"><span class="seg" id="flt"><button type="button" data-v="open" class="on">처리 전</button><button type="button" data-v="done">처리 완료</button><button type="button" data-v="all">전체</button></span>
       <label class="cx-ck"><input type="checkbox" id="fltMiss"> 정보 덜 된 것만 <b id="missN"></b></label>
       <input id="q" type="search" placeholder="예약자 · 연락처 · 예약 번호 · 요청자로 찾기" data-ime="ko" autocomplete="off"></div>
     <div id="list"></div>
   </section>
+  </div>
 </main>
 
 <div class="pmodal" id="askModal" hidden>
@@ -93,8 +96,8 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/common.js?v=20261124k"></script>
-<script src="js/cancel.js?v=20261124k"></script>
-<script src="js/menu.js?v=20261124k"></script>
+<script src="js/common.js?v=20261124l"></script>
+<script src="js/cancel.js?v=20261124l"></script>
+<script src="js/menu.js?v=20261124l"></script>
 </body>
 </html>

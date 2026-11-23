@@ -77,3 +77,43 @@
 .cx-row select{height:36px;border:1px solid #c9c4b8;border-radius:6px;padding:0 8px;font:inherit;font-size:14px;color:var(--ink);background:#fff;min-width:170px}
 .cx-row #fAccNo{font-variant-numeric:tabular-nums}
 .cx-form [hidden]{display:none!important}   /* label · .cx-f 의 display:flex 가 hidden 을 이기지 않게 */
+/* 2026-11-23: 2열 (1열 취소 요청하기 · 2열 요청 목록 · 처리) + 요청 한 건 = 표 */
+.cx-main{max-width:1560px}
+.cx-top{display:flex;justify-content:flex-end;min-height:18px;margin:0 0 4px}
+.cx-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:16px;align-items:start}
+.cx-cols > .panel{margin:0}
+#pReq{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+@media (max-width:1100px){ .cx-cols{grid-template-columns:1fr} #pReq{position:static;max-height:none} }
+#pList h2 .cx-n{display:inline-block;min-width:18px;padding:0 7px;border-radius:999px;background:#d9a91f;color:#fff;font-size:12px;text-align:center;vertical-align:2px}
+#pList h2 .cx-n:empty{display:none}
+.cx-tools input[type=search]{flex:1 1 200px;min-width:180px}
+.cx-card{display:block;padding:0;overflow:hidden;margin:0 0 12px}
+.cx-ch{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #eadb8f;background:#fff6cf}
+.cx-card.done .cx-ch{background:#f6f4ef;border-bottom-color:var(--line)}
+.cx-card.miss .cx-ch{background:#fdebd0;border-bottom-color:#e8c49a}
+.cx-ch > b{font-size:15px;flex:1;min-width:0}
+.cx-ch .tag{margin:0}
+.cx-st{font-size:12px;font-weight:700;color:#8a6a00;background:#fff;border:1px solid #e3cf74;border-radius:999px;padding:1px 9px;white-space:nowrap}
+.cx-st.ok{color:var(--pine);border-color:var(--pine)}
+.cx-card .cx-miss{margin:8px 12px 0;display:inline-block}
+.cx-tb{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff}
+.cx-card .cx-tb{margin-top:6px}
+.cx-tb th,.cx-tb td{border-top:1px solid #eeeae0;padding:7px 12px;text-align:left;vertical-align:middle}
+.cx-tb tr:first-child th,.cx-tb tr:first-child td{border-top:0}
+.cx-tb th{width:86px;white-space:nowrap;font-weight:500;color:var(--muted);font-size:12.5px;background:#faf8f3}
+.cx-tb td{color:var(--ink);word-break:break-all}
+.cx-tb td small{color:var(--muted)}
+.cx-tb tr.m th{color:#b5442c;font-weight:700;background:#fdf1ee}
+.cx-tb tr.m th::after{content:' ⚠'}
+.cx-gap{color:#b5442c;font-weight:700;font-size:12.5px}
+.cx-none{color:#b3ad9f}
+.cx-tb b.all{color:#b5442c}
+.cx-tb i.doc{font-style:normal;font-size:12px;background:#e6eef8;color:#2f5d8a;border-radius:999px;padding:1px 8px}
+.cx-tb .cx-files{gap:4px 6px}
+.cx-tb .cx-file{margin:0}
+.cx-upb{margin-left:auto}
+.cx-tb tr.cx-do td,.cx-tb tr.cx-do th{background:#f7faf5}
+.cx-done-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cx-done-row .cx-memo{flex:1 1 160px;min-width:0}
+.cx-done-row .cx-done{flex:1;font-size:13px}
+.cx-main{display:block;margin-left:auto;margin-right:auto}   /* prep.css 의 main 격자를 쓰지 않음 */

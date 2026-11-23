@@ -77,9 +77,8 @@
   }
   const fileLinks = (files, rmAttr) => (files||[]).map((f,i)=>`<span class="cx-file"><a href="${esc(f.url)}" target="_blank" rel="noopener" title="새 창에서 보기">📎 ${esc(f.name||'증빙 서류')}</a>${rmAttr?`<button type="button" ${rmAttr}="${i}" title="이 파일 빼기">×</button>`:''}</span>`).join('');
 
-  // ---------- 탭 ----------
-  function setTab(t){ tab=t; document.querySelectorAll('#tabs [data-tab]').forEach(b=>b.classList.toggle('on', b.dataset.tab===t)); $('#pReq').hidden=t!=='req'; $('#pList').hidden=t!=='list'; try{ localStorage.setItem('sy_cx_tab', t); }catch(_){} render(); }
-  document.querySelectorAll('#tabs [data-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+  // ---------- 탭 없음 (2026-11-23): 1열 취소 요청하기 · 2열 요청 목록이 늘 함께 보임 ----------
+  const toForm = () => { const y=$('#pReq').getBoundingClientRect().top; if(y<0 || y>innerHeight*0.5) $('#pReq').scrollIntoView({behavior:'smooth', block:'start'}); };
 
   // ---------- ① 요청하기 ----------
   let editId=null, formFiles=[], origUrls=new Set(), formErp='', upBusy=false;
@@ -180,7 +179,7 @@
     $('#fEditBar').hidden=true; $('#fEditCancel').hidden=true; $('#fReset').hidden=false; $('#fSend').textContent='취소 요청 보내기';
     syncKind(); syncDoc(); syncWhy(); syncAcc(); }
   $('#fReset').onclick=resetForm;
-  $('#fEditCancel').onclick=()=>{ resetForm(); setTab('list'); };
+  $('#fEditCancel').onclick=()=>{ resetForm(); };
 
   // 요청 목록의 「정보 채우기」: 그 요청을 요청서에 불러와 고침
   function openEdit(r){
@@ -197,7 +196,7 @@
     const miss=missOf(r);
     $('#fEditBar').innerHTML=`✎ <b>${esc(r.name||'(이름 없음)')}</b> 님 취소 요청을 고치는 중 <small>(요청 ${esc(r.by||'')}${r.at?` · ${esc(atLab(r.at))}`:''})</small>${miss.length?`<br><span class="bad">빠진 정보: ${esc(miss.join(' · '))}</span>`:''}${r.erp?`<br><small>전산 예약: ${esc(r.erp)}</small>`:(r.amt && r.kind!=='부분 취소'?`<br><small>예전 자세히: ${esc(r.amt)}</small>`:'')}`;
     $('#fEditBar').hidden=false; $('#fEditCancel').hidden=false; $('#fReset').hidden=true; $('#fSend').textContent='고친 내용 저장';
-    syncKind(); syncDoc(); syncWhy(); syncAcc(); setTab('req'); window.scrollTo({top:0, behavior:'smooth'});
+    syncKind(); syncDoc(); syncWhy(); syncAcc(); toForm(); $('#fName').focus({preventScroll:true});
   }
 
   $('#fSend').onclick=async()=>{
@@ -216,7 +215,7 @@
         const ok=await change(list=>list.map(x=>{ if(x.id!==id) return x;
           const added=(x.files||[]).filter(g=>!orig.has(g.url) && !files.some(h=>h.url===g.url));   // 고치는 동안 목록에서 다른 사람이 올린 파일은 지키기
           return {...x, ...build(x), files:[...files, ...added], edited:{at:new Date().toISOString(), by:user.name||''}}; }), `「${f.name||f.no||f.phone}」 요청을 고쳤습니다.`);
-        if(ok){ resetForm(); setTab('list'); }
+        if(ok) resetForm();
       } else {
         const r={ id:newId(), at:new Date().toISOString(), by:user.name||'', ...build(null), files, done:null };
         if(await change(list=>[r, ...list], `「${r.name||r.no||r.phone}」 취소 요청을 보냈습니다. 취소 담당자가 처리하면 목록에 「처리 완료」로 바뀝니다.`)) resetForm();
@@ -241,23 +240,32 @@
     $('#list').innerHTML = list.length ? list.map(card).join('') : `<p class="hint">${onlyMiss?'정보가 덜 된 요청이 없습니다.':flt==='open'?'처리할 취소 요청이 없습니다.':'요청이 없습니다.'}</p>`;
   }
   let cardUp=null;   // 증빙을 올리는 중인 요청 id
+  // 요청 한 건 = 표 하나 (2026-11-23): 왼쪽 항목 · 오른쪽 내용. 빠진 항목은 빨간 「빠짐」
+  const MISS_ROW={'방문일':'date','예약자 이름':'name','연락처':'phone','예약 번호':'no','취소 사유':'why','사유 자세히':'why','취소할 인원':'kind','증빙 서류 파일':'doc','환불 계좌 은행':'acc','환불 계좌번호':'acc','예금주 이름':'acc'};
   function card(r){
-    const why=[r.why, r.whyTxt].filter(Boolean).join(' · '), miss=r.done ? [] : missOf(r);
+    const miss=r.done ? [] : missOf(r), mk=new Set(miss.map(m=>MISS_ROW[m]));
     const cut = r.kind==='부분 취소' && r.cnt ? partTxt(r.cnt, r.ppl) : (r.amt||'');
-    return `<div class="cx-card${r.done?' done':''}${miss.length?' miss':''}" data-id="${esc(r.id)}"><div class="cx-main-col">`
+    const why=[r.why, r.whyTxt].filter(Boolean).join(' · ');
+    const row=(k, th, td) => `<tr${mk.has(k)?' class="m"':''}><th>${th}</th><td>${td || (mk.has(k) ? '<span class="cx-gap">빠짐</span>' : '<span class="cx-none">—</span>')}</td></tr>`;
+    const up=`<label class="btn sm line-g cx-upb${cardUp===r.id?' busy':''}">${cardUp===r.id?'올리는 중…':(r.files||[]).length?'증빙 더 올리기':'증빙 올리기'}<input type="file" data-cxup="${esc(r.id)}" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple hidden${cardUp?' disabled':''}></label>`;
+    return `<div class="cx-card${r.done?' done':''}${miss.length?' miss':''}" data-id="${esc(r.id)}">`
+      + `<div class="cx-ch"><span class="tag">${esc(r.site||'-')}</span><b>${esc(r.name||'(이름 없음)')}</b><span class="cx-st${r.done?' ok':''}">${r.done?'✓ 처리 완료':'처리 전'}</span>`
+      +   `<button type="button" class="btn sm${miss.length?' primary':''}" data-edit="${esc(r.id)}">${miss.length?'정보 채우기':'고치기'}</button></div>`
       + (miss.length ? `<div class="cx-miss">⚠ 빠진 정보: <b>${esc(miss.join(' · '))}</b></div>` : '')
-      + `<div class="cx-h"><span class="tag">${esc(r.site||'-')}</span> <b>${esc(r.name||'(이름 없음)')}</b>${r.phone?` · ${esc(r.phone)}`:''}${r.no?` · <button type="button" class="cx-no" data-copy="${esc(r.no)}" title="예약 번호 복사">${esc(r.no)}</button>`:''} <span class="cx-date">방문 ${esc(dLab(r.date))||'—'}</span></div>`
-      + `<div class="cx-l"><span>취소</span><b class="${r.kind==='전체 환불'?'all':''}">${esc(r.kind||'')}</b>${cut?` ${esc(cut)}`:''}</div>`
-      + (r.erp ? `<div class="cx-l"><span>전산 예약</span>${esc(r.erp)}</div>` : '')
-      + (why ? `<div class="cx-l"><span>사유</span>${esc(why)}${r.doc?` <i class="doc">서류 ${esc(r.doc)}</i>`:''}</div>` : (r.doc?`<div class="cx-l"><span>사유</span><i class="doc">서류 ${esc(r.doc)}</i></div>`:''))
-      + ((r.files||[]).length ? `<div class="cx-l"><span>증빙 서류</span>${fileLinks(r.files)}</div>` : '')
-      + (r.acc ? `<div class="cx-l"><span>환불 계좌</span>${esc(r.acc)}</div>` : '')
-      + `<div class="cx-l sub"><span>요청</span>${esc(r.by||'')}${r.at?` · ${esc(atLab(r.at))}`:''}${r.edited?` · 고침 ${esc(r.edited.by||'')} ${esc(atLab(r.edited.at))}`:''}</div>`
-      + `<div class="cx-acts"><button type="button" class="btn sm${miss.length?' primary':''}" data-edit="${esc(r.id)}">${miss.length?'정보 채우기':'고치기'}</button>`
-      +   `<label class="btn sm line-g${cardUp===r.id?' busy':''}">${cardUp===r.id?'올리는 중…':(r.files||[]).length?'증빙 더 올리기':'증빙 올리기'}<input type="file" data-cxup="${esc(r.id)}" accept="image/*,application/pdf" multiple hidden${cardUp?' disabled':''}></label></div></div>`
-      + `<div class="cx-side">${r.done
-          ? `<div class="cx-done">✓ 처리 완료${r.done.at?` <small>${esc(atLab(r.done.at))}</small>`:''}${r.done.by?`<br><small>${esc(r.done.by)}</small>`:''}${r.done.memo?`<br><small>${esc(r.done.memo)}</small>`:''}</div><button type="button" class="btn sm" data-undo="${esc(r.id)}">되돌리기</button>`
-          : `<input class="cx-memo" data-memo="${esc(r.id)}" data-ime="ko" placeholder="처리 메모 (선택)"><button type="button" class="btn primary" data-done="${esc(r.id)}">처리 완료</button>`}</div></div>`;
+      + `<table class="cx-tb"><tbody>`
+      + row('date', '방문일', esc(dLab(r.date)))
+      + row('phone', '연락처', esc(r.phone||''))
+      + row('no', '예약 번호', r.no ? `<button type="button" class="cx-no" data-copy="${esc(r.no)}" title="예약 번호 복사">${esc(r.no)}</button>` : '')
+      + row('kind', '취소 내용', `<b class="${r.kind==='전체 환불'?'all':''}">${esc(r.kind||'')}</b>${cut?` · ${esc(cut)}`:''}`)
+      + (r.erp ? row('erp', '전산 예약', esc(r.erp)) : '')
+      + row('why', '취소 사유', esc(why))
+      + row('doc', '증빙 서류', `<div class="cx-files">${r.doc?`<i class="doc">${esc(r.doc)}</i>`:'<span class="cx-none">필요 없음</span>'}${fileLinks(r.files)}${mk.has('doc')?'<span class="cx-gap">파일 빠짐</span>':''}${up}</div>`)
+      + row('acc', '환불 계좌', esc(r.acc||''))
+      + row('req', '요청', `${esc(r.by||'')}${r.at?` · ${esc(atLab(r.at))}`:''}${r.edited?`<br><small>고침 ${esc(r.edited.by||'')} · ${esc(atLab(r.edited.at))}</small>`:''}`)
+      + `<tr class="cx-do"><th>처리</th><td>${r.done
+          ? `<div class="cx-done-row"><span class="cx-done">✓ ${esc(r.done.by||'')}${r.done.at?` · ${esc(atLab(r.done.at))}`:''}${r.done.memo?` <small>· ${esc(r.done.memo)}</small>`:''}</span><button type="button" class="btn sm" data-undo="${esc(r.id)}">되돌리기</button></div>`
+          : `<div class="cx-done-row"><input class="cx-memo" data-memo="${esc(r.id)}" data-ime="ko" placeholder="처리 메모 (선택)"><button type="button" class="btn primary" data-done="${esc(r.id)}">처리 완료</button></div>`}</td></tr>`
+      + `</tbody></table></div>`;
   }
   $('#q').addEventListener('input', render);
   $('#fltMiss').addEventListener('change', render);
@@ -307,7 +315,6 @@
     ask(`<p>엑셀에서 <b>${add.length}건</b>을 읽었습니다. 목록에 없는 <b>${fresh.length}건</b>을 더할까요?</p><p class="hint">처리 여부 칸에 「완료」가 있으면 처리 완료로 넣습니다.</p>`, '더하기',
       ()=>change(list=>{ const h=new Set(list.map(key)); return [...list, ...fresh.filter(r=>!h.has(key(r)))]; }, `${fresh.length}건을 목록에 더했습니다.`)); });
 
-  let t0='req'; try{ t0=localStorage.getItem('sy_cx_tab')||'req'; }catch(_){} if(/[?&]tab=list/.test(location.search)) t0='list';
-  syncKind(); syncDoc(); syncWhy(); syncAcc(); setTab(t0); load();
+  syncKind(); syncDoc(); syncWhy(); syncAcc(); render(); load();
   setInterval(()=>{ if(!document.hidden && loaded && !busy && !cardUp) fetchAll().then(r=>{ const ae=document.activeElement; if(ae && ae.classList.contains('cx-memo')) return; reqs=r.rows; render(); }).catch(()=>{}); }, 30000);   // 30초마다 새 요청 · 처리 받아 옴
 })();

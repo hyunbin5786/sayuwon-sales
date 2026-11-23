@@ -7,9 +7,9 @@
 <script>/* 단체 · 견적서 화면이 팝업 안에서 이 주소(#catalog)를 부르면 품목 관리 창으로 바로 바꿈 (닫기 · 저장 알림이 바로 그 화면에 가도록) */
 if(window.parent!==window && location.hash==='#catalog') location.replace('document/index.html?catalog=1&t=' + Date.now());</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/portal.css?v=20261124k">
-<link rel="stylesheet" href="css/mypop.css?v=20261124k">
-<link rel="stylesheet" href="css/menu.css?v=20261124k">
+<link rel="stylesheet" href="css/portal.css?v=20261124l">
+<link rel="stylesheet" href="css/mypop.css?v=20261124l">
+<link rel="stylesheet" href="css/menu.css?v=20261124l">
 </head>
 <body>
 <header>
@@ -84,14 +84,14 @@ if(window.parent!==window && location.hash==='#catalog') location.replace('docum
 <!-- 품목관리: 견적서 사이트의 품목 관리 창을 그대로 띄움 (닫으면 메뉴로) -->
 <div class="catwrap" id="catWrap" hidden><iframe id="catFrame" title="품목관리"></iframe></div>
 
-<script src="js/common.js?v=20261124k"></script>
-<script src="js/opslib.js?v=20261124k"></script>
-<script src="js/portal.js?v=20261124k"></script>
+<script src="js/common.js?v=20261124l"></script>
+<script src="js/opslib.js?v=20261124l"></script>
+<script src="js/portal.js?v=20261124l"></script>
 <!-- 나의 할일 팝업 (메뉴 8번 페이지 group.html?my=1 을 그대로 띄움) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
 <!-- 대시보드 과업 계산 (2026-11-21): 나의 할일과 같은 과업 규칙(group.js tasksOf)을 보이지 않는 창에서 — 저장 안 된 과업 · 지난 마감까지 나의 할일과 똑같이 -->
 <iframe id="dashEngine" title="과업 계산" hidden aria-hidden="true" tabindex="-1" style="display:none"></iframe>
-<script src="js/mypop.js?v=20261124k"></script>
-<script src="js/menu.js?v=20261124k"></script>
+<script src="js/mypop.js?v=20261124l"></script>
+<script src="js/menu.js?v=20261124l"></script>
 </body>
 </html>
