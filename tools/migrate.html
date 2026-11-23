@@ -28,7 +28,7 @@
   <div><label>사번</label><input id="emp" autocomplete="off"></div>
 </div>
 <label>새 서버 주소 (Cloudflare Worker · https://….workers.dev)</label>
-<input id="newUrl" placeholder="https://sayuwon-api.내계정.workers.dev">
+<input id="newUrl" value="https://sayuwon-api.serendipity5786-9e7.workers.dev">
 <label>MIGRATE_KEY (Worker 비밀 값에 넣은 것과 같은 글자)</label>
 <input id="mkey" type="password" autocomplete="off">
 <button id="go">옮기기 시작</button> <button id="checkOnly" style="background:#6b6d66">세기만 (옮기지 않음)</button>
@@ -56,21 +56,29 @@
       const big = calls.filter(x => JSON.stringify(x).length > 1500000); if (big.length) log(`   ⚠ 한 줄이 너무 큰 기록 ${big.length}개 (1.5MB 초과): ${big.map(x => x.id).join(', ')}`, 'err');
       if (dry) { log('세기만 했습니다 (옮기지 않음).', 'ok'); return; }
       const imp = b => post(newUrl, { action: 'import', mkey, ...b });
-      log('2) 새 서버로 보내는 중… 기록');
-      for (let i = 0; i < calls.length; i += 30) { const r = await imp({ calls: calls.slice(i, i + 30) }); log(`   기록 ${Math.min(i + 30, calls.length)} / ${calls.length}`); (r.imported.skipped || []).forEach(id => log(`   ⚠ id 모양이 맞지 않아 건너뜀: ${id}`, 'err')); }
+      // 새 서버에 이미 있는 것과 견줘, 예전 서버 쪽이 더 나중에 바뀐 줄(또는 새 서버에 없는 줄)만 보냄
+      //  → 전환한 뒤에 다시 돌려도 새 서버에서 고친 내용을 예전 내용으로 덮어쓰지 않음 (전환 직전 · 직후 시트에 남은 저장을 마저 가져올 때 씀)
+      const stamp = x => [String(x.updated || ''), String(x.deleted || '')].sort().pop();
+      const [c1, c2, c4] = await Promise.all([post(newUrl, { action: 'list', limit: 1000000, who }), post(newUrl, { action: 'deleted', limit: 1000000, who }), post(newUrl, { action: 'quoteReqList', who })]);
+      const cur = new Map([...c1.items, ...c2.items].map(x => [x.id, stamp(x)])), todo = calls.filter(x => !cur.has(x.id) || stamp(x) > cur.get(x.id));
+      log(`2) 새 서버로 보내는 중… 기록 ${todo.length}줄 (나머지 ${calls.length - todo.length}줄은 새 서버가 같거나 더 최신이라 그대로 둠)`);
+      for (let i = 0; i < todo.length; i += 30) { const r = await imp({ calls: todo.slice(i, i + 30) }); log(`   기록 ${Math.min(i + 30, todo.length)} / ${todo.length}`); (r.imported.skipped || []).forEach(id => log(`   ⚠ id 모양이 맞지 않아 건너뜀: ${id}`, 'err')); }
       log('   멤버 · 견적 요청 · 관리자 사이트 현황');
-      await imp({ members: mem.members, quotereq: qr.items.slice().reverse(), admin: live.admin || undefined });
+      const haveQr = new Set(c4.items.map(o => o.id));
+      await imp({ members: mem.members, quotereq: qr.items.filter(o => !haveQr.has(o.id)).reverse(), admin: c1.admin ? undefined : (live.admin || undefined) });
       for (let i = 0; i < imgIds.length; i++) {
         try { const f = (await old({ action: 'mentImgGet', id: imgIds[i] })).file; await imp({ files: [{ id: f.id, kind: 'ment', name: '멘트 이미지', mime: f.mime, data: f.data }] }); log(`   멘트 이미지 ${i + 1} / ${imgIds.length}`); }
         catch (e) { log(`   ⚠ 멘트 이미지 ${imgIds[i]} 를 옮기지 못함: ${e.message}`, 'err'); }
       }
       log('3) 새 서버에서 다시 읽어 맞춰 보는 중…');
       const [n1, n2, n3, n4] = await Promise.all([post(newUrl, { action: 'list', limit: 1000000, who }), post(newUrl, { action: 'deleted', limit: 1000000, who }), post(newUrl, { action: 'members', who }), post(newUrl, { action: 'quoteReqList', who })]);
-      const byId = new Map(n1.items.map(x => [x.id, x])); let diff = 0;
-      (live.items || []).forEach(x => { const y = byId.get(x.id); if (!y) { diff++; log(`   ⚠ 새 서버에 없음: ${x.id}`, 'err'); return; }
-        const bad = Object.keys(x).filter(k => k !== 'inout' && String(x[k] == null ? '' : x[k]) !== String(y[k] == null ? '' : y[k])); if (bad.length) { diff++; log(`   ⚠ 값이 다름: ${x.id} (${bad.join(', ')})`, 'err'); } });
-      log(`   기록 ${n1.items.length} / ${live.items.length} · 지워진 줄 ${n2.items.length} / ${dead.items.length} · 멤버 ${n3.members.length} / ${mem.members.length} · 견적 요청 ${n4.items.length} / ${qr.items.length}`);
-      if (!diff && n1.items.length === live.items.length && n3.members.length >= mem.members.length) log('끝났습니다. 예전 서버와 새 서버의 기록이 같습니다.', 'ok');
+      const byId = new Map(n1.items.map(x => [x.id, x])), gone = new Map(n2.items.map(x => [x.id, x])); let diff = 0, newer = 0;
+      (live.items || []).forEach(x => { const y = byId.get(x.id);
+        if (!y) { if (gone.has(x.id) && stamp(gone.get(x.id)) > stamp(x)) newer++; else { diff++; log(`   ⚠ 새 서버에 없음: ${x.id}`, 'err'); } return; }
+        const bad = Object.keys(x).filter(k => k !== 'inout' && String(x[k] == null ? '' : x[k]) !== String(y[k] == null ? '' : y[k])); if (!bad.length) return;
+        if (stamp(y) > stamp(x)) newer++; else { diff++; log(`   ⚠ 값이 다름: ${x.id} (${bad.join(', ')})`, 'err'); } });
+      log(`   기록 ${n1.items.length} (예전 ${live.items.length}) · 지워진 줄 ${n2.items.length} (예전 ${dead.items.length}) · 멤버 ${n3.members.length} (예전 ${mem.members.length}) · 견적 요청 ${n4.items.length} (예전 ${qr.items.length})` + (newer ? ` · 새 서버에서 더 나중에 고친 줄 ${newer}개는 그대로 둠` : ''));
+      if (!diff) log('끝났습니다. 예전 서버에 있던 기록이 모두 새 서버에 있습니다.', 'ok');
       else log('옮겼지만 다른 곳이 있습니다. 위 ⚠ 줄을 확인해 주세요 (옮기는 사이 누가 저장했으면 다시 한 번 누르면 맞춰집니다).', 'err');
     } catch (e) { log('멈췄습니다: ' + (e.message || e) + (/bad_key/.test(e.message) ? ' — 이름 · 사번 또는 MIGRATE_KEY 를 확인해 주세요' : ''), 'err'); }
     finally { $('go').disabled = $('checkOnly').disabled = false; }
