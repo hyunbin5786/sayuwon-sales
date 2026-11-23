@@ -292,6 +292,7 @@ function renderContacts(){
 function paintFields(changed=[]){
   syncGoodsStaff();   // 굿즈 담당 = 영업 담당
   const req=new Set(REQUIRED().map(r=>r[0]));
+  const warnF=new Set(fieldWarnings(rec).map(u=>u.field)), tbdS=tbdSet(rec);   // 칸마다 다시 계산하지 않고 한 번만 (2026-11-23 · 칸 69개 × 경고 계산 = 입력이 늦던 원인)
   allKeys().forEach(k=>{
     if(k==='owner') return;   // 헤더의 영업 담당은 이 컴퓨터 사용자 (기록마다 바뀌지 않음)
     const el=document.getElementById('f_'+k); if(!el) return;
@@ -307,10 +308,10 @@ function paintFields(changed=[]){
     else if(k==='goods'){ const h=goodsHTML(v); if(el.dataset.h!==h && !el.contains(document.activeElement)){ el.innerHTML=h; el.dataset.h=h; } }
     else { if(el.tagName==='SELECT' && v && ![...el.options].some(o=>o.value===v)) el.add(new Option(v,v)); if(el.value!==v && document.activeElement!==el) el.value=v; }
     const w=document.getElementById('w_'+k);
-    w.classList.toggle('unsure', fieldWarnings(rec).some(u=>u.field===k));
+    w.classList.toggle('unsure', warnF.has(k));
     // 차량은 처음에 받아야 하는 정보 → 미정이어도 빨간색 (2026-11-21)
     const vehRed = k==='vehicle' && (!v || /^미정/.test(v));
-    const isTbd = !vehRed && (tbdSet(rec).has(k) || v==='미정');   // 미정 체크 · 값이 미정이면 노란색
+    const isTbd = !vehRed && (tbdS.has(k) || v==='미정');   // 미정 체크 · 값이 미정이면 노란색
     w.classList.toggle('tbd', isTbd);
     w.classList.toggle('missing', vehRed || (req.has(k) && !v && !isTbd) || (isStf(k) && !v && needsStaff(k.slice(4))));
     w.classList.toggle('got', req.has(k) && !!v && !isTbd && !vehRed);   // 예약 내용 칸 색: 빨강 = 미입력 · 노랑 = 미정 · 초록 = 완료 (2026-11-18)

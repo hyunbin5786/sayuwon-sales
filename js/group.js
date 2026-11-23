@@ -965,6 +965,7 @@ function renderContacts(){
 function paintFields(changed=[]){
   syncGoodsStaff();   // 굿즈 담당 = 영업 담당
   const req=new Set(REQUIRED().map(r=>r[0]));
+  const warnF=new Set(fieldWarnings(rec).map(u=>u.field)), tbdS=tbdSet(rec);   // 칸마다 다시 계산하지 않고 한 번만 (2026-11-23 · 칸 69개 × 경고 계산 = 입력이 늦던 원인)
   allKeys().forEach(k=>{
     if(k==='owner') return;   // 헤더의 영업 담당은 이 컴퓨터 사용자 (기록마다 바뀌지 않음)
     const el=document.getElementById('f_'+k); if(!el) return;
@@ -980,10 +981,10 @@ function paintFields(changed=[]){
     else if(k==='goods'){ const h=goodsHTML(v); if(el.dataset.h!==h && !el.contains(document.activeElement)){ el.innerHTML=h; el.dataset.h=h; } }
     else { if(el.tagName==='SELECT' && v && ![...el.options].some(o=>o.value===v)) el.add(new Option(v,v)); if(el.value!==v && document.activeElement!==el) el.value=v; }
     const w=document.getElementById('w_'+k);
-    w.classList.toggle('unsure', fieldWarnings(rec).some(u=>u.field===k));
+    w.classList.toggle('unsure', warnF.has(k));
     // 차량은 처음에 받아야 하는 정보 → 미정이어도 빨간색 (2026-11-21)
     const vehRed = k==='vehicle' && (!v || /^미정/.test(v));
-    const isTbd = !vehRed && (tbdSet(rec).has(k) || v==='미정');   // 미정 체크 · 값이 미정이면 노란색
+    const isTbd = !vehRed && (tbdS.has(k) || v==='미정');   // 미정 체크 · 값이 미정이면 노란색
     w.classList.toggle('tbd', isTbd);
     w.classList.toggle('missing', vehRed || (req.has(k) && !v && !isTbd) || (isStf(k) && !v && needsStaff(k.slice(4))));
     w.classList.toggle('got', req.has(k) && !!v && !isTbd && !vehRed);   // 예약 내용 칸 색: 빨강 = 미입력 · 노랑 = 미정 · 초록 = 완료 (2026-11-18)
@@ -2624,8 +2625,18 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#catModal')
 // 견적서 사이트와 같은 방식으로 품목 목록을 만든다 (숨긴 품목 제외, 바꾼 가격 반영, 추가 품목 포함)
 // 품목 관리에서 '몽몽마방 메뉴' 구분을 없애고 식사로 (2026-11-14): 식사 중 품목명이 '몽몽마방 '으로 시작하는 것(예: 몽몽마방 런치)도 몽몽마방 메뉴로
 const mbKind = (k, src) => k==='food' && /^몽몽마방\s/.test(String(src||'')) ? 'mabang' : k;
+// 품목 목록은 화면을 그릴 때마다 수백 번 불림 (가격 · 과세 나누기 · 품목 이름 찾기) → 품목 자료가 바뀔 때만 다시 만들고 그 사이에는 만들어 둔 것을 돌려줌 (2026-11-23 · 입력이 늦던 원인)
+//  돌려준 목록 · 항목은 고치지 말 것 (고르기 · 정렬은 filter / [...] 로 복사해서)
+let catMemo=null;
 function catalogItems(){
   if(!quoteCat) return [];
+  const c=catMemo, q=quoteCat;
+  if(c && c.q===q && c.raw===q.raw && c.edits===q.edits && c.added===q.added && c.n===(q.added||[]).length && c.tax===q.tax && c.mabang===q.mabang && c.gtime===q.gtime && c.geach===q.geach && c.goods===q.goods) return c.out;
+  const out=catalogBuild();
+  catMemo={q, raw:q.raw, edits:q.edits, added:q.added, n:(q.added||[]).length, tax:q.tax, mabang:q.mabang, gtime:q.gtime, geach:q.geach, goods:q.goods, out};
+  return out;
+}
+function catalogBuild(){
   const has = (arr, s) => (arr||[]).some(x=>normSrc(x)===normSrc(s));
   const kindOf = src => /\(관람,/.test(src) ? 'package' : has(quoteCat.mabang?.length ? quoteCat.mabang : MB_DEF.map(m=>m[0]), src) ? 'mabang' : has(quoteCat.gtime,src) ? 'gtime' : has(quoteCat.geach,src) ? 'geach' : has(quoteCat.goods,src) ? 'goods'
     : (/관람/.test(src) && !/관람권|관람식사권/.test(src)) ? 'view' : 'food';

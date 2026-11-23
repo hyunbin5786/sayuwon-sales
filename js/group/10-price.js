@@ -48,8 +48,18 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#catModal')
 // 견적서 사이트와 같은 방식으로 품목 목록을 만든다 (숨긴 품목 제외, 바꾼 가격 반영, 추가 품목 포함)
 // 품목 관리에서 '몽몽마방 메뉴' 구분을 없애고 식사로 (2026-11-14): 식사 중 품목명이 '몽몽마방 '으로 시작하는 것(예: 몽몽마방 런치)도 몽몽마방 메뉴로
 const mbKind = (k, src) => k==='food' && /^몽몽마방\s/.test(String(src||'')) ? 'mabang' : k;
+// 품목 목록은 화면을 그릴 때마다 수백 번 불림 (가격 · 과세 나누기 · 품목 이름 찾기) → 품목 자료가 바뀔 때만 다시 만들고 그 사이에는 만들어 둔 것을 돌려줌 (2026-11-23 · 입력이 늦던 원인)
+//  돌려준 목록 · 항목은 고치지 말 것 (고르기 · 정렬은 filter / [...] 로 복사해서)
+let catMemo=null;
 function catalogItems(){
   if(!quoteCat) return [];
+  const c=catMemo, q=quoteCat;
+  if(c && c.q===q && c.raw===q.raw && c.edits===q.edits && c.added===q.added && c.n===(q.added||[]).length && c.tax===q.tax && c.mabang===q.mabang && c.gtime===q.gtime && c.geach===q.geach && c.goods===q.goods) return c.out;
+  const out=catalogBuild();
+  catMemo={q, raw:q.raw, edits:q.edits, added:q.added, n:(q.added||[]).length, tax:q.tax, mabang:q.mabang, gtime:q.gtime, geach:q.geach, goods:q.goods, out};
+  return out;
+}
+function catalogBuild(){
   const has = (arr, s) => (arr||[]).some(x=>normSrc(x)===normSrc(s));
   const kindOf = src => /\(관람,/.test(src) ? 'package' : has(quoteCat.mabang?.length ? quoteCat.mabang : MB_DEF.map(m=>m[0]), src) ? 'mabang' : has(quoteCat.gtime,src) ? 'gtime' : has(quoteCat.geach,src) ? 'geach' : has(quoteCat.goods,src) ? 'goods'
     : (/관람/.test(src) && !/관람권|관람식사권/.test(src)) ? 'view' : 'food';
