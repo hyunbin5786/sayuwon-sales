@@ -101,9 +101,11 @@ const SY = Object.freeze({
     // fresh: 방금 저장한 뒤 다시 받을 때 (이미 가고 있는 요청을 같이 쓰지 않음)
     return (opt={}) => { if(inflight && !opt.full && !opt.fresh) return inflight; const p=go(!!opt.full).finally(()=>{ if(inflight===p) inflight=null; }); inflight=p; return p; }; })(),
 });
-// ===== 로컬 미리보기 전용: 가짜 서버 (js/devmock.js) — localhost 에서 ?mock=1 을 한 번 붙이면 켜짐 (운영 주소에서는 절대 읽지 않음) =====
+// ===== 로컬 미리보기 전용 (운영 주소에서는 절대 읽지 않음) — localhost 에서 주소 끝에 한 번 붙이면 그 브라우저에 기억 =====
+//   ?mock=1  가짜 서버 (js/devmock.js)   ·   ?mock=cf  새 서버 코드 cloudflare/worker.js 를 브라우저 SQLite 로 (js/devcf.js)   ·   ?mock=0  끄기
 (function(){ if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
-  try{ const q=new URLSearchParams(location.search).get('mock'); if(q==='1') localStorage.setItem('sy_mock','1'); if(q==='0') localStorage.removeItem('sy_mock');
-    if(localStorage.getItem('sy_mock')!=='1') return;
-    const me=document.currentScript && document.currentScript.src; if(me) document.write('<script src="'+me.replace(/common\.js.*$/, 'devmock.js')+'"><\/script>');
+  try{ const q=new URLSearchParams(location.search).get('mock'); if(q==='1' || q==='cf') localStorage.setItem('sy_mock', q); if(q==='0') localStorage.removeItem('sy_mock');
+    const m=localStorage.getItem('sy_mock'), me=document.currentScript && document.currentScript.src; if(!me || (m!=='1' && m!=='cf')) return;
+    const tag = f => '<script src="'+me.replace(/common\.js.*$/, f)+'"><\/script>';
+    document.write(tag('devmock.js') + (m==='cf' ? tag('devcf.js') : ''));
   }catch(_){} })();

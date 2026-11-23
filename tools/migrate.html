@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>자료 옮기기 · 구글 시트 → 새 DB (Cloudflare)</title>
+<!-- 한 번만 쓰는 도구 (2026-11-23): 구글 시트(Apps Script)에 있는 공유 기록을 새 서버(cloudflare/worker.js)로 그대로 옮김
+     - 이 컴퓨터 브라우저가 예전 서버에서 읽어서 새 서버로 보냄 (다른 곳을 거치지 않음). 예전 시트는 건드리지 않음 (읽기만)
+     - 여러 번 돌려도 됨 (같은 id 는 덮어씀 · 수정 일시 · 삭제 표시는 예전 그대로)
+     - 옮기는 것: calls(지워진 줄 포함) · 멤버 · 고객 견적 요청 · 전화응대 멘트 이미지 · 관리자 사이트 현황
+     - 안 옮기는 것: 단체 서류(사업자등록증 등) 파일 — 예약 과업에 붙은 구글 드라이브 링크가 그대로 열리므로 그냥 둠. 새로 올리는 것부터 새 DB 에 들어감
+     쓰는 법은 README 18절 -->
+<style>
+  body{font:15px/1.6 "Noto Sans KR",system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#22231f;background:#f6f5f1}
+  h1{font-size:20px} label{display:block;margin:10px 0 2px;font-weight:600} input{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cfccc0;border-radius:6px;font:inherit}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px} button{margin-top:16px;padding:10px 18px;border:0;border-radius:6px;background:#3f5236;color:#fff;font:inherit;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.5;cursor:default} #log{margin-top:16px;padding:12px;background:#fff;border:1px solid #e2e0d8;border-radius:8px;white-space:pre-wrap;min-height:120px;font:13px/1.6 ui-monospace,Consolas,monospace}
+  .hint{color:#6b6d66;font-size:13px} .ok{color:#2f6b2f;font-weight:700} .err{color:#b3261e;font-weight:700}
+</style>
+</head>
+<body>
+<h1>자료 옮기기 · 구글 시트 → 새 DB</h1>
+<p class="hint">예전 서버에서 읽어서 새 서버로 보냅니다. 예전 시트는 읽기만 하고 바꾸지 않습니다. 중간에 멈춰도 다시 누르면 처음부터 이어서 덮어씁니다.</p>
+<label>예전 서버 주소 (Apps Script)</label>
+<input id="oldUrl" value="https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec">
+<div class="row">
+  <div><label>내 이름 (멤버 목록에 있는)</label><input id="name" autocomplete="off"></div>
+  <div><label>사번</label><input id="emp" autocomplete="off"></div>
+</div>
+<label>새 서버 주소 (Cloudflare Worker · https://….workers.dev)</label>
+<input id="newUrl" placeholder="https://sayuwon-api.내계정.workers.dev">
+<label>MIGRATE_KEY (Worker 비밀 값에 넣은 것과 같은 글자)</label>
+<input id="mkey" type="password" autocomplete="off">
+<button id="go">옮기기 시작</button> <button id="checkOnly" style="background:#6b6d66">세기만 (옮기지 않음)</button>
+<div id="log"></div>
+<script>
+(function(){
+  const $ = id => document.getElementById(id), logEl = $('log');
+  const log = (t, cls) => { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = t; logEl.appendChild(d); d.scrollIntoView({ block: 'nearest' }); };
+  const post = async (url, body) => { const r = await fetch(url, { method: 'POST', body: JSON.stringify(body) }), j = await r.json(); if (!j.ok) throw new Error((body.action || '') + ' → ' + (j.error || 'error')); return j; };
+  async function run(dry){
+    logEl.textContent = '';
+    const oldUrl = $('oldUrl').value.trim(), newUrl = $('newUrl').value.trim().replace(/\/+$/, ''), who = { name: $('name').value.trim(), emp: $('emp').value.trim() }, mkey = $('mkey').value;
+    if (!who.name || !who.emp) return log('이름과 사번을 넣어 주세요.', 'err');
+    if (!dry && (!/^https:\/\/.+/.test(newUrl) || !mkey)) return log('새 서버 주소와 MIGRATE_KEY 를 넣어 주세요.', 'err');
+    $('go').disabled = $('checkOnly').disabled = true;
+    try {
+      log('1) 예전 서버에서 읽는 중…');
+      const old = b => post(oldUrl, { ...b, who });
+      const [live, dead, mem, qr, ment] = await Promise.all([old({ action: 'list', limit: 1000000 }), old({ action: 'deleted', limit: 1000000 }), old({ action: 'members' }), old({ action: 'quoteReqList' }).catch(() => ({ items: [] })), old({ action: 'mentList' }).catch(() => ({ ment: null }))]);
+      const calls = [...(live.items || []), ...(dead.items || [])];
+      const types = {}; (live.items || []).forEach(x => { const t = x.callType || '(없음)'; types[t] = (types[t] || 0) + 1; });
+      let imgIds = []; try { imgIds = [...new Set((JSON.parse((ment.ment || {}).history || '{}').items || []).flatMap(m => (m.imgs || []).map(i => typeof i === 'string' ? i : i && i.id)).filter(Boolean))]; } catch (e) {}
+      log(`   기록 ${live.items.length}줄 + 지워진 줄 ${dead.items.length}줄 · 멤버 ${mem.members.length}명 · 견적 요청 ${qr.items.length}건 · 멘트 이미지 ${imgIds.length}장`);
+      log('   종류별: ' + Object.entries(types).map(([k, v]) => `${k} ${v}`).join(' · '));
+      const big = calls.filter(x => JSON.stringify(x).length > 1500000); if (big.length) log(`   ⚠ 한 줄이 너무 큰 기록 ${big.length}개 (1.5MB 초과): ${big.map(x => x.id).join(', ')}`, 'err');
+      if (dry) { log('세기만 했습니다 (옮기지 않음).', 'ok'); return; }
+      const imp = b => post(newUrl, { action: 'import', mkey, ...b });
+      log('2) 새 서버로 보내는 중… 기록');
+      for (let i = 0; i < calls.length; i += 30) { const r = await imp({ calls: calls.slice(i, i + 30) }); log(`   기록 ${Math.min(i + 30, calls.length)} / ${calls.length}`); (r.imported.skipped || []).forEach(id => log(`   ⚠ id 모양이 맞지 않아 건너뜀: ${id}`, 'err')); }
+      log('   멤버 · 견적 요청 · 관리자 사이트 현황');
+      await imp({ members: mem.members, quotereq: qr.items.slice().reverse(), admin: live.admin || undefined });
+      for (let i = 0; i < imgIds.length; i++) {
+        try { const f = (await old({ action: 'mentImgGet', id: imgIds[i] })).file; await imp({ files: [{ id: f.id, kind: 'ment', name: '멘트 이미지', mime: f.mime, data: f.data }] }); log(`   멘트 이미지 ${i + 1} / ${imgIds.length}`); }
+        catch (e) { log(`   ⚠ 멘트 이미지 ${imgIds[i]} 를 옮기지 못함: ${e.message}`, 'err'); }
+      }
+      log('3) 새 서버에서 다시 읽어 맞춰 보는 중…');
+      const [n1, n2, n3, n4] = await Promise.all([post(newUrl, { action: 'list', limit: 1000000, who }), post(newUrl, { action: 'deleted', limit: 1000000, who }), post(newUrl, { action: 'members', who }), post(newUrl, { action: 'quoteReqList', who })]);
+      const byId = new Map(n1.items.map(x => [x.id, x])); let diff = 0;
+      (live.items || []).forEach(x => { const y = byId.get(x.id); if (!y) { diff++; log(`   ⚠ 새 서버에 없음: ${x.id}`, 'err'); return; }
+        const bad = Object.keys(x).filter(k => k !== 'inout' && String(x[k] == null ? '' : x[k]) !== String(y[k] == null ? '' : y[k])); if (bad.length) { diff++; log(`   ⚠ 값이 다름: ${x.id} (${bad.join(', ')})`, 'err'); } });
+      log(`   기록 ${n1.items.length} / ${live.items.length} · 지워진 줄 ${n2.items.length} / ${dead.items.length} · 멤버 ${n3.members.length} / ${mem.members.length} · 견적 요청 ${n4.items.length} / ${qr.items.length}`);
+      if (!diff && n1.items.length === live.items.length && n3.members.length >= mem.members.length) log('끝났습니다. 예전 서버와 새 서버의 기록이 같습니다.', 'ok');
+      else log('옮겼지만 다른 곳이 있습니다. 위 ⚠ 줄을 확인해 주세요 (옮기는 사이 누가 저장했으면 다시 한 번 누르면 맞춰집니다).', 'err');
+    } catch (e) { log('멈췄습니다: ' + (e.message || e) + (/bad_key/.test(e.message) ? ' — 이름 · 사번 또는 MIGRATE_KEY 를 확인해 주세요' : ''), 'err'); }
+    finally { $('go').disabled = $('checkOnly').disabled = false; }
+  }
+  $('go').onclick = () => run(false); $('checkOnly').onclick = () => run(true);
+})();
+</script>
+</body>
+</html>

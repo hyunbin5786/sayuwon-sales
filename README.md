@@ -39,6 +39,7 @@ css/
 js/
   common.js           ★ 공통 SY: 서버 요청(SY.call · SY.callRaw · SY.beacon · SY.quote) · 공유 기록 사본(SY.list) · esc · 날짜 · 전화 · 저장소 — 모든 화면이 맨 먼저
   devmock.js          로컬 미리보기 전용 가짜 서버 (localhost + ?mock=1 일 때만 읽힘 · 13절)
+  devcf.js            로컬 미리보기 전용: 새 서버 코드(cloudflare/worker.js)를 브라우저 SQLite 로 돌림 (?mock=cf · 18절)
   group.js            ★ 자동으로 합친 파일 (직접 고치지 않음) ← js/group/*.js 를 tools/build.ps1 이 이어 붙임
   group/              단체 화면 소스 16개 (01-fields.js … 16-etc-tasks.js · 14-3절 지도)
   taskcfg.js          추후과업 메시지 관리 (단체 화면)
@@ -56,13 +57,17 @@ js/
   keepsize.js         메모 칸 크기 기억 · 자동 높이
 tools/
   build.ps1           js/group/*.js → js/group.js 합치기 (-Check: 같은지 확인만)
+  migrate.html        구글 시트 → 새 DB 로 자료 옮기기 (한 번만 쓰는 도구 · 18절)
+cloudflare/
+  schema.sql          새 DB(Cloudflare D1) 표 만들기
+  worker.js           새 서버 코드 (Cloudflare Worker) — apps-script/group-intake.gs 와 같은 동작 · 아직 전환 전 (18절)
 apps-script/
   group-intake.gs     공유 기록 서버: 기록 · 멤버 · 파일 올리기 · 관리자 사이트 가져오기 (Apps Script에 붙여 넣는 코드)
 .claude/              로컬 미리보기 서버 (serve.ps1 · 저장소에 올리지 않음)
 ```
 
 - HTML에는 화면 틀만, 모양은 `css/`, 동작은 `js/`에 있습니다. 로그인 확인처럼 화면이 그려지기 전에 돌아야 하는 몇 줄만 HTML `<head>` 안에 남겨 두었습니다
-- **CSS · JS를 고치면 HTML의 `?v=날짜` 를 바꿔 주세요.** 2026-11-23부터 **모든 HTML의 모든 파일이 같은 값**을 씁니다 (지금 `?v=20261123a`). 무엇을 고쳤든 모든 HTML에서 한꺼번에 다음 값(`20261123b` · 다음 날이면 `20261124a`)으로 바꾸면 됩니다 — 파일마다 따로 세지 않음. 그래야 브라우저가 예전 파일을 쓰지 않습니다
+- **CSS · JS를 고치면 HTML의 `?v=날짜` 를 바꿔 주세요.** 2026-11-23부터 **모든 HTML의 모든 파일이 같은 값**을 씁니다 (지금 `?v=20261123b`). 무엇을 고쳤든 모든 HTML에서 한꺼번에 다음 값(`20261123b` · 다음 날이면 `20261124a`)으로 바꾸면 됩니다 — 파일마다 따로 세지 않음. 그래야 브라우저가 예전 파일을 쓰지 않습니다
 - **`js/group.js` 는 직접 고치지 않습니다.** `js/group/` 안의 파일을 고친 뒤 `tools/build.ps1` 을 실행합니다 (13절)
 - **사이트 주소를 코드에 적지 않습니다** (2026-11-23): 화면끼리는 `document/index.html` 같은 상대 주소로만 엽니다. 예전에는 `github.io` 일 때와 아닐 때를 갈라 `https://hyunbin5786.github.io/sayuwon-sales/…` 를 적어 두었는데 모두 없앴습니다 → 배포하는 곳이 바뀌어도 코드를 고칠 필요 없음. (고객에게 보내는 견적 요청 주소도 지금 사이트 주소에서 만듦)
 - **맨 위 헤더 고정** (2026-11-19, `css/menu.css`): 모든 화면의 맨 위 헤더(사유원 운영 보조 시스템 · 메뉴 · 나의 할일)는 스크롤해도 위에 고정, 나머지만 스크롤 (예약 현황 공유의 미리보기도 헤더 아래에 붙음) · 헤더는 z-index 12 라 모든 팝업(나의 할일 · 예약 목록 · 붙여넣기 등)이 헤더 앞에 뜸
@@ -570,6 +575,7 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
   - 내용은 그 브라우저 `localStorage` 의 `sy_mock_db` 에만. 처음 상태로: 개발자 도구 콘솔에서 `SY_MOCK.reset()` 뒤 새로고침. 무엇을 보냈는지: `SY_MOCK.log`, 지금 내용: `SY_MOCK.db`
   - `localhost` · `127.0.0.1` 에서만 읽습니다. 운영 주소에서는 `?mock=1` 을 붙여도 아무 일도 없음 (`js/common.js` 맨 아래)
   - 가짜 서버는 11절 「서버 동작 목록」을 그대로 흉내 냅니다. 품목 · 가격 기본 목록(`document/js/document.js` 파일)과 글꼴 · 엑셀 도구(CDN)는 진짜 그대로 읽음
+  - **새 서버 코드로 시험하기**: `?mock=cf` 를 붙이면 가짜 서버 대신 `cloudflare/worker.js`(진짜 서버 코드)를 브라우저 안 SQLite 로 돌립니다 (`js/devcf.js` · 오른쪽 아래 파란 「새 서버 코드 시험」 표시 · 18절). 서버 코드를 고치면 이것으로 먼저 확인
   - 예전 방식(「`callApi` 를 가짜로 바꿔 확인」)은 없앴습니다 — 화면마다 있던 `callApi` · `opsApi` · `api` · `reqApi` 가 모두 `SY.call` 하나가 됨
 - **단체 화면(`js/group.js`) 고치기**: `js/group/` 안의 구역 파일(14-3절)을 고친 뒤 합칩니다
   - 합치기: `powershell -ExecutionPolicy Bypass -File tools/build.ps1` → `js/group.js` 를 다시 만듦
@@ -578,7 +584,7 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
   - 구역 파일은 이름 순서대로 그대로 이어 붙입니다. **파일 순서 · 번호를 바꾸지 마세요** (뒤 파일이 앞 파일에서 만든 이름을 씀). 새 구역은 맞는 파일 안에 넣거나, 사이 번호(`07a-…js`)로 파일을 더합니다
   - 왜 이렇게: 브라우저가 파일 16개를 따로 읽게 하면, 앞 파일이 서버 응답을 받은 순간 아직 안 읽힌 뒤 파일의 함수를 불러 오류가 날 수 있습니다(파일을 읽는 사이에 응답이 끼어듦). 한 파일로 합쳐 두면 예전과 똑같이 돎
 - **운영보조 화면 고치기**: 칸 · 목록 열은 `js/lost.js` 등 페이지 파일의 `OPS_PAGE`, 동작(목록 · 팝업 · 저장)은 `js/opsboard.js` (네 화면에 같이 적용됨)
-- **서버 요청을 새로 만들 때**: `await SY.call({action:'…'})` (오류는 `e.code` 로 — `bad_key` 면 `SY.authFail()` 문구). `fetch` 로 서버 주소를 직접 부르지 않습니다. 새 action 은 `apps-script/group-intake.gs` 의 `doPost` 와 `js/devmock.js` 양쪽에 넣고 11절 표에 한 줄
+- **서버 요청을 새로 만들 때**: `await SY.call({action:'…'})` (오류는 `e.code` 로 — `bad_key` 면 `SY.authFail()` 문구). `fetch` 로 서버 주소를 직접 부르지 않습니다. 새 action 은 서버 코드(`cloudflare/worker.js` 의 `api()` · 전환 전까지는 `apps-script/group-intake.gs` 의 `doPost` 에도)와 `js/devmock.js` 에 넣고 11절 표에 한 줄
 - CSS · JS를 고치면 모든 HTML 의 `?v=` 를 한꺼번에 바꾸고(1절), README도 같이 고칩니다
 - 글자 인코딩은 UTF-8, 줄바꿈은 LF. PowerShell 스크립트(`tools/build.ps1`)만 한글이 깨지지 않게 UTF-8 BOM 으로 저장돼 있습니다
 
@@ -857,3 +863,68 @@ localStorage (그 브라우저 · 그 사이트 주소에만 — **사이트 주
 - 화면마다 있는 작은 도구(`$` · `toast` · 날짜 칸 · 삭제 확인 팝업) 하나로
 - 단체 화면 `07-store.js` 의 저장 대기열(`pending` · `flush` · `pull`)과 개인고객 화면의 같은 코드 하나로
 - 자동 시험: 지금은 사람이(또는 Claude 가) 가짜 서버로 눌러 봄 — 배포 도구가 생기면 화면 시험을 자동으로
+
+## 18. DB 이관: 구글 시트 → Cloudflare (2026-11-23 준비 · 아직 전환 전)
+
+**정한 것**: 배포는 GitHub Pages 그대로, 공유 기록만 Cloudflare 로 옮김 (무료 요금제 · 안 써도 정지되지 않음). 로그인은 지금처럼 이름 + 사번. 화면 코드는 바꾸지 않고 `js/common.js` 의 `SY_BACKEND.API_URL` 한 줄만 새 주소로 바꿈. 견적서 서버(`QUOTE_URL` · 품목 · 발급 내역)는 이번에 옮기지 않음.
+
+**지금 상태**: 서버 코드와 옮기는 도구를 만들어 로컬에서 시험까지 끝냄. Cloudflare 계정에 올리는 일(아래 18-2)과 전환(18-3)은 아직 안 함 → 운영은 여전히 구글 시트.
+
+### 18-1. 만든 것
+
+| 파일 | 내용 |
+|---|---|
+| `cloudflare/schema.sql` | DB 표 만들기 (D1 = SQLite). `calls`(기록 · 38칸은 `data` JSON 한 칸에 통째로 + 통화 구분 · 방문일 · 수정 일시 · 삭제 칸) · `members` · `quotereq` · `files` + `file_chunks`(파일) · `locks`(고치는 중) · `kv`(관리자 사이트 현황 등) |
+| `cloudflare/worker.js` | 서버 코드. `apps-script/group-intake.gs` 의 동작(11절 표)을 같은 요청 · 같은 응답으로 옮김 + `import`(자료 옮기기 전용) + `GET /file/<id>`(올린 서류 보기) + 15분마다 관리자 사이트 가져오기(`scheduled`) |
+| `js/devcf.js` | 로컬 시험 장치: `?mock=cf` 로 켜면 위 서버 코드를 브라우저 안 SQLite(sql.js)에 붙여 화면과 함께 돌림. D1 의 제한(값 하나 2MB · 묶는 값 100개 · 요청 하나에 쿼리 50번)을 넘으면 오류를 냄. `SY_CF.sql('SELECT …')` 로 DB 를 들여다봄 · `SY_CF.reset()` 으로 처음 상태 |
+| `tools/migrate.html` | 자료 옮기기: 예전 서버에서 읽어(기록 · 지워진 줄 · 멤버 · 견적 요청 · 멘트 이미지 · 관리자 사이트 현황) 새 서버로 보내고, 다시 읽어 줄마다 값이 같은지 대조. 예전 시트는 읽기만. 여러 번 돌려도 됨 |
+
+**예전과 달라지는 점**
+
+- **이미지 · 파일도 같은 DB 안에** 들어감 (base64 글자를 100만 자씩 나눠 `file_chunks` 에). 구글 드라이브를 쓰지 않음. 멘트 이미지는 예전 드라이브 파일 id 그대로 옮겨서 멘트 내용을 고칠 필요 없음
+- **단체 서류(사업자등록증 등)**: 전환 뒤에 올리는 것부터 새 DB 에 들어가고, 링크는 `https://(새 서버)/file/f…` 모양 — id 가 32자 무작위라 **주소를 아는 사람만** 열 수 있음 (예전에는 드라이브 폴더를 공유받은 구글 계정만). 전환 전에 올린 파일은 과업에 붙은 드라이브 링크로 그대로 열림 (옮기지 않음)
+- **잠금(LockService) 없음**: 예전에는 저장을 한 번에 하나씩 줄 세웠음. 새 서버는 저장 한 건이 SQL 한 문장이라 줄 세울 필요가 없음. 로그인 없이 한 건 더하는 `bookAdd` 만 「읽고 → 더해서 → 쓰기」라 두 사람이 같은 1초 안에 추가하면 한쪽이 빠질 수 있음 (예전에도 화면 쪽 목록 저장은 같은 성질)
+- **목록 응답**: 저장해 둔 JSON 글자를 그대로 이어 붙여 보냄 → 빠름. 값은 예전과 같이 모두 글자, 38칸 밖의 값은 버림(예전과 같음)
+- 멤버 목록 5분 기억(캐시) 없음 — 요청마다 DB 에서 확인 (멤버를 빼면 바로 막힘)
+
+**무료 요금제 한도와 걸릴 수 있는 곳** (2026-11 확인 · 가입 화면에서 다시 볼 것): 하루 요청 10만 · DB 500MB · 하루 쓰기 10만 줄 · 요청 하나에 CPU 10ms · 예약 작업 5개
+- 지금 자료는 시트 약 60KB · 파일은 건당 수십~수백 KB → 용량은 한참 여유
+- **CPU 10ms**: 큰 파일(수 MB)을 올릴 때, 관리자 사이트 180일치 예약을 읽을 때 넘을 수 있음 (오류 1102). 넘으면 그 요청만 실패하고 자료는 그대로. 자주 넘으면 Workers 유료(월 5달러)로
+- 10명이 하루 8시간 화면을 열어 두면 요청은 하루 1만 건 안팎 (30초마다 다시 받기) → 한도의 1/10
+
+### 18-2. Cloudflare 에 올리기 (사람이 하는 일 · 한 번)
+
+메뉴 이름은 Cloudflare 화면이 바뀌면 조금 다를 수 있습니다.
+
+1. https://dash.cloudflare.com 가입 (무료 · 이메일 인증)
+2. **DB 만들기**: 왼쪽 「Storage & Databases」 → 「D1 SQL Database」 → Create → 이름 `sayuwon` (위치는 아시아 태평양) → 만든 DB 의 「Console」에 `cloudflare/schema.sql` 내용을 통째로 붙여 넣고 실행. 한꺼번에 안 되면 `CREATE …;` 문장을 하나씩
+3. **서버 만들기**: 「Workers & Pages」 → Create → 「Hello World」로 시작 → 이름 `sayuwon-api` → Deploy → 「Edit code」 → 들어 있는 코드를 지우고 `cloudflare/worker.js` 내용을 통째로 붙여 넣기 → Deploy
+4. **DB 연결**: 그 Worker 의 Settings → Bindings → Add → D1 database → Variable name 에 **`DB`** (대문자 그대로) → Database 는 `sayuwon` → 저장
+5. **비밀 값**: Settings → Variables and Secrets → Add (Type 은 Secret)
+   - `MIGRATE_KEY` : 아무 긴 글자 (자료 옮길 때만 씀 · 메모해 둘 것)
+   - `ADMIN_ID` · `ADMIN_PW` : 관리자 사이트 조회 계정 (지금 Apps Script 스크립트 속성에 있는 값)
+6. **15분마다**: Settings → Trigger Events(또는 Triggers) → Cron Triggers → Add → `*/15 * * * *`
+7. 확인: 브라우저로 `https://sayuwon-api.(계정 이름).workers.dev` 를 열어 `{"ok":true,"app":"sayuwon-group-intake","api":7,"db":"d1"}` 가 보이면 됨
+
+### 18-3. 옮기고 전환하기
+
+1. 로컬 미리보기에서 `http://localhost:8767/tools/migrate.html` 열기 → 이름 · 사번(진짜 로그인) · 새 서버 주소 · `MIGRATE_KEY` → 먼저 「세기만」으로 줄 수 확인 → 「옮기기 시작」 → 마지막 줄이 초록 「끝났습니다. 예전 서버와 새 서버의 기록이 같습니다.」 인지 확인
+2. `js/common.js` 의 `SY_BACKEND.API_URL` 을 새 서버 주소로 바꾸고, 로컬에서 **가짜 서버를 끈 채**(`?mock=0`) 진짜 로그인으로 주요 화면을 확인 (목록 · 저장 · 멘트 이미지 · 서류 올리기 · 「관리자 사이트에서 지금 가져오기」)
+3. 전환하는 날: 직원들에게 「저장 대기 0건」을 확인하고 잠깐 쓰지 말라고 알림 → `migrate.html` 을 **한 번 더** 돌려 그사이 바뀐 것까지 옮김 → 모든 HTML 의 `?v=` 를 올리고 푸시 → 각자 새로고침
+   - 각 브라우저에 남아 있던 저장 대기 · 받은 목록 사본은 그대로 새 서버로 이어짐 (주소가 같으므로). 사본은 「마지막으로 받은 뒤 바뀐 것」을 새 서버에 물어 맞추고, 30분 안에 한 번은 전체를 다시 받음
+4. 전환 뒤: Worker 의 `MIGRATE_KEY` 비밀 값을 지움 (지우면 `import` 가 막힘). Apps Script 의 15분 트리거(`syncAdmin`)는 꺼도 됨. **구글 시트 · Apps Script 는 지우지 않음** — 문제가 생기면 `API_URL` 을 예전 주소로 되돌리면 예전 방식으로 돌아감 (단, 전환 뒤 새 DB 에만 저장된 것은 시트에 없음)
+5. README 11절 「설치 · 다시 배포」 · 14-4절 「파일」 설명을 새 서버 기준으로 고침
+
+### 18-4. 로컬 시험 기록 (2026-11-23 · `?mock=cf`)
+
+| 확인한 것 | 결과 |
+|---|---|
+| 동작 하나씩: `login`(띄어쓰기 · 대소문자 무시) · `list`(38칸 · `inout` 계산 · `now` · `admin`) · `put`(38칸 밖 값 버림 · 틀린 id 는 `Error: bad_id`) · `list since`(바뀐 줄만 · 지운 줄은 `deleted` 가 채워짐) · `del` · `deleted` · `lock`(다른 창이면 `locked` · 풀면 다시 잡힘) · 멤버 아님 → `bad_key` · 모르는 동작 → `bad_action` | 예전 서버와 같은 답 |
+| `memberAdd`(같은 사번 · 빈 이름 건너뜀) · `memberDel` · `quoteReqAdd`(틀린 연락처 → `bad_phone` · 인원은 숫자만) · `quoteReqList` · `quoteReqMark`(완료 = 처리한 사람 · 시각 / 삭제 / 없는 id → `not_found`) · `bookList`(연락처 칸 없음 · 26칸) · `bookAdd`(틀린 날짜 → `bad_date` · 이상한 칸 이름 버림) | 같은 답 |
+| 파일: `mentImgPut` → `mentImgGet` 으로 같은 내용 · `upload` 2.6MB → 3조각으로 저장 · `GET /file/<id>` 로 195만 바이트 PDF 가 그대로 · 서류 id 로 `mentImgGet` → `not_allowed` · 멘트 이미지 id 로 `/file/` → 404 · 허용하지 않는 형식 거절 | 정상 |
+| `import`: 키가 틀리면 `bad_key` · 수정 일시 · 삭제 표시 유지 · 멤버 중복 안 생김 · 드라이브 파일 id 그대로 이미지가 열림 · 두 번 돌려도 같은 결과 · id 모양이 틀린 줄은 건너뛰고 알려 줌 | 정상 |
+| Worker 입구: `POST`(CORS `*`) · `OPTIONS` 204 · `GET /` 상태 · 깨진 JSON → `bad_json` | 정상 |
+| 화면: 첫 화면 대시보드 · 단체 저장(`put` → `list`) · 예약 열기(`lock` · 자동 과업 4개) · 삭제 · 분실물 추가 · 나의 할일 · 멘트 | 콘솔 오류 없음 |
+| `tools/migrate.html`: 가상 예전 서버 → 새 서버 코드로 옮기고 대조 | 정상 |
+
+**로컬에서 확인할 수 없는 것** (Cloudflare 에 올린 뒤 볼 것): 진짜 D1 에서 `schema.sql` 이 그대로 도는지 · CPU 10ms 안에 드는지(특히 `syncAdmin` · 큰 파일) · 관리자 사이트가 Cloudflare 에서 오는 요청을 받아 주는지 · 15분 예약 작업
