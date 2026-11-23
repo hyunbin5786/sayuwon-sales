@@ -70,3 +70,22 @@ main{max-width:1760px}
 }
 /* 휴대폰: 즐겨찾기는 ★ 만 보임 (바꾸기는 컴퓨터에서, 2026-11-18) */
 @media (max-width:700px){ .m-star:not(.on){visibility:hidden} .m-star{pointer-events:none} }
+/* 컴퓨터 2열 (2026-11-23): 1열 = 제목 목록 (순서 · ★ · ⠿) · 2열 = 고른 멘트의 글 전체 + 올린 이미지. 휴대폰(700px 이하)은 위의 예전 모양 그대로 */
+@media (min-width:701px){
+  .ment-list.md{grid-template-columns:minmax(230px,320px) minmax(0,1fr);gap:18px;align-items:start}
+  .m-nav{display:flex;flex-direction:column;gap:4px;max-height:calc(100vh - 200px);overflow-y:auto;position:sticky;top:64px;padding:2px 4px 2px 2px}
+  .m-nav .ment{flex-direction:row;align-items:center;gap:6px;padding:8px 10px;border-radius:8px;cursor:pointer}
+  .m-nav .ment:hover{border-color:var(--pine)}
+  .m-nav .ment.on{border-color:var(--pine);background:var(--pine-soft,#e4eadf);box-shadow:inset 3px 0 0 var(--pine)}
+  .m-nav .ment b{flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m-nav .ment.on b{font-weight:700;color:var(--pine)}
+  .m-nav .m-no{flex:none;width:1.7em;text-align:right;font-size:12px;color:var(--muted)}
+  .m-nav .m-hasimg{flex:none;font-size:13px;opacity:.7}
+  .m-nav .m-star{font-size:16px}
+  .m-detail{min-width:0}
+  .m-detail .ment{padding:16px 18px;gap:12px}
+  .m-detail .m-head b{font-size:17px}
+  .m-detail .m-body-v{height:auto;min-height:200px;max-height:none;overflow:visible;font-size:14.5px;line-height:1.75}
+  .m-detail .m-imgs.view .m-img img{width:auto;height:auto;max-width:100%;max-height:380px;object-fit:contain}
+  .m-detail .ment-edit .m-body{min-height:260px}
+}

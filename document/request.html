@@ -4,13 +4,13 @@
 <!-- 고객 견적 요청 (2026-11-21): 고객님이 로그인 없이 휴대폰 · PC에서 직접 입력 → 공유 기록(quotereq 시트)에 한 건 저장.
      직원은 견적서 화면(document/) 1단계 「고객 견적 요청」 목록에서 열어 초안으로 채우고 검수 · 출력 · 메일 -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap">
-<link rel="stylesheet" href="css/document.css?v=20261123g">
+<link rel="stylesheet" href="css/document.css?v=20261123h">
 </head><body class="reqpage">
 <header class="reqhd"><span class="reqbrand">사유원</span><span class="reqcrumb">단체 견적 요청</span></header>
 <main class="reqwrap">
   <form id="req-form" class="panel reqpanel" novalidate>
     <div class="body">
-      <p class="reqlead">아래 내용을 남겨 주시면 확인 후 적어 주신 이메일로 견적서를 보내 드립니다.</p>
+      <p class="reqlead">아래 내용을 남겨 주시면 확인 후 적어 주신 이메일로 견적서 · 거래명세서를 보내 드립니다.</p>
       <div class="field">
         <label for="q-org">단체명 <b class="req">*</b></label>
         <input id="q-org" type="text" maxlength="60" autocomplete="organization" required>
@@ -26,11 +26,11 @@
       <div class="field">
         <label for="q-email">이메일 <b class="req">*</b></label>
         <input id="q-email" type="email" maxlength="100" inputmode="email" autocomplete="email" required>
-        <span class="hint">견적서를 이 주소로 보내 드립니다</span>
+        <span class="hint">서류를 이 주소로 보내 드립니다</span>
       </div>
       <div class="grid2">
         <div class="field">
-          <label for="q-date">방문 희망일 <b class="req">*</b></label>
+          <label for="q-date">방문(예정)일 <b class="req">*</b></label>
           <input id="q-date" type="date" data-ph="누르면 달력" required>
         </div>
         <div class="field">
@@ -39,15 +39,38 @@
         </div>
       </div>
       <div class="field">
-        <label for="q-memo">요청사항</label>
-        <textarea id="q-memo" rows="5" maxlength="1000"></textarea>
-        <span class="hint">관람 시간 · 식사 · 프로그램 등 원하시는 내용을 자유롭게 적어 주세요</span>
+        <label>필요한 서류 <b class="req">*</b> <span class="hint">둘 다 고를 수 있습니다</span></label>
+        <div class="optrow">
+          <label class="opt"><input id="q-doc-quote" type="checkbox" checked> <span>견적서</span></label>
+          <label class="opt"><input id="q-doc-stmt" type="checkbox"> <span>거래명세서</span></label>
+        </div>
+      </div>
+      <div class="field" id="q-issue-wrap">
+        <label for="q-issue">견적서 발급일</label>
+        <input id="q-issue" type="date" data-ph="누르면 달력">
+        <span class="hint">견적서에 적힐 발급 날짜입니다. 비워 두시면 보내 드리는 날짜로 발급합니다</span>
+      </div>
+      <div class="field">
+        <label>결제</label>
+        <label class="opt"><input id="q-onsite" type="checkbox"> <span>방문 당일 <b>현장에서 결제</b>합니다</span></label>
+        <span class="hint">현장 결제는 서류가 사유원 · 신라철강 두 곳 이름으로 따로 발급됩니다</span>
+      </div>
+      <div class="field">
+        <label>요청사항 <span class="hint">해당하는 것을 골라 주세요</span></label>
+        <label class="opt"><input id="q-opt-exp" type="checkbox"> <span>식사 / 굿즈 구매 금액은 <b>체험비</b>로 바꿔 주세요</span></label>
+        <div class="optsum" id="q-exp-sum" hidden></div>
+        <label class="opt"><input id="q-opt-tax" type="checkbox"> <span>세금계산서(계산서) 발행이 필요합니다</span></label>
+        <label class="opt"><input id="q-opt-biz" type="checkbox"> <span>사업자등록증 · 통장 사본도 함께 보내 주세요</span></label>
+        <label class="opt"><input id="q-opt-pax" type="checkbox"> <span>인원이 바뀔 수 있습니다 (확정되면 다시 알려 드리겠습니다)</span></label>
+        <label for="q-memo" class="optetc">기타 요청</label>
+        <textarea id="q-memo" rows="3" maxlength="500"></textarea>
+        <div class="reqnote" id="q-note" hidden>담당자가 확인한 뒤 요청에 맞게 만들어 드립니다. <b>관람 요금은 할인되지 않으며</b>, 그 밖의 내용은 요청하시면 수정해 드립니다.</div>
       </div>
       <div class="hpfield" aria-hidden="true"><label for="q-hp">비워 두세요</label><input id="q-hp" type="text" tabindex="-1" autocomplete="off"></div>
       <label class="agree"><input id="q-agree" type="checkbox"> <span><b>개인정보 수집 · 이용에 동의합니다</b> <b class="req">*</b><br>
         <small>수집 항목: 단체명 · 담당자 성함 · 연락처 · 이메일 / 목적: 견적서 발송 및 예약 상담 / 보관: 1년 후 파기</small></span></label>
       <div id="q-err" class="warn" role="alert"></div>
-      <button class="btn primary block" type="submit" id="q-send">견적 요청 보내기</button>
+      <button class="btn primary block" type="submit" id="q-send">요청 보내기</button>
     </div>
   </form>
   <section class="panel reqpanel" id="req-done" hidden>
@@ -58,7 +81,22 @@
     </div>
   </section>
 </main>
-<script src="../js/common.js?v=20261123g"></script>
-<script src="js/request.js?v=20261123g"></script>
-<script src="js/datebox.js?v=20261123g"></script>
+<!-- 「식사 / 굿즈 구매 금액은 체험비로」를 고르면 뜨는 안내 + 품목 고르기 -->
+<div class="reqmodal" id="exp-modal" hidden>
+  <section class="reqmodal-box" role="dialog" aria-modal="true" aria-labelledby="exp-title">
+    <h2 id="exp-title">체험비로 바꿔 발급</h2>
+    <p>식사 · 굿즈 구매 금액을 <b>체험비 품목</b>으로 바꿔 발급해 드립니다.</p>
+    <ul>
+      <li>품목은 <b>사유원에서 제공하는 아래 품목</b>으로만 발급할 수 있습니다.</li>
+      <li>품목 금액이 실제 금액을 넘으면, 넘는 만큼은 <b>할인</b>으로 넣어 금액을 맞춰 드립니다.</li>
+      <li>원하시는 품목을 골라 주세요. <b>고르지 않으시면 「대관」으로 자동 처리</b>됩니다.</li>
+    </ul>
+    <div class="exp-list" id="exp-list"></div>
+    <div class="reqmodal-btns"><button type="button" class="btn" id="exp-skip">고르지 않음 (대관으로)</button><button type="button" class="btn primary" id="exp-ok">고른 품목으로</button></div>
+  </section>
+</div>
+<script
+ src="../js/common.js?v=20261123h"></script>
+<script src="js/request.js?v=20261123h"></script>
+<script src="js/datebox.js?v=20261123h"></script>
 </body></html>
