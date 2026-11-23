@@ -1313,19 +1313,30 @@
   // 내부용만이면 PDF 하나 · 엑셀(시트 하나)
   // 내부용 + 외부용이면 내부용 PDF · 외부용 PDF · 엑셀(시트1 내부용 · 시트2 외부용)
   var busy = false;
+  // 출력 버튼 · 재발행이 부르는 곳. 견적서 · 거래명세서를 둘 다 골랐으면 견적서 → 거래명세서 순서로 이어서 만들고 (파일 · 발급 내역이 각각), 메일 문구는 마지막에 한 번
+  var lastBoth = false;   // 마지막 출력이 둘 다였는지 (메일 문구에 「견적서 · 거래명세서」)
   async function makeOutput(){
     if(busy) return;
+    if(!state.docBoth){ lastBoth = false; return makeOutputOne(false); }
+    var ok = true, types = ["quote", "statement"];
+    for(var i=0; i<types.length && ok; i++){ state.docType = types[i]; paintModes(); renderDoc(); ok = await makeOutputOne(i < types.length - 1); }
+    state.docType = "quote"; paintModes(); renderDoc();
+    if(ok){ lastBoth = true; status("견적서와 거래명세서를 모두 저장했습니다.", "ok"); if(elMail && !elMail.hidden) mailFill(); }
+  }
+  async function makeOutputOne(quiet){
+    if(busy) return false;
+    var okOut = false;
     var fake = state.docUse === "fake";
     var bad = validate(fake ? "fake" : "real");
-    if(bad){ status(bad, "err"); return; }
-    if(!window.html2canvas || !window.jspdf){ status("PDF 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.", "err"); return; }
+    if(bad){ status(bad, "err"); return false; }
+    if(!window.html2canvas || !window.jspdf){ status("PDF 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.", "err"); return false; }
     // 외부용이 내부용보다 적으면 확인 팝업에서 사유를 받아야 출력 (사유는 발급 내역 스냅샷에 남음)
     var short = fake ? fakeShort() : [];
     if(short.length){
       busy = true;
       var why = await askGapReason(short);
       busy = false;
-      if(why === null){ status("출력을 취소했습니다. 외부용 금액을 고치거나, 다시 출력해 사유를 적어 주세요."); return; }
+      if(why === null){ status("출력을 취소했습니다. 외부용 금액을 고치거나, 다시 출력해 사유를 적어 주세요."); return false; }
       state.gapNote = why;
     } else delete state.gapNote;
 
@@ -1336,7 +1347,7 @@
       });
       v.name = fileName(v.tag);
     });
-    if(!variants[0].sheets.length) return;
+    if(!variants[0].sheets.length) return false;
     var xlsxName = fileName("").replace(/\.pdf$/, ".xlsx");
 
     busy = true;
@@ -1382,10 +1393,11 @@
       await browserDownloads.save({ filename: xlsxName, data: new Blob([buf]) });
       status("저장했습니다 · " + variants.map(function(v){ return v.name; }).concat([xlsxName]).join(" · "), "ok");
       noteIntakeIssued();   // 단체 화면 과업 「생성」 체크 (파일은 드라이브에 올리지 않음, 2026-11-21)
-      recordIssue(variants.map(function(v){ return v.name; }).concat([xlsxName]));   // 발급 내역에 남김
+      await recordIssue(variants.map(function(v){ return v.name; }).concat([xlsxName]));   // 발급 내역에 남김 (둘 다 발급할 때 순서가 섞이지 않게 기다림)
       if(curReq && (curReq.status || "접수") === "접수") reqMark("출력");   // 고객 견적 요청 상태
       setMailReady(true);
-      openMail();   // 이어서 메일 문구
+      if(!quiet) openMail();   // 이어서 메일 문구 (둘 다 발급이면 마지막 것 뒤에만)
+      okOut = true;
     } catch(err){
       var code = err && err.code;
       if(code === "lib") status("엑셀 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.", "err");
@@ -1393,6 +1405,7 @@
     }
     host.remove();
     busy = false;
+    return okOut;
   }
 
   // ---------- Excel ----------
@@ -2082,8 +2095,10 @@
   function paintModes(){
     [["m-doc","docType"],["m-pay","payMode"],["m-use","docUse"]].forEach(function(m){
       var btns = document.getElementById(m[0]).querySelectorAll("button");
-      for(var i=0;i<btns.length;i++) btns[i].classList.toggle("on", btns[i].getAttribute("data-v") === state[m[1]]);
+      for(var i=0;i<btns.length;i++) btns[i].classList.toggle("on", (m[1] === "docType" && state.docBoth) || btns[i].getAttribute("data-v") === state[m[1]]);
     });
+    // 견적서 · 거래명세서 둘 다 (2026-11-23): 두 버튼이 모두 켜진 상태 = 출력하면 견적서와 거래명세서를 이어서 한 번에 발급. 미리보기는 견적서
+    document.getElementById("m-doc-hint").textContent = state.docBoth ? "견적서와 거래명세서를 한 번에 발급합니다 (미리보기는 견적서 · 거래명세서의 발행일은 오늘)" : "두 가지를 모두 눌러 켜면 함께 발급합니다";
     document.getElementById("m-pay-hint").textContent = state.payMode === "online"
       ? "모든 품목을 ㈜사유원 한 장으로 발급합니다"
       : "관람은 ㈜사유원, 식음 · 프로그램 · 대관은 신라철강㈜으로 나눠 발급합니다";
@@ -2116,7 +2131,14 @@
 
   defaultState();
 
-  bindMode("m-doc", "docType");
+  // 문서 종류: 꺼진 것을 누르면 켜지고(둘 다 가능), 둘 다 켜진 상태에서 하나를 누르면 그것이 꺼짐. 하나만 켜져 있을 때 그것을 눌러도 꺼지지 않음
+  document.getElementById("m-doc").addEventListener("click", function(e){
+    var v = e.target.getAttribute && e.target.getAttribute("data-v");
+    if(!v) return;
+    if(state.docBoth){ state.docBoth = false; state.docType = v === "quote" ? "statement" : "quote"; }
+    else if(state.docType !== v){ state.docBoth = true; state.docType = "quote"; }
+    paintModes(); renderRows(); renderDoc(); setIssueMeta(issueMeta);
+  });
   bindMode("m-pay", "payMode");
   bindMode("m-use", "docUse");
   bindField("f-client", "client");
@@ -2207,7 +2229,7 @@
   // 수정발행이면 제목 · 본문에 「수정」을 적음 (2026-11-19): 「[사유원] OO님 수정 견적서 송부드립니다.」
   function mailFill(){
     var who = state.client.trim() || "수신";
-    var doc = mailDoc || docName();
+    var doc = mailDoc || (lastBoth || state.docBoth ? "견적서 · 거래명세서" : docName());
     var rev = lastRevise || !!(issueMeta && issueMeta.kind === "revise");
     document.getElementById("mail-subject").value = "[사유원] " + who + "님 " + (rev ? "수정 " : "") + doc + " 송부드립니다.";
     document.getElementById("mail-text").value = rev
@@ -2255,7 +2277,13 @@
     issueMeta = m;
     var bar = document.getElementById("issuebar");
     bar.classList.toggle("on", !!(m && m.kind === "revise"));
-    if(m && m.kind === "revise") document.getElementById("issuebar-text").textContent = "수정발행 중 · 원본: " + m.label + " → 고친 뒤 출력하면 수정발행으로 남습니다";
+    if(m && m.kind === "revise"){
+      // 수정발행 = 「같은 종류의 문서」를 고쳐 다시 내는 것. 원본이 견적서인데 거래명세서를 내면 (또는 그 반대) 그것은 고친 것이 아니라 그 문서의 새 발급 (2026-11-23)
+      var other = m.doc && state ? (m.doc === "견적서" ? "거래명세서" : "견적서") : "", onlyOther = other && !state.docBoth && m.doc !== docName();
+      document.getElementById("issuebar-text").textContent = onlyOther
+        ? "원본: " + m.label + " → 이 내용으로 " + other + "를 발급합니다 (문서 종류가 달라 수정발행이 아니라 " + other + " 신규 발급으로 남습니다)"
+        : "수정발행 중 · 원본: " + m.label + " → 고친 뒤 출력하면 수정발행으로 남습니다" + (other && state.docBoth ? " (" + other + "는 신규 발급으로 남습니다)" : "");
+    }
   }
   document.getElementById("issuebar-cancel").addEventListener("click", function(){ setIssueMeta(null); });
 
@@ -2313,16 +2341,18 @@
     return order.map(function(r){ return { root: r, versions: groups[r] }; });
   }
   async function recordIssue(files){
-    var meta = issueMeta;
+    var meta = issueMeta, fromOther = "";
+    if(meta && meta.doc && meta.doc !== docName()){ fromOther = meta.parent; meta = null; }   // 원본과 문서 종류가 다름 → 수정발행 · 재발행이 아니라 이 문서의 새 발급 (같은 종류의 지난 발급이 있으면 아래에서 그것의 수정발행으로)
     lastRevise = !!(meta && meta.kind === "revise");   // 메일 문구에 「수정」 (mailFill)
     var h = { id: histId(), at: new Date().toISOString(),
       kind: meta ? meta.kind : "new", parent: meta ? meta.parent : "",
       doc: docName(), client: state.client.trim(), useDate: state.useDate, issueDate: issueDate(),
       total: totalOf("sayuwon") + totalOf("shilla"), sender: state.sender, use: state.docUse,
       files: files, snapshot: JSON.parse(JSON.stringify(state)) };
+    if(fromOther) h.from = fromOther;   // 어느 발급의 내용으로 만들었는지 (발급 내역에 「다른 문서 내용으로 발급」)
     if(intakeLink && intakeLink.recId) h.snapshot.intakeRec = intakeLink.recId;   // 단체 예약 ID: 단체 화면 견적서 버튼 ✓ · 발급 내역 찾기 (2026-11-21)
-    if(meta && meta.kind === "revise") setIssueMeta({ kind:"revise", parent: h.id, label: histLabel(h) });   // 또 고쳐 출력하면 이번 것의 수정발행
-    else setIssueMeta(null);
+    if(meta && meta.kind === "revise") setIssueMeta({ kind:"revise", parent: h.id, label: histLabel(h), doc: h.doc });   // 또 고쳐 출력하면 이번 것의 수정발행
+    else if(!(fromOther && state.docBoth)) setIssueMeta(null);
     // 발급 내역을 거치지 않은 출력이라도 같은 문서(수신 · 이용일 · 문서 종류)의 발급이 있으면 그 문서의 수정발행으로 본다
     if(!meta){
       try { await Promise.race([flushHistory().then(loadHistory), new Promise(function(r){ setTimeout(r, 4000); })]); } catch(e){}
@@ -2419,7 +2449,7 @@
           // 발급 취소 · 차액 배지는 버튼: 누르면 사유 창
           (off ? '<button type="button" class="kind void" data-note="cancel" title="취소 사유 보기">발급 취소</button>' : '') +
           (h.snapshot && h.snapshot.gapNote ? '<button type="button" class="kind gap" data-note="gap" title="외부용 금액 차이 사유 보기">차액</button>' : '') + '</div>' +
-          (h.parent ? '<span class="sub">원본 ' + esc(par ? fmtAt(par.at) : "") + '</span>' : '') + '</td>' +
+          (h.parent ? '<span class="sub">원본 ' + esc(par ? fmtAt(par.at) : "") + '</span>' : h.from ? '<span class="sub">' + esc(byId[h.from] ? (byId[h.from].doc || "다른 문서") + " " + fmtAt(byId[h.from].at) : "다른 문서") + ' 내용으로 발급</span>' : '') + '</td>' +
         '<td>' + esc(h.doc || "") + useTxt + '</td>' +
         '<td>' + esc(h.client || "") + '</td>' +
         '<td>' + esc(fmtDate(dateOnly(h.snapshot && h.snapshot.useDate || h.useDate), true)) + '</td>' +
@@ -2482,6 +2512,7 @@
     defaultState();
     Object.keys(s).forEach(function(k){ state[k] = s[k]; });
     state.rows = state.rows || []; state.swaps = state.swaps || {}; state.fakeQty = state.fakeQty || {};
+    state.docBoth = false;   // 불러온 발급은 그 문서 종류 하나만 (둘 다 발급은 다시 골라야 함)
     state.rows.forEach(function(r){ if(Number(r.key) >= uid) uid = Number(r.key) + 1; });
     editMode = "edit";
     setMailReady(false);
@@ -2518,10 +2549,10 @@
     if(hasWork() && !confirm("지금 작성 중인 내용 대신 이 내역을 불러올까요?")) return;
     restoreIssue(h);
     if(b.getAttribute("data-h") === "reissue"){
-      setIssueMeta({ kind:"reissue", parent: h.id, label: histLabel(h) });
+      setIssueMeta({ kind:"reissue", parent: h.id, label: histLabel(h), doc: h.doc });
       makeOutput();   // 그대로 다시 출력
     } else {
-      setIssueMeta({ kind:"revise", parent: h.id, label: histLabel(h) });
+      setIssueMeta({ kind:"revise", parent: h.id, label: histLabel(h), doc: h.doc });
       setEditOpen(true);
     }
   });
