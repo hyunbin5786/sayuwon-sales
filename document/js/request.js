@@ -1,7 +1,7 @@
 // ===== 고객 견적 요청 페이지 (document/request.html · 2026-11-21 · 2026-11-23 요청 선택지 · 서류 종류 · 현장 결제) =====
 // 고객님이 로그인 없이 입력 → 공유 기록 서버의 quoteReqAdd 로 한 건 저장 (서버는 목록 · 내용을 돌려주지 않음)
 // 직원은 견적서 화면 1단계 「고객 견적 요청」에서 이 기록을 열어 초안으로 채움
-//  - 매표소에서 직원이 고객님께 보여 드리는 화면 (고객님이 직접 입력). 맨 위 예약 번호 · 서류는 체크한 것만 발급일 칸(견적서 = 방문일 · 거래명세서 = 오늘이 기본) · 「현장에서 재결제했습니다」
+//  - 매표소에서 직원이 고객님께 보여 드리는 화면 (고객님이 직접 입력). 서류는 체크한 것만 발급일 칸(견적서 = 방문일 · 거래명세서 = 오늘이 기본) · 「현장에서 재결제했습니다」
 //  - 서버에 보내는 칸은 예전 그대로 (org · name · phone · email · date · pax · memo). 2026-11-23에 더한 것(필요한 서류 · 견적서 발급일 · 현장 결제 · 고른 요청 · 체험비 품목)은
 //    모두 memo 글자 안에 「[서류] … / [결제] … / [요청] … / [기타] …」 줄로 적어 보냄 → 서버 · DB 는 바꿀 것 없고, 직원 화면의 요청사항에 그대로 보임 (memo 는 1,000자까지)
 //  - 체험비 품목 목록 = 견적서 품목 중 단체(시간) · 단체(개별) · 굿즈 (document.js 의 기본 목록 + 품목 관리에서 바꾼 것 · 숨긴 품목은 뺌)
@@ -92,8 +92,7 @@
   const showErr = (code, focusId) => { err.textContent = MSG[code] || code; if(focusId){ const el=$(focusId); (el.previousElementSibling && el.previousElementSibling.classList.contains('dtxt') ? el.previousElementSibling : el).focus(); } };
   // 고른 것들을 요청사항 글자로 (직원 화면에 그대로 보임)
   function memoText(){
-    const L = [], q = $('q-doc-quote').checked, s = $('q-doc-stmt').checked, issue = $('q-issue').value, sissue = $('q-sissue').value, no = $('q-resno').value.trim();
-    if(no) L.push('[예약 번호] ' + no);
+    const L = [], q = $('q-doc-quote').checked, s = $('q-doc-stmt').checked, issue = $('q-issue').value, sissue = $('q-sissue').value;   // (예약 번호 칸은 2026-11-23에 없앰)
     L.push('[서류] ' + [q ? '견적서' + (issue ? ` (발급일 ${issue})` : '') : '', s ? '거래명세서' + (sissue ? ` (발급일 ${sissue})` : '') : ''].filter(Boolean).join(' · '));
     if($('q-onsite').checked) L.push('[결제] 현장에서 재결제함 → 사유원 · 신라철강 따로 발급');
     if($(EXP).checked) L.push('[요청] 식사 / 굿즈 구매 금액은 체험비로 — ' + (picked.size ? '품목: ' + [...picked].join(', ') : '품목 선택 없음 (대관으로)'));
@@ -129,7 +128,7 @@
     } finally { send.disabled = false; send.textContent = '요청 보내기'; }
   });
   $('q-again').addEventListener('click', () => {
-    ['q-memo', 'q-pax', 'q-date', 'q-issue', 'q-sissue', 'q-resno'].forEach(id => { $(id).value = ''; $(id).dispatchEvent(new Event('change')); });
+    ['q-memo', 'q-pax', 'q-date', 'q-issue', 'q-sissue'].forEach(id => { $(id).value = ''; $(id).dispatchEvent(new Event('change')); });
     [EXP, ...OPTS.map(o => o[0]), 'q-onsite', 'q-doc-stmt', 'q-doc-quote'].forEach(id => { $(id).checked = false; }); picked = new Set(); issueTouched = false;
     paintDoc(); paintExpSum(); paintNote();
     $('req-done').hidden = true; form.hidden = false; $('q-date').previousElementSibling.focus();

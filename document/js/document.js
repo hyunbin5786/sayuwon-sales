@@ -1394,7 +1394,7 @@
       status("저장했습니다 · " + variants.map(function(v){ return v.name; }).concat([xlsxName]).join(" · "), "ok");
       noteIntakeIssued();   // 단체 화면 과업 「생성」 체크 (파일은 드라이브에 올리지 않음, 2026-11-21)
       await recordIssue(variants.map(function(v){ return v.name; }).concat([xlsxName]));   // 발급 내역에 남김 (둘 다 발급할 때 순서가 섞이지 않게 기다림)
-      if(curReq && (curReq.status || "접수") === "접수") reqMark("출력");   // 고객 견적 요청 상태
+      if(curReq && curReq.status !== "완료") reqMark("완료");   // 고객 견적 요청: 출력하면 바로 끝난 요청으로 (2026-11-23 · 예전엔 「출력」 상태로 두고 「끝난 요청으로」를 따로 눌렀음)
       setMailReady(true);
       if(!quiet) openMail();   // 이어서 메일 문구 (둘 다 발급이면 마지막 것 뒤에만)
       okOut = true;
@@ -2657,8 +2657,8 @@
   // ---------- 고객 견적 요청 (2026-11-21) ----------
   // 고객이 request.html 에서 남긴 요청(공유 기록 서버 quotereq 시트) → 1단계 목록에서 골라
   //  · 예약 정보를 붙여넣고 「자동 채우기」: 품목 · 인원 · 이용일은 예약에서, 수신(단체명) · 수신 담당자는 요청에서
-  //  · 「붙여넣기 없이 초안으로 시작」: 수신 · 담당자 · 이용일 · 인원 + 기본 관람 한 줄
-  // 출력하면 요청 상태 「출력」, 「끝난 요청으로」 누르면 「완료」. 메일 받는 사람 = 고객이 적은 이메일
+  //  · (「붙여넣기 없이 초안으로 시작」 버튼은 2026-11-23에 없앰 — 고객 요청은 늘 예약 정보를 붙여넣어 만듦)
+  // 출력하면 요청 상태 「완료」(끝난 요청 · 2026-11-23 · 예전엔 「출력」), 출력 없이 끝내려면 「끝난 요청으로」. 메일 받는 사람 = 고객이 적은 이메일
   var REQ_PAGE = new URL("request.html", location.href).href.split(/[?#]/)[0];   // 고객에게 보내는 주소 = 지금 사이트의 document/request.html (사이트 주소가 바뀌어도 그대로)
   var reqItems = null, curReq = null;
   function reqErrText(e){
@@ -2758,10 +2758,6 @@
     var b = this;
     (navigator.clipboard ? navigator.clipboard.writeText(REQ_PAGE) : Promise.reject()).then(function(){ b.textContent = "복사했습니다"; }, function(){ prompt("고객님께 보낼 주소", REQ_PAGE); })
       .then(function(){ setTimeout(function(){ b.textContent = "요청 페이지 주소 복사"; }, 1500); });
-  });
-  document.getElementById("req-draft").addEventListener("click", function(){
-    var r = curReq; if(!r) return;
-    startBlank(); curReq = r; reqFill(true); paint();
   });
   document.getElementById("req-done").addEventListener("click", function(){
     if(!curReq) return;

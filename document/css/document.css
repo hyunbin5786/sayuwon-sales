@@ -404,6 +404,7 @@ html.cat-page #cat-close{display:none !important}
 .startcard.reqcard{order:-1; min-width:0}   /* 새 요청이 먼저 보이게 맨 왼쪽 (좁은 화면에서는 맨 위) */
 .reqtools{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
 .reqtools .grow{margin-right:auto}
+.reqtools .reqicon{font-size:17px; line-height:1; padding:4px 9px}   /* 새로고침 = 도는 화살표 */
 .reqtools label{font-size:12.5px; color:var(--muted); display:inline-flex; gap:5px; align-items:center}
 .reqlist{display:flex; flex-direction:column; gap:6px; max-height:340px; overflow:auto}
 .reqitem{display:grid; grid-template-columns:auto 1fr auto; gap:4px 12px; align-items:center; padding:9px 12px; border:1px solid var(--line); border-radius:8px; background:var(--surface); cursor:pointer; text-align:left; font:inherit; color:inherit; width:100%}
@@ -458,3 +459,9 @@ html.reqhtml, html.reqhtml body{height:auto; min-height:100%; overflow:visible}
 /* 숨긴 칸은 정말 안 보이게 (.field 의 display 가 hidden 속성을 이겨서, 체크하지 않은 서류의 발급일 칸이 늘 보이던 것 · 2026-11-23) */
 .reqpage [hidden]{display:none !important}
 .reqtitle{margin:0; font-family:'Noto Serif KR',serif; font-weight:700; font-size:21px; line-height:1.4; color:var(--ink); word-break:keep-all}
+/* 고객 요청 페이지 · 휴대폰 · 태블릿(터치 화면)에서 날짜 칸을 눌러도 달력이 안 뜨던 것 (2026-11-23):
+   PC 는 글자 칸을 누르면 코드로 달력을 엶(showPicker). 휴대폰 브라우저는 그 방식이 막혀 있거나 없음 →
+   터치 화면에서는 진짜 날짜 칸(input type=date)을 투명하게 글자 칸 위에 꽉 차게 덮어, 손가락이 그 칸을 직접 눌러 기기 달력이 뜨게 함 */
+@media (hover:none), (pointer:coarse){
+  .reqpage .dbox input.dpick{left:0; top:0; bottom:auto; width:100% !important; height:100% !important; min-height:100%; opacity:0; pointer-events:auto; font-size:16px; -webkit-appearance:none; appearance:none; z-index:1}
+}
