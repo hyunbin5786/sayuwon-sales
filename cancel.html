@@ -6,9 +6,9 @@
 <title>예약 취소 요청 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261124o">
-<link rel="stylesheet" href="css/cancel.css?v=20261124o">
-<link rel="stylesheet" href="css/menu.css?v=20261124o">
+<link rel="stylesheet" href="css/prep.css?v=20261124p">
+<link rel="stylesheet" href="css/cancel.css?v=20261124p">
+<link rel="stylesheet" href="css/menu.css?v=20261124p">
 </head>
 <body>
 <!-- 고객 응대 보조 · 예약 취소 요청 (2026-11-19): 직원이 취소 담당자에게 예약 취소 처리를 요청 → 담당자가 처리 완료 표시.
@@ -76,11 +76,13 @@
 
   <!-- ② 요청 목록 · 처리 -->
   <section class="panel" id="pList">
-    <h2>요청 목록 · 처리 <b class="cx-n" id="openN" title="처리 전"></b> <small id="sum"></small>
-      <span class="right"><button class="btn line-g" id="xlBtn" type="button" title="예전에 쓰던 「사유원 예약 취소 요청」 엑셀을 넣으면 그 줄들을 목록에 더함">엑셀 불러오기</button><input type="file" id="xlFile" accept=".xlsx,.xls" hidden></span></h2>
-    <div class="cx-tools"><span class="seg" id="flt"><button type="button" data-v="open" class="on">처리 전</button><button type="button" data-v="done">처리 완료</button><button type="button" data-v="all">전체</button></span>
+    <!-- 2026-11-23: 제목 · 처리 전/완료/전체 · 정보 덜 된 것만 · 찾기 · 엑셀 불러오기를 한 줄에 -->
+    <div class="cx-lh"><h2>요청 목록 · 처리 <b class="cx-n" id="openN" title="처리 전"></b></h2>
+      <span class="seg" id="flt"><button type="button" data-v="open" class="on">처리 전</button><button type="button" data-v="done">처리 완료</button><button type="button" data-v="all">전체</button></span>
       <label class="cx-ck"><input type="checkbox" id="fltMiss"> 정보 덜 된 것만 <b id="missN"></b></label>
-      <input id="q" type="search" placeholder="예약자 · 연락처 · 예약 번호 · 요청자로 찾기" data-ime="ko" autocomplete="off"></div>
+      <input id="q" type="search" placeholder="예약자 · 연락처 · 예약 번호 · 요청자로 찾기" data-ime="ko" autocomplete="off">
+      <button class="btn line-g" id="xlBtn" type="button" title="예전에 쓰던 「사유원 예약 취소 요청」 엑셀을 넣으면 그 줄들을 목록에 더함">📥 엑셀 불러오기</button><input type="file" id="xlFile" accept=".xlsx,.xls" hidden></div>
+    <p class="cx-sum" id="sum"></p>
     <div id="list"></div>
   </section>
   </div>
@@ -96,8 +98,8 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/common.js?v=20261124o"></script>
-<script src="js/cancel.js?v=20261124o"></script>
-<script src="js/menu.js?v=20261124o"></script>
+<script src="js/common.js?v=20261124p"></script>
+<script src="js/cancel.js?v=20261124p"></script>
+<script src="js/menu.js?v=20261124p"></script>
 </body>
 </html>

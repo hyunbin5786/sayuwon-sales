@@ -150,3 +150,12 @@
 .cx-tb .c-acc{min-width:100px;max-width:140px}
 .cx-tb .c-do{min-width:128px}
 .cx-tb .cx-file a{max-width:100px}
+/* 2026-11-23: 요청 목록 머리 한 줄 (제목 · 처리 전/완료/전체 · 정보 덜 된 것만 · 찾기 · 엑셀 불러오기) */
+.cx-lh{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin:0 0 6px}
+.cx-lh h2{margin:0}
+.cx-lh .cx-ck{display:inline-flex;align-items:center;gap:5px;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.cx-lh .cx-ck b{display:inline-block;min-width:18px;padding:0 6px;border-radius:999px;background:#d9a91f;color:#fff;font-size:12px;text-align:center}
+.cx-lh .cx-ck b:empty{display:none}
+.cx-lh input[type=search]{height:34px;flex:0 1 300px;min-width:180px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit;font-size:13.5px}
+.cx-lh #xlBtn{margin-left:auto;white-space:nowrap}
+.cx-sum{margin:0 0 8px;font-size:12.5px;color:var(--muted)}
