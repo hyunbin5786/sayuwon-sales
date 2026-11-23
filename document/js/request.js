@@ -31,7 +31,7 @@
 
   // ---------- 요청사항 선택지 ----------
   const EXP = 'q-opt-exp';   // 「식사 / 굿즈 구매 금액은 체험비로 바꿔 주세요」
-  const OPTS = [['q-opt-tax', '세금계산서(계산서) 발행이 필요합니다'], ['q-opt-biz', '사업자등록증 · 통장 사본도 함께 보내 주세요'], ['q-opt-pax', '인원이 바뀔 수 있습니다 (확정되면 다시 알려 드리겠습니다)']];
+  const OPTS = [];   // 그 밖의 선택지 [칸 id, 문구] — 2026-11-23에 세 개(세금계산서 · 사업자등록증/통장 사본 · 인원 변경)를 뺌. 다시 넣으려면 여기에 더하고 request.html 에 같은 id 의 체크 칸을
   const paintNote = () => { $('q-note').hidden = !(OPTS.some(([id]) => $(id).checked) || $('q-memo').value.trim()); };
   OPTS.forEach(([id]) => $(id).addEventListener('change', paintNote)); $('q-memo').addEventListener('input', paintNote);
 
