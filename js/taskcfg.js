@@ -203,7 +203,7 @@ function tcfgEdHTML(T, c, builtin, id){
     ${builtin && id==='wkcheck' ? `<label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> 미정 항목 · 아직 안 넣은 칸을 하나씩 세부 과업으로 자동으로 넣기</label>` : ''}
     <div class="tcfg-two">
       <label>과업 문구 <small class="hint">(「문구 복사」 버튼으로 복사 · 비우면 없음${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''})</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '')}</label>
-      <label>과업 아래 안내 줄 <small class="hint">(과업 제목 아래에 자동으로 붙는 글 · 예: 바뀐 내용 · 비우면 없음)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '바뀐 내용: {바뀐내용}')}</label>
+      <label>과업 아래 안내 줄 <small class="hint">(과업 제목 아래에 자동으로 붙는 글 · 예: 바뀐 내용 · 비우면 없음)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '')}</label>
     </div>
     <div class="tcfg-ebtm"><label class="chk"><input type="checkbox" data-tf="${T}|off"${c.off?' checked':''}> ${builtin?'이 과업을 자동으로 만들지 않음':'잠시 끄기'}</label><span class="sp"></span>${builtin ? `<button type="button" class="btn" data-tcreset="${T}">원래대로 되돌리기</button>` : `<button type="button" class="btn" data-tcdel="${T}">이 과업 삭제</button>`}</div></div>`; }
 function tcfgPaint(){ const d=tcfgDraft; if(!d) return; const body=$('#tcfgBody'), st=body.scrollTop;
