@@ -75,7 +75,7 @@
     }
     return out;
   }
-  const fileLinks = (files, rmAttr) => (files||[]).map((f,i)=>`<span class="cx-file"><a href="${esc(f.url)}" target="_blank" rel="noopener" title="새 창에서 보기">📎 ${esc(f.name||'증빙 서류')}</a>${rmAttr?`<button type="button" ${rmAttr}="${i}" title="이 파일 빼기">×</button>`:''}</span>`).join('');
+  const fileLinks = (files, rmAttr) => (files||[]).map((f,i)=>`<span class="cx-file"><a href="${esc(f.url)}" target="_blank" rel="noopener" title="${esc(f.name||"증빙 서류")} — 새 창에서 보기">📎 ${esc(f.name||'증빙 서류')}</a>${rmAttr?`<button type="button" ${rmAttr}="${i}" title="이 파일 빼기">×</button>`:''}</span>`).join('');
 
   // ---------- 탭 없음 (2026-11-23): 1열 취소 요청하기 · 2열 요청 목록이 늘 함께 보임 ----------
   const toForm = () => { const y=$('#pReq').getBoundingClientRect().top; if(y<0 || y>innerHeight*0.5) $('#pReq').scrollIntoView({behavior:'smooth', block:'start'}); };
@@ -237,35 +237,34 @@
         && (!q || [r.name,r.no,r.by,r.whyTxt,r.amt,r.erp].join('').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && digits(r.phone+r.no).includes(qd))))
       .sort((a,b)=> flt==='open' ? String(a.at||'').localeCompare(String(b.at||'')) : String(b.done?.at||b.at||'').localeCompare(String(a.done?.at||a.at||'')));   // 처리 전 = 오래된 요청부터
     $('#sum').textContent = `처리 전 ${nOpen}건${nMiss?` (정보 덜 됨 ${nMiss}건)`:''} · 전체 ${reqs.length}건${q||onlyMiss?` · 찾은 ${list.length}건`:''}`;
-    $('#list').innerHTML = list.length ? list.map(card).join('') : `<p class="hint">${onlyMiss?'정보가 덜 된 요청이 없습니다.':flt==='open'?'처리할 취소 요청이 없습니다.':'요청이 없습니다.'}</p>`;
+    $('#list').innerHTML = list.length ? table(list.map(card).join('')) : `<p class="hint">${onlyMiss?'정보가 덜 된 요청이 없습니다.':flt==='open'?'처리할 취소 요청이 없습니다.':'요청이 없습니다.'}</p>`;
   }
   let cardUp=null;   // 증빙을 올리는 중인 요청 id
-  // 요청 한 건 = 표 하나 (2026-11-23): 왼쪽 항목 · 오른쪽 내용. 빠진 항목은 빨간 「빠짐」
+  // 요청 목록 = 표 하나 (2026-11-23): 요청 한 건 = 한 줄 (계속 쌓이므로 아래로 늘어남). 빠진 칸은 빨간 「빠짐」
   const MISS_ROW={'방문일':'date','예약자 이름':'name','연락처':'phone','예약 번호':'no','취소 사유':'why','사유 자세히':'why','취소할 인원':'kind','증빙 서류 파일':'doc','환불 계좌 은행':'acc','환불 계좌번호':'acc','예금주 이름':'acc'};
+  const COLS=['상태','예약자 · 연락처','방문일','예약 번호','취소 내용','전산 예약','취소 사유','증빙 서류','환불 계좌','요청','처리'];
+  const table = rows => `<div class="cx-tbw"><table class="cx-tb"><thead><tr>${COLS.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
   function card(r){
     const miss=r.done ? [] : missOf(r), mk=new Set(miss.map(m=>MISS_ROW[m]));
     const cut = r.kind==='부분 취소' && r.cnt ? partTxt(r.cnt, r.ppl) : (r.amt||'');
     const why=[r.why, r.whyTxt].filter(Boolean).join(' · ');
-    const row=(k, th, td) => `<tr${mk.has(k)?' class="m"':''}><th>${th}</th><td>${td || (mk.has(k) ? '<span class="cx-gap">빠짐</span>' : '<span class="cx-none">—</span>')}</td></tr>`;
-    const up=`<label class="btn sm line-g cx-upb${cardUp===r.id?' busy':''}">${cardUp===r.id?'올리는 중…':(r.files||[]).length?'증빙 더 올리기':'증빙 올리기'}<input type="file" data-cxup="${esc(r.id)}" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple hidden${cardUp?' disabled':''}></label>`;
-    return `<div class="cx-card${r.done?' done':''}${miss.length?' miss':''}" data-id="${esc(r.id)}">`
-      + `<div class="cx-ch"><span class="tag">${esc(r.site||'-')}</span><b>${esc(r.name||'(이름 없음)')}</b><span class="cx-st${r.done?' ok':''}">${r.done?'✓ 처리 완료':'처리 전'}</span>`
-      +   `<button type="button" class="btn sm${miss.length?' primary':''}" data-edit="${esc(r.id)}">${miss.length?'정보 채우기':'고치기'}</button></div>`
-      + (miss.length ? `<div class="cx-miss">⚠ 빠진 정보: <b>${esc(miss.join(' · '))}</b></div>` : '')
-      + `<table class="cx-tb"><tbody>`
-      + row('date', '방문일', esc(dLab(r.date)))
-      + row('phone', '연락처', esc(r.phone||''))
-      + row('no', '예약 번호', r.no ? `<button type="button" class="cx-no" data-copy="${esc(r.no)}" title="예약 번호 복사">${esc(r.no)}</button>` : '')
-      + row('kind', '취소 내용', `<b class="${r.kind==='전체 환불'?'all':''}">${esc(r.kind||'')}</b>${cut?` · ${esc(cut)}`:''}`)
-      + (r.erp ? row('erp', '전산 예약', esc(r.erp)) : '')
-      + row('why', '취소 사유', esc(why))
-      + row('doc', '증빙 서류', `<div class="cx-files">${r.doc?`<i class="doc">${esc(r.doc)}</i>`:'<span class="cx-none">필요 없음</span>'}${fileLinks(r.files)}${mk.has('doc')?'<span class="cx-gap">파일 빠짐</span>':''}${up}</div>`)
-      + row('acc', '환불 계좌', esc(r.acc||''))
-      + row('req', '요청', `${esc(r.by||'')}${r.at?` · ${esc(atLab(r.at))}`:''}${r.edited?`<br><small>고침 ${esc(r.edited.by||'')} · ${esc(atLab(r.edited.at))}</small>`:''}`)
-      + `<tr class="cx-do"><th>처리</th><td>${r.done
-          ? `<div class="cx-done-row"><span class="cx-done">✓ ${esc(r.done.by||'')}${r.done.at?` · ${esc(atLab(r.done.at))}`:''}${r.done.memo?` <small>· ${esc(r.done.memo)}</small>`:''}</span><button type="button" class="btn sm" data-undo="${esc(r.id)}">되돌리기</button></div>`
-          : `<div class="cx-done-row"><input class="cx-memo" data-memo="${esc(r.id)}" data-ime="ko" placeholder="처리 메모 (선택)"><button type="button" class="btn primary" data-done="${esc(r.id)}">처리 완료</button></div>`}</td></tr>`
-      + `</tbody></table></div>`;
+    const td=(k, html, cls='') => `<td class="${cls}${mk.has(k)?' m':''}">${html || (mk.has(k) ? '<span class="cx-gap">빠짐</span>' : '<span class="cx-none">—</span>')}</td>`;
+    const up=`<label class="btn sm line-g cx-upb${cardUp===r.id?' busy':''}">${cardUp===r.id?'올리는 중…':(r.files||[]).length?'더 올리기':'증빙 올리기'}<input type="file" data-cxup="${esc(r.id)}" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple hidden${cardUp?' disabled':''}></label>`;
+    return `<tr class="${r.done?'done':''}${miss.length?' miss':''}" data-id="${esc(r.id)}">`
+      + `<td class="c-st"><span class="cx-st${r.done?' ok':''}">${r.done?'✓ 처리 완료':'처리 전'}</span>${miss.length?`<span class="cx-mn" title="빠진 정보: ${esc(miss.join(' · '))}">⚠ 빠진 ${miss.length}</span>`:''}`
+      +   `<button type="button" class="btn sm${miss.length?' primary':''}" data-edit="${esc(r.id)}">${miss.length?'정보 채우기':'고치기'}</button></td>`
+      + `<td class="c-nm${mk.has('name')||mk.has('phone')?' m':''}"><span class="tag">${esc(r.site||'-')}</span><b>${r.name?esc(r.name):'<span class="cx-gap">이름 빠짐</span>'}</b><br>${r.phone?esc(r.phone):'<span class="cx-gap">연락처 빠짐</span>'}</td>`
+      + td('date', /^\d{4}-\d{2}-\d{2}$/.test(r.date||'') ? `${+r.date.slice(5,7)}/${+r.date.slice(8,10)} (${SY.DOW[new Date(r.date+'T00:00').getDay()]})${r.date.slice(0,4)!==String(new Date().getFullYear())?`<br><small>${r.date.slice(0,4)}년</small>`:''}` : esc(r.date||''), 'c-nw')
+      + td('no', r.no ? `<button type="button" class="cx-no" data-copy="${esc(r.no)}" title="예약 번호 복사">${esc(r.no)}</button>` : '')
+      + td('kind', `<b class="${r.kind==='전체 환불'?'all':''}">${esc(r.kind||'')}</b>${cut?`<br><small>${esc(cut)}</small>`:''}`, 'c-nw')
+      + td('erp', r.erp ? `<small>${esc(r.erp)}</small>` : '', 'c-erp')
+      + td('why', esc(why))
+      + td('doc', `<div class="cx-files">${r.doc?`<i class="doc">${esc(r.doc)}</i>`:'<span class="cx-none">필요 없음</span>'}${fileLinks(r.files)}${mk.has('doc')?'<span class="cx-gap">파일 빠짐</span>':''}${up}</div>`, 'c-doc')
+      + td('acc', r.acc ? `<small>${esc(r.acc)}</small>` : '', 'c-acc')
+      + td('req', `${esc(r.by||'')}${r.at?`<br><small>${esc(atLab(r.at))}</small>`:''}${r.edited?`<br><small>고침 ${esc(r.edited.by||'')}</small>`:''}`, 'c-req')
+      + `<td class="c-do">${r.done
+          ? `<span class="cx-done">✓ ${esc(r.done.by||'')}${r.done.at?` <small>${esc(atLab(r.done.at))}</small>`:''}${r.done.memo?`<br><small>${esc(r.done.memo)}</small>`:''}</span><button type="button" class="btn sm" data-undo="${esc(r.id)}">되돌리기</button>`
+          : `<input class="cx-memo" data-memo="${esc(r.id)}" data-ime="ko" placeholder="처리 메모 (선택)"><button type="button" class="btn primary sm" data-done="${esc(r.id)}">처리 완료</button>`}</td></tr>`;
   }
   $('#q').addEventListener('input', render);
   $('#fltMiss').addEventListener('change', render);

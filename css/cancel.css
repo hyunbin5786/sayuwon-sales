@@ -77,43 +77,76 @@
 .cx-row select{height:36px;border:1px solid #c9c4b8;border-radius:6px;padding:0 8px;font:inherit;font-size:14px;color:var(--ink);background:#fff;min-width:170px}
 .cx-row #fAccNo{font-variant-numeric:tabular-nums}
 .cx-form [hidden]{display:none!important}   /* label · .cx-f 의 display:flex 가 hidden 을 이기지 않게 */
-/* 2026-11-23: 2열 (1열 취소 요청하기 · 2열 요청 목록 · 처리) + 요청 한 건 = 표 */
-.cx-main{max-width:1560px}
+/* 2026-11-23: 2열 — 1열 취소 요청하기(좁게) · 2열 요청 목록 · 처리(넓게, 요청 한 건 = 표 한 줄) */
+.cx-main{display:block;max-width:none;margin-left:auto;margin-right:auto}   /* prep.css 의 main 격자를 쓰지 않음 · 화면 폭 다 씀 */
 .cx-top{display:flex;justify-content:flex-end;min-height:18px;margin:0 0 4px}
-.cx-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:16px;align-items:start}
-.cx-cols > .panel{margin:0}
+.cx-cols{display:grid;grid-template-columns:400px minmax(0,1fr);gap:16px;align-items:start}
+.cx-cols > .panel{margin:0;min-width:0}
 #pReq{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
-@media (max-width:1100px){ .cx-cols{grid-template-columns:1fr} #pReq{position:static;max-height:none} }
+#pReq h2 small{display:block;margin-top:2px}
+#pReq .cx-row input:not([type=checkbox]),#pReq .cx-row select{min-width:0;width:100%}
+#pReq .cx-row > label,#pReq .cx-row > .cx-f{flex:1 1 150px}
+#pReq .cx-row > label#fPplBox,#pReq .cx-row > label#fCntBox{flex:0 0 auto}
+#pReq .cx-row .cx-cnt input{width:72px}
+#pReq .cx-row .dbox .dtxt{width:100%}
+@media (max-width:1000px){ .cx-cols{grid-template-columns:1fr} #pReq{position:static;max-height:none} }
 #pList h2 .cx-n{display:inline-block;min-width:18px;padding:0 7px;border-radius:999px;background:#d9a91f;color:#fff;font-size:12px;text-align:center;vertical-align:2px}
 #pList h2 .cx-n:empty{display:none}
-.cx-tools input[type=search]{flex:1 1 200px;min-width:180px}
-.cx-card{display:block;padding:0;overflow:hidden;margin:0 0 12px}
-.cx-ch{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #eadb8f;background:#fff6cf}
-.cx-card.done .cx-ch{background:#f6f4ef;border-bottom-color:var(--line)}
-.cx-card.miss .cx-ch{background:#fdebd0;border-bottom-color:#e8c49a}
-.cx-ch > b{font-size:15px;flex:1;min-width:0}
-.cx-ch .tag{margin:0}
-.cx-st{font-size:12px;font-weight:700;color:#8a6a00;background:#fff;border:1px solid #e3cf74;border-radius:999px;padding:1px 9px;white-space:nowrap}
-.cx-st.ok{color:var(--pine);border-color:var(--pine)}
-.cx-card .cx-miss{margin:8px 12px 0;display:inline-block}
-.cx-tb{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff}
-.cx-card .cx-tb{margin-top:6px}
-.cx-tb th,.cx-tb td{border-top:1px solid #eeeae0;padding:7px 12px;text-align:left;vertical-align:middle}
-.cx-tb tr:first-child th,.cx-tb tr:first-child td{border-top:0}
-.cx-tb th{width:86px;white-space:nowrap;font-weight:500;color:var(--muted);font-size:12.5px;background:#faf8f3}
-.cx-tb td{color:var(--ink);word-break:break-all}
+.cx-tools input[type=search]{flex:0 1 320px;min-width:200px}
+/* 요청 목록 표 */
+.cx-tbw{overflow:auto;max-height:calc(100vh - 190px);border:1px solid var(--line);border-radius:8px}
+.cx-tb{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
+.cx-tb thead th{position:sticky;top:0;z-index:1;background:#f1eee6;color:var(--muted);font-weight:600;font-size:12px;text-align:left;padding:8px 9px;white-space:nowrap;border-bottom:1px solid var(--line)}
+.cx-tb td{padding:8px 9px;border-top:1px solid #eeeae0;vertical-align:top;color:var(--ink);line-height:1.45}
+.cx-tb tbody tr:first-child td{border-top:0}
+.cx-tb tr.miss td{background:#fffaf0}
+.cx-tb tr.done td{background:#fff;color:#6b665c}
+.cx-tb tr:not(.done):not(.miss) td{background:#fffdf3}
+.cx-tb tr:hover td{background:#f6f9f3}
 .cx-tb td small{color:var(--muted)}
-.cx-tb tr.m th{color:#b5442c;font-weight:700;background:#fdf1ee}
-.cx-tb tr.m th::after{content:' ⚠'}
+.cx-tb td.m{background:#fdf1ee!important;box-shadow:inset 3px 0 0 #b5442c}
+.cx-tb .c-nw{white-space:nowrap}
+.cx-tb .c-nm{white-space:nowrap}
+.cx-tb .c-nm .tag{display:block;width:max-content;margin:0 0 2px}
+.cx-tb .c-erp{min-width:150px;max-width:220px}
+.cx-tb .c-acc{min-width:140px;max-width:200px;word-break:break-all}
+.cx-tb .c-doc{min-width:150px}
+.cx-tb .c-st{white-space:nowrap}
+.cx-tb .c-st > *{display:block;width:max-content;margin:0 0 4px}
+.cx-tb .c-do{min-width:170px}
+.cx-tb .c-do .cx-memo{width:100%;box-sizing:border-box;margin:0 0 4px;height:30px}
+.cx-tb .c-do .btn{width:100%}
+.cx-tb .c-do .cx-done{display:block;margin:0 0 4px;font-size:12.5px}
+.cx-st{font-size:12px;font-weight:700;color:#8a6a00;background:#fff;border:1px solid #e3cf74;border-radius:999px;padding:1px 9px}
+.cx-st.ok{color:var(--pine);border-color:var(--pine)}
+.cx-mn{font-size:12px;font-weight:700;color:#b5442c;cursor:help}
 .cx-gap{color:#b5442c;font-weight:700;font-size:12.5px}
 .cx-none{color:#b3ad9f}
 .cx-tb b.all{color:#b5442c}
 .cx-tb i.doc{font-style:normal;font-size:12px;background:#e6eef8;color:#2f5d8a;border-radius:999px;padding:1px 8px}
-.cx-tb .cx-files{gap:4px 6px}
-.cx-tb .cx-file{margin:0}
-.cx-upb{margin-left:auto}
-.cx-tb tr.cx-do td,.cx-tb tr.cx-do th{background:#f7faf5}
-.cx-done-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.cx-done-row .cx-memo{flex:1 1 160px;min-width:0}
-.cx-done-row .cx-done{flex:1;font-size:13px}
-.cx-main{display:block;margin-left:auto;margin-right:auto}   /* prep.css 의 main 격자를 쓰지 않음 */
+.cx-tb .cx-files{flex-direction:column;align-items:flex-start;gap:3px}
+.cx-tb .cx-file{margin:0;font-size:12px}
+.cx-tb .cx-no{white-space:nowrap}
+.cx-main .btn.sm{padding:4px 10px;font-size:12.5px}
+.cx-form [hidden]{display:none!important}   /* label · .cx-f 의 display:flex 가 hidden 을 이기지 않게 */
+/* 좁은 요청서 열: 고르기 버튼이 세로로 눌리지 않게 */
+#pReq .cx-row > .cx-f{flex:1 1 100%}
+#pReq .seg{display:flex;width:100%}
+#pReq .seg button{flex:1 1 auto;white-space:nowrap;padding:8px 6px;font-size:13px}
+#pReq #fWhy{flex-wrap:wrap}
+#pReq #fWhy button{flex:1 1 40%;border-top:1px solid var(--line);margin-top:-1px}
+.cx-cols{grid-template-columns:420px minmax(0,1fr)}
+/* 표 폭 줄이기: 파일 이름은 말줄임 (전체 이름은 마우스를 올리면) */
+.cx-tb .cx-file a{display:inline-block;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+.cx-tb .c-doc{min-width:0}
+.cx-tb .c-erp{min-width:120px;max-width:180px}
+.cx-tb .c-acc{min-width:120px;max-width:170px}
+.cx-tb .c-do{min-width:150px}
+.cx-tb td{padding:7px 8px}
+.cx-cols{grid-template-columns:380px minmax(0,1fr)}
+.cx-tb .c-req{min-width:84px;max-width:110px}
+.cx-tb .c-st .btn{font-size:12px}
+.cx-tb .c-erp{min-width:100px;max-width:150px}
+.cx-tb .c-acc{min-width:100px;max-width:140px}
+.cx-tb .c-do{min-width:128px}
+.cx-tb .cx-file a{max-width:100px}
