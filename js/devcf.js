@@ -3,7 +3,7 @@
 //  - cloudflare/worker.js (진짜 서버 코드) 를 그대로 불러와, cloudflare/schema.sql 로 만든 SQLite DB(sql.js) 에 붙여 돌림
 //    → 서버에 올리기 전에 「화면 + 서버 코드 + SQL」이 맞물리는지 확인. Cloudflare D1 의 제한(값 하나 2MB · 묶는 값 100개 · 요청 하나에 쿼리 50번)도 넘으면 오류를 냄
 //  - DB 는 이 브라우저 localStorage 'sy_cf_db' 에만 (지우기: SY_CF.reset()). 처음엔 멤버 테스트 / T001 · 김영업 / T002 와 가상 예약
-//  - 견적서 서버(SY.quote)는 js/devmock.js 의 가짜를 그대로 씀 (이 파일보다 먼저 읽힘)
+//  - 견적서 서버(SY.quote)도 서버 코드의 quoteGet · quotePost 로 감. 틀린 로그인 제한을 시험하려면 콘솔에서 SY_CF_IP='1.2.3.4' (IP 가 없으면 세지 않음)
 (function(){
   const base = document.currentScript.src.replace(/js\/devcf\.js.*$/, ''), CDN = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/';
   const LS = 'sy_cf_db', VER = 'sy_cf_ver';
@@ -45,12 +45,15 @@
   const log = [];
   const call = async body => { const mod = await ready; if ((localStorage.getItem(VER) || '') !== ver) load();   // 다른 창 · 팝업이 고쳤으면 다시 읽음
     queries = 0; const req = JSON.parse(JSON.stringify(body)); log.push(req); if (log.length > 300) log.shift();
-    let r; try { r = await mod.api(req, env, location.origin + '/cf'); } catch (e) { r = { ok: false, error: String((e && e.message) || e) }; console.error('[cf] 서버 코드 오류', req.action, e); }
-    if (!/^(list|deleted|login|members|mentList|mentImgGet|bookList|quoteReqList)$/.test(req.action)) persist();
+    let r; try { r = await mod.api(req, env, location.origin + '/cf', window.SY_CF_IP || ''); } catch (e) { r = { ok: false, error: String((e && e.message) || e) }; console.error('[cf] 서버 코드 오류', req.action, e); }
+    if (!/^(list|deleted|members|mentList|mentImgGet|bookList|quoteReqList|quoteGet)$/.test(req.action)) persist();
     return JSON.parse(r && r.__raw ? r.__raw : JSON.stringify(r)); };
   SY_BACKEND.main = call;
   SY_BACKEND.beacon = body => { call(body); };
-  window.SY_CF = { log, ready, env,
+  SY_BACKEND.quoteGet = query => { const p = new URLSearchParams(query || ''); return call(SY.sign({ action: 'quoteGet', history: p.get('history') ? 1 : 0, limit: +p.get('limit') || 0 })); };   // devmock 의 가짜 견적서 서버 대신 서버 코드로
+  SY_BACKEND.quotePost = body => call(SY.sign({ ...body, action: 'quotePost' }));
+  window.SY_CF = { log, ready, env, q0(){ queries = 0; },   // q0: 서버 코드를 직접 부르는 시험에서 쿼리 수 세기를 0으로
+
     sql: (s, a) => { const st = db.prepare(s); st.bind(a || []); const o = []; while (st.step()) o.push(st.getAsObject()); st.free(); return o; },
     reset(){ localStorage.removeItem(LS); localStorage.removeItem(VER); try { indexedDB.deleteDatabase('sayuwon'); } catch (_) {} location.reload(); } };
   console.info('[cf] js/devcf.js — cloudflare/worker.js 를 브라우저 SQLite 로 돌리는 중 (진짜 서버에는 쓰지 않음 · 끄기 ?mock=0)');

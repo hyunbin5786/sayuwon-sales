@@ -7,8 +7,8 @@
 <script>/* 불러오는 중 화면 (2026-11-21): 단체 화면을 열면 예약 정보가 준비될 때까지 빈 새 통화 화면 대신 「불러오는 중」 (예약 현황 공유 · 나의 할일 · 과업 계산 창은 빼고) */ (function(){ if(!/[?&](book|my|engine)=/.test(location.search)) document.documentElement.classList.add('g-loading'); })();</script>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261123c">
-<link rel="stylesheet" href="css/menu.css?v=20261123c">
+<link rel="stylesheet" href="css/group.css?v=20261123d">
+<link rel="stylesheet" href="css/menu.css?v=20261123d">
 </head>
 <body>
 <header>
@@ -93,7 +93,7 @@
       <span class="row-btns"><button type="button" class="btn list-x" id="trashClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <input id="trashSearch" class="list-search" type="search" data-ime="ko" placeholder="검색: 업체명 · 담당자 · 사유 · 삭제한 사람" autocomplete="off" style="margin:0 0 8px">
     <div class="tw"><table class="mbdb-t"><thead><tr><th>삭제 일시</th><th>삭제한 사람</th><th>사유</th><th>방문일</th><th>업체</th><th>담당자</th><th>인원</th><th class="owner">영업 담당</th></tr></thead><tbody id="trashBody"></tbody></table></div>
-    <p class="hint" style="margin:8px 0 0">삭제된 예약은 구글 시트에 그대로 남아 있고(‘삭제’ 칸에 일시), 여기서는 보기만 합니다.</p>
+    <p class="hint" style="margin:8px 0 0">삭제된 예약은 공유 DB에 그대로 남아 있고(‘삭제’ 칸에 일시), 여기서는 보기만 합니다.</p>
   </section>
 </div>
 <!-- 대관 · 도슨트 · 프로그램 예약 목록 (예약접수된 단체 예약에서 자동) -->
@@ -399,14 +399,14 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/common.js?v=20261123c"></script>
-<script src="js/opslib.js?v=20261123c"></script>
-<script src="js/group.js?v=20261123c"></script>
-<script src="js/taskcfg.js?v=20261123c"></script>
-<script src="js/mytask.js?v=20261123c"></script>
-<script src="js/ime.js?v=20261123c"></script>
-<script src="js/keepsize.js?v=20261123c"></script>
-<script src="js/menu.js?v=20261123c"></script>
-<script src="js/timepick.js?v=20261123c"></script>
+<script src="js/common.js?v=20261123d"></script>
+<script src="js/opslib.js?v=20261123d"></script>
+<script src="js/group.js?v=20261123d"></script>
+<script src="js/taskcfg.js?v=20261123d"></script>
+<script src="js/mytask.js?v=20261123d"></script>
+<script src="js/ime.js?v=20261123d"></script>
+<script src="js/keepsize.js?v=20261123d"></script>
+<script src="js/menu.js?v=20261123d"></script>
+<script src="js/timepick.js?v=20261123d"></script>
 </body>
 </html>

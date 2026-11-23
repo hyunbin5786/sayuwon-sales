@@ -12,12 +12,13 @@
 //  로컬 미리보기에서 진짜 시트에 쓰지 않고 시험하기: 주소 끝에 ?mock=1 (끄기 ?mock=0) → js/devmock.js 가 가짜 서버가 됨 (localhost 에서만 · README 13절)
 const SY_BACKEND = {
   API_URL:   "https://sayuwon-api.serendipity5786-9e7.workers.dev/",   // 공유 기록 (cloudflare/worker.js · 2026-11-23 구글 시트에서 옮김 · 되돌릴 때: https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec)
-  QUOTE_URL: "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec",   // 견적서 품목 목록 · 발급 내역 (저장소 sayuwon-invoice-quotation 의 Apps Script)
+  QUOTE_URL: "https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec",   // (예전) 견적서 품목 목록 · 발급 내역 Apps Script — 이제 쓰지 않음 (tools/migrate.html 이 옮길 때 읽음 · 예전 견적서 사이트 sayuwon-invoice-quotation 은 아직 이 주소를 씀)
   // Content-Type 을 붙이지 않아야 Apps Script 로 사전 확인(preflight) 요청 없이 바로 감
   main(body){ return fetch(this.API_URL, {method:'POST', body:JSON.stringify(body)}).then(r=>r.json()); },
   beacon(body){ const s=JSON.stringify(body); try{ if(navigator.sendBeacon && navigator.sendBeacon(this.API_URL, s)) return; }catch(_){} fetch(this.API_URL, {method:'POST', body:s, keepalive:true}).catch(()=>{}); },
-  quoteGet(query){ return fetch(this.QUOTE_URL + (query ? '?'+query : '')).then(r=>r.json()); },
-  quotePost(body){ return fetch(this.QUOTE_URL, {method:'POST', body:JSON.stringify(body)}).then(r=>r.json()); },
+  // 견적서 서버(품목 목록 · 발급 내역)도 2026-11-23부터 같은 서버의 동작(quoteGet · quotePost) — 예전에는 QUOTE_URL(다른 Apps Script · 로그인 확인 없음)로 따로 갔음
+  quoteGet(query){ const p=new URLSearchParams(query||''); return this.main(SY.sign({action:'quoteGet', history:p.get('history') ? 1 : 0, limit:+p.get('limit')||0})); },
+  quotePost(body){ return this.main(SY.sign({...body, action:'quotePost'})); },
 };
 const SY = Object.freeze({
   API_URL: SY_BACKEND.API_URL,

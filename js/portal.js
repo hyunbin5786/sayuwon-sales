@@ -46,7 +46,8 @@ $('#loginForm').addEventListener('submit', async e=>{
   let setup='';
   if(j.ok && j.member) setup = j.empty ? 'empty' : '';
   else if(j.ok){ err.textContent='이름과 사번이 맞지 않습니다. 다시 확인해 주세요.'; $('#inEmp').select(); return; }
-  else if(j.error==='bad_key' || j.error==='bad_action') setup='old';   // Apps Script 가 아직 예전 버전 (로그인 확인 기능 없음) → 막지 않음
+  else if(j.error==='bad_action') setup='old';   // 서버가 예전 버전 (로그인 확인 기능 없음) → 막지 않음
+  else if(j.error==='too_many'){ err.textContent='틀린 로그인이 여러 번 이어져 잠시 막혔습니다. 15분쯤 뒤에 다시 해 주세요.'; return; }
   else { err.textContent='확인하지 못했습니다: '+(j.error||''); return; }
   setLS(USER_KEY, JSON.stringify({name, emp, at:new Date().toISOString(), setup}));
   setLS('sayuwon_owner', name);   // 단체 화면의 영업 담당

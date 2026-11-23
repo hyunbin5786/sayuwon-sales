@@ -50,3 +50,9 @@ CREATE TABLE IF NOT EXISTS locks (
 CREATE TABLE IF NOT EXISTS kv (
   k TEXT PRIMARY KEY, v TEXT NOT NULL
 );
+
+-- 견적서 발급 내역 (2026-11-23 · 예전 견적서 Apps Script 의 history 시트): 한 줄 = 한 번 발급. data = 내역 전체 JSON {id, at, kind, parent, doc, client, useDate, issueDate, total, sender, use, files, snapshot, canceled, cancelNote}
+-- 품목 관리에서 바꾼 것은 kv 의 'catalog' 한 줄 · 틀린 로그인 횟수는 kv 의 'fail:(IP)'
+CREATE TABLE IF NOT EXISTS quote_history (
+  id TEXT PRIMARY KEY, at TEXT NOT NULL DEFAULT '', data TEXT NOT NULL
+);

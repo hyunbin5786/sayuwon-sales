@@ -36,6 +36,8 @@
   function main(req){
     log.push(req); if(log.length>300) log.shift();
     const a=req.action, live2=db.calls.filter(x=>!x.deleted);
+    if(a==='quoteGet') return req.history ? {ok:true, history:db.quote.history.slice().reverse()} : {ok:true, data:db.quote.data, historyApi:3};
+    if(a==='quotePost') return quotePostSync(req);
     if(a==='login'){ const l=live(); if(!l.length) return {ok:true, member:true, empty:true}; return {ok:true, member:l.some(m=>norm(m.name)===norm(req.name) && norm(m.emp).toUpperCase()===norm(req.emp).toUpperCase())}; }
     if(a==='mentList'){ const r=live2.find(x=>x.id==='mentdb'); return {ok:true, ment:r ? {history:r.history, saved:r.saved} : null}; }
     if(a==='mentImgGet'){ const f=db.files[req.id]; if(!f || !f.ment) return {ok:false, error:'mentimg: not_allowed'}; return {ok:true, file:{id:req.id, mime:f.mime, data:f.data}}; }
@@ -76,8 +78,8 @@
   const wait = v => new Promise(ok=>setTimeout(()=>ok(JSON.parse(JSON.stringify(v))), 30));   // 진짜 서버처럼 조금 뒤에 · 사본을 돌려줌
   SY_BACKEND.main = body => wait(main(body));
   SY_BACKEND.beacon = body => { main(body); };
-  SY_BACKEND.quoteGet = query => wait(/history=1/.test(query||'') ? {ok:true, history:db.quote.history.slice().reverse()} : {ok:true, data:db.quote.data});
-  SY_BACKEND.quotePost = body => { const q=db.quote;
+  // 견적서 서버 동작(quoteGet · quotePost)은 common.js 가 main 으로 보냄 → 위 main() 이 받음
+  function quotePostSync(body){ const q=db.quote;
     (body.ops||[]).forEach(o=>{ const d=q.data; d.edits=d.edits||{}; d.added=d.added||[];
       if(o.op==='add') d.added.push(o.item);
       else if(o.op==='set'){ (d.edits[o.src] ||= {})[o.field]=o.value; }
@@ -87,7 +89,7 @@
       else if(o.op==='replace') q.data=o.data||{edits:{}, added:[]}; });
     (body.history||[]).forEach(h=>{ if(!q.history.some(x=>x.id===h.id)) q.history.push(h); });
     (body.cancel||[]).forEach(c=>{ const h=q.history.find(x=>x.id===c.id); if(h){ h.canceled=c.canceled; h.cancelNote=c.cancelNote; } });
-    save(); return wait({ok:true, data:q.data, saved:(body.history||[]).map(h=>h.id), canceled:(body.cancel||[]).map(c=>c.id)}); };
+    save(); return (body.history||[]).length || (body.cancel||[]).length ? {ok:true, saved:(body.history||[]).length, canceled:(body.cancel||[]).length, data:q.data} : {ok:true, data:q.data}; }
   window.SY_MOCK = { get db(){ return db; }, log, reset(){ db=seed(); save(); try{ indexedDB.deleteDatabase('sayuwon'); }catch(_){} }, save };
   console.info('[가짜 서버] js/devmock.js 사용 중 — 진짜 공유 기록에는 쓰지 않습니다 (끄기: ?mock=0)');
   document.addEventListener('DOMContentLoaded', ()=>{ const b=document.createElement('div'); b.textContent='가짜 서버 (시험용)'; b.style.cssText='position:fixed;right:8px;bottom:8px;z-index:9999;background:#b3261e;color:#fff;font:12px sans-serif;padding:3px 8px;border-radius:4px;opacity:.85;pointer-events:none'; document.body.appendChild(b); });

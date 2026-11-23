@@ -1752,7 +1752,7 @@ function paintSync(){
 15초마다 다시 보냅니다. 저장 대기 중인 내용은 이 브라우저에 남아 있으니 창을 닫아도 다음에 열면 이어서 보냅니다.` : ''; chip.className='sync '+(syncState==='error'?'warn':'');
   const km=$('#keyModal'); km.hidden = syncState!=='needkey' || !!BOOK_GUEST;   // 로그인 확인 안내 (예약 현황 공유를 로그인 없이 볼 때는 안 띄움)
   paintDbTime();
-  $('#storeHint').textContent = syncState==='ok' ? '구글 시트에 저장 · 모두가 같은 목록을 봅니다' : syncState==='needkey' ? '로그인을 확인하지 못했습니다 · 첫 화면에서 다시 로그인' : syncState==='error' ? '연결이 안 돼 이 브라우저에 모아 두었다가 다시 올립니다' : '불러오는 중…';
+  $('#storeHint').textContent = syncState==='ok' ? '공유 DB에 저장 · 모두가 같은 목록을 봅니다' : syncState==='needkey' ? '로그인을 확인하지 못했습니다 · 첫 화면에서 다시 로그인' : syncState==='error' ? '연결이 안 돼 이 브라우저에 모아 두었다가 다시 올립니다' : '불러오는 중…';
 }
 // 구글 시트(Apps Script) DB에 마지막으로 저장된 시각 (이 브라우저에서 올린 것) · 마지막으로 받아 온 시각
 var DBT_LS = 'sayuwon_db_time';   // var: paintSync가 먼저 불려도 되게
@@ -1763,7 +1763,7 @@ function paintDbTime(){
   const n=pending.length, last=[dbTime.saved, dbTime.cat].filter(Boolean).sort().pop(), t=last || dbTime.pulled;   // 예약 저장 · 품목 관리 저장 중 최근 것
   el.hidden = !t && !n;
   el.textContent = (last ? `DB 저장 ${dtLabel(last)}` : t ? `DB 동기화 ${dtLabel(t)}` : '') + (n ? ` · 저장 대기 ${n}건` : '');
-  el.title = `구글 시트(Apps Script) DB · 이 브라우저 기준\n· 예약 마지막 저장: ${dbTime.saved?dtLabel(dbTime.saved):'아직 없음'} (고치고 30초 뒤 자동 저장)\n· 품목 관리 마지막 저장: ${dbTime.cat?dtLabel(dbTime.cat):'아직 없음'} (고치고 2초 뒤 자동 저장)\n· 마지막으로 목록을 받아 옴: ${dbTime.pulled?dtLabel(dbTime.pulled):'아직 없음'}`;
+  el.title = `공유 DB · 이 브라우저 기준\n· 예약 마지막 저장: ${dbTime.saved?dtLabel(dbTime.saved):'아직 없음'} (고치고 30초 뒤 자동 저장)\n· 품목 관리 마지막 저장: ${dbTime.cat?dtLabel(dbTime.cat):'아직 없음'} (고치고 2초 뒤 자동 저장)\n· 마지막으로 목록을 받아 옴: ${dbTime.pulled?dtLabel(dbTime.pulled):'아직 없음'}`;
 }
 // 구글 시트 칸 하나 = 5만 자까지. 수정 기록(history)이 넘으면 처음 저장 줄은 두고 오래된 기록부터 덜어 냄 (바꿨으면 줄인 기록을 돌려줌)
 function fitHist(item){ const s=String(item && item.history || ''); if(s.length<=45000) return null; let hj; try{ hj=JSON.parse(s); }catch(_){ return null; }
@@ -1774,7 +1774,7 @@ function handleErr(e){
   else { syncState='error'; clearTimeout(retryTimer); retryTimer=setTimeout(()=>{ flush(); }, 15000);
     const net = e instanceof TypeError || /fetch|network|Load failed/i.test(String(e.message||e)), msg = net ? '인터넷 연결 (또는 구글 서버 응답 없음)' : String(e.message||e).replace(/^Error:\s*/,'');
     syncErrN = msg===lastSyncErr ? syncErrN+1 : 1; lastSyncErr = msg;
-    if(!net && syncErrN===3) toast(`구글 시트 저장이 계속 실패합니다: ${msg}`); }   // 같은 오류가 세 번 이어지면 한 번 알림 (연결 문제는 알리지 않고 계속 다시 시도)
+    if(!net && syncErrN===3) toast(msg==='too_many' ? '틀린 로그인이 여러 번 이어져 서버가 잠시 막았습니다. 15분쯤 뒤에 다시 됩니다.' : `저장이 계속 실패합니다: ${msg}`); }   // 같은 오류가 세 번 이어지면 한 번 알림 (연결 문제는 알리지 않고 계속 다시 시도)
   paintSync();
 }
 // 예약 현황 공유를 로그인 없이 볼 때 (2026-11-21 · 담당자 휴대폰): 그 목록에 필요한 칸만 받는 bookList (고객 연락처 · 메모 · 수정 기록 없음)

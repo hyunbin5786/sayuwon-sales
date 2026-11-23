@@ -3,6 +3,7 @@
 //   요청: POST 본문 = JSON { action, who:{name, emp}, … }  (Content-Type 없이 보내도 됨 — 사전 확인 요청 없이 바로 옴)
 //   응답: { ok:true, … } 또는 { ok:false, error }
 // 연결(바인딩): DB = D1 데이터베이스 (cloudflare/schema.sql 로 표를 만든 것)
+// 견적서 서버(품목 목록 · 발급 내역)도 여기에 (quoteGet · quotePost) · 틀린 로그인이 이어지면 그곳을 15분 막음 (too_many)
 // 비밀 값(Worker 설정 → 변수와 비밀): ADMIN_ID · ADMIN_PW (관리자 사이트 조회 계정) · MIGRATE_KEY (자료를 옮길 때만 · 끝나면 지움) · PASSCODE (예전 팀 비밀번호 · 없어도 됨)
 // 파일(이미지 · PDF)도 같은 DB 에 저장 (files · file_chunks). 볼 때는 GET /file/<id> — id 가 길고 무작위라 주소를 아는 사람만 열 수 있음
 // 이 파일은 브라우저에서도 그대로 돌아감 (로컬 시험: js/devcf.js 가 SQLite 로 흉내 낸 DB 를 붙여 줌)
@@ -33,6 +34,54 @@ const q = (env, sql, ...args) => env.DB.prepare(sql).bind(...args);
 const rows = async (env, sql, ...args) => (await q(env, sql, ...args).all()).results || [];
 const kvGet = async (env, k) => { const r = await q(env, 'SELECT v FROM kv WHERE k=?', k).first(); return r ? r.v : null; };
 const kvSet = (env, k, v) => q(env, 'INSERT INTO kv (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v=?2', k, v).run();
+
+// ---------- 틀린 로그인 횟수 제한 (2026-11-23) ----------
+//  같은 곳(IP)에서 10분 안에 「멤버 목록에 없는 이름 + 사번」을 서로 다른 것으로 8번 넣으면 그곳을 15분 동안 막음 (그동안은 맞는 이름 · 사번도 안 받음 → 사번을 하나씩 넣어 보며 맞추는 것을 막음)
+//  - 같은 틀린 값을 되풀이하는 것(멤버에서 빠진 사람의 브라우저가 30초마다 다시 묻는 것 등)은 한 번으로 셈 → 사무실 전체가 막히지 않게
+//  - 로그인하지 않은 요청(이름 · 사번이 없는 것)과 로그인 없이 되는 동작(멘트 보기 · 예약 현황 공유 · 고객 견적 요청)은 세지도 막지도 않음
+const FAIL_WINDOW = 10 * 60e3, FAIL_MAX = 8, FAIL_BLOCK = 15 * 60e3;
+const pairHash = (n, e) => { let h = 2166136261; const s = n + '|' + e; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
+async function failState(env, ip) { if (!ip) return null; try { return JSON.parse((await kvGet(env, 'fail:' + ip)) || 'null'); } catch (x) { return null; } }
+const isBlocked = st => !!(st && st.until > Date.now());
+async function noteFail(env, ip, name, emp) {
+  const n = normName(name), e = normEmp(emp); if (!ip || !n || !e) return;
+  const now = Date.now(); let st = await failState(env, ip);
+  if (!st || now - st.t0 > FAIL_WINDOW) st = { t0: now, set: [] };
+  const h = pairHash(n, e); if (st.set.includes(h)) return;
+  st.set.push(h); if (st.set.length >= FAIL_MAX) st.until = now + FAIL_BLOCK;
+  await kvSet(env, 'fail:' + ip, JSON.stringify(st));
+}
+
+// ---------- 견적서 서버 (품목 관리에서 바꾼 것 · 발급 내역) — 예전에는 따로 있던 Apps Script(shared-catalog.gs)를 여기로 (2026-11-23) ----------
+//  품목 목록: kv 'catalog' = { edits:{예약상품명:{바꾼 칸:값}}, added:[{uid, src, name, kind, form, price, disc}] } — 읽기는 로그인 없이(가격표), 고치기는 로그인한 사람만
+//  발급 내역: quote_history 한 줄 = 한 번 발급 (data = 내역 전체 JSON). 읽기 · 쓰기 모두 로그인한 사람만 (고객 이름 · 금액이 들어 있음)
+const readCatalog = async env => { try { return JSON.parse((await kvGet(env, 'catalog')) || '{}') || {}; } catch (x) { return {}; } };
+function applyOp(d, o) {
+  d = d || {};
+  if (o.op === 'set') { d.edits = d.edits || {}; d.edits[o.src] = d.edits[o.src] || {}; d.edits[o.src][o.field] = o.value; }
+  else if (o.op === 'setAdded') (d.added || []).forEach(a => { if (String(a.uid) === String(o.uid)) a[o.field] = o.value; });
+  else if (o.op === 'add') { d.added = d.added || []; if (!d.added.some(a => String(a.uid) === String(o.item.uid))) d.added.unshift(o.item); }
+  else if (o.op === 'delAdded') d.added = (d.added || []).filter(a => String(a.uid) !== String(o.uid));
+  else if (o.op === 'reset') d = {};
+  else if (o.op === 'replace') d = o.data || {};
+  return d;
+}
+const histStmt = (env, h) => q(env, 'INSERT OR IGNORE INTO quote_history (id, at, data) VALUES (?, ?, ?)', String(h.id), String(h.at || ''), JSON.stringify(h));   // 같은 발급을 두 번 보내도 한 줄만
+async function quotePost(env, req) {
+  const out = { ok: true };
+  const hist = (req.history || []).filter(h => h && h.id);
+  if ((req.history || []).length) { for (let i = 0; i < hist.length; i += 40) await env.DB.batch(hist.slice(i, i + 40).map(h => histStmt(env, h))); out.saved = req.history.length; }
+  if ((req.cancel || []).length) { let done = 0;
+    for (const c of req.cancel) { if (!c || !c.id) continue;
+      const r = await q(env, "UPDATE quote_history SET data=json_set(data, '$.canceled', ?1, '$.cancelNote', ?2) WHERE id=?3", String(c.canceled || ''), String(c.cancelNote || ''), String(c.id)).run();
+      if (r.meta && r.meta.changes) done++; }
+    out.canceled = done; }
+  if ((out.saved != null || out.canceled != null) && !(req.ops || []).length) return out;
+  let d = await readCatalog(env);
+  (req.ops || []).forEach(o => { d = applyOp(d, o); });
+  await kvSet(env, 'catalog', JSON.stringify(d));
+  return { ok: true, data: d };
+}
 
 // ---------- 멤버 · 로그인 ----------
 async function readMembers(env) {
@@ -96,7 +145,8 @@ async function del(env, id) {
   return id;
 }
 // 목록 응답은 저장해 둔 JSON 글자를 그대로 이어 붙임 (줄마다 풀었다 다시 싸지 않음 — 무료 요금제 CPU 10ms 안에 들어오게)
-const rawList = (rs, extra) => ({ __raw: '{"ok":true,"items":[' + rs.map(r => r.data).join(',') + ']' + extra + '}' });
+const rawRows = (key, rs, extra) => ({ __raw: '{"ok":true,"' + key + '":[' + rs.map(r => r.data).join(',') + ']' + extra + '}' });
+const rawList = (rs, extra) => rawRows('items', rs, extra);
 const adminRaw = async env => (await kvGet(env, 'admin')) || 'null';
 
 // 예약 현황 공유 목록 (로그인 없이): 단체 예약(지난 120일 ~)의 예약 현황에 쓰는 칸 + 몽몽마방 · 대관 등 직접 추가 목록. 고객 연락처 · 이메일 · 통화 메모 · 수정 기록은 보내지 않음
@@ -263,7 +313,7 @@ async function syncAdmin(env) {
 //  수정 일시 · 삭제 표시를 그대로 둔 채 넣음 (put 은 수정 일시를 지금으로 바꾸므로 쓰지 않음). 여러 번 보내도 같은 결과
 async function importData(env, req) {
   if (!env.MIGRATE_KEY || String(req.mkey || '') !== env.MIGRATE_KEY) throw fail('bad_key');
-  const out = { calls: 0, members: 0, quotereq: 0, files: 0, skipped: [] };
+  const out = { calls: 0, members: 0, quotereq: 0, files: 0, quoteHistory: 0, catalog: 0, skipped: [] };
   const batch = async stmts => { for (let i = 0; i < stmts.length; i += 40) await env.DB.batch(stmts.slice(i, i + 40)); };
   const cs = (req.calls || []).filter(x => { const ok = x && ID_OK.test(String(x.id || '')); if (!ok) out.skipped.push(String((x && x.id) || '(id 없음)')); return ok; }).map(x => putStmt(env, rowOf(x)));
   await batch(cs); out.calls = cs.length;
@@ -276,14 +326,20 @@ async function importData(env, req) {
   await batch(qs); out.quotereq = qs.length;
   for (const f of (req.files || [])) { if (!f || !f.id || !f.data) continue; await saveFile(env, String(f.id), f.kind === 'doc' ? 'doc' : 'ment', String(f.name || ''), String(f.mime || ''), String(f.data), '이관'); out.files++; }
   if (req.admin) await kvSet(env, 'admin', JSON.stringify(req.admin));
+  // 견적서 서버 자료: 발급 내역은 없는 id 만 더함 (있는 줄은 그대로 — 새 서버에서 한 발급 취소를 지우지 않게) · 품목 목록은 새 서버에 아직 없을 때만
+  const hs = (req.quoteHistory || []).filter(h => h && h.id).map(h => histStmt(env, h));
+  await batch(hs); out.quoteHistory = hs.length;
+  if (req.catalog && !(await kvGet(env, 'catalog'))) { await kvSet(env, 'catalog', JSON.stringify(req.catalog)); out.catalog = 1; }
   return out;
 }
 
 // ---------- 요청 하나 처리 (apps-script 의 doPost 와 같은 순서) ----------
-export async function api(req, env, origin = '') {
+export async function api(req, env, origin = '', ip = '') {
   const a = req.action, err = (pre, e) => ({ ok: false, error: pre + String((e && e.message) || e) });
   // 로그인 없이 되는 것
-  if (a === 'login') return memberLogin(env, req.name, req.emp);
+  if (a === 'login') { if (isBlocked(await failState(env, ip))) return { ok: false, error: 'too_many' };
+    const r = await memberLogin(env, req.name, req.emp); if (!r.member) await noteFail(env, ip, req.name, req.emp); return r; }
+  if (a === 'quoteGet' && !req.history) return { ok: true, data: await readCatalog(env), historyApi: 3 };   // 품목 목록(가격표)은 로그인 없이 읽기
   if (a === 'mentList') { try { const o = await getItem(env, 'mentdb'); return { ok: true, ment: o && !o.deleted ? { history: o.history, saved: o.saved } : null }; } catch (e) { return err('mentlist: ', e); } }
   if (a === 'mentImgGet') { try { return { ok: true, file: await mentImgGet(env, String(req.id || '')) }; } catch (e) { return err('mentimg: ', e); } }
   if (a === 'bookList') { try { return { ok: true, items: await bookList(env), api: 6 }; } catch (e) { return err('booklist: ', e); } }
@@ -291,7 +347,11 @@ export async function api(req, env, origin = '') {
   if (a === 'quoteReqAdd') { try { return { ok: true, id: await quoteReqAdd(env, req.item || {}), api: 7 }; } catch (e) { return err('', e); } }
   if (a === 'import') { try { return { ok: true, imported: await importData(env, req) }; } catch (e) { return err('', e); } }
   // 여기부터 로그인(멤버)만
-  if (!(await authOk(env, req))) return { ok: false, error: 'bad_key' };
+  if (req.who && isBlocked(await failState(env, ip))) return { ok: false, error: 'too_many' };
+  if (!(await authOk(env, req))) { if (req.who) await noteFail(env, ip, req.who.name, req.who.emp); return { ok: false, error: 'bad_key' }; }
+  // 견적서 발급 내역(최근 것부터) · 품목 목록 고치기 · 발급 내역 더하기 · 발급 취소
+  if (a === 'quoteGet') return rawRows('history', await rows(env, 'SELECT data FROM (SELECT rowid AS r, data FROM quote_history ORDER BY rowid DESC LIMIT ?) ORDER BY r DESC', Number(req.limit) || 500), '');
+  if (a === 'quotePost') { try { return await quotePost(env, req); } catch (e) { return err('', e); } }
   if (a === 'quoteReqList') return { ok: true, items: await quoteReqList(env), api: 7 };
   if (a === 'quoteReqMark') { try { return { ok: true, item: await quoteReqMark(env, req), api: 7 }; } catch (e) { return err('', e); } }
   if (a === 'members') return { ok: true, members: await readMembers(env) };
@@ -332,7 +392,7 @@ export default {
       return new Response(bytes, { headers: { 'Content-Type': f.mime || 'application/octet-stream', 'Content-Disposition': "inline; filename*=UTF-8''" + encodeURIComponent(f.name), 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' } });
     }
     let req; try { req = JSON.parse((await request.text()) || '{}'); } catch (e) { return jsonRes({ ok: false, error: 'bad_json' }); }
-    try { const r = await api(req, env, url.origin); return jsonRes(r && r.__raw ? r.__raw : r); }
+    try { const r = await api(req, env, url.origin, request.headers.get('CF-Connecting-IP') || ''); return jsonRes(r && r.__raw ? r.__raw : r); }
     catch (e) { return jsonRes({ ok: false, error: String((e && e.message) || e) }); }
   },
   // 예약 작업(Cron Trigger · 15분마다): 관리자 사이트에서 가져오기. 비밀 값이 없으면 아무것도 안 함

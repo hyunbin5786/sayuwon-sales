@@ -7,7 +7,7 @@
 <!-- 한 번만 쓰는 도구 (2026-11-23): 구글 시트(Apps Script)에 있는 공유 기록을 새 서버(cloudflare/worker.js)로 그대로 옮김
      - 이 컴퓨터 브라우저가 예전 서버에서 읽어서 새 서버로 보냄 (다른 곳을 거치지 않음). 예전 시트는 건드리지 않음 (읽기만)
      - 여러 번 돌려도 됨 (같은 id 는 덮어씀 · 수정 일시 · 삭제 표시는 예전 그대로)
-     - 옮기는 것: calls(지워진 줄 포함) · 멤버 · 고객 견적 요청 · 전화응대 멘트 이미지 · 관리자 사이트 현황
+     - 옮기는 것: calls(지워진 줄 포함) · 멤버 · 고객 견적 요청 · 전화응대 멘트 이미지 · 관리자 사이트 현황 · 견적서 서버의 품목 관리 내용 · 발급 내역
      - 안 옮기는 것: 단체 서류(사업자등록증 등) 파일 — 예약 과업에 붙은 구글 드라이브 링크가 그대로 열리므로 그냥 둠. 새로 올리는 것부터 새 DB 에 들어감
      쓰는 법은 README 18절 -->
 <style>
@@ -23,6 +23,8 @@
 <p class="hint">예전 서버에서 읽어서 새 서버로 보냅니다. 예전 시트는 읽기만 하고 바꾸지 않습니다. 중간에 멈춰도 다시 누르면 처음부터 이어서 덮어씁니다.</p>
 <label>예전 서버 주소 (Apps Script)</label>
 <input id="oldUrl" value="https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec">
+<label>예전 견적서 서버 주소 (품목 관리 · 발급 내역 — 비우면 건너뜀)</label>
+<input id="oldQuote" value="https://script.google.com/macros/s/AKfycbyFMeWFtokUB9FW44ZRrOMssIA_2jJzKC9dhjDR7c4WgdPxsaqzT1aLbLWmpIwvVMmY/exec">
 <div class="row">
   <div><label>내 이름 (멤버 목록에 있는)</label><input id="name" autocomplete="off"></div>
   <div><label>사번</label><input id="emp" autocomplete="off"></div>
@@ -70,6 +72,16 @@
         try { const f = (await old({ action: 'mentImgGet', id: imgIds[i] })).file; await imp({ files: [{ id: f.id, kind: 'ment', name: '멘트 이미지', mime: f.mime, data: f.data }] }); log(`   멘트 이미지 ${i + 1} / ${imgIds.length}`); }
         catch (e) { log(`   ⚠ 멘트 이미지 ${imgIds[i]} 를 옮기지 못함: ${e.message}`, 'err'); }
       }
+      // 견적서 서버 (2026-11-23): 품목 관리에서 바꾼 것(새 서버에 아직 없을 때만) · 발급 내역(새 서버에 없는 것만 더함)
+      const oq = $('oldQuote').value.trim(); let qOld = null;
+      if (oq) { try {
+        const [cat, hist] = await Promise.all([fetch(oq).then(r => r.json()), fetch(oq + '?history=1&limit=1000000').then(r => r.json())]);
+        const hl = (hist.history || []).slice().reverse();   // 오래된 것부터 (새 서버에서도 같은 순서가 되게)
+        log(`   견적서: 품목 관리에서 바꾼 품목 ${Object.keys((cat.data || {}).edits || {}).length}개 · 추가한 품목 ${((cat.data || {}).added || []).length}개 · 발급 내역 ${hl.length}건`);
+        const r0 = await imp({ catalog: cat.data || {} }); log(r0.imported.catalog ? '   품목 목록을 옮김' : '   품목 목록은 새 서버에 이미 있어 그대로 둠');
+        for (let i = 0; i < hl.length; i += 10) { await imp({ quoteHistory: hl.slice(i, i + 10) }); log(`   발급 내역 ${Math.min(i + 10, hl.length)} / ${hl.length}`); }
+        qOld = hl.length;
+      } catch (e) { log('   ⚠ 견적서 자료를 옮기지 못함: ' + e.message, 'err'); } }
       log('3) 새 서버에서 다시 읽어 맞춰 보는 중…');
       const [n1, n2, n3, n4] = await Promise.all([post(newUrl, { action: 'list', limit: 1000000, who }), post(newUrl, { action: 'deleted', limit: 1000000, who }), post(newUrl, { action: 'members', who }), post(newUrl, { action: 'quoteReqList', who })]);
       const byId = new Map(n1.items.map(x => [x.id, x])), gone = new Map(n2.items.map(x => [x.id, x])); let diff = 0, newer = 0;
@@ -78,6 +90,7 @@
         const bad = Object.keys(x).filter(k => k !== 'inout' && String(x[k] == null ? '' : x[k]) !== String(y[k] == null ? '' : y[k])); if (!bad.length) return;
         if (stamp(y) > stamp(x)) newer++; else { diff++; log(`   ⚠ 값이 다름: ${x.id} (${bad.join(', ')})`, 'err'); } });
       log(`   기록 ${n1.items.length} (예전 ${live.items.length}) · 지워진 줄 ${n2.items.length} (예전 ${dead.items.length}) · 멤버 ${n3.members.length} (예전 ${mem.members.length}) · 견적 요청 ${n4.items.length} (예전 ${qr.items.length})` + (newer ? ` · 새 서버에서 더 나중에 고친 줄 ${newer}개는 그대로 둠` : ''));
+      if (qOld != null) { const nh = await post(newUrl, { action: 'quoteGet', history: 1, limit: 1000000, who }); log(`   견적서 발급 내역 ${nh.history.length} (예전 ${qOld})`); if (nh.history.length < qOld) { diff++; log('   ⚠ 발급 내역 수가 모자랍니다', 'err'); } }
       if (!diff) log('끝났습니다. 예전 서버에 있던 기록이 모두 새 서버에 있습니다.', 'ok');
       else log('옮겼지만 다른 곳이 있습니다. 위 ⚠ 줄을 확인해 주세요 (옮기는 사이 누가 저장했으면 다시 한 번 누르면 맞춰집니다).', 'err');
     } catch (e) { log('멈췄습니다: ' + (e.message || e) + (/bad_key/.test(e.message) ? ' — 이름 · 사번 또는 MIGRATE_KEY 를 확인해 주세요' : ''), 'err'); }
