@@ -1029,3 +1029,14 @@ localStorage (그 브라우저 · 그 사이트 주소에만 — **사이트 주
 - `mypage.html` · `ops.html` (예전 주소를 새 주소로 넘기는 쪽지): 예전 즐겨찾기가 남아 있을 수 있어 둠
 
 **확인 방법**: 지운 이름(`KEY_LS` · `QUOTE_URL` · `devmock` · `SY_MOCK` · `PASSCODE` · `json_set` · `setup==='old'`)을 코드 전체에서 찾아 남은 곳이 없는 것을 보고, `?mock=1` 로 첫 화면 · 단체 · 견적서 · 멘트 · 개인고객 · 분실물 · 내려받기 화면을 열어 콘솔 오류가 없는 것 · 삭제 / 발급 취소 / 내려받기(표 7개 · 나눠 받기 · 로그인 없으면 거절)가 되는 것을 확인.
+
+### 20-6. 매주 자동 백업 (`tools/backup.ps1` · 2026-11-23)
+
+- 공유 DB 전체를 파일 하나(JSON)로 받아 **`\117.52.31.188\티시그린\11. 운영보조플랫폼 자료다운`** 에 `sayuwon-backup-날짜-시각.json` 으로 저장. 브라우저 없이 서버 동작 `export` 를 직접 부름 (읽기만 함). 같은 폴더의 `backup-log.txt` 에 성공 · 실패를 한 줄씩 남김
+- **설정**: `tools/backup-config.json` (처음 실행하면 생김 · 저장소에 올리지 않음) 에 `name`(이름) · `emp`(사번) · `dest`(저장할 폴더). 그 사람이 멤버에서 빠지면 백업이 「로그인이 확인되지 않았습니다」로 실패하므로 다른 멤버 것으로 바꿀 것
+- **직접 돌리기**: `powershell -ExecutionPolicy Bypass -File tools\backup.ps1` · 도구 자체 점검: `… -File tools\backup.ps1 -SelfTest`
+- **매주 자동** (작업 스케줄러 · 한 번만 등록 · 매주 월요일 9시, 그때 컴퓨터가 꺼져 있었으면 켜진 뒤에 실행). 이 컴퓨터에 로그인돼 있고 네트워크 폴더에 연결돼 있어야 함:
+  `Register-ScheduledTask -TaskName '사유원 백업' -Action (New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -File "C:\Users\user\Desktop\문현빈\AI\단체예약\tools\backup.ps1"') -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 9am) -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable)`
+  지우기: `Unregister-ScheduledTask -TaskName '사유원 백업' -Confirm:$false` · 폴더를 옮기면 위 경로를 고쳐 다시 등록
+- **파일 모양** (`format: "raw-1"` — `tools/export.html` 의 `format: 1` 과 조금 다름): 표마다 서버가 준 줄 그대로. `calls.data` · `quote_history.data` · `kv.v` 는 JSON **글자**(한 번 더 풀어야 함), 파일 내용은 `files` 가 아니라 `file_chunks`(`id` · `n` 순서로 `data` 를 이으면 base64) 에 있음
+- 오래된 백업 파일은 저절로 지우지 않음 (지금은 파일 하나가 1MB 안팎)
