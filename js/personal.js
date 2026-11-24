@@ -347,8 +347,7 @@ document.addEventListener('click', e=>{
 
 
 // 문의 매뉴얼 (노션): 헤더 링크로 새 창에 엶
-const MANUAL_URL = 'https://happyyy-monkeyyy.notion.site/3d645f859824807090f1df4f0815a7bd?source=copy_link';   // 새 창으로 열기
-$('#manualOpen').href = MANUAL_URL;   // 문의 매뉴얼은 헤더의 링크로만 (새 창)
+// (헤더의 「전화문의 응대 매뉴얼」 노션 링크 버튼은 2026-11-24에 없앰)
 // ===================== 통화 기록 전체 (모든 직원이 받은 개인고객 통화) =====================
 // 삭제된 통화 (Apps Script 'deleted', 보기 전용): 같은 창에서 「삭제된 통화」 ↔ 「← 통화 기록 전체」
 const ALL_HEAD = '<tr><th>저장</th><th>고객</th><th>연락처</th><th>일시</th><th>인원</th><th>문의 내용</th><th>남은 과업</th><th></th><th class="owner">받은 사람</th></tr>';

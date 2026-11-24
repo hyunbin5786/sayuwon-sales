@@ -6,9 +6,9 @@
 <title>개인고객 응대 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/personal.css?v=20261124zzh">
-<link rel="stylesheet" href="css/mypop.css?v=20261124zzh">
-<link rel="stylesheet" href="css/menu.css?v=20261124zzh">
+<link rel="stylesheet" href="css/personal.css?v=20261124zzh1">
+<link rel="stylesheet" href="css/mypop.css?v=20261124zzh1">
+<link rel="stylesheet" href="css/menu.css?v=20261124zzh1">
 </head>
 <body data-my-tab="personal">
 <header>
@@ -19,7 +19,6 @@
   <span class="sync warn" id="syncChip" hidden></span>
   <span class="hd-gap"></span>
   <button type="button" class="new-btn" id="newBtn" title="새 통화 입력 (Alt+N)">＋ 새 통화 <kbd>Alt+N</kbd></button>
-  <a class="hb" id="manualOpen" href="#" target="_blank" rel="noopener" title="노션 전화문의 응대 매뉴얼 (새 창)">전화문의 응대 매뉴얼 ↗</a>
   <button type="button" class="hb" id="allCallsBtn" title="저장된 개인고객 통화 기록 전체 (검색 · 열기)">통화 기록 전체</button>
 </header>
 
@@ -116,14 +115,14 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="js/common.js?v=20261124zzh"></script>
-<script src="js/personal.js?v=20261124zzh"></script>
+<script src="js/common.js?v=20261124zzh1"></script>
+<script src="js/personal.js?v=20261124zzh1"></script>
 <!-- 나의 할일 팝업 (메뉴 8번 페이지 group.html?my=1 을 그대로 띄움) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
-<script src="js/mypop.js?v=20261124zzh"></script>
+<script src="js/mypop.js?v=20261124zzh1"></script>
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/ime.js?v=20261124zzh"></script>
-<script src="js/keepsize.js?v=20261124zzh"></script>
-<script src="js/menu.js?v=20261124zzh"></script>
+<script src="js/ime.js?v=20261124zzh1"></script>
+<script src="js/keepsize.js?v=20261124zzh1"></script>
+<script src="js/menu.js?v=20261124zzh1"></script>
 </body>
 </html>

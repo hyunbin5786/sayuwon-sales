@@ -27,7 +27,7 @@
   const monthEnd = ym => { const [y,m]=ym.split('-').map(Number); return opsYmd(new Date(y, m, 0)); };
   const num = v => { const s=String(v??'').replace(/[,\s원]/g,''); if(s==='') return null; if(/^-+$/.test(s)) return 0; const n=Number(s); return isNaN(n) ? null : n; };
   const f0 = v => v==null || v==='' ? '' : won(v);
-  let month=opsToday().slice(0,7), view='ledger', showPrice=false, histType='';
+  let month=opsToday().slice(0,7), view='simple', showPrice=false, histType='', skF='', skOpen=new Set();   // view: simple(품목별 보기 · 기본) · ledger(엑셀 표) · hist(기록) · skF: ''|diff|moved
 
   // ---------- 품목 · 기록 ----------
   const items = () => rows.filter(x=>!isCfg(x) && x.d && x.d.name).sort((a,b)=>(+a.d.no||9999)-(+b.d.no||9999) || label(a.d).localeCompare(label(b.d),'ko'));
@@ -105,6 +105,44 @@
       + `</tbody>${L.length?`<tfoot><tr><td></td><td><b>합계</b></td><td></td><td></td>${showPrice?'<td></td><td></td>':''}${sum('wh')}${sum('shop')}<td class="num"><b>${won(totEnd)}</b></td><td class="num">${won(totReal)}</td><td class="num">${totDiff?(totDiff>0?'+':'')+won(totDiff):''}</td><td></td></tr></tfoot>`:''}</table></div>`
       + goodsMissing();
   }
+  // ---------- 품목별 보기 (2026-11-24 · 기본 화면): 엑셀 표 24칸이 한눈에 안 읽혀서 ----------
+  //  위 = 이 달 요약 칸 · 아래 = 품목마다 한 줄 (붕정 · 차방 기말과 실사 · 총 재고 · 차이) → 줄을 누르면 그 품목의 모든 칸(기초 · 입고 · 출고 종류별 · 출고 합계 · 기말 · 실사 · 원가 · 판매단가 · 차이 사유)
+  function simpleView(hit){
+    const all=items().filter(x=>hit({...x.d, name:label(x.d)}));
+    if(!all.length) return `<p class="sk-empty">${items().length ? '찾은 품목이 없습니다.' : '재고 목록이 비어 있습니다. 「엑셀 불러오기」로 재고조사 엑셀을 넣어 주세요.'}</p>`;
+    const R=all.map((x,i)=>{ const a=ledger(x,'wh',month), b=ledger(x,'shop',month), end=a.end+b.end, hasReal=a.count!=null || b.count!=null;
+      const real=(a.count!=null?a.count:a.end)+(b.count!=null?b.count:b.end), diff=hasReal ? real-end : null;
+      return {x, i, a, b, end, real:hasReal?real:null, diff, moved:!!(a.in||a.outSum||b.in||b.outSum), reason:[a.reason, b.reason].filter(Boolean).join(' · ')}; });
+    const T={end:0, real:0, nReal:0, diff:0, nDiff:0, inW:0, inS:0, outW:0, outS:0, nMoved:0};
+    R.forEach(r=>{ T.end+=r.end; if(r.real!=null){ T.real+=r.real; T.nReal++; } if(r.diff){ T.diff+=r.diff; T.nDiff++; } T.inW+=r.a.in; T.inS+=r.b.in; T.outW+=r.a.outSum; T.outS+=r.b.outSum; if(r.moved) T.nMoved++; });
+    const L=R.filter(r=>!skF || (skF==='diff' ? !!r.diff : r.moved));
+    const sgn = n => n>0 ? '+'+won(n) : won(n);
+    const tile = (l, v, s, cls) => `<div class="sk-tile${cls?' '+cls:''}"><span>${l}</span><b>${v}</b>${s?`<small>${s}</small>`:''}</div>`;
+    const tiles = `<div class="sk-tiles">${tile('품목', `${R.length}개`, `이 달 움직인 품목 ${T.nMoved}개`)}${tile('총 재고 (장부 기말)', won(T.end)+'개', `붕정 ${won(R.reduce((s,r)=>s+r.a.end,0))} · 차방 ${won(R.reduce((s,r)=>s+r.b.end,0))}`)}`
+      + `${tile('입고', won(T.inW+T.inS)+'개', `붕정 ${won(T.inW)} · 차방 ${won(T.inS)}`)}${tile('출고', won(T.outW+T.outS)+'개', `붕정 ${won(T.outW)} · 차방 ${won(T.outS)}`)}`
+      + `${tile('재고조사 차이', T.nDiff ? sgn(T.diff)+'개' : '없음', T.nReal ? `실사한 품목 ${T.nReal}개 중 차이 ${T.nDiff}개` : '이 달 재고조사 기록 없음', T.nDiff?'warn':'')}</div>`;
+    const chips = `<div class="sk-chips">${[['','전체',R.length],['diff','차이 있는 것만',T.nDiff],['moved','이 달 움직인 것만',T.nMoved]].map(([k,l,n])=>`<button type="button" class="chip${skF===k?' on':''}" data-skf="${k}">${l} <small>${n}</small></button>`).join('')}`
+      + `<span class="sp"></span><button type="button" class="chip" data-skall="${skOpen.size?'close':'open'}">${skOpen.size?'모두 접기':'모두 펼치기'}</button></div>`;
+    const locCell = g => `<div class="sk-c"><b class="${g.end<0?'neg':''}">${won(g.end)}</b>${g.count!=null?`<span class="real${g.count!==g.end?' off':''}">실사 ${won(g.count)}</span>`:''}${g.in||g.outSum?`<small>${g.in?`+${won(g.in)}`:''}${g.in&&g.outSum?' ':''}${g.outSum?`−${won(g.outSum)}`:''}</small>`:''}</div>`;
+    const detLoc = (loc, g) => `<div class="sk-dc ${loc}"><h4>${LOC[loc]}창고</h4><dl>`
+      + `<dt>기초</dt><dd>${won(g.open)}</dd><dt>입고</dt><dd class="in">${g.in?'+'+won(g.in):'0'}</dd>`
+      + OUTS[loc].map(([k,l])=>`<dt>${l}</dt><dd class="out">${g.out[k]?'−'+won(g.out[k]):'0'}</dd>`).join('')
+      + `<dt>출고 합계</dt><dd class="out">${g.outSum?'−'+won(g.outSum):'0'}</dd><dt class="end">기말 (장부)</dt><dd class="end${g.end<0?' neg':''}">${won(g.end)}</dd><dt>실사</dt><dd class="real">${g.count!=null?won(g.count):'—'}</dd></dl></div>`;
+    const det = r => { const d=r.x.d, cost=num(d.cost);
+      return `<div class="sk-det">${detLoc('wh', r.a)}${detLoc('shop', r.b)}<div class="sk-dc info"><h4>합계 · 품목 정보</h4><dl>`
+        + `<dt>총 기말</dt><dd><b>${won(r.end)}</b></dd><dt>총 실사</dt><dd>${r.real!=null?won(r.real):'—'}</dd><dt>장부상 재고차이</dt><dd class="${r.diff?(r.diff>0?'up':'down'):''}">${r.diff==null?'—':r.diff?sgn(r.diff):'없음'}</dd>`
+        + `<dt>재고 차이 사유</dt><dd>${esc(r.reason||'—')}</dd><dt>색상</dt><dd>${esc(d.color||'—')}</dd><dt>사이즈</dt><dd>${esc(d.size||'—')}</dd>`
+        + `<dt>원가 <small>부가세 별도</small></dt><dd>${cost!=null?won(cost)+'원':esc(d.cost||'—')}</dd><dt>판매단가 <small>부가세 별도</small></dt><dd>${num(d.price)!=null?won(num(d.price))+'원':'—'}</dd></dl></div></div>`; };
+    const id = r => esc((r.x.r && r.x.r.id) || 'i'+r.i);
+    return tiles + chips + `<div class="sk-list"><div class="sk-row sk-hd"><span>NO</span><span>상품</span><span class="wh">붕정</span><span class="shop">차방</span><span>총 재고</span><span>차이</span><span></span></div>`
+      + (L.length ? L.map(r=>{ const d=r.x.d, op=skOpen.has(id(r));
+        return `<div class="sk-item${op?' open':''}${r.diff?' has-diff':''}"><div class="sk-row" data-skrow="${id(r)}" tabindex="0" role="button" aria-expanded="${op}"><span class="no">${esc(d.no||r.i+1)}</span>`
+          + `<span class="nm"><b>${esc(d.name)}</b>${d.color||d.size?`<small>${esc([d.color,d.size].filter(Boolean).join(' · '))}</small>`:''}</span>`
+          + `<span class="wh" data-l="붕정">${locCell(r.a)}</span><span class="shop" data-l="차방">${locCell(r.b)}</span><span class="tot" data-l="총 재고"><b>${won(r.end)}</b></span>`
+          + `<span class="df" data-l="차이">${r.diff==null?'<i>—</i>':r.diff?`<b class="${r.diff>0?'up':'down'}">${sgn(r.diff)}</b>`:'<i>없음</i>'}</span><span class="ar">${op?'▾':'▸'}</span></div>${op?det(r):''}</div>`; }).join('')
+        : `<p class="sk-empty">${skF==='diff'?'재고조사 차이가 있는 품목이 없습니다.':'이 달 입고 · 출고가 있는 품목이 없습니다.'}</p>`)
+      + `</div><p class="hint sk-legend">숫자 = 장부 기말 (기초 + 입고 − 출고) · 노란 「실사」 = 재고조사로 센 수 (장부와 다르면 빨강) · 작은 글씨 = 이 달 +입고 −출고 · 줄을 누르면 모든 칸</p>` + goodsMissing();
+  }
   // 품목관리 굿즈 중 재고 목록에 없는 것 (이름으로 비교) → 「재고 목록에 넣기」
   function goodsMissing(){ const have=new Set(items().map(x=>nsK(x.d.name))), miss=opsGoodsCache.filter(g=>!have.has(nsK(g.name)));
     if(!miss.length || !items().length) return '';
@@ -120,15 +158,15 @@
   }
   renderStock = function(hit){
     $('#addBtn').hidden=true;
-    $('#bSum').textContent='월별 수불현황 (굿즈 재고조사 엑셀과 같은 칸)';
+    $('#bSum').textContent = view==='ledger' ? '월별 수불현황 (굿즈 재고조사 엑셀과 같은 칸)' : view==='hist' ? '누가 · 언제 기록했는지' : '품목마다 붕정 · 차방 재고 — 줄을 누르면 모든 칸';
     $('#filters').innerHTML = banner()
-      + `<div class="sk-acts"><button type="button" class="btn primary" data-skmv="rec" data-loc="wh">붕정 기록</button><button type="button" class="btn primary" data-skmv="rec" data-loc="shop">차방 기록</button>`
-      + `<button type="button" class="btn" data-skmv="count" data-loc="wh">붕정 재고조사</button><button type="button" class="btn" data-skmv="count" data-loc="shop">차방 재고조사</button>`
-      + `<span class="sp"></span><label class="btn">엑셀 불러오기<input type="file" id="skXl" accept=".xlsx,.xls" hidden></label><button type="button" class="btn" id="skXlOut">이 달 엑셀로</button></div>`
+      + `<div class="sk-acts"><span class="sk-ag"><small>기록하기</small><button type="button" class="btn primary" data-skmv="rec" data-loc="wh">붕정 기록</button><button type="button" class="btn primary" data-skmv="rec" data-loc="shop">차방 기록</button></span>`
+      + `<span class="sk-ag"><small>재고조사</small><button type="button" class="btn primary" data-skmv="count" data-loc="wh">붕정 재고조사</button><button type="button" class="btn primary" data-skmv="count" data-loc="shop">차방 재고조사</button></span>`
+      + `<span class="sp"></span><span class="sk-ag"><small>엑셀</small><label class="btn primary">엑셀 불러오기<input type="file" id="skXl" accept=".xlsx,.xls" hidden></label><button type="button" class="btn primary" id="skXlOut">이 달 엑셀로</button></span></div>`
       + `<div class="sk-bar"><select id="skMonth">${months().map(m=>`<option value="${m}"${m===month?' selected':''}>${m.slice(0,4)}년 ${+m.slice(5)}월</option>`).join('')}</select>`
-      + `<div class="seg sk-tabs"><button type="button" class="${view==='ledger'?'on':''}" data-skview="ledger">월별 수불현황</button><button type="button" class="${view==='hist'?'on':''}" data-skview="hist">기록</button></div>`
+      + `<div class="seg sk-tabs"><button type="button" class="${view==='simple'?'on':''}" data-skview="simple">품목별 보기</button><button type="button" class="${view==='ledger'?'on':''}" data-skview="ledger">엑셀 표</button><button type="button" class="${view==='hist'?'on':''}" data-skview="hist">기록</button></div>`
       + (view==='ledger' ? `<label class="hint sk-pc"><input type="checkbox" id="skPrice"${showPrice?' checked':''}> 원가 · 판매단가 보기</label>` : '') + `</div>`;
-    $('#list').innerHTML = view==='hist' ? histView(hit) : ledgerTable(hit);
+    $('#list').innerHTML = view==='hist' ? histView(hit) : view==='ledger' ? ledgerTable(hit) : simpleView(hit);
   };
 
   // ---------- 기록 창 (붕정 기록 · 차방 기록 · 재고조사 · 엑셀 불러오기) ----------
