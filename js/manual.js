@@ -21,11 +21,19 @@
   if($('#me')) $('#me').textContent = user.name ? `${user.name} 님` : '';
 
   // ---------- 장 (목차) ----------
+  // 장 = 글이 붙는 자리(sec 의 cat 키 · 저장된 값이라 바꾸지 않음). 화면 차례는 아래 PARTS 4묶음 (2026-11-24 재구성)
   const CH = [
-    ['intro','처음 읽기'],['call','1. 전화 받는 순서'],['dont','2. 절대 하지 말 것'],['glance','3. 한눈에 보기'],['prod','4. 상품'],['faq','5. 응대 FAQ'],
-    ['rule','6. 공통 규정'],['trans','7. 교통 · 숙박'],['ticket','8. 매표소 응대'],['proc','9. 내부 업무 절차'],['link','10. 자주 쓰는 링크'],
+    ['intro','처음 읽기'],['call','전화 받는 순서'],['dont','절대 하지 말 것'],['glance','한눈에 보기'],['prod','상품'],['faq','응대 FAQ'],
+    ['rule','공통 규정'],['trans','교통 · 숙박'],['ticket','매표소 응대'],['proc','내부 업무 절차'],['link','자주 쓰는 링크'],
   ];
   const CH_NAME = Object.fromEntries(CH);
+  // 차례: 1. 공통 규정(절대 하지 말 것 · 공통 규정 · 한눈에 보기) 2. 상품 3. 응대 FAQ(FAQ · 교통 · 숙박 · 전화 받는 순서 · 매표소 응대) 4. 내부 업무 절차(절차 · 자주 쓰는 링크) · 처음 읽기는 「전체 보기」 맨 위
+  const PARTS = [['p1','1. 공통 규정',['dont','rule','glance']],['p2','2. 상품',['prod']],['p3','3. 응대 FAQ',['faq','trans','call','ticket']],['p4','4. 내부 업무 절차',['proc','link']]];
+  const PART_NAME = Object.fromEntries(PARTS.map(p=>[p[0],p[1]]));
+  const partOf = k => (PARTS.find(p=>p[2].includes(k))||[])[0] || '';
+  const chLabel = k => partOf(k) ? `${PART_NAME[partOf(k)]} › ${CH_NAME[k]}` : CH_NAME[k]||k;
+  const toView = h => !h || h==='home' ? 'home' : h==='notice' || PART_NAME[h] ? h : partOf(h) || 'home';   // 예전 주소(#prod · #intro …)도 그 묶음으로
+  view = toView(view);
   const PROD_CATS = ['관람','관람+식사','체험 프로그램','카페·식당','대관'];
 
   // ---------- 서버 ----------
@@ -91,15 +99,16 @@
   function nav(){
     const nP=byKind('prop').filter(p=>(p.data.status||'검토 대기')==='검토 대기').length, nN=byKind('notice').filter(n=>(n.data.status||'정리 대기')==='정리 대기').length;
     const cnt = k => k==='prod' ? byKind('prod').filter(visible).length : k==='faq' ? byKind('faq').filter(visible).length : k==='proc' ? byKind('proc').filter(visible).length : 0;
-    $('#nav').innerHTML = `<a data-go="home" class="${view==='home'?'on':''}">📖 전체 보기</a>`
-      + CH.map(([k,n])=>`<a data-go="${k}" class="${view===k?'on':''}">${esc(n)}${cnt(k)?`<span class="n">${cnt(k)}</span>`:''}</a>`).join('')
+    $('#nav').innerHTML = `<div class="mn-nav-h">차례</div><a data-go="home" class="${view==='home'?'on':''}">📖 전체 보기</a>`
+      + PARTS.map(([pk,pn,subs])=>`<a data-go="${pk}" class="pt${view===pk?' on':''}">${esc(pn)}${subs.length===1&&cnt(subs[0])?`<span class="n">${cnt(subs[0])}</span>`:''}</a>`   // 장이 하나뿐인 묶음(2. 상품)은 아래 줄 없이
+        + (subs.length>1 ? subs.map(k=>`<a data-go="${pk}" data-jump="${k}" class="sub">${esc(CH_NAME[k])}${cnt(k)?`<span class="n">${cnt(k)}</span>`:''}</a>`).join('') : '')).join('')
       + `<hr><a data-go="notice" class="${view==='notice'?'on':''}">📥 안내문 · 반영${nP+nN?`<span class="n hot">${nP+nN}</span>`:''}</a>`
       + `<label class="past-t" title="운영 기간이 끝난 상품 · 글도 보기 (예전 것 다시 보기)"><input type="checkbox" id="pastT"${showPast?' checked':''}> 지난 것도 보기</label>`;
   }
   const secBlocks = k => byKind('sec').filter(r=>r.cat===k && visible(r));
   const blockHTML = r => `<div class="mn-blk${phase(r)==='past'?' past':''}" id="r-${esc(r.id)}">${r.title?`<h3>${esc(r.title)} ${perTag(r)}<span class="mn-meta">${r.by?esc(r.by)+' · ':''}${r.updated?esc(String(r.updated).slice(0,10)):''}</span><button type="button" class="ed" data-edit="${esc(r.id)}">고치기</button></h3>`:`<div style="text-align:right"><button type="button" class="ed" data-edit="${esc(r.id)}">고치기</button></div>`}<div class="md">${md(r.data.body)}</div></div>`;
-  function chapter(k){
-    const name=CH_NAME[k], secs=secBlocks(k);
+  function chapter(k, solo){   // solo: 묶음에 장이 하나뿐 → 장 이름은 묶음 제목과 같아서 안 씀
+    const name=solo ? '' : CH_NAME[k], secs=secBlocks(k);
     let h=`<section class="mn-sec" id="ch-${k}"><h2>${esc(name)}<span class="sp"></span><button type="button" class="btn primary sm" data-add="sec" data-cat="${k}">＋ 글 더하기</button>`
       + (k==='prod'?`<button type="button" class="btn primary sm" data-add="prod">＋ 상품 더하기</button>`:k==='faq'?`<button type="button" class="btn primary sm" data-add="faq">＋ FAQ 더하기</button>`:k==='proc'?`<button type="button" class="btn primary sm" data-add="proc">＋ 절차 더하기</button>`:'')
       + `</h2>${secs.map(blockHTML).join('')}`;
@@ -138,8 +147,10 @@
     if(q){ $('#main').innerHTML=searchHTML(q); markIn($('#main'), lastTerms); return; }
     if(!rows.filter(r=>['sec','prod','faq','proc'].includes(r.kind)).length && view!=='notice'){ $('#main').innerHTML=emptyHTML(); return; }
     if(view==='notice'){ $('#main').innerHTML=noticeHTML(); return; }
-    $('#main').innerHTML = view==='home' ? CH.map(([k])=>chapter(k)).join('') : chapter(CH_NAME[view] ? view : 'intro');
+    const part = ([pk,pn,subs]) => `<div class="mn-part" id="pt-${pk}"><h1 class="mn-ph">${esc(pn)}</h1>${subs.map(k=>chapter(k, subs.length===1)).join('')}</div>`;
+    $('#main').innerHTML = view==='home' ? chapter('intro') + PARTS.map(part).join('') : part(PARTS.find(p=>p[0]===view) || PARTS[0]);
   }
+  function jump(k){ const el=document.getElementById('ch-'+k); if(el) el.scrollIntoView({block:'start'}); }
   const emptyHTML = () => `<div class="mn-empty"><p><b>아직 매뉴얼 내용이 없습니다.</b></p><p class="hint">노션에서 옮긴 파일(<code>manual-import.json</code>)을 불러오면 1~10장 · 상품 · FAQ · 내부 절차가 한 번에 들어갑니다.</p>`
     + `<p><label class="btn primary">매뉴얼 파일 불러오기<input type="file" id="impFile" accept=".json" hidden></label></p><p class="hint">또는 왼쪽 장을 골라 「＋ 글 더하기」로 직접 적을 수 있습니다.</p></div>`;
 
@@ -177,7 +188,7 @@
     const fld=([k,l,t,w])=>{ const val=v[k]==null?'':v[k];
       if(t==='per') return `<label class="full">${l}<span style="display:flex;gap:8px;align-items:center">${dateBox('start', v.start)} ~ ${dateBox('end', v.end)}<span class="hint">시작만 · 끝만 넣어도 됨</span></span></label>`;
       if(t==='ck') return `<label class="ck"><input type="checkbox" data-f="${k}"${val?' checked':''}> ${l}</label>`;
-      if(t==='ch') return `<label>${l}<select data-f="cat">${CH.map(([ck,cn])=>`<option value="${ck}"${ck===(val||cat)?' selected':''}>${esc(cn)}</option>`).join('')}</select></label>`;
+      if(t==='ch') return `<label>${l}<select data-f="cat">${CH.map(([ck,cn])=>`<option value="${ck}"${ck===(val||cat)?' selected':''}>${esc(chLabel(ck))}</option>`).join('')}</select></label>`;
       if(t==='cat'||t==='fcat'){ const opts=t==='cat'?pcats:fcats; return `<label>${l}<input data-f="cat" list="dl-${t}" value="${esc(val)}" data-ime="ko"><datalist id="dl-${t}">${opts.map(o=>`<option value="${esc(o)}">`).join('')}</datalist></label>`; }
       if(t==='ta'||t==='big') return `<label class="${w?'full':''}">${l}<textarea data-f="${k}" class="${t==='big'?'big':''}" data-ime="ko">${esc(val)}</textarea></label>`;
       return `<label class="${w?'full':''}">${l}<input data-f="${k}" value="${esc(val)}" ${t==='n'?'inputmode="numeric" data-ime="num"':'data-ime="ko"'}></label>`; };
@@ -316,8 +327,8 @@
       if(n.nodeType===1 && !/^(MARK|BUTTON|INPUT|TEXTAREA|SCRIPT|STYLE|SELECT|A)$/.test(n.tagName)) [...n.childNodes].forEach(walk); };
     walk(root); }
   function goto(id){ const r=rows.find(x=>x.id===id); if(!r) return; $('#q').value='';
-    if(r.kind==='prod' || r.kind==='proc'){ view=r.kind; if(phase(r)==='past') showPast=true; paint(); peek(id); return; }
-    view = r.kind==='faq' ? 'faq' : r.cat; if(phase(r)==='past') showPast=true; if(r.kind==='faq') faqCat='';
+    if(r.kind==='prod' || r.kind==='proc'){ view=partOf(r.kind); if(phase(r)==='past') showPast=true; paint(); peek(id); return; }
+    view = partOf(r.kind==='faq' ? 'faq' : r.cat) || 'home'; if(phase(r)==='past') showPast=true; if(r.kind==='faq') faqCat='';
     paint(); const el=document.getElementById('r-'+id); if(el){ if(el.tagName==='DETAILS') el.open=true; el.scrollIntoView({block:'center'}); el.style.outline='3px solid #f0c64a'; setTimeout(()=>el.style.outline='',2200); } }
 
   // ---------- 안내문 · 반영 제안 ----------
@@ -442,7 +453,7 @@
   // ---------- 이벤트 ----------
   document.addEventListener('click', async e=>{
     const t=e.target.closest('#ccOut,[data-go],[data-pcat],[data-fcat],[data-peek],[data-close],[data-edit],[data-add],[data-del],[data-fclose],#fSave,[data-goto],[data-file],#ntSave,[data-nself],[data-nselff],[data-nhold],[data-papply],[data-phold],[data-padd],[data-hview],[data-hback]'); if(!t) return;
-    if(t.dataset.go!=null){ view=t.dataset.go; $('#q').value=''; location.hash=view==='home'?'':view; closePeek(); paint(); window.scrollTo(0,0); return; }
+    if(t.dataset.go!=null){ view=t.dataset.go; $('#q').value=''; history.replaceState(null,'',view==='home'?location.pathname+location.search:'#'+view); closePeek(); paint(); window.scrollTo(0,0); if(t.dataset.jump) jump(t.dataset.jump); return; }
     if(t.dataset.pcat!=null){ prodCat=t.dataset.pcat; paint(); return; }
     if(t.dataset.fcat!=null){ faqCat=t.dataset.fcat; paint(); return; }
     if(t.dataset.goto){ goto(t.dataset.goto); return; }
@@ -478,7 +489,10 @@
     if(e.key==='Enter' && e.target.matches && e.target.matches('[data-peek],[data-goto]')) e.target.click();
   });
   let qT; $('#q').addEventListener('input', ()=>{ clearTimeout(qT); qT=setTimeout(()=>{ closePeek(); paint(); window.scrollTo(0,0); }, 180); });
-  window.addEventListener('hashchange', ()=>{ const h=location.hash.slice(1)||'home'; if(h!==view){ view=h; paint(); } });
+  window.addEventListener('hashchange', ()=>{ const h=toView(location.hash.slice(1)); if(h!==view){ view=h; paint(); } });
+  // 머리 · 찾기 칸 고정 (2026-11-24): 높이를 재서 차례 · 고정 위치에 씀 (--mn-hh 머리 · --mn-th 찾기 칸)
+  const fixTop = () => { const h=document.querySelector('body > header'), t=$('.mn-top'); const R=document.documentElement.style; R.setProperty('--mn-hh', (h?h.offsetHeight:0)+'px'); R.setProperty('--mn-th', (t?t.offsetHeight:0)+'px'); };
+  fixTop(); window.addEventListener('resize', fixTop); setTimeout(fixTop, 500);
   load();
   SY.live.onRev(()=>{ if($('#modal').hidden && !busy) load(true); });
   window.SY_MANUAL = { terms, rows:()=>rows, search:q=>{ const g=terms(q); return DOCS.map(d=>({t:d.title, k:d.kind, s:score(d,g,{price:/얼마|가격|요금/.test(q)})})).filter(x=>x.s>0.6).sort((a,b)=>b.s-a.s).slice(0,8); } };   // 시험용
