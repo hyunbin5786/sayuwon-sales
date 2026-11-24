@@ -202,3 +202,11 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .cal-add #calTitle{flex:1}
 .cal-add #calTm{width:58px}
 @media (max-width:1100px){ .dcols.d2{grid-template-rows:none} .dcols.d2 > .span2,.dcols.d2 > .dcal-col,.dcols.d2 > .dcommon{grid-row:auto;grid-column:auto} }
+/* 캘린더 기간 일정 (2026-11-24): 기간 안의 날 = 연한 파랑 · 추가 칸 아래 「기간이면 끝나는 날」 */
+.cal-g .cd.rng{background:#eaf0f7}
+.cal-g .cd.rng.on{background:var(--pine-soft,#e6efe8)}
+.cal-add{flex-wrap:wrap}
+.cal-end{display:flex;align-items:center;gap:6px;width:100%;font-size:11.5px;color:var(--muted)}
+.cal-end input{flex:1;min-width:0;height:26px;border:1px solid var(--line);border-radius:6px;padding:0 4px;font:inherit;font-size:12px}
+.cal-day li.per-i{background:#dfe8f3}
+.cal-day li b.per{font-weight:700;color:#3d5a80}
