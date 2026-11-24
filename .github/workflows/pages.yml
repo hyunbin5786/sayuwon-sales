@@ -1,0 +1,44 @@
+# 사이트 배포 (2026-11-24): main 브랜치 = 배포 사이트 (…/sayuwon-sales/) · test 브랜치 = 테스트 사이트 (…/sayuwon-sales/test/)
+# 두 브랜치를 한 사이트로 묶어 올림. main 에 올리면 바로, test 에 올리면 test-ping 이 끝난 뒤 (배포는 늘 main 에서 돌아야 GitHub 가 허락함)
+# 저장소 설정 › Pages › Source = 「GitHub Actions」 이어야 함
+name: 사이트 배포
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ["test 브랜치 알림"]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: main 받기 (배포 사이트)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: site
+      - name: test 받기 (테스트 사이트 = /test/)
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: test
+          path: site/test
+      - name: 필요 없는 것 빼기
+        run: rm -rf site/.git site/.github site/test/.git site/test/.github site/test/test
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

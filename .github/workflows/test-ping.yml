@@ -1,0 +1,10 @@
+# test 브랜치에 올리면 → 「사이트 배포」가 main 에서 돌며 main + test 를 함께 다시 올림 (2026-11-24)
+name: test 브랜치 알림
+on:
+  push:
+    branches: [test]
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "test 브랜치가 바뀜 → 사이트 배포"

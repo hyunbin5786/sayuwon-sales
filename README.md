@@ -1580,3 +1580,11 @@ Claude Code 가 할 일 (다음 세션도 이대로):
   - 대구대교구 무료입장 명부 · 예약 취소 요청 · 대관 규정 및 상품 · 협업 여행사 할인 현황 · 사고현황 접수 · 재고관리 · 기업 프로모션 할인 · 홍보 기자 리스트 · 고객 응대 매뉴얼
 - 테스트 사이트(`…/sayuwon-sales/test/`) · 이 컴퓨터(localhost) · 주소에 `?test=1` 이면 그대로 씀 (테스트 사이트는 왼쪽 아래 빨간 「테스트 사이트」 표시)
 - **기능을 배포할 때**: `js/common.js` 의 `DEV_PAGES` 에서 그 줄을 지우면 끝 · 이 컴퓨터에서 배포 사이트처럼 보기: 주소 끝에 `?asprod=1`
+
+## 40. main = 배포 · test = 확인 (2026-11-24 · `.github/workflows/pages.yml` · `test-ping.yml`)
+- **main** 브랜치 → 배포 사이트 `https://hyunbin5786.github.io/sayuwon-sales/` (직원들이 쓰는 곳)
+- **test** 브랜치 → 테스트 사이트 `https://hyunbin5786.github.io/sayuwon-sales/test/` (왼쪽 아래 빨간 「테스트 사이트」 · 개발 중 기능도 모두 보임)
+- 작업 순서: 고친 것은 **test 에 커밋 · push** → 1~2분 뒤 테스트 사이트에서 확인 → 「배포」라고 하면 **test 를 main 에 합침** (`git checkout main && git merge test && git push`, 다시 `git checkout test`) · 다 만든 기능은 그때 `js/common.js` DEV_PAGES 에서 뺌
+- 자동 배포: main 에 올리면 「사이트 배포」가 바로 · test 에 올리면 「test 브랜치 알림」이 끝난 뒤 「사이트 배포」가 main 에서 돌아 둘을 함께 올림 (GitHub 는 기본 브랜치에서만 Pages 배포를 허락해서 이렇게)
+- 저장소 설정 › Pages › Build and deployment › Source = **GitHub Actions** (예전 「Deploy from a branch」 아님)
+- 서버(Cloudflare Worker) · DB(D1)는 하나 → 테스트 사이트에서 저장한 것도 실제 데이터 · 두 사이트는 같은 github.io 라 로그인 · 브라우저 저장값을 같이 씀
