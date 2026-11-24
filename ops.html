@@ -7,7 +7,7 @@
 <!-- 운영보조는 2026-11-21에 페이지마다 나눔: 분실물 찾기 lost.html · 사고현황 접수 accident.html · 재고관리 stock.html · 스마트스토어 발송 보고 ship.html
      예전 주소(ops.html?p=…)는 그 페이지로 넘김. 기타 개인 업무(?p=task · p 없음)는 나의 할일로 -->
 <script>(function(){ var p=new URLSearchParams(location.search).get("p"), m={lost:"lost.html", accident:"accident.html", stock:"stock.html", ship:"ship.html"};
-  location.replace(m[p] || (p==="task" || !p ? "group.html?my=1&tab=etc" : "lost.html")); })();</script>
+  location.replace(m[p] || (p==="task" || !p ? "./#mypop" : "lost.html")); })();</script>
 </head>
 <body><p style="font:15px sans-serif;padding:20px">운영보조 페이지로 이동 중… <a href="lost.html">분실물 찾기</a> · <a href="accident.html">사고현황 접수</a> · <a href="stock.html">재고관리</a> · <a href="ship.html">스마트스토어 발송 보고</a></p></body>
 </html>

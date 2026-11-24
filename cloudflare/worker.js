@@ -455,6 +455,59 @@ async function pressDel(env, req) {
   return (r.meta && r.meta.changes) || 0;
 }
 
+// ---------- 고객 응대 매뉴얼 (manual · 2026-11-24 · manual.html · js/manual.js) ----------
+//  한 줄 = 매뉴얼의 한 조각. kind: sec(장 · 글) · prod(상품) · faq(응대 FAQ) · proc(내부 업무 절차) · notice(올린 안내문) · prop(안내문을 정리한 반영 제안)
+//  title · cat(구분/카테고리) · start/end(판매 · 운영 기간, 비면 늘) · ord(순서) · data(그 밖의 칸 JSON 글자: 본문 · 가격 · 시간 · 고친 이력 hist 등)
+//  manualList → 지워지지 않은 줄 전체 · manualSave {rows} 있으면 고치고 없으면 더함 · manualDel {ids} 지운 표시 · 로그인한 사람만 (내부 연락처 · 링크가 들어 있어 화면 코드(GitHub)에는 넣지 않음)
+//  안내문 파일(이미지 · PDF · 워드): manualFilePut {name, mime, data(base64)} → {id} · manualFileGet {id} → {mime, name, data}
+let manualReady = false;
+async function ensureManual(env) {
+  if (manualReady) return;
+  await env.DB.batch([
+    q(env, "CREATE TABLE IF NOT EXISTS manual (id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT '', cat TEXT NOT NULL DEFAULT '', title TEXT NOT NULL DEFAULT '', start TEXT NOT NULL DEFAULT '', \"end\" TEXT NOT NULL DEFAULT '', ord REAL NOT NULL DEFAULT 0, data TEXT NOT NULL DEFAULT '{}', updated TEXT NOT NULL DEFAULT '', \"by\" TEXT NOT NULL DEFAULT '', deleted TEXT NOT NULL DEFAULT '')"),
+    q(env, 'CREATE INDEX IF NOT EXISTS manual_kind ON manual(kind)'),
+  ]);
+  manualReady = true;
+}
+const MANUAL_JSON = "json_object('id',id,'kind',kind,'cat',cat,'title',title,'start',start,'end',\"end\",'ord',ord,'data',data,'updated',updated,'by',\"by\")";
+async function manualList(env) {
+  const r = await q(env, "SELECT json_group_array(" + MANUAL_JSON + ") AS j FROM (SELECT * FROM manual WHERE deleted='' ORDER BY ord, rowid)").first();
+  return { __raw: '{"ok":true,"items":' + ((r && r.j) || '[]') + ',"api":11}' };
+}
+const MANUAL_KINDS = /^(sec|prod|faq|proc|notice|prop)$/;
+async function manualSave(env, req) {
+  const by = clT(req.who && req.who.name, 20), now = iso(), t = (v, n) => String(v == null ? '' : v).replace(/\r\n?/g, '\n').trim().slice(0, n), ymd = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '';
+  const list = (Array.isArray(req.rows) ? req.rows : []).slice(0, 1000).map((r, i) => { const d = typeof r.data === 'string' ? r.data : JSON.stringify(r.data || {});
+    if (d.length > 200000) throw fail('한 항목이 너무 깁니다');
+    return { id: /^[a-z0-9]{4,40}$/.test(String(r.id || '')) ? String(r.id) : 'm' + rand(6) + i.toString(36), kind: MANUAL_KINDS.test(String(r.kind || '')) ? String(r.kind) : 'sec',
+      cat: t(r.cat, 60), title: t(r.title, 200), start: ymd(r.start), end: ymd(r.end), ord: Number(r.ord) || 0, data: d, updated: now, by }; });
+  if (!list.length) return [];
+  await q(env, 'INSERT INTO manual (id, kind, cat, title, start, "end", ord, data, updated, "by", deleted) SELECT ' + ['id','kind','cat','title','start','end','ord','data','updated','by'].map(k => "json_extract(value,'$." + k + "')").join(',') + ", '' FROM json_each(?1) WHERE true "
+    + 'ON CONFLICT(id) DO UPDATE SET kind=excluded.kind, cat=excluded.cat, title=excluded.title, start=excluded.start, "end"=excluded."end", ord=excluded.ord, data=excluded.data, updated=excluded.updated, "by"=excluded."by", deleted=\'\'', JSON.stringify(list)).run();
+  return list.map(r => r.id);
+}
+async function manualDel(env, req) {
+  const ids = (Array.isArray(req.ids) ? req.ids : []).map(String).filter(x => /^[a-z0-9]{4,40}$/.test(x)).slice(0, 1000);
+  if (!ids.length) return 0;
+  const r = await q(env, "UPDATE manual SET deleted=?1, updated=?2 WHERE deleted='' AND id IN (SELECT value FROM json_each(?3))", kstStamp() + ' ' + clT(req.who && req.who.name, 20), iso(), JSON.stringify(ids)).run();
+  return (r.meta && r.meta.changes) || 0;
+}
+const MANUAL_FILE_TYPES = /^(image\/(jpeg|png|gif|webp)|application\/pdf|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document|text\/plain)$/;
+async function manualFilePut(env, req) {
+  const mime = String(req.mime || ''), data = String(req.data || '');
+  if (!MANUAL_FILE_TYPES.test(mime)) throw fail('이미지 · PDF · 워드(docx) · 글(txt)만 올릴 수 있습니다');
+  if (!data.length) throw fail('빈 파일');
+  if (b64Bytes(data) > UPLOAD_MAX) throw fail('10MB 이하만 올릴 수 있습니다');
+  const id = 'n' + rand(16), name = cleanName(req.name || '안내문', 80) || '안내문';
+  await saveFile(env, id, 'manual', name, mime, data, req.who && req.who.name);
+  return { id, name, mime, at: iso() };
+}
+async function manualFileGet(env, id) {
+  const f = await readFile(env, String(id || ''));
+  if (!f || f.kind !== 'manual') throw fail('not_allowed');
+  return { id: f.id, name: f.name, mime: f.mime, data: f.data };
+}
+
 // ---------- 대구대교구 무료입장 명부 (clergy · 2026-11-23) ----------
 //  한 줄 = 한 번 방문. 화면(js/clergy.js)은 열 때 · 바뀔 때(rev) 명부 전체를 받아 그 안에서 찾음 (천여 줄 · 약 150KB)
 //  clergyList → {items:[{id, date, org, name, pos, phone, note, turn, added, by}], moved}
@@ -530,6 +583,7 @@ const EXPORT_SQL = () => { const tail = ' WHERE rowid>? ORDER BY rowid LIMIT ?';
   files: 'SELECT rowid AS seq, id, kind, name, mime, size, at, "by" FROM files' + tail,
   file_chunks: 'SELECT rowid AS seq, id, n, data FROM file_chunks' + tail,
   press: 'SELECT rowid AS seq, id, list, cat, media, name, pos, phone, email, memo, ord, updated, "by", deleted FROM press' + tail,
+  manual: 'SELECT rowid AS seq, id, kind, cat, title, start, "end", ord, data, updated, "by", deleted FROM manual' + tail,
   clergy: 'SELECT rowid AS seq, id, visit_date, org, name, pos, phone, note, turn, who, added, "by", updated, deleted FROM clergy' + tail,
   kv: "SELECT rowid AS seq, k, v FROM kv WHERE rowid>? AND k NOT LIKE 'fail:%' AND k<>'qr_rate' AND k<>'rev' ORDER BY rowid LIMIT ?",
 }; };
@@ -577,11 +631,16 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'pressList') { await ensurePress(env); return pressList(env); }   // 홍보 기자 리스트 (2026-11-24)
   if (a === 'pressSave') { try { await ensurePress(env); const ids = await pressSave(env, req); await bumpRev(env); return { ok: true, ids, api: 10 }; } catch (e) { return err('', e); } }
   if (a === 'pressDel') { try { await ensurePress(env); const n = await pressDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 10 }; } catch (e) { return err('', e); } }
+  if (a === 'manualList') { await ensureManual(env); return manualList(env); }   // 고객 응대 매뉴얼 (2026-11-24)
+  if (a === 'manualSave') { try { await ensureManual(env); const ids = await manualSave(env, req); await bumpRev(env); return { ok: true, ids, api: 11 }; } catch (e) { return err('', e); } }
+  if (a === 'manualDel') { try { await ensureManual(env); const n = await manualDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 11 }; } catch (e) { return err('', e); } }
+  if (a === 'manualFilePut') { try { return { ok: true, file: await manualFilePut(env, req), api: 11 }; } catch (e) { return err('', e); } }
+  if (a === 'manualFileGet') { try { return { ok: true, file: await manualFileGet(env, req.id), api: 11 }; } catch (e) { return err('', e); } }
   if (a === 'clergyList') { await ensureClergy(env); return clergyList(env); }
   if (a === 'clergyAdd') { try { await ensureClergy(env); const item = await clergyAdd(env, req); await bumpRev(env); return { ok: true, item, api: 8 }; } catch (e) { return err('', e); } }
   if (a === 'clergyDel') { try { await ensureClergy(env); const n = await clergyDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 8 }; } catch (e) { return err('', e); } }
   if (a === 'clergyImport') { try { await ensureClergy(env); const n = await clergyImport(env, req, req.who && req.who.name); await bumpRev(env); return { ok: true, imported: n, api: 8 }; } catch (e) { return err('', e); } }
-  if (a === 'export') { if (req.table === 'clergy') await ensureClergy(env); if (req.table === 'press') await ensurePress(env); if (req.table === 'members') await ensureMemberPhone(env); const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };
+  if (a === 'export') { if (req.table === 'clergy') await ensureClergy(env); if (req.table === 'press') await ensurePress(env); if (req.table === 'manual') await ensureManual(env); if (req.table === 'members') await ensureMemberPhone(env); const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };
     const lim = t === 'file_chunks' ? 1 : Math.min(Number(req.limit) || 200, 500), rs = await rows(env, sql, Number(req.after) || 0, lim);
     return { ok: true, table: t, rows: rs, next: rs.length === lim ? rs[rs.length - 1].seq : null }; }
   if (a === 'wait') return waitRev(env, String(req.rev || ''));

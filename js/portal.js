@@ -228,7 +228,7 @@ function dashRecs(items){
       const days=opsPending(d, today); if(opsOccurs(d, t2) && !(d.done||{})[t2]) days.push(t2);
       for(let i=2;i<400;i++){ const x=new Date(today+'T00:00'); x.setDate(x.getDate()+i); const day=opsYmd(x); if(opsOccurs(d, day) && !(d.done||{})[day]){ days.push(day); break; } }   // 그 뒤 다음 할 날도 (개인 할일 보기의 이번주 · 전체 숫자용)
       const subs=d.subs||[], subTxt = day => subs.length ? `세부 과업 ${subs.filter(s=>((d.subDone||{})[day]||{})[s.id]).length}/${subs.length}` : opsRepeatLabel(d);
-      if(days.length) recs.push({kind:'기타', owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({title:subTxt(day), due:day})), href:'group.html?my=1&tab=etc'});
+      if(days.length) recs.push({kind:'기타', owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({title:subTxt(day), due:day})), href:'#mypop'});
     }
   });
   // 고객 견적 요청 (2026-11-23 · 2026-11-24 바꿈): 아직 「접수」인 요청 = 담당 없는 공통 업무 (대시보드 4열 2행) · 마감 = 접수한 날
@@ -386,6 +386,10 @@ document.addEventListener('click', e=>{
   const w=e.target.closest('[data-dwho]'); if(w){ dashWho = dashWho===w.dataset.dwho ? '' : w.dataset.dwho; renderDash(); }
 });
 if($('#dashQ')) $('#dashQ').addEventListener('input', ()=>renderDash());
+// 나의 할일은 팝업으로만 (2026-11-24): 대시보드의 「기타 개인 할일」 줄(href="#mypop")을 누르면 팝업 · 예전 주소(group.html?my=1 · mypage.html · ops.html?p=task)로 들어오면 여기(./#mypop)로 넘어와 팝업을 엶
+const openMyHash = () => { if(location.hash!=='#mypop') return; history.replaceState(null,'',location.pathname+location.search); if(getUser() && window.openMyPop) window.openMyPop(); };
+document.addEventListener('click', e=>{ const a=e.target.closest?.('a[href="#mypop"]'); if(!a) return; e.preventDefault(); if(window.openMyPop) window.openMyPop(); });
+window.addEventListener('hashchange', openMyHash); setTimeout(openMyHash, 0);
 let dashAgain=false;
 SY.live.onRev(()=>{ if(dashLoading){ dashAgain=true; return; } dashSoon(0); });   // 다른 컴퓨터에서 바뀜 → 대시보드를 바로 다시 받음 (2026-11-23)
 // 바로 알리기 (2026-11-23 · js/common.js SY.live): 단체 · 개인고객 화면 · 나의 할일 팝업에서 과업을 끝내면(기록을 저장하면) 그 순간 대시보드에서도 빠짐 — 20초마다 다시 받기를 기다리지 않음

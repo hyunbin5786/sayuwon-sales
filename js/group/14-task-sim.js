@@ -91,7 +91,7 @@ function mergedTasksHTML(recs, c, _recLi, emptyMsg){
 }
 // 설정 (× 옆): 구분 순서 ▲▼ · ＋ 구분 추가
 // 전체 화면으로 보기 (× 옆, 2026-11-19): 다음 탭에 나의 할일 한 페이지 (group.html?my=1)
-document.addEventListener('click', e=>{ if(!e.target.closest?.('#myFullBtn')) return; window.open(new URL('group.html?my=1', location.href).href, '_blank'); });
+// (「전체 보기」 버튼 · 나의 할일 한 페이지는 2026-11-24에 없앰 — 나의 할일은 팝업으로만. group.html?my=1 을 주소로 열면 첫 화면의 팝업으로 넘어감)
 let mySetOpen=false;
 function paintMySet(){ const m=$('#mySetModal'), b=$('#mySet'); if(!m || !b) return; m.hidden=!mySetOpen; $('#mySetBtn')?.classList.toggle('on', mySetOpen); if(mySetOpen) b.innerHTML = catManageHTML(); }   // 설정 = 팝업 (2026-11-19)
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && mySetOpen){ e.stopImmediatePropagation(); mySetOpen=false; paintMySet(); } }, true);
