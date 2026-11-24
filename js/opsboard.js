@@ -20,10 +20,16 @@ $('#bTitle').textContent = B.title; $('#addBtn').textContent = '＋ ' + B.add;
 
 // ---------- 공유 기록 ----------
 const CACHE_LS = 'sy_ops_cache_' + P;
-let rows = (()=>{ try{ return JSON.parse(localStorage.getItem(CACHE_LS)||'[]'); }catch(_){ return []; } })();   // [{r(시트 줄), d(내용)}]
+// 로그인 없이 쓰는 화면 (OPS_PAGE.guest · 분실물 2026-11-24): 로그인하지 않았으면 보기(이름 · 연락처 가림) · 찾기 · 새로 접수만 — 서버 lostList · lostAdd · lostImgPut
+const GUEST = !!B.guest && !opsKey();
+let rows = GUEST ? [] : (()=>{ try{ return JSON.parse(localStorage.getItem(CACHE_LS)||'[]'); }catch(_){ return []; } })();   // [{r(시트 줄), d(내용)}]
 let syncing=false;
 const setSync = t => { $('#sync').textContent = t; };
 async function pull(){
+  if(GUEST){ setSync('불러오는 중…');
+    const j=await SY.callRaw({action:'lostList'}).catch(()=>null);
+    if(!j || !j.ok){ setSync(j && j.error==='bad_action' ? '서버를 새로 올려야 로그인 없이 볼 수 있습니다' : '연결 안 됨 · 잠시 뒤 다시'); return; }
+    rows=(j.items||[]).map(x=>({r:{id:x.id, saved:x.saved, updated:x.updated}, d:x.d||{}, log:[]})); setSync(''); render(); return; }
   if(!opsKey()){ $('#keyBox').hidden=false; return; }
   setSync('불러오는 중…');
   try{ const j=await SY.list(); $('#keyBox').hidden=true;
@@ -33,6 +39,13 @@ async function pull(){
   }catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; $('#keyErr').textContent = SY.authFail(); } setSync('연결 안 됨 · 잠시 뒤 다시'); }
 }
 async function putRow(row, what){
+  if(GUEST){   // 로그인 없이: 새로 접수만 (고치기는 로그인한 사람만)
+    if(row.r?.id){ toast('고치려면 로그인해 주세요.'); return false; }
+    setSync('저장 중…');
+    try{ const j=await SY.callRaw({action:'lostAdd', d:row.d, by:row.d.person||''});
+      if(!j || !j.ok) throw Object.assign(new Error((j && j.error)||'error'), {code:j && j.error});
+      setSync(''); pull(); return true; }
+    catch(e){ setSync('저장 못 함'); toast('접수하지 못했습니다: '+({busy:'잠시 뒤 다시 해 주세요', no_photo:'습득물 사진을 넣어 주세요', no_item:'물품을 적어 주세요', bad_action:'서버를 새로 올려야 로그인 없이 접수할 수 있습니다'}[e.code] || e.code || e.message)); return false; } }
   const now=new Date().toISOString(), log=[...(row.log||[]), {at:now, by:user.name||'', what}].slice(-60);
   const item = {...(row.r||{}), id: row.r?.id || opsId(), callType:OPS_TYPES[P], saved: row.r?.saved || now, takenBy: row.r?.takenBy || user.name || '',
     owner: row.r?.owner || user.name || '', summary: B.summary(row.d).slice(0,120), history: JSON.stringify({kind:P, d:row.d, log}) };
@@ -78,7 +91,7 @@ function renderStock(hit){
 //  대시보드마다 진행 중 · 전체 · 상태별로 걸러 보기 · 「＋ 접수」는 그 구분으로 열림 · 습득은 사진을 목록 옆에 작게 (누르면 크게)
 const lostFilter = {};
 function renderLost(hit){
-  $('#filters').innerHTML=''; $('#bSum').textContent=B.hint; $('#addBtn').hidden=true;
+  $('#filters').innerHTML=''; $('#bSum').textContent = GUEST ? '로그인하지 않아 접수 · 찾기만 됩니다 (이름 · 연락처 일부는 가림 · 상태를 바꾸려면 로그인)' : B.hint; $('#addBtn').hidden=true;
   $('#list').innerHTML = `<div class="lost-cols">${B.boards.map((b, bi)=>{
     const stOf=x=>lostStatus(x.d), all=rows.filter(x=>lostKind(x.d)===b.kind), f=lostFilter[bi]||'open';
     const cnt=v=>v==='all' ? all.length : v==='open' ? all.filter(x=>b.open.includes(stOf(x))).length : all.filter(x=>stOf(x)===v).length;
@@ -89,7 +102,8 @@ function renderLost(hit){
       return `<tr class="${b.open.includes(s)?'':'closed'}">`
         + (b.photo ? `<td class="lost-ph">${ps.length ? `<img data-phimg="${esc(ps[0].id)}" data-phview="${esc(ps[0].id)}" alt="${esc(x.d.item||'습득물')}" title="누르면 크게">${ps.length>1?`<small>+${ps.length-1}</small>`:''}` : '<span class="hint">사진 없음</span>'}</td>` : '')
         + b.cols.map(([k,,fn])=>`<td>${esc(fn?fn(x.d[k], x.d):x.d[k]||'')}</td>`).join('')
-        + `<td class="st st-${esc(s)}"><select class="lost-st" data-lst="${esc(x.r.id)}" title="상태 바꾸기">${LOST_ST[b.kind].map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select></td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></td></tr>`; };
+        + (GUEST ? `<td class="st st-${esc(s)}">${esc(s)}</td><td></td></tr>`   // 로그인 없이: 상태는 보기만 · 열기 없음
+          : `<td class="st st-${esc(s)}"><select class="lost-st" data-lst="${esc(x.r.id)}" title="상태 바꾸기">${LOST_ST[b.kind].map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select></td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></td></tr>`); };
     return `<section class="lost-board"><div class="lb-head"><h3>${esc(b.title)} <small>${all.length}건</small></h3><button type="button" class="btn primary" data-ladd="${esc(b.kind)}">＋ ${esc(b.add)}</button></div>`
       + `<div class="filters">${chips}</div>`
       + (list.length ? `<div class="tw"><table class="tbl"><thead><tr>${b.photo?'<th>사진</th>':''}${b.cols.map(c=>`<th>${c[1]}</th>`).join('')}<th>상태</th><th></th></tr></thead><tbody>${list.map(tr).join('')}</tbody></table></div>`
@@ -116,10 +130,11 @@ $('#q').addEventListener('input', ()=>render());
 
 // ---------- 추가 · 고치기 ----------
 let editRow=null, form={};
+const fReq = f => typeof f.req==='function' ? f.req(form) : !!f.req;   // 꼭 넣기 (함수면 그때의 칸 값으로)
 const fLabel = f => typeof f.l==='function' ? f.l(form) : f.l;   // 칸 이름 (함수면 그때의 칸 값으로 — 분실물: 신고자 / 습득자)
 // 로그인한 사람의 연락처 (멤버관리에 적은 것 · 2026-11-24): 분실물 습득 접수 때 습득자 · 연락처를 자동으로 (js/lost.js onField)
 window.opsMe = { name:user.name||'', phone:'' };
-if(B.boards) SY.call({action:'members'}).then(j=>{ const e=String(user.emp||'').replace(/\s/g,'').toUpperCase(), m=(j.members||[]).find(x=>String(x.emp||'').replace(/\s/g,'').toUpperCase()===e); if(m){ opsMe.name=m.name||opsMe.name; opsMe.phone=m.phone||''; } }).catch(()=>{});
+if(B.boards && !GUEST) SY.call({action:'members'}).then(j=>{ const e=String(user.emp||'').replace(/\s/g,'').toUpperCase(), m=(j.members||[]).find(x=>String(x.emp||'').replace(/\s/g,'').toUpperCase()===e); if(m){ opsMe.name=m.name||opsMe.name; opsMe.phone=m.phone||''; } }).catch(()=>{});
 function openEdit(row, preset){   // preset: 새로 넣을 때 먼저 채울 값 (분실물 대시보드의 구분 등)
   editRow=row||null; form = row ? {...row.d} : Object.fromEntries(B.fields.filter(f=>f.def).map(f=>[f.k, f.def()]));
   if(preset) Object.entries(preset).forEach(([k, v])=>{ form[k]=v; if(B.onField) B.onField(k, form); });
@@ -129,7 +144,7 @@ function openEdit(row, preset){   // preset: 새로 넣을 때 먼저 채울 값
   setTimeout(()=>$('#eFields input:not([type=hidden]):not([readonly]), #eFields textarea')?.focus(), 0);
 }
 function fieldHTML(f){
-  const v=form[f.k]??'', id='e_'+f.k, lab=`<label for="${id}">${fLabel(f)}${f.req?' <i>*</i>':''}</label>`;
+  const v=form[f.k]??'', id='e_'+f.k, lab=`<label for="${id}">${fLabel(f)}${fReq(f)?' <i>*</i>':''}</label>`;
   if(f.type==='goods'){ const names=opsGoodsCache.map(g=>g.name), has=!v || names.includes(v);   // 품목관리의 굿즈 (엑셀에서 온 이름이 목록에 없으면 그 이름도 보임)
     return lab+`<select id="${id}" data-k="${f.k}"><option value=""${v?'':' selected'}>굿즈 고르기</option>${has?'':`<option selected>${esc(v)}</option>`}${names.map(n=>`<option${n===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`; }
   if(f.type==='select') return lab+`<select id="${id}" data-k="${f.k}">${(typeof f.opts==='function' ? f.opts(form) : f.opts).map(o=>`<option${o===v?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
@@ -168,7 +183,7 @@ $('#eFields').addEventListener('change', async e=>{ const inp=e.target.closest('
   phBusy++; paintForm();
   for(const f of files.slice(0, Math.max(0,left))){
     try{ const s=await phShrink(f), base=String(f.name||'').replace(/\.[A-Za-z0-9]+$/,'').slice(0,30) || '사진';
-      const j=await SY.call({action:'mentImgPut', name:`${B.title} ${form.item||''} ${base}`.trim()+(s.mime==='image/png'?'.png':'.jpg'), mime:s.mime, data:s.data});
+      const j=await SY.call({action:GUEST?'lostImgPut':'mentImgPut', name:`${B.title} ${form.item||''} ${base}`.trim()+(s.mime==='image/png'?'.png':'.jpg'), mime:s.mime, data:s.data});
       phCache[j.file.id]=s.url; cur().push({id:j.file.id, name:j.file.name}); paintForm();
     }catch(err){ fail=String(err.code||err.message||err); }
   }
@@ -197,7 +212,7 @@ $('#eForm').addEventListener('submit', async e=>{ e.preventDefault();
   document.activeElement?.blur?.();
   if($('#e_subAdd')?.value.trim()) addSub();   // 세부 과업 칸에 적어 두고 추가를 안 누른 것도
   if(phBusy){ $('#eErr').textContent='사진을 올리는 중입니다. 끝난 뒤 저장해 주세요.'; return; }
-  const miss=B.fields.filter(f=>f.req && (!f.show || f.show(form)) && !String(form[f.k]||'').trim()); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>fLabel(f)).join(' · ')}을(를) 넣어 주세요.`; return; }
+  const miss=B.fields.filter(f=>fReq(f) && (!f.show || f.show(form)) && !String(form[f.k]||'').trim()); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>fLabel(f)).join(' · ')}을(를) 넣어 주세요.`; return; }
   const d={...form}; B.fields.forEach(f=>{ if(f.show && !f.show(form) && f.k in d && f.type!=='dows' && f.type!=='dom') delete d[f.k]; });
   const ok=await putRow({...(editRow||{}), d}, editRow?'고침':'추가'); if(ok!==false){ $('#editModal').hidden=true; toast(editRow?'고쳤습니다.':'추가했습니다.'); }
 });

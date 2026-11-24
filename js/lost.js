@@ -13,13 +13,13 @@ function lostStatus(d){
   return s==='찾는 중' || !s ? '보관중' : s;
 }
 const OPS_PAGE =
-{ key:'lost', title:'분실물 찾기', add:'분실물 접수', hint:'분실 신고 · 습득물 보관 · 반환까지',
+{ key:'lost', title:'분실물 찾기', add:'분실물 접수', hint:'분실 신고 · 습득물 보관 · 반환까지', guest:true,   // guest: 로그인 없이 보기 · 접수 (2026-11-24 · opsboard.js GUEST)
     fields:[ {k:'kind', l:'구분', type:'select', opts:['습득','분실 신고'], def:()=>'습득'}, {k:'date', l:'접수일', type:'date', def:()=>opsToday()},
       {k:'item', l:'물품', type:'text', req:1}, {k:'feature', l:'특징', type:'text', ph:'색 · 브랜드 · 안에 든 것'},
       {k:'photos', l:'습득물 사진', type:'photos', w:2, req:1, show:d=>lostKind(d)==='습득'},   // 습득이면 사진 꼭 (찍기 · 고르기 · png / jpeg) — js/opsboard.js 의 photos 칸
       {k:'place', l:'발견 · 분실 장소', type:'text'}, {k:'storage', l:'보관 위치', type:'text', show:d=>lostKind(d)==='습득'},
       // 2026-11-24: 구분에 따라 이름이 바뀜 (분실물 신고 = 신고자 · 분실물 습득 = 습득자)
-      {k:'person', l:d=>lostWho(d), type:'text'}, {k:'phone', l:d=>lostWho(d)+' 연락처', type:'tel'},
+      {k:'person', l:d=>lostWho(d), type:'text', req:1}, {k:'phone', l:d=>lostWho(d)+' 연락처', type:'tel', req:d=>lostKind(d)==='분실 신고'},   // 이름은 꼭 · 신고는 연락처도 꼭 (연락드려야 하니까)
       {k:'status', l:'상태', type:'select', opts:d=>LOST_ST[lostKind(d)], def:()=>'보관중'}, {k:'returnDate', l:'반환일', type:'date', show:d=>d.status==='반환 완료'},
       {k:'returnTo', l:'반환 받은 분', type:'text', show:d=>d.status==='반환 완료'},
       {k:'memo', l:'메모', type:'textarea', w:2} ],

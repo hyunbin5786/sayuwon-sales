@@ -213,6 +213,45 @@ async function bookAdd(env, req) {
   return { id: db, history: item.history };
 }
 
+// ---------- 분실물 찾기 · 로그인 없이 (2026-11-24 · lost.html) ----------
+//  lostList: 분실물 목록 — 로그인하지 않은 사람에게는 신고자 · 습득자 이름 일부 · 연락처 가운데 · 메모를 가림
+//  lostAdd {d, by}: 새 분실물 신고 · 습득 한 건 (상태는 처음 상태로) — 고치기 · 상태 바꾸기 · 지우기는 로그인한 사람만 (put · del)
+//  lostImgPut: 습득물 사진 올리기 (멘트 이미지와 같은 그림 저장 · kind 'ment' → mentImgGet 으로 보임)
+//  셋 다 10분에 너무 많이 오면 잠시 막음 (rateOk)
+async function rateOk(env, key, max) {
+  let r = {}; try { r = JSON.parse((await kvGet(env, key)) || '{}'); } catch (x) { r = {}; }
+  const now = Date.now(); if (!(r.until > now)) r = { n: 0, until: now + 600e3 };
+  if (r.n >= max) return false;
+  r.n++; await kvSet(env, key, JSON.stringify(r)); return true;
+}
+const LOST_FIRST = { '습득': '보관중', '분실 신고': '찾는 중' };
+const maskPhone = p => { const d = String(p || '').replace(/\D/g, ''); return d.length >= 8 ? d.slice(0, 3) + '-****-' + d.slice(-4) : d ? '****' : ''; };
+const maskName = n => { const s = String(n || '').trim(); return s.length <= 1 ? s : s.length === 2 ? s[0] + '*' : s[0] + '*'.repeat(s.length - 2) + s.slice(-1); };
+async function lostList(env) {
+  const rs = await rows(env, "SELECT data FROM calls WHERE deleted='' AND call_type='분실물' ORDER BY rowid");
+  return rs.map(r => { const o = JSON.parse(r.data); let h = {}; try { h = JSON.parse(o.history || '{}') || {}; } catch (x) { h = {}; }
+    const d = { ...(h.d || {}) }; d.person = maskName(d.person); d.phone = maskPhone(d.phone); d.returnTo = maskName(d.returnTo); delete d.memo;
+    return { id: o.id, saved: o.saved, updated: o.updated, d }; });
+}
+async function lostAdd(env, req) {
+  if (!(await rateOk(env, 'lost_rate', 30))) throw fail('busy');
+  const s = req.d || {}, t = (k, n) => String(s[k] == null ? '' : s[k]).replace(/\r\n?/g, '\n').trim().slice(0, n || 200);
+  const kind = s.kind === '분실 신고' ? '분실 신고' : '습득';
+  const d = { kind, date: /^\d{4}-\d{2}-\d{2}$/.test(s.date || '') ? s.date : kstYmd(), item: t('item', 100), feature: t('feature'), place: t('place'), person: t('person', 30), phone: t('phone', 20), memo: t('memo', 1000), status: LOST_FIRST[kind] };
+  if (kind === '습득') { d.storage = t('storage'); d.photos = (Array.isArray(s.photos) ? s.photos : []).slice(0, 5).filter(p => p && /^m[0-9a-f]{32}$/.test(String(p.id || ''))).map(p => ({ id: String(p.id), name: cleanName(p.name || '사진') })); }
+  if (!d.item) throw fail('no_item');
+  if (kind === '습득' && !d.photos.length) throw fail('no_photo');
+  const by = clT(req.by || d.person, 20) || '(로그인 없이)', now = iso();
+  const item = { id: 'o' + Date.now().toString(36) + rand(3), callType: '분실물', saved: now, takenBy: by, owner: '', summary: `${kind} ${d.item} · ${d.status}`.slice(0, 120),
+    history: JSON.stringify({ kind: 'lost', d, log: [{ at: now, by, what: '추가 (로그인 없이)' }] }) };
+  await put(env, item);
+  return item.id;
+}
+async function lostImgPut(env, req) {
+  if (!(await rateOk(env, 'lostimg_rate', 60))) throw fail('busy');
+  return mentImgPut(env, { ...req, name: '분실물 ' + cleanName(req.name || '사진', 50) });
+}
+
 // ---------- 고객 견적 요청 ----------
 const QR_KEYS = ['id', 'at', 'org', 'name', 'phone', 'email', 'date', 'pax', 'memo', 'status', 'by', 'doneAt', 'deleted'];
 const QR_COLS = QR_KEYS.map(k => '"' + k + '"').join(',');   // by 는 SQL 예약어라 따옴표로
@@ -486,6 +525,9 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'mentList') { try { const o = await getItem(env, 'mentdb'); return { ok: true, ment: o && !o.deleted ? { history: o.history, saved: o.saved } : null }; } catch (e) { return err('mentlist: ', e); } }
   if (a === 'mentImgGet') { try { return { ok: true, file: await mentImgGet(env, String(req.id || '')) }; } catch (e) { return err('mentimg: ', e); } }
   if (a === 'bookList') { try { return { ok: true, items: await bookList(env), api: 6 }; } catch (e) { return err('booklist: ', e); } }
+  if (a === 'lostList') { try { return { ok: true, items: await lostList(env), api: 9 }; } catch (e) { return err('lostlist: ', e); } }
+  if (a === 'lostAdd') { try { const id = await lostAdd(env, req); await bumpRev(env); return { ok: true, id, api: 9 }; } catch (e) { return err('', e); } }
+  if (a === 'lostImgPut') { try { return { ok: true, file: await lostImgPut(env, req), api: 9 }; } catch (e) { return err('', e); } }
   if (a === 'bookAdd') { try { return { ok: true, item: await bookAdd(env, req), api: 6 }; } catch (e) { return err('bookadd: ', e); } }
   if (a === 'quoteReqAdd') { try { const id = await quoteReqAdd(env, req.item || {}); await bumpRev(env); return { ok: true, id, api: 7 }; } catch (e) { return err('', e); } }
   if (a === 'import') { try { return { ok: true, imported: await importData(env, req) }; } catch (e) { return err('', e); } }
