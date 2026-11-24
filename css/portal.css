@@ -157,3 +157,7 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .mtable .mphone{width:140px;height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:inherit;font-size:13.5px;background:#fff}
 .mtable .mphone:focus{border-color:var(--pine);outline:none}
 #memberAdd #mPhone{width:180px}
+/* 정기 재고조사 알림 (2026-11-24 · js/portal.js stockDueHTML) */
+.stock-due{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin:0 0 12px;padding:12px 14px;border:1px solid #e3a08f;background:#fdf0ec;border-radius:10px;color:#262620;text-decoration:none;font-size:14px}
+.stock-due b{color:#b5442c;font-size:15px}
+.stock-due:hover{border-color:#b5442c}

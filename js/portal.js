@@ -235,6 +235,12 @@ async function loadDash(){
   }catch(e){ if(!dashData) $('#dashBody').innerHTML='<p class="err">불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.</p>'; }
   finally{ dashLoading=false; if(dashAgain){ dashAgain=false; dashSoon(0); } }
 }
+// 정기 재고조사 알림 (2026-11-24 · 재고관리 js/stockx.js): 설정 줄(stockcfg)의 다음 조사일이 오늘이거나 지났으면 모두에게 대시보드 맨 위에
+function stockDueHTML(today){
+  const it=(lastItems||[]).find(x=>x.id==='stockcfg' && !x.deleted); if(!it) return '';
+  let d=null; try{ d=(JSON.parse(it.history||'{}')||{}).d; }catch(_){} const nx=d && d.next; if(!nx || nx>today) return '';
+  return `<a class="stock-due" href="stock.html"><b>📋 정기 재고조사 날입니다</b><span>예정 ${esc(opsDateLabel(nx))}${nx<today?' · 지남':''} · 2주마다 · 붕정 · 차방을 세어 재고관리에 기록해 주세요 →</span></a>`;
+}
 function renderDash(){ if(!dashData) return;
   const today=opsToday(), tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const tomorrow=opsYmd(tm), me=(getUser()||{}).name||'';
   const q=(($('#dashQ')||{}).value||'').trim().toLowerCase(), qd=q.replace(/\D/g,'');
@@ -263,7 +269,7 @@ function renderDash(){ if(!dashData) return;
   const col4 = `<div class="dcol"><div class="dcol-h"><b>개인 할일 보기</b><span class="dn">오늘 · 이번주 · 전체</span></div>${dashWho?`<p class="pfilter">${esc(dashWho)} 것만 보는 중 · 다시 누르면 모두</p>`:''}`
     + `<div class="ptbl-wrap"><table class="ptbl"><thead><tr><th>이름</th><th>개인고객</th><th>단체고객</th><th>기타</th></tr><tr class="sub"><th></th>${'<th><span>오늘</span><i>·</i><span>주</span><i>·</i><span>전체</span></th>'.repeat(3)}</tr></thead><tbody>${people.map(p=>`<tr class="${p.n===dashWho?'on':''}${p.n===me?' me':''}" data-dwho="${esc(p.n)}"><td>${esc(p.n)}${p.l?`<span class="late"> 지남 ${p.l}</span>`:''}</td>${num(p.a)}${num(p.b)}${num(p.c)}</tr>`).join('')}</tbody></table></div>`
     + `<p class="hint ptbl-note">숫자 = 그때까지 할 일이 있는 예약 · 통화 · 업무 수 · 이번주 = 오늘부터 ${esc(opsDateLabel(weekEnd))}까지</p></div>`;
-  $('#dashBody').innerHTML = `<div class="dcols">${col('개인','개인고객 전화')}${col('단체','단체고객 전화')}${col('기타','기타 개인 할일')}${col4}</div>`;
+  $('#dashBody').innerHTML = stockDueHTML(today) + `<div class="dcols">${col('개인','개인고객 전화')}${col('단체','단체고객 전화')}${col('기타','기타 개인 할일')}${col4}</div>`;
 }
 document.addEventListener('click', e=>{
   const t=e.target.closest('[data-dtm]'); if(t){ const k=t.dataset.dtm; dashTomorrow.has(k) ? dashTomorrow.delete(k) : dashTomorrow.add(k); renderDash(); return; }

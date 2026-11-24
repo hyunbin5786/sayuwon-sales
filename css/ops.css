@@ -199,3 +199,40 @@ html.guest [data-mypop]{display:none!important}
 .m-srow{display:flex;gap:8px;margin-bottom:10px}
 .m-srow select{flex:none;height:44px;border:1px solid var(--line);border-radius:10px;padding:0 8px;font:inherit;font-size:16px;background:#fff}
 .m-srow input{flex:1;min-width:0;margin-bottom:0 !important}
+/* ===== 재고관리 (2026-11-24 · js/stockx.js) ===== */
+.sk-ban{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;margin:0 0 10px;border:1px solid var(--line);border-radius:10px;background:#f6f4ee;font-size:14px}
+.sk-ban.due{background:#fdf0ec;border-color:#e3a08f}
+.sk-ban.due b{color:#b5442c}
+.sk-ban input[type=date]{height:32px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit}
+.sk-next-ed{margin-left:auto;display:flex;gap:6px;align-items:center}
+.sk-acts{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.sk-acts .btn{height:40px;font-size:14px}
+.sk-tabs{margin:0 0 10px}
+.sk-t td.neg{color:var(--red,#b5442c)}
+.sk-min{border:1px dashed var(--line);background:#fff;border-radius:6px;padding:2px 8px;font:inherit;cursor:pointer;min-width:42px}
+.sk-minin{width:70px;height:28px;border:1px solid var(--pine);border-radius:6px;padding:0 6px;font:inherit;text-align:right}
+.sk-box{width:min(620px,100%)}
+.sk-f{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:13px;color:var(--muted)}
+.sk-f input,.sk-f select{height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:inherit;color:var(--ink)}
+.sk-lines{display:flex;flex-direction:column;gap:6px;margin:6px 0}
+.sk-line{display:flex;gap:6px}
+.sk-line select{flex:1;min-width:0;height:38px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit}
+.sk-line input{width:90px;height:38px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:inherit;text-align:right}
+.sk-addline{margin:2px 0 8px}
+.sk-memo{display:block;width:100%;box-sizing:border-box;height:38px;border:1px solid var(--line);border-radius:6px;padding:0 10px;font:inherit;margin:6px 0}
+.sk-memo[hidden]{display:none}
+.sk-ct input{width:80px;height:32px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;text-align:right}
+.sk-hf{display:flex;gap:8px;margin:0 0 10px}
+.sk-hf select{height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:inherit;background:#fff}
+.sk-sums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 12px}
+.sk-sum{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;font-size:13px;display:flex;flex-direction:column;gap:4px}
+.sk-sum b{font-size:14px}
+.sk-h .up{color:var(--pine);font-weight:700}
+.sk-h .down{color:#b5442c;font-weight:700}
+.sk-tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:#eee;white-space:nowrap}
+.sk-tag.t-in{background:#e6efe8;color:var(--pine)}
+.sk-tag.t-out{background:#f6ecdc;color:#8a5a1c}
+.sk-tag.t-shop{background:#e4ecf5;color:#3d5a80}
+.sk-tag.t-web{background:#f3e6ee;color:#7d3c62}
+.sk-tag.t-count{background:#eee;color:#555}
+@media (max-width:700px){ .sk-sums{grid-template-columns:1fr} .sk-acts .btn{flex:1 1 45%} .sk-next-ed{margin-left:0} body #skModal{padding:0} body #skModal .sk-box{width:100%;min-height:100%;border-radius:0;box-sizing:border-box} }
