@@ -325,6 +325,7 @@ function render1(){
 $('inAll').addEventListener('paste', () => setTimeout(() => $('inAll').value.trim() && $('btnParse').click(), 0));
 $('btnParse').onclick = () => {
   state.rows = parseNaver($('inAll').value);
+  if (state.rows.length && window.syDaily) syDaily.mark('naver', '텍스트 정리');   // 하루 한 번 작업 기록 (2026-11-24 · js/dailyguard.js)
   state.source = 'text';   // 이제부터 명단은 텍스트 (엑셀은 환불 반영 · 점검에만)
   state.filter1 = null;
   state.finalEdits = {}; // 명단이 바뀌면 2단계에서 고친 내용은 초기화
@@ -407,6 +408,7 @@ async function readSheet(file){
     const ws = wb.Sheets[wb.SheetNames[0]];
     sheetRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false, dateNF: 'yyyy-mm-dd' });
     label.textContent = `📄 ${file.name} · ${sheetRows.length}행 불러옴 (다른 파일은 다시 끌어다 놓기)`;
+    if (window.syDaily) syDaily.mark('naver', '엑셀 넣음');   // 하루 한 번 작업 기록 (2026-11-24)
     $('in2').value = '';
     runCheck();
   } catch (e) {

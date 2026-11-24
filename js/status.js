@@ -178,6 +178,7 @@
   let pendingNaver=[];   // 비밀번호가 없어서 못 읽은 파일 → 비밀번호를 넣으면 다시
   const isNaverFile = h => (h[0]===0x50 && h[1]===0x4b) || (h[0]===0xd0 && h[1]===0xcf);   // .xlsx (비밀번호 걸린 것 포함)
   async function readFiles(files){
+    if(window.syDaily && files && files.length) syDaily.mark('status', '엑셀 넣음');   // 하루 한 번 작업 기록 (2026-11-24 · js/dailyguard.js)
     $('#fileErr').textContent=''; const got=[], errs=[], nvGot=[], skip=[]; let nvFail='';   // nvFail: 네이버 엑셀을 못 읽은 이유 → 직접 입력 팝업
     for(const f of files){
       try{ const buf=await f.arrayBuffer(), h=new Uint8Array(buf.slice(0,4));
