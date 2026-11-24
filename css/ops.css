@@ -252,3 +252,37 @@ html.guest [data-mypop]{display:none!important}
 .sk-part{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:13px}
 .sk-part.ok{background:#e6efe8;color:var(--pine);font-weight:700}
 .sk-box{width:min(720px,100%)}
+/* ===== 재고관리 월별 수불현황 (2026-11-24 · 굿즈 재고조사 엑셀 모양) ===== */
+body.pg-stock main, main:has(.sk-led){max-width:none}
+.sk-mgr{font-size:13px;color:var(--muted)}
+.sk-mgr b{color:var(--ink)}
+.sk-acts .sp{flex:1}
+.sk-acts label.btn{display:inline-flex;align-items:center;cursor:pointer}
+.sk-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.sk-bar select{height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:inherit;background:#fff;font-weight:700}
+.sk-bar .sk-tabs{margin:0}
+.sk-pc{display:inline-flex;gap:4px;align-items:center}
+.sk-lw{max-height:calc(100vh - 290px);overflow:auto;border:1px solid var(--line);border-radius:8px}
+.sk-led{font-size:12.5px;border-collapse:separate;border-spacing:0}
+.sk-led th{position:sticky;top:0;background:#3f5a46;color:#fff;font-weight:600;text-align:center;white-space:nowrap;padding:5px 6px;border-right:1px solid rgba(255,255,255,.18);z-index:2}
+.sk-led thead tr:nth-child(2) th{top:27px}
+.sk-led th.sk-g.wh{background:#2f4a6b}.sk-led th.sk-g.shop{background:#7a5a2a}
+.sk-led th small{font-weight:400;opacity:.85}
+.sk-led td{padding:5px 6px;border-bottom:1px solid #ece8de;border-right:1px solid #f2efe7;white-space:nowrap}
+.sk-led td.sk-nm,.sk-led th.sk-nm{position:sticky;left:0;background:#fff;z-index:1;min-width:180px;white-space:normal}
+.sk-led th.sk-nm{background:#3f5a46;z-index:3}
+.sk-led td.sk-real{background:#fff8e6}
+.sk-led td.up{color:var(--pine);font-weight:700}.sk-led td.down{color:#b5442c;font-weight:700}
+.sk-led td.sk-why{white-space:normal;min-width:160px;color:#4a4740}
+.sk-led tfoot td{position:sticky;bottom:0;background:#f4f2ec;font-weight:700;border-top:2px solid var(--line)}
+.sk-led tfoot td:nth-child(2){position:sticky;left:0;z-index:2}
+.sk-ct .sk-ctl{white-space:nowrap}
+.sk-ct .sk-whyin{width:130px;height:28px;border:1px solid #e3a08f;border-radius:6px;padding:0 6px;font:inherit;font-size:12.5px;margin-left:4px}
+.sk-ct .sk-whyin[hidden]{display:none}
+.sk-ct td input[type=number]{width:72px}
+.sk-miss{margin-top:12px;font-size:13px}
+.sk-miss summary{cursor:pointer;color:var(--muted)}
+.sk-miss div{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.sk-mi{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:8px;padding:3px 4px 3px 8px;background:#fff}
+.sk-tag.t-online{background:#f3e6ee;color:#7d3c62}.sk-tag.t-self{background:#f6ecdc;color:#8a5a1c}.sk-tag.t-gift{background:#fdeee6;color:#a0522d}
+.sk-tag.t-fnb{background:#e4ecf5;color:#3d5a80}.sk-tag.t-offline{background:#e6efe8;color:var(--pine)}.sk-tag.t-open{background:#eee;color:#555}
