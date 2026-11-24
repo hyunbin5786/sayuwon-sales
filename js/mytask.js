@@ -4,15 +4,18 @@
 //  kind: g = 단체 예약 과업 · p = 개인고객 통화 과업 · e = 직접 넣은 업무(기타 개인 업무)
 //  group.js 의 전역(cache · tasksOf · parseHist · store · etcPut · etcMine …)을 씀 → group.js 다음에 불러옴
 
+// 마감 없음 (2026-11-24): 날짜 칸에서 달력의 「삭제」를 누르면 마감을 없앰 — 단체 · 개인고객 과업은 마감 = TK_NODUE(9999-12-31)로 저장(맨 아래로 · 지남 · 오늘 마감에 안 듦 · 화면엔 「마감 없음」) · 직접 넣은 업무는 「마감 없음」(repeat later)
+var TK_NODUE='9999-12-31';
+const tkDueShow = d => d===TK_NODUE ? '' : (d||'');
 // ---------- 줄 자료 ----------
 function tkFromG(r, t){
   const ds=DOC_SUBS[t.id], subs=[...(ds ? ds.map(([k,l])=>({id:'d:'+k, title:l, done:!!(t.subs||{})[k], fixed:true})) : []), ...(t.xsubs||[]).map(x=>({id:x.id, title:x.title, done:!!x.done}))];
   const chg = t.id==='pplchk' ? pplChanges(t) : t.id==='erpfix' ? (t.changes||[]) : [];   // 무엇이 바뀌었는지 (예약 내역&전산 내역 확인 · 전산 예약 수정, 2026-11-21)
-  return { kind:'g', rid:r.id, tid:t.id, day:'', title:t.title, due:t.due||'', done:!!t.done, memo:t.memo||'', subs, chg,
+  return { kind:'g', rid:r.id, tid:t.id, day:'', title:t.title, due:tkDueShow(t.due), done:!!t.done, memo:t.memo||'', subs, chg,
     src:`단체 · ${r.org||r.contact||'(업체 미정)'}${r.date?' · 방문 '+dateLabel(r.date):''}`, srcAttr:`data-myopen="${esc(r.id)}"`, canDel: !!t.custom };
 }
 function tkFromP(r, t){
-  return { kind:'p', rid:r.id, tid:t.id, day:'', title:t.title, due:t.due||'', done:!!t.done, memo:t.memo||'', subs:(t.xsubs||[]).map(x=>({id:x.id, title:x.title, done:!!x.done})),
+  return { kind:'p', rid:r.id, tid:t.id, day:'', title:t.title, due:tkDueShow(t.due), done:!!t.done, memo:t.memo||'', subs:(t.xsubs||[]).map(x=>({id:x.id, title:x.title, done:!!x.done})),
     src:`개인 · ${r.contact||'(이름 없음)'}${r.date?' · '+dateLabel(String(r.date).slice(0,10)):''}`, srcAttr:`data-popen="${esc(r.id)}"`, canDel:false };
 }
 function tkFromE(o, day, extra){
@@ -114,7 +117,8 @@ document.addEventListener('change', e=>{
   if(t.dataset.tkmemoin!=null){ const v=t.value.trim(); tkMut(K, x=>{ if(String(x.memo||'').trim()===v) return false; x.memo=v; }, d=>{ if(String(d.memo||'').trim()===v) return false; d.memo=v; }, v?'메모 고침':'메모 지움'); return; }
   if(t.dataset.tksub!=null){ const sid=t.dataset.tksub, on=t.checked;
     tkMut(K, (x, now)=>{ if(/^d:/.test(sid)){ const k=sid.slice(2); x.subs={...(x.subs||Object.fromEntries((DOC_SUBS[x.id]||[]).map(([a])=>[a,false]))), [k]:on}; } else (x.xsubs||[]).forEach(s=>{ if(s.id===sid) s.done=on; }); tkSubsDone(x, now); }, ()=>false, on?'세부 과업 체크':'세부 과업 해제'); return; }
-  if(t.hasAttribute('data-tkdue')){ const v=t.value; if(!v) return;
+  if(t.hasAttribute('data-tkdue')){ const v=t.value;
+    if(!v){ tkMut(K, (x, now)=>{ if(x.due===TK_NODUE) return false; x.due=TK_NODUE; x.dueSet=1; x.dueSetAt=now; }, d=>{ if(d.repeat==='later') return false; d.repeat='later'; d.due=''; }, '마감 없앰'); return; }   // 달력의 「삭제」 = 마감 없음 (2026-11-24)
     tkMut(K, (x, now)=>{ x.due=v; x.dueSet=1; x.dueSetAt=now; }, d=>{ if(d.repeat==='later' || !d.repeat) d.repeat='none'; d.due=v; }, `마감 → ${v}`); return; }
   if(t.dataset.tkcat!=null){ const v=t.value; tkMut(K, ()=>false, d=>{ if(v) d.list=v; else delete d.list; }, `구분 → ${v?catLabel(v):ETC_NOCAT}`); return; }
   if(t.dataset.tkdom!=null){ const v=t.value; tkMut(K, ()=>false, d=>{ d.dom=String(v); }, `매달 ${v}일`); return; }
