@@ -72,8 +72,8 @@ let members=[], roles=null;   // roles = {quote:[사번…]} 견적서 · 거래
 function paintMembers(){
   const u=getUser()||{};
   $('#memberHint').textContent = members.length ? `${members.length}명` : '';
-  $('#memberList').innerHTML = members.map(m=>`<tr class="${m.emp===u.emp?'me':''}"><td>${esc(m.name)}</td><td>${esc(m.emp)}</td><td><input class="mphone" data-mphone="${esc(m.emp)}" value="${esc(m.phone||'')}" inputmode="tel" placeholder="010-0000-0000" maxlength="20" title="고치고 Enter 또는 다른 곳을 누르면 저장"></td><td class="hint">${esc(m.added||'')}${m.by?` · ${esc(m.by)}`:''}</td><td><label class="mrole" title="고객 견적 요청이 이 사람의 할일로 나옵니다"><input type="checkbox" data-mrole="quote" data-emp="${esc(m.emp)}"${roles && (roles.quote||[]).some(x=>String(x).trim().toUpperCase()===String(m.emp).trim().toUpperCase())?' checked':''}> 담당</label></td><td class="r"><button type="button" class="btn-sm del" data-mdel="${esc(m.emp)}" data-mname="${esc(m.name)}">빼기</button></td></tr>`).join('')
-    || '<tr><td colspan="6" class="hint">아직 멤버가 없습니다. 위에서 추가하면 그때부터 로그인할 때 이름 · 사번을 확인합니다.</td></tr>';
+  $('#memberList').innerHTML = members.map(m=>`<tr class="${m.emp===u.emp?'me':''}"><td>${esc(m.name)}</td><td>${esc(m.emp)}</td><td><input class="mphone" data-mphone="${esc(m.emp)}" value="${esc(m.phone||'')}" inputmode="tel" placeholder="010-0000-0000" maxlength="20" title="고치고 Enter 또는 다른 곳을 누르면 저장"></td><td class="hint">${esc(m.added||'')}${m.by?` · ${esc(m.by)}`:''}</td><td class="r"><button type="button" class="btn-sm del" data-mdel="${esc(m.emp)}" data-mname="${esc(m.name)}">빼기</button></td></tr>`).join('')
+    || '<tr><td colspan="5" class="hint">아직 멤버가 없습니다. 위에서 추가하면 그때부터 로그인할 때 이름 · 사번을 확인합니다.</td></tr>';
 }
 async function memberCall(body){
   $('#memberErr').textContent='';
@@ -118,7 +118,7 @@ document.addEventListener('click', async e=>{ const b=e.target.closest('[data-md
   const u=getUser()||{}, self=b.dataset.mdel===u.emp;
   if(!confirm(`${b.dataset.mname}(${b.dataset.mdel}) 님을 멤버에서 뺄까요?${self?'\n본인입니다. 빼면 다음 로그인부터 들어올 수 없습니다.':''}`)) return;
   memberCall({action:'memberDel', emp:b.dataset.mdel, by:u.name||''}); });
-// 견적서 · 거래명세서 담당 지정 (2026-11-23): 체크하면 바로 저장. 여러 명도 가능
+// 견적서 · 거래명세서 담당 지정 (2026-11-23): 체크하면 바로 저장. 여러 명도 가능 — 2026-11-24 멤버관리 표에서 열을 뺌 (아래 처리는 남겨 둠 · 이미 지정된 사람은 그대로)
 document.addEventListener('change', async e=>{ const c=e.target.closest('[data-mrole]'); if(!c) return;
   const j=await memberCall({action:'memberRole', role:c.dataset.mrole, emp:c.dataset.emp, on:c.checked});
   if(!j || !j.roles){ c.checked=!c.checked; if(j) $('#memberErr').textContent='담당 지정은 서버(Cloudflare Worker)를 새 코드로 바꾼 뒤부터 됩니다.'; return; }
