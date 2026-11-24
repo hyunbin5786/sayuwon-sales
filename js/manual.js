@@ -330,8 +330,11 @@
     return `<section class="mn-sec"><h2>📥 안내문 · 반영<small>새 상품 · 바뀐 내용의 안내문(이미지 · PDF · 워드 · 글)을 올리면 → 정리한 「반영 제안」을 → 확인하고 「반영」을 눌러야 매뉴얼에 들어갑니다</small></h2>`
       + `<div class="nt-up"><label>제목<input id="ntTitle" placeholder="예: 26/27 겨울 시즌 상품 안내" data-ime="ko"></label><label>파일 (여러 개 · 10MB까지)<input type="file" id="ntFiles" multiple accept="image/*,.pdf,.docx,.txt"></label>`
       + `<label class="full">메모 · 글로 된 안내 (붙여 넣어도 됨)<textarea id="ntMemo" data-ime="ko" placeholder="예: 12/1부터 판매 · 기존 사담 런치를 대체하는지 확인 중"></textarea></label><div class="row"><span class="hint" id="ntSt"></span><button type="button" class="btn primary" id="ntSave">안내문 올리기</button></div></div>`
-      + `<p class="hint" style="margin-top:8px">정리 방법: 아직 AI가 연결되지 않아 안내문을 보고 사람이 「직접 정리」하거나, AI(Claude)로 정리한 결과 파일을 「정리 결과 불러오기」로 넣습니다. 둘 다 「반영」을 눌러야 들어갑니다.`
-      + ` <label class="btn primary sm" style="display:inline-flex">정리 결과 불러오기 (JSON)<input type="file" id="impFile" accept=".json" hidden></label></p></section>`
+      + `<div class="cc-box"><b>AI(Claude Code)로 정리하기</b> — 추가 요금 없이<ol>`
+      + `<li><button type="button" class="btn primary sm" id="ccOut">정리 대기 안내문 내려받기</button> <span class="hint">「정리 대기」 안내문 ${N.filter(n=>nst(n)==='정리 대기').length}개 + 지금 매뉴얼을 묶은 파일 1개 (내려받기 폴더에)</span></li>`
+      + `<li>Claude Code 에 <b>"매뉴얼 안내문 정리해줘"</b>라고 말하기 → 정리 결과 파일(<code>…정리결과….json</code>)을 만들어 줌</li>`
+      + `<li><label class="btn primary sm" style="display:inline-flex">정리 결과 불러오기 (JSON)<input type="file" id="impFile" accept=".json" hidden></label> → 아래 「반영 제안」에서 확인하고 「반영」</li></ol>`
+      + `<p class="hint">사람이 직접 하려면 올린 안내문의 「직접 정리」. 어느 쪽이든 「반영」을 눌러야 매뉴얼에 들어갑니다.</p></div></section>`
       + `<section class="mn-sec"><h2>반영 제안 <small>검토 대기 ${wait.length}개</small></h2>${P.length ? P.sort((a,b)=>(pst(a)==='검토 대기'?0:1)-(pst(b)==='검토 대기'?0:1) || String(b.updated).localeCompare(String(a.updated))).map(propHTML).join('') : '<p class="hint">아직 없습니다.</p>'}</section>`
       + `<section class="mn-sec"><h2>올린 안내문 <small>${N.length}개</small></h2>${N.length ? N.map(n=>`<div class="nt"><div class="h"><b>${esc(n.title||'(제목 없음)')}</b><span class="st-tag${nst(n)==='반영됨'?' done':nst(n)==='보류'?' hold':''}">${esc(nst(n))}</span><span class="hint">${esc(n.by||'')} · ${esc(String(n.updated||'').slice(0,10))}</span></div>`
           + `<div class="files">${(n.data.files||[]).map(f=>`<button type="button" data-file="${esc(f.id)}" data-fname="${esc(f.name)}">${fileIcon(f.mime)} ${esc(f.name)}</button>`).join('')}</div>${n.data.memo?`<div class="memo">${esc(n.data.memo)}</div>`:''}`
@@ -340,7 +343,7 @@
   const FIELD_L = {title:'이름 · 질문', cat:'구분', start:'시작', end:'끝', days:'운영일', time:'이용 시간', pWeek:'평일', pEnd:'주말·공휴일', cap:'정원', deadline:'예약 마감', caution:'응대 주의사항', link:'상세 링크', body:'자세한 내용', a:'답변', boss:'상급자 확인', when:'언제 쓰나', screen:'사용 화면', owner:'담당 · 보고'};
   const flat = r => r ? {title:r.title, cat:r.cat, start:r.start, end:r.end, ...Object.fromEntries(Object.entries(r.data||{}).filter(([k])=>!['hist','catAI'].includes(k)))} : {};
   function propHTML(p){ const d=p.data, s=d.status||'검토 대기', open=s==='검토 대기';
-    const chs=(d.changes||[]).map((c,i)=>{ const cur=c.op==='edit' ? rows.find(x=>x.id===c.id) : null, a=flat(cur), b={...a, ...flat(c.row)};
+    const chs=(d.changes||[]).map((c,i)=>{ const cur=c.op==='edit' ? rows.find(x=>x.id===c.id) : null, a=c.before || flat(cur), b={...a, ...Object.fromEntries(Object.entries(flat(c.row)).filter(([,v])=>v!==undefined))};   // 고침 제안에 없는 칸은 그대로
       const keys=Object.keys(FIELD_L).filter(k=>String(a[k]??'')!==String(b[k]??''));
       return `<div class="ch"><div class="t">${open?`<input type="checkbox" data-pch="${esc(p.id)}" data-i="${i}" checked> `:''}${c.op==='edit'?'고침':'새로'} ${KIND_NAME[c.kind]||c.kind} · ${esc(b.title||CH_NAME[b.cat]||'')}${c.op==='edit'&&!cur?' <span class="chk">원래 항목이 없음</span>':''}</div>`
         + `<table>${keys.map(k=>`<tr><th>${FIELD_L[k]}</th>${c.op==='edit'?`<td class="old">${esc(fmtV(k,a[k]))}</td>`:''}<td class="new">${esc(fmtV(k,b[k]))}</td></tr>`).join('') || '<tr><td class="hint">바뀌는 칸 없음</td></tr>'}</table></div>`; }).join('');
@@ -356,7 +359,7 @@
       if(c.op==='edit'){ const cur=rows.find(x=>x.id===c.id); if(!cur) return; out.push(withHist(cur, {...cur, title:R.title??cur.title, cat:R.cat??cur.cat, start:R.start??cur.start, end:R.end??cur.end, data:{...cur.data, ...(R.data||{}), src:p.id}})); }
       else { const same=rows.filter(x=>x.kind===c.kind); out.push({id:newId(c.kind[0]), kind:c.kind, title:R.title||'', cat:R.cat||'', start:R.start||'', end:R.end||'', ord:Math.max(0,...same.map(x=>x.ord||0))+1, data:{...(R.data||{}), src:p.id}}); } });
     const n=rows.find(x=>x.id===p.data.noticeId);
-    out.push({...p, data:{...p.data, status:'반영됨', applied:picks, doneAt:new Date().toISOString(), doneBy:user.name||''}});
+    out.push({...p, data:{...p.data, changes:p.data.changes.map((c,i)=>c.op==='edit' && picks.includes(i) ? {...c, before:flat(rows.find(x=>x.id===c.id))} : c), status:'반영됨', applied:picks, doneAt:new Date().toISOString(), doneBy:user.name||''}});
     if(n) out.push({...n, data:{...n.data, status:'반영됨'}});
     if(await save(out, `반영: ${p.title||''}`.slice(0,40))){ paint(); toast(`${picks.length}개를 매뉴얼에 반영했습니다.`); }
   }
@@ -391,6 +394,31 @@
       if(!(await save([p, {...n, data:{...n.data, status:'제안 있음'}}], '반영 제안 만듦'))) return null; }
     return p.id; }
 
+  // ---------- Claude Code 에 맡길 묶음 내려받기 (2026-11-24 · 추가 요금 없이 AI 정리) ----------
+  // 사유원-매뉴얼-정리대기-날짜.zip = 정리요청.json(안내문 목록 · 지금 매뉴얼 · 결과 모양) + files/안내문id/파일들
+  //  Claude Code 가 이 zip 을 읽고 「…정리결과….json」(type sayuwon-manual-proposals) 을 만들면 → 「정리 결과 불러오기」 → 반영 제안 → 「반영」
+  async function ccOut(){
+    const W=byKind('notice').filter(n=>(n.data.status||'정리 대기')==='정리 대기');
+    if(!W.length){ toast('「정리 대기」 안내문이 없습니다. 먼저 안내문을 올려 주세요.'); return; }
+    if(typeof JSZip==='undefined'){ toast('압축 도구를 불러오지 못했습니다. 새로고침 해 주세요.'); return; }
+    const b=$('#ccOut'); b.disabled=true;
+    try{ const zip=new JSZip(), notices=[];
+      for(const n of W){ const files=[];
+        for(const f of (n.data.files||[])){ st(`파일 받는 중… ${f.name}`,''); const j=await SY.call({action:'manualFileGet', id:f.id}); const path=`files/${n.id}/${f.name}`; zip.file(path, j.file.data, {base64:true}); files.push({name:f.name, mime:f.mime, path}); }
+        notices.push({noticeId:n.id, title:n.title, memo:n.data.memo||'', by:n.by||'', at:n.updated||'', files}); }
+      const manual=rows.filter(r=>['sec','prod','faq','proc'].includes(r.kind)).map(r=>{ const {hist, ...d}=r.data||{}; return {id:r.id, kind:r.kind, title:r.title, cat:r.cat, start:r.start, end:r.end, data:d}; });
+      zip.file('정리요청.json', JSON.stringify({type:'sayuwon-manual-ai-request', made:new Date().toISOString(), by:user.name||'', today:today(),
+        howto:'안내문(files/)을 읽고 지금 매뉴얼(manual)과 비교해, 새 상품 · 바뀐 내용을 정리한 반영 제안을 만든다. 숫자(가격 · 시간 · 날짜)는 안내문 그대로. 이미 있는 항목이 바뀌면 op:edit + id, 새것은 op:add. 기간이 있으면 start/end(YYYY-MM-DD). 애매한 것은 [확인 필요]. 결과는 아래 result 모양의 JSON 파일.',
+        result:{type:'sayuwon-manual-proposals', proposals:[{noticeId:'안내문 id', title:'제안 제목', note:'정리하며 알게 된 것 · 확인할 것', src:'AI', changes:[{op:'add|edit', kind:'prod|faq|proc|sec', id:'edit 일 때 manual 의 id', row:{title:'', cat:'', start:'', end:'', data:{}}}]}]},
+        kinds:{prod:'data {days 운영일, time 이용 시간, pWeek 평일 가격(숫자), pEnd 주말·공휴일 가격(숫자), cap 정원, deadline 예약 마감, caution 응대 주의사항, link, body 자세한 내용}', faq:'title=질문 · cat=카테고리 · data {a 답변, boss 상급자 확인 필요(true/false), body}', proc:'data {when, screen, owner, body}', sec:'cat=장 키(intro call dont glance prod faq rule trans ticket proc link) · data {body}'},
+        notices, manual}, null, 1));
+      const blob=await zip.generateAsync({type:'blob'}), a=document.createElement('a'), d=new Date();
+      a.href=URL.createObjectURL(blob); a.download=`사유원-매뉴얼-정리대기-${today().replace(/-/g,'')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}.zip`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 60000);
+      st('',''); toast(`안내문 ${W.length}개를 내려받았습니다 · Claude Code 에 "매뉴얼 안내문 정리해줘"라고 말해 주세요.`, 5000);
+    }catch(e){ st('',''); toast('내려받지 못했습니다: '+(e.code||e.message), 4500); }
+    finally{ b.disabled=false; }
+  }
+
   // ---------- 불러오기 (노션 옮긴 파일 · 정리 결과) ----------
   // 모양: {type:'sayuwon-manual', rows:[{kind, title, cat, start, end, ord, data}]} → 매뉴얼에 바로 (처음 한 번 · 이미 있으면 물어봄)
   //       {type:'sayuwon-manual-proposals', proposals:[{title, note, noticeId?, changes:[{op, kind, id?, match?(이름으로 찾기), row}]}]} → 반영 제안으로 (「반영」을 눌러야 들어감)
@@ -405,14 +433,15 @@
     if(j.type==='sayuwon-manual-proposals' && Array.isArray(j.proposals)){
       const list=j.proposals.map(p=>({id:newId('p'), kind:'prop', title:p.title||'반영 제안', cat:'', start:'', end:'', ord:0, data:{noticeId:p.noticeId||'', src:p.src||'AI', status:'검토 대기', note:p.note||'',
         changes:(p.changes||[]).map(c=>{ if(c.op==='edit' && !c.id && c.match){ const t=rows.find(x=>x.kind===c.kind && norm(x.title)===norm(c.match)); if(t) return {...c, id:t.id}; return {...c, op:'add'}; } return c; })}}));
-      if(await save(list, `반영 제안 ${list.length}개`)){ view='notice'; paint(); toast(`반영 제안 ${list.length}개를 넣었습니다 · 확인하고 「반영」을 눌러 주세요.`, 4000); }
+      const marks=[...new Set(list.map(p=>p.data.noticeId).filter(Boolean))].map(id=>rows.find(x=>x.id===id && x.kind==='notice')).filter(n=>n && (n.data.status||'정리 대기')==='정리 대기').map(n=>({...n, data:{...n.data, status:'제안 있음'}}));   // 정리된 안내문은 「제안 있음」으로
+      if(await save([...list, ...marks], `반영 제안 ${list.length}개`)){ view='notice'; paint(); toast(`반영 제안 ${list.length}개를 넣었습니다 · 확인하고 「반영」을 눌러 주세요.`, 4000); }
       return; }
     toast('사유원 매뉴얼 파일 모양이 아닙니다.');
   }
 
   // ---------- 이벤트 ----------
   document.addEventListener('click', async e=>{
-    const t=e.target.closest('[data-go],[data-pcat],[data-fcat],[data-peek],[data-close],[data-edit],[data-add],[data-del],[data-fclose],#fSave,[data-goto],[data-file],#ntSave,[data-nself],[data-nselff],[data-nhold],[data-papply],[data-phold],[data-padd],[data-hview],[data-hback]'); if(!t) return;
+    const t=e.target.closest('#ccOut,[data-go],[data-pcat],[data-fcat],[data-peek],[data-close],[data-edit],[data-add],[data-del],[data-fclose],#fSave,[data-goto],[data-file],#ntSave,[data-nself],[data-nselff],[data-nhold],[data-papply],[data-phold],[data-padd],[data-hview],[data-hback]'); if(!t) return;
     if(t.dataset.go!=null){ view=t.dataset.go; $('#q').value=''; location.hash=view==='home'?'':view; closePeek(); paint(); window.scrollTo(0,0); return; }
     if(t.dataset.pcat!=null){ prodCat=t.dataset.pcat; paint(); return; }
     if(t.dataset.fcat!=null){ faqCat=t.dataset.fcat; paint(); return; }
@@ -424,6 +453,7 @@
     if(t.dataset.fclose!=null){ $('#modal').hidden=true; return; }
     if(t.id==='fSave'){ saveForm(); return; }
     if(t.id==='ntSave'){ uploadNotice(); return; }
+    if(t.id==='ccOut'){ ccOut(); return; }
     if(t.dataset.file){ openFile(t.dataset.file, t.dataset.fname); return; }
     if(t.dataset.del){ const r=rows.find(x=>x.id===t.dataset.del); if(!r) return;
       if(!confirm(`「${(r.title||CH_NAME[r.cat]||'이 항목').slice(0,40)}」을(를) 지울까요?`)) return;
