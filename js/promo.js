@@ -32,18 +32,20 @@
     {k:'view',l:'관람',cls:'pct'},{k:'food',l:'식사 등',cls:'pct'},{k:'cha',l:'몽몽차방',cls:'pct'},{k:'ma',l:'몽몽마방',cls:'pct'},{k:'gaga',l:'가가빈빈',cls:'pct'},{k:'corp',l:'업체 할인'},{k:'etc',l:'기타',cls:'wide'}];
   const today = () => opsToday();
   const dday = to => Math.round((new Date(to+'T00:00') - new Date(today()+'T00:00'))/864e5);
-  let T=null;
+  let T=null, MONTHS=null;   // 만료 몇 달 전에 알릴지 = 첫 화면 「공통 업무」 관리(commondb)의 값 (2026-11-24 · 없으면 2, 1)
+  SY.list().then(j=>{ const it=(j.items||[]).find(x=>x.id==='commondb' && !x.deleted); let h={}; try{ h=JSON.parse((it&&it.history)||'{}')||{}; }catch(_){}
+    const pr=(h.rules||[]).find(x=>x.id==='promo'); if(pr && pr.months) MONTHS=String(pr.months).split(/[^\d]+/).map(Number).filter(n=>n>0&&n<=24).sort((a,b)=>b-a); if(T) T.render(); }).catch(()=>{});
   function expCell(r){ const p=opsPeriod(r.period); if(!p.to) return `<td class="exp"><span class="hint">${p.from?'끝 없음':''}</span></td>`;
-    const d=dday(p.to), acks=(T && T.data().acks||{})[r.id]||{}, al=opsPromoAlerts({rows:[r], acks:(T && T.data().acks)||{}}, today()).filter(a=>a.due<=today());
+    const d=dday(p.to), acks=(T && T.data().acks||{})[r.id]||{}, al=opsPromoAlerts({rows:[r], acks:(T && T.data().acks)||{}}, today(), MONTHS).filter(a=>a.due<=today());
     const cls = d<0 ? 'over' : d<=31 ? 'red' : d<=62 ? 'warn' : '';
     return `<td class="exp ${cls}"><b>${d<0?`만료 ${-d}일 지남`:d===0?'오늘 만료':`D-${d}`}</b><small>${esc(opsDateLabel(p.to))}</small>`
       + al.map(a=>`<button type="button" class="btn sm pm-ack" data-ack="${esc(r.id)}|${a.kind}" title="공통 업무 알림을 끝냄">${a.label} 확인</button>`).join('')
-      + (acks.m1 ? '<small class="hint">알림 확인함</small>' : acks.m2 ? '<small class="hint">2달 전 확인함</small>' : '') + `</td>`; }
+      + (Object.keys(acks).length ? `<small class="hint">${Object.keys(acks).map(k=>+k.slice(1)).sort((a,b)=>a-b)[0]}달 전 확인함</small>` : '') + `</td>`; }
   T = syTable({ id:'promodb', type:'기업프로모션', cols:COLS, seed:SEED, nameKey:'name', focusKey:'name', blank:{tag:'신규'},
     sort:(a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ko'),   // 업체명 오름차순
     extraHead:'<th class="exp">만료</th>', extraCell:expCell, toast, ask,
     el:{table:'#tbl', add:'#addBtn', q:'#q', st:'#st', sum:'#sum', log:'#log'} });
   document.addEventListener('click', e=>{ const b=e.target.closest('[data-ack]'); if(!b) return; const [id,k]=b.dataset.ack.split('|'), r=T.data().rows.find(x=>x.id===id); if(!r) return;
-    T.change(d=>{ d.acks=d.acks||{}; d.acks[id]={...(d.acks[id]||{}), [k]:{at:new Date().toISOString(), by:user.name||''}}; if(k==='m1') d.acks[id].m2=d.acks[id].m2||d.acks[id].m1; return d; }, `알림 확인: ${String(r.name).split('\n')[0]} ${k==='m2'?'2달 전':'1달 전'}`)
+    T.change(d=>{ d.acks=d.acks||{}; d.acks[id]={...(d.acks[id]||{}), [k]:{at:new Date().toISOString(), by:user.name||''}}; const n=+k.slice(1), at=d.acks[id][k]; (MONTHS||[2,1]).filter(x=>x>n).forEach(x=>{ d.acks[id]['m'+x]=d.acks[id]['m'+x]||at; }); return d; }, `알림 확인: ${String(r.name).split('\n')[0]} ${+k.slice(1)}달 전`)   // 더 가까운 알림을 확인하면 그 앞(더 먼) 알림도 끝남
       .then(ok=>{ if(ok) toast('알림을 확인했습니다 · 공통 업무에서 빠집니다.'); }); });
 })();

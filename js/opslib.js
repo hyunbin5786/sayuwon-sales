@@ -69,10 +69,10 @@ function opsPeriod(text){
 }
 const opsAddMonths = (ymd, n) => { const d=new Date(ymd+'T00:00'), day=d.getDate(); d.setDate(1); d.setMonth(d.getMonth()+n); const last=new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); d.setDate(Math.min(day, last)); return opsYmd(d); };
 // 만료 2달 전 · 1달 전 알림: [{id, name, kind:'m2'|'m1', label, due, end}] — 「확인」한 것(acks[id][kind]) · 만료 7일이 지난 것은 뺌
-function opsPromoAlerts(data, today){
-  const out=[], acks=(data && data.acks)||{};
+function opsPromoAlerts(data, today, months){   // months: 몇 달 전에 알릴지 (기본 [2, 1] · 첫 화면 공통 업무 관리에서 바꿈 2026-11-24)
+  const out=[], acks=(data && data.acks)||{}, M=(months && months.length ? months : [2,1]);
   ((data && data.rows)||[]).forEach(r=>{ const p=opsPeriod(r.period); if(!p.to || opsYmd(new Date(new Date(p.to+'T00:00').getTime()+7*864e5)) < today) return;   // 기간 끝이 없거나 만료 7일이 지났으면 알림 없음
-    [['m2',2,'만료 2달 전'],['m1',1,'만료 1달 전']].forEach(([k,n,l])=>{ if((acks[r.id]||{})[k]) return; out.push({id:r.id, name:String(r.name||'').split('\n')[0], kind:k, label:l, due:opsAddMonths(p.to, -n), end:p.to}); }); });
+    M.map(n=>['m'+n, n, `만료 ${n}달 전`]).forEach(([k,n,l])=>{ if((acks[r.id]||{})[k]) return; out.push({id:r.id, name:String(r.name||'').split('\n')[0], kind:k, label:l, due:opsAddMonths(p.to, -n), end:p.to}); }); });
   return out;
 }
 
