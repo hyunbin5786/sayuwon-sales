@@ -178,8 +178,15 @@ const SY_DEV = (function(){
     document.body.appendChild(d); document.documentElement.style.overflow='hidden';
   }
   if(off(page)){ if(document.body) block(); else document.addEventListener('DOMContentLoaded', block); }
-  if(isTest && !isLocal){   // 테스트 사이트 표시 (배포 사이트와 헷갈리지 않게)
-    const t=()=>{ const b=document.createElement('div'); b.textContent='테스트 사이트'; b.setAttribute('style','position:fixed;left:10px;bottom:10px;z-index:99998;background:#b5442c;color:#fff;font:700 12px "Noto Sans KR",sans-serif;padding:4px 10px;border-radius:999px;pointer-events:none;opacity:.9'); document.body.appendChild(b); };
+  if(isTest && (!isLocal || /[?&]test=1\b/.test(location.search))){   // 테스트 사이트 표시 (배포 사이트와 헷갈리지 않게 · 2026-11-24: 화면 가장자리 빨간 테두리 + 왼쪽 아래 이름표 + 탭 제목 앞 [테스트])
+    const t=()=>{ if(document.getElementById('syTestFrame')) return;
+      const f=document.createElement('div'); f.id='syTestFrame'; f.setAttribute('aria-hidden','true');
+      f.setAttribute('style','position:fixed;inset:0;z-index:99998;border:5px solid #d32f2f;pointer-events:none;box-sizing:border-box');
+      const top=document.createElement('div'); top.textContent='테스트 사이트 · 배포 사이트 아님';
+      top.setAttribute('style','position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:99999;background:#d32f2f;color:#fff;font:700 12.5px "Noto Sans KR",sans-serif;padding:3px 14px 5px;border-radius:0 0 10px 10px;pointer-events:none;letter-spacing:.02em;white-space:nowrap');
+      const b=document.createElement('div'); b.textContent='테스트 사이트';
+      b.setAttribute('style','position:fixed;left:12px;bottom:12px;z-index:99999;background:#d32f2f;color:#fff;font:700 12px "Noto Sans KR",sans-serif;padding:4px 10px;border-radius:999px;pointer-events:none');
+      document.body.append(f, b); document.title='[테스트] '+document.title; };   // 위 가운데 이름표(top)는 머리 줄 버튼을 가려서 안 붙임
     if(document.body) t(); else document.addEventListener('DOMContentLoaded', t);
   }
   return Object.freeze({isProd, isTest, isLocal, off, DEV_PAGES});
