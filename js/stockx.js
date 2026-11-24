@@ -30,7 +30,16 @@
   let month=opsToday().slice(0,7), view='simple', showPrice=false, histType='', skF='', skOpen=new Set();   // view: simple(품목별 보기 · 기본) · ledger(엑셀 표) · hist(기록) · skF: ''|diff|moved
 
   // ---------- 품목 · 기록 ----------
-  const items = () => rows.filter(x=>!isCfg(x) && x.d && x.d.name).sort((a,b)=>(+a.d.no||9999)-(+b.d.no||9999) || label(a.d).localeCompare(label(b.d),'ko'));
+  // 품목 = 품목관리에서 굿즈로 분류된 상품만 (2026-11-24) — 재고 줄은 이름으로 맞춤 (색상 · 사이즈가 다른 줄은 모두) · 아직 재고 줄이 없는 굿즈는 0 으로 보이고 처음 기록할 때 줄을 만듦(vid)
+  //  굿즈가 아닌 재고 줄은 숨김 (hiddenRows) · 굿즈 목록을 아직 못 받았으면 재고 줄 그대로
+  const stockRows = () => rows.filter(x=>!isCfg(x) && x.d && x.d.name);
+  const bySort = (a,b)=>(+a.d.no||9999)-(+b.d.no||9999) || label(a.d).localeCompare(label(b.d),'ko');
+  const items = () => { const G=opsGoodsCache||[]; if(!G.length) return stockRows().sort(bySort);
+    const gs=new Set(G.map(g=>nsK(g.name))), have=stockRows().filter(x=>gs.has(nsK(x.d.name))), hn=new Set(have.map(x=>nsK(x.d.name)));
+    const virt=G.map((g,i)=>({g,i})).filter(({g})=>!hn.has(nsK(g.name))).map(({g,i})=>({r:{}, d:{name:g.name, price:g.price!=null?String(Math.round(g.price/1.1)):''}, log:[], vid:'gv'+i}));
+    return [...have.sort(bySort), ...virt.sort(bySort)]; };
+  const hiddenRows = () => { const G=opsGoodsCache||[]; if(!G.length) return []; const gs=new Set(G.map(g=>nsK(g.name))); return stockRows().filter(x=>!gs.has(nsK(x.d.name))); };
+  const rid = x => (x.r && x.r.id) || x.vid;
   // 한 품목의 한 장소 기록 → [{date, at, t, n, memo, by}] (예전 모양도 바꿔 읽음)
   function moves(x, loc){ const out=[];
     (x.log||[]).forEach(g=>{ const m=g.mv; if(!m || !m.t) return; const date=m.date||opsYmd(g.at), base={date, at:g.at||'', by:g.by||'', memo:m.memo||''};
@@ -109,7 +118,8 @@
   //  위 = 이 달 요약 칸 · 아래 = 품목마다 한 줄 (붕정 · 차방 기말과 실사 · 총 재고 · 차이) → 줄을 누르면 그 품목의 모든 칸(기초 · 입고 · 출고 종류별 · 출고 합계 · 기말 · 실사 · 원가 · 판매단가 · 차이 사유)
   function simpleView(hit){
     const all=items().filter(x=>hit({...x.d, name:label(x.d)}));
-    if(!all.length) return `<p class="sk-empty">${items().length ? '찾은 품목이 없습니다.' : '재고 목록이 비어 있습니다. 「엑셀 불러오기」로 재고조사 엑셀을 넣어 주세요.'}</p>`;
+    const first = stockRows().length ? '' : `<div class="sk-first"><b>처음 한 번만</b> 지금까지 쓰던 엑셀(굿즈 재고조사 파일)의 재고를 넣어 주세요 — 그 뒤로는 이 화면에서 입고 · 출고 · 재고조사로 기록합니다. <label class="btn primary">엑셀로 처음 재고 넣기<input type="file" id="skXl" accept=".xlsx,.xls" hidden></label></div>`;
+    if(!all.length) return first + `<p class="sk-empty">${items().length ? '찾은 품목이 없습니다.' : '품목관리에 굿즈로 분류된 상품이 없습니다.'}</p>`;
     const R=all.map((x,i)=>{ const a=ledger(x,'wh',month), b=ledger(x,'shop',month), end=a.end+b.end, hasReal=a.count!=null || b.count!=null;
       const real=(a.count!=null?a.count:a.end)+(b.count!=null?b.count:b.end), diff=hasReal ? real-end : null;
       return {x, i, a, b, end, real:hasReal?real:null, diff, moved:!!(a.in||a.outSum||b.in||b.outSum), reason:[a.reason, b.reason].filter(Boolean).join(' · ')}; });
@@ -133,8 +143,8 @@
         + `<dt>총 기말</dt><dd><b>${won(r.end)}</b></dd><dt>총 실사</dt><dd>${r.real!=null?won(r.real):'—'}</dd><dt>장부상 재고차이</dt><dd class="${r.diff?(r.diff>0?'up':'down'):''}">${r.diff==null?'—':r.diff?sgn(r.diff):'없음'}</dd>`
         + `<dt>재고 차이 사유</dt><dd>${esc(r.reason||'—')}</dd><dt>색상</dt><dd>${esc(d.color||'—')}</dd><dt>사이즈</dt><dd>${esc(d.size||'—')}</dd>`
         + `<dt>원가 <small>부가세 별도</small></dt><dd>${cost!=null?won(cost)+'원':esc(d.cost||'—')}</dd><dt>판매단가 <small>부가세 별도</small></dt><dd>${num(d.price)!=null?won(num(d.price))+'원':'—'}</dd></dl></div></div>`; };
-    const id = r => esc((r.x.r && r.x.r.id) || 'i'+r.i);
-    return tiles + chips + `<div class="sk-list"><div class="sk-row sk-hd"><span>NO</span><span>상품</span><span class="wh">붕정</span><span class="shop">차방</span><span>총 재고</span><span>차이</span><span></span></div>`
+    const id = r => esc(rid(r.x) || 'i'+r.i);
+    return first + tiles + chips + `<div class="sk-list"><div class="sk-row sk-hd"><span>NO</span><span>상품</span><span class="wh">붕정</span><span class="shop">차방</span><span>총 재고</span><span>차이</span><span></span></div>`
       + (L.length ? L.map(r=>{ const d=r.x.d, op=skOpen.has(id(r));
         return `<div class="sk-item${op?' open':''}${r.diff?' has-diff':''}"><div class="sk-row" data-skrow="${id(r)}" tabindex="0" role="button" aria-expanded="${op}"><span class="no">${esc(d.no||r.i+1)}</span>`
           + `<span class="nm"><b>${esc(d.name)}</b>${d.color||d.size?`<small>${esc([d.color,d.size].filter(Boolean).join(' · '))}</small>`:''}</span>`
@@ -144,9 +154,9 @@
       + `</div><p class="hint sk-legend">숫자 = 장부 기말 (기초 + 입고 − 출고) · 노란 「실사」 = 재고조사로 센 수 (장부와 다르면 빨강) · 작은 글씨 = 이 달 +입고 −출고 · 줄을 누르면 모든 칸</p>` + goodsMissing();
   }
   // 품목관리 굿즈 중 재고 목록에 없는 것 (이름으로 비교) → 「재고 목록에 넣기」
-  function goodsMissing(){ const have=new Set(items().map(x=>nsK(x.d.name))), miss=opsGoodsCache.filter(g=>!have.has(nsK(g.name)));
-    if(!miss.length || !items().length) return '';
-    return `<details class="sk-miss"><summary>품목관리 굿즈 중 재고 목록에 없는 것 ${miss.length}개 (이름이 다르게 적혀 있을 수도 있음)</summary><div>${miss.map(g=>`<span class="sk-mi">${esc(g.name)} <button type="button" class="btn sm" data-skaddg="${esc(g.name)}">재고 목록에 넣기</button></span>`).join('')}</div></details>`; }
+  // (2026-11-24) 품목 = 품목관리 굿즈 → 굿즈가 아닌 재고 줄은 숨기고 몇 개인지만 (이름이 다르게 적혀 굿즈와 안 맞는 것일 수도)
+  function goodsMissing(){ const H=hiddenRows(); if(!H.length) return '';
+    return `<details class="sk-miss"><summary>품목관리 굿즈에 없는 재고 품목 ${H.length}개는 숨김 (이름이 다르게 적혀 있을 수도 있음 · 굿즈로 보이려면 품목관리에서 굿즈로)</summary><div>${H.map(x=>`<span class="sk-mi">${esc(label(x.d))}</span>`).join('')}</div></details>`; }
   function histView(hit){
     const all=[]; items().forEach(x=>['wh','shop'].forEach(loc=>moves(x, loc).forEach(m=>all.push({...m, loc, name:label(x.d)}))));
     const L=all.filter(m=>m.date.startsWith(month) && (!histType || m.t===histType) && hit({name:m.name, memo:m.memo, by:m.by})).sort((a,b)=>b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
@@ -160,9 +170,8 @@
     $('#addBtn').hidden=true;
     $('#bSum').textContent = view==='ledger' ? '월별 수불현황 (굿즈 재고조사 엑셀과 같은 칸)' : view==='hist' ? '누가 · 언제 기록했는지' : '품목마다 붕정 · 차방 재고 — 줄을 누르면 모든 칸';
     $('#filters').innerHTML = banner()
-      + `<div class="sk-acts"><span class="sk-ag"><small>기록하기</small><button type="button" class="btn primary" data-skmv="rec" data-loc="wh">붕정 기록</button><button type="button" class="btn primary" data-skmv="rec" data-loc="shop">차방 기록</button></span>`
-      + `<span class="sk-ag"><small>재고조사</small><button type="button" class="btn primary" data-skmv="count" data-loc="wh">붕정 재고조사</button><button type="button" class="btn primary" data-skmv="count" data-loc="shop">차방 재고조사</button></span>`
-      + `<span class="sp"></span><span class="sk-ag"><small>엑셀</small><label class="btn primary">엑셀 불러오기<input type="file" id="skXl" accept=".xlsx,.xls" hidden></label><button type="button" class="btn primary" id="skXlOut">이 달 엑셀로</button></span></div>`
+      // 2026-11-24: 입고 · 출고 · 재고조사를 붕정 · 차방으로 나눈 버튼 (엑셀 불러오기 · 이 달 엑셀로는 없앰 — 재고는 이 화면에서 기록 · 처음 한 번만 품목별 보기의 「엑셀로 처음 재고 넣기」)
+      + `<div class="sk-acts">${[['in','입고'],['out','출고'],['count','재고조사']].map(([k,l])=>`<span class="sk-ag"><small>${l}</small><button type="button" class="btn primary" data-skmv="${k}" data-loc="wh">붕정 ${l}</button><button type="button" class="btn primary" data-skmv="${k}" data-loc="shop">차방 ${l}</button></span>`).join('')}</div>`
       + `<div class="sk-bar"><select id="skMonth">${months().map(m=>`<option value="${m}"${m===month?' selected':''}>${m.slice(0,4)}년 ${+m.slice(5)}월</option>`).join('')}</select>`
       + `<div class="seg sk-tabs"><button type="button" class="${view==='simple'?'on':''}" data-skview="simple">품목별 보기</button><button type="button" class="${view==='ledger'?'on':''}" data-skview="ledger">엑셀 표</button><button type="button" class="${view==='hist'?'on':''}" data-skview="hist">기록</button></div>`
       + (view==='ledger' ? `<label class="hint sk-pc"><input type="checkbox" id="skPrice"${showPrice?' checked':''}> 원가 · 판매단가 보기</label>` : '') + `</div>`;
@@ -191,17 +200,17 @@
       const df=(+v||0)-exp; out.textContent = df ? (df>0?'+':'')+won(df) : '같음'; out.className='num sk-out '+(df>0?'up':df<0?'down':'same'); if(why) why.hidden=!df; return; }
     if(!ins.some(i=>i.value!=='')){ out.textContent=''; return; }
     let v=exp; ins.forEach(i=>{ const n=+i.value||0; v += i.dataset.v==='in' ? n : -n; }); out.textContent=won(v); out.className='num sk-out'+(v<0?' down':''); }
+  // mvKind: in(입고) · out(출고: 붕정 = 온라인 판매 · 자체소진 · 선물/접대 / 차방 = F&B 음료제조 · 오프라인 판매) · count(재고조사) · rec(예전: 입고 + 출고) — 장소는 누른 버튼대로 (2026-11-24 붕정 · 차방 나눔)
   function paint(){ const m=modal(), cnt=mvKind==='count', loc=mvLoc, L=items();
-    m.querySelector('#skTitle').textContent = `${LOC[loc]} ${cnt?'재고조사':'기록'}`;
-    const cols = cnt ? [] : [['in','입고'], ...OUTS[loc]];
-    m.querySelector('#skBody').innerHTML = `<div class="seg sk-locs">${Object.entries(LOC).map(([k,l])=>`<button type="button" class="${k===loc?'on':''}" data-skloc="${k}">${l}</button>`).join('')}</div>`
-      + `<p class="hint">${cnt ? `${LOC[loc]}에서 실제로 센 수를 적어 주세요 · <b>예상 재고</b> = 기록으로 계산한 수 · 다르면 차이 사유를 적어 주세요 · 빈 칸은 기록하지 않음` : `${LOC[loc]}에서 ${cols.map(c=>c[1]).join(' · ')}한 수를 품목마다 적어 주세요 · 빈 칸은 그대로`}</p>`
+    m.querySelector('#skTitle').textContent = `${LOC[loc]} ${cnt?'재고조사':mvKind==='in'?'입고':mvKind==='out'?'출고':'기록'}`;
+    const cols = cnt ? [] : mvKind==='in' ? [['in','입고']] : mvKind==='out' ? OUTS[loc] : [['in','입고'], ...OUTS[loc]];
+    m.querySelector('#skBody').innerHTML = `<p class="hint">${cnt ? `${LOC[loc]}에서 실제로 센 수를 적어 주세요 · <b>예상 재고</b> = 기록으로 계산한 수 · 다르면 차이 사유를 적어 주세요 · 빈 칸은 기록하지 않음` : `${LOC[loc]}에서 ${cols.map(c=>c[1]).join(' · ')}한 수를 품목마다 적어 주세요 · 빈 칸은 그대로`}</p>`
       + `<div class="sk-f2"><label class="sk-f">${cnt?'조사일':'날짜'} <input type="date" id="skDate" value="${opsToday()}"></label><input id="skFind" type="search" placeholder="품목 찾기" data-ime="ko" autocomplete="off">${cnt?'<button type="button" class="btn sm" id="skAllSame">빈 칸 모두 예상과 같음</button>':''}</div>`
       + `<div class="tw sk-tw"><table class="tbl sk-ct"><thead><tr><th>품목</th><th class="num">${cnt?'예상 재고':'지금'}</th>${cnt?'<th class="num">실제 재고</th><th class="num">차이</th><th></th>':cols.map(([,l])=>`<th class="num">${l}</th>`).join('')+'<th class="num">기록 뒤</th>'}</tr></thead><tbody>`
-      + (L.length ? L.map(x=>{ const e=balNow(x, loc); return `<tr data-skid="${esc(x.r.id)}" data-nm="${esc(label(x.d))}" data-exp="${e}"><td>${esc(label(x.d))}</td><td class="num">${won(e)}</td>`
+      + (L.length ? L.map(x=>{ const e=balNow(x, loc); return `<tr data-skid="${esc(rid(x))}" data-nm="${esc(label(x.d))}" data-exp="${e}"><td>${esc(label(x.d))}</td><td class="num">${won(e)}</td>`
           + (cnt ? `<td class="num"><input type="number" min="0" step="1" inputmode="numeric" data-v="n" placeholder="센 수"></td><td class="num sk-out"></td><td class="sk-ctl"><button type="button" class="btn sm" data-sksame>예상과 같음</button><input class="sk-whyin" placeholder="차이 사유" data-ime="ko" hidden></td>`
             : cols.map(([k])=>`<td class="num"><input type="number" min="1" step="1" inputmode="numeric" data-v="${k}"></td>`).join('') + `<td class="num sk-out"></td>`) + `</tr>`; }).join('')
-        : `<tr><td colspan="7" class="empty">재고 목록이 비어 있습니다. 먼저 「엑셀 불러오기」를 해 주세요.</td></tr>`)
+        : `<tr><td colspan="7" class="empty">품목관리에 굿즈로 분류된 상품이 없습니다.</td></tr>`)
       + `</tbody></table></div><input id="skMemo" class="sk-memo" placeholder="메모 (선택 · 적은 모든 줄에 같이 남음)" data-ime="ko">`; }
   function openMv(t, loc){ if(!opsKey()){ toast('로그인해야 기록할 수 있습니다.'); return; } mvKind=t; mvLoc=loc||'wh'; const m=modal(); m.querySelector('#skErr').textContent=''; m.querySelector('#skOk').disabled=false; m.querySelector('#skOk').textContent='기록하기'; paint(); m.hidden=false; }
   const inCycle = (c, day) => !!day && !!c.next && day >= addDays(c.next, -7);
@@ -213,7 +222,9 @@
     if(L.some(x=>x.vals.some(v=>!(v.n>=0) || (!cnt && !(v.n>0))))){ err.textContent='수량은 숫자로 적어 주세요 (기록은 1 이상).'; return; }
     ok.disabled=true; ok.textContent='기록하는 중…';
     try{ await pull(); let changed=0, n=0;
-      for(const x of L){ const row=rows.find(y=>y.r && y.r.id===x.id); if(!row) continue;
+      for(const x of L){ let row=rows.find(y=>y.r && y.r.id===x.id);
+        if(!row){ const v0=items().find(y=>y.vid===x.id); if(!v0) continue;   // 아직 재고 줄이 없는 굿즈 → 처음 기록할 때 줄을 만듦
+          if(cnt && x.vals[0].n===0) continue; row=await saveItem({r:{}, d:{...v0.d}, log:[]}, ()=>null, ''); x.id=row.r.id; }
         if(cnt){ const v=x.vals[0].n, before=balNow(row, loc); if(v===before) continue; changed++;
           await saveItem(row, ()=>({t:'count', loc, n:v, date, memo:[x.why.trim(), memo].filter(Boolean).join(' · ')}), `${LOC[loc]} 재고조사 = ${v} (예상 ${before})`); continue; }
         for(const v of x.vals){ n++; await saveItem(rows.find(y=>y.r && y.r.id===x.id), ()=>({t:v.k, loc, n:v.n, date, memo}), `${LOC[loc]} ${TYPE_L[v.k]} ${v.n}`); } }
@@ -257,7 +268,7 @@
     const m=modal(), ok=m.querySelector('#skOk'), err=m.querySelector('#skErr'), date=m.querySelector('#skXlDate').value; if(!date){ err.textContent='날짜를 골라 주세요.'; return; }
     ok.disabled=true; err.textContent=''; let n=0;
     try{ await pull();
-      for(const r of xlData.rows){ ok.textContent=`넣는 중 ${n}/${xlData.rows.length}…`; const k=keyOf(r), have=items().find(x=>(x.d.key||keyOf(x.d))===k);
+      for(const r of xlData.rows){ ok.textContent=`넣는 중 ${n}/${xlData.rows.length}…`; const k=keyOf(r), have=stockRows().find(x=>(x.d.key||keyOf(x.d))===k);
         const row=await saveItem(have || {r:{}, d:{}, log:[]}, d=>{ Object.assign(d, {no:r.no, name:r.name, color:r.color, size:r.size, cost:r.cost, price:r.price}); return null; }, '');
         const r2=await saveItem(row, ()=>({t:'open', loc:'wh', n:r.wh, date, memo:'엑셀 불러오기'+(r.why?` · ${r.why}`:'')}), `엑셀 재고 붕정 = ${r.wh}`);
         await saveItem(r2, ()=>({t:'open', loc:'shop', n:r.shop, date, memo:'엑셀 불러오기'}), `엑셀 재고 차방 = ${r.shop}`); n++; }
