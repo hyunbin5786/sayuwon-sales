@@ -27,7 +27,7 @@
   const itemHTML = it => (it.login && !logged && !it.href) ? '' : it.sep ? (logged ? '<hr class="sm-sep">' : '') : it.sub ? `<div class="sm-sub">${esc(it.sub)}</div>`
     : it.chips ? `<div class="sm-chips">${it.chips.map(([k,l])=>`<a class="sm-chip" href="${base}group.html?book=${k}">${esc(l)}</a>`).join('')}</div>`
     : (it.login && !logged) ? ''
-    : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}</b></a>`;   // 메뉴 아래 회색 설명은 없앰 (2026-11-18)
+    : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}${typeof SY_DEV!=="undefined" && SY_DEV.off(it.href)?`<small class="sm-dev">개발 중</small>`:""}</b></a>`;   /* 배포 사이트: 개발 중 기능 표시 (2026-11-24 · js/common.js SY_DEV) */   // 메뉴 아래 회색 설명은 없앰 (2026-11-18)
   const wrap=document.createElement('div'); wrap.className='smenu'; wrap.id='smenu'; wrap.hidden=true;
   wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"><div class="sm-top"><b class="sm-title">메뉴</b><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
     + G.filter(g=>logged || !g.login || g.items.some(i=>i.guest)).map(g=>{ const its = logged || !g.login ? g.items : g.items.filter((i,n,a)=>i.guest || (i.sub && a.slice(n+1).find(x=>x.sub || x.guest)?.guest));   // 로그인 안 했으면 로그인 묶음에서는 guest 항목(과 그 소제목)만

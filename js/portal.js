@@ -260,11 +260,12 @@ async function loadDash(){
 // 공통 업무에 더할 것 (2026-11-24): 기업 프로모션 만료 2달 · 1달 전 알림 (promodb · 「확인」 전까지) · 협업 여행사 집계기록 넣기 (agencydb · 끝난 기간의 기록이 없으면)
 const histOf = id => { const it=(lastItems||[]).find(x=>x.id===id && !x.deleted); try{ return JSON.parse((it && it.history)||'null'); }catch(_){ return null; } };
 //  2026-11-24: 무엇을 알릴지(켜기 · 이름 · 할 일 · 만료 몇 달 전 · 새 공통 업무)는 「공통 업무」 옆 「관리」 — js/commonmgr.js (cmOn · cmRule · cmRecs)
+const devOff = p => typeof SY_DEV!=='undefined' && SY_DEV.off(p);   // 배포 사이트에서 개발 중인 화면(재고관리 · 기업 프로모션 · 협업 여행사)의 알림은 숨김 (2026-11-24 · js/common.js SY_DEV)
 function commonExtra(today){ const out=[];
-  if(cmOn('promo')){ const R=cmRule('promo');
+  if(cmOn('promo') && !devOff('promo.html')){ const R=cmRule('promo');
     opsPromoAlerts(histOf('promodb'), today, cmMonths()).forEach(a=>out.push({kind:'공통', owner:'', name:`${R.title||'기업 프로모션'} ${a.label} · ${a.name}`, q:a.name, href:'promo.html',
       tasks:[{title:`만료 ${opsDateLabel(a.end)} · ${R.text||'연장 여부 확인'}`, due:a.due}]})); }
-  const ag=cmOn('agency') && opsAggDue(histOf('agencydb'), today), RA=cmRule('agency');
+  const ag=cmOn('agency') && !devOff('agency.html') && opsAggDue(histOf('agencydb'), today), RA=cmRule('agency');
   if(ag) out.push({kind:'공통', owner:'', name:`${RA.title||'협업 여행사 집계기록 넣기'} · ${ag.label}`, q:'협업 여행사 집계 '+(RA.title||''), href:'agency.html',
     tasks:[{title:`${opsDateLabel(ag.from)} ~ ${opsDateLabel(ag.to)} · ${RA.text||'방문기록 엑셀을 넣어 여행사별 집계'}`, due:ag.due}]});
   return [...out, ...cmRecs(today)]; }
@@ -304,7 +305,7 @@ function calHTML(today){
   const [y,m]=calMonth.split('-').map(Number), first=new Date(y, m-1, 1), start=first.getDay(), days=new Date(y, m, 0).getDate();
   // 기간 일정 (2026-11-24): d2(끝나는 날)가 있으면 d ~ d2 의 모든 날에 보임 (예: 겨울 휴장) · 기간 안의 날은 칸 바탕을 연한 파랑(rng)
   // 기업 프로모션 시작 · 만료 (2026-11-24 · promodb): 주황 점 · 그날 목록에 「프로모션 시작 · 만료」
-  const PR=((histOf('promodb')||{}).rows||[]).flatMap(r=>{ const p=opsPeriod(r.period), n=String(r.name||'').split(/\n/)[0]; return [p.from?{d:p.from, t:'시작', n}:null, p.to?{d:p.to, t:'만료', n}:null].filter(Boolean); });
+  const PR=devOff('promo.html') ? [] : ((histOf('promodb')||{}).rows||[]).flatMap(r=>{ const p=opsPeriod(r.period), n=String(r.name||'').split(/\n/)[0]; return [p.from?{d:p.from, t:'시작', n}:null, p.to?{d:p.to, t:'만료', n}:null].filter(Boolean); });
   const V=calVisits(), E=calRows(lastItems), on=(x,ds)=>x.d2 && x.d2>x.d ? (x.d<=ds && ds<=x.d2) : x.d===ds, cnt=(L,d)=>L.filter(x=>x.d===d).length, cntE=d=>E.filter(x=>on(x,d)).length, rng=d=>E.some(x=>x.d2 && x.d2>x.d && on(x,d));
   let cells=''; for(let i=0;i<start;i++) cells+='<span class="cd e"></span>';
   for(let d=1; d<=days; d++){ const ds=`${calMonth}-${String(d).padStart(2,'0')}`, v=cnt(V,ds), e=cntE(ds), dow=(start+d-1)%7;
@@ -371,7 +372,7 @@ function renderDash(){ if(!dashData) return; paintRange();
   const memSel = `<select id="dashMem" class="dmem" title="이 사람의 개인 업무만"><option value="">전체</option>${names.map(n=>`<option${n===dashMem?' selected':''}>${esc(n)}</option>`).join('')}</select>`;
   const etc = mine.filter(r=>r.kind==='기타' && (!dashMem || r.owner===dashMem));
   // ④ 2행 공통 업무: 담당이 없는 과업 (고객 견적 요청 · 담당 없는 예약 과업 등) + 정기 재고조사 날
-  const RS = cmRule('stock'), st = cmOn('stock') ? stockDue(today) : '', pre = st ? `<li class="drec late"><a href="stock.html"><span class="dr-h"><b>${esc(RS.title||'📋 정기 재고조사')}</b></span><span class="dr-t">${dl(st)} · ${esc(RS.text||'붕정 · 차방을 세어 재고관리에 기록')}</span></a></li>` : '';
+  const RS = cmRule('stock'), st = cmOn('stock') && !devOff('stock.html') ? stockDue(today) : '', pre = st ? `<li class="drec late"><a href="stock.html"><span class="dr-h"><b>${esc(RS.title||'📋 정기 재고조사')}</b></span><span class="dr-t">${dl(st)} · ${esc(RS.text||'붕정 · 차방을 세어 재고관리에 기록')}</span></a></li>` : '';
   $('#dashBody').innerHTML = `<div class="dcols d2">`
     + box('개인','개인고객 전화', mine.filter(r=>r.kind==='개인'), '', {cls:'span2'})
     + box('단체','단체고객 전화', mine.filter(r=>r.kind==='단체'), '', {cls:'span2'})

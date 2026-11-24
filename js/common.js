@@ -151,3 +151,36 @@ const SY = Object.freeze({
     const m=localStorage.getItem('sy_mock'), me=document.currentScript && document.currentScript.src; if(!me || !m) return;
     document.write('<script src="'+me.replace(/common\.js.*$/, 'devcf.js')+'"><\/script>');
   }catch(_){} })();
+
+// ===== 개발 중 기능 가리기 (2026-11-24) =====
+// 배포 사이트(main = hyunbin5786.github.io/sayuwon-sales/)에서는 아래 화면을 열면 「아직 개발 중입니다」 · 테스트 사이트(…/sayuwon-sales/test/ · 다른 주소) · 이 컴퓨터(localhost)에서는 그대로
+// 기능을 배포할 때 = 아래 DEV_PAGES 에서 그 줄을 지우면 끝 (메뉴의 「개발 중」 표시 · 첫 화면 공통 업무 알림도 같이 풀림)
+// 이 컴퓨터에서 배포 사이트처럼 보기: 주소 끝에 ?asprod=1
+const SY_DEV = (function(){
+  const DEV_PAGES = {
+    'clergy.html':'대구대교구 무료입장 명부', 'cancel.html':'예약 취소 요청', 'rent.html':'대관 규정 및 상품', 'agency.html':'협업 여행사 할인 현황',
+    'accident.html':'사고현황 접수', 'stock.html':'재고관리', 'promo.html':'기업 프로모션 할인', 'press.html':'홍보 기자 리스트', 'manual.html':'고객 응대 매뉴얼',
+  };
+  const host=location.hostname, path=location.pathname;
+  const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(host) || /\.localhost$/.test(host);
+  const isTest = /^\/sayuwon-sales\/test(\/|$)/.test(path) || /[?&]test=1\b/.test(location.search);
+  const isProd = /[?&]asprod=1\b/.test(location.search) || (host==='hyunbin5786.github.io' && /^\/sayuwon-sales(\/|$)/.test(path) && !isTest);
+  const page = path.split('/').pop() || 'index.html';
+  const off = p => isProd && Object.prototype.hasOwnProperty.call(DEV_PAGES, String(p||'').replace(/^.*\//,'').replace(/[?#].*$/,''));
+  function block(){
+    const name=DEV_PAGES[page]||'이 기능';
+    const d=document.createElement('div'); d.id='syDevBlock';
+    d.setAttribute('style','position:fixed;inset:0;z-index:99999;background:#f6f4ee;display:flex;align-items:center;justify-content:center;padding:20px;font-family:"Noto Sans KR",system-ui,sans-serif');
+    d.innerHTML='<div style="background:#fff;border:1px solid #dfdace;border-radius:16px;padding:32px 28px;max-width:440px;width:100%;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.08)">'
+      +'<div style="font-size:42px;line-height:1">🛠️</div><h1 style="font:600 22px \'Noto Serif KR\',serif;color:#3f5236;margin:14px 0 8px">아직 개발 중입니다</h1>'
+      +'<p style="margin:0 0 20px;color:#4a4740;line-height:1.7;font-size:14.5px">「'+SY.esc(name)+'」은(는) 지금 만들고 확인하는 중인 기능입니다.<br>준비가 끝나면 이 메뉴에서 바로 쓸 수 있습니다.</p>'
+      +'<a href="./" style="display:inline-block;background:#3f5236;color:#fff;text-decoration:none;border-radius:9px;padding:10px 22px;font-weight:700;font-size:14px">첫 화면으로</a></div>';
+    document.body.appendChild(d); document.documentElement.style.overflow='hidden';
+  }
+  if(off(page)){ if(document.body) block(); else document.addEventListener('DOMContentLoaded', block); }
+  if(isTest && !isLocal){   // 테스트 사이트 표시 (배포 사이트와 헷갈리지 않게)
+    const t=()=>{ const b=document.createElement('div'); b.textContent='테스트 사이트'; b.setAttribute('style','position:fixed;left:10px;bottom:10px;z-index:99998;background:#b5442c;color:#fff;font:700 12px "Noto Sans KR",sans-serif;padding:4px 10px;border-radius:999px;pointer-events:none;opacity:.9'); document.body.appendChild(b); };
+    if(document.body) t(); else document.addEventListener('DOMContentLoaded', t);
+  }
+  return Object.freeze({isProd, isTest, isLocal, off, DEV_PAGES});
+})();
