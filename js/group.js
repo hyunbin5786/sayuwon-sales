@@ -150,6 +150,7 @@ const isCKey = k => /^c\d+_(name|phone|email|memo)$/.test(k);   // 담당자 칸
 let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
 const PPL_TITLE='전날 확인 변경 → 예약내역&전산 확인';   // 「관람 인원이 바뀌면」 과업 이름 (2026-11-21 · 예전 「예약 내역&전산 내역 확인」 · 직접 고친 이름은 그대로)
+let memoOpened='';   // 예약을 열 때의 통화 메모 (다른 곳에서 바뀌어 다시 열 때 적던 글을 지키는 데 씀 · 2026-11-24)
 let hist=[], baseSnap=null, tasks=[], erpList=[], openDone=new Set(), memos=[], lockOwner='';   // memos: 이 예약에 남긴 메모 · lockOwner: 남이 담당인 예약을 열었을 때 그 담당 이름 (잠금)
 const FRESH_KEYS = ['org','people','date','tin','phone','vehicle','pay','sadam1','sadam2','sadamD','mabangL','memo','contact'];   // 견적서 · 거래명세서 · 사전답사 전에 공유 기록이 다른 곳에서 바뀌었는지 (freshRec)
 const rawPick = r => JSON.stringify(FRESH_KEYS.map(k=>String((r||{})[k]??'').trim()));
@@ -1829,7 +1830,7 @@ SY.live.on(m=>{ const id = m.t==='del' ? m.id : m.item.id; cache=merged(); clear
   liveT=setTimeout(()=>{ if(!window.__tasksReady) return;
     try{
       // 그 예약을 이 화면에서도 열어 두었고 고치던 것이 없으면: 새 내용으로 다시 엶 (화면의 과업이 옛 상태로 남았다가 저장되어 되돌아가지 않게)
-      if(m.t==='put' && editingId===id && !saving && !lockOwner && !isDirty() && $('#listModal').hidden && !document.activeElement?.closest?.('#taskList, #form')){ const r=cache.find(x=>x.id===id); if(r){ const y=window.scrollY; openRecord(r); window.scrollTo(0,y); } }
+      if(m.t==='put' && editingId===id && !saving && (lockOwner ? (typeof lockSaving==='undefined' || !lockSaving) : !isDirty()) && $('#listModal').hidden && !document.activeElement?.closest?.('#taskList, #form')){ const r=cache.find(x=>x.id===id); if(r){ const y=window.scrollY, lk=!!lockOwner, typed=$('#memoBox').value, foc=document.activeElement===$('#memoBox'), was=String(typeof memoOpened!=='undefined' ? memoOpened : ''); openRecord(r); window.scrollTo(0,y); if(lk && typed.trim()!==String(r.note||'').trim() && typed.trim()!==was.trim()){ $('#memoBox').value=typed; } if(lk && foc) $('#memoBox').focus(); } }   // 남이 담당인 예약도 새 내용으로 (2026-11-24 · 적던 통화 메모는 그대로 둠)
       paintMyCount(); if(!$('#listModal').hidden) renderList();
       if(!$('#myModal').hidden && !(typeof etcEdit!=='undefined' && etcEdit && document.activeElement?.closest?.('.etc-edit')) && !document.activeElement?.matches?.('.tk-memoin, .tk-subin, .tk-in')) renderMy();
     }catch(e){ console.warn('live', e); } }, 30); });
@@ -1898,7 +1899,7 @@ async function pull(inFlush){
   if(flushing && !inFlush) return;
   try{
     const j=await SY.list(inFlush ? {fresh:true} : {});   // 바뀐 것만 받아 사본에 합침 (js/common.js, 2026-11-21)
-    serverItems=j.items||[]; pulledOnce=true; cacheWrite(serverItems);
+    serverItems=j.items||[]; pulledOnce=true; cacheWrite(serverItems); cache=merged();   // 2026-11-24: 받은 것을 바로 합침 — 예전엔 나의 할일 · 알림을 옛 사본으로 다시 그려(합치기는 그 뒤 renderList 에서) 다른 컴퓨터에서 바꾼 과업이 늦게 보였음
     if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
     dbTime.pulled=new Date().toISOString(); writeJSON(DBT_LS, dbTime);
     syncState='ok'; lastSyncErr=''; syncErrN=0; $('#keyMsg').textContent=''; paintSync(); renderList(); tryOpenG(); liveSync(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); checkMemoPopup(); if(editingId){ const cr=cache.find(x=>x.id===editingId); if(cr){ memos=mergeMemos(memos, parseHist(cr).memos); paintLock(); } } if(!$("#myModal").hidden && !(typeof etcEdit!=="undefined" && etcEdit && document.activeElement?.closest?.(".etc-edit")) && !document.activeElement?.matches?.(".tk-memoin, .tk-subin, .tk-in")) renderMy(); }   // 과업 칸(메모 · 세부 과업)에 적는 중이면 나의 할일을 다시 그리지 않음
@@ -2491,7 +2492,7 @@ function renderTasks(){
     const files = !['tax','quote','stmt'].includes(t.id) && (t.files||[]).length ? `<div class="tfiles">${t.files.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}</div>` : '';
     const due=taskDue(t), late=!t.done && due<todayYmd(); const subsDone=taskSubsDone(t), fold=t.done && subsDone && !openDone.has(t.id);   // 아래 하위 과업 · 세부 과제가 다 체크돼야 접힘   // 끝난 과업은 첫 줄만 (누르면 펼침)
     return `<li class="task${t.done?' done':late?' late':''}${fold?' collapsed':''}" data-id="${esc(t.id)}">
-      <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<span class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''} title="체크하면 완료"><input class="ttl" data-tttl="${esc(t.id)}" value="${esc(t.title)}" data-ime="ko" spellcheck="false" autocomplete="off" title="눌러서 제목 고치기 (Enter로 확정)"></span>${t.done && subsDone?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}
+      <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<span class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''} title="체크하면 완료"><input class="ttl" data-tttl="${esc(t.id)}" value="${esc(t.title)}" data-ime="ko" spellcheck="false" autocomplete="off" title="눌러서 제목 고치기 (Enter로 확정)"></span>${t.who && t.who!==String(rec.owner||"").trim() ? `<span class="tk-whotag" title="이 과업을 할 사람 (영업 담당이 아님 · 그 사람의 나의 할일에 나옴)">👤 ${esc(t.who)}</span>` : ""}${t.done && subsDone?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}
         ${t.done?'':`<span class="tmove"><button type="button" data-tmv="${esc(t.id)}|-1" title="위로">▲</button><button type="button" data-tmv="${esc(t.id)}|1" title="아래로">▼</button></span>`}<label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':'마감 '}${dboxHTML(`data-tdue="${esc(t.id)}"`, due)}</label><button type="button" class="tsave" data-tsave="${esc(t.id)}" title="이 과업의 고친 내용(체크 · 제목 · 마감일 · 메모 · 세부 과제)을 지금 저장">저장</button><button type="button" class="del" data-tdel="${esc(t.id)}" title="이 과업 삭제 (확인 뒤)" aria-label="과업 삭제">×</button></div>
       ${typeof tcfgDescHTML==='function' ? tcfgDescHTML(t) : (t.id==='pplchk' && pplChanges(t).length ? `<div class="tk-chg tchg-line">바뀐 내용: ${pplChanges(t).map(esc).join(' · ')}</div>` : '')}${subsHTML(t)}${docBtn}${files}
       ${txt?`<textarea class="tnote${t.noteEdit?' edited':''}" id="tpre_${esc(t.id)}" data-tnote="${esc(t.id)}" spellcheck="false" title="자동으로 만든 문구 · 직접 고칠 수 있음">${esc(txt)}</textarea><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')||t.id==='tour'?'비고 문구 복사':'문구 복사'}</button>${t.noteEdit?`<button type="button" class="btn" data-tregen="${esc(t.id)}" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><span class="hint" style="margin:0">직접 고친 문구</span>`:''}<span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
@@ -2746,7 +2747,7 @@ function openRecord(r){
     if(/^adm/.test(r.id) && !rec.erp) rec.erp='관리자 예약';   // 관리자 사이트에서 온 예약은 이미 전산에 있음
     rec.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(rec) ? normStage(r.callType) : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
-    nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; openedRaw=rawPick(r); openedObj=liveVals(r); $('#memoBox').value=r.note||'';
+    nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; openedRaw=rawPick(r); openedObj=liveVals(r); $('#memoBox').value=r.note||''; memoOpened=r.note||'';
     const ph=parseHist(r); hist=ph.h; tasks=ph.tasks; erpList=ph.erp||[]; memos=ph.memos||[];
     { const o=(r.owner||r.takenBy||'').trim(), me=savedOwner(); lockOwner = o && me && o!==me ? o : ''; } paintLock(); acquireEdit(r.id);   // 남이 담당인 예약: 잠금 (메모만)
     renderContacts(); renderForm(); resetWarn(true); baseSnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
@@ -3958,7 +3959,7 @@ const doneTodayOpen = () => { try{ return localStorage.getItem(DONE_TODAY_LS)===
 function doneTodayHTML(){
   const today=ymd(new Date()), me=savedOwner(), isToday = s => { const x=new Date(s||''); return !isNaN(x) && ymd(x)===today; }, rows=[];
   const L=[];   // 같은 과업 줄 모양 (완료 = 줄 그음 · 체크를 풀면 다시 열림, 2026-11-21)
-  (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).tasks.filter(t=>t.done && !t.removed && !SELF_DONE.has(t.id) && isToday(t.doneAt)).forEach(t=>L.push(tkFromG(r, t))));
+  (cache||[]).filter(r=>isGroupRec(r) && (ownerOf(r)===me || mayStaff(r, me))).forEach(r=>parseHist(r).tasks.filter(t=>t.done && !t.removed && !SELF_DONE.has(t.id) && isToday(t.doneAt) && taskForMe(r, t, me)).forEach(t=>L.push(tkFromG(r, t))));   // 내가 담당자인 준비 과업도 (2026-11-24 · 체크를 풀어 다시 열 수 있게)
   (cache||[]).filter(r=>isPersonalRec(r) && (r.owner||r.takenBy)===me).forEach(r=>{ let ts=[]; try{ ts=(JSON.parse(r.history||'{}').tasks)||[]; }catch(_){} ts.filter(t=>t.done && isToday(t.doneAt)).forEach(t=>L.push(tkFromP(r, t))); });
   etcMine().forEach(o=>Object.entries(o.d.done||{}).filter(([,v])=>isToday(v&&v.at)).forEach(([day])=>L.push({...tkFromE(o, day), done:true, src:catLabel(etcCatOf(o.d))||ETC_NOCAT, srcAttr:''})));
   L.forEach(T=>rows.push(tkHTML(T)));

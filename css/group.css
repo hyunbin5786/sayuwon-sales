@@ -1130,3 +1130,5 @@ html.g-loading body{overflow:hidden}
 /* 담당 = 멤버 드롭다운 (2026-11-24) */
 .it-s select.it-stfsel,.it-xl select.it-stfsel{width:100%;height:34px;border:1.5px solid #8fb07f;border-radius:6px;padding:0 6px;background:#eef5e9;color:var(--pine);font:600 13px var(--sans);cursor:pointer}
 .it-s.missing select.it-stfsel,.it-xl.missing select.it-stfsel{border-color:#d9a08a;background:#fdf3ef;color:#8a4b2a}
+/* 추후 과업: 영업 담당이 아닌 사람이 할 과업에 그 사람 이름 (2026-11-24) */
+.task-h .tk-whotag{flex:none;font:700 12px var(--sans);color:#3d5a80;background:#e9eef7;border:1px solid #c9d6ea;border-radius:999px;padding:1px 9px;white-space:nowrap}
