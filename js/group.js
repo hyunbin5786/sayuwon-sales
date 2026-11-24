@@ -392,8 +392,19 @@ function clearItem(k){ const t=itemKind(k);
   else if(t!=='new'){ [k, 'stf_'+k, 'tm_'+k, 'crs_'+k, 'plc_'+k, ...(k==='seminar' ? SEM2_IX : [])].forEach(x=>{ if(rec[x]){ rec[x]=''; touched.add(x); } }); }
   itemPend.delete(k);
 }
+// 담당 고르기 (2026-11-24): 이름을 치지 않고 멤버 목록(멤버관리)에서 고름 → 그 사람에게 「단체 준비」 과업이 감 (이름이 정확히 같아야 해서)
+//  목록에 없는 사람은 맨 아래 「＋ 새 멤버 추가…」 → 이름만 넣으면 멤버로 바로 만듦 (임시 사번 NEW-… · 사번 · 연락처는 멤버관리에서)
+//  예전에 쳐 둔 이름이 멤버가 아니면 「(멤버 아님)」으로 그대로 보임
+let MEMBER_NAMES = (()=>{ try{ return JSON.parse(localStorage.getItem('sy_member_names')||'[]')||[]; }catch(_){ return []; } })();
+async function loadMemberNames(again){ try{ const j=await SY.callRaw({action:'members'}); if(!j || !j.ok) return;
+    const L=[...new Set((j.members||[]).map(m=>String(m.name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'));
+    const changed=L.join('|')!==MEMBER_NAMES.join('|'); MEMBER_NAMES=L; try{ localStorage.setItem('sy_member_names', JSON.stringify(L)); }catch(_){}
+    if((changed || again) && typeof renderItems==='function' && document.getElementById('itemsBox')) renderItems(true); }catch(_){} }
+const staffSelHTML = (k, v, title) => { const cur=String(v||'').trim(), has=MEMBER_NAMES.includes(cur);
+  return `<select class="it-stfsel" data-is="${esc(k)}" title="${esc(title||'담당')}"><option value="">담당 고르기 (필수)</option>${MEMBER_NAMES.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('')}`
+    + (cur && !has ? `<option value="${esc(cur)}" selected>${esc(cur)} (멤버 아님)</option>` : '') + `<option value="__new">＋ 새 멤버 추가…</option></select>`; };
 // 세미나 도슨트 2회 이상: 장소마다 담당 칸 (첫 번째 = stf_seminar · 두 번째 = stf_seminar2, 2026-11-21)
-const semStfHTML = (k, tt) => { const v=String(rec['stf_'+k]||''); return `<label class="it-xl it-stf${v.trim()?'':' missing'}">담당 <input class="it-x" data-is="${k}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(v)}" title="${tt}"></label>`; };
+const semStfHTML = (k, tt) => { const v=String(rec['stf_'+k]||''); return `<label class="it-xl it-stf${v.trim()?'':' missing'}">담당 ${staffSelHTML(k, v, tt)}</label>`; };
 // 드롭다운: 묶음(optgroup)별 항목. 다른 줄에서 이미 고른 항목은 못 고름
 function itemSelectHTML(k, rows){
   const used=new Set(rows.filter(x=>x!==k)), mbUsed=used.has('mb');
@@ -456,9 +467,9 @@ function itemRowHTML(k, rows){
     : `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`;
   return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}<span class="it-p" data-iup="${esc(k)}"></span>`
     + qtyHTML
-    + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="굿즈 담당 (기본 = 영업 담당 · 고칠 수 있음 · 굿즈 모두 같은 담당)"></span>`
+    + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}">${staffSelHTML(k, sv, '굿즈 담당 (기본 = 영업 담당 · 굿즈 모두 같은 담당)')}</span>`
       : k==='seminar' && sem2On(rec) ? `<span class="it-s none"><input disabled placeholder="장소마다 담당 ↓" title="세미나 도슨트 2회 이상: 아래 장소마다 담당을 넣습니다"></span>`   // 2026-11-21
-      : stf ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="프로그램 담당"></span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
+      : stf ? `<span class="it-s${sv.trim()?'':' missing'}">${staffSelHTML(k, sv, '프로그램 담당')}</span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
     + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
     + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div><div class="it-extra">${extra}<span class="it-amt" data-iamt="${esc(k)}"></span></div>`) + `</div>`;   // 둘째 줄: 할인(할인 대상만) · 셋째 줄: 비고 (할인이 없으면 바로 비고, 금액은 그 줄 끝)
 }
@@ -719,7 +730,8 @@ document.addEventListener('input', e=>{
     const n=parseInt(c)||0, ai=el.closest('.it-q2')?.querySelector('[data-iqa]'), a=parseInt((ai?.value||'').replace(/\D/g,''))||0;
     setItemStu(k, n); setItemQty(k, a+n ? String(a+n) : ''); itemChanged(false, true); }
   else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); startTimer(); repaintSoon(); }   // 항목 비고 (치는 동안은 다시 그리지 않음)
-  else if(el.dataset.is!=null){ const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); repaintSoon(); }   // 담당 이름 (치는 동안은 다시 그리지 않음)
+  else if(el.dataset.is!=null){ if(el.value==='__new'){ const k=el.dataset.is; el.value=String(rec[itemStfKey(k)]||''); newMemberAsk(k); return; }   // 「＋ 새 멤버 추가…」 (2026-11-24)
+    const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); repaintSoon(); }   // 담당 (멤버 목록에서 고름)
   else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^tm[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
   else if(el.dataset.ix!=null && el.tagName==='INPUT'){ rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix); itemChanged(false, true); }
 });
@@ -1170,6 +1182,33 @@ function readback(r){
   return s;
 }
 
+// ===== 담당 고르기의 「＋ 새 멤버 추가…」 (2026-11-24) =====
+// 이름만 넣으면 멤버관리에 바로 만듦 (임시 사번 NEW-xxxxxx · 이 사번으로는 로그인할 일이 없음) → 그 줄의 담당으로 고름. 사번 · 연락처는 멤버관리에서 넣으면 그 이름 그대로 바뀜
+function newMemberAsk(k){
+  let m=document.getElementById('nmModal');
+  if(!m){ m=document.createElement('div'); m.id='nmModal'; m.className='modal'; m.hidden=true;
+    m.innerHTML=`<section class="panel ask-box" role="dialog" aria-modal="true" aria-labelledby="nmTitle"><h2 id="nmTitle">새 멤버 추가</h2>`
+      + `<p class="ask-msg">멤버관리에 없는 사람의 이름을 넣으면 바로 멤버로 만들고 담당으로 고릅니다. <b>사번 · 연락처는 멤버관리</b>에서 넣어 주세요.</p>`
+      + `<input id="nmName" data-ime="ko" placeholder="이름" style="width:100%;height:38px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit;box-sizing:border-box">`
+      + `<p class="err" id="nmErr" style="min-height:1em;margin:6px 0"></p><div class="ask-btns"><button type="button" class="btn primary" id="nmNo">취소</button><button type="button" class="btn primary" id="nmOk">추가하고 고르기</button></div></section>`;
+    document.body.appendChild(m);
+    m.addEventListener('mousedown', e=>{ if(e.target===m) m.hidden=true; });
+    m.querySelector('#nmNo').onclick=()=>{ m.hidden=true; };
+    m.querySelector('#nmName').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); m.querySelector('#nmOk').click(); } }); }
+  m.dataset.k=k; m.querySelector('#nmName').value=''; m.querySelector('#nmErr').textContent=''; m.hidden=false; setTimeout(()=>m.querySelector('#nmName').focus(), 0);
+  m.querySelector('#nmOk').onclick=async()=>{ const name=m.querySelector('#nmName').value.trim().replace(/\s+/g,' '), err=m.querySelector('#nmErr'), ok=m.querySelector('#nmOk');
+    if(!name){ err.textContent='이름을 넣어 주세요.'; return; }
+    const pick=()=>{ const sk=itemStfKey(m.dataset.k); rec[sk]=name; touched.add(sk); m.hidden=true; renderItems(true); startTimer(); };
+    if(MEMBER_NAMES.includes(name)){ pick(); return; }   // 이미 있는 이름이면 그냥 고름
+    ok.disabled=true; ok.textContent='추가하는 중…';
+    try{ const emp='NEW-'+Math.random().toString(36).slice(2,8).toUpperCase(), j=await SY.call({action:'memberAdd', list:[{name, emp}], by:savedOwner()||''});
+      if(!j.added){ err.textContent='멤버를 만들지 못했습니다. 다시 눌러 주세요.'; return; }
+      MEMBER_NAMES=[...new Set([...MEMBER_NAMES, name])].sort((a,b)=>a.localeCompare(b,'ko')); try{ localStorage.setItem('sy_member_names', JSON.stringify(MEMBER_NAMES)); }catch(_){}
+      toast(`「${name}」 님을 멤버로 만들었습니다 · 사번 · 연락처는 멤버관리에서`); pick(); }
+    catch(e){ err.textContent = e.code==='bad_key' ? '로그인을 확인해 주세요.' : '만들지 못했습니다: '+(e.code||e.message); }
+    finally{ ok.disabled=false; ok.textContent='추가하고 고르기'; } };
+}
+loadMemberNames();
 // ===================== 그날 예약 현황 (식사·프로그램) =====================
 const INFO_OF = k => isSub(k) ? null : OPT[GROUP_OF[k]]?.id || null;   // sadam · mabang · prog
 let curInfoKey = null;
@@ -2078,7 +2117,7 @@ const tourPeople = r => numOf(tourParse(r.tour).people);
 const tourNote = r => { const pay=tourPeople(r)-1; return `${String(r.org||'').trim()||'단체명'} 사전답사${pay>=1?`/${pay}명 현장결제 필요`:''}`; };   // 답사 1명은 무료 → 2명 이상이면 (인원 − 1)명 현장결제 필요 (2026-11-17)
 const tourMemo = r => String(r.tour||'').split(/\s*,\s*/).filter(Boolean).join('\n');
 const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', onsitecall:'현장 결제 인원 확인 연락', wkcheck:'다음주 예약 점검', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인', clergy:'대구대교구 정보 기입',
-  pplchk:PPL_TITLE, erpkeep:'전산 예약을 예약 내용대로 수정' };   // 2026-11-23: 조건이 아니라 「일이 생겼을 때」 만들어지는 자동 과업 두 개도 추후과업 메시지 관리 목록에 (이름 · 마감 · 세부 과업 · 문구 · 끄기)
+  pplchk:PPL_TITLE, erpkeep:'전산 예약을 예약 내용대로 수정', prep:'단체 준비' };   // prep = 담당자마다 생기는 「단체 준비 : 동행 도슨트」 (실제 id 는 prep:이름 · 추후과업 메시지 관리의 「단체 준비」 하나로 이름 · 끄기 · 조건 · 마감 · 세부 과업을 정함, 2026-11-24)   // 2026-11-23: 조건이 아니라 「일이 생겼을 때」 만들어지는 자동 과업 두 개도 추후과업 메시지 관리 목록에 (이름 · 마감 · 세부 과업 · 문구 · 끄기)
 // ===== 과업이 끝났는지 (2026-11-23 정리) =====
 //  - 보통 과업: 사람이 체크하면 끝 (어느 화면에서든 · t.done + t.manualDone)
 //  - 아래 여섯 가지는 예약 내용으로 확인한 뒤에만 끝남 (2026-11-23에 「체크만으로 완료」로 바꿨다가 같은 날 되돌림 — 요청):
@@ -2226,7 +2265,33 @@ const staffHead = r => [r.org&&`<${r.org}>`, r.date&&dateLabel(r.date), r.people
 const prepWho = r => Object.keys(staffBy(r)).filter(w=>w!=='(담당 미정)');
 function prepMsg(r, who){ const L=staffBy(r)[who]||[], c=contactsOf(r)[0]||{};
   return `[단체예약 준비] ${staffHead(r)}\n${L.map(s=>'- '+s).join('\n')}` + (c.name||c.phone ? `\n고객 담당: ${[c.name,c.phone].filter(Boolean).join(' ')}` : '') + `\n영업 담당: ${(r.owner||savedOwner()||'').trim()||'-'}`; }
-const prepTitle = (r, who) => { const L=staffBy(r)[who]||[]; return `준비: ${L.map(s=>s.replace(/\s+\d.*$/,'').replace(/\s*\(.*$/,'')).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'단체 일정'}`.slice(0,60); };
+// 단체 준비 규칙 (추후과업 메시지 관리 「단체 준비」를 열면 보임 · js/taskcfg.js) — 규칙을 바꾸면 이 글도 같이
+const PREP_RULES = `■ 무엇
+  예약 내역에서 프로그램 · 대관 · 도슨트 · 음료쿠폰 · 굿즈의 「담당」으로 고른 사람마다 과업이 하나씩 생김
+  예) 단체 준비 : 동행 도슨트 · 요가
+
+■ 누구에게 보이나
+  그 담당자의 나의 할일(단체예약 구분 · 오늘 마감) · 첫 화면 「단체고객 전화」의 그 사람 줄 · 마감 알림
+  영업 담당의 나의 할일 · 첫 화면에는 안 나옴 (예약 화면의 추후 과업 목록에는 모두 보임)
+  영업 담당은 「담당자에게 일정 전달」 하나 — 담당자마다 세부 과업 「김선영 : 동행 도슨트」 (모두 체크하면 완료)
+
+■ 제목
+  이 과업 이름(기본 「단체 준비」) + " : " + 그 사람이 맡은 것 이름 (같은 이름은 한 번)
+  이름 칸을 바꾸면 앞말만 바뀜 (예: 「준비할 것」 → 「준비할 것 : 동행 도슨트」)
+
+■ 마감 · 조건
+  기본 마감 = 방문 전날 · 아래 마감 칸에서 바꿀 수 있음
+  예약상담 · 방문일이 지난 예약은 새로 만들지 않음 · 담당이 비면 안 생김 · 담당을 바꾸면 새 사람 것으로
+  「이 과업을 자동으로 만들지 않음」에 체크하면 담당자 과업이 안 생김 (「담당자에게 일정 전달」의 담당자별 세부 과업 줄은 그대로)
+
+■ 문구 · 메모
+  문구와 메모 칸은 없음 (과업 이름만) — 필요하면 아래 「과업 아래 안내 줄」에 적기 (예: {단체명} {방문일} 입장 {입장시간})
+
+■ 담당 고르기
+  예약 내역의 담당 칸은 멤버 목록에서 고름 · 목록에 없으면 「＋ 새 멤버」로 이름만 만들고 사번 · 연락처는 멤버관리에서`;
+// 제목 「단체 준비 : 동행 도슨트 · 요가」 (앞말 = 추후과업 메시지 관리의 「단체 준비」 이름 · 2026-11-24) · 문구 · 메모 칸은 없음 (담당자에게는 할 일 이름만)
+const prepItems = (r, who) => (staffBy(r)[who]||[]).map(s=>s.replace(/\s+\d.*$/,'').replace(/\s*\(.*$/,'').trim()).filter((v,i,a)=>v && a.indexOf(v)===i);
+const prepTitle = (r, who) => `${String(AUTO_TASKS.prep||'단체 준비').trim()} : ${prepItems(r, who).join(' · ')||'단체 일정'}`.slice(0,80);
 function staffBy(r){
   const by={}, add=(who,s)=>{ String(who||'').split(/\s*,\s*/).map(w=>w.trim()).filter(Boolean).concat(String(who||'').trim()?[]:['(담당 미정)']).forEach(w=>{ (by[w] ||= []).push(s); }); };   // 담당이 여러 명이면 「문현빈, 김선영」 → 각자
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]]).forEach(f=>{ const k=f[1], v=String(r[k]), sub=p=>String(r[`${p}_${k}`]||'').trim();
@@ -2238,7 +2303,7 @@ function staffBy(r){
   return by;
 }
 const taskAuto = t => { const base=taskAutoBase(t); return typeof tcfgNote==='function' ? tcfgNote(t, base) : base; };   // 추후과업 메시지 관리에서 고친 문구 틀이 있으면 그것 (js/taskcfg.js, 2026-11-20)
-const taskAutoBase = t => t.id==='erp' ? erpNote(rec) : t.id==='erpfix' ? erpNote(rec, true) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : /^prep:/.test(t.id) ? prepMsg(rec, t.who||t.id.slice(5)) : '';   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장결제 필요)   // 자동으로 만든 문구
+const taskAutoBase = t => t.id==='erp' ? erpNote(rec) : t.id==='erpfix' ? erpNote(rec, true) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : '';   // 단체 준비(prep:이름)는 문구 없음 (2026-11-24 · 예전 [단체예약 준비] 문구는 없앰)   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장결제 필요)   // 자동으로 만든 문구
 const taskText = t => taskAuto(t) ? (t.noteEdit || taskAuto(t)) : '';   // 직접 고쳤으면 그 글 (전산 비고 등)
 // 과업 기한(due): 생기면 그날이 기본, 각자 바꿀 수 있음(dueSet). 미정 항목 연락 = 답변일, 현장 결제 인원 확인 = 전주 목요일(지났으면 전날), 결제 확인 = 다음날
 const todayYmd = () => ymd(new Date());
@@ -2282,9 +2347,11 @@ function syncAutoTasks(){
   if(rec.goods) want.push('goodsprep');   // 굿즈가 들어가면 방문 전날까지 굿즈 준비 (그날 13시 · 17시 알림)
   if(rec.date && STAFF_BASES().some(k=>rec[k])) want.push('staffbrief');   // 프로그램 · 굿즈가 있으면 담당자에게 일정 전달 (마감 = 방문 전주 금요일, 2026-11-21) (영업 담당이 직접 체크)
   // 담당자 준비 과업 (2026-11-24): 담당으로 고른 사람마다 하나 (예약상담 · 방문일이 지난 예약은 새로 만들지 않음)
-  if(!consult && (!rec.date || rec.date>=todayYmd() || tasks.some(t=>/^prep:/.test(t.id)))) prepWho(rec).forEach(w=>{ const id='prep:'+w; want.push(id);
+  //  추후과업 메시지 관리 「단체 준비」에서 끄거나(off) 조건(when)을 바꿀 수 있음 · 메모는 쓰지 않음(예전 메모도 지움)
+  const prepCfg = (typeof tcfgOf==='function' && tcfgOf('prep')) || {}, prepOn = !prepCfg.off && (!Array.isArray(prepCfg.when) || (typeof tcfgCondOk==='function' && tcfgCondOk({conds:prepCfg.when}, rec, {})));
+  if(prepOn && !consult && (!rec.date || rec.date>=todayYmd() || tasks.some(t=>/^prep:/.test(t.id)))) prepWho(rec).forEach(w=>{ const id='prep:'+w; want.push(id);
     const t=tasks.find(x=>x.id===id); if(!t) tasks.push({id, who:w, title:prepTitle(rec, w), done:false, memo:'', at:new Date().toISOString(), due:autoDue(id, rec)});
-    else { t.who=w; if(!t.titleSet) t.title=prepTitle(rec, w); } });
+    else { t.who=w; if(!t.titleSet) t.title=prepTitle(rec, w); t.memo=''; delete t.noteEdit; } });
   if(rec.mabangL || rec.mabangTime) want.push('mbcall');   // 몽몽마방이 들어가면 식당에 전화로 시간 확인 (직접 체크)
   if((parseInt(rec.dClergy)||0)>0) want.push('clergy');   // 대구대교구 특별 할인 → 대구대교구 정보 기입 (예약자에게 정보 요청 · 대구대교구 시트 기입)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
@@ -2303,7 +2370,12 @@ function syncAutoTasks(){
     if(needAsk && !want.includes('wkcheck') && !(typeof tcfgOf==='function' && (tcfgOf('wkcheck')||{}).off)) want.push('wkcheck'); }   // 방문일이 아직 없어도 물어볼 것이 있으면 점검 과업   // 추후과업 메시지 관리: 끈 과업은 빼고 조건이 맞는 새 과업은 넣음 (2026-11-20)
   if(consult){ const keep=want.filter(id=>id==='tour' || id==='clergy'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약만 (손대지 않은 것은 아래에서 빠짐)
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec), ...(id==='wkcheck' && editingId && rec.date && wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId] ? {done:true, doneAt:wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId]} : {})}); });   // 사전 답사 과업 메모 = 답사 정보
-  if(typeof tcfgSubs==="function") tcfgSubs(tasks);   // 추후과업 메시지 관리의 세부 과업 (2026-11-20)
+  if(typeof tcfgSubs==="function") tcfgSubs(tasks);
+  // 담당자에게 일정 전달 (2026-11-24): 담당자마다 세부 과업 「김선영 : 동행 도슨트」 (id s:이름 · 모두 체크하면 완료 · 담당이 빠지면 그 줄도 뺌)
+  { const sb=tasks.find(t=>t.id==='staffbrief' && !t.removed);
+    if(sb){ const W=prepWho(rec), xs=sb.xsubs ||= [];
+      W.forEach(w=>{ const ttl=`${w} : ${prepItems(rec, w).join(' · ')||'단체 일정'}`, x=xs.find(y=>y.id==='s:'+w); if(x) x.title=ttl; else { xs.push({id:'s:'+w, title:ttl, done:false}); if(sb.done && !sb.manualDone){ sb.done=false; delete sb.doneAt; } } });
+      for(let i=xs.length-1;i>=0;i--) if(/^s:/.test(xs[i].id) && !W.includes(xs[i].id.slice(2)) && !xs[i].done) xs.splice(i,1); } }   // 추후과업 메시지 관리의 세부 과업 (2026-11-20)
   // 미정 항목 확인 연락 (2026-11-20): 미정 항목 + 빨간 칸(아직 안 넣은 것)을 세부 과업으로 — 하나씩 체크하며 고객님께 여쭘. 다 체크하면 완료
   { const tq=tasks.find(t=>t.id==='wkcheck' && !t.removed), old=tasks.find(t=>t.id==='tbdcall');
     if(old){   // 예전에 저장된 「미정 항목 확인 연락」: 체크해 둔 세부 과업 · 메모를 다음주 예약 점검으로 옮기고 없앰 (2026-11-23)
@@ -2406,7 +2478,7 @@ function renderTasks(){
       : t.id==='mbcall' ? `몽몽마방 식당에 전화해서 확인하고 체크하세요. (${esc([rec.date&&dateLabel(rec.date), rec.mabangL&&rec.mabangL+'명'].filter(Boolean).join(' · ')||'방문일 · 인원 미정')})<br>① 고객님이 말씀하신 시각 <b>${esc(rec.mabangTime||'(시간 미입력)')}</b> 가능한지<br>② 그날 예약 가능한 시간이 모두 언제인지 → 아래 메모에 적어 두기`
       : t.id==='mbmenu' ? (t.done ? '몽몽마방 메뉴를 골랐습니다.' : `몽몽마방 식사에서 메뉴(${esc(mbMenus().map(m=>m.name).join(' · '))}) 중 하나를 고르세요. 고르면 자동으로 완료됩니다.`)
       : t.id==='goodsprep' ? `굿즈: <b>${esc(goodsText(rec)||'없음')}</b>${goodsParse(rec.goods).map(g=>itemNote('g:'+g.src)?` · ${esc(goodsName(g.src))} 비고: ${esc(itemNote('g:'+g.src))}`:'').join('')}<br>방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 그날 13시 · 17시에 알림이 뜹니다.`
-      : /^prep:/.test(t.id) ? `<b>${esc(t.who||t.id.slice(5))}</b> 님 담당 — 아래 내용을 방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 이 과업은 ${esc(t.who||t.id.slice(5))} 님의 나의 할일 · 첫 화면 「단체고객 전화」에 단체예약으로 나옵니다.`
+      : /^prep:/.test(t.id) ? `<b>${esc(t.who||t.id.slice(5))}</b> 님 담당 — 맡은 것을 방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 이 과업은 ${esc(t.who||t.id.slice(5))} 님의 나의 할일 · 첫 화면 「단체고객 전화」에 단체예약으로 나옵니다.`
       : t.id==='staffbrief' ? `${staffFriName(rec.date)}(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')}) 각 담당자에게 아래 일정을 전달하고 체크하세요. 영업 담당이 이 예약의 프로그램 · 굿즈를 모두 챙깁니다.`
       : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 칸: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 · 굿즈 옆 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (개별 · 시간 프로그램 · 굿즈 모두 담당 필수)` : '프로그램 · 굿즈 담당을 모두 넣었습니다.')
       : t.id==='erpcheck' ? (!erpList.length ? '전산에 예약을 넣은 뒤 <b>전산 내역을 붙여 넣어</b> 실제 예약이 이 예약 내용과 같은지 확인하세요. <b>할인 합계</b>와 <b>총 금액</b>이 같으면 저절로 완료됩니다.'
@@ -2426,7 +2498,7 @@ function renderTasks(){
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
         <label class="btn up${upBusy?' busy':''}">${upBusy?'올리는 중…':(t.files||[]).length?'사업자등록증 추가로 올리기':'사업자등록증 올리기'}<input type="file" data-tup="${esc(t.id)}" accept="image/*,application/pdf" hidden${upBusy?' disabled':''}></label>
         <span class="hint" style="margin:0">사진 · PDF, 10MB 이하 · 구글 드라이브 '사유원 단체예약 서류' 폴더에 저장</span></div>` : ''}
-      <textarea data-tm="${esc(t.id)}" placeholder="메모">${esc(t.memo||'')}</textarea>
+      ${/^prep:/.test(t.id) ? "" : `<textarea data-tm="${esc(t.id)}" placeholder="메모">${esc(t.memo||"")}</textarea>`}   <!-- 단체 준비 과업은 메모 칸 없음 (2026-11-24) -->
     </li>`; }).join('');
   $('#taskHint').textContent = tasks.length ? (editingId ? '체크와 복사는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '저장하면 과업도 함께 저장됩니다.') : '';
   if(typeof paintDirty==='function' && window.__autoReady) paintDirty();   // 다시 그린 과업 「저장」에도 노란 점

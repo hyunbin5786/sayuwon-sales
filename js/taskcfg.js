@@ -57,8 +57,9 @@ const TCFG_N_DUE = new Set(['made','visit']);
 const C_ = (k,v) => ({k, v:v||''});
 const TCFG_DEF_WHEN = { tour:[C_('tour')], clergy:[C_('clergy')], tbdcall:[C_('tbdMiss')], onsitecall:[C_('pay','현장 결제'),C_('date')], wkcheck:[C_('date')], mbcall:[C_('mbTime')], mbmenu:[C_('mbNoMenu')],
   progstaff:[C_('staffMiss')], staffbrief:[C_('date'),C_('progGoods')], goodsprep:[C_('goods')], erp:[C_('booked')], erpcheck:[C_('booked')], erpfix:[C_('erpChanged')],
+  prep:[C_('progGoods')],   // 단체 준비 (담당자마다 · 2026-11-24)
   quote:[C_('wantQuote')], stmt:[C_('wantStmt')], tax:[C_('pay','세금계산서')], linksend:[C_('pay','결제링크')], paycheck:[C_('pay','결제링크')], pplchk:[C_('pplChanged')], erpkeep:[C_('erpKeep')] };
-const TCFG_DEF_DUE = { tbdcall:{base:'tbdDate'}, onsitecall:{base:'prevThu'}, wkcheck:{base:'prevThu'}, paycheck:{base:'linkNext'}, staffbrief:{base:'prevFri'}, goodsprep:{base:'visit', n:1} };
+const TCFG_DEF_DUE = { tbdcall:{base:'tbdDate'}, onsitecall:{base:'prevThu'}, wkcheck:{base:'prevThu'}, paycheck:{base:'linkNext'}, staffbrief:{base:'prevFri'}, goodsprep:{base:'visit', n:1}, prep:{base:'visit', n:1} };
 const tcfgDefDue = id => TCFG_DEF_DUE[id] || {base:'made', n:0};
 const TCFG_DEF_NOTE = { erp:'{전산비고}', erpfix:'{전산비고}', tour:'{답사비고}',
   tax:'[세금계산서] {단체명}\n1. 금액\n- 사유원 : {사유원금액}원\n- 신라 : {신라금액}원\n2. 사업자 등록증 : 파일 첨부\n3. 이메일 : {이메일}\n4. 발행일 : {방문일점}\n5. 실제 방문일 : {방문일점}\n감사합니다~' };
@@ -79,7 +80,7 @@ function tcfgApply(){ try{ const j=tcfgRead(), sig=JSON.stringify([j.b, j.c]); i
   j.c.forEach(c=>{ if(c && c.id){ AUTO_TASKS[c.id] = String(c.title||'').trim() || '(이름 없는 과업)'; if(c.due && c.due.base!=='made') FOLLOW_DUE.add(c.id); } });
   return true; }catch(_){ return false; } }
 const tcfgCustom = id => (tcfg.c||[]).find(c=>c && c.id===id) || null;
-const tcfgOf = id => tcfgCustom(id) || (tcfg.b||{})[id] || null;   // 그 과업의 설정 (새 과업 · 원래 과업)
+const tcfgOf = id => (/^prep:/.test(String(id)) ? (tcfg.b||{}).prep : null) || tcfgCustom(id) || (tcfg.b||{})[id] || null;   // 단체 준비(prep:이름)는 모두 「단체 준비」(prep) 설정을 따름 (2026-11-24)   // 그 과업의 설정 (새 과업 · 원래 과업)
 function tcfgCondOk(c, r, ctx){ const conds=Array.isArray(c&&c.conds)?c.conds:[];
   return conds.every(q=>{ const d=TCFG_CONDS.find(x=>x[0]===q.k); if(!d) return true; const v=d[2](r, ctx);
     if(d[3]==='num'){ const n=parseInt(q.v)||0; return q.k==='pplMin' ? v>=n : v<=n && v>0; }
@@ -94,7 +95,7 @@ function tcfgBuiltinOn(id, b, r, inOrig, ctx){
   return inOrig && tcfgCondOk(b, r, ctx); }
 // syncAutoTasks 에서: 끈 과업 · 조건이 안 맞는 원래 과업은 빼고, 조건이 맞는 과업은 넣음
 function tcfgWant(r, want){ const ctx={orig:new Set(want), hasWk: typeof tasks!=='undefined' && r===rec && tasks.some(t=>t.id==='wkcheck')};
-  Object.keys(TCFG_BASE_TITLES).forEach(id=>{ const b=(tcfg.b||{})[id]; if(!b) return; const i=want.indexOf(id), on=tcfgBuiltinOn(id, b, r, i>=0, ctx);
+  Object.keys(TCFG_BASE_TITLES).forEach(id=>{ if(id==='prep') return; const b=(tcfg.b||{})[id]; if(!b) return; const i=want.indexOf(id), on=tcfgBuiltinOn(id, b, r, i>=0, ctx);   // 단체 준비는 담당자마다 따로 만듦 (09-tasks.js)
     if(on && i<0) want.push(id); if(!on && i>=0) want.splice(i,1); });
   (tcfg.c||[]).forEach(c=>{ if(c && c.id && !c.off && tcfgCondOk(c, r, ctx) && !want.includes(c.id)) want.push(c.id); }); }
 // 마감: 고친 마감 (원래대로면 null → 원래 규칙)
@@ -114,7 +115,7 @@ function tcfgVirtual(r, x, ts, has){
     if(!tcfgBuiltinOn(t.id, b, x, true, ctx) && !t.memo && !(t.xsubs||[]).some(s=>s.done)){ ts.splice(i,1); continue; }
     if(!t.dueSet){ const d=tcfgDue(t.id, x); if(d) ts[i]={...t, due:d}; } }
   if(!r.date || r.date<ymd(new Date())) return;
-  Object.keys(TCFG_BASE_TITLES).forEach(id=>{ const b=(tcfg.b||{})[id]; if(!b || !Array.isArray(b.when) || has(id) || ts.some(t=>t.id===id) || id==='erpfix') return;
+  Object.keys(TCFG_BASE_TITLES).forEach(id=>{ const b=(tcfg.b||{})[id]; if(!b || !Array.isArray(b.when) || has(id) || ts.some(t=>t.id===id) || id==='erpfix' || id==='prep') return;
     if(tcfgBuiltinOn(id, b, x, false, ctx) && !quietStage(effStage(x))) ts.push({id, title:AUTO_TASKS[id], done:false, due:tcfgDue(id, x)||autoDue(id, x)}); });
   (tcfg.c||[]).forEach(c=>{ if(!c || !c.id || c.off || has(c.id)) return; if(!tcfgCondOk(c, x, ctx)) return; ts.push({id:c.id, title:AUTO_TASKS[c.id], done:false, due:tcfgDue(c.id, x)||ymd(new Date())}); }); }
 // 세부 과업(직접 넣은 것): 안 끝난 과업에 설정의 세부 과업을 넣음 (이름이 같은 것이 이미 있으면 그대로)
@@ -208,6 +209,7 @@ function tcfgEdHTML(T, c, builtin, id){
       <label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> <b>미정 항목에 대한 내용</b> <small class="hint">— 미정 항목 · 아직 안 넣은 칸을 하나씩 (예: 「미정 · 결제 방법」 「미입력 · 입장 시간」)</small></label>
     </div>` : ''}
     ${builtin && (id==='erp' || id==='erpfix') && typeof ERP_NOTE_RULES!=='undefined' ? `<details class="tcfg-rule"><summary>📋 전산 비고 {전산비고} 가 만들어지는 규칙 (참고 · 누르면 펼침)</summary><pre>${esc(ERP_NOTE_RULES)}</pre></details>` : ''}
+    ${builtin && id==='prep' && typeof PREP_RULES!=='undefined' ? `<details class="tcfg-rule"><summary>📋 단체 준비 과업 규칙 (참고 · 누르면 펼침)</summary><pre>${esc(PREP_RULES)}</pre></details>` : ''}
     <div class="tcfg-two">
       <label>과업 문구 <small class="hint">(「문구 복사」 버튼으로 복사 · 비우면 없음${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''})</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '')}</label>
       <label>과업 아래 안내 줄 <small class="hint">(과업 제목 아래에 자동으로 붙는 글 · 예: 바뀐 내용 · 비우면 없음)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '')}</label>

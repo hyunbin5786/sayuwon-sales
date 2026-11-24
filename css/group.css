@@ -1127,3 +1127,6 @@ html.g-loading body{overflow:hidden}
 .tcfg-rule{border:1px solid #cfe0cc;background:#f4f8f1;border-radius:8px;padding:6px 10px;margin:4px 0 8px}
 .tcfg-rule summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--pine,#3f5236)}
 .tcfg-rule pre{white-space:pre-wrap;word-break:keep-all;font:13px/1.7 "Noto Sans KR",sans-serif;color:#2b2a26;margin:8px 0 2px;max-height:52vh;overflow:auto}
+/* 담당 = 멤버 드롭다운 (2026-11-24) */
+.it-s select.it-stfsel,.it-xl select.it-stfsel{width:100%;height:34px;border:1.5px solid #8fb07f;border-radius:6px;padding:0 6px;background:#eef5e9;color:var(--pine);font:600 13px var(--sans);cursor:pointer}
+.it-s.missing select.it-stfsel,.it-xl.missing select.it-stfsel{border-color:#d9a08a;background:#fdf3ef;color:#8a4b2a}

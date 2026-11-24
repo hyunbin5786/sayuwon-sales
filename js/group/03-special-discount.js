@@ -102,8 +102,19 @@ function clearItem(k){ const t=itemKind(k);
   else if(t!=='new'){ [k, 'stf_'+k, 'tm_'+k, 'crs_'+k, 'plc_'+k, ...(k==='seminar' ? SEM2_IX : [])].forEach(x=>{ if(rec[x]){ rec[x]=''; touched.add(x); } }); }
   itemPend.delete(k);
 }
+// 담당 고르기 (2026-11-24): 이름을 치지 않고 멤버 목록(멤버관리)에서 고름 → 그 사람에게 「단체 준비」 과업이 감 (이름이 정확히 같아야 해서)
+//  목록에 없는 사람은 맨 아래 「＋ 새 멤버 추가…」 → 이름만 넣으면 멤버로 바로 만듦 (임시 사번 NEW-… · 사번 · 연락처는 멤버관리에서)
+//  예전에 쳐 둔 이름이 멤버가 아니면 「(멤버 아님)」으로 그대로 보임
+let MEMBER_NAMES = (()=>{ try{ return JSON.parse(localStorage.getItem('sy_member_names')||'[]')||[]; }catch(_){ return []; } })();
+async function loadMemberNames(again){ try{ const j=await SY.callRaw({action:'members'}); if(!j || !j.ok) return;
+    const L=[...new Set((j.members||[]).map(m=>String(m.name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'));
+    const changed=L.join('|')!==MEMBER_NAMES.join('|'); MEMBER_NAMES=L; try{ localStorage.setItem('sy_member_names', JSON.stringify(L)); }catch(_){}
+    if((changed || again) && typeof renderItems==='function' && document.getElementById('itemsBox')) renderItems(true); }catch(_){} }
+const staffSelHTML = (k, v, title) => { const cur=String(v||'').trim(), has=MEMBER_NAMES.includes(cur);
+  return `<select class="it-stfsel" data-is="${esc(k)}" title="${esc(title||'담당')}"><option value="">담당 고르기 (필수)</option>${MEMBER_NAMES.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('')}`
+    + (cur && !has ? `<option value="${esc(cur)}" selected>${esc(cur)} (멤버 아님)</option>` : '') + `<option value="__new">＋ 새 멤버 추가…</option></select>`; };
 // 세미나 도슨트 2회 이상: 장소마다 담당 칸 (첫 번째 = stf_seminar · 두 번째 = stf_seminar2, 2026-11-21)
-const semStfHTML = (k, tt) => { const v=String(rec['stf_'+k]||''); return `<label class="it-xl it-stf${v.trim()?'':' missing'}">담당 <input class="it-x" data-is="${k}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(v)}" title="${tt}"></label>`; };
+const semStfHTML = (k, tt) => { const v=String(rec['stf_'+k]||''); return `<label class="it-xl it-stf${v.trim()?'':' missing'}">담당 ${staffSelHTML(k, v, tt)}</label>`; };
 // 드롭다운: 묶음(optgroup)별 항목. 다른 줄에서 이미 고른 항목은 못 고름
 function itemSelectHTML(k, rows){
   const used=new Set(rows.filter(x=>x!==k)), mbUsed=used.has('mb');
@@ -166,9 +177,9 @@ function itemRowHTML(k, rows){
     : `<span class="it-q"><input data-iq="${esc(k)}" inputmode="numeric" data-ime="num" placeholder="수량" value="${esc(itemQty(k))}"${t==='new'?' disabled':''}><i>${itemUnit(k)}</i></span>`;
   return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}<span class="it-p" data-iup="${esc(k)}"></span>`
     + qtyHTML
-    + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="굿즈 담당 (기본 = 영업 담당 · 고칠 수 있음 · 굿즈 모두 같은 담당)"></span>`
+    + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}">${staffSelHTML(k, sv, '굿즈 담당 (기본 = 영업 담당 · 굿즈 모두 같은 담당)')}</span>`
       : k==='seminar' && sem2On(rec) ? `<span class="it-s none"><input disabled placeholder="장소마다 담당 ↓" title="세미나 도슨트 2회 이상: 아래 장소마다 담당을 넣습니다"></span>`   // 2026-11-21
-      : stf ? `<span class="it-s${sv.trim()?'':' missing'}"><input data-is="${esc(k)}" data-ime="ko" placeholder="담당자 이름 (필수)" value="${esc(sv)}" title="프로그램 담당"></span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
+      : stf ? `<span class="it-s${sv.trim()?'':' missing'}">${staffSelHTML(k, sv, '프로그램 담당')}</span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
     + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
     + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div><div class="it-extra">${extra}<span class="it-amt" data-iamt="${esc(k)}"></span></div>`) + `</div>`;   // 둘째 줄: 할인(할인 대상만) · 셋째 줄: 비고 (할인이 없으면 바로 비고, 금액은 그 줄 끝)
 }

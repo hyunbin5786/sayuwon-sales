@@ -46,7 +46,8 @@ document.addEventListener('input', e=>{
     const n=parseInt(c)||0, ai=el.closest('.it-q2')?.querySelector('[data-iqa]'), a=parseInt((ai?.value||'').replace(/\D/g,''))||0;
     setItemStu(k, n); setItemQty(k, a+n ? String(a+n) : ''); itemChanged(false, true); }
   else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); startTimer(); repaintSoon(); }   // 항목 비고 (치는 동안은 다시 그리지 않음)
-  else if(el.dataset.is!=null){ const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); repaintSoon(); }   // 담당 이름 (치는 동안은 다시 그리지 않음)
+  else if(el.dataset.is!=null){ if(el.value==='__new'){ const k=el.dataset.is; el.value=String(rec[itemStfKey(k)]||''); newMemberAsk(k); return; }   // 「＋ 새 멤버 추가…」 (2026-11-24)
+    const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); repaintSoon(); }   // 담당 (멤버 목록에서 고름)
   else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^tm[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
   else if(el.dataset.ix!=null && el.tagName==='INPUT'){ rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix); itemChanged(false, true); }
 });
@@ -497,3 +498,30 @@ function readback(r){
   return s;
 }
 
+// ===== 담당 고르기의 「＋ 새 멤버 추가…」 (2026-11-24) =====
+// 이름만 넣으면 멤버관리에 바로 만듦 (임시 사번 NEW-xxxxxx · 이 사번으로는 로그인할 일이 없음) → 그 줄의 담당으로 고름. 사번 · 연락처는 멤버관리에서 넣으면 그 이름 그대로 바뀜
+function newMemberAsk(k){
+  let m=document.getElementById('nmModal');
+  if(!m){ m=document.createElement('div'); m.id='nmModal'; m.className='modal'; m.hidden=true;
+    m.innerHTML=`<section class="panel ask-box" role="dialog" aria-modal="true" aria-labelledby="nmTitle"><h2 id="nmTitle">새 멤버 추가</h2>`
+      + `<p class="ask-msg">멤버관리에 없는 사람의 이름을 넣으면 바로 멤버로 만들고 담당으로 고릅니다. <b>사번 · 연락처는 멤버관리</b>에서 넣어 주세요.</p>`
+      + `<input id="nmName" data-ime="ko" placeholder="이름" style="width:100%;height:38px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit;box-sizing:border-box">`
+      + `<p class="err" id="nmErr" style="min-height:1em;margin:6px 0"></p><div class="ask-btns"><button type="button" class="btn primary" id="nmNo">취소</button><button type="button" class="btn primary" id="nmOk">추가하고 고르기</button></div></section>`;
+    document.body.appendChild(m);
+    m.addEventListener('mousedown', e=>{ if(e.target===m) m.hidden=true; });
+    m.querySelector('#nmNo').onclick=()=>{ m.hidden=true; };
+    m.querySelector('#nmName').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); m.querySelector('#nmOk').click(); } }); }
+  m.dataset.k=k; m.querySelector('#nmName').value=''; m.querySelector('#nmErr').textContent=''; m.hidden=false; setTimeout(()=>m.querySelector('#nmName').focus(), 0);
+  m.querySelector('#nmOk').onclick=async()=>{ const name=m.querySelector('#nmName').value.trim().replace(/\s+/g,' '), err=m.querySelector('#nmErr'), ok=m.querySelector('#nmOk');
+    if(!name){ err.textContent='이름을 넣어 주세요.'; return; }
+    const pick=()=>{ const sk=itemStfKey(m.dataset.k); rec[sk]=name; touched.add(sk); m.hidden=true; renderItems(true); startTimer(); };
+    if(MEMBER_NAMES.includes(name)){ pick(); return; }   // 이미 있는 이름이면 그냥 고름
+    ok.disabled=true; ok.textContent='추가하는 중…';
+    try{ const emp='NEW-'+Math.random().toString(36).slice(2,8).toUpperCase(), j=await SY.call({action:'memberAdd', list:[{name, emp}], by:savedOwner()||''});
+      if(!j.added){ err.textContent='멤버를 만들지 못했습니다. 다시 눌러 주세요.'; return; }
+      MEMBER_NAMES=[...new Set([...MEMBER_NAMES, name])].sort((a,b)=>a.localeCompare(b,'ko')); try{ localStorage.setItem('sy_member_names', JSON.stringify(MEMBER_NAMES)); }catch(_){}
+      toast(`「${name}」 님을 멤버로 만들었습니다 · 사번 · 연락처는 멤버관리에서`); pick(); }
+    catch(e){ err.textContent = e.code==='bad_key' ? '로그인을 확인해 주세요.' : '만들지 못했습니다: '+(e.code||e.message); }
+    finally{ ok.disabled=false; ok.textContent='추가하고 고르기'; } };
+}
+loadMemberNames();

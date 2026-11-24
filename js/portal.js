@@ -72,7 +72,7 @@ let members=[], roles=null;   // roles = {quote:[사번…]} 견적서 · 거래
 function paintMembers(){
   const u=getUser()||{};
   $('#memberHint').textContent = members.length ? `${members.length}명` : '';
-  $('#memberList').innerHTML = members.map(m=>`<tr class="${m.emp===u.emp?'me':''}"><td>${esc(m.name)}</td><td>${esc(m.emp)}</td><td><input class="mphone" data-mphone="${esc(m.emp)}" value="${esc(m.phone||'')}" inputmode="tel" placeholder="010-0000-0000" maxlength="20" title="고치고 Enter 또는 다른 곳을 누르면 저장"></td><td class="hint">${esc(m.added||'')}${m.by?` · ${esc(m.by)}`:''}</td><td class="r"><button type="button" class="btn-sm del" data-mdel="${esc(m.emp)}" data-mname="${esc(m.name)}">빼기</button></td></tr>`).join('')
+  $('#memberList').innerHTML = members.map(m=>`<tr class="${m.emp===u.emp?'me':''}"><td>${esc(m.name)}</td><td>${/^NEW-/.test(m.emp) ? `<input class="mphone memp" data-memp="${esc(m.emp)}" placeholder="사번 입력" maxlength="20" title="담당 고르기에서 이름만 만든 멤버 · 사번을 넣고 Enter (같은 이름 · 연락처로 사번만 바뀜)"><small class="hint" style="display:block">사번 미입력</small>` : esc(m.emp)}</td><td><input class="mphone" data-mphone="${esc(m.emp)}" value="${esc(m.phone||'')}" inputmode="tel" placeholder="010-0000-0000" maxlength="20" title="고치고 Enter 또는 다른 곳을 누르면 저장"></td><td class="hint">${esc(m.added||'')}${m.by?` · ${esc(m.by)}`:''}</td><td class="r"><button type="button" class="btn-sm del" data-mdel="${esc(m.emp)}" data-mname="${esc(m.name)}">빼기</button></td></tr>`).join('')
     || '<tr><td colspan="5" class="hint">아직 멤버가 없습니다. 위에서 추가하면 그때부터 로그인할 때 이름 · 사번을 확인합니다.</td></tr>';
 }
 async function memberCall(body){
@@ -412,3 +412,14 @@ setInterval(()=>dashSoon(), 20e3);
 window.addEventListener('focus', ()=>dashSoon());
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') dashSoon(); });
 window.addEventListener('storage', e=>{ if(/^(sayuwon_intake_pending|sayuwon_personal_pending|sayuwon_intake_cache|sayuwon_personal_cache)$/.test(e.key||'')) dashSoon(2500); });   // 다른 탭의 저장 대기 · 받은 기록이 바뀜 → 저장이 끝날 즈음 다시
+// 사번 미입력 멤버 (2026-11-24 · 단체 화면 담당 고르기의 「＋ 새 멤버」로 이름만 만든 사람 · 임시 사번 NEW-…): 사번을 넣으면 같은 이름 · 연락처로 새 사번 멤버를 만들고 임시 사번은 뺌
+document.addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.matches && e.target.matches('input[data-memp]')){ e.preventDefault(); e.target.blur(); } });
+document.addEventListener('change', async e=>{ const p=e.target.closest && e.target.closest('input[data-memp]'); if(!p) return;
+  const old=p.dataset.memp, emp=p.value.trim(), m=members.find(x=>x.emp===old); if(!m || !emp) return;
+  if(!/^[0-9A-Za-z-]{2,20}$/.test(emp)){ $('#memberErr').textContent='사번은 숫자 · 영문 2~20자로 넣어 주세요.'; return; }
+  if(members.some(x=>x.emp.toUpperCase()===emp.toUpperCase())){ $('#memberErr').textContent=`${emp} 는 이미 있는 사번입니다.`; return; }
+  p.disabled=true; const u=getUser()||{};
+  const j=await memberCall({action:'memberAdd', list:[{name:m.name, emp, phone:m.phone||''}], by:u.name||''});
+  if(!j || !j.added){ p.disabled=false; if(!$('#memberErr').textContent) $('#memberErr').textContent='사번을 넣지 못했습니다.'; return; }
+  await memberCall({action:'memberDel', emp:old, by:u.name||''});
+  $('#memberErr').textContent=`${m.name} 님 사번을 ${emp} 로 넣었습니다.`; $('#memberErr').style.color='var(--pine)'; setTimeout(()=>{ $('#memberErr').style.color=''; }, 3000); });
