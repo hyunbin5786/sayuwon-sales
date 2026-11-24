@@ -2492,7 +2492,7 @@ function renderTasks(){
       : t.id==='mbmenu' ? (t.done ? '몽몽마방 메뉴를 골랐습니다.' : `몽몽마방 식사에서 메뉴(${esc(mbMenus().map(m=>m.name).join(' · '))}) 중 하나를 고르세요. 고르면 자동으로 완료됩니다.`)
       : t.id==='goodsprep' ? `굿즈: <b>${esc(goodsText(rec)||'없음')}</b>${goodsParse(rec.goods).map(g=>itemNote('g:'+g.src)?` · ${esc(goodsName(g.src))} 비고: ${esc(itemNote('g:'+g.src))}`:'').join('')}<br>방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 그날 13시 · 17시에 알림이 뜹니다.`
       : /^prep:/.test(t.id) ? `<b>${esc(t.who||t.id.slice(5))}</b> 님 담당 — 맡은 것을 방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 이 과업은 ${esc(t.who||t.id.slice(5))} 님의 나의 할일 · 첫 화면 「단체고객 전화」에 단체예약으로 나옵니다.`
-      : t.id==='memocheck' ? `<b>${esc(t.memoBy||'다른 직원')}</b>님이 통화 메모를 고쳤거나 메모를 남겼습니다${t.memoAt?` (${esc(dtLabel(t.memoAt))})`:''}. 통화 메모를 확인하고 체크하세요 — 체크하면 「메모를 확인하세요」 알림도 확인한 것으로 바뀝니다.`
+      : t.id==='memocheck' ? `<b>${esc(t.memoBy||'다른 직원')}</b>님이 통화 메모를 고쳤거나 메모를 남겼습니다${t.memoAt?` (${esc(dtLabel(t.memoAt))})`:''}. 통화 메모를 확인하고 체크하세요 — 체크하면 아래 새 메모가 모두 「확인함」으로 바뀝니다.`
       : t.id==='staffbrief' ? `${staffFriName(rec.date)}(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')}) 각 담당자에게 아래 일정을 전달하고 체크하세요. 영업 담당이 이 예약의 프로그램 · 굿즈를 모두 챙깁니다.`
       : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 칸: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 · 굿즈 옆 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (개별 · 시간 프로그램 · 굿즈 모두 담당 필수)` : '프로그램 · 굿즈 담당을 모두 넣었습니다.')
       : t.id==='erpcheck' ? (!erpList.length ? '전산에 예약을 넣은 뒤 <b>전산 내역을 붙여 넣어</b> 실제 예약이 이 예약 내용과 같은지 확인하세요. <b>할인 합계</b>와 <b>총 금액</b>이 같으면 저절로 완료됩니다.'
@@ -2800,7 +2800,7 @@ const memoTaskList = () => { const own=String(rec.owner||'').trim(), L=(memos||[
 // 통화 메모 확인 규칙 (추후과업 메시지 관리 「통화 메모 확인」을 열면 보임 · js/taskcfg.js) — 규칙을 바꾸면 이 글도 같이
 const MEMOCHECK_RULES = `■ 무엇
   영업 담당이 아닌 사람이 남의 단체예약에서 통화 메모를 고쳐 저장하면, 그 예약의 영업 담당에게 「통화 메모 확인」 과업이 생김
-  (예전 「메모를 확인하세요」 팝업도 그대로 뜸 — 같은 메모)
+  (「메모를 확인하세요」 팝업은 2026-11-24부터 안 뜸 — 메모는 이 과업 안에서 봄)
 
 ■ 과업 아래 안내 줄
   「고친 사람: 테스트」처럼 누가 고쳤는지 · 과업 칸에는 언제 고쳤는지도
@@ -2812,7 +2812,6 @@ const MEMOCHECK_RULES = `■ 무엇
 
 ■ 끝나는 때
   과업을 체크하면 안 읽은 메모가 모두 「확인함」으로 바뀌고 과업 완료 (나의 할일에서 체크해도 같음)
-  「메모를 확인하세요」 팝업에서 「확인함」을 눌러도 과업이 저절로 완료
   완료한 뒤 누가 또 고치면 다시 열림 (마감 = 그날)
 
 ■ 고치는 쪽 (영업 담당이 아닌 사람)
@@ -4244,7 +4243,7 @@ function lockPopup(){ if(Date.now()-lockNudgeT<800) return; lockNudgeT=Date.now(
     document.body.appendChild(m); m.addEventListener('mousedown', e=>{ if(e.target===m) m.hidden=true; }); m.querySelector('#lockPopOk').onclick=()=>{ m.hidden=true; }; }
   m.querySelector('#lockPopMsg').innerHTML = editLockBy
     ? `<b>${esc(editLockBy)}</b>님이 다른 PC(창)에서 이 예약을 고치는 중이라 지금은 볼 수만 있습니다. 그쪽에서 닫으면 30초 안에 고칠 수 있게 됩니다.`
-    : `<b>영업 담당자가 아니어서 편집할 수 없습니다.</b><br>이 예약은 <b>${esc(lockOwner)}</b>님 담당입니다. 예약 내용 · 예약 현황 · 수정 기록은 볼 수 있습니다.<br><b>통화 메모</b>는 고칠 수 있고(고치면 ${esc(lockOwner)}님께 「메모를 확인하세요」 알림), <b>내가 담당자인 추후 과업</b>은 체크할 수 있습니다.`;
+    : `<b>영업 담당자가 아니어서 편집할 수 없습니다.</b><br>이 예약은 <b>${esc(lockOwner)}</b>님 담당입니다. 예약 내용 · 예약 현황 · 수정 기록은 볼 수 있습니다.<br><b>통화 메모</b>는 고칠 수 있고(고치면 ${esc(lockOwner)}님께 「통화 메모 확인」 추후 과업), <b>내가 담당자인 추후 과업</b>은 체크할 수 있습니다.`;
   m.hidden=false; setTimeout(()=>m.querySelector('#lockPopOk').focus(), 0); }
 ['mousedown','click','dblclick','beforeinput','paste','drop','dragstart','change','input','focusin'].forEach(ev=>document.addEventListener(ev, e=>{
   if(!lockBlocked(e.target)) return; e.preventDefault(); e.stopImmediatePropagation();
@@ -4278,6 +4277,7 @@ let memoShown=new Set();
 function myNewMemos(){ const me=savedOwner(); if(!me) return []; const out=[]; (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).memos.forEach(m=>{ if(!m.seen && m.by!==me) out.push({r, m}); })); return out.sort((a,b)=>String(b.m.t).localeCompare(String(a.m.t))); }
 function paintMemoCount(){ if(typeof paintMyCount==='function') paintMyCount(); }
 function checkMemoPopup(){
+  return;   // 「메모를 확인하세요」 팝업은 안 띄움 (2026-11-24) — 메모는 추후 과업 「통화 메모 확인」 안에서 봄
   if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
   if(MY_EMBED) return;
   const list=myNewMemos(); if(!list.length || list.every(o=>memoShown.has(o.m.id))) return;

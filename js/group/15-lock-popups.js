@@ -76,7 +76,7 @@ function lockPopup(){ if(Date.now()-lockNudgeT<800) return; lockNudgeT=Date.now(
     document.body.appendChild(m); m.addEventListener('mousedown', e=>{ if(e.target===m) m.hidden=true; }); m.querySelector('#lockPopOk').onclick=()=>{ m.hidden=true; }; }
   m.querySelector('#lockPopMsg').innerHTML = editLockBy
     ? `<b>${esc(editLockBy)}</b>님이 다른 PC(창)에서 이 예약을 고치는 중이라 지금은 볼 수만 있습니다. 그쪽에서 닫으면 30초 안에 고칠 수 있게 됩니다.`
-    : `<b>영업 담당자가 아니어서 편집할 수 없습니다.</b><br>이 예약은 <b>${esc(lockOwner)}</b>님 담당입니다. 예약 내용 · 예약 현황 · 수정 기록은 볼 수 있습니다.<br><b>통화 메모</b>는 고칠 수 있고(고치면 ${esc(lockOwner)}님께 「메모를 확인하세요」 알림), <b>내가 담당자인 추후 과업</b>은 체크할 수 있습니다.`;
+    : `<b>영업 담당자가 아니어서 편집할 수 없습니다.</b><br>이 예약은 <b>${esc(lockOwner)}</b>님 담당입니다. 예약 내용 · 예약 현황 · 수정 기록은 볼 수 있습니다.<br><b>통화 메모</b>는 고칠 수 있고(고치면 ${esc(lockOwner)}님께 「통화 메모 확인」 추후 과업), <b>내가 담당자인 추후 과업</b>은 체크할 수 있습니다.`;
   m.hidden=false; setTimeout(()=>m.querySelector('#lockPopOk').focus(), 0); }
 ['mousedown','click','dblclick','beforeinput','paste','drop','dragstart','change','input','focusin'].forEach(ev=>document.addEventListener(ev, e=>{
   if(!lockBlocked(e.target)) return; e.preventDefault(); e.stopImmediatePropagation();
@@ -110,6 +110,7 @@ let memoShown=new Set();
 function myNewMemos(){ const me=savedOwner(); if(!me) return []; const out=[]; (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).memos.forEach(m=>{ if(!m.seen && m.by!==me) out.push({r, m}); })); return out.sort((a,b)=>String(b.m.t).localeCompare(String(a.m.t))); }
 function paintMemoCount(){ if(typeof paintMyCount==='function') paintMyCount(); }
 function checkMemoPopup(){
+  return;   // 「메모를 확인하세요」 팝업은 안 띄움 (2026-11-24) — 메모는 추후 과업 「통화 메모 확인」 안에서 봄
   if(BOOK_ONLY) return;   // 예약 현황 공유 페이지에서는 안 함
   if(MY_EMBED) return;
   const list=myNewMemos(); if(!list.length || list.every(o=>memoShown.has(o.m.id))) return;
