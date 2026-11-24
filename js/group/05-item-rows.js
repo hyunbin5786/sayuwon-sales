@@ -452,9 +452,11 @@ $('#pgModal').addEventListener('click', e=>{ if(e.target.id==='pgModal') $('#pgM
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#pgModal').hidden){ e.preventDefault(); $('#pgModal').hidden = true; } });
 // 프로그램 입력 내용: "요가 20명", "차방 대관 2시간" (grp 를 주면 그 묶음만)
 // staff 를 주면 "동행 도슨트 2시간 (담당:사공유빈)" (차방 · 당두봉갈은 담당을 적었을 때만)
-// staff 이면 도슨트 시간대 · 코스도: "동행 도슨트 2시간 13:00~15:00 (코스:정원 코스) (담당:사공유빈)"
+// staff 이면 도슨트 시간대 · 출발지 · 장소도: "동행 도슨트 2시간 13:00~15:00 (출발지:앵당삼거리, 담당:사공유빈)"
 const progList = (r, grp, staff) => FIELDS.filter(f=>(grp ? f[0]===grp : /^프로그램/.test(f[0])) && !isSub(f[1]) && r[f[1]]).map(f=>{ const v=String(r[f[1]]), sub=p=>String(r[`${p}_${f[1]}`]||'').trim(), who=sub('stf');   // 담당이 여러 명이면 한 칸에 「문현빈, 김선영」
-  const tag = !staff ? '' : (sub('tm') ? ` ${sub('tm')}` : '') + (sub('crs') ? ` (출발지:${sub('crs')})` : '') + (sub('plc') ? ` (장소:${sub('plc')})` : '') + (f[1]==='seminar' ? sem2Tag(r) : '') + (who ? ` (담당:${who})` : needsStaff(f[1]) ? ' (담당:미정)' : '');
+  // 2026-11-24: 출발지 · 장소 · 담당은 괄호 하나에 쉼표로 "(장소:당두봉갈, 담당:김선영)"
+  const ex = !staff ? [] : [sub('crs') && `출발지:${sub('crs')}`, sub('plc') && `장소:${sub('plc')}`, who ? `담당:${who}` : needsStaff(f[1]) ? '담당:미정' : ''].filter(Boolean);
+  const tag = !staff ? '' : (sub('tm') ? ` ${sub('tm')}` : '') + (ex.length ? ` (${ex.join(', ')})` : '') + (f[1]==='seminar' ? sem2Tag(r) : '');
   return `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? v+UNIT(f[1]) : v}${tag}`; });
 // 세미나 도슨트 수량 2일 때 두 번째: " · 두 번째 14:00~14:30 (장소:당두봉갈)"
 const sem2Tag = r => { if(!(numOf(r.seminar)>=2) || r.seminar2) return ''; const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); return t||p ? ` ·${t?' '+t:''}${p?` (장소:${p})`:''}` : ''; };
