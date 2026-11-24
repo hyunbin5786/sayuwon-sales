@@ -19,6 +19,7 @@ const TCFG_VARS = [
   ['굿즈', r=>goodsText(r)||'없음'], ['빈담당', (r,t)=>((t&&t.missing)||[]).join(' · ')], ['바뀐내용', (r,t)=>(t && t.id==='pplchk' && typeof pplChanges==='function' ? pplChanges(t) : ((t&&t.changes)||[])).join(' · ')],
   ['몽몽마방인원', r=>r.mabangL ? r.mabangL+'명' : '인원 미정'], ['몽몽마방시간', r=>r.mabangTime||'(시간 미입력)'], ['몽몽마방메뉴', ()=>mbMenus().map(m=>m.name).join(' · ')],
   ['결제링크전송', r=>r.linkSent ? dtLabel(r.linkSent) : '(아직 안 보냄)'],
+  ['메모고친사람', (r,t)=>(t && t.memoBy)||''],   // 통화 메모 확인: 통화 메모를 고치거나 메모를 남긴 사람 (2026-11-24)
   ['전산비고', r=>erpNote(r)], ['답사비고', r=>tourNote(r)],
   ['사유원금액', r=>{ const m=moneySplit(r); return m ? won(m.saw) : ''; }], ['신라금액', r=>{ const m=moneySplit(r); return m ? won(m.shilla) : ''; }],
   ['이메일', r=>(contactsOf(r).find(c=>c.email)||{}).email||''], ['방문일점', r=>r.date ? r.date.replace(/-/g,'.')+' '+dowTag(r.date) : '']];
@@ -47,6 +48,7 @@ const TCFG_CONDS = [
   ['erpChanged','전산 등록 뒤 예약 내용이 바뀌면', (r,ctx)=>!!(ctx && ctx.orig && ctx.orig.has('erpfix'))],
   ['pplChanged','저장한 예약의 관람 인원이 바뀌면 (단체 화면 · 다음날 고객 응대 준비 · 이 과업 전용)', (r,ctx)=>!!(ctx && ctx.orig && ctx.orig.has('pplchk'))],
   ['erpKeep','전산 내역을 붙여넣고 「예약 내용 그대로」를 고르면 (이 과업 전용)', (r,ctx)=>!!(ctx && ctx.orig && ctx.orig.has('erpkeep'))],
+  ['memoNew','다른 사람이 통화 메모를 고치거나 메모를 남기면 (안 읽은 메모가 있으면)', ()=>typeof memoNew==='function' && memoNew().length>0],   // 통화 메모 확인 (2026-11-24)
   ['weekend','주말 · 공휴일 방문이면', r=>!!(r.date && isRedDay(r.date))],
   ['pplMin', '관람 인원이 ○명 이상이면', r=>numOf(r.people), 'num'],
   ['pplMax', '관람 인원이 ○명 이하이면', r=>numOf(r.people), 'num'],
@@ -58,13 +60,14 @@ const C_ = (k,v) => ({k, v:v||''});
 const TCFG_DEF_WHEN = { tour:[C_('tour')], clergy:[C_('clergy')], tbdcall:[C_('tbdMiss')], onsitecall:[C_('pay','현장 결제'),C_('date')], wkcheck:[C_('date')], mbcall:[C_('mbTime')], mbmenu:[C_('mbNoMenu')],
   progstaff:[C_('staffMiss')], staffbrief:[C_('date'),C_('progGoods')], goodsprep:[C_('goods')], erp:[C_('booked')], erpcheck:[C_('booked')], erpfix:[C_('erpChanged')],
   prep:[C_('progGoods')],   // 단체 준비 (담당자마다 · 2026-11-24)
+  memocheck:[C_('memoNew')],   // 통화 메모 확인 (2026-11-24)
   quote:[C_('wantQuote')], stmt:[C_('wantStmt')], tax:[C_('pay','세금계산서')], linksend:[C_('pay','결제링크')], paycheck:[C_('pay','결제링크')], pplchk:[C_('pplChanged')], erpkeep:[C_('erpKeep')] };
 const TCFG_DEF_DUE = { tbdcall:{base:'tbdDate'}, onsitecall:{base:'prevThu'}, wkcheck:{base:'prevThu'}, paycheck:{base:'linkNext'}, staffbrief:{base:'prevFri'}, goodsprep:{base:'visit', n:1}, prep:{base:'visit', n:1} };
 const tcfgDefDue = id => TCFG_DEF_DUE[id] || {base:'made', n:0};
 const TCFG_DEF_NOTE = { erp:'{전산비고}', erpfix:'{전산비고}', tour:'{답사비고}',
   tax:'[세금계산서] {단체명}\n1. 금액\n- 사유원 : {사유원금액}원\n- 신라 : {신라금액}원\n2. 사업자 등록증 : 파일 첨부\n3. 이메일 : {이메일}\n4. 발행일 : {방문일점}\n5. 실제 방문일 : {방문일점}\n감사합니다~' };
 // 과업 아래 안내 줄의 원래 틀 (과업 제목 아래에 자동으로 붙는 글). 지금 자동으로 붙는 것은 「전날 확인 변경 → 예약내역&전산 확인」의 바뀐 내용 하나
-const TCFG_DEF_DESC = { pplchk:'바뀐 내용: {바뀐내용}' };
+const TCFG_DEF_DESC = { pplchk:'바뀐 내용: {바뀐내용}', memocheck:'고친 사람: {메모고친사람}' };   // memocheck 2026-11-24
 // 세부 과업 이름 → 원래 키 (체크 기록이 그대로 이어지게)
 const tcfgDocKey = (id, l) => { const b=(TCFG_BASE_DOC[id]||[]).find(x=>x[1]===l); if(b) return b[0]; let h=0; for(const ch of String(l)) h=(h*31+ch.charCodeAt(0))|0; return 'u'+(h>>>0).toString(36); };
 
@@ -130,7 +133,7 @@ function tcfgNote(t, base){ const c=tcfgOf(t.id), tpl=c&&c.note; if(tpl==null) r
 // 과업 아래 안내 줄 (2026-11-23): 단체 화면 추후 과업에서 과업 제목 아래에 자동으로 붙는 글 (예: 「바뀐 내용: 관람 인원 20 → 25 (단체 화면)」). 틀을 고칠 수 있고, 비우면 없음
 //  {바뀐내용} · {빈담당} 을 쓴 틀은 그 값이 하나도 없으면 줄을 안 보임 (바뀐 것이 없는데 「바뀐 내용:」만 보이지 않게)
 function tcfgDesc(t){ const c=tcfgOf(t.id), tpl=String(c && c.desc!=null ? c.desc : (TCFG_DEF_DESC[t.id]||'')); if(!tpl.trim()) return '';
-  const need=[['바뀐내용', x=>x.id==='pplchk' && typeof pplChanges==='function' ? pplChanges(x) : (x.changes||[])], ['빈담당', x=>x.missing||[]]].filter(([k])=>tpl.indexOf('{'+k+'}')>=0);
+  const need=[['바뀐내용', x=>x.id==='pplchk' && typeof pplChanges==='function' ? pplChanges(x) : (x.changes||[])], ['빈담당', x=>x.missing||[]], ['메모고친사람', x=>x.memoBy ? [x.memoBy] : []]].filter(([k])=>tpl.indexOf('{'+k+'}')>=0);
   if(need.length && need.every(([,f])=>!f(t).length)) return '';
   return tcfgFill(tpl, rec, '', t); }
 function tcfgDescHTML(t){ const s=tcfgDesc(t); return s ? `<div class="tk-chg tchg-line">${esc(s).replace(/\n/g,'<br>')}</div>` : ''; }
@@ -210,6 +213,7 @@ function tcfgEdHTML(T, c, builtin, id){
     </div>` : ''}
     ${builtin && (id==='erp' || id==='erpfix') && typeof ERP_NOTE_RULES!=='undefined' ? `<details class="tcfg-rule"><summary>📋 전산 비고 {전산비고} 가 만들어지는 규칙 (참고 · 누르면 펼침)</summary><pre>${esc(ERP_NOTE_RULES)}</pre></details>` : ''}
     ${builtin && id==='prep' && typeof PREP_RULES!=='undefined' ? `<details class="tcfg-rule"><summary>📋 단체 준비 과업 규칙 (참고 · 누르면 펼침)</summary><pre>${esc(PREP_RULES)}</pre></details>` : ''}
+    ${builtin && id==='memocheck' && typeof MEMOCHECK_RULES!=='undefined' ? `<details class="tcfg-rule"><summary>📋 통화 메모 확인 과업 규칙 (참고 · 누르면 펼침)</summary><pre>${esc(MEMOCHECK_RULES)}</pre></details>` : ''}
     <div class="tcfg-two">
       <label>과업 문구 <small class="hint">(「문구 복사」 버튼으로 복사 · 비우면 없음${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''})</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '')}</label>
       <label>과업 아래 안내 줄 <small class="hint">(과업 제목 아래에 자동으로 붙는 글 · 예: 바뀐 내용 · 비우면 없음)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '')}</label>

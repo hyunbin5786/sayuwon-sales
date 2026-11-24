@@ -2118,7 +2118,7 @@ const tourPeople = r => numOf(tourParse(r.tour).people);
 const tourNote = r => { const pay=tourPeople(r)-1; return `${String(r.org||'').trim()||'단체명'} 사전답사${pay>=1?`/${pay}명 현장결제 필요`:''}`; };   // 답사 1명은 무료 → 2명 이상이면 (인원 − 1)명 현장결제 필요 (2026-11-17)
 const tourMemo = r => String(r.tour||'').split(/\s*,\s*/).filter(Boolean).join('\n');
 const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', onsitecall:'현장 결제 인원 확인 연락', wkcheck:'다음주 예약 점검', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인', clergy:'대구대교구 정보 기입',
-  pplchk:PPL_TITLE, erpkeep:'전산 예약을 예약 내용대로 수정', prep:'단체 준비' };   // prep = 담당자마다 생기는 「단체 준비 : 동행 도슨트」 (실제 id 는 prep:이름 · 추후과업 메시지 관리의 「단체 준비」 하나로 이름 · 끄기 · 조건 · 마감 · 세부 과업을 정함, 2026-11-24)   // 2026-11-23: 조건이 아니라 「일이 생겼을 때」 만들어지는 자동 과업 두 개도 추후과업 메시지 관리 목록에 (이름 · 마감 · 세부 과업 · 문구 · 끄기)
+  pplchk:PPL_TITLE, erpkeep:'전산 예약을 예약 내용대로 수정', prep:'단체 준비', memocheck:'통화 메모 확인' };   // memocheck = 영업 담당이 아닌 사람이 통화 메모를 고치거나 메모를 남기면 영업 담당에게 (2026-11-24)   // prep = 담당자마다 생기는 「단체 준비 : 동행 도슨트」 (실제 id 는 prep:이름 · 추후과업 메시지 관리의 「단체 준비」 하나로 이름 · 끄기 · 조건 · 마감 · 세부 과업을 정함, 2026-11-24)   // 2026-11-23: 조건이 아니라 「일이 생겼을 때」 만들어지는 자동 과업 두 개도 추후과업 메시지 관리 목록에 (이름 · 마감 · 세부 과업 · 문구 · 끄기)
 // ===== 과업이 끝났는지 (2026-11-23 정리) =====
 //  - 보통 과업: 사람이 체크하면 끝 (어느 화면에서든 · t.done + t.manualDone)
 //  - 아래 여섯 가지는 예약 내용으로 확인한 뒤에만 끝남 (2026-11-23에 「체크만으로 완료」로 바꿨다가 같은 날 되돌림 — 요청):
@@ -2353,6 +2353,7 @@ function syncAutoTasks(){
   if(prepOn && !consult && (!rec.date || rec.date>=todayYmd() || tasks.some(t=>/^prep:/.test(t.id)))) prepWho(rec).forEach(w=>{ const id='prep:'+w; want.push(id);
     const t=tasks.find(x=>x.id===id); if(!t) tasks.push({id, who:w, title:prepTitle(rec, w), done:false, memo:'', at:new Date().toISOString(), due:autoDue(id, rec)});
     else { t.who=w; if(!t.titleSet) t.title=prepTitle(rec, w); t.memo=''; delete t.noteEdit; } });
+  if(memoNew().length) want.push('memocheck');   // 통화 메모 확인 (2026-11-24 · 아래 memocheck)
   if(rec.mabangL || rec.mabangTime) want.push('mbcall');   // 몽몽마방이 들어가면 식당에 전화로 시간 확인 (직접 체크)
   if((parseInt(rec.dClergy)||0)>0) want.push('clergy');   // 대구대교구 특별 할인 → 대구대교구 정보 기입 (예약자에게 정보 요청 · 대구대교구 시트 기입)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
@@ -2372,6 +2373,12 @@ function syncAutoTasks(){
   if(consult){ const keep=want.filter(id=>id==='tour' || id==='clergy'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약만 (손대지 않은 것은 아래에서 빠짐)
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec), ...(id==='wkcheck' && editingId && rec.date && wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId] ? {done:true, doneAt:wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId]} : {})}); });   // 사전 답사 과업 메모 = 답사 정보
   if(typeof tcfgSubs==="function") tcfgSubs(tasks);
+  // 통화 메모 확인 (2026-11-24): 안 읽은 메모(영업 담당이 아닌 사람이 통화 메모를 고친 것 · 남긴 메모)가 있으면 영업 담당에게 · 누가 고쳤는지 (memoBy) · 모두 확인하면 저절로 완료 · 새로 고치면 다시 열림
+  { const mc=tasks.find(t=>t.id==='memocheck' && !t.removed);
+    if(mc){ const nm=memoNew(), now=new Date().toISOString();
+      mc.memoBy=[...new Set(nm.map(m=>m.by))].join(', '); mc.memoAt=nm.map(m=>m.t||'').sort().pop()||'';
+      if(!nm.length && !mc.done){ mc.done=true; mc.doneAt=now; mc.autoDone=true; }
+      if(nm.length && mc.done && (!mc.doneAt || mc.memoAt>mc.doneAt)){ mc.done=false; mc.doneAt=''; delete mc.manualDone; delete mc.autoDone; mc.due=todayYmd(); mc.at=now; } } }
   // 담당자에게 일정 전달 (2026-11-24): 담당자마다 세부 과업 「김선영 : 동행 도슨트」 (id s:이름 · 모두 체크하면 완료 · 담당이 빠지면 그 줄도 뺌)
   { const sb=tasks.find(t=>t.id==='staffbrief' && !t.removed);
     if(sb){ const W=prepWho(rec), xs=sb.xsubs ||= [];
@@ -2480,6 +2487,7 @@ function renderTasks(){
       : t.id==='mbmenu' ? (t.done ? '몽몽마방 메뉴를 골랐습니다.' : `몽몽마방 식사에서 메뉴(${esc(mbMenus().map(m=>m.name).join(' · '))}) 중 하나를 고르세요. 고르면 자동으로 완료됩니다.`)
       : t.id==='goodsprep' ? `굿즈: <b>${esc(goodsText(rec)||'없음')}</b>${goodsParse(rec.goods).map(g=>itemNote('g:'+g.src)?` · ${esc(goodsName(g.src))} 비고: ${esc(itemNote('g:'+g.src))}`:'').join('')}<br>방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 그날 13시 · 17시에 알림이 뜹니다.`
       : /^prep:/.test(t.id) ? `<b>${esc(t.who||t.id.slice(5))}</b> 님 담당 — 맡은 것을 방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 이 과업은 ${esc(t.who||t.id.slice(5))} 님의 나의 할일 · 첫 화면 「단체고객 전화」에 단체예약으로 나옵니다.`
+      : t.id==='memocheck' ? `<b>${esc(t.memoBy||'다른 직원')}</b>님이 통화 메모를 고쳤거나 메모를 남겼습니다${t.memoAt?` (${esc(dtLabel(t.memoAt))})`:''}. 통화 메모를 확인하고 체크하세요 — 체크하면 「메모를 확인하세요」 알림도 확인한 것으로 바뀝니다.`
       : t.id==='staffbrief' ? `${staffFriName(rec.date)}(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')}) 각 담당자에게 아래 일정을 전달하고 체크하세요. 영업 담당이 이 예약의 프로그램 · 굿즈를 모두 챙깁니다.`
       : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 칸: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 · 굿즈 옆 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (개별 · 시간 프로그램 · 굿즈 모두 담당 필수)` : '프로그램 · 굿즈 담당을 모두 넣었습니다.')
       : t.id==='erpcheck' ? (!erpList.length ? '전산에 예약을 넣은 뒤 <b>전산 내역을 붙여 넣어</b> 실제 예약이 이 예약 내용과 같은지 확인하세요. <b>할인 합계</b>와 <b>총 금액</b>이 같으면 저절로 완료됩니다.'
@@ -2540,6 +2548,7 @@ $('#taskList').addEventListener('change', e=>{
     const ds=DOC_SUBS[t.id]||[]; if(ds.length || t.subs){ t.subs=t.subs||{}; ds.forEach(([k])=>{ t.subs[k]=true; }); Object.keys(t.subs).forEach(k=>{ t.subs[k]=true; }); }
     (t.xsubs||[]).forEach(x=>{ x.done=true; }); }
   else { delete t.manualDone; if(taskDue(t)<todayYmd()){ t.due=todayYmd(); t.dueSet=1; t.dueSetAt=new Date().toISOString(); }   /* 다시 열면 마감이 지났어도 오늘 마감 (2026-11-19) */ if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=false); (t.xsubs||[]).forEach(x=>x.done=false); }   // 끄면 세부 과업도 모두 해제 (2026-11-18)
+  if(id==='memocheck' && t.done){ const me=savedOwner()||'', now=new Date().toISOString(); memos=memos.map(m=>!m.seen && m.by!==me ? {...m, seen:true, seenAt:now} : m); if(typeof paintLock==='function') paintLock(); if(typeof paintMemoCount==='function') paintMemoCount(); }   // 통화 메모 확인을 체크 = 안 읽은 메모를 모두 읽음으로 (2026-11-24)
   if(id==='erp'){ rec.erp = t.done ? ymd(new Date()) : ''; touched.add('erp'); }
   if(id==='linksend' || id==='paycheck'){ const k=id==='linksend'?'linkSent':'paidAt'; rec[k] = t.done ? t.doneAt : ''; touched.add(k); paintFields(); }   // 과업 체크 = 예약 내용 버튼도 (일시 기록)
   if(id==='erpfix' && t.done){ const e=tasks.find(x=>x.id==='erp'); if(e) e.base=erpSnap(); t.changes=[]; }   // 전산에 고친 지금 내용을 기준으로
@@ -2778,6 +2787,29 @@ function newCall(withToast=true){
 $('#newBtn').onclick=async()=>{   // 새 통화: 고치던 내용이 있으면 바로 저장하고 새 통화 (저장할 수 없으면 예전처럼 묻기, 2026-11-17)
   if(isDirty() && canSave() && !lockOwner){ await save({auto:true}); if(!isDirty()){ newCall(false); toast('고치던 내용을 저장하고 새 통화를 시작합니다.'); $('#f_org')?.focus(); return; } }
   guardLeave(()=>newCall()); };
+// 안 읽은 메모: 영업 담당이 아닌 사람이 통화 메모를 고친 것 · 남긴 메모 (2026-11-24 · 통화 메모 확인 과업)
+const memoNew = () => (memos||[]).filter(m=>m && !m.seen && m.by && m.by!==String(rec.owner||'').trim());
+// 통화 메모 확인 규칙 (추후과업 메시지 관리 「통화 메모 확인」을 열면 보임 · js/taskcfg.js) — 규칙을 바꾸면 이 글도 같이
+const MEMOCHECK_RULES = `■ 무엇
+  영업 담당이 아닌 사람이 남의 단체예약에서 통화 메모를 고쳐 저장하면, 그 예약의 영업 담당에게 「통화 메모 확인」 과업이 생김
+  (예전 「메모를 확인하세요」 팝업도 그대로 뜸 — 같은 메모)
+
+■ 과업 아래 안내 줄
+  「고친 사람: 테스트」처럼 누가 고쳤는지 · 과업 칸에는 언제 고쳤는지도
+  여러 사람이 고쳤으면 「테스트, 김선영」 · 같은 사람이 여러 번 고쳐도 한 번
+
+■ 끝나는 때
+  과업을 체크하면 안 읽은 메모가 모두 「확인함」으로 바뀌고 과업 완료 (나의 할일에서 체크해도 같음)
+  「메모를 확인하세요」 팝업에서 「확인함」을 눌러도 과업이 저절로 완료
+  완료한 뒤 누가 또 고치면 다시 열림 (마감 = 그날)
+
+■ 고치는 쪽 (영업 담당이 아닌 사람)
+  통화 메모 위에 흐린 글 「수정 사안이 있다면 통화 메모에 남겨 두세요」 · 쓰고 1.5초 뒤 · 칸을 나가면 · 「저장」 버튼으로 저장
+  통화 메모만 저장 (예약의 다른 칸은 고칠 수 없음)
+
+■ 바꾸는 법
+  이름 · 마감 · 세부 과업 · 안내 줄은 아래 칸에서 · 「이 과업을 자동으로 만들지 않음」에 체크하면 과업은 안 생기고 팝업만 뜸
+  안내 줄에서 {메모고친사람} = 고친 사람 이름`;
 // ===================== 가격표 =====================
 // 가격은 견적서&거래명세서 사이트에서 그때그때 읽어 온다 → 그 사이트의 품목·가격이 바뀌면 여기도 바뀜
 //  · 기본 품목: 그 사이트 페이지의 CATALOG_RAW (품목 | 가격 | 할인 대상)와 굿즈·단체 프로그램 목록
@@ -4141,6 +4173,9 @@ setInterval(()=>{ if(editHeld && editHeld===editingId) acquireEdit(editHeld); },
 window.addEventListener('pagehide', ()=>releaseEdit(true));
 function paintLock(){
   document.body.classList.toggle('locked', !!(lockOwner || editLockBy));
+  { const h=$('#memoLockHint'), mb=$('#memoBox');   // 영업 담당이 아니면 통화 메모 위에 흐린 안내 · 빈 칸 안내 글 (2026-11-24)
+    if(h){ h.hidden=!lockOwner; h.textContent = lockOwner ? `수정 사안이 있다면 통화 메모에 남겨 두세요. 저장하면 ${lockOwner}님께 「통화 메모 확인」 과업이 갑니다.` : ''; }
+    if(mb) mb.placeholder = lockOwner ? '수정 사안이 있다면 통화 메모에 남겨 두세요.' : ''; }
   const box=$('#ownerMemo'); if(!box) return;
   const me=savedOwner(), list=[...memos].reverse();
   if(editLockBy){   // 다른 PC(창)에서 이 예약을 고치는 중: 읽기 전용, 풀리면 최신 내용으로 다시 불러옴
@@ -4177,7 +4212,7 @@ document.addEventListener('click', async e=>{
 //  다른 PC(창)에서 고치는 중(editLockBy)이면 통화 메모 · 과업도 막음 (같은 예약을 두 곳에서 고치지 않게)
 const LOCK_EDIT_SEL = 'input, select, textarea, button, label, [contenteditable="true"], [data-idel], [data-tmv], .tdrag';
 const myLockTask = el => { const li=el.closest && el.closest('#taskList .task'); if(!li) return false; const t=tasks.find(x=>x.id===li.dataset.id); return !!(t && t.who && t.who===savedOwner()); };
-const lockAllowed = el => !!el.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn, #copyReadBtn, #noteRegenBtn, #noteModal, summary, [data-texp], [data-tcopy], #lockPop')
+const lockAllowed = el => !!el.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn, #copyReadBtn, #noteRegenBtn, #noteModal, summary, [data-texp], [data-tcopy], #lockPop, #memoSave')
   || (!editLockBy && (el.closest('#memoBox') || myLockTask(el)));
 const lockBlocked = t => !!(lockOwner || editLockBy) && t && t.closest && !!t.closest('.layout') && !!t.closest(LOCK_EDIT_SEL) && !lockAllowed(t);
 let lockNudgeT=0;
@@ -4213,6 +4248,8 @@ async function saveLockedParts(){
     const item={...r, ...(noteChanged ? {note} : {}), history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos})};
     await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
     memos=ph.memos; paintLock(); status(`저장됨 ${new Date().toTimeString().slice(0,5)} · ${noteChanged?'통화 메모':'과업'}`);
+    if(noteChanged){ const ms=$('#memoSt'); if(ms){ ms.textContent=`저장됨 ${new Date().toTimeString().slice(0,5)} · ${lockOwner}님께 알림`; ms.className='memo-st ok'; } }
+    try{ baseSnap=snap(); paintDirty(); }catch(_){}   // 저장한 뒤에는 「저장 안 함」으로 보지 않게 (창을 닫을 때 경고 없음)
   }catch(err){ toast('저장하지 못했습니다: '+(err.code||err.message)); }
   finally{ lockSaving=false; } }
 // 내 예약에 새 메모가 있으면: '메모를 확인하세요' 팝업 (확인할 때까지, 이 화면에서는 새 메모가 생길 때마다)
@@ -4274,8 +4311,9 @@ async function doneTask(id, tid){
   const now=new Date().toISOString(), base=tasksOf(r).find(t=>t.id===tid); if(!base) return;
   const mark = t => { t.done=true; t.doneAt=now; t.manualDone=1; t.doneBy=savedOwner()||'';   // 사람이 체크한 것 = 끝 (코드가 다시 따져서 되돌리지 않음, 2026-11-23)
   };
-  if(editingId===id){ let t=tasks.find(x=>x.id===tid); if(!t){ t={...base}; tasks.push(t); } mark(t); if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=true); (t.xsubs||[]).forEach(x=>x.done=true); renderTasks(); await save({auto:true}); return; }
+  if(editingId===id){ let t=tasks.find(x=>x.id===tid); if(!t){ t={...base}; tasks.push(t); } mark(t); if(tid==='memocheck'){ const me=savedOwner()||''; memos=memos.map(m=>!m.seen && m.by!==me ? {...m, seen:true, seenAt:now} : m); paintLock(); } if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=true); (t.xsubs||[]).forEach(x=>x.done=true); renderTasks(); await save({auto:true}); return; }
   const ph=parseHist(r); let t=ph.tasks.find(x=>x.id===tid); if(!t){ t={...base, memo:'', at:now}; ph.tasks.push(t); }
+  if(tid==='memocheck'){ const me=savedOwner()||''; ph.memos=(ph.memos||[]).map(m=>!m.seen && m.by!==me ? {...m, seen:true, seenAt:now} : m); }   // 나의 할일에서 통화 메모 확인을 체크 = 안 읽은 메모를 읽음으로 (2026-11-24)
   mark(t); if(DOC_SUBS[t.id]) t.subs=Object.fromEntries(DOC_SUBS[t.id].map(([k])=>[k,true])); (t.xsubs||[]).forEach(x=>x.done=true); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료`});
   const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item);
   const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;   // 공유 기록에서 다시 받기 전에도 바로 반영
@@ -4442,6 +4480,16 @@ document.addEventListener('keydown', e=>{ if(document.getElementById('askModal')
 // 과업의 하위 과업(견적서 생성 · 전송 · NAS 등) · 직접 추가한 세부 과제가 모두 체크됐는지 (없으면 true)
 function taskSubsDone(t){ const ds=DOC_SUBS[t.id]; return (!ds || !t.subs || ds.every(([k])=>t.subs[k])) && (t.xsubs||[]).every(x=>x.done); }
 
+// 통화 메모 저장 (2026-11-24): 「저장」 버튼 · 영업 담당이 아니면 쓰고 1.5초 뒤 · 칸을 나가면 바로 저장 (예전엔 30초 자동 저장만이라 그 전에 나가면 안 남았음)
+let memoLockT=0;
+$('#memoBox').addEventListener('input', ()=>{ if(!lockOwner || editLockBy) return; clearTimeout(memoLockT); const ms=$('#memoSt'); if(ms){ ms.textContent='저장 안 함'; ms.className='memo-st'; } memoLockT=setTimeout(()=>saveLockedParts(), 1500); });
+$('#memoBox').addEventListener('blur', ()=>{ if(!lockOwner || editLockBy) return; clearTimeout(memoLockT); saveLockedParts(); });
+$('#memoSave').addEventListener('click', async ()=>{
+  if(!editingId){ toast('업체나 방문일을 먼저 넣고 저장해 주세요.'); return; }
+  if(editLockBy){ lockPopup(); return; }
+  clearTimeout(memoLockT); const ms=$('#memoSt');
+  if(lockOwner){ await saveLockedParts(); if(ms && ms.textContent==='저장 안 함'){ ms.textContent='바뀐 것 없음'; } return; }
+  await save(); if(ms){ ms.textContent=`저장됨 ${new Date().toTimeString().slice(0,5)}`; ms.className='memo-st ok'; } });
 // ===== 나의 할일 · 기타 개인 업무 (통화 구분 '개인업무', 2026-11-18 전부 여기로 · 예전 ops.html?p=task 화면은 없앰) =====
 // 저장: 공유 기록 한 줄 = 업무 하나. history = {kind:'task', d:{title, repeat, dows, dom, due, start, owner, memo, subs:[{id,title}], done:{날짜:{at,by}}, subDone:{날짜:{sid:1}}}, log}
 // 화면 (나의 할일 › 전체 3열의 기타 · 기타 탭):

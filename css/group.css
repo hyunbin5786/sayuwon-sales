@@ -1135,3 +1135,9 @@ html.g-loading body{overflow:hidden}
 /* 내가 영업 담당은 아니지만 나에게 맡겨진 추후 과업 (2026-11-24): 초록 테두리로 바로 보이게 */
 #taskList .task.tk-mine{border:2px solid var(--pine,#3f5236);background:#f1f7ee;box-shadow:0 0 0 3px rgba(63,82,54,.12)}
 #taskList .task.tk-mine .tk-whotag{color:#fff;background:var(--pine,#3f5236);border-color:var(--pine,#3f5236)}
+/* 통화 메모 저장 버튼 · 영업 담당이 아닐 때 흐린 안내 (2026-11-24) */
+.memo-panel h2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.memo-panel .memo-save{height:28px;padding:0 12px;font-size:12.5px}
+.memo-panel .memo-st{font:400 12px var(--sans);color:var(--muted)}
+.memo-panel .memo-st.ok{color:var(--pine)}
+.memo-lock-hint{margin:-2px 0 6px;color:#9a968a;font-size:12.5px}

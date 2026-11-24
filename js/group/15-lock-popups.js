@@ -30,6 +30,9 @@ setInterval(()=>{ if(editHeld && editHeld===editingId) acquireEdit(editHeld); },
 window.addEventListener('pagehide', ()=>releaseEdit(true));
 function paintLock(){
   document.body.classList.toggle('locked', !!(lockOwner || editLockBy));
+  { const h=$('#memoLockHint'), mb=$('#memoBox');   // 영업 담당이 아니면 통화 메모 위에 흐린 안내 · 빈 칸 안내 글 (2026-11-24)
+    if(h){ h.hidden=!lockOwner; h.textContent = lockOwner ? `수정 사안이 있다면 통화 메모에 남겨 두세요. 저장하면 ${lockOwner}님께 「통화 메모 확인」 과업이 갑니다.` : ''; }
+    if(mb) mb.placeholder = lockOwner ? '수정 사안이 있다면 통화 메모에 남겨 두세요.' : ''; }
   const box=$('#ownerMemo'); if(!box) return;
   const me=savedOwner(), list=[...memos].reverse();
   if(editLockBy){   // 다른 PC(창)에서 이 예약을 고치는 중: 읽기 전용, 풀리면 최신 내용으로 다시 불러옴
@@ -66,7 +69,7 @@ document.addEventListener('click', async e=>{
 //  다른 PC(창)에서 고치는 중(editLockBy)이면 통화 메모 · 과업도 막음 (같은 예약을 두 곳에서 고치지 않게)
 const LOCK_EDIT_SEL = 'input, select, textarea, button, label, [contenteditable="true"], [data-idel], [data-tmv], .tdrag';
 const myLockTask = el => { const li=el.closest && el.closest('#taskList .task'); if(!li) return false; const t=tasks.find(x=>x.id===li.dataset.id); return !!(t && t.who && t.who===savedOwner()); };
-const lockAllowed = el => !!el.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn, #copyReadBtn, #noteRegenBtn, #noteModal, summary, [data-texp], [data-tcopy], #lockPop')
+const lockAllowed = el => !!el.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn, #copyReadBtn, #noteRegenBtn, #noteModal, summary, [data-texp], [data-tcopy], #lockPop, #memoSave')
   || (!editLockBy && (el.closest('#memoBox') || myLockTask(el)));
 const lockBlocked = t => !!(lockOwner || editLockBy) && t && t.closest && !!t.closest('.layout') && !!t.closest(LOCK_EDIT_SEL) && !lockAllowed(t);
 let lockNudgeT=0;
@@ -102,6 +105,8 @@ async function saveLockedParts(){
     const item={...r, ...(noteChanged ? {note} : {}), history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos})};
     await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
     memos=ph.memos; paintLock(); status(`저장됨 ${new Date().toTimeString().slice(0,5)} · ${noteChanged?'통화 메모':'과업'}`);
+    if(noteChanged){ const ms=$('#memoSt'); if(ms){ ms.textContent=`저장됨 ${new Date().toTimeString().slice(0,5)} · ${lockOwner}님께 알림`; ms.className='memo-st ok'; } }
+    try{ baseSnap=snap(); paintDirty(); }catch(_){}   // 저장한 뒤에는 「저장 안 함」으로 보지 않게 (창을 닫을 때 경고 없음)
   }catch(err){ toast('저장하지 못했습니다: '+(err.code||err.message)); }
   finally{ lockSaving=false; } }
 // 내 예약에 새 메모가 있으면: '메모를 확인하세요' 팝업 (확인할 때까지, 이 화면에서는 새 메모가 생길 때마다)
@@ -163,8 +168,9 @@ async function doneTask(id, tid){
   const now=new Date().toISOString(), base=tasksOf(r).find(t=>t.id===tid); if(!base) return;
   const mark = t => { t.done=true; t.doneAt=now; t.manualDone=1; t.doneBy=savedOwner()||'';   // 사람이 체크한 것 = 끝 (코드가 다시 따져서 되돌리지 않음, 2026-11-23)
   };
-  if(editingId===id){ let t=tasks.find(x=>x.id===tid); if(!t){ t={...base}; tasks.push(t); } mark(t); if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=true); (t.xsubs||[]).forEach(x=>x.done=true); renderTasks(); await save({auto:true}); return; }
+  if(editingId===id){ let t=tasks.find(x=>x.id===tid); if(!t){ t={...base}; tasks.push(t); } mark(t); if(tid==='memocheck'){ const me=savedOwner()||''; memos=memos.map(m=>!m.seen && m.by!==me ? {...m, seen:true, seenAt:now} : m); paintLock(); } if(t.subs) Object.keys(t.subs).forEach(k=>t.subs[k]=true); (t.xsubs||[]).forEach(x=>x.done=true); renderTasks(); await save({auto:true}); return; }
   const ph=parseHist(r); let t=ph.tasks.find(x=>x.id===tid); if(!t){ t={...base, memo:'', at:now}; ph.tasks.push(t); }
+  if(tid==='memocheck'){ const me=savedOwner()||''; ph.memos=(ph.memos||[]).map(m=>!m.seen && m.by!==me ? {...m, seen:true, seenAt:now} : m); }   // 나의 할일에서 통화 메모 확인을 체크 = 안 읽은 메모를 읽음으로 (2026-11-24)
   mark(t); if(DOC_SUBS[t.id]) t.subs=Object.fromEntries(DOC_SUBS[t.id].map(([k])=>[k,true])); (t.xsubs||[]).forEach(x=>x.done=true); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료`});
   const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item);
   const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;   // 공유 기록에서 다시 받기 전에도 바로 반영
@@ -331,3 +337,13 @@ document.addEventListener('keydown', e=>{ if(document.getElementById('askModal')
 // 과업의 하위 과업(견적서 생성 · 전송 · NAS 등) · 직접 추가한 세부 과제가 모두 체크됐는지 (없으면 true)
 function taskSubsDone(t){ const ds=DOC_SUBS[t.id]; return (!ds || !t.subs || ds.every(([k])=>t.subs[k])) && (t.xsubs||[]).every(x=>x.done); }
 
+// 통화 메모 저장 (2026-11-24): 「저장」 버튼 · 영업 담당이 아니면 쓰고 1.5초 뒤 · 칸을 나가면 바로 저장 (예전엔 30초 자동 저장만이라 그 전에 나가면 안 남았음)
+let memoLockT=0;
+$('#memoBox').addEventListener('input', ()=>{ if(!lockOwner || editLockBy) return; clearTimeout(memoLockT); const ms=$('#memoSt'); if(ms){ ms.textContent='저장 안 함'; ms.className='memo-st'; } memoLockT=setTimeout(()=>saveLockedParts(), 1500); });
+$('#memoBox').addEventListener('blur', ()=>{ if(!lockOwner || editLockBy) return; clearTimeout(memoLockT); saveLockedParts(); });
+$('#memoSave').addEventListener('click', async ()=>{
+  if(!editingId){ toast('업체나 방문일을 먼저 넣고 저장해 주세요.'); return; }
+  if(editLockBy){ lockPopup(); return; }
+  clearTimeout(memoLockT); const ms=$('#memoSt');
+  if(lockOwner){ await saveLockedParts(); if(ms && ms.textContent==='저장 안 함'){ ms.textContent='바뀐 것 없음'; } return; }
+  await save(); if(ms){ ms.textContent=`저장됨 ${new Date().toTimeString().slice(0,5)}`; ms.className='memo-st ok'; } });
