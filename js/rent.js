@@ -49,15 +49,23 @@
 
   // ---------- 표 ----------
   const cell = v => esc(v||'').replace(/\n/g,'<br>');
+  // 표 = 핵심만 (2026-11-24): 항목 · 산출 기준 · 기준 금액(첫 줄) · 장소(앞 2곳 + 외 n곳) · 「자세히 보기」 → 오른쪽 옆 보기(노션 사이드 보기처럼)에 모든 칸
+  const first = v => String(v||'').split('\n').map(s=>s.trim()).filter(Boolean)[0] || '';
+  const places = v => String(v||'').split(/[\/,\n]+/).map(s=>s.replace(/^\([^)]*\)\s*/,'').trim()).filter(Boolean);
+  const placeShort = v => { const p=places(v); return p.length>2 ? `${p.slice(0,2).join(' · ')} 외 ${p.length-2}곳` : p.join(' · '); };
+  const CORE = [['item','항목'],['basis','산출 기준'],['price','기준 금액'],['place','장소']];
   function render(){
     const q=$('#q').value.trim().toLowerCase().replace(/\s/g,'');
     const list=rows.filter(r=>!q || COLS.map(([k])=>r[k]||'').join(' ').toLowerCase().replace(/\s/g,'').includes(q));
     $('#sum').textContent = `${rows.length}개${q?` · 찾은 ${list.length}개`:''}`;
-    $('#head').innerHTML = `<tr>${COLS.map(([,l])=>`<th>${l}</th>`).join('')}${arrange?'<th></th>':''}</tr>`;
-    $('#body').innerHTML = list.length ? list.map(r=>{ const i=rows.indexOf(r);
-      return `<tr data-rid="${esc(r.id)}">${COLS.map(([k,l],ci)=>`<td data-l="${esc(l)}" class="c-${k}">${ci===0?`<b>${cell(r[k])}</b>`:cell(r[k])}</td>`).join('')}`
-        + (arrange ? `<td class="acts"><button type="button" class="btn" data-mv="${esc(r.id)}|-1"${i===0?' disabled':''} title="위로">↑</button><button type="button" class="btn" data-mv="${esc(r.id)}|1"${i===rows.length-1?' disabled':''} title="아래로">↓</button><button type="button" class="btn primary" data-del="${esc(r.id)}">빼기</button></td>` : '') + `</tr>`; }).join('')
-      : `<tr><td colspan="${COLS.length+(arrange?1:0)}" class="empty">${q?'찾은 항목이 없습니다.':'항목이 없습니다. 「＋ 항목 추가」를 눌러 주세요.'}</td></tr>`;
+    $('#head').innerHTML = `<tr>${CORE.map(([,l])=>`<th>${l}</th>`).join('')}<th></th></tr>`;
+    $('#body').innerHTML = list.length ? list.map(r=>{ const i=rows.indexOf(r), more=String(r.price||'').split('\n').filter(s=>s.trim()).length>1;
+      return `<tr data-rid="${esc(r.id)}"${peekId===r.id?' class="on"':''}><td data-l="항목" class="c-item"><b>${esc(first(r.item))}</b></td><td data-l="산출 기준" class="c-basis">${esc(first(r.basis))}${String(r.basis||'').includes('\n')?' <small class="more">…</small>':''}</td>`
+        + `<td data-l="기준 금액" class="c-price">${esc(first(r.price))}${more?' <small class="more">외 내역</small>':''}</td><td data-l="장소" class="c-place">${esc(placeShort(r.place))}</td>`
+        + (arrange ? `<td class="acts"><button type="button" class="btn" data-mv="${esc(r.id)}|-1"${i===0?' disabled':''} title="위로">↑</button><button type="button" class="btn" data-mv="${esc(r.id)}|1"${i===rows.length-1?' disabled':''} title="아래로">↓</button><button type="button" class="btn primary" data-del="${esc(r.id)}">빼기</button></td>`
+          : `<td class="acts"><button type="button" class="btn sm" data-peek="${esc(r.id)}">자세히 보기</button></td>`) + `</tr>`; }).join('')
+      : `<tr><td colspan="${CORE.length+1}" class="empty">${q?'찾은 항목이 없습니다.':'항목이 없습니다. 「＋ 항목 추가」를 눌러 주세요.'}</td></tr>`;
+    if(peekId) paintPeek();
     const last=log[log.length-1]; $('#log').textContent = last ? `마지막 수정: ${new Date(last.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})} · ${last.by||''} · ${last.what||''}` : (saved ? '' : '처음 내용 (2026-11-24 대관 안내 자료) · 아직 고친 사람 없음');
     $('#editMode').classList.toggle('primary', arrange); $('#editMode').textContent = arrange ? '순서 · 빼기 끝' : '순서 · 빼기';
   }
@@ -92,9 +100,32 @@
   document.addEventListener('click', e=>{
     const mv=e.target.closest('[data-mv]'); if(mv){ const [id,d]=mv.dataset.mv.split('|'); change(list=>{ const i=list.findIndex(x=>x.id===id), j=i+(+d); if(i<0 || j<0 || j>=list.length) return null; [list[i],list[j]]=[list[j],list[i]]; return list; }, '순서 바꿈'); return; }
     const dl=e.target.closest('[data-del]'); if(dl){ const r=rows.find(x=>x.id===dl.dataset.del); if(r) askDel(r); return; }
-    const tr=e.target.closest('tr[data-rid]'); if(tr && !arrange && !e.target.closest('a,button')) openEdit(tr.dataset.rid);
+    const pk=e.target.closest('[data-peek]'); if(pk){ openPeek(pk.dataset.peek); return; }
+    const tr=e.target.closest('tr[data-rid]'); if(tr && !arrange && !e.target.closest('a,button')) openPeek(tr.dataset.rid);   // 줄을 눌러도 옆 보기
   });
-  document.addEventListener('keydown', e=>{ if(e.key!=='Escape') return; if(!$('#askModal').hidden){ $('#askModal').hidden=true; return; } if(!$('#editModal').hidden) closeEdit(); });
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){ if(!$('#askModal').hidden){ $('#askModal').hidden=true; return; } if(!$('#editModal').hidden){ closeEdit(); return; } if(peekId) closePeek(); return; }
+    if(peekId && $('#editModal').hidden && !/INPUT|TEXTAREA/.test(document.activeElement?.tagName||'') && (e.key==='ArrowUp' || e.key==='ArrowDown')){ e.preventDefault(); stepPeek(e.key==='ArrowUp'?-1:1); } });
+
+  // ---------- 옆 보기 (노션 사이드 보기처럼 · 2026-11-24): 오른쪽에서 열림 · 모든 칸을 크게 · ↑ ↓ 앞뒤 항목 · 수정 · 닫기(Esc) ----------
+  let peekId=null;
+  function openPeek(id){ peekId=id; paintPeek(); $('#peek').hidden=false; document.body.classList.add('peek-open'); render(); }
+  function closePeek(){ peekId=null; $('#peek').hidden=true; document.body.classList.remove('peek-open'); render(); }
+  function stepPeek(d){ const i=rows.findIndex(x=>x.id===peekId), j=i+d; if(j>=0 && j<rows.length) openPeek(rows[j].id); }
+  const lines = v => String(v||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  function paintPeek(){ const r=rows.find(x=>x.id===peekId); if(!r){ closePeek(); return; } const i=rows.indexOf(r);
+    const sec = (l, html) => html ? `<section class="pk-sec"><h3>${l}</h3>${html}</section>` : '';
+    const block = v => lines(v).length ? `<div class="pk-txt">${lines(v).map(s=>`<p class="${/^[•·\-※]/.test(s)?'bul':''}">${esc(s.replace(/^[•·\-]\s*/,''))}</p>`).join('')}</div>` : '';
+    const price = v => { const L=lines(v); if(!L.length) return ''; return `<div class="pk-price"><b>${esc(L[0])}</b>${L.length>1?`<ul>${L.slice(1).map(s=>`<li>${esc(s)}</li>`).join('')}</ul>`:''}</div>`; };
+    const chips = v => { const L=lines(v); if(!L.length) return ''; return L.map(s=>{ const m=s.match(/^(\([^)]*\))\s*(.*)$/); return `<div class="pk-pl">${m?`<small>${esc(m[1])}</small>`:''}${places(m?m[2]:s).map(p=>`<span class="pk-chip">${esc(p)}</span>`).join('')}</div>`; }).join(''); };
+    $('#peekBody').innerHTML = `<div class="pk-top"><button type="button" class="pk-nav" data-pkstep="-1"${i===0?' disabled':''} title="앞 항목 (↑)">↑</button><button type="button" class="pk-nav" data-pkstep="1"${i===rows.length-1?' disabled':''} title="뒤 항목 (↓)">↓</button><span class="sp"></span><button type="button" class="btn primary" data-pkedit="${esc(r.id)}">수정</button><button type="button" class="pk-x" data-pkclose title="닫기 (Esc)" aria-label="닫기">×</button></div>`
+      + `<h2 class="pk-title">${esc(first(r.item))}</h2>${lines(r.item).length>1?`<p class="hint">${esc(lines(r.item).slice(1).join(' · '))}</p>`:''}`
+      + `<dl class="pk-props"><dt>산출 기준</dt><dd>${lines(r.basis).map(esc).join('<br>')||'<span class="hint">—</span>'}</dd><dt>기준 금액</dt><dd>${esc(first(r.price))||'<span class="hint">—</span>'}</dd><dt>장소</dt><dd>${places(r.place).length ? `${places(r.place).length}곳` : '<span class="hint">—</span>'}</dd></dl>`
+      + sec('기준 금액 · 내역', price(r.price)) + sec('추가 대관 · 추가 항목', block(r.extra)) + sec('장소', chips(r.place)) + sec('기타 조건', block(r.note)); }
+  $('#peek').addEventListener('click', e=>{
+    if(e.target.closest('[data-pkclose]')){ closePeek(); return; }
+    const s=e.target.closest('[data-pkstep]'); if(s){ stepPeek(+s.dataset.pkstep); return; }
+    const ed=e.target.closest('[data-pkedit]'); if(ed) openEdit(ed.dataset.pkedit); });
 
   load();
   SY.live.onRev(()=>{ if($('#editModal').hidden && !busy) fetchNow().then(r=>{ rows=r.rows; log=r.log; saved=!!r.item; render(); }).catch(()=>{}); });   // 다른 컴퓨터에서 바뀌면 바로

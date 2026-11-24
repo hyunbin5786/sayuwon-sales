@@ -43,3 +43,37 @@ main.rent-main{display:block;max-width:1600px}
   #editModal{padding:0}
   .rent-edit{max-width:none !important;min-height:100%;border-radius:0}
 }
+/* ===== 표는 핵심만 · 옆 보기 (2026-11-24 · 노션 사이드 보기처럼) ===== */
+main.rent-main{max-width:1100px;transition:margin .2s}
+.rent-t td.c-item{min-width:180px}
+.rent-t td.c-basis{min-width:90px;white-space:nowrap}
+.rent-t td.c-price{min-width:150px;white-space:nowrap}
+.rent-t td.c-place{min-width:160px;color:#4a4740}
+.rent-t td small.more{color:var(--muted);font-size:11px}
+.rent-t td.acts{width:1%}
+.rent-t tbody tr.on td{background:#e6efe8 !important}
+.peek{position:fixed;top:0;right:0;bottom:0;width:min(540px,100%);background:#fff;border-left:1px solid var(--line);box-shadow:-12px 0 32px rgba(0,0,0,.10);z-index:50;overflow-y:auto;animation:peekIn .18s ease-out}
+.peek[hidden]{display:none}
+@keyframes peekIn{from{transform:translateX(30px);opacity:.4}to{transform:none;opacity:1}}
+.peek-in{padding:14px 22px 40px}
+.pk-top{display:flex;align-items:center;gap:6px;position:sticky;top:0;background:#fff;padding:6px 0 10px;z-index:1}
+.pk-top .sp{flex:1}
+.pk-nav,.pk-x{width:32px;height:32px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;font-size:16px;color:var(--ink)}
+.pk-nav:disabled{opacity:.35;cursor:default}
+.pk-x{font-size:20px;line-height:1}
+.pk-title{font:600 24px/1.3 var(--serif);margin:10px 0 4px;color:var(--ink)}
+.pk-props{display:grid;grid-template-columns:90px 1fr;gap:8px 12px;margin:14px 0 18px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:14px}
+.pk-props dt{color:var(--muted)}
+.pk-props dd{margin:0;font-weight:600}
+.pk-sec{margin:0 0 18px}
+.pk-sec h3{font:700 13px var(--sans);color:var(--pine);margin:0 0 8px;letter-spacing:.02em}
+.pk-txt p{margin:0 0 6px;line-height:1.6;font-size:14px}
+.pk-txt p.bul{position:relative;padding-left:14px}
+.pk-txt p.bul::before{content:"•";position:absolute;left:2px;color:var(--pine)}
+.pk-price b{display:block;font-size:20px;color:var(--ink);margin-bottom:6px}
+.pk-price ul{margin:0;padding:10px 14px 10px 28px;background:#f7f5ef;border-radius:8px;font-size:13.5px;line-height:1.7;font-variant-numeric:tabular-nums}
+.pk-pl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 8px}
+.pk-pl small{width:100%;color:var(--muted);font-size:12px}
+.pk-chip{display:inline-block;padding:3px 10px;border-radius:999px;background:#eef3ec;color:#2f4a36;font-size:13px}
+@media (min-width:1300px){ body.peek-open main.rent-main{margin-right:560px;margin-left:auto} }
+@media (max-width:760px){ .peek{width:100%;border-left:0} .rent-t td.acts{display:block;text-align:right} }
