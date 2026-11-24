@@ -147,7 +147,7 @@ function tcfgEff(id, b){ b=b||{};
   return { title: String(b.title||''), conds: tcfgClone(Array.isArray(b.when) ? b.when : [...(TCFG_DEF_WHEN[id]||[]), ...(b.conds||[])]),
     due: b.due && b.due.base && b.due.base!=='orig' ? {...b.due} : {...tcfgDefDue(id)},
     subs: TCFG_BASE_DOC[id] ? [...(Array.isArray(b.docSubs) ? b.docSubs : TCFG_BASE_DOC[id].map(x=>x[1])), ...(b.subs||[])] : [...(b.subs||[])],
-    note: b.note!=null ? b.note : (TCFG_DEF_NOTE[id]||''), desc: b.desc!=null ? b.desc : (TCFG_DEF_DESC[id]||''), off: !!b.off, autoSubs: !b.noAutoSubs, onsiteSub: id==='wkcheck' ? !tcfgNoOnsiteSub() : true }; }
+    note: b.note!=null ? b.note : (TCFG_DEF_NOTE[id]||''), desc: b.desc!=null ? b.desc : (TCFG_DEF_DESC[id]||''), off: !!b.off, autoSubs: !b.noAutoSubs, onsiteSub: id==='wkcheck' ? !tcfgNoOnsiteSub() : true, autoDone: !b.noAutoDone }; }   // autoDone: 예약내역&전산 확인 — 전산 내역이 이미 같으면 저절로 완료 (2026-11-24)
 const tcfgCleanConds = cs => (cs||[]).map(q=>({k:q.k, v:String(q.v??'')})).filter(q=>{ const x=TCFG_CONDS.find(y=>y[0]===q.k); return x && (x[3]!=='num' || q.v!==''); });
 const tcfgDueNorm = d => { d=d||{}; return TCFG_N_DUE.has(d.base) ? {base:d.base, n:Math.max(0, parseInt(d.n)||0)} : {base:d.base||'made'}; };
 const tcfgSubsClean = s => (s||[]).map(x=>String(x||'').trim()).filter(Boolean);
@@ -160,7 +160,7 @@ function tcfgPack(id, e){ const o={};
   const subs=tcfgSubsClean(e.subs);
   if(TCFG_BASE_DOC[id]){ if(!tcfgEq(subs, TCFG_BASE_DOC[id].map(x=>x[1]))) o.docSubs=subs; } else if(subs.length) o.subs=subs;
   { const v=String(e.note||'').trim(); if(v!==String(TCFG_DEF_NOTE[id]||'').trim()) o.note=v; }
-  { const v=String(e.desc||'').trim(); if(v!==String(TCFG_DEF_DESC[id]||'').trim()) o.desc=v; } if(e.off) o.off=true; if(id==='wkcheck' && !e.autoSubs) o.noAutoSubs=true; if(id==='wkcheck' && !e.onsiteSub) o.noOnsiteSub=true;
+  { const v=String(e.desc||'').trim(); if(v!==String(TCFG_DEF_DESC[id]||'').trim()) o.desc=v; } if(e.off) o.off=true; if(id==='wkcheck' && !e.autoSubs) o.noAutoSubs=true; if(id==='wkcheck' && !e.onsiteSub) o.noOnsiteSub=true; if(id==='pplchk' && !e.autoDone) o.noAutoDone=true;
   return o; }
 function tcfgPackC(c){ const o={id:c.id, title:String(c.title||'').trim(), due:tcfgDueNorm(c.due||{base:'visit',n:3})};
   const conds=tcfgCleanConds(c.conds); if(conds.length) o.conds=conds; const subs=tcfgSubsClean(c.subs); if(subs.length) o.subs=subs;
@@ -214,6 +214,7 @@ function tcfgEdHTML(T, c, builtin, id){
     ${builtin && (id==='erp' || id==='erpfix') && typeof ERP_NOTE_RULES!=='undefined' ? `<details class="tcfg-rule"><summary>📋 전산 비고 {전산비고} 가 만들어지는 규칙 (참고 · 누르면 펼침)</summary><pre>${esc(ERP_NOTE_RULES)}</pre></details>` : ''}
     ${builtin && id==='prep' && typeof PREP_RULES!=='undefined' ? `<details class="tcfg-rule"><summary>📋 단체 준비 과업 규칙 (참고 · 누르면 펼침)</summary><pre>${esc(PREP_RULES)}</pre></details>` : ''}
     ${builtin && id==='memocheck' && typeof MEMOCHECK_RULES!=='undefined' ? `<details class="tcfg-rule"><summary>📋 통화 메모 확인 과업 규칙 (참고 · 누르면 펼침)</summary><pre>${esc(MEMOCHECK_RULES)}</pre></details>` : ''}
+    ${builtin && id==='pplchk' ? `<div class="tcfg-auto"><label class="chk"><input type="checkbox" data-tf="${T}|autoDone"${c.autoDone?' checked':''}> <b>전산 내역이 이미 같으면 저절로 완료</b> <small class="hint">— 가장 최근에 붙여 넣은 전산 내역과 예약 내역의 총 금액 · 할인이 같으면 (바뀐 내용이 이미 반영됨)</small></label></div>` + (typeof PPLCHK_RULES!=='undefined' ? `<details class="tcfg-rule"><summary>📋 예약내역&전산 확인 과업 규칙 (참고 · 누르면 펼침)</summary><pre>${esc(PPLCHK_RULES)}</pre></details>` : '') : ''}
     <div class="tcfg-two">
       <label>과업 문구 <small class="hint">(「문구 복사」 버튼으로 복사 · 비우면 없음${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''})</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '')}</label>
       <label>과업 아래 안내 줄 <small class="hint">(과업 제목 아래에 자동으로 붙는 글 · 예: 바뀐 내용 · 비우면 없음)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '')}</label>
@@ -236,7 +237,7 @@ function tcfgPaint(){ const d=tcfgDraft; if(!d) return; const body=$('#tcfgBody'
 // 칸 값 → 초안. 돌려주는 값이 true 면 다시 그림
 function tcfgSet(el){ if(!tcfgDraft) return false;
   if(el.dataset.tf){ const [T,f]=el.dataset.tf.split('|'), c=tcfgTarget(T); if(!c) return false;
-    if(f==='off' || f==='autoSubs' || f==='onsiteSub'){ c[f]=el.checked; return true; }
+    if(f==='off' || f==='autoSubs' || f==='onsiteSub' || f==='autoDone'){ c[f]=el.checked; return true; }
     if(f==='dueBase'){ c.due={...(c.due||{}), base:el.value}; if(c.due.n==null) c.due.n=TCFG_N_DUE.has(el.value) ? (el.value==='made'?0:3) : 0; return true; }
     if(f==='dueN'){ c.due={...(c.due||{}), n:parseInt(el.value.replace(/\D/g,''))||0}; return false; }
     c[f]=el.value; return false; }

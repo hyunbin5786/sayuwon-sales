@@ -2373,6 +2373,11 @@ function syncAutoTasks(){
   if(consult){ const keep=want.filter(id=>id==='tour' || id==='clergy'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약만 (손대지 않은 것은 아래에서 빠짐)
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec), ...(id==='wkcheck' && editingId && rec.date && wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId] ? {done:true, doneAt:wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId]} : {})}); });   // 사전 답사 과업 메모 = 답사 정보
   if(typeof tcfgSubs==="function") tcfgSubs(tasks);
+  // 예약내역&전산 확인 (pplchk · 2026-11-24): 가장 최근에 붙여 넣은 전산 내역이 지금 예약 내역과 같으면(총 금액 · 할인 · erpCheck) 바뀐 내용이 이미 전산에 반영된 것 → 저절로 완료
+  //  열지 않은 예약도 같음 (나의 할일 · 첫 화면) · 추후과업 메시지 관리 「전날 확인 변경 → 예약내역&전산 확인」의 📋 규칙
+  { const pc=tasks.find(t=>t.id==='pplchk' && !t.removed);
+    if(pc && !pc.done && (erpList||[]).length && !(typeof tcfgOf==='function' && (tcfgOf('pplchk')||{}).noAutoDone)){ let ok=false; try{ ok=erpCheck().ok; }catch(_){}
+      if(ok){ pc.done=true; pc.doneAt=new Date().toISOString(); pc.autoDone=true; pc.autoWhy='가장 최근 전산 내역에 이미 반영됨'; } } }
   // 통화 메모 확인 (2026-11-24): 안 읽은 메모(영업 담당이 아닌 사람이 통화 메모를 고친 것 · 남긴 메모)가 있으면 영업 담당에게 · 누가 고쳤는지 (memoBy) · 모두 확인하면 저절로 완료 · 새로 고치면 다시 열림
   { const mc=tasks.find(t=>t.id==='memocheck' && !t.removed);
     if(mc){ const nm=memoNew(), now=new Date().toISOString();
@@ -2493,7 +2498,7 @@ function renderTasks(){
       : t.id==='erpcheck' ? (!erpList.length ? '전산에 예약을 넣은 뒤 <b>전산 내역을 붙여 넣어</b> 실제 예약이 이 예약 내용과 같은지 확인하세요. <b>할인 합계</b>와 <b>총 금액</b>이 같으면 저절로 완료됩니다.'
           : `<span class="erp-ck">${erpCheckHTML(erpCheck())}</span><br>${t.done ? '전산 내역과 예약 내용이 같습니다.' : '다른 곳을 전산이나 예약 내용에서 고친 뒤 전산 내역을 다시 붙여 넣으세요 (예약 내역 줄의 할인 · 기타 할인 · 인원 확인).'}`)
       : t.id==='erpfix' ? ((t.changes||[]).length ? `전산 등록 후 바뀐 내용: <b>${esc(t.changes.join(' · '))}</b><br>전산 예약을 고치고 비고도 새 문구로 바꾼 뒤 체크하세요.${erpItemsChanged() ? ' <b>예약 내역(품목 · 인원 · 할인)이 바뀌어</b> 체크하면 전산 내역을 다시 붙여넣습니다.' : ''}` : '전산에 반영했습니다.')
-      : t.id==='pplchk' ? `인원수 변경에 따른 예약 내역 확인${t.pplFrom||t.pplTo ? ` (관람 인원 ${esc(t.pplFrom||'?')}명 → ${esc(t.pplTo||'?')}명)` : ''}`
+      : t.id==='pplchk' ? `인원수 변경에 따른 예약 내역 확인${t.pplFrom||t.pplTo ? ` (관람 인원 ${esc(t.pplFrom||'?')}명 → ${esc(t.pplTo||'?')}명)` : ''}${t.done && t.autoDone ? ' — <b>자동 완료</b> (가장 최근 전산 내역에 이미 반영됨)' : !t.done ? ' — 전산 내역을 붙여 넣어 예약 내역과 같으면 저절로 완료됩니다' : ''}`
       : SUB[t.id] || '';
     const docBtn = (t.id==='quote'||t.id==='stmt') ? `<div class="tbtn"><button type="button" class="btn" data-tquote="${t.id==='stmt'?'statement':'quote'}">${t.id==='stmt'?'거래명세서 만들기':'견적서 만들기'}</button></div>` : '';
     // 견적서 · 거래명세서 파일 링크는 안 보임 (출력한 내용은 견적서 사이트 발급 내역에서, 2026-11-21)
@@ -2811,6 +2816,19 @@ const MEMOCHECK_RULES = `■ 무엇
 ■ 바꾸는 법
   이름 · 마감 · 세부 과업 · 안내 줄은 아래 칸에서 · 「이 과업을 자동으로 만들지 않음」에 체크하면 과업은 안 생기고 팝업만 뜸
   안내 줄에서 {메모고친사람} = 고친 사람 이름`;
+// 예약내역&전산 확인 규칙 (추후과업 메시지 관리 「전날 확인 변경 → 예약내역&전산 확인」을 열면 보임 · js/taskcfg.js) — 규칙을 바꾸면 이 글도 같이
+const PPLCHK_RULES = `■ 언제 생기나
+  저장한 예약의 관람 인원이 바뀌면 (단체 화면에서 고치거나 · 다음날 고객 응대 준비에서 바꾸면)
+  과업 아래 「바뀐 내용: 관람 인원 20 → 25 (단체 화면)」
+
+■ 저절로 끝나는 때 (2026-11-24)
+  가장 최근에 붙여 넣은 전산 내역과 지금 예약 내역을 대조해 총 금액 · 할인이 같으면 = 바뀐 내용이 이미 전산에 반영됨 → 자동 완료
+  (전산 예약 · 전산 내역 대조 과업과 같은 대조 · 열지 않은 예약도 나의 할일 · 첫 화면에서 같이)
+  같지 않으면 그대로 열려 있음 → 전산을 고치고 전산 내역을 다시 붙여 넣으면 그때 완료
+  아래 「전산 내역이 이미 같으면 저절로 완료」 체크를 빼면 사람이 체크해야만 완료
+
+■ 다시 열리는 때
+  관람 인원이 또 바뀌면 다시 열림 (바뀐 내용 줄이 새로)`;
 // ===================== 가격표 =====================
 // 가격은 견적서&거래명세서 사이트에서 그때그때 읽어 온다 → 그 사이트의 품목·가격이 바뀌면 여기도 바뀜
 //  · 기본 품목: 그 사이트 페이지의 CATALOG_RAW (품목 | 가격 | 할인 대상)와 굿즈·단체 프로그램 목록
