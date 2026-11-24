@@ -22,13 +22,14 @@ $('#bTitle').textContent = B.title; $('#addBtn').textContent = '＋ ' + B.add;
 const CACHE_LS = 'sy_ops_cache_' + P;
 // 로그인 없이 쓰는 화면 (OPS_PAGE.guest · 분실물 2026-11-24): 로그인하지 않았으면 보기(이름 · 연락처 가림) · 찾기 · 새로 접수만 — 서버 lostList · lostAdd · lostImgPut
 const GUEST = !!B.guest && !opsKey();
+const OLD_SRV = '서버(Cloudflare)가 아직 예전 코드라 로그인 없이 저장할 수 없습니다 — 관리자가 worker.js 를 새로 올려야 합니다 (그 전에는 로그인하면 됨)';
 let rows = GUEST ? [] : (()=>{ try{ return JSON.parse(localStorage.getItem(CACHE_LS)||'[]'); }catch(_){ return []; } })();   // [{r(시트 줄), d(내용)}]
 let syncing=false;
 const setSync = t => { $('#sync').textContent = t; };
 async function pull(){
   if(GUEST){ setSync('불러오는 중…');
     const j=await SY.callRaw({action:'lostList'}).catch(()=>null);
-    if(!j || !j.ok){ setSync(j && j.error==='bad_action' ? '서버를 새로 올려야 로그인 없이 볼 수 있습니다' : '연결 안 됨 · 잠시 뒤 다시'); return; }
+    if(!j || !j.ok){ setSync(j && /^bad_(action|key)$/.test(j.error||'') ? OLD_SRV : '연결 안 됨 · 잠시 뒤 다시'); return; }
     rows=(j.items||[]).map(x=>({r:{id:x.id, saved:x.saved, updated:x.updated}, d:x.d||{}, log:[]})); setSync(''); render(); return; }
   if(!opsKey()){ $('#keyBox').hidden=false; return; }
   setSync('불러오는 중…');
@@ -45,7 +46,7 @@ async function putRow(row, what){
     try{ const j=await SY.callRaw({action:'lostAdd', d:row.d, by:row.d.person||''});
       if(!j || !j.ok) throw Object.assign(new Error((j && j.error)||'error'), {code:j && j.error});
       setSync(''); pull(); return true; }
-    catch(e){ setSync('저장 못 함'); toast('접수하지 못했습니다: '+({busy:'잠시 뒤 다시 해 주세요', no_photo:'습득물 사진을 넣어 주세요', no_item:'물품을 적어 주세요', bad_action:'서버를 새로 올려야 로그인 없이 접수할 수 있습니다'}[e.code] || e.code || e.message)); return false; } }
+    catch(e){ setSync('저장 못 함'); toast('접수하지 못했습니다: '+({busy:'잠시 뒤 다시 해 주세요', no_photo:'습득물 사진을 넣어 주세요', no_item:'물품을 적어 주세요', bad_action:OLD_SRV, bad_key:OLD_SRV}[e.code] || e.code || e.message)); return false; } }
   const now=new Date().toISOString(), log=[...(row.log||[]), {at:now, by:user.name||'', what}].slice(-60);
   const item = {...(row.r||{}), id: row.r?.id || opsId(), callType:OPS_TYPES[P], saved: row.r?.saved || now, takenBy: row.r?.takenBy || user.name || '',
     owner: row.r?.owner || user.name || '', summary: B.summary(row.d).slice(0,120), history: JSON.stringify({kind:P, d:row.d, log}) };
@@ -103,7 +104,7 @@ function renderLost(hit){
         + (b.photo ? `<td class="lost-ph">${ps.length ? `<img data-phimg="${esc(ps[0].id)}" data-phview="${esc(ps[0].id)}" alt="${esc(x.d.item||'습득물')}" title="누르면 크게">${ps.length>1?`<small>+${ps.length-1}</small>`:''}` : '<span class="hint">사진 없음</span>'}</td>` : '')
         + b.cols.map(([k,,fn])=>{ const v=fn?fn(x.d[k], x.d):x.d[k]||''; return `<td>${v && typeof v==='object' ? v.html : esc(v)}</td>`; }).join('')   // {html} 이면 그대로 (물품 아래 줄에 설명)
         + (GUEST ? `<td class="st st-${esc(s)}">${esc(s)}</td><td></td></tr>`   // 로그인 없이: 상태는 보기만 · 열기 없음
-          : `<td class="st st-${esc(s)}"><select class="lost-st" data-lst="${esc(x.r.id)}" title="상태 바꾸기">${LOST_ST[b.kind].map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select></td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></td></tr>`); };
+          : `<td class="st st-${esc(s)}"><select class="lost-st" data-lst="${esc(x.r.id)}" title="상태 바꾸기">${LOST_ST[b.kind].map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select></td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">수정</button></td></tr>`); };
     return `<section class="lost-board"><div class="lb-head"><h3>${esc(b.title)} <small>${all.length}건</small></h3><button type="button" class="btn primary" data-ladd="${esc(b.kind)}">＋ ${esc(b.add)}</button></div>`
       + `<div class="filters">${chips}</div>`
       + (list.length ? `<div class="tw"><table class="tbl"><thead><tr>${b.photo?'<th>사진</th>':''}${b.cols.map(c=>`<th>${c[1]}</th>`).join('')}<th>상태</th><th></th></tr></thead><tbody>${list.map(tr).join('')}</tbody></table></div>`
@@ -187,7 +188,7 @@ $('#eFields').addEventListener('change', async e=>{ const inp=e.target.closest('
       phCache[j.file.id]=s.url; cur().push({id:j.file.id, name:j.file.name}); paintForm();
     }catch(err){ fail=String(err.code||err.message||err); }
   }
-  phBusy--; paintForm(); if(fail) $('#eErr').textContent='사진을 올리지 못했습니다: '+fail; });
+  phBusy--; paintForm(); if(fail) $('#eErr').textContent='사진을 올리지 못했습니다: '+(GUEST && /bad_(key|action)/.test(fail) ? OLD_SRV : fail); });
 $('#eFields').addEventListener('click', e=>{
   const x=e.target.closest('[data-phdel]'); if(x){ const [k,i]=x.dataset.phdel.split('|'); if(Array.isArray(form[k])){ form[k].splice(+i,1); paintForm(); } return; }
   const v=e.target.closest('img[data-phview]'); if(v && v.src) phOpen(v.src); });

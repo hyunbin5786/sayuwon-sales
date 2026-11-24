@@ -17,10 +17,11 @@ const OPS_PAGE =
     fields:[ {k:'kind', l:'구분', type:'select', opts:['습득','분실 신고'], def:()=>'습득'}, {k:'date', l:'접수일', type:'date', def:()=>opsToday()},
       {k:'item', l:'물품', type:'text', req:1}, {k:'feature', l:'설명', type:'text', ph:'색 · 브랜드 · 안에 든 것', show:d=>lostKind(d)!=='습득'},   // 설명은 분실물 신고만 (습득은 사진으로 · 2026-11-24)
       {k:'photos', l:'습득물 사진', type:'photos', w:2, req:1, show:d=>lostKind(d)==='습득'},   // 습득이면 사진 꼭 (찍기 · 고르기 · png / jpeg) — js/opsboard.js 의 photos 칸
-      {k:'place', l:'발견 · 분실 장소', type:'text'}, {k:'storage', l:'보관 위치', type:'text', show:d=>lostKind(d)==='습득'},
+      {k:'place', l:d=>lostKind(d)==='습득' ? '발견 장소' : '분실 추정 장소', type:'text'}, {k:'storage', l:'보관 위치', type:'text', show:d=>lostKind(d)==='습득'},
       // 2026-11-24: 구분에 따라 이름이 바뀜 (분실물 신고 = 신고자 · 분실물 습득 = 습득자)
       {k:'person', l:d=>lostWho(d), type:'text', req:1}, {k:'phone', l:d=>lostWho(d)+' 연락처', type:'tel', req:d=>lostKind(d)==='분실 신고'},   // 이름은 꼭 · 신고는 연락처도 꼭 (연락드려야 하니까)
-      {k:'status', l:'상태', type:'select', opts:d=>LOST_ST[lostKind(d)], def:()=>'보관중'}, {k:'returnDate', l:'반환일', type:'date', show:d=>d.status==='반환 완료'},
+      // 상태 칸은 접수 · 수정 창에 없음 (2026-11-24): 처음은 신고 = 찾는 중 · 습득 = 보관중 (onField) · 바꾸기는 표의 드롭다운에서만
+      {k:'returnDate', l:'반환일', type:'date', show:d=>d.status==='반환 완료'},
       {k:'returnTo', l:'반환 받은 분', type:'text', show:d=>d.status==='반환 완료'},
       {k:'memo', l:'메모', type:'textarea', w:2} ],
     // 구분을 바꾸면 상태를 그 구분의 첫 상태로 (opsboard.js 가 칸을 바꿀 때 부름)
@@ -33,7 +34,7 @@ const OPS_PAGE =
     // 두 대시보드 (opsboard.js renderLost)
     boards:[
       { kind:'분실 신고', title:'분실물 신고', add:'분실 신고 접수', open:['찾는 중'],
-        cols:[['date','접수일',v=>opsDateLabel(v)],['item','물품',(v,d)=>({html:`<b>${esc(v||'')}</b>${d.feature?`<br><span class="hint">${esc(d.feature)}</span>`:''}`})],['place','분실 장소'],['person','신고자'],['phone','연락처']] },
+        cols:[['date','접수일',v=>opsDateLabel(v)],['item','물품',(v,d)=>({html:`<b>${esc(v||'')}</b>${d.feature?`<br><span class="hint">${esc(d.feature)}</span>`:''}`})],['place','분실 추정 장소'],['person','신고자'],['phone','연락처']] },
       { kind:'습득', title:'분실물 습득', add:'습득물 접수', open:['보관중'], photo:true,
         cols:[['date','접수일',v=>opsDateLabel(v)],['item','물품'],['place','발견 장소'],['storage','보관 위치'],['person','습득자'],['phone','습득자 연락처']] } ],
     cols:[['date','접수일',v=>opsDateLabel(v)],['kind','구분'],['item','물품'],['status','상태']],
