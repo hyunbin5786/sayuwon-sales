@@ -1132,3 +1132,6 @@ html.g-loading body{overflow:hidden}
 .it-s.missing select.it-stfsel,.it-xl.missing select.it-stfsel{border-color:#d9a08a;background:#fdf3ef;color:#8a4b2a}
 /* 추후 과업: 영업 담당이 아닌 사람이 할 과업에 그 사람 이름 (2026-11-24) */
 .task-h .tk-whotag{flex:none;font:700 12px var(--sans);color:#3d5a80;background:#e9eef7;border:1px solid #c9d6ea;border-radius:999px;padding:1px 9px;white-space:nowrap}
+/* 내가 영업 담당은 아니지만 나에게 맡겨진 추후 과업 (2026-11-24): 초록 테두리로 바로 보이게 */
+#taskList .task.tk-mine{border:2px solid var(--pine,#3f5236);background:#f1f7ee;box-shadow:0 0 0 3px rgba(63,82,54,.12)}
+#taskList .task.tk-mine .tk-whotag{color:#fff;background:var(--pine,#3f5236);border-color:var(--pine,#3f5236)}
