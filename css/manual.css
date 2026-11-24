@@ -204,3 +204,5 @@ body > header{position:sticky;top:0;z-index:30}
 .mn-st:empty{display:none}
 @media (max-width:820px){ .mn-search{grid-template-columns:minmax(0,1fr)} }
 @media (max-width:820px){ .mn-wrap{grid-template-columns:minmax(0,1fr)} .mn-nav{position:static;max-height:none} }   /* 휴대폰: 차례는 위 칩 · 본문 한 줄 */
+/* 본문은 한 열 (2026-11-24): prep.css 의 main 2열 grid 를 끔 */
+main.mn-main{display:block;max-width:none;margin:0;padding:0}

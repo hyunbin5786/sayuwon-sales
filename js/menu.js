@@ -43,8 +43,10 @@
   const mbk=document.createElement('button'); mbk.type='button'; mbk.className='smenu-btn man-btn'; mbk.title=`${MAN_NAME} 매뉴얼 (사용 방법)`; mbk.setAttribute('aria-label','매뉴얼');
   mbk.innerHTML='<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M12 6.5C10.2 5 7.6 4.3 4 4.5v13c3.6-.2 6.2.5 8 2 1.8-1.5 4.4-2.2 8-2v-13c-3.6-.2-6.2.5-8 2Zm0 0v13"/></svg><span>매뉴얼</span>';
   // 위치 (2026-11-21 변경): 헤더 맨 오른쪽. 오른쪽에 다른 것(이름 · 나의 할일 · 로그아웃 등)이 있으면 그 뒤, 없으면 오른쪽 끝으로 밀어 붙임
-  hd.appendChild(mbk);
-  const manPlace = () => { mbk.style.marginLeft='8px'; const hr=hd.getBoundingClientRect(), pr=parseFloat(getComputedStyle(hd).paddingRight)||0;
+  // 2026-11-24: 매뉴얼 버튼은 첫 화면에만 (다른 화면의 매뉴얼 버튼은 모두 없앰 — 요청). 첫 화면의 버튼은 지우면 안 됨
+  const manOn = isHomePg;
+  if(manOn) hd.appendChild(mbk);
+  const manPlace = () => { if(!manOn) return; mbk.style.marginLeft='8px'; const hr=hd.getBoundingClientRect(), pr=parseFloat(getComputedStyle(hd).paddingRight)||0;
     if(hr.right-pr-mbk.getBoundingClientRect().right > 4) mbk.style.marginLeft='auto'; };
   requestAnimationFrame(manPlace); window.addEventListener('load', manPlace);
   try{ new ResizeObserver(()=>requestAnimationFrame(manPlace)).observe(hd); new MutationObserver(ms=>{ if(ms.some(m=>m.target!==mbk && !mbk.contains(m.target))) requestAnimationFrame(manPlace); }).observe(hd, {subtree:true, attributes:true, attributeFilter:['hidden','style','class'], childList:true}); }catch(_){}

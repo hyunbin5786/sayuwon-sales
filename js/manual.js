@@ -27,7 +27,7 @@
     ['rule','공통 규정'],['trans','교통 · 숙박'],['ticket','매표소 응대'],['proc','내부 업무 절차'],['link','자주 쓰는 링크'],
   ];
   const CH_NAME = Object.fromEntries(CH);
-  // 차례: 1. 공통 규정(절대 하지 말 것 · 공통 규정 · 한눈에 보기) 2. 상품 3. 응대 FAQ(FAQ · 교통 · 숙박 · 전화 받는 순서 · 매표소 응대) 4. 내부 업무 절차(절차 · 자주 쓰는 링크) · 처음 읽기는 「전체 보기」 맨 위
+  // 차례: 1. 공통 규정(절대 하지 말 것 · 공통 규정 · 한눈에 보기) 2. 상품 3. 응대 FAQ(FAQ · 교통 · 숙박 · 전화 받는 순서 · 매표소 응대) 4. 내부 업무 절차(절차 · 자주 쓰는 링크) · 「처음 읽기」(intro)는 보이지 않음 (2026-11-24 지움 · 찾기에도 안 나옴)
   const PARTS = [['p1','1. 공통 규정',['dont','rule','glance']],['p2','2. 상품',['prod']],['p3','3. 응대 FAQ',['faq','trans','call','ticket']],['p4','4. 내부 업무 절차',['proc','link']]];
   const PART_NAME = Object.fromEntries(PARTS.map(p=>[p[0],p[1]]));
   const partOf = k => (PARTS.find(p=>p[2].includes(k))||[])[0] || '';
@@ -148,7 +148,7 @@
     if(!rows.filter(r=>['sec','prod','faq','proc'].includes(r.kind)).length && view!=='notice'){ $('#main').innerHTML=emptyHTML(); return; }
     if(view==='notice'){ $('#main').innerHTML=noticeHTML(); return; }
     const part = ([pk,pn,subs]) => `<div class="mn-part" id="pt-${pk}"><h1 class="mn-ph">${esc(pn)}</h1>${subs.map(k=>chapter(k, subs.length===1)).join('')}</div>`;
-    $('#main').innerHTML = view==='home' ? chapter('intro') + PARTS.map(part).join('') : part(PARTS.find(p=>p[0]===view) || PARTS[0]);
+    $('#main').innerHTML = view==='home' ? PARTS.map(part).join('') : part(PARTS.find(p=>p[0]===view) || PARTS[0]);
   }
   function jump(k){ const el=document.getElementById('ch-'+k); if(el) el.scrollIntoView({block:'start'}); }
   const emptyHTML = () => `<div class="mn-empty"><p><b>아직 매뉴얼 내용이 없습니다.</b></p><p class="hint">노션에서 옮긴 파일(<code>manual-import.json</code>)을 불러오면 1~10장 · 상품 · FAQ · 내부 절차가 한 번에 들어갑니다.</p>`
@@ -188,7 +188,7 @@
     const fld=([k,l,t,w])=>{ const val=v[k]==null?'':v[k];
       if(t==='per') return `<label class="full">${l}<span style="display:flex;gap:8px;align-items:center">${dateBox('start', v.start)} ~ ${dateBox('end', v.end)}<span class="hint">시작만 · 끝만 넣어도 됨</span></span></label>`;
       if(t==='ck') return `<label class="ck"><input type="checkbox" data-f="${k}"${val?' checked':''}> ${l}</label>`;
-      if(t==='ch') return `<label>${l}<select data-f="cat">${CH.map(([ck,cn])=>`<option value="${ck}"${ck===(val||cat)?' selected':''}>${esc(chLabel(ck))}</option>`).join('')}</select></label>`;
+      if(t==='ch') return `<label>${l}<select data-f="cat">${CH.filter(([ck])=>ck!=='intro').map(([ck,cn])=>`<option value="${ck}"${ck===(val||cat)?' selected':''}>${esc(chLabel(ck))}</option>`).join('')}</select></label>`;
       if(t==='cat'||t==='fcat'){ const opts=t==='cat'?pcats:fcats; return `<label>${l}<input data-f="cat" list="dl-${t}" value="${esc(val)}" data-ime="ko"><datalist id="dl-${t}">${opts.map(o=>`<option value="${esc(o)}">`).join('')}</datalist></label>`; }
       if(t==='ta'||t==='big') return `<label class="${w?'full':''}">${l}<textarea data-f="${k}" class="${t==='big'?'big':''}" data-ime="ko">${esc(val)}</textarea></label>`;
       return `<label class="${w?'full':''}">${l}<input data-f="${k}" value="${esc(val)}" ${t==='n'?'inputmode="numeric" data-ime="num"':'data-ime="ko"'}></label>`; };
@@ -279,7 +279,7 @@
       if(r.kind==='prod') DOCS.push({r, kind:'prod', title:r.title, cat:r.cat, key:[d.caution, d.days, d.time, d.cap, d.deadline, won(d.pWeek), won(d.pEnd)].join(' '), body:d.body||'', past, price:true});
       else if(r.kind==='faq') DOCS.push({r, kind:'faq', title:r.title, cat:r.cat, key:d.a||'', body:d.body||'', past});
       else if(r.kind==='proc') DOCS.push({r, kind:'proc', title:r.title, cat:'', key:[d.when,d.screen,d.owner].join(' '), body:d.body||'', past});
-      else if(r.kind==='sec'){   // 글은 작은 제목(##)마다 · 너무 길면 문단 묶음으로 나눔
+      else if(r.kind==='sec' && r.cat!=='intro'){   // 글은 작은 제목(##)마다 · 너무 길면 문단 묶음으로 나눔
         const parts=[]; let cur={h:r.title||'', lines:[]};
         String(d.body||'').split('\n').forEach(l=>{ const h=l.match(/^#{1,4}\s+(.*)$/); if(h){ if(cur.lines.join('').trim()) parts.push(cur); cur={h:h[1], lines:[]}; } else cur.lines.push(l); });
         if(cur.lines.join('').trim()) parts.push(cur);
