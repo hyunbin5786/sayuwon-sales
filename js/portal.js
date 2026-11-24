@@ -362,7 +362,7 @@ function renderDash(){ if(!dashData) return; paintRange();
   const list = src => ({ L:src.map(r=>({...r, due:r.tasks.filter(t=>(!rFrom || t.due>=rFrom) && t.due<=rTo)})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name)) });
   const items = (L, showOwner) => L.map(r=>{ const late=r.due.some(t=>t.due<today);
     const D=r.due.slice().sort((a,b)=>a.due.localeCompare(b.due)), A=r.href ? `a href="${r.href}"` : 'div class="dnolink"';
-    return `<li class="drec${late?' late':''}${r.cm?' cm':''}"><${A}><span class="dr-h"><b>${esc(r.name)}</b>${showOwner?`<span class="downer${r.owner===me?' me':''}">${esc(r.owner||'담당 없음')}</span>`:''}</span>`
+    return `<li class="drec${late?' late':''}${r.cm?' cm':''}${showOwner && me && r.owner===me?' mine':''}"><${A}><span class="dr-h"><b>${esc(r.name)}</b>${showOwner?`<span class="downer${r.owner===me?' me':''}">${esc(r.owner||'담당 없음')}</span>`:''}</span>`
       + D.map(t=>`<span class="dr-t">${dl(t.due)} · ${esc(t.title)}</span>`).join('') + `</${r.href?'a':'div'}>`
       + (r.cm ? `<button type="button" class="cm-done" data-cmdone="${esc(r.cm)}" data-day="${esc(D[0].due)}" title="${esc(opsDateLabel(D[0].due))} 것을 끝냄">완료</button>` : '') + `</li>`; }).join('');
   const box = (kind, title, src, extraHead, opt={}) => { const {L}=list(src), pre=opt.pre||'', n=L.length+(opt.preN||0);
