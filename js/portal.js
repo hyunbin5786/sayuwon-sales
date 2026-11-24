@@ -173,6 +173,27 @@ const dueOf = (t, r) => t.due || (t.at ? opsYmd(t.at) : r.saved ? opsYmd(r.saved
 const DASH_LS = 'sy_dash_cache';
 let dashData = (()=>{ try{ const c=JSON.parse(localStorage.getItem(DASH_LS)||'null'); return c && c.recs ? c : null; }catch(_){ return null; } })();
 let dashTomorrow = new Set(), dashWho = '', dashLoading = false, dashMem = (()=>{ try{ return localStorage.getItem('sy_dash_mem')||''; }catch(_){ return ''; } })();   // dashMem: 개인 업무에서 고른 멤버 (2026-11-24 · '' = 전체)
+// ===== 대시보드 마감 기간 버튼 (2026-11-24): 위 왼쪽 — 오늘 마감 · 내일 마감 · 이번주 마감 · 이번달 마감 · 기간설정(시작일 ~ 끝날) · 오른쪽 = 검색 =====
+//  오늘 · 내일 · 이번주(이번 일요일까지) · 이번달(말일까지) = 그날까지 마감인 것 (지난 것 포함) · 기간설정 = 고른 시작일 ~ 끝날 마감인 것만
+//  고른 것은 이 브라우저에 기억 (sy_dash_range)
+const DASH_RANGES = [['today','오늘 마감'],['tomorrow','내일 마감'],['week','이번주 마감'],['month','이번달 마감'],['custom','기간설정']];
+let dashRange = (()=>{ try{ const v=JSON.parse(localStorage.getItem('sy_dash_range')||'null'); return v && v.k ? v : {k:'today'}; }catch(_){ return {k:'today'}; } })();
+function dashRangeDates(today){   // [시작('' = 처음부터), 끝]
+  const d=new Date(today+'T00:00'), add=n=>{ const x=new Date(d); x.setDate(x.getDate()+n); return opsYmd(x); };
+  if(dashRange.k==='tomorrow') return ['', add(1)];
+  if(dashRange.k==='week') return ['', add((7-d.getDay())%7)];   // 이번 일요일까지 (일요일이면 오늘)
+  if(dashRange.k==='month') return ['', opsYmd(new Date(d.getFullYear(), d.getMonth()+1, 0))];
+  if(dashRange.k==='custom'){ const f=dashRange.from||today, t=dashRange.to||f; return f<=t ? [f, t] : [t, f]; }
+  return ['', today];
+}
+function paintRange(){ const box=$('#dashRange'); if(!box) return; const today=opsToday();
+  const sig=JSON.stringify(dashRange); if(box.dataset.sig===sig) return; box.dataset.sig=sig;   // 날짜 칸을 고르는 중에 다시 그리지 않게
+  box.innerHTML = DASH_RANGES.map(([k,l])=>`<button type="button" class="dr-btn${dashRange.k===k?' on':''}" data-drange="${k}">${l}</button>`).join('')
+    + (dashRange.k==='custom' ? `<span class="dr-cus"><input type="date" id="drFrom" value="${esc(dashRange.from||today)}"><span>~</span><input type="date" id="drTo" value="${esc(dashRange.to||dashRange.from||today)}"></span>` : ''); }
+function setRange(r){ dashRange=r; try{ localStorage.setItem('sy_dash_range', JSON.stringify(r)); }catch(_){} paintRange(); renderDash(); }
+document.addEventListener('click', e=>{ const b=e.target.closest('[data-drange]'); if(!b) return; const k=b.dataset.drange, t=opsToday();
+  setRange(k==='custom' ? {k, from:dashRange.from||t, to:dashRange.to||t} : {k}); });
+document.addEventListener('change', e=>{ if(e.target.id==='drFrom' || e.target.id==='drTo'){ const f=$('#drFrom').value, t=$('#drTo').value; if(f && t) setRange({k:'custom', from:f, to:t}); } });
 // ===== 과업 계산 = 나의 할일과 똑같이 (2026-11-21) =====
 // 단체 예약의 과업은 단체 화면 규칙(group.js)으로 계산해야 저장 안 된 과업(아무도 그 예약을 아직 안 열었을 때)까지 나옴 →
 // 첫 화면에 보이지 않는 창(#dashEngine = group.html?my=1&embed=1)을 띄워 그 tasksOf 로 계산. 준비 전에는 저장된 과업으로 (예전처럼)
@@ -245,6 +266,9 @@ function stockDue(today){   // 정기 재고조사 날(오늘이거나 지남)�
 //  일정 저장: 공유 기록(calls) 한 줄 id calendardb · 통화 구분 「일정표」 · 수정 기록 칸 {rows:[{id, d, d2(기간이면 끝나는 날), tm, title, by, at}]} (추가 · 빼기는 최신을 받아 그 위에)
 //  대시보드는 자주 다시 그려지므로 고른 달 · 날짜 · 적던 글자는 변수에 두고 다시 그린 뒤 되돌림 (calRestore)
 const CAL_ID='calendardb', CAL_TYPE='일정표';
+// 공휴일 = 빨간 글씨 (일요일처럼 · 2026-11-24) — 단체 화면(js/group/12-quote-stage-list.js HOLIDAYS)과 같은 목록. 해마다 더함
+const CAL_HOLI = new Set(['2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-02','2026-05-01','2026-05-05','2026-05-25','2026-06-03','2026-07-17','2026-08-17','2026-09-24','2026-09-25','2026-10-05','2026-10-09','2026-12-25',
+  '2027-01-01','2027-02-08','2027-02-09','2027-03-01','2027-05-03','2027-05-05','2027-05-13','2027-07-19','2027-08-16','2027-09-14','2027-09-15','2027-09-16','2027-10-04','2027-10-11','2027-12-27']);
 let calMonth=opsToday().slice(0,7), calDay=opsToday(), calDraft={title:'', tm:'', end:''}, calFocus='';
 const calRows = items => { const it=(items||[]).find(x=>x.id===CAL_ID && !x.deleted); let h={}; try{ h=JSON.parse((it||{}).history||'{}')||{}; }catch(_){} return Array.isArray(h.rows) ? h.rows : []; };
 const calVisits = () => (lastItems||[]).filter(r=>!r.deleted && GROUP_TYPES.includes(r.callType||'단체예약') && !['예약상담','상담'].includes(r.callType) && /^\d{4}-\d{2}-\d{2}/.test(r.date||''))
@@ -255,13 +279,13 @@ function calHTML(today){
   const V=calVisits(), E=calRows(lastItems), on=(x,ds)=>x.d2 && x.d2>x.d ? (x.d<=ds && ds<=x.d2) : x.d===ds, cnt=(L,d)=>L.filter(x=>x.d===d).length, cntE=d=>E.filter(x=>on(x,d)).length, rng=d=>E.some(x=>x.d2 && x.d2>x.d && on(x,d));
   let cells=''; for(let i=0;i<start;i++) cells+='<span class="cd e"></span>';
   for(let d=1; d<=days; d++){ const ds=`${calMonth}-${String(d).padStart(2,'0')}`, v=cnt(V,ds), e=cntE(ds), dow=(start+d-1)%7;
-    cells+=`<button type="button" class="cd${ds===today?' today':''}${ds===calDay?' on':''}${rng(ds)?' rng':''}${dow===0?' sun':dow===6?' sat':''}" data-cday="${ds}"><i>${d}</i>${v?`<b class="cv">${v}</b>`:''}${e?`<b class="ce">${e}</b>`:''}</button>`; }
+    cells+=`<button type="button" class="cd${ds===today?' today':''}${ds===calDay?' on':''}${rng(ds)?' rng':''}${dow===0 || CAL_HOLI.has(ds)?' sun':dow===6?' sat':''}" data-cday="${ds}"${CAL_HOLI.has(ds)?' title="공휴일"':''}><i>${d}</i>${v?`<b class="cv">${v}</b>`:''}${e?`<b class="ce">${e}</b>`:''}</button>`; }
   const dv=V.filter(x=>x.d===calDay).sort((a,b)=>String(a.tm).localeCompare(String(b.tm))), de=E.filter(x=>on(x,calDay)).sort((a,b)=>String(a.d).localeCompare(String(b.d)) || String(a.tm||'99').localeCompare(String(b.tm||'99')));
   const per = x => x.d2 && x.d2>x.d ? `<b class="per">${esc(opsDateLabel(x.d))} ~ ${esc(opsDateLabel(x.d2))}</b> ` : '';
   return `<div class="dcol-h"><b>캘린더</b><span class="cal-nav"><button type="button" data-cmon="-1" title="이전 달">‹</button><span>${y}년 ${m}월</span><button type="button" data-cmon="1" title="다음 달">›</button></span></div>`
     + `<div class="cal-g"><span class="cw">일</span><span class="cw">월</span><span class="cw">화</span><span class="cw">수</span><span class="cw">목</span><span class="cw">금</span><span class="cw">토</span>${cells}</div>`
-    + `<p class="cal-lg"><b class="cv">n</b> 단체 방문 · <b class="ce">n</b> 일정</p>`
-    + `<div class="cal-day"><b>${esc(opsDateLabel(calDay))}</b>`
+
+    + `<div class="cal-day">`   /* 고른 날짜 제목 · n 단체 방문 · n 일정 안내는 없앰 (2026-11-24) */
     + (dv.length||de.length ? `<ul>${dv.map(x=>`<li class="cv-i"><a href="group.html?open=${encodeURIComponent(x.id)}">단체 · ${esc(x.org)}${x.n?` ${esc(x.n)}명`:''}${x.tm?` · ${esc(x.tm)}`:''}${x.st==='가예약'?' <small>(가예약)</small>':''}</a></li>`).join('')}`
         + `${de.map(x=>`<li class="ce-i${per(x)?' per-i':''}"><span>${per(x)}${x.tm?esc(x.tm)+' · ':''}${esc(x.title)} <small>${esc(x.by||'')}</small></span><button type="button" data-cdel="${esc(x.id)}" title="이 일정 빼기">×</button></li>`).join('')}</ul>` : '<p class="hint">이날 단체 방문 · 일정이 없습니다.</p>')
     + `<form class="cal-add" id="calAdd" autocomplete="off"><input id="calTitle" placeholder="일정 추가 (예: 정기 점검)" data-ime="ko" maxlength="60"><input id="calTm" placeholder="시간" maxlength="11"><button type="submit" class="btn-sm primary">추가</button>`
@@ -292,7 +316,7 @@ document.addEventListener('submit', e=>{ if(e.target.id!=='calAdd') return; e.pr
   calDraft={title:'', tm:'', end:''}; calFocus='calTitle';
   calSave(rows=>[...rows, row], `추가 ${title}`).catch(err=>{ calDraft={title, tm, end}; renderDash(); alert('추가하지 못했습니다: '+(err.code||err.message)); }); });
 document.addEventListener('change', e=>{ if(e.target.id==='dashMem'){ dashMem=e.target.value; try{ localStorage.setItem('sy_dash_mem', dashMem); }catch(_){} renderDash(); } });
-function renderDash(){ if(!dashData) return;
+function renderDash(){ if(!dashData) return; paintRange();
   // 2026-11-24 새 배치: 4열 · 2행 — ① 개인고객 전화 ② 단체고객 전화 ③ 개인 업무(멤버 고르기 · 기본 전체) 는 두 행을 통째로 / ④ 1행 = 캘린더(단체 방문 + 일정표) · 2행 = 공통 업무(담당 없는 과업)
   const today=opsToday(), tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const tomorrow=opsYmd(tm), me=(getUser()||{}).name||'';
   const q=(($('#dashQ')||{}).value||'').trim().toLowerCase(), qd=q.replace(/\D/g,'');
@@ -300,16 +324,15 @@ function renderDash(){ if(!dashData) return;
   const all = dashData.recs.filter(hit), mine = all.filter(r=>r.owner), common = all.filter(r=>!r.owner);
   const dl = d => d<today ? `<span class="late">지남 ${esc(opsDateLabel(d))}</span>` : d===today ? '오늘' : d===tomorrow ? '내일' : esc(opsDateLabel(d));
   const first = r => r.due.reduce((m,t)=>t.due<m?t.due:m, '9999');
-  const list = (src, kind) => { const withT=dashTomorrow.has(kind), lim=withT?tomorrow:today;
-    return { withT, nT:src.filter(r=>r.tasks.some(t=>t.due===tomorrow)).length,
-      L:src.map(r=>({...r, due:r.tasks.filter(t=>t.due<=lim)})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name)) }; };
+  // 마감 기간 (2026-11-24 · 위 왼쪽 버튼 · 「내일 마감도 보기」 대신): 오늘 · 내일 · 이번주 · 이번달 = 그날까지(지난 것 포함) · 기간설정 = 고른 시작일 ~ 끝날
+  const [rFrom, rTo] = dashRangeDates(today), rLabel = DASH_RANGES.find(x=>x[0]===dashRange.k)?.[1] || '오늘 마감';
+  const list = src => ({ L:src.map(r=>({...r, due:r.tasks.filter(t=>(!rFrom || t.due>=rFrom) && t.due<=rTo)})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name)) });
   const items = (L, showOwner) => L.map(r=>{ const late=r.due.some(t=>t.due<today);
     return `<li class="drec${late?' late':''}"><a href="${r.href}"><span class="dr-h"><b>${esc(r.name)}</b>${showOwner?`<span class="downer${r.owner===me?' me':''}">${esc(r.owner||'담당 없음')}</span>`:''}</span>`
       + r.due.slice().sort((a,b)=>a.due.localeCompare(b.due)).map(t=>`<span class="dr-t">${dl(t.due)} · ${esc(t.title)}</span>`).join('') + `</a></li>`; }).join('');
-  const box = (kind, title, src, extraHead, opt={}) => { const {withT, nT, L}=list(src, kind), pre=opt.pre||'', n=L.length+(opt.preN||0);
+  const box = (kind, title, src, extraHead, opt={}) => { const {L}=list(src), pre=opt.pre||'', n=L.length+(opt.preN||0);
     return `<div class="dcol${opt.cls?' '+opt.cls:''}"><div class="dcol-h"><b>${title}</b>${extraHead||''}<span class="dn">${n}</span></div>`
-      + `<button type="button" class="dtm${withT?' on':''}" data-dtm="${kind}">${withT?'오늘까지만 보기':`내일 마감도 보기${nT?` (${nT})`:''}`}</button>`
-      + (n ? `<ul class="dlist">${pre}${items(L, opt.owner!==false)}</ul>` : `<p class="hint dempty">${q?'검색에 맞는 것이 없습니다.':withT?'오늘 · 내일까지 할 것이 없습니다.':'오늘까지 할 것이 없습니다.'}</p>`) + `</div>`; };
+      + (n ? `<ul class="dlist">${pre}${items(L, opt.owner!==false)}</ul>` : `<p class="hint dempty">${q?'검색에 맞는 것이 없습니다.':`${esc(rLabel)} 기준 할 것이 없습니다.`}</p>`) + `</div>`; };
   // ③ 개인 업무: 멤버 고르기 (기본 전체 = 모두의 것)
   const names=[...new Set([...(dashData.names||[]), ...mine.filter(r=>r.kind==='기타').map(r=>r.owner)])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ko'));
   if(dashMem && !names.includes(dashMem)) dashMem='';
@@ -327,7 +350,7 @@ function renderDash(){ if(!dashData) return;
   calRestore();
 }
 document.addEventListener('click', e=>{
-  const t=e.target.closest('[data-dtm]'); if(t){ const k=t.dataset.dtm; dashTomorrow.has(k) ? dashTomorrow.delete(k) : dashTomorrow.add(k); renderDash(); return; }
+
   const w=e.target.closest('[data-dwho]'); if(w){ dashWho = dashWho===w.dataset.dwho ? '' : w.dataset.dwho; renderDash(); }
 });
 if($('#dashQ')) $('#dashQ').addEventListener('input', ()=>renderDash());

@@ -210,3 +210,12 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .cal-end input{flex:1;min-width:0;height:26px;border:1px solid var(--line);border-radius:6px;padding:0 4px;font:inherit;font-size:12px}
 .cal-day li.per-i{background:#dfe8f3}
 .cal-day li b.per{font-weight:700;color:#3d5a80}
+/* 대시보드 마감 기간 버튼 (2026-11-24): 왼쪽 버튼 · 오른쪽 검색 (같은 줄) */
+.dash-h .drange{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dash-h #dashQ{margin-left:auto}
+.dr-btn{height:32px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font:600 13px var(--sans);color:var(--ink);cursor:pointer;white-space:nowrap}
+.dr-btn:hover{border-color:var(--pine);color:var(--pine)}
+.dr-btn.on{background:var(--pine);border-color:var(--pine);color:#fff}
+.dr-cus{display:inline-flex;align-items:center;gap:4px;font-size:13px}
+.dr-cus input{height:32px;border:1px solid var(--line);border-radius:7px;padding:0 6px;font:inherit;font-size:13px}
+@media (max-width:900px){ .dash-h{flex-wrap:wrap} .dash-h #dashQ{margin-left:0;width:100%} }
