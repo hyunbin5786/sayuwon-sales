@@ -96,3 +96,7 @@ header .man-btn svg{flex:none}
 @media (max-width:760px){ .man-body{padding:16px 16px 60px;font-size:16px} .man-body h2{font-size:18px} }
 /* 매뉴얼 버튼은 PC에서만 (2026-11-21): 휴대폰(좁은 화면 · 터치 화면)에서는 숨김 */
 @media (max-width:760px), (hover:none) and (pointer:coarse){ header .man-btn, .man-wrap{display:none !important} }
+/* 메뉴 구분 글자 · 들여쓰기 (2026-11-24): 「고객 응대 접수」 · 「고객 응대 보조」 같은 구분은 초록 · 굵게, 그 아래 항목은 한 칸 들여씀 */
+.smenu .sm-sub{color:#16803c;font-size:13px;font-weight:800;letter-spacing:.02em;margin-top:12px;padding:4px 6px 4px 8px;border-left:3px solid #4f8a5b;background:#eef5ec;border-radius:0 6px 6px 0}
+.smenu .sm-g:has(.sm-sub) .sm-i{margin-left:16px}
+.smenu .sm-g:has(.sm-sub) .sm-chips{padding-left:20px}
