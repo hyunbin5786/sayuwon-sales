@@ -236,3 +236,19 @@ html.guest [data-mypop]{display:none!important}
 .sk-tag.t-web{background:#f3e6ee;color:#7d3c62}
 .sk-tag.t-count{background:#eee;color:#555}
 @media (max-width:700px){ .sk-sums{grid-template-columns:1fr} .sk-acts .btn{flex:1 1 45%} .sk-next-ed{margin-left:0} body #skModal{padding:0} body #skModal .sk-box{width:100%;min-height:100%;border-radius:0;box-sizing:border-box} }
+/* 재고관리 입고 · 재고조사 표 (2026-11-24 고침) */
+.sk-locs{margin:0 0 8px}
+.sk-locs button{min-width:90px}
+.sk-f2{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 8px}
+.sk-f2 .sk-f{margin:0}
+.sk-f2 #skFind{height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:inherit;min-width:140px;flex:1}
+.sk-tw{max-height:min(55vh,520px);overflow:auto;border:1px solid var(--line);border-radius:8px}
+.sk-ct th{position:sticky;top:0;background:#fff;z-index:1}
+.sk-ct td{padding:5px 8px}
+.sk-ct .sk-out.up{color:var(--pine);font-weight:700}
+.sk-ct .sk-out.down{color:#b5442c;font-weight:700}
+.sk-ct .sk-out.same{color:var(--muted)}
+.sk-ct tr[hidden]{display:none}
+.sk-part{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:13px}
+.sk-part.ok{background:#e6efe8;color:var(--pine);font-weight:700}
+.sk-box{width:min(720px,100%)}
