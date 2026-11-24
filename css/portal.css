@@ -219,3 +219,7 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .dr-cus{display:inline-flex;align-items:center;gap:4px;font-size:13px}
 .dr-cus input{height:32px;border:1px solid var(--line);border-radius:7px;padding:0 6px;font:inherit;font-size:13px}
 @media (max-width:900px){ .dash-h{flex-wrap:wrap} .dash-h #dashQ{margin-left:0;width:100%} }
+/* 캘린더 기업 프로모션 시작 · 만료 (2026-11-24) */
+.cal-g b.cp{background:#c0772c}
+.cal-day li.cp-i{background:#fbefe2}
+.cal-day li.cp-i a{color:var(--ink);text-decoration:none;flex:1}

@@ -1,0 +1,70 @@
+/* 함께 고치는 표 (2026-11-24 · js/stable.js · 기업 프로모션 할인 · 협업 여행사 할인) */
+main.st-main{display:block;max-width:none}
+.save-st{font-size:12px;color:var(--muted)}
+.save-st.ok{color:var(--pine)}.save-st.bad{color:#b5442c}
+.st-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 8px}
+.st-bar input[type=search]{height:34px;min-width:260px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit;font-size:13.5px}
+.st-tw{max-height:calc(100vh - 230px);overflow:auto;border:1px solid var(--line);border-radius:8px}
+.st-t{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;line-height:1.5}
+.st-t th{position:sticky;top:0;z-index:1;background:#3f5a46;color:#fff;font-weight:600;text-align:left;padding:7px 8px;white-space:nowrap}
+.st-t td{padding:6px 8px;border-bottom:1px solid #ece8de;vertical-align:top;outline:none;white-space:pre-wrap}
+.st-t td[data-k]{cursor:text}
+.st-t td[data-k]:hover{background:#faf8f3}
+.st-t td[data-k]:focus{background:#fffbe9;box-shadow:inset 0 0 0 2px var(--pine)}
+.st-t td.nw{white-space:nowrap}
+.st-t td.nm{font-weight:700;min-width:160px}
+.st-t td.code{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:#2d4f86;min-width:120px}
+.st-t td.wide{min-width:200px;font-size:12.5px;color:#3d3b35}
+.st-t td.pct{text-align:center;white-space:nowrap}
+.st-t td.sx{width:24px}
+.st-x{border:0;background:none;color:var(--muted);font-size:16px;cursor:pointer;padding:0 4px}
+.st-x:hover{color:#b5442c}
+.st-t td.empty{text-align:center;color:var(--muted);padding:28px}
+/* 기업 프로모션: 만료 칸 */
+.pm-t td.exp,.pm-t th.exp{min-width:110px;white-space:nowrap}
+.pm-t td.exp b{display:block}
+.pm-t td.exp small{display:block;color:var(--muted);font-size:11.5px}
+.pm-t td.exp.warn b{color:#a0522d}
+.pm-t td.exp.red b{color:#b5442c}
+.pm-t td.exp.over b{color:#888}
+.pm-ack{display:block;margin-top:4px}
+/* 협업 여행사 */
+.ag-sec{margin-top:16px}
+.ag-cfg{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.ag-cfg select{height:32px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:inherit}
+.ag-cfg label.btn{display:inline-flex;align-items:center;cursor:pointer}
+.ag-rec{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 12px;background:#fff}
+.ag-rec h3{margin:0 0 6px;font:600 15px var(--serif);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ag-rec h3 small{font:400 12px var(--sans);color:var(--muted)}
+.ag-rec h3 .sp{flex:1}
+.ag-st{width:100%;border-collapse:collapse;font-size:13px}
+.ag-st th,.ag-st td{padding:5px 8px;border-bottom:1px solid #ece8de;text-align:left}
+.ag-st th{background:#f4f2ec;font-weight:600;font-size:12px;color:#4a4740}
+.ag-st .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ag-st tfoot td{font-weight:700;background:#faf8f3}
+.ag-bar{display:inline-block;height:8px;border-radius:4px;background:var(--pine);vertical-align:middle;margin-left:6px}
+.ag-bar.amt{background:#3d5a80}
+.ag-map{display:grid;grid-template-columns:130px 1fr;gap:6px 10px;align-items:center;font-size:13px;margin:8px 0}
+.ag-map select{height:30px;border:1px solid var(--line);border-radius:6px;font:inherit;max-width:100%}
+.ag-map .chips{display:flex;flex-wrap:wrap;gap:4px}
+.ag-map .chips label{display:inline-flex;gap:3px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:12px}
+.ag-imp{max-width:760px !important}
+#aggModal{overflow:auto;padding-top:30px}
+.err{color:#b5442c;font-size:13px;margin:6px 0 0}
+@media (max-width:760px){ .st-bar input[type=search]{min-width:0;flex:1} .st-tw{max-height:none} }
+/* 기업 프로모션 표 칸 너비 (2026-11-24): 좁은 칸이 글자마다 줄바꿈되지 않게 · 표가 넓으면 옆으로 스크롤 */
+.pm-t{min-width:1700px}
+.pm-t td.c-tag{min-width:44px}
+.pm-t td.c-target{min-width:80px}
+.pm-t td.c-code{min-width:150px}
+.pm-t td.c-proof{min-width:240px}
+.pm-t td.c-ppl{min-width:150px}
+.pm-t td.c-period{min-width:200px}
+.pm-t td.c-view,.pm-t td.c-food{min-width:56px}
+.pm-t td.c-cha,.pm-t td.c-ma,.pm-t td.c-gaga{min-width:80px}
+.pm-t td.c-corp{min-width:70px}
+.pm-t td.c-etc{min-width:200px}
+.pm-t td.nm{position:sticky;left:0;background:#fff;z-index:0;min-width:180px}
+.pm-t th.c-name{position:sticky;left:0;z-index:2}
+.ag-t td.c-rate{min-width:280px}
+.ag-t td.c-alias{min-width:160px}

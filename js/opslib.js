@@ -58,3 +58,29 @@ async function opsLoadGoods(){
   }catch(_){}
   return opsGoodsCache;
 }
+
+// ---- 기업 프로모션 할인 기간 · 만료 알림 (2026-11-24 · promo.html · 첫 화면 공통 업무 · 캘린더) ----
+// 기간 글자에서 날짜를 읽음: 「26.09.01(화)~26.12.31(목)」 · 「2026.09.15(화)~12.27(일)」(끝에 해가 없으면 앞 날짜의 해) · 「26.05.11(월)」(시작만) → {from, to}
+function opsPeriod(text){
+  const out=[]; let y=null;
+  String(text||'').replace(/(?:(\d{2,4})\s*[.\-\/년]\s*)?(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/g, (m, yy, mm, dd)=>{ if(yy) y = yy.length===2 ? 2000+(+yy) : +yy; if(!y) return m;
+    const d=`${y}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`; if(!isNaN(new Date(d+'T00:00'))) out.push(d); return m; });
+  return { from: out[0]||'', to: out.length>1 ? out[out.length-1] : '' };
+}
+const opsAddMonths = (ymd, n) => { const d=new Date(ymd+'T00:00'), day=d.getDate(); d.setDate(1); d.setMonth(d.getMonth()+n); const last=new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); d.setDate(Math.min(day, last)); return opsYmd(d); };
+// 만료 2달 전 · 1달 전 알림: [{id, name, kind:'m2'|'m1', label, due, end}] — 「확인」한 것(acks[id][kind]) · 만료 7일이 지난 것은 뺌
+function opsPromoAlerts(data, today){
+  const out=[], acks=(data && data.acks)||{};
+  ((data && data.rows)||[]).forEach(r=>{ const p=opsPeriod(r.period); if(!p.to || opsYmd(new Date(new Date(p.to+'T00:00').getTime()+7*864e5)) < today) return;   // 기간 끝이 없거나 만료 7일이 지났으면 알림 없음
+    [['m2',2,'만료 2달 전'],['m1',1,'만료 1달 전']].forEach(([k,n,l])=>{ if((acks[r.id]||{})[k]) return; out.push({id:r.id, name:String(r.name||'').split('\n')[0], kind:k, label:l, due:opsAddMonths(p.to, -n), end:p.to}); }); });
+  return out;
+}
+
+// ---- 협업 여행사 집계기록 주기 (2026-11-24 · agency.html · 첫 화면 공통 업무) ----
+// cycle = 3(분기) · 6(반기 · 기본) 개월. 달력 기준으로 나눔 (반기 = 1~6월 · 7~12월, 분기 = 1~3 · 4~6 · 7~9 · 10~12월)
+function opsAggPeriod(ymd, cycle){ const c=+cycle===3?3:6, d=new Date(ymd+'T00:00'), y=d.getFullYear(), s=Math.floor(d.getMonth()/c)*c;
+  const from=opsYmd(new Date(y, s, 1)), to=opsYmd(new Date(y, s+c, 0)), n=s/c+1;
+  return {from, to, label: c===6 ? `${y} ${n===1?'상반기':'하반기'}` : `${y} ${n}분기`}; }
+// 집계를 넣어야 할 때: 바로 앞 기간(끝난 기간)의 기록이 아직 없으면 {label, from, to, due(다음 기간 첫날)}
+function opsAggDue(data, today){ const c=(data && data.cycle)||6, cur=opsAggPeriod(today, c), prevDay=opsYmd(new Date(new Date(cur.from+'T00:00').getTime()-864e5)), p=opsAggPeriod(prevDay, c);
+  const done=((data && data.records)||[]).some(r=>r.label===p.label); return done ? null : {...p, due:cur.from}; }

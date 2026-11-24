@@ -257,6 +257,15 @@ async function loadDash(){
   finally{ dashLoading=false; if(dashAgain){ dashAgain=false; dashSoon(0); } }
 }
 // 정기 재고조사 알림 (2026-11-24 · 재고관리 js/stockx.js): 설정 줄(stockcfg)의 다음 조사일이 오늘이거나 지났으면 모두에게 대시보드 맨 위에
+// 공통 업무에 더할 것 (2026-11-24): 기업 프로모션 만료 2달 · 1달 전 알림 (promodb · 「확인」 전까지) · 협업 여행사 집계기록 넣기 (agencydb · 끝난 기간의 기록이 없으면)
+const histOf = id => { const it=(lastItems||[]).find(x=>x.id===id && !x.deleted); try{ return JSON.parse((it && it.history)||'null'); }catch(_){ return null; } };
+function commonExtra(today){ const out=[];
+  opsPromoAlerts(histOf('promodb'), today).forEach(a=>out.push({kind:'공통', owner:'', name:`기업 프로모션 ${a.label} · ${a.name}`, q:a.name, href:'promo.html',
+    tasks:[{title:`만료 ${opsDateLabel(a.end)} · 연장 여부 확인 (확인하면 「확인」)`, due:a.due}]}));
+  const ag=opsAggDue(histOf('agencydb'), today);
+  if(ag) out.push({kind:'공통', owner:'', name:`협업 여행사 집계기록 넣기 · ${ag.label}`, q:'협업 여행사 집계', href:'agency.html',
+    tasks:[{title:`${opsDateLabel(ag.from)} ~ ${opsDateLabel(ag.to)} 방문기록 엑셀을 넣어 여행사별 집계`, due:ag.due}]});
+  return out; }
 function stockDue(today){   // 정기 재고조사 날(오늘이거나 지남)이면 그 날짜 · 아니면 '' — 공통 업무에 (2026-11-24)
   const it=(lastItems||[]).find(x=>x.id==='stockcfg' && !x.deleted); if(!it) return '';
   let d=null; try{ d=(JSON.parse(it.history||'{}')||{}).d; }catch(_){} const nx=d && d.next; return nx && nx<=today ? nx : '';
@@ -276,17 +285,20 @@ const calVisits = () => (lastItems||[]).filter(r=>!r.deleted && GROUP_TYPES.incl
 function calHTML(today){
   const [y,m]=calMonth.split('-').map(Number), first=new Date(y, m-1, 1), start=first.getDay(), days=new Date(y, m, 0).getDate();
   // 기간 일정 (2026-11-24): d2(끝나는 날)가 있으면 d ~ d2 의 모든 날에 보임 (예: 겨울 휴장) · 기간 안의 날은 칸 바탕을 연한 파랑(rng)
+  // 기업 프로모션 시작 · 만료 (2026-11-24 · promodb): 주황 점 · 그날 목록에 「프로모션 시작 · 만료」
+  const PR=((histOf('promodb')||{}).rows||[]).flatMap(r=>{ const p=opsPeriod(r.period), n=String(r.name||'').split(/\n/)[0]; return [p.from?{d:p.from, t:'시작', n}:null, p.to?{d:p.to, t:'만료', n}:null].filter(Boolean); });
   const V=calVisits(), E=calRows(lastItems), on=(x,ds)=>x.d2 && x.d2>x.d ? (x.d<=ds && ds<=x.d2) : x.d===ds, cnt=(L,d)=>L.filter(x=>x.d===d).length, cntE=d=>E.filter(x=>on(x,d)).length, rng=d=>E.some(x=>x.d2 && x.d2>x.d && on(x,d));
   let cells=''; for(let i=0;i<start;i++) cells+='<span class="cd e"></span>';
   for(let d=1; d<=days; d++){ const ds=`${calMonth}-${String(d).padStart(2,'0')}`, v=cnt(V,ds), e=cntE(ds), dow=(start+d-1)%7;
-    cells+=`<button type="button" class="cd${ds===today?' today':''}${ds===calDay?' on':''}${rng(ds)?' rng':''}${dow===0 || CAL_HOLI.has(ds)?' sun':dow===6?' sat':''}" data-cday="${ds}"${CAL_HOLI.has(ds)?' title="공휴일"':''}><i>${d}</i>${v?`<b class="cv">${v}</b>`:''}${e?`<b class="ce">${e}</b>`:''}</button>`; }
+    cells+=`<button type="button" class="cd${ds===today?' today':''}${ds===calDay?' on':''}${rng(ds)?' rng':''}${dow===0 || CAL_HOLI.has(ds)?' sun':dow===6?' sat':''}" data-cday="${ds}"${CAL_HOLI.has(ds)?' title="공휴일"':''}><i>${d}</i>${v?`<b class="cv">${v}</b>`:''}${e?`<b class="ce">${e}</b>`:''}${PR.some(x=>x.d===ds)?`<b class="cp">${PR.filter(x=>x.d===ds).length}</b>`:''}</button>`; }
   const dv=V.filter(x=>x.d===calDay).sort((a,b)=>String(a.tm).localeCompare(String(b.tm))), de=E.filter(x=>on(x,calDay)).sort((a,b)=>String(a.d).localeCompare(String(b.d)) || String(a.tm||'99').localeCompare(String(b.tm||'99')));
   const per = x => x.d2 && x.d2>x.d ? `<b class="per">${esc(opsDateLabel(x.d))} ~ ${esc(opsDateLabel(x.d2))}</b> ` : '';
   return `<div class="dcol-h"><b>캘린더</b><span class="cal-nav"><button type="button" data-cmon="-1" title="이전 달">‹</button><span>${y}년 ${m}월</span><button type="button" data-cmon="1" title="다음 달">›</button></span></div>`
     + `<div class="cal-g"><span class="cw">일</span><span class="cw">월</span><span class="cw">화</span><span class="cw">수</span><span class="cw">목</span><span class="cw">금</span><span class="cw">토</span>${cells}</div>`
 
     + `<div class="cal-day">`   /* 고른 날짜 제목 · n 단체 방문 · n 일정 안내는 없앰 (2026-11-24) */
-    + (dv.length||de.length ? `<ul>${dv.map(x=>`<li class="cv-i"><a href="group.html?open=${encodeURIComponent(x.id)}">단체 · ${esc(x.org)}${x.n?` ${esc(x.n)}명`:''}${x.tm?` · ${esc(x.tm)}`:''}${x.st==='가예약'?' <small>(가예약)</small>':''}</a></li>`).join('')}`
+    + (dv.length||de.length||PR.some(x=>x.d===calDay) ? `<ul>${dv.map(x=>`<li class="cv-i"><a href="group.html?open=${encodeURIComponent(x.id)}">단체 · ${esc(x.org)}${x.n?` ${esc(x.n)}명`:''}${x.tm?` · ${esc(x.tm)}`:''}${x.st==='가예약'?' <small>(가예약)</small>':''}</a></li>`).join('')}`
+        + PR.filter(x=>x.d===calDay).map(x=>`<li class="cp-i"><a href="promo.html">기업 프로모션 ${x.t} · ${esc(x.n)}</a></li>`).join('')
         + `${de.map(x=>`<li class="ce-i${per(x)?' per-i':''}"><span>${per(x)}${x.tm?esc(x.tm)+' · ':''}${esc(x.title)} <small>${esc(x.by||'')}</small></span><button type="button" data-cdel="${esc(x.id)}" title="이 일정 빼기">×</button></li>`).join('')}</ul>` : '<p class="hint">이날 단체 방문 · 일정이 없습니다.</p>')
     + `<form class="cal-add" id="calAdd" autocomplete="off"><input id="calTitle" placeholder="일정 추가 (예: 정기 점검)" data-ime="ko" maxlength="60"><input id="calTm" placeholder="시간" maxlength="11"><button type="submit" class="btn-sm primary">추가</button>`
     + `<label class="cal-end"><span>기간이면 끝나는 날</span><input type="date" id="calEnd" min="${calDay}" title="비우면 하루 일정 · 고르면 ${esc(opsDateLabel(calDay))}부터 그날까지 (예: 겨울 휴장)"></label></form></div>`;
@@ -321,7 +333,7 @@ function renderDash(){ if(!dashData) return; paintRange();
   const today=opsToday(), tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const tomorrow=opsYmd(tm), me=(getUser()||{}).name||'';
   const q=(($('#dashQ')||{}).value||'').trim().toLowerCase(), qd=q.replace(/\D/g,'');
   const hit = r => !q || r.q.toLowerCase().includes(q) || (qd.length>=3 && r.q.replace(/\D/g,'').includes(qd));   // 전화번호는 - 없이도
-  const all = dashData.recs.filter(hit), mine = all.filter(r=>r.owner), common = all.filter(r=>!r.owner);
+  const all = dashData.recs.filter(hit), mine = all.filter(r=>r.owner), common = [...all.filter(r=>!r.owner), ...commonExtra(today).filter(hit)];
   const dl = d => d<today ? `<span class="late">지남 ${esc(opsDateLabel(d))}</span>` : d===today ? '오늘' : d===tomorrow ? '내일' : esc(opsDateLabel(d));
   const first = r => r.due.reduce((m,t)=>t.due<m?t.due:m, '9999');
   // 마감 기간 (2026-11-24 · 위 왼쪽 버튼 · 「내일 마감도 보기」 대신): 오늘 · 내일 · 이번주 · 이번달 = 그날까지(지난 것 포함) · 기간설정 = 고른 시작일 ~ 끝날

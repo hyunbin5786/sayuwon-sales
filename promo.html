@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>기업 프로모션 할인 · 사유원 운영 보조 시스템</title>
+<script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/prep.css?v=20261124zv">
+<link rel="stylesheet" href="css/stable.css?v=20261124zv">
+<link rel="stylesheet" href="css/menu.css?v=20261124zv">
+</head>
+<body>
+<!-- 운영보조 › 기업 프로모션 할인 (2026-11-24): 칸을 눌러 바로 고치기 · 추가 · 삭제 (js/stable.js) · 만료 2달 · 1달 전 공통 업무 알림 · 캘린더 표시 — js/promo.js -->
+<header>
+  <a class="sys-brand" href="./" title="메뉴로">사유원 운영 보조 시스템</a><span class="sys-crumb">기업 프로모션 할인</span>
+  <span class="me" id="me"></span>
+</header>
+<main class="st-main">
+  <section class="panel">
+    <h2>▶ 기업 프로모션 할인 <small id="sum"></small>
+      <span class="right"><span class="save-st" id="st"></span><button class="btn primary" id="addBtn" type="button">＋ 추가</button></span></h2>
+    <div class="st-bar"><input id="q" type="search" placeholder="업체명 · 할인 코드 · 증빙으로 찾기" data-ime="ko" autocomplete="off"><span class="hint">칸을 눌러 바로 고치고 Enter 로 저장 (줄바꿈은 Shift+Enter) · 만료 2달 · 1달 전이 되면 첫 화면 「공통 업무」에 알림 · 캘린더에 시작 · 만료 표시</span></div>
+    <div class="tw st-tw"><table class="st-t pm-t" id="tbl"></table></div>
+    <p class="hint" id="log"></p>
+  </section>
+</main>
+<div class="pmodal" id="askModal" hidden>
+  <section class="panel" role="dialog" aria-modal="true" aria-labelledby="askTitle">
+    <h2 id="askTitle">확인</h2><p id="askMsg"></p>
+    <div class="dm-btns"><button class="btn" id="askNo" type="button">취소</button><button class="btn primary" id="askYes" type="button">삭제</button></div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<script src="js/common.js?v=20261124zv"></script>
+<script src="js/opslib.js?v=20261124zv"></script>
+<script src="js/stable.js?v=20261124zv"></script>
+<script src="js/promo.js?v=20261124zv"></script>
+<script src="js/menu.js?v=20261124zv"></script>
+</body>
+</html>

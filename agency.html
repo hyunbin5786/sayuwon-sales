@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>협업 여행사 할인 현황 · 사유원 운영 보조 시스템</title>
+<script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/prep.css?v=20261124zv">
+<link rel="stylesheet" href="css/stable.css?v=20261124zv">
+<link rel="stylesheet" href="css/menu.css?v=20261124zv">
+</head>
+<body>
+<!-- 예약보조 › 고객 응대 보조 › 협업 여행사 할인 현황 (2026-11-24): 표(칸을 눌러 바로 고치기 · 추가 · 삭제 · js/stable.js) + 집계기록(방문기록 엑셀 → 여행사별 명수 · 비중 · 매출 · 비중) — js/agency.js -->
+<header>
+  <a class="sys-brand" href="./" title="메뉴로">사유원 운영 보조 시스템</a><span class="sys-crumb">협업 여행사 할인 현황</span>
+  <span class="me" id="me"></span>
+</header>
+<main class="st-main">
+  <section class="panel">
+    <h2>협업 여행사 할인 현황 <small id="sum"></small>
+      <span class="right"><span class="save-st" id="st"></span><button class="btn primary" id="addBtn" type="button">＋ 추가</button></span></h2>
+    <div class="st-bar"><input id="q" type="search" placeholder="여행사 · 소재지로 찾기" data-ime="ko" autocomplete="off"><span class="hint">칸을 눌러 바로 고치고 Enter 로 저장 · <b>찾는 이름</b> = 방문기록 엑셀에서 이 여행사를 찾을 때 함께 쓰는 다른 이름 (쉼표로 여러 개)</span></div>
+    <div class="tw st-tw"><table class="st-t ag-t" id="tbl"></table></div>
+    <p class="hint" id="log"></p>
+  </section>
+
+  <section class="panel ag-sec">
+    <h2>집계기록 <small>여행사끼리 비교 (비중 합계 = 100%)</small></h2>
+    <div class="ag-cfg"><span>집계 주기</span><select id="cycle"><option value="6">반기 (1~6월 · 7~12월)</option><option value="3">분기 (3개월)</option></select>
+      <span class="hint" id="aggDue"></span><span class="sp" style="flex:1"></span>
+      <label class="btn primary">방문기록 엑셀로 집계하기<input type="file" id="aggFile" accept=".xlsx,.xls,.csv,.html" hidden></label></div>
+    <div id="records"></div>
+  </section>
+</main>
+
+<!-- 집계 미리 보기 -->
+<div class="pmodal" id="aggModal" hidden>
+  <section class="panel ag-imp" role="dialog" aria-modal="true" aria-labelledby="aggTitle">
+    <h2 id="aggTitle">집계하기</h2>
+    <div id="aggBody"></div>
+    <p class="err" id="aggErr"></p>
+    <div class="dm-btns"><button class="btn" id="aggNo" type="button">취소</button><button class="btn primary" id="aggOk" type="button">이 집계 저장</button></div>
+  </section>
+</div>
+<div class="pmodal" id="askModal" hidden>
+  <section class="panel" role="dialog" aria-modal="true" aria-labelledby="askTitle">
+    <h2 id="askTitle">확인</h2><p id="askMsg"></p>
+    <div class="dm-btns"><button class="btn" id="askNo" type="button">취소</button><button class="btn primary" id="askYes" type="button">삭제</button></div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/common.js?v=20261124zv"></script>
+<script src="js/opslib.js?v=20261124zv"></script>
+<script src="js/stable.js?v=20261124zv"></script>
+<script src="js/agency.js?v=20261124zv"></script>
+<script src="js/menu.js?v=20261124zv"></script>
+</body>
+</html>
