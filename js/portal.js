@@ -411,8 +411,66 @@ document.addEventListener('click', e=>{
   const mo=e.target.closest('[data-cmon]'); if(mo){ const [y,m]=calMonth.split('-').map(Number), x=new Date(y, m-1+(+mo.dataset.cmon), 1); calMonth=`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}`; renderDash(); return; }
 });
 document.addEventListener('change', e=>{ if(e.target.id==='dashMem'){ dashMem=e.target.value; try{ localStorage.setItem('sy_dash_mem', dashMem); }catch(_){} renderDash(); } });
+// ===== 공지사항 (2026-11-24 · 대시보드 1열 2행 · 캘린더 아래) =====
+//  저장: 공유 기록(calls) 한 줄 id noticedb · 통화 구분 「공지사항」 · 수정 기록 칸 {rows:[{id, title, body, by, at, editBy, editAt}]} (최신을 받아 그 위에)
+//  「게시물 등록」 → 팝업(제목 · 내용) · 목록은 최근 것부터 · 누르면 내용 보기 팝업(고치기 · 삭제 · 닫기)
+const NT_ID='noticedb', NT_TYPE='공지사항';
+const ntRows = items => { const it=(items||[]).find(x=>x.id===NT_ID && !x.deleted); let h={}; try{ h=JSON.parse((it||{}).history||'{}')||{}; }catch(_){} return Array.isArray(h.rows) ? h.rows : []; };
+const ntDay = iso => { const s=String(iso||''); return s ? opsDateLabel(opsYmd(new Date(s))) : ''; };
+const ntIsNew = r => Date.now()-new Date(r.at||0).getTime() < 3*864e5;   // 3일 안에 올린 글 = 새 글
+function noticeHTML(){
+  const L=ntRows(lastItems).slice().sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+  return `<div class="dcol-h"><b>공지사항</b><button type="button" class="cm-btn" id="ntAddBtn" title="공지사항 게시물 등록">게시물 등록</button><span class="dn">${L.length}</span></div>`
+    + (L.length ? `<ul class="dlist nt-list">${L.map(r=>`<li><button type="button" class="nt-i${ntIsNew(r)?' new':''}" data-nt="${esc(r.id)}"><span class="nt-t">${ntIsNew(r)?'<span class="nt-new">새 글</span> ':''}${esc(r.title)}</span><small>${esc(r.by||'')} · ${esc(ntDay(r.at))}</small></button></li>`).join('')}</ul>`
+      : `<p class="hint dempty">공지사항이 없습니다. 「게시물 등록」으로 올리세요.</p>`);
+}
+async function ntSave(fn, what){   // 최신 공지사항을 받아 fn(rows) 로 바꾸고 저장
+  const j=await SY.list(); lastItems=SY.live.apply(j.items||[]);
+  const it=(lastItems||[]).find(x=>x.id===NT_ID), rows=fn(ntRows(lastItems).slice()), now=new Date().toISOString(), me=(getUser()||{}).name||'';
+  const item={...(it||{}), id:NT_ID, callType:NT_TYPE, saved:(it&&it.saved)||now, takenBy:me, owner:'', summary:`공지사항 ${rows.length}건 · ${what}`.slice(0,120), history:JSON.stringify({rows, at:now, by:me})};
+  delete item.date; delete item.org;
+  await SY.call({action:'put', item}); SY.live.post({t:'put', item});
+  const i=lastItems.findIndex(x=>x.id===NT_ID); if(i>=0) lastItems[i]=item; else lastItems.push(item);
+  renderDash();
+}
+let ntEditId='';
+function ntModal(){ let M=$('#ntModal'); if(!M){ M=document.createElement('div'); M.id='ntModal'; M.className='cm-modal'; document.body.appendChild(M); } return M; }
+function ntClose(){ const M=$('#ntModal'); if(M){ M.hidden=true; M.innerHTML=''; } ntEditId=''; }
+function ntOpenForm(row){
+  const M=ntModal(); ntEditId=row ? row.id : '';
+  M.innerHTML = `<div class="cm-panel nt-panel" role="dialog" aria-label="${row?'게시물 고치기':'게시물 등록'}"><h2>${row?'게시물 고치기':'게시물 등록'}</h2>`
+    + `<input id="ntTitle" class="nt-in" placeholder="제목" data-ime="ko" maxlength="80" autocomplete="off" value="${esc(row?row.title:'')}">`
+    + `<textarea id="ntBody" class="nt-ta" placeholder="내용" data-ime="ko">${esc(row?row.body||'':'')}</textarea>`
+    + `<p class="err" id="ntErr"></p><div class="cm-btns"><span class="hint"></span><button type="button" class="btn-sm primary" data-ntclose>닫기</button><button type="button" class="btn-sm primary" id="ntSaveBtn">${row?'저장':'등록'}</button></div></div>`;
+  M.hidden=false; setTimeout(()=>$('#ntTitle').focus(), 0);
+}
+function ntOpenView(r){
+  const M=ntModal(); ntEditId=r.id;
+  M.innerHTML = `<div class="cm-panel nt-panel" role="dialog" aria-label="공지사항"><h2>${esc(r.title)}</h2>`
+    + `<p class="nt-meta">${esc(r.by||'')} · ${esc(ntDay(r.at))}${r.editAt?` · 고침 ${esc(r.editBy||'')} ${esc(ntDay(r.editAt))}`:''}</p>`
+    + `<div class="nt-body">${esc(r.body||'').replace(/\n/g,'<br>')||'<span class="hint">(내용 없음)</span>'}</div>`
+    + `<p class="err" id="ntErr"></p><div class="cm-btns"><button type="button" class="btn-sm primary" id="ntDelBtn">삭제</button><span class="hint"></span><button type="button" class="btn-sm primary" id="ntEditBtn">고치기</button><button type="button" class="btn-sm primary" data-ntclose>닫기</button></div></div>`;
+  M.hidden=false;
+}
+document.addEventListener('keydown', e=>{ const M=$('#ntModal'); if(M && !M.hidden && e.key==='Escape') ntClose(); });
+document.addEventListener('click', e=>{
+  if(e.target.closest('#ntAddBtn')){ ntOpenForm(null); return; }
+  const v=e.target.closest('[data-nt]'); if(v){ const r=ntRows(lastItems).find(x=>x.id===v.dataset.nt); if(r) ntOpenView(r); return; }
+  const M=$('#ntModal'); if(!M || M.hidden) return;
+  if(e.target===M || e.target.closest('[data-ntclose]')){ ntClose(); return; }
+  if(e.target.id==='ntEditBtn'){ const r=ntRows(lastItems).find(x=>x.id===ntEditId); if(r) ntOpenForm(r); return; }
+  if(e.target.id==='ntDelBtn'){ const id=ntEditId, r=ntRows(lastItems).find(x=>x.id===id); if(!id || !confirm(`「${r?r.title:'이 게시물'}」을(를) 삭제할까요?`)) return;
+    e.target.disabled=true; ntSave(rows=>rows.filter(x=>x.id!==id), '삭제').then(ntClose).catch(er=>{ e.target.disabled=false; $('#ntErr').textContent='삭제하지 못했습니다: '+(er.code||er.message); }); return; }
+  if(e.target.id==='ntSaveBtn'){
+    const err=$('#ntErr'), title=$('#ntTitle').value.trim(), body=$('#ntBody').value.replace(/\s+$/,''), me=(getUser()||{}).name||'', now=new Date().toISOString(), id=ntEditId;
+    err.textContent=''; if(!title){ err.textContent='제목을 적어 주세요.'; $('#ntTitle').focus(); return; }
+    e.target.disabled=true;
+    const fn = id ? rows=>rows.map(x=>x.id===id ? {...x, title, body, editBy:me, editAt:now} : x) : rows=>[...rows, {id:'n'+Date.now().toString(36), title, body, by:me, at:now}];
+    ntSave(fn, `${id?'고침':'등록'} ${title}`).then(ntClose).catch(er=>{ e.target.disabled=false; err.textContent=(id?'저장하지':'등록하지')+' 못했습니다: '+(er.code||er.message); });
+  }
+});
 function renderDash(){ if(!dashData) return; paintRange();
-  // 2026-11-24 새 배치: 4열 · 2행 — ① 개인고객 전화 ② 단체고객 전화 ③ 개인 업무(멤버 고르기 · 기본 전체) 는 두 행을 통째로 / ④ 1행 = 캘린더(단체 방문 + 일정표) · 2행 = 공통 업무(담당 없는 과업)
+  // 2026-11-24 배치: 4열 · 2행 — ① 1행 캘린더(단체 방문 + 일정표) · 2행 공지사항 ② 개인고객 전화 ③ 단체고객 전화 (두 행 통째로) ④ 1행 개인 업무(멤버 고르기 · 기본 전체) · 2행 공통 업무(담당 없는 과업)
   const today=opsToday(), tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const tomorrow=opsYmd(tm), me=(getUser()||{}).name||'';
   const q=(($('#dashQ')||{}).value||'').trim().toLowerCase(), qd=q.replace(/\D/g,'');
   const hit = r => !q || r.q.toLowerCase().includes(q) || (qd.length>=3 && r.q.replace(/\D/g,'').includes(qd));   // 전화번호는 - 없이도
@@ -438,10 +496,12 @@ function renderDash(){ if(!dashData) return; paintRange();
   // ④ 2행 공통 업무: 담당이 없는 과업 (고객 견적 요청 · 담당 없는 예약 과업 등) + 정기 재고조사 날
   const RS = cmRule('stock'), st = cmOn('stock') && !devOff('stock.html') ? stockDue(today) : '', pre = st ? `<li class="drec late"><a href="stock.html"><span class="dr-h"><b>${esc(RS.title||'📋 정기 재고조사')}</b></span><span class="dr-t">${dl(st)} · ${esc(RS.text||'붕정 · 차방을 세어 재고관리에 기록')}</span></a></li>` : '';
   $('#dashBody').innerHTML = `<div class="dcols d2">`
-    + box('개인','개인고객 전화', mine.filter(r=>r.kind==='개인'), '', {cls:'span2'})
-    + box('단체','단체고객 전화', mine.filter(r=>r.kind==='단체'), '', {cls:'span2'})
-    + box('기타','개인 업무', etc, memSel, {cls:'span2'})
+    // 2026-11-24 배치 바꿈: 1열 = 캘린더 · 공지사항 / 2열 개인고객 전화 · 3열 단체고객 전화 (두 행 통째로) / 4열 = 개인 업무 · 공통 업무
     + `<div class="dcol dcal-col">${calHTML(today)}</div>`
+    + `<div class="dcol dnotice">${noticeHTML()}</div>`
+    + box('개인','개인고객 전화', mine.filter(r=>r.kind==='개인'), '', {cls:'span2 dpc'})
+    + box('단체','단체고객 전화', mine.filter(r=>r.kind==='단체'), '', {cls:'span2 dgc'})
+    + box('기타','개인 업무', etc, memSel, {cls:'dmine'})
     + box('공통','공통 업무', common, cmMgrBtn, {cls:'dcommon', pre, preN:st?1:0, owner:false})
     + `</div>`;
   calRestore();
