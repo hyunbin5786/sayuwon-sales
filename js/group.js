@@ -4528,3 +4528,29 @@ function myQuoteReqHTML(){
           + `<span class="my-task${d<today?' late':' today'}">견적서 · 거래명세서 발급 <small>접수 ${esc(String(r.at||'').slice(5,16))}</small></span></a></li>`; }).join('')}</ul>`;
 }
 if(!/[?&]engine=/.test(location.search)){ setTimeout(loadMyQuoteReq, 1500); setInterval(()=>{ if(document.visibilityState==='visible') loadMyQuoteReq(); }, 60e3); }
+
+// ===== 나의 할일을 다시 그려도 적던 글자는 그대로 (2026-11-24) =====
+// 30초마다 받아 오기 · 다른 컴퓨터에서 바뀜 · 견적 요청 1분마다 등으로 renderMy() 가 나의 할일을 통째로 다시 그리면, 적고 있던 칸(개인 업무 입력 · 세부 과업 · 메모 · 업무 고치기 등)이 비워졌음
+//  → 다시 그리기 직전에 #myBody 안의 글자 칸 중 「처음 값과 달라진 것」(= 사람이 적은 것)과 커서를 기억했다가, 다시 그린 뒤 같은 자리의 칸에 되돌림
+//  · 추가 칸(Enter · 추가)은 저장하는 동안 disabled 가 되므로 기억하지 않음 → 추가한 뒤에는 예전처럼 비워짐
+//  · 같은 자리 = 칸의 id, 없으면 칸과 그 위 칸들의 data-* 값으로 (여러 과업의 「세부 과업 추가」 칸을 구분)
+(function(){
+  if(typeof renderMy!=='function') return;
+  const TXT='input:not([type]), input[type=text], input[type=search], input[type=tel], input[type=number], textarea';
+  const keyOf = el => { const parts=[]; let n=el;
+    while(n && n.id!=='myBody'){ if(n.id){ parts.unshift('#'+n.id); break; }
+      const ds=Object.entries(n.dataset||{}).filter(([k])=>k!=='ime').map(([k,v])=>k+'='+v).join('&'); if(ds) parts.unshift(n.tagName+'['+ds+']');
+      n=n.parentElement; }
+    return parts.length ? parts.join(' > ') + (el.className ? '.'+String(el.className).trim().split(/\s+/).join('.') : '') : ''; };
+  const base=renderMy;
+  renderMy=function(){
+    const box=document.getElementById('myBody'), a=document.activeElement, vals={}; let foc=null;
+    if(box){ box.querySelectorAll(TXT).forEach(el=>{ if(el.disabled || el.readOnly) return; const k=keyOf(el); if(k && el.value!==el.defaultValue) vals[k]=el.value; });
+      if(a && box.contains(a) && a.matches(TXT) && !a.disabled){ const k=keyOf(a); if(k){ foc={k}; try{ foc.s=a.selectionStart; foc.e=a.selectionEnd; }catch(_){} } } }
+    const r=base.apply(this, arguments);
+    const box2=document.getElementById('myBody');
+    if(box2 && (Object.keys(vals).length || foc)){ box2.querySelectorAll(TXT).forEach(el=>{ const k=keyOf(el); if(!k) return;
+        if(k in vals && el.value!==vals[k]){ el.value=vals[k]; if(el.matches('[data-tkmemoin]') && typeof tkGrow==='function') try{ tkGrow(el); }catch(_){} }
+        if(foc && k===foc.k){ el.focus({preventScroll:true}); try{ if(foc.s!=null) el.setSelectionRange(foc.s, foc.e); }catch(_){} } }); }
+    return r; };
+})();
