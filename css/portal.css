@@ -290,3 +290,24 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .drec.mine > a:hover{background:#d4e8ca}
 .drec.mine.late > a{background:#f3e9dc}   /* 내 것인데 마감이 지남: 연한 주황 바탕 (왼쪽 띠 없음) */
 .drec.mine .downer.me{background:var(--pine);color:#fff}
+/* 캘린더 구분 · 색 · 범례 · 일정 추가 팝업 (2026-11-24) */
+.cal-g b.ck{display:inline-block;min-width:13px;height:13px;border-radius:7px;font-size:9.5px;line-height:13px;text-align:center;color:#fff;padding:0 2px}
+.cal-lg{display:flex;flex-wrap:wrap;gap:3px 10px;margin:6px 0 2px;font-size:11px;color:var(--muted)}
+.cal-lg span{display:inline-flex;align-items:center;gap:4px}
+.cal-lg i{display:inline-block;width:9px;height:9px;border-radius:50%}
+.cal-tag{display:inline-block;color:#fff;font-size:10.5px;font-weight:700;border-radius:999px;padding:0 7px;line-height:17px;vertical-align:1px;white-space:nowrap}
+.cal-day li.ce-i b.ctm{font-weight:700}
+.cal-addbtn{width:100%;height:32px;margin-top:6px}
+.cal-panel{max-width:460px}
+.cal-f{display:flex;align-items:center;gap:10px;margin:10px 0}
+.cal-fl{width:36px;flex:none;font-size:13px;font-weight:700;color:#3d3b35}
+.cal-f > input{flex:1;min-width:0;height:34px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit;font-size:14px}
+.cal-cats{display:flex;gap:6px;flex-wrap:wrap}
+.cal-cats button{height:32px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--c);font:700 13px var(--sans);cursor:pointer}
+.cal-cats button.on{background:var(--c);border-color:var(--c);color:#fff}
+.cal-per{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cal-per .dtxt{width:150px;height:34px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit;font-size:14px;background:#fff}
+.cal-tm{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13.5px}
+.cal-tm label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.cal-tm input[type=checkbox]{width:17px;height:17px;accent-color:var(--pine)}
+.cal-tm #calNTm{width:150px;height:34px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit;font-size:14px}
