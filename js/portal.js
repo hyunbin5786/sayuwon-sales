@@ -72,8 +72,8 @@ let members=[], roles=null;   // roles = {quote:[사번…]} 견적서 · 거래
 function paintMembers(){
   const u=getUser()||{};
   $('#memberHint').textContent = members.length ? `${members.length}명` : '';
-  $('#memberList').innerHTML = members.map(m=>`<tr class="${m.emp===u.emp?'me':''}"><td>${esc(m.name)}</td><td>${esc(m.emp)}</td><td class="hint">${esc(m.added||'')}${m.by?` · ${esc(m.by)}`:''}</td><td><label class="mrole" title="고객 견적 요청이 이 사람의 할일로 나옵니다"><input type="checkbox" data-mrole="quote" data-emp="${esc(m.emp)}"${roles && (roles.quote||[]).some(x=>String(x).trim().toUpperCase()===String(m.emp).trim().toUpperCase())?' checked':''}> 담당</label></td><td class="r"><button type="button" class="btn-sm del" data-mdel="${esc(m.emp)}" data-mname="${esc(m.name)}">빼기</button></td></tr>`).join('')
-    || '<tr><td colspan="5" class="hint">아직 멤버가 없습니다. 위에서 추가하면 그때부터 로그인할 때 이름 · 사번을 확인합니다.</td></tr>';
+  $('#memberList').innerHTML = members.map(m=>`<tr class="${m.emp===u.emp?'me':''}"><td>${esc(m.name)}</td><td>${esc(m.emp)}</td><td><input class="mphone" data-mphone="${esc(m.emp)}" value="${esc(m.phone||'')}" inputmode="tel" placeholder="010-0000-0000" maxlength="20" title="고치고 Enter 또는 다른 곳을 누르면 저장"></td><td class="hint">${esc(m.added||'')}${m.by?` · ${esc(m.by)}`:''}</td><td><label class="mrole" title="고객 견적 요청이 이 사람의 할일로 나옵니다"><input type="checkbox" data-mrole="quote" data-emp="${esc(m.emp)}"${roles && (roles.quote||[]).some(x=>String(x).trim().toUpperCase()===String(m.emp).trim().toUpperCase())?' checked':''}> 담당</label></td><td class="r"><button type="button" class="btn-sm del" data-mdel="${esc(m.emp)}" data-mname="${esc(m.name)}">빼기</button></td></tr>`).join('')
+    || '<tr><td colspan="6" class="hint">아직 멤버가 없습니다. 위에서 추가하면 그때부터 로그인할 때 이름 · 사번을 확인합니다.</td></tr>';
 }
 async function memberCall(body){
   $('#memberErr').textContent='';
@@ -88,7 +88,10 @@ async function memberCall(body){
 const loadMembers = () => { if(!getKey()){ $('#memberKey').hidden=false; $('#memberBody').hidden=true; return; } memberCall({action:'members'}); };
 // (멤버관리 팀 비밀번호 칸은 없앰 · 2026-11-21 — 로그인으로 확인)
 // "이름 사번" 줄들 → [{name, emp}]
-const parseLines = t => String(t||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{ const m=l.match(/^(.+?)[\s,\t]+([0-9A-Za-z-]{2,20})$/); return m ? {name:m[1].replace(/[,\t]/g,'').trim(), emp:m[2]} : {bad:l}; });
+//  끝에 연락처를 붙여도 됨 "이름 사번 010-1234-5678" (2026-11-24)
+const parseLines = t => String(t||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{
+  const p=l.match(/^(.+?)[\s,\t]+(01\d[-\s.]?\d{3,4}[-\s.]?\d{4})$/), body=p ? p[1].trim() : l, phone=p ? SY.fmtPhone(p[2].replace(/[\s.]/g,'')) : '';
+  const m=body.match(/^(.+?)[\s,\t]+([0-9A-Za-z-]{2,20})$/); return m ? {name:m[1].replace(/[,\t]/g,'').trim(), emp:m[2], phone} : {bad:l}; });
 async function addList(list){
   const bad=list.filter(x=>x.bad), ok=list.filter(x=>!x.bad);
   if(!ok.length){ $('#memberErr').textContent = bad.length ? `읽지 못한 줄: ${bad.map(b=>b.bad).join(' / ')}` : '이름과 사번을 넣어 주세요.'; return false; }
@@ -99,9 +102,17 @@ async function addList(list){
   if(before===0 && j.added){ const u=getUser(); if(u && u.setup==='empty'){ u.setup=''; setLS(USER_KEY, JSON.stringify(u)); $('#setupBar').hidden=true; } }
   return true;
 }
-$('#memberAdd').addEventListener('submit', async e=>{ e.preventDefault(); const name=$('#mName').value.trim(), emp=$('#mEmp').value.trim();
+$('#memberAdd').addEventListener('submit', async e=>{ e.preventDefault(); const name=$('#mName').value.trim(), emp=$('#mEmp').value.trim(), phone=SY.fmtPhone($('#mPhone').value.trim());
   if(!name || !/^[0-9A-Za-z-]{2,20}$/.test(emp)){ $('#memberErr').textContent='이름과 사번(숫자 · 영문)을 넣어 주세요.'; return; }
-  if(await addList([{name, emp}])){ $('#mName').value=''; $('#mEmp').value=''; $('#mName').focus(); } });
+  if(await addList([{name, emp, phone}])){ $('#mName').value=''; $('#mEmp').value=''; $('#mPhone').value=''; $('#mName').focus(); } });
+// 멤버 연락처 고치기 (2026-11-24): 표의 칸을 고치고 Enter 또는 다른 곳을 누르면 저장 (분실물 습득 접수 때 습득자 연락처로 자동)
+document.addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.matches && e.target.matches('input[data-mphone]')){ e.preventDefault(); e.target.blur(); } });
+document.addEventListener('change', async e=>{ const p=e.target.closest && e.target.closest('input[data-mphone]'); if(!p) return;
+  const emp=p.dataset.mphone, phone=SY.fmtPhone(p.value.trim()), cur=(members.find(m=>m.emp===emp)||{}).phone||'';
+  if(phone===cur){ p.value=phone; return; }
+  const j=await memberCall({action:'memberPhone', emp, phone});
+  if(!j){ if($('#memberErr').textContent.includes('bad_action')) $('#memberErr').textContent='연락처 저장은 서버(Cloudflare Worker)를 새 코드로 바꾼 뒤부터 됩니다.'; p.value=cur; return; }
+  $('#memberErr').textContent=`${(members.find(m=>m.emp===emp)||{}).name||''} 님 연락처를 저장했습니다.`; $('#memberErr').style.color='var(--pine)'; setTimeout(()=>{ $('#memberErr').style.color=''; }, 3000); });
 $('#mBulkBtn').onclick=async()=>{ if(await addList(parseLines($('#mBulk').value))) $('#mBulk').value=''; };
 document.addEventListener('click', async e=>{ const b=e.target.closest('[data-mdel]'); if(!b) return;
   const u=getUser()||{}, self=b.dataset.mdel===u.emp;

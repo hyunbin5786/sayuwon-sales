@@ -116,6 +116,10 @@ $('#q').addEventListener('input', ()=>render());
 
 // ---------- 추가 · 고치기 ----------
 let editRow=null, form={};
+const fLabel = f => typeof f.l==='function' ? f.l(form) : f.l;   // 칸 이름 (함수면 그때의 칸 값으로 — 분실물: 신고자 / 습득자)
+// 로그인한 사람의 연락처 (멤버관리에 적은 것 · 2026-11-24): 분실물 습득 접수 때 습득자 · 연락처를 자동으로 (js/lost.js onField)
+window.opsMe = { name:user.name||'', phone:'' };
+if(B.boards) SY.call({action:'members'}).then(j=>{ const e=String(user.emp||'').replace(/\s/g,'').toUpperCase(), m=(j.members||[]).find(x=>String(x.emp||'').replace(/\s/g,'').toUpperCase()===e); if(m){ opsMe.name=m.name||opsMe.name; opsMe.phone=m.phone||''; } }).catch(()=>{});
 function openEdit(row, preset){   // preset: 새로 넣을 때 먼저 채울 값 (분실물 대시보드의 구분 등)
   editRow=row||null; form = row ? {...row.d} : Object.fromEntries(B.fields.filter(f=>f.def).map(f=>[f.k, f.def()]));
   if(preset) Object.entries(preset).forEach(([k, v])=>{ form[k]=v; if(B.onField) B.onField(k, form); });
@@ -125,7 +129,7 @@ function openEdit(row, preset){   // preset: 새로 넣을 때 먼저 채울 값
   setTimeout(()=>$('#eFields input:not([type=hidden]):not([readonly]), #eFields textarea')?.focus(), 0);
 }
 function fieldHTML(f){
-  const v=form[f.k]??'', id='e_'+f.k, lab=`<label for="${id}">${f.l}${f.req?' <i>*</i>':''}</label>`;
+  const v=form[f.k]??'', id='e_'+f.k, lab=`<label for="${id}">${fLabel(f)}${f.req?' <i>*</i>':''}</label>`;
   if(f.type==='goods'){ const names=opsGoodsCache.map(g=>g.name), has=!v || names.includes(v);   // 품목관리의 굿즈 (엑셀에서 온 이름이 목록에 없으면 그 이름도 보임)
     return lab+`<select id="${id}" data-k="${f.k}"><option value=""${v?'':' selected'}>굿즈 고르기</option>${has?'':`<option selected>${esc(v)}</option>`}${names.map(n=>`<option${n===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`; }
   if(f.type==='select') return lab+`<select id="${id}" data-k="${f.k}">${(typeof f.opts==='function' ? f.opts(form) : f.opts).map(o=>`<option${o===v?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
@@ -134,7 +138,7 @@ function fieldHTML(f){
   if(f.type==='dom') return lab+`<select id="${id}" data-k="dom">${Array.from({length:30},(_,i)=>i+1).map(i=>`<option value="${i}"${+v===i?' selected':''}>${i}일</option>`).join('')}<option value="31"${+v>=31?' selected':''}>말일</option></select>`;
   if(f.type==='subs') return lab+`<ul class="esubs">${(form.subs||[]).map(s=>`<li><span>${esc(s.title)}</span><button type="button" class="x" data-subdel="${esc(s.id)}" title="빼기">×</button></li>`).join('')}</ul><div class="esub-add"><input id="e_subAdd" data-ime="ko" placeholder="세부 과업 (적고 Enter)"><button type="button" class="btn sm" id="e_subAddBtn">추가</button></div>`;
   if(f.type==='photos'){ const ps=Array.isArray(form[f.k]) ? form[f.k] : [];   // 사진 (2026-11-23): 휴대폰에서 바로 찍거나 사진첩에서 고름. 값 = [{id, name}] (그림은 서버 files 표 · 아래 「사진 칸」)
-    return `<label>${f.l} <small class="ph-cnt">${ps.length} / ${PH_MAX}장</small></label>`
+    return `<label>${fLabel(f)} <small class="ph-cnt">${ps.length} / ${PH_MAX}장</small></label>`
       + (ps.length ? `<div class="phs">${ps.map((p,i)=>`<span class="ph"><img alt="${esc(p.name||'사진')}" data-phimg="${esc(p.id)}" data-phview="${esc(p.id)}"><button type="button" class="ph-x" data-phdel="${f.k}|${i}" title="이 사진 빼기" aria-label="사진 빼기">×</button></span>`).join('')}</div>` : '')
       + (ps.length<PH_MAX ? `<div class="ph-btns"><label class="btn primary ph-btn">📷 사진 찍기<input type="file" accept="image/*" capture="environment" data-phadd="${f.k}" hidden></label>`
           + `<label class="btn primary ph-btn">🖼 사진 고르기<input type="file" accept="image/png,image/jpeg" multiple data-phadd="${f.k}" hidden></label></div>` : '')
@@ -193,7 +197,7 @@ $('#eForm').addEventListener('submit', async e=>{ e.preventDefault();
   document.activeElement?.blur?.();
   if($('#e_subAdd')?.value.trim()) addSub();   // 세부 과업 칸에 적어 두고 추가를 안 누른 것도
   if(phBusy){ $('#eErr').textContent='사진을 올리는 중입니다. 끝난 뒤 저장해 주세요.'; return; }
-  const miss=B.fields.filter(f=>f.req && (!f.show || f.show(form)) && !String(form[f.k]||'').trim()); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>f.l).join(' · ')}을(를) 넣어 주세요.`; return; }
+  const miss=B.fields.filter(f=>f.req && (!f.show || f.show(form)) && !String(form[f.k]||'').trim()); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>fLabel(f)).join(' · ')}을(를) 넣어 주세요.`; return; }
   const d={...form}; B.fields.forEach(f=>{ if(f.show && !f.show(form) && f.k in d && f.type!=='dows' && f.type!=='dom') delete d[f.k]; });
   const ok=await putRow({...(editRow||{}), d}, editRow?'고침':'추가'); if(ok!==false){ $('#editModal').hidden=true; toast(editRow?'고쳤습니다.':'추가했습니다.'); }
 });

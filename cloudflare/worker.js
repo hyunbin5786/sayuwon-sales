@@ -92,8 +92,24 @@ async function quotePost(env, req) {
 }
 
 // ---------- 멤버 · 로그인 ----------
+// 멤버 연락처 칸 phone (2026-11-24): 예전 DB 에는 없으므로 처음 쓸 때 한 번 더함 (이미 있으면 오류 → 그냥 넘어감)
+let memPhoneReady = false;
+async function ensureMemberPhone(env) {
+  if (memPhoneReady) return;
+  try { await q(env, "ALTER TABLE members ADD COLUMN phone TEXT NOT NULL DEFAULT ''").run(); } catch (x) { /* 이미 있음 */ }
+  memPhoneReady = true;
+}
+const memPhone = v => String(v || '').replace(/[^\d-]/g, '').slice(0, 20);
 async function readMembers(env) {
-  return (await rows(env, "SELECT name, emp, added, \"by\" FROM members WHERE deleted='' AND name<>'' AND emp<>'' ORDER BY rowid"));
+  await ensureMemberPhone(env);
+  return (await rows(env, "SELECT name, emp, phone, added, \"by\" FROM members WHERE deleted='' AND name<>'' AND emp<>'' ORDER BY rowid"));
+}
+async function setMemberPhone(env, emp, phone) {
+  await ensureMemberPhone(env);
+  const e = normEmp(emp); if (!e) throw fail('bad_emp');
+  let n = 0;
+  for (const m of await rows(env, "SELECT rowid AS r, emp FROM members WHERE deleted=''")) if (normEmp(m.emp) === e) { await q(env, 'UPDATE members SET phone=? WHERE rowid=?', memPhone(phone), m.r).run(); n++; }
+  if (!n) throw fail('not_found');
 }
 // 담당 지정 (2026-11-23): kv 'role:quote' = 견적서 · 거래명세서 담당자의 사번 목록(JSON). 고객 견적 요청이 이 사람의 할일로 나옴 (표를 바꾸지 않으려고 kv 에 둠)
 const ROLES = ['quote'];
@@ -129,7 +145,7 @@ async function addMembers(env, list, by) {
   for (const m of (list || [])) {
     const name = String((m && m.name) || '').trim(), emp = String((m && m.emp) || '').trim();
     if (!name || !/^[0-9A-Za-z-]{2,20}$/.test(emp) || have[normEmp(emp)]) continue;   // 같은 사번은 한 번만
-    await q(env, 'INSERT INTO members (emp, name, added, "by", deleted) VALUES (?, ?, ?, ?, \'\')', emp, name, kstStamp(), String(by || '')).run();
+    await q(env, 'INSERT INTO members (emp, name, phone, added, "by", deleted) VALUES (?, ?, ?, ?, ?, \'\')', emp, name, memPhone(m.phone), kstStamp(), String(by || '')).run();
     have[normEmp(emp)] = true; added++;
   }
   return added;
@@ -340,8 +356,9 @@ async function importData(env, req) {
   const cs = (req.calls || []).filter(x => { const ok = x && ID_OK.test(String(x.id || '')); if (!ok) out.skipped.push(String((x && x.id) || '(id 없음)')); return ok; }).map(x => putStmt(env, rowOf(x)));
   await batch(cs); out.calls = cs.length;
   if (Array.isArray(req.members)) {
+    await ensureMemberPhone(env);
     const have = {}; (await rows(env, 'SELECT emp FROM members')).forEach(m => { have[normEmp(m.emp)] = true; });
-    const ms = req.members.filter(m => m && m.name && m.emp && !have[normEmp(m.emp)]).map(m => q(env, "INSERT INTO members (emp, name, added, \"by\", deleted) VALUES (?, ?, ?, ?, '')", String(m.emp), String(m.name), String(m.added || ''), String(m.by || '')));
+    const ms = req.members.filter(m => m && m.name && m.emp && !have[normEmp(m.emp)]).map(m => q(env, "INSERT INTO members (emp, name, phone, added, \"by\", deleted) VALUES (?, ?, ?, ?, ?, '')", String(m.emp), String(m.name), memPhone(m.phone), String(m.added || ''), String(m.by || '')));
     await batch(ms); out.members = ms.length;
   }
   const qs = (req.quotereq || []).filter(o => o && o.id).map(o => q(env, 'INSERT INTO quotereq (' + QR_COLS + ') VALUES (' + QR_KEYS.map((k, i) => '?' + (i + 1)).join(',') + ') ON CONFLICT(id) DO UPDATE SET ' + QR_KEYS.slice(1).map((k, i) => '"' + k + '"=?' + (i + 2)).join(','), ...QR_KEYS.map(k => String(o[k] == null ? '' : o[k]))));
@@ -433,7 +450,7 @@ async function clergyImport(env, req, by) {
 // 내려받기에 쓰는 SQL (표마다 · seq = 넣은 순서). 틀린 로그인 횟수 · 견적 요청 수 제한 같은 잠깐 쓰는 값은 뺌
 const EXPORT_SQL = () => { const tail = ' WHERE rowid>? ORDER BY rowid LIMIT ?'; return {
   calls: 'SELECT rowid AS seq, id, call_type, visit_date, updated, deleted, data FROM calls' + tail,
-  members: 'SELECT rowid AS seq, emp, name, added, "by", deleted FROM members' + tail,
+  members: 'SELECT rowid AS seq, emp, name, phone, added, "by", deleted FROM members' + tail,
   quotereq: 'SELECT rowid AS seq, ' + QR_COLS + ' FROM quotereq' + tail,
   quote_history: 'SELECT rowid AS seq, id, at, data FROM quote_history' + tail,
   files: 'SELECT rowid AS seq, id, kind, name, mime, size, at, "by" FROM files' + tail,
@@ -483,7 +500,7 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'clergyAdd') { try { await ensureClergy(env); const item = await clergyAdd(env, req); await bumpRev(env); return { ok: true, item, api: 8 }; } catch (e) { return err('', e); } }
   if (a === 'clergyDel') { try { await ensureClergy(env); const n = await clergyDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 8 }; } catch (e) { return err('', e); } }
   if (a === 'clergyImport') { try { await ensureClergy(env); const n = await clergyImport(env, req, req.who && req.who.name); await bumpRev(env); return { ok: true, imported: n, api: 8 }; } catch (e) { return err('', e); } }
-  if (a === 'export') { if (req.table === 'clergy') await ensureClergy(env); const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };
+  if (a === 'export') { if (req.table === 'clergy') await ensureClergy(env); if (req.table === 'members') await ensureMemberPhone(env); const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };
     const lim = t === 'file_chunks' ? 1 : Math.min(Number(req.limit) || 200, 500), rs = await rows(env, sql, Number(req.after) || 0, lim);
     return { ok: true, table: t, rows: rs, next: rs.length === lim ? rs[rs.length - 1].seq : null }; }
   if (a === 'wait') return waitRev(env, String(req.rev || ''));
@@ -492,6 +509,7 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'members') return { ok: true, members: await readMembers(env), roles: await readRoles(env) };
   if (a === 'memberRole') { try { await setRole(env, String(req.role || ''), req.emp, !!req.on); await bumpRev(env); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
   if (a === 'memberAdd') { try { return { ok: true, added: await addMembers(env, req.list || [], req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
+  if (a === 'memberPhone') { try { await setMemberPhone(env, req.emp, req.phone); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }   // 멤버 연락처 고치기 (2026-11-24)
   if (a === 'memberDel') { try { return { ok: true, removed: await delMember(env, req.emp, req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
   // 목록: since(ISO 일시)를 주면 그 뒤에 저장 · 삭제된 줄만 (delta · 삭제된 줄은 deleted 가 채워져 옴). 없으면 최근 2,000줄 중 지워지지 않은 것
   if (a === 'list') {

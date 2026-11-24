@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS members (
   deleted TEXT NOT NULL DEFAULT ''      -- 뺀 일시 + 뺀 사람
 );
 CREATE INDEX IF NOT EXISTS members_emp ON members(emp);
+-- 연락처 칸 phone (2026-11-24): 서버(worker.js ensureMemberPhone)가 처음 쓸 때 ALTER TABLE members ADD COLUMN phone … 으로 더함 (Console 에서 따로 실행하지 않아도 됨)
 
 -- 고객 견적 요청
 CREATE TABLE IF NOT EXISTS quotereq (

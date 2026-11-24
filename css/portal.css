@@ -153,3 +153,7 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .ptbl-note{font-size:11px;margin:8px 2px 0}
 .mtable .mrole{display:inline-flex;gap:6px;align-items:center;font-size:13px;cursor:pointer}
 .mtable .mrole input{width:17px;height:17px;accent-color:var(--pine)}
+/* 멤버 연락처 (2026-11-24) */
+.mtable .mphone{width:140px;height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:inherit;font-size:13.5px;background:#fff}
+.mtable .mphone:focus{border-color:var(--pine);outline:none}
+#memberAdd #mPhone{width:180px}
