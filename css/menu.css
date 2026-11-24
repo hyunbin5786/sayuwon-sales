@@ -101,3 +101,5 @@ header .man-btn svg{flex:none}
 .smenu .sm-g:has(.sm-sub) .sm-i{margin-left:16px}
 .smenu .sm-g:has(.sm-sub) .sm-chips{padding-left:20px}
 .smenu .sm-i b .sm-dev{display:inline-block;margin-left:6px;font:700 10.5px var(--sans,sans-serif);color:#8a5a00;background:#fff3d6;border-radius:999px;padding:1px 7px;vertical-align:1px}   /* 배포 사이트의 개발 중 기능 (2026-11-24) */
+.smenu .sm-panel{scrollbar-width:none;-ms-overflow-style:none}   /* 메뉴는 스크롤 막대 없이 굴리면 스크롤 (2026-11-24) */
+.smenu .sm-panel::-webkit-scrollbar{display:none;width:0;height:0}
