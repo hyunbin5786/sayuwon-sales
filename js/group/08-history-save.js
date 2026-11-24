@@ -90,7 +90,7 @@ async function save(opt){
   if(saving){ if(auto){ clearTimeout(autoT); autoT=setTimeout(()=>save(opt), 3000); return; }   // 자동 저장 중이면: 자동은 잠시 뒤, 저장 버튼은 끝나기를 기다렸다가
     await new Promise(ok=>{ const iv=setInterval(()=>{ if(!saving){ clearInterval(iv); ok(); } }, 50); }); return save(opt); }
   if(editLockBy){ if(!auto) toast(`${editLockBy}님이 다른 PC(창)에서 이 예약을 고치는 중이라 저장할 수 없습니다.`); return; }   // 같은 예약을 두 곳에서 고치지 않게
-  if(lockOwner){ if(!auto) toast(`${lockOwner}님 담당 예약이라 고칠 수 없습니다. 바꿀 내용은 위쪽 메모로 남겨 주세요.`); return; }   // 남이 담당인 예약은 저장 안 함 (메모만)
+  if(lockOwner) return saveLockedParts();   // 남이 담당인 예약: 예약 전체는 저장 안 함 — 통화 메모 · 내가 담당자인 과업만 (2026-11-24 · 15-lock-popups.js)
   if(!canSave()){ if(!auto) toast('업체나 방문일을 먼저 입력하세요.'); return; }
   if(typeof tbdIsLate==='function' && tbdIsLate(rec) && !rec.tbdLate){ if(!auto) openLate(()=>save(opt)); return; }   // 입력 기한을 전주 목요일보다 늦게 잡았으면 사유부터 (자동 저장은 기다림)
   if(auto && !isDirty()) return;
