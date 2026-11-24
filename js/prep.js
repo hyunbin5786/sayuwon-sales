@@ -410,7 +410,7 @@ function render(){
   $('#p2Sum').textContent = `${on.length}팀 · ${on.reduce((a,r)=>a+r.ppl,0)}명 · 단체예약 ${dg.length}건 중 연결 ${rows.filter(r=>r.inList && !r.missing).length}${rows.some(r=>r.missing)?` · 전산에 없음 ${rows.filter(r=>r.missing).length}`:''}${groups.length?'':' (단체예약을 아직 못 불러옴)'}`;   // ③ 단체예약 정보 넣기는 없애고 여기에 요약 (2026-11-18)
   // ④ 결과 표 (도착 시간 순)
   const list=on.slice().sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999));
-  rows.forEach(r=>{ const e=state.edit[r.key]||{}; r.orig.note=shortNote(r); r.note = e.note ?? r.orig.note; });   // 비고 = 간소화한 글 (이미지와 같음 · 직접 고치면 고친 글)
+  rows.forEach(r=>{ const e=state.edit[r.key]||{}; r.orig.note = String(r.xnote||'').trim() || shortNote(r); r.note = e.note ?? r.orig.note; });   // 비고 = 엑셀의 비고 그대로 (2026-11-24 · 예전엔 간소화한 글). 엑셀 비고가 없는 줄만 간소화한 글(도착시간 · 입장문 · 여행사 메모). 직접 고치면 고친 글 · 이미지 · 엑셀 내보내기도 같은 글
   rows.forEach(r=>{ r._chg=new Set(rowChanges(r).map(c=>c.f)); });   // 저장 안 한 수정 칸 (노란 테두리)
   { const n=rows.reduce((a,r)=>a+r._chg.size,0), b=$('#saveEdits'); if(b){ b.title = n ? `저장 안 한 수정 ${n}건 — 눌러서 저장` : '표에 적힌 내용을 연결된 단체예약에 그대로 올림'; b.classList.toggle('dirty', n>0); } }
   const yy=s.date.slice(2).replace(/-/g,'');
