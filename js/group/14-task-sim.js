@@ -55,12 +55,18 @@ function tasksOf(r){
 }
 const openTasksOf = r => tasksOf(r).filter(t=>!t.done).sort((a,b)=>a.due.localeCompare(b.due));
 const taskRecActive = r => !r.date || daysFrom(r.date, ymd(new Date())) <= 30;   // 방문 뒤 30일 지난 예약의 과업은 빼고
-function dueTasks(){   // 마감이 오늘이거나 지난 해결 안 된 과업 (영업 담당이 있으면 내 예약만)
+function dueTasks(){   // 마감이 오늘이거나 지난 해결 안 된 과업 (영업 담당이 있으면 내 예약만 + 내가 담당자인 준비 과업)
   const today=ymd(new Date()), me=savedOwner();
-  const out=[]; (cache||[]).filter(r=>isGroupRec(r) && (!me || ownerOf(r)===me) && taskRecActive(r))
-    .forEach(r=>openTasksOf(r).forEach(t=>{ if(t.due<=today) out.push({r, t}); }));
+  const out=[]; (cache||[]).filter(r=>isGroupRec(r) && (!me || ownerOf(r)===me || mayStaff(r, me)) && taskRecActive(r))
+    .forEach(r=>openTasksOf(r).forEach(t=>{ if(t.due<=today && (!me || taskForMe(r, t, me))) out.push({r, t}); }));
   return out.sort((a,b)=>a.t.due.localeCompare(b.t.due));
 }
+// 과업 담당 (2026-11-24): 과업에 who(담당자 준비 과업)가 있으면 그 사람 것 — 영업 담당에게는 안 보임 · 없으면 예약의 영업 담당 것
+const taskForMe = (r, t, me) => t.who ? t.who===me : ownerOf(r)===me;
+const mayStaff = (r, me) => !!me && String(r.memo||'').includes(me);   // 저장된 비고(프로그램 담당 …)에 내 이름이 있는 예약만 계산 (빠르게)
+// 내가 영업 담당이 아니지만 담당자로 들어간 예약의 준비 과업
+const myStaffRecs = me => (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)!==me && mayStaff(r, me) && taskRecActive(r) && isBooked(stageOfRec(r)))
+  .map(r=>({r, x:xOf(r), tasks:openTasksOf(r).filter(t=>t.who===me)})).filter(o=>o.tasks.length);
 // 개인고객 통화 (personal.html, 통화 구분 '개인고객')의 추후 과업: 내가 받은(저장한) 통화의 안 끝난 과업
 const isPersonalRec = r => r && r.callType==='개인고객';
 let myTab = (()=>{ const fix=t=>(!t || t==='all' || t==='etc') ? 'main' : t; const q=new URLSearchParams(location.search).get('tab'); return q ? fix(q) : 'main'; })();   // 열 때는 늘 메인 (주소에 tab= 이 있을 때만 그 탭, 2026-11-19)   // 2026-11-19: 메인 · personal(개인예약) · group(단체예약) · cat:구분 (예전 all · etc 는 메인)   // 나의 할일 탭: all · personal · group (개인고객 화면에서 열면 ?tab=personal → 개인부터)
@@ -149,10 +155,10 @@ function renderMy(){ paintMySet();
   const me=savedOwner(), today=ymd(new Date()), past=$('#myPast').checked;
   $('#myTitle').textContent = me ? `나의 할일 · ${me}` : '나의 할일';
   if(!me){ $('#mySum').textContent=''; $('#myBody').innerHTML='<p class="hint">맨 위 초록 헤더의 <b>영업 담당</b>에 이름을 넣으면, 그 이름이 영업 담당인 예약을 모아 보여 줍니다.</p>'; return; }
-  const mine = myRecords().map(r=>({r, x:xOf(r), tasks:openTasksOf(r)}));
+  const mine = myRecords().map(r=>({r, x:xOf(r), tasks:openTasksOf(r).filter(t=>taskForMe(r, t, me))}));   // 다른 담당자의 준비 과업은 빼고 (2026-11-24)
   const ahead = mine.filter(o=>!o.r.date || o.r.date>=today);
   const tbdAll = ahead.filter(o=>o.x.tbd);
-  const open = mine.filter(o=>o.tasks.length && taskRecActive(o.r)).map(o=>({...o, left:o.tasks})).sort((a,b)=>a.left[0].due.localeCompare(b.left[0].due));
+  const open = [...mine, ...myStaffRecs(me)].filter(o=>o.tasks.length && taskRecActive(o.r)).map(o=>({...o, left:o.tasks})).sort((a,b)=>a.left[0].due.localeCompare(b.left[0].due));   // + 내가 담당자인 준비 과업
   const booked = o => isBooked(stageOfRec(o.r));   // 방문 예정은 가예약 · 예약확정만 (예약상담 · 예약취소는 뺌)
   const shown = (past ? mine : ahead).filter(booked).slice().sort((a,b)=>(a.r.date||'9999').localeCompare(b.r.date||'9999'));
   $('#mySum').textContent = `담당 단체 예약 ${mine.length}건 · 방문 예정 ${ahead.length}건 · 미정 ${tbdAll.length}건 · 남은 과업 단체 ${open.reduce((s,o)=>s+o.left.length,0)}개 · 개인 ${myPersonalOpen().reduce((s,o)=>s+o.left.length,0)}개`;

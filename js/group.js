@@ -2144,7 +2144,10 @@ const ERP_PROG_NAME = { donghaeng:'동행도슨트', seminar:'PPT세미나', sem
 function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문구는 런치 · 디너를 뺌 (2026-11-19)
   const items=[];
   // 런치 · 디너는 비고에 안 씀 (2026-11-19 · 상품으로 전산에 있음). noMeal 은 예전 호출 그대로 둠
-  FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]] && f[1]!=='gaga').forEach(f=>{   // 음료쿠폰은 굿즈라 뺌
+  // 2026-11-24: 몽몽마방 식사 · 음료쿠폰도 비고에 (대관 · 도슨트 · 프로그램은 예전부터) — 「12시 몽몽마방(사유의 밥상 10명)」 · 「음료쿠폰 40개」
+  if(numOf(r.mabangL) || r.mabangTime){ const inner=[String(r.mabangMenu||'').trim(), numOf(r.mabangL)?`${numOf(r.mabangL)}명`:''].filter(Boolean).join(' '); items.push([erpProgT(r.mabangTime), '몽몽마방'+(inner?`(${inner})`:'')].filter(Boolean).join(' ')); }
+  if(String(r.gaga||'').trim() && String(r.gaga).trim()!=='0') items.push(`음료쿠폰 ${/^\d+$/.test(String(r.gaga).trim())?String(r.gaga).trim()+'개':String(r.gaga).trim()}`);
+  FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]] && f[1]!=='gaga').forEach(f=>{   // 음료쿠폰은 위에서 따로
     const k=f[1], sub=p=>String(r[`${p}_${k}`]||'').trim(), name=ERP_PROG_NAME[k] || String(f[2]).replace(/\s+/g,'');
     const paren=[erpCrs(sub('crs')), /\(/.test(name) ? '' : sub('plc')].filter(Boolean).join(', ');   // 괄호 = 도슨트 출발 위치 · 장소만 (담당자는 안 씀, 2026-11-19) · 자체세미나(당두)처럼 이름에 장소가 있으면 장소는 빼고
     items.push([erpProgT(sub('tm')), /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
@@ -2172,19 +2175,28 @@ function taxMsg(r){
 const onsiteMsg = r => `안녕하세요, 사유원입니다. ${r.org?`<${r.org}> `:''}${r.date?mdLabel(r.date)+' ':''}방문 건으로 연락드렸습니다.\n최종 인원이 ${r.people?`총 ${r.people}명`:'몇 분'} 맞으신가요?\n현장 결제로 진행되기 때문에 당일에는 인원 변경이 어려운 점 다시 한번 안내드립니다.\n변경이 있으시면 지금 말씀해 주세요. 감사합니다.`;
 // 담당자에게 일정 전달 (방문 전날): 담당자별로 맡은 프로그램 · 굿즈
 function staffMsg(r){
-  const by={}, add=(who,s)=>{ who=String(who||'').trim()||'(담당 미정)'; (by[who] ||= []).push(s); };
+  const by=staffBy(r), head=staffHead(r), c=contactsOf(r)[0]||{};
+  return `[단체 일정 전달] ${head}\n` + Object.entries(by).map(([w,l])=>`- ${w}: ${l.join(', ')}`).join('\n') + (c.name||c.phone ? `\n고객 담당: ${[c.name,c.phone].filter(Boolean).join(' ')}` : '') + `\n영업 담당: ${(r.owner||savedOwner()||'').trim()||'-'}`;
+}
+const staffHead = r => [r.org&&`<${r.org}>`, r.date&&dateLabel(r.date), r.people&&`${r.people}명`, r.tin&&`입장 ${r.tin}${r.gate&&r.gate!=='미정'?' '+r.gate:''}`].filter(Boolean).join(' · ');
+// 담당자 준비 과업 (2026-11-24): 프로그램 · 대관 · 도슨트 · 음료쿠폰 · 굿즈의 담당으로 고른 사람마다 「단체 준비」 과업 하나 (id prep:이름 · who = 그 사람)
+//  그 사람의 나의 할일 · 첫 화면 「단체고객 전화」에 단체예약으로 나옴 (영업 담당에게는 안 보임) · 마감 = 방문 전날 · 아래 문구 = 그 사람이 맡은 것만
+const prepWho = r => Object.keys(staffBy(r)).filter(w=>w!=='(담당 미정)');
+function prepMsg(r, who){ const L=staffBy(r)[who]||[], c=contactsOf(r)[0]||{};
+  return `[단체예약 준비] ${staffHead(r)}\n${L.map(s=>'- '+s).join('\n')}` + (c.name||c.phone ? `\n고객 담당: ${[c.name,c.phone].filter(Boolean).join(' ')}` : '') + `\n영업 담당: ${(r.owner||savedOwner()||'').trim()||'-'}`; }
+const prepTitle = (r, who) => { const L=staffBy(r)[who]||[]; return `준비: ${L.map(s=>s.replace(/\s+\d.*$/,'').replace(/\s*\(.*$/,'')).filter((v,i,a)=>a.indexOf(v)===i).join(' · ')||'단체 일정'}`.slice(0,60); };
+function staffBy(r){
+  const by={}, add=(who,s)=>{ String(who||'').split(/\s*,\s*/).map(w=>w.trim()).filter(Boolean).concat(String(who||'').trim()?[]:['(담당 미정)']).forEach(w=>{ (by[w] ||= []).push(s); }); };   // 담당이 여러 명이면 「문현빈, 김선영」 → 각자
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]]).forEach(f=>{ const k=f[1], v=String(r[k]), sub=p=>String(r[`${p}_${k}`]||'').trim();
     const s2who = k==='seminar' && sem2On(r) && !r.seminar2 ? String(r.stf_seminar2||'').trim() : '', split = s2who && s2who!==sub('stf');   // 세미나 도슨트 두 번째 담당이 다르면 그 사람에게 따로
     const s2note = r===rec && itemNote('seminar2') ? ` (비고:${itemNote('seminar2')})` : '';
     add(sub('stf'), `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? (split ? '1'+UNIT(k) : v+UNIT(k)) : v}${sub('tm')?' '+sub('tm'):''}${sub('crs')?` (출발지:${sub('crs')})`:''}${sub('plc')?` (장소:${sub('plc')})`:''}${r===rec && itemNote(k)?` (비고:${itemNote(k)})`:''}${k==='seminar' && !split ? sem2Tag(r)+(sem2Tag(r) ? s2note : '') : ''}`);
     if(split){ const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); add(s2who, `${f[2]} 1${UNIT(k)}${t?' '+t:''}${p?` (장소:${p})`:''}${s2note}`); } });
   if(r.goods) add(r.stf_goods, '굿즈 '+goodsText(r)+(r===rec ? goodsParse(r.goods).map(g=>itemNote('g:'+g.src)?` (${goodsName(g.src)} 비고:${itemNote('g:'+g.src)})`:'').join('') : ''));
-  const head=[r.org&&`<${r.org}>`, r.date&&dateLabel(r.date), r.people&&`${r.people}명`, r.tin&&`입장 ${r.tin}${r.gate&&r.gate!=='미정'?' '+r.gate:''}`].filter(Boolean).join(' · ');
-  const c=contactsOf(r)[0]||{};
-  return `[단체 일정 전달] ${head}\n` + Object.entries(by).map(([w,l])=>`- ${w}: ${l.join(', ')}`).join('\n') + (c.name||c.phone ? `\n고객 담당: ${[c.name,c.phone].filter(Boolean).join(' ')}` : '') + `\n영업 담당: ${(r.owner||savedOwner()||'').trim()||'-'}`;
+  return by;
 }
 const taskAuto = t => { const base=taskAutoBase(t); return typeof tcfgNote==='function' ? tcfgNote(t, base) : base; };   // 추후과업 메시지 관리에서 고친 문구 틀이 있으면 그것 (js/taskcfg.js, 2026-11-20)
-const taskAutoBase = t => t.id==='erp' ? erpNote(rec) : t.id==='erpfix' ? erpNote(rec, true) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : '';   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장결제 필요)   // 자동으로 만든 문구
+const taskAutoBase = t => t.id==='erp' ? erpNote(rec) : t.id==='erpfix' ? erpNote(rec, true) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : /^prep:/.test(t.id) ? prepMsg(rec, t.who||t.id.slice(5)) : '';   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장결제 필요)   // 자동으로 만든 문구
 const taskText = t => taskAuto(t) ? (t.noteEdit || taskAuto(t)) : '';   // 직접 고쳤으면 그 글 (전산 비고 등)
 // 과업 기한(due): 생기면 그날이 기본, 각자 바꿀 수 있음(dueSet). 미정 항목 연락 = 답변일, 현장 결제 인원 확인 = 전주 목요일(지났으면 전날), 결제 확인 = 다음날
 const todayYmd = () => ymd(new Date());
@@ -2195,7 +2207,7 @@ function autoDue(id, r){
   if(id==='onsitecall') return r.date ? tbdLimit(r.date) : todayYmd();
   if(id==='paycheck') return ymd(nextDay(r.linkSent || new Date().toISOString()));   // 입금 확인 = 결제링크 보낸 다음날
   if(id==='staffbrief') return r.date ? staffFri(r.date) : todayYmd();   // 담당자에게 일정 전달 = 방문 전주 금요일 (2026-11-21 · 예전: 프로그램이 있으면 방문 주 월요일, 굿즈만이면 방문 전날)
-  if(id==='goodsprep'){ if(!r.date) return todayYmd(); const d=new Date(r.date+'T00:00'); d.setDate(d.getDate()-1); return ymd(d); }   // 방문 전날
+  if(id==='goodsprep' || /^prep:/.test(id)){ if(!r.date) return todayYmd(); const d=new Date(r.date+'T00:00'); d.setDate(d.getDate()-1); return ymd(d); }   // 방문 전날 (담당자 준비 과업도)
   return todayYmd();
 }
 const taskDue = t => t.due || (t.at ? ymd(new Date(t.at)) : todayYmd());   // 예전 과업은 생긴 날
@@ -2227,6 +2239,10 @@ function syncAutoTasks(){
   const mbNeed=mbNeedsMenu(rec); if(mbNeed) want.push('mbmenu');   // 몽몽마방 예약인데 메뉴를 안 고름
   if(rec.goods) want.push('goodsprep');   // 굿즈가 들어가면 방문 전날까지 굿즈 준비 (그날 13시 · 17시 알림)
   if(rec.date && STAFF_BASES().some(k=>rec[k])) want.push('staffbrief');   // 프로그램 · 굿즈가 있으면 담당자에게 일정 전달 (마감 = 방문 전주 금요일, 2026-11-21) (영업 담당이 직접 체크)
+  // 담당자 준비 과업 (2026-11-24): 담당으로 고른 사람마다 하나 (예약상담 · 방문일이 지난 예약은 새로 만들지 않음)
+  if(!consult && (!rec.date || rec.date>=todayYmd() || tasks.some(t=>/^prep:/.test(t.id)))) prepWho(rec).forEach(w=>{ const id='prep:'+w; want.push(id);
+    const t=tasks.find(x=>x.id===id); if(!t) tasks.push({id, who:w, title:prepTitle(rec, w), done:false, memo:'', at:new Date().toISOString(), due:autoDue(id, rec)});
+    else { t.who=w; if(!t.titleSet) t.title=prepTitle(rec, w); } });
   if(rec.mabangL || rec.mabangTime) want.push('mbcall');   // 몽몽마방이 들어가면 식당에 전화로 시간 확인 (직접 체크)
   if((parseInt(rec.dClergy)||0)>0) want.push('clergy');   // 대구대교구 특별 할인 → 대구대교구 정보 기입 (예약자에게 정보 요청 · 대구대교구 시트 기입)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
@@ -2262,7 +2278,7 @@ function syncAutoTasks(){
       if(os){ if(os.memo && !String(tq.memo||'').includes(os.memo)) tq.memo=[tq.memo, os.memo].filter(Boolean).join(' / '); tasks.splice(tasks.indexOf(os), 1); } } }
   // 방문일 · 답변일 · 결제링크 전송일을 따라가는 마감: 이미 지난 마감은 그 바탕(dueKey)이 그대로면 그대로 둠 (2026-11-21 · 예전엔 지나면 「방문일 전날 · 오늘」로 밀려 빨간 「지남」이 사라졌음)
   { const dk=[rec.date||'', rec.tbdDate||'', rec.linkSent||''].join('|'), td=todayYmd();
-    tasks.forEach(t=>{ if(FOLLOW_DUE.has(t.id) && !t.dueSet && !t.done){ const keep = t.due && t.due<td && (t.dueKey===undefined || t.dueKey===dk); if(!keep){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } t.dueKey=dk; } if(!t.due) t.due=taskDue(t); }); }
+    tasks.forEach(t=>{ if((FOLLOW_DUE.has(t.id) || /^prep:/.test(t.id)) && !t.dueSet && !t.done){ const keep = t.due && t.due<td && (t.dueKey===undefined || t.dueKey===dk); if(!keep){ const d=autoDue(t.id, rec); if(t.due!==d) t.due=d; } t.dueKey=dk; } if(!t.due) t.due=taskDue(t); }); }
   tasks.forEach(t=>{ if(!t.custom && !t.titleSet && AUTO_TASKS[t.id] && t.title!==AUTO_TASKS[t.id]) t.title=AUTO_TASKS[t.id]; if((t.id==='pplchk' || t.id==='erpkeep') && !t.titleSet && AUTO_TASKS[t.id] && t.title!==AUTO_TASKS[t.id]) t.title=AUTO_TASKS[t.id]; });   // 추후과업 메시지 관리에서 바꾼 이름 (직접 고친 제목은 그대로)
   const fx=tasks.find(t=>t.id==='erpfix');
   if(fx && !fx.removed){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; fx.v=4; } else if(!fx.done && e0 && e0.base){ fx.changes=[]; if(!(fx.xsubs||[]).length){ fx.done=true; fx.doneAt=new Date().toISOString(); fx.autoDone=true; } } }   // 예약 내용이 전산에 올린 때와 같아지면 저절로 완료 (2026-11-19)
@@ -2348,6 +2364,7 @@ function renderTasks(){
       : t.id==='mbcall' ? `몽몽마방 식당에 전화해서 확인하고 체크하세요. (${esc([rec.date&&dateLabel(rec.date), rec.mabangL&&rec.mabangL+'명'].filter(Boolean).join(' · ')||'방문일 · 인원 미정')})<br>① 고객님이 말씀하신 시각 <b>${esc(rec.mabangTime||'(시간 미입력)')}</b> 가능한지<br>② 그날 예약 가능한 시간이 모두 언제인지 → 아래 메모에 적어 두기`
       : t.id==='mbmenu' ? (t.done ? '몽몽마방 메뉴를 골랐습니다.' : `몽몽마방 식사에서 메뉴(${esc(mbMenus().map(m=>m.name).join(' · '))}) 중 하나를 고르세요. 고르면 자동으로 완료됩니다.`)
       : t.id==='goodsprep' ? `굿즈: <b>${esc(goodsText(rec)||'없음')}</b>${goodsParse(rec.goods).map(g=>itemNote('g:'+g.src)?` · ${esc(goodsName(g.src))} 비고: ${esc(itemNote('g:'+g.src))}`:'').join('')}<br>방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 그날 13시 · 17시에 알림이 뜹니다.`
+      : /^prep:/.test(t.id) ? `<b>${esc(t.who||t.id.slice(5))}</b> 님 담당 — 아래 내용을 방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 이 과업은 ${esc(t.who||t.id.slice(5))} 님의 나의 할일 · 첫 화면 「단체고객 전화」에 단체예약으로 나옵니다.`
       : t.id==='staffbrief' ? `${staffFriName(rec.date)}(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')}) 각 담당자에게 아래 일정을 전달하고 체크하세요. 영업 담당이 이 예약의 프로그램 · 굿즈를 모두 챙깁니다.`
       : t.id==='progstaff' ? ((t.missing||[]).length ? `담당이 비어 있는 칸: <b>${esc(t.missing.join(' · '))}</b><br>프로그램 · 굿즈 옆 <b>담당</b>에 이름을 넣으면 자동으로 완료됩니다. (개별 · 시간 프로그램 · 굿즈 모두 담당 필수)` : '프로그램 · 굿즈 담당을 모두 넣었습니다.')
       : t.id==='erpcheck' ? (!erpList.length ? '전산에 예약을 넣은 뒤 <b>전산 내역을 붙여 넣어</b> 실제 예약이 이 예약 내용과 같은지 확인하세요. <b>할인 합계</b>와 <b>총 금액</b>이 같으면 저절로 완료됩니다.'
@@ -3755,12 +3772,18 @@ function tasksOf(r){
 }
 const openTasksOf = r => tasksOf(r).filter(t=>!t.done).sort((a,b)=>a.due.localeCompare(b.due));
 const taskRecActive = r => !r.date || daysFrom(r.date, ymd(new Date())) <= 30;   // 방문 뒤 30일 지난 예약의 과업은 빼고
-function dueTasks(){   // 마감이 오늘이거나 지난 해결 안 된 과업 (영업 담당이 있으면 내 예약만)
+function dueTasks(){   // 마감이 오늘이거나 지난 해결 안 된 과업 (영업 담당이 있으면 내 예약만 + 내가 담당자인 준비 과업)
   const today=ymd(new Date()), me=savedOwner();
-  const out=[]; (cache||[]).filter(r=>isGroupRec(r) && (!me || ownerOf(r)===me) && taskRecActive(r))
-    .forEach(r=>openTasksOf(r).forEach(t=>{ if(t.due<=today) out.push({r, t}); }));
+  const out=[]; (cache||[]).filter(r=>isGroupRec(r) && (!me || ownerOf(r)===me || mayStaff(r, me)) && taskRecActive(r))
+    .forEach(r=>openTasksOf(r).forEach(t=>{ if(t.due<=today && (!me || taskForMe(r, t, me))) out.push({r, t}); }));
   return out.sort((a,b)=>a.t.due.localeCompare(b.t.due));
 }
+// 과업 담당 (2026-11-24): 과업에 who(담당자 준비 과업)가 있으면 그 사람 것 — 영업 담당에게는 안 보임 · 없으면 예약의 영업 담당 것
+const taskForMe = (r, t, me) => t.who ? t.who===me : ownerOf(r)===me;
+const mayStaff = (r, me) => !!me && String(r.memo||'').includes(me);   // 저장된 비고(프로그램 담당 …)에 내 이름이 있는 예약만 계산 (빠르게)
+// 내가 영업 담당이 아니지만 담당자로 들어간 예약의 준비 과업
+const myStaffRecs = me => (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)!==me && mayStaff(r, me) && taskRecActive(r) && isBooked(stageOfRec(r)))
+  .map(r=>({r, x:xOf(r), tasks:openTasksOf(r).filter(t=>t.who===me)})).filter(o=>o.tasks.length);
 // 개인고객 통화 (personal.html, 통화 구분 '개인고객')의 추후 과업: 내가 받은(저장한) 통화의 안 끝난 과업
 const isPersonalRec = r => r && r.callType==='개인고객';
 let myTab = (()=>{ const fix=t=>(!t || t==='all' || t==='etc') ? 'main' : t; const q=new URLSearchParams(location.search).get('tab'); return q ? fix(q) : 'main'; })();   // 열 때는 늘 메인 (주소에 tab= 이 있을 때만 그 탭, 2026-11-19)   // 2026-11-19: 메인 · personal(개인예약) · group(단체예약) · cat:구분 (예전 all · etc 는 메인)   // 나의 할일 탭: all · personal · group (개인고객 화면에서 열면 ?tab=personal → 개인부터)
@@ -3849,10 +3872,10 @@ function renderMy(){ paintMySet();
   const me=savedOwner(), today=ymd(new Date()), past=$('#myPast').checked;
   $('#myTitle').textContent = me ? `나의 할일 · ${me}` : '나의 할일';
   if(!me){ $('#mySum').textContent=''; $('#myBody').innerHTML='<p class="hint">맨 위 초록 헤더의 <b>영업 담당</b>에 이름을 넣으면, 그 이름이 영업 담당인 예약을 모아 보여 줍니다.</p>'; return; }
-  const mine = myRecords().map(r=>({r, x:xOf(r), tasks:openTasksOf(r)}));
+  const mine = myRecords().map(r=>({r, x:xOf(r), tasks:openTasksOf(r).filter(t=>taskForMe(r, t, me))}));   // 다른 담당자의 준비 과업은 빼고 (2026-11-24)
   const ahead = mine.filter(o=>!o.r.date || o.r.date>=today);
   const tbdAll = ahead.filter(o=>o.x.tbd);
-  const open = mine.filter(o=>o.tasks.length && taskRecActive(o.r)).map(o=>({...o, left:o.tasks})).sort((a,b)=>a.left[0].due.localeCompare(b.left[0].due));
+  const open = [...mine, ...myStaffRecs(me)].filter(o=>o.tasks.length && taskRecActive(o.r)).map(o=>({...o, left:o.tasks})).sort((a,b)=>a.left[0].due.localeCompare(b.left[0].due));   // + 내가 담당자인 준비 과업
   const booked = o => isBooked(stageOfRec(o.r));   // 방문 예정은 가예약 · 예약확정만 (예약상담 · 예약취소는 뺌)
   const shown = (past ? mine : ahead).filter(booked).slice().sort((a,b)=>(a.r.date||'9999').localeCompare(b.r.date||'9999'));
   $('#mySum').textContent = `담당 단체 예약 ${mine.length}건 · 방문 예정 ${ahead.length}건 · 미정 ${tbdAll.length}건 · 남은 과업 단체 ${open.reduce((s,o)=>s+o.left.length,0)}개 · 개인 ${myPersonalOpen().reduce((s,o)=>s+o.left.length,0)}개`;

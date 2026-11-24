@@ -210,16 +210,18 @@ function dashRecs(items){
       if(ct==='예약취소') return;   // 예약취소는 과업 없음
       const consult = ct==='예약상담' || ct==='상담';
       if(E){   // 나의 할일과 같은 규칙 (안 끝난 과업 모두 · 마감 = 나의 할일과 같음)
-        let ts=[]; try{ ts=(E.tasksOf(r)||[]).filter(t=>!t.done && !t.removed).map(t=>({title:t.title, due:t.due||dueOf(t,r)})); }catch(_){ ts=null; }
-        if(ts){ if(ts.length) recs.push({kind:'단체', owner:(r.owner||r.takenBy||'').trim(), name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:ts, href:'group.html?open='+encodeURIComponent(r.id)}); return; } }
+        let ts=[]; try{ ts=(E.tasksOf(r)||[]).filter(t=>!t.done && !t.removed).map(t=>({title:t.title, due:t.due||dueOf(t,r), who:t.who||''})); }catch(_){ ts=null; }
+        // 담당자 준비 과업(who)은 그 담당자의 줄로 따로 (2026-11-24 · 영업 담당 줄에는 안 나옴)
+        if(ts){ const own=(r.owner||r.takenBy||'').trim(), by={}; ts.forEach(t=>{ (by[t.who||own] ||= []).push(t); });
+          Object.entries(by).forEach(([o, L])=>recs.push({kind:'단체', owner:o, name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:L, href:'group.html?open='+encodeURIComponent(r.id)})); return; } }
       const d00=String(r.date||'').slice(0,10), wkSoon = histTasks(r).some(t=>t.id==='wkcheck' && !t.removed) || (booked(r) && d00>=opsToday());   // 다음주 예약 점검이 따로 나올 예약인지
       const ts=histTasks(r).filter(t=>!t.done && !t.removed && !doneByRec(t, r) && (!consult || ['tour','clergy'].includes(t.id) || t.custom) && !((t.id==='tbdcall' || t.id==='onsitecall') && wkSoon))   // 예전 「미정 항목 확인 연락」 · 「현장 결제 인원 확인 연락」은 다음주 예약 점검에 합침 (2026-11-23)
-        .map(t=>({title: t.id==='tbdcall' ? '다음주 예약 점검' : t.title, due:dueOf(t,r)}));
+        .map(t=>({title: t.id==='tbdcall' ? '다음주 예약 점검' : t.title, due:dueOf(t,r), who:t.who||''}));
       // 다음주 예약 점검 (2026-11-20 · group.js wkcheck 와 같은 기준): 가예약 · 예약확정이고 방문일이 오늘 이후면 예약마다 방문일 전주 목요일 마감 (아직 저장된 과업이 없어도)
       const d0=String(r.date||'').slice(0,10), o0=(r.owner||r.takenBy||'').trim();
       if(booked(r) && d0>=opsToday() && !histTasks(r).some(t=>t.id==='wkcheck')){ const thu=wkPrevThu(d0), w=items.find(x=>x.id==='wk'+wkHash(o0)+thu.replace(/-/g,'')); let dn={}; try{ dn=(JSON.parse((w||{}).history||'{}')||{}).done||{}; }catch(_){}
         if(!dn[r.id]) ts.push({title:'다음주 예약 점검', due:wkLimit(d0)}); }
-      if(ts.length) recs.push({kind:'단체', owner:(r.owner||r.takenBy||'').trim(), name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:ts, href:'group.html?open='+encodeURIComponent(r.id)});
+      { const own=(r.owner||r.takenBy||'').trim(), by={}; ts.forEach(t=>{ (by[t.who||own] ||= []).push(t); }); Object.entries(by).forEach(([o, L])=>recs.push({kind:'단체', owner:o, name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:L, href:'group.html?open='+encodeURIComponent(r.id)})); }   // 담당자 준비 과업은 그 담당자 줄로 (2026-11-24)
     } else if(ct==='개인고객'){
       const ts=histTasks(r).filter(t=>!t.done).map(t=>({title:t.title, due:dueOf(t,r)}));
       if(ts.length) recs.push({kind:'개인', owner:(r.owner||r.takenBy||'').trim(), name:r.contact||r.phone||'(이름 없음)', q:[r.contact,r.phone].join(' '), tasks:ts, href:'personal.html?open='+encodeURIComponent(r.id)});
