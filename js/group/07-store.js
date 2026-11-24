@@ -14,10 +14,9 @@ async function copy(text,msg){ try{ await navigator.clipboard.writeText(text); }
 function reportText(r){
   const cnt = v => /^\d+(\+\d+)*$/.test(String(v)) ? `${v}명` : v;
   const grpLine = g => FIELDS.filter(f=>f[0]===g && r[f[1]]).map(f=>`${f[2]} ${cnt(r[f[1]])}`).join(', ');
-  const L=[`[단체예약 보고] ${r.org||'(단체명 미정)'}`, ''];
+  // 2026-11-24: 제목 아래 빈 줄 · 예약 단계 · 예상 금액 · 미정 항목 · 남은 과업 · 영업 담당은 뺌 (보고받는 쪽에 필요한 방문 정보만)
+  const L=[`[단체예약 보고] ${r.org||'(단체명 미정)'}`];
   const add=(k,v)=>{ if(v) L.push(`- ${k}: ${v}`); };
-  const st=effStage(r), erpT=tasks.find(t=>t.id==='erp');
-  add('예약 단계', st + (!quietStage(st) ? (r.erp ? ' (전산 등록 완료)' : ' (전산 미등록)') : ''));
   add('방문일', r.date ? `${dateLabel(r.date)}` : '');
   add('인원', [r.people && cnt(r.people), r.pchg && '인원 변경 가능성 있음'].filter(Boolean).join(' · '));
   add('입장', [r.tin, r.gate].filter(Boolean).join(' ') + (r.tout ? ` ~ 퇴장 ${r.tout}` : ''));
@@ -32,14 +31,8 @@ function reportText(r){
   add('결제', r.pay ? r.pay + (r.pay==='미정' && r.tbdDate ? ` (${mdLabel(r.tbdDate)}까지 답변)` : '') + (r.onsite ? ' · 현장 카드 재결제' : '') : '');
   const sp = typeof SPECIAL!=='undefined' ? specialCounts(r) : [];
   add('특별 할인', sp.map(s=>`${s.short} ${s.n}명(${s.rate===1?'무료':Math.round(s.rate*100)+'%'})`).join(', '));
-  const m = moneySplit(r);
-  if(m) add('예상 금액', `${won(m.saw+m.shilla)}원 (사유원 ${won(m.saw)}원 · 신라 ${won(m.shilla)}원)${m.missing?' · 견적서 품목에 없는 항목 제외':''}`);
   add('서류 요청', [r.wantQuote&&'견적서', r.wantStmt&&'거래명세서'].filter(Boolean).join(', '));
-  add('미정 항목', r.tbd ? r.tbd + (r.tbdDate ? ` (${mdLabel(r.tbdDate)}까지)` : '') : '');
   const ml = memoLines(); if(ml.length){ L.push('- 통화 메모:'); ml.forEach(x=>L.push(`  · ${x}`)); }
-  const open = tasks.filter(t=>!t.done).map(t=>t.title);
-  add('남은 과업', open.join(', '));
-  add('영업 담당', r.owner || savedOwner());
   return L.join('\n');
 }
 $('#copyTextBtn').onclick=()=>{
