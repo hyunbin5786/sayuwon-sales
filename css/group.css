@@ -479,7 +479,7 @@ body.locked #saveBtn{display:none}
 .opt-btn.filled small,.opt-btn.filled::after{color:#dfe8da}
 .opt-btn[aria-expanded="true"]:not(.filled){border-color:var(--pine)}
 .grp.opt{background:var(--bg);border-radius:8px;padding:10px;margin-top:8px;border-top:0}
-.grp.opt.filled{background:var(--pine-soft);box-shadow:inset 3px 0 0 var(--pine)}
+.grp.opt.filled{background:var(--pine-soft)}
 .f input.has{border-color:#9db394;background:#f6faf3}
 /* 가운데 열: 통화 중 확인 + 가격표 */
 .col-stack{display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -715,7 +715,7 @@ html.book-guest #bookBody tr{cursor:default}
 .sun{color:#a4442c !important}.sat{color:#2f5a8a !important}
 .lc-ev{display:block;width:100%;text-align:left;border:0;border-radius:5px;padding:3px 6px;font:500 12px/1.35 var(--sans);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--pine);color:#fff}
 .lc-ev.st-예약상담{background:#ece9e2;color:var(--ink)}
-.lc-ev.noerp{box-shadow:inset 3px 0 0 var(--red)}
+.lc-ev.noerp{background:#fbe3dd}
 .lc-ev:hover{filter:brightness(.93)}
 .lc-ev i{font-style:normal;font-variant-numeric:tabular-nums;opacity:.85;margin-right:4px}
 .lc-ev em{font-style:normal;opacity:.85}
@@ -824,8 +824,8 @@ html.book-guest #bookBody tr{cursor:default}
 .hl-prep{outline:3px solid #f6c26b;outline-offset:2px;border-radius:6px;background:#fff7e0}
 .hl-prep-in{background:#fff3c4 !important}
 /* 과업 알림 (2026-11-19): 기한 지난 것 = 빨강 · 오늘까지 = 노랑 */
-#tbdList li.late{background:#fbe3dd;border-color:#e3a596;box-shadow:inset 4px 0 0 #b5442c}
-#tbdList li.today{background:#fff6d6;border-color:#e8d36a;box-shadow:inset 4px 0 0 #d9a91f}
+#tbdList li.late{background:#fbe3dd;border-color:#e3a596}
+#tbdList li.today{background:#fff6d6;border-color:#e8d36a}
 #tbdList li.late > .who > b:nth-of-type(2), #tbdList li.late b.late{color:#b5442c}
 #tbdTitle .cnt-late{color:#b5442c}#tbdTitle .cnt-today{color:#a87b00}
 /* 다음주 예약 점검 (매주 목요일, 2026-11-19): 추후 과업 (단체) 맨 위 과업 한 줄 · 단체 이름마다 체크 */

@@ -308,7 +308,7 @@ body.pg-stock main, main:has(.sk-led){max-width:none}
 .sk-item > .sk-row{cursor:pointer}
 .sk-item > .sk-row:hover{background:#faf8f3}
 .sk-item.open > .sk-row{background:#f2f7f0}
-.sk-item.has-diff > .sk-row{box-shadow:inset 3px 0 0 #e3a08f}
+.sk-item.has-diff > .sk-row{background:#fdf3ef}
 .sk-row .no{color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
 .sk-row .nm b{display:block;font-size:14px}
 .sk-row .nm small{display:block;color:var(--muted);font-size:12px}

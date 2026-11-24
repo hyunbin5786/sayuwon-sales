@@ -40,12 +40,12 @@ body{background:#f6f4ee}
 .md table{border-collapse:collapse;margin:6px 0;font-size:13.5px;width:100%}
 .md th,.md td{border:1px solid #e0dccf;padding:5px 9px;text-align:left;vertical-align:top}
 .md th{background:#eef4ee;font-weight:700}
-.md .call{border-radius:9px;padding:9px 13px;margin:8px 0;background:#f4f2ec;border-left:4px solid #b9b39f}
-.md .call.green{background:#eef5ec;border-color:#4f8a5b}
-.md .call.red{background:#fbefec;border-color:#c2563b}
-.md .call.orange{background:#fdf3e6;border-color:#d08a2e}
-.md .call.blue{background:#ebf1f8;border-color:#4b6f9e}
-.md .call.gray{background:#f1f0ec;border-color:#a39f92}
+.md .call{border-radius:9px;padding:9px 13px;margin:8px 0;background:#f4f2ec;border:1px solid #e3dfd2}
+.md .call.green{background:#eef5ec;border-color:#cfe2c9}
+.md .call.red{background:#fbefec;border-color:#f0c9bf}
+.md .call.orange{background:#fdf3e6;border-color:#f2d6b0}
+.md .call.blue{background:#ebf1f8;border-color:#c9d6ea}
+.md .call.gray{background:#f1f0ec;border-color:#dcd8cc}
 .md hr{border:0;border-top:1px solid var(--line);margin:10px 0}
 .md a{color:#2d4f86;word-break:break-all}
 .md code{background:#f1efe8;border-radius:4px;padding:0 4px;font-size:.92em}

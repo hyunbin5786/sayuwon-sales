@@ -104,7 +104,7 @@
 .cx-tb tr:not(.done):not(.miss) td{background:#fffdf3}
 .cx-tb tr:hover td{background:#f6f9f3}
 .cx-tb td small{color:var(--muted)}
-.cx-tb td.m{background:#fdf1ee!important;box-shadow:inset 3px 0 0 #b5442c}
+.cx-tb td.m{background:#fdf1ee!important}
 .cx-tb .c-nw{white-space:nowrap}
 .cx-tb .c-nm{white-space:nowrap}
 .cx-tb .c-nm .tag{display:block;width:max-content;margin:0 0 2px}

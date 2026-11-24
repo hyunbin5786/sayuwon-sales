@@ -84,7 +84,7 @@ input[type=checkbox],select,input[type=date]{cursor:pointer}
 #tip.on{opacity:1}
 /* 4단계: 마우스를 올린 줄을 강조해서 어떤 예약을 보고 있는지 표시 */
 #tbl5 tbody tr{transition:background .08s}
-#tbl5 tbody tr:hover{background:#cde4d8;box-shadow:inset 4px 0 0 var(--accent);font-weight:600}
+#tbl5 tbody tr:hover{background:#cde4d8;font-weight:600}
 @media (prefers-color-scheme: dark){ #tbl5 tbody tr:hover{background:#2f4a40} }
 .modal{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;padding:16px}
 .modal-box{background:var(--card);color:var(--ink);border-radius:12px;padding:20px;max-width:440px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,.25)}
