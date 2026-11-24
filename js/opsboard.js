@@ -91,13 +91,17 @@ function renderStock(hit){
 // ---------- 분실물: 두 대시보드 (2026-11-24 · OPS_PAGE.boards — 분실 신고 | 습득, 상태도 따로 · js/lost.js) ----------
 //  대시보드마다 진행 중 · 전체 · 상태별로 걸러 보기 · 「＋ 접수」는 그 구분으로 열림 · 습득은 사진을 목록 옆에 작게 (누르면 크게)
 const lostFilter = {};
+// 검색 앞 「구분」 (2026-11-24): 전체(기본) · 신고 · 습득 — 하나만 고르면 그 대시보드만 넓게
+let lostKindSel = '';
+if(B.boards){ $('#q').insertAdjacentHTML('beforebegin', '<select id="qKind" class="q-kind" title="구분"><option value="">전체</option><option value="분실 신고">신고</option><option value="습득">습득</option></select>');
+  $('#qKind').addEventListener('change', e=>{ lostKindSel=e.target.value; render(); }); }
 function renderLost(hit){
   $('#filters').innerHTML=''; $('#bSum').textContent = GUEST ? '로그인하지 않아 접수 · 찾기만 됩니다 (이름 · 연락처 일부는 가림 · 상태를 바꾸려면 로그인)' : B.hint; $('#addBtn').hidden=true;
-  $('#list').innerHTML = `<div class="lost-cols">${B.boards.map((b, bi)=>{
+  $('#list').innerHTML = `<div class="lost-cols${lostKindSel?' one':''}">${B.boards.filter(b=>!lostKindSel || b.kind===lostKindSel).map((b)=>{ const bi=B.boards.indexOf(b);
     const stOf=x=>lostStatus(x.d), all=rows.filter(x=>lostKind(x.d)===b.kind), f=lostFilter[bi]||'open';
     const cnt=v=>v==='all' ? all.length : v==='open' ? all.filter(x=>b.open.includes(stOf(x))).length : all.filter(x=>stOf(x)===v).length;
     const list=all.filter(x=>hit(x.d) && (f==='all' || (f==='open' ? b.open.includes(stOf(x)) : stOf(x)===f)))
-      .sort((a, c)=>String(c.d.date||'').localeCompare(String(a.d.date||'')) || String(c.r.saved).localeCompare(String(a.r.saved)));
+      .sort(lostSort);   // 날짜 내림차순 (같은 날은 나중에 넣은 것 먼저)
     const chips=[['open','진행 중'],['all','전체'], ...LOST_ST[b.kind].map(s=>[s,s])].map(([v,l])=>`<button type="button" class="chip${f===v?' on':''}" data-lf="${bi}|${esc(v)}">${esc(l)} <small>${cnt(v)}</small></button>`).join('');
     const tr=x=>{ const s=stOf(x), ps=Array.isArray(x.d.photos) ? x.d.photos : [];
       return `<tr class="${b.open.includes(s)?'':'closed'}">`

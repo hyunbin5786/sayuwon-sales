@@ -193,3 +193,9 @@ html.guest [data-mypop]{display:none!important}
   body.pg-lost #editModal .edit-box{width:100%;max-width:none;height:100%;max-height:none;margin:0;border-radius:0;overflow:auto;box-sizing:border-box}
   body.pg-lost #editModal{padding:0}
 }
+/* 분실물 검색 앞 구분 (2026-11-24) */
+.q-kind{height:34px;border:1px solid var(--line);border-radius:7px;padding:0 8px;font:inherit;font-size:14px;background:#fff}
+.lost-cols.one{grid-template-columns:1fr}
+.m-srow{display:flex;gap:8px;margin-bottom:10px}
+.m-srow select{flex:none;height:44px;border:1px solid var(--line);border-radius:10px;padding:0 8px;font:inherit;font-size:16px;background:#fff}
+.m-srow input{flex:1;min-width:0;margin-bottom:0 !important}

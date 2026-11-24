@@ -14,12 +14,13 @@
     if($('#mSearch').hidden) return;
     const q=$('#mQ').value.trim().toLowerCase().replace(/\s/g,'');
     const hit=x=>{ const d=x.d; return [d.item, d.feature, d.place, d.storage, d.person, d.phone, d.kind].join(' ').toLowerCase().replace(/\s/g,'').includes(q); };
-    const list=rows.filter(x=>!q || hit(x)).sort((a,b)=>String(b.d.date||'').localeCompare(String(a.d.date||'')) || String(b.r.saved).localeCompare(String(a.r.saved))).slice(0, 60);
+    const list=rows.filter(x=>(!$('#mKind').value || lostKind(x.d)===$('#mKind').value) && (!q || hit(x))).sort(lostSort).slice(0, 60);
     $('#mResults').innerHTML = list.length ? list.map(card).join('') : `<p class="empty">${q ? '찾은 것이 없습니다.' : '아직 접수된 분실물이 없습니다.'}</p>`;
     $('#mResults').querySelectorAll('img[data-phimg]').forEach(im=>{ phLoad(im.dataset.phimg).then(u=>{ im.src=u; }).catch(()=>{ im.classList.add('bad'); }); });
   }
   $('#mSearchBtn').addEventListener('click', ()=>{ const s=$('#mSearch'); s.hidden=!s.hidden; $('#mSearchBtn').classList.toggle('on', !s.hidden); if(!s.hidden){ paint(); $('#mQ').focus(); } });
   $('#mQ').addEventListener('input', paint);
+  $('#mKind').addEventListener('change', ()=>{ paint(); $('#mQ').focus(); });   // 구분: 전체 · 신고 · 습득 (2026-11-24)
   $('#mResults').addEventListener('click', e=>{
     const im=e.target.closest('img[data-phview]'); if(im){ if(im.src) phOpen(im.src); return; }
     const c=e.target.closest('[data-mid]'); if(c && !GUEST){ const x=rows.find(y=>y.r.id===c.dataset.mid); if(x) openEdit(x); } });   // 로그인했으면 눌러서 고치기

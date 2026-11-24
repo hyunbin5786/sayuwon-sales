@@ -6,6 +6,9 @@
 const LOST_ST = { '습득':['보관중','반환 완료','폐기'], '분실 신고':['찾는 중','처리완료'] };
 const lostKind = d => d.kind==='분실 신고' ? '분실 신고' : '습득';
 const lostWho = d => lostKind(d)==='습득' ? '습득자' : '신고자';
+// 정렬 = 날짜(접수일) 내림차순 · 같은 날은 나중에 넣은 것 먼저 (2026-11-24 · 표 · 휴대폰 검색 모두). 날짜 모양이 달라도(2026.11.20 등) 숫자만 비교
+const lostDateKey = x => String(x.d.date||'').replace(/\D/g,'').slice(0,8).padEnd(8,'0') + String(x.r.saved||'');
+const lostSort = (a, b) => lostDateKey(b).localeCompare(lostDateKey(a));
 function lostStatus(d){
   const k=lostKind(d), s=d.status||'';
   if(LOST_ST[k].includes(s)) return s;
