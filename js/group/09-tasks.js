@@ -402,7 +402,7 @@ function renderTasks(){
     return `<li class="task${t.done?' done':late?' late':''}${fold?' collapsed':''}${t.who && t.who===savedOwner() && String(rec.owner||'').trim()!==savedOwner() ? ' tk-mine' : ''}" data-id="${esc(t.id)}">
       <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<span class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''} title="체크하면 완료"><input class="ttl" data-tttl="${esc(t.id)}" value="${esc(t.title)}" data-ime="ko" spellcheck="false" autocomplete="off" title="눌러서 제목 고치기 (Enter로 확정)"></span>${t.who && t.who!==String(rec.owner||"").trim() ? `<span class="tk-whotag" title="이 과업을 할 사람 (영업 담당이 아님 · 그 사람의 나의 할일에 나옴)">👤 ${esc(t.who)}</span>` : ""}${t.done && subsDone?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}
         <label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':due==='9999-12-31'?'마감 없음 ':'마감 '}${dboxHTML(`data-tdue="${esc(t.id)}"`, due==="9999-12-31" ? "" : due)}</label><button type="button" class="tsave" data-tsave="${esc(t.id)}" title="이 과업의 고친 내용(체크 · 제목 · 마감일 · 메모 · 세부 과제)을 지금 저장">저장</button><button type="button" class="del" data-tdel="${esc(t.id)}" title="이 과업 삭제 (확인 뒤)" aria-label="과업 삭제">×</button></div>
-      ${typeof tcfgDescHTML==='function' ? tcfgDescHTML(t) : (t.id==='pplchk' && pplChanges(t).length ? `<div class="tk-chg tchg-line">바뀐 내용: ${pplChanges(t).map(esc).join(' · ')}</div>` : '')}${subsHTML(t)}${docBtn}${files}
+      ${typeof tcfgDescHTML==='function' ? tcfgDescHTML(t) : (t.id==='pplchk' && pplChanges(t).length ? `<div class="tk-chg tchg-line">바뀐 내용: ${pplChanges(t).map(esc).join(' · ')}</div>` : '')}${t.id==='memocheck'?memoTaskList():''}${subsHTML(t)}${docBtn}${files}
       ${txt?`<textarea class="tnote${t.noteEdit?' edited':''}" id="tpre_${esc(t.id)}" data-tnote="${esc(t.id)}" spellcheck="false" title="자동으로 만든 문구 · 직접 고칠 수 있음">${esc(txt)}</textarea><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')||t.id==='tour'?'비고 문구 복사':'문구 복사'}</button>${t.noteEdit?`<button type="button" class="btn" data-tregen="${esc(t.id)}" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><span class="hint" style="margin:0">직접 고친 문구</span>`:''}<span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
         <label class="btn up${upBusy?' busy':''}">${upBusy?'올리는 중…':(t.files||[]).length?'사업자등록증 추가로 올리기':'사업자등록증 올리기'}<input type="file" data-tup="${esc(t.id)}" accept="image/*,application/pdf" hidden${upBusy?' disabled':''}></label>
@@ -690,6 +690,8 @@ $('#newBtn').onclick=async()=>{   // 새 통화: 고치던 내용이 있으면 �
   guardLeave(()=>newCall()); };
 // 안 읽은 메모: 영업 담당이 아닌 사람이 통화 메모를 고친 것 · 남긴 메모 (2026-11-24 · 통화 메모 확인 과업)
 const memoNew = () => (memos||[]).filter(m=>m && !m.seen && m.by && m.by!==String(rec.owner||'').trim());
+const memoTaskList = () => { const own=String(rec.owner||'').trim(), L=(memos||[]).filter(m=>m && m.by && m.by!==own).slice().reverse();   // 「통화 메모 확인」 과업 안에 관련 메모 모두 (최근 것부터 · 2026-11-24 위쪽 상자 대신)
+  return L.length && typeof memoLi==='function' ? `<ul class="tk-memos">${L.map(m=>memoLi(m,true)).join('')}</ul>` : ''; };
 // 통화 메모 확인 규칙 (추후과업 메시지 관리 「통화 메모 확인」을 열면 보임 · js/taskcfg.js) — 규칙을 바꾸면 이 글도 같이
 const MEMOCHECK_RULES = `■ 무엇
   영업 담당이 아닌 사람이 남의 단체예약에서 통화 메모를 고쳐 저장하면, 그 예약의 영업 담당에게 「통화 메모 확인」 과업이 생김
@@ -698,6 +700,10 @@ const MEMOCHECK_RULES = `■ 무엇
 ■ 과업 아래 안내 줄
   「고친 사람: 테스트」처럼 누가 고쳤는지 · 과업 칸에는 언제 고쳤는지도
   여러 사람이 고쳤으면 「테스트, 김선영」 · 같은 사람이 여러 번 고쳐도 한 번
+
+■ 과업 안의 메모 (2026-11-24)
+  이 예약에 영업 담당이 아닌 사람이 남긴 메모 · 고친 통화 메모를 과업 안에 모두 보여 줌 (최근 것부터 · 새 메모는 연한 빨강 바탕)
+  예전 위쪽 「다른 사람이 남긴 메모」 상자는 없앰
 
 ■ 끝나는 때
   과업을 체크하면 안 읽은 메모가 모두 「확인함」으로 바뀌고 과업 완료 (나의 할일에서 체크해도 같음)

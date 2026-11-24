@@ -42,11 +42,7 @@ function paintLock(){
   }
   if(lockOwner){   // 남이 담당인 예약 (2026-11-24): 위쪽 안내 · 「메모 남기기」 상자는 없앰 — 전할 말은 통화 메모에 적으면 영업 담당에게 「메모를 확인하세요」 알림 (고치려 하면 팝업으로 안내)
     box.hidden=true; box.innerHTML='';
-  } else if(editingId && memos.length){
-    const unseen=memos.filter(m=>!m.seen && m.by!==me).length;
-    box.className='owner-memo mine lock-ok'; box.hidden=false;
-    box.innerHTML = `<div class="om-h">다른 사람이 남긴 메모 ${memos.length}개${unseen?` · <b style="color:var(--red)">새 메모 ${unseen}개</b> <button type="button" class="btn" id="omSeen" style="padding:2px 8px;font-size:12px">확인함</button>`:''}</div><ul>${list.map(m=>memoLi(m,true)).join('')}</ul>`;
-  } else { box.hidden=true; box.innerHTML=''; }
+  } else { box.hidden=true; box.innerHTML=''; }   // 내 예약: 위쪽 「다른 사람이 남긴 메모」 상자는 없앰 (2026-11-24) — 메모는 추후 과업 「통화 메모 확인」 안에 모두 나옴
 }
 async function saveMemos(id, fn){   // 공유 기록의 최신 예약에 메모를 바꿔 저장 (다른 칸은 건드리지 않음)
   const r=cache.find(x=>x.id===id); if(!r) return null;
