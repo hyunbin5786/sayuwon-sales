@@ -286,7 +286,7 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .cal-day li.cv-i a.cv-org{color:var(--pine);font-weight:600;text-decoration:none;cursor:pointer;border-radius:3px;padding:0 1px}
 .cal-day li.cv-i a.cv-org:hover,.cal-day li.cv-i a.cv-org:focus-visible{font-weight:800;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:2px;outline:none}
 /* 첫 화면: 내 예약 · 내 과업은 초록 바탕 (2026-11-24 · 예전엔 담당 이름만 초록) */
-.drec.mine > a,.drec.mine > .dnolink{background:#e3f0dc;box-shadow:inset 4px 0 0 var(--pine)}
+.drec.mine > a,.drec.mine > .dnolink{background:#e3f0dc}   /* 왼쪽 띠 없음 (2026-11-24 · 앞에 선 넣지 않기) */
 .drec.mine > a:hover{background:#d4e8ca}
-.drec.mine.late > a{background:#f3e9dc;box-shadow:inset 4px 0 0 var(--pine)}   /* 내 것인데 마감이 지남: 연한 주황 + 초록 왼쪽 띠 */
+.drec.mine.late > a{background:#f3e9dc}   /* 내 것인데 마감이 지남: 연한 주황 바탕 (왼쪽 띠 없음) */
 .drec.mine .downer.me{background:var(--pine);color:#fff}
