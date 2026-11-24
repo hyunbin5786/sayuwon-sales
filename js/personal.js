@@ -102,7 +102,8 @@ let autoT=null, lastAuto=null; const AUTO_SAVE_MS = 30000;   // 자동 저장 (�
 let cur=null, startedAt=null;   // cur: 지금 열어 둔 기록 (새 통화면 null)
 // 채널 (2026-11-23): 문의가 들어온 곳. 새 기록은 검정폰이 기본 · 하나만 고름. 기록의 history.channel + 비고 칸 「채널 …」 (예전 기록은 비어 있음 = 고른 것 없음)
 const CHANNELS = ['검정폰','보라폰','카카오톡','메일','기타'], CHANNEL_DEFAULT = '검정폰';
-function blankForm(){ return {cat:'', channel:CHANNEL_DEFAULT, reportTo:'', reserved:'', name:'', phone:'', date:'', people:'', note:'', tasks:[]}; }
+const CAT_DEFAULT='문의';   // 새 기록은 이 구분이 골라져 있음 (2026-11-24 · 예전엔 비어 있다가 저장할 때 문의로)
+function blankForm(){ return {cat:CAT_DEFAULT, channel:CHANNEL_DEFAULT, reportTo:'', reserved:'', name:'', phone:'', date:'', people:'', note:'', tasks:[]}; }
 let form=blankForm(), saved=JSON.stringify(form);
 const todayYmd = () => ymd(new Date());
 const tasksOfItem = r => { try{ const h=JSON.parse(r.history||'{}'); return Array.isArray(h.tasks) ? h.tasks : []; }catch(_){ return []; } };
@@ -221,7 +222,7 @@ function fromItem(r){ let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_
 // ===================== 구분 · 예약 여부 (하나 고르기, 다시 누르면 해제) =====================
 // 구분: 처음엔 기본(예약취소 · 결제링크 · 기타문의). ＋로 추가 · 칩의 ×로 삭제(기본도 삭제 가능) → 공유 기록 한 줄(id pcats, 통화 구분 '개인구분')에 전체 목록으로 저장 → 모든 사람 화면에 같게
 //  (예전 저장 모양 {cats:[추가한 것]} 은 기본 + 추가로 읽음, 새 모양은 {cats:[전체], full:true})
-const CAT_DEFAULT='문의';   // 구분을 고르지 않고 저장하면 이 구분으로
+// (CAT_DEFAULT 는 위 blankForm 앞에) 구분을 눌러 해제한 채 저장해도 이 구분으로
 const PCATS_ID='pcats', PCATS_TYPE='개인구분', PCAT_DEF=['예약취소','결제링크','기타문의'], RES_OPTS=['예약함','예약 안 함'], PCATS_LS='sayuwon_pcats';
 let pcatRec = readJSON(PCATS_LS, null);
 const pcatList = r => { let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} const l=Array.isArray(j.cats) ? j.cats : []; return j.full ? [...new Set(l)] : [...new Set([...PCAT_DEF, ...l])]; };
@@ -268,6 +269,7 @@ function reportText(){ const f=form, who=(cur && cur.takenBy) || user.name || ''
   // 비어 있는 항목은 줄째 빼고 (첫 줄은 늘)
   const phone = /^010-?$/.test(String(f.phone||'').trim()) ? '' : f.phone;
   return [`[${f.cat||CAT_DEFAULT}]`,   // 첫 줄은 [구분]만 (받은 사람 이름 · 보고전달자는 넣지 않음, 2026-11-18)
+    f.channel && `채널 : ${f.channel}`,   // 채널 (2026-11-24)
     f.name && `고객 이름 : ${f.name}`, phone && `연락처 : ${phone}`, f.date && `일시 : ${dLabel(f.date)}`,
     f.people && `인원 : ${f.people}${/^\d+$/.test(f.people)?'명':''}`, String(f.note||'').trim() && `문의내용 : ${f.note}`].filter(Boolean).join('\n'); }
 async function copyText(s){ try{ await navigator.clipboard.writeText(s); return true; }catch(_){ const t=document.createElement('textarea'); t.value=s; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(__){} t.remove(); return ok; } }
