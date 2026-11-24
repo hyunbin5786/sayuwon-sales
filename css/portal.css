@@ -281,3 +281,7 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .cm-panel .dtxt{width:140px;cursor:pointer}
 .cm-panel .dpick{position:absolute;left:0;bottom:0;width:0;height:0;opacity:0;border:0;padding:0}
 @media (max-width:760px){ .cm-modal{padding:10px 6px} .cm-row{flex-wrap:wrap} }
+/* 캘린더 그날 단체명 = 버튼 (2026-11-24): 마우스를 올리면 진하게 · 밑줄 · 누르면 그 단체예약 */
+.cal-day li.cv-i .cv-l{color:var(--ink)}
+.cal-day li.cv-i a.cv-org{color:var(--pine);font-weight:600;text-decoration:none;cursor:pointer;border-radius:3px;padding:0 1px}
+.cal-day li.cv-i a.cv-org:hover,.cal-day li.cv-i a.cv-org:focus-visible{font-weight:800;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:2px;outline:none}
