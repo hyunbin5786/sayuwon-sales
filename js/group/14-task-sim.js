@@ -213,7 +213,7 @@ function renderMy(){ paintMySet();
         return `<li class="r" data-popen="${esc(r.id)}"><span class="who"><b>${esc(r.contact||'(이름 없음)')}</b>${r.phone?` · ${esc(r.phone)}`:''}${r.date?` · ${esc(dateLabel(String(r.date).slice(0,10)))}`:''}<br><small class="hint" style="margin:0">${esc(fmt(r.saved))}${r.note?` · ${esc(String(r.note).split(/\n/)[0].slice(0,50))}`:''}${left?` · 남은 과업 ${left}개`:''}</small></span></li>`; }).join('')}</ul>` : none('내가 받은 개인고객 통화가 없습니다.'));
     $('#myBody').innerHTML = `<div class="my-cols two"><div class="my-col">${p1}</div><div class="my-col">${p2}</div></div>`; return;
   }
-  if(/^cat:/.test(myTab)){ const c=myTab.slice(4), n=myEtcOpen().filter(o=>etcCatOf(o.d)===c).length; $('#mySum').textContent = `${c||ETC_NOCAT} 남은 것 ${n}개`; $('#myBody').innerHTML = `<div class="my-cols one"><div class="my-col">${etcSection(true, c)}</div></div>`; return; }   // 내가 만든 구분 · 구분 없음 (기타 개인 업무)
+  if(/^cat:/.test(myTab)){ const c=myTab.slice(4), n=myEtcOpen().filter(o=>etcCatOf(o.d)===c).length; $('#mySum').textContent = `${c||ETC_NOCAT} 남은 것 ${n}개`; $('#myBody').innerHTML = `<div class="my-cols one"><div class="my-col">${etcCatAllHTML(c)}</div></div>`; return; }   // 내가 만든 구분 · 구분 없음 (기타 개인 업무)
   if(myTab==='group'){
     $('#mySum').textContent = `담당 단체 예약 ${mine.length}건 · 방문 예정(가예약 · 예약확정) ${ahead.filter(booked).length}건 · 미정 ${tbdAll.length}건 · 남은 과업 ${nG}개`;
     const g2 = groupTasksHTML();
@@ -225,7 +225,7 @@ function renderMy(){ paintMySet();
   const pick = n => { let v=''; try{ v=localStorage.getItem('sy_my_col'+n)||''; }catch(_){} if(!order.includes(v)) v = n===2 ? CAT_P : CAT_G; return v; };
   const colSel = (n, v) => `<label class="my-colpick">구분 <select data-mycol="${n}">${order.map(c=>`<option value="${esc(c)}"${c===v?' selected':''}>${esc(catLabel(c))}</option>`).join('')}</select></label>`;
   const v2=pick(2), v3=pick(3);
-  $('#mySum').textContent = `개인예약 ${nP} · 단체예약 ${nG} · 기타 개인 업무 ${myEtcOpen().length}개`;
+  $('#mySum').textContent = '';   // 메인: 「개인예약 n · 단체예약 n · 기타 개인 업무 n개」 글은 없앰 (2026-11-24)
   // 2026-11-24: 칸마다 위(입력 · 오늘 마감 제목 / 구분 고르기 · 개인예약 · 단체예약 제목)는 고정, 그 아래 목록만 스크롤 (다시 그려도 스크롤 자리 그대로)
   const splitHead = h => { const i=h.indexOf('</h3>'); return i<0 ? ['', h] : [h.slice(0,i+5), h.slice(i+5)]; };
   const [tdH, tdL]=splitHead(todayDueHTML()), [h2, l2]=splitHead(secOf(v2)), [h3, l3]=splitHead(secOf(v3));
