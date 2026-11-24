@@ -37,11 +37,8 @@ function paintLock(){
     box.innerHTML = `<div class="om-h">🔒 ${esc(editLockBy)}님이 다른 PC(창)에서 이 예약을 고치는 중입니다</div><div class="hint" style="margin:0">같은 예약을 두 곳에서 고치지 않도록 지금은 볼 수만 있습니다. 그쪽에서 다른 예약을 열거나 화면을 닫으면 30초 안에 자동으로 최신 내용을 불러와 고칠 수 있게 됩니다.</div>`;
     return;
   }
-  if(lockOwner){
-    box.className='owner-memo lock-ok'; box.hidden=false;
-    box.innerHTML = `<div class="om-h">🔒 ${esc(lockOwner)}님 담당 예약입니다 · 보기만 됩니다</div><div class="hint" style="margin:0">예약 내용 · 예약 현황 · 수정 기록은 볼 수 있고, <b>통화 메모</b>와 <b>내가 담당자인 추후 과업</b>은 고칠 수 있습니다. 통화 메모를 고치거나 아래에 메모를 남기면 ${esc(lockOwner)}님 화면에 「메모를 확인하세요」 알림이 뜹니다.</div>`
-      + (list.length ? `<ul>${list.map(m=>memoLi(m,false)).join('')}</ul>` : '')
-      + `<div class="om-add"><textarea id="omText" data-ime="ko"></textarea><button type="button" class="btn primary" id="omSend">메모 남기기</button></div>`;
+  if(lockOwner){   // 남이 담당인 예약 (2026-11-24): 위쪽 안내 · 「메모 남기기」 상자는 없앰 — 전할 말은 통화 메모에 적으면 영업 담당에게 「메모를 확인하세요」 알림 (고치려 하면 팝업으로 안내)
+    box.hidden=true; box.innerHTML='';
   } else if(editingId && memos.length){
     const unseen=memos.filter(m=>!m.seen && m.by!==me).length;
     box.className='owner-memo mine lock-ok'; box.hidden=false;
