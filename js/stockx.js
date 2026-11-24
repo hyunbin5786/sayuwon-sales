@@ -280,12 +280,16 @@
   document.addEventListener('click', async e=>{
     const a=e.target.closest('[data-skmv]'); if(a){ openMv(a.dataset.skmv, a.dataset.loc); return; }
     const v=e.target.closest('[data-skview]'); if(v){ view=v.dataset.skview; render(); return; }
+    const sr=e.target.closest('[data-skrow]'); if(sr){ const k=sr.dataset.skrow; skOpen.has(k) ? skOpen.delete(k) : skOpen.add(k); render(); return; }   // 품목별 보기: 줄을 누르면 펼치기 · 접기
+    const sf=e.target.closest('[data-skf]'); if(sf){ skF=sf.dataset.skf; render(); return; }
+    const sa=e.target.closest('[data-skall]'); if(sa){ if(sa.dataset.skall==='close') skOpen.clear(); else document.querySelectorAll('[data-skrow]').forEach(x=>skOpen.add(x.dataset.skrow)); render(); return; }
     if(e.target.id==='skXlOut'){ exportXl(); return; }
     const ag=e.target.closest('[data-skaddg]'); if(ag){ const g=opsGoodsCache.find(x=>x.name===ag.dataset.skaddg); if(!g) return; ag.disabled=true;
       try{ await saveItem({r:{}, d:{}, log:[]}, d=>{ Object.assign(d, {name:g.name, price:g.price!=null?String(Math.round(g.price/1.1)):'', no:String(items().length+1)}); return null; }, ''); render(); toast(`「${g.name}」을 재고 목록에 넣었습니다.`); }catch(err){ ag.disabled=false; toast('넣지 못했습니다: '+(err.code||err.message)); } return; }
     if(e.target.id==='skFirstOk'){ const d=$('#skFirst').value; if(!d) return; try{ await saveCfg({next:d}, `첫 조사일 ${d}`); render(); }catch(err){ toast('저장하지 못했습니다: '+(err.code||err.message)); } return; }
     if(e.target.id==='skNextEdit'){ const d=$('#skNext').value; if(!d || d===cfg().next){ toast('위 칸에서 날짜를 먼저 고르세요.'); return; } try{ await saveCfg({next:d}, `다음 조사일 ${d}`); render(); toast(`다음 정기 재고조사: ${opsDateLabel(d)}`); }catch(err){ toast('저장하지 못했습니다: '+(err.code||err.message)); } return; }
   });
+  document.addEventListener('keydown', e=>{ if((e.key==='Enter'||e.key===' ') && e.target.matches && e.target.matches('[data-skrow]')){ e.preventDefault(); e.target.click(); } });
   document.addEventListener('change', e=>{
     if(e.target.id==='skMonth'){ month=e.target.value; render(); }
     if(e.target.id==='skType'){ histType=e.target.value; render(); }
