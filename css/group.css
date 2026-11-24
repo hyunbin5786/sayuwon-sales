@@ -1117,3 +1117,9 @@ html.g-loading body{overflow:hidden}
 .bkv-btns .btn{flex:1;height:52px;font-size:18px;border-radius:12px;display:flex;align-items:center;justify-content:center;text-decoration:none}
 .bkv-btns .btn[hidden]{display:none}
 .bkv-hint{margin:0;font-size:14px;color:var(--muted);text-align:center}
+/* 나의 할일 › 메인 (2026-11-24): 칸 위(입력 · 오늘 마감 제목 / 구분 · 개인예약 · 단체예약 제목)는 고정, 아래 목록만 스크롤 */
+.my-col.fx{display:flex;flex-direction:column;overflow:hidden}
+.my-col.fx > .my-fix{flex:none;padding-bottom:2px}
+.my-col.fx > .my-scroll{flex:1;min-height:0;overflow:auto;margin:0 -4px;padding:0 4px 4px}
+.my-col.fx > .my-fix .my-h:last-child{margin-bottom:6px}
+@media (max-width:900px){ .my-col.fx{overflow:visible} .my-col.fx > .my-scroll{overflow:visible} }

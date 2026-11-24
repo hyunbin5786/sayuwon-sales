@@ -3920,7 +3920,13 @@ function renderMy(){ paintMySet();
   const colSel = (n, v) => `<label class="my-colpick">구분 <select data-mycol="${n}">${order.map(c=>`<option value="${esc(c)}"${c===v?' selected':''}>${esc(catLabel(c))}</option>`).join('')}</select></label>`;
   const v2=pick(2), v3=pick(3);
   $('#mySum').textContent = `개인예약 ${nP} · 단체예약 ${nG} · 기타 개인 업무 ${myEtcOpen().length}개`;
-  $('#myBody').innerHTML = `<div class="my-cols three"><div class="my-col"><h3 class="my-h">개인 업무 입력</h3>${etcAddHTML()}${myQuoteReqHTML()}${todayDueHTML()}${doneTodayHTML()}</div><div class="my-col">${colSel(2, v2)}${secOf(v2)}</div><div class="my-col">${colSel(3, v3)}${secOf(v3)}</div></div>`;
+  // 2026-11-24: 칸마다 위(입력 · 오늘 마감 제목 / 구분 고르기 · 개인예약 · 단체예약 제목)는 고정, 그 아래 목록만 스크롤 (다시 그려도 스크롤 자리 그대로)
+  const splitHead = h => { const i=h.indexOf('</h3>'); return i<0 ? ['', h] : [h.slice(0,i+5), h.slice(i+5)]; };
+  const [tdH, tdL]=splitHead(todayDueHTML()), [h2, l2]=splitHead(secOf(v2)), [h3, l3]=splitHead(secOf(v3));
+  const keep=[...document.querySelectorAll('#myBody .my-scroll')].map(x=>x.scrollTop);
+  $('#myBody').innerHTML = `<div class="my-cols three"><div class="my-col fx"><div class="my-fix"><h3 class="my-h">개인 업무 입력</h3>${etcAddHTML()}${myQuoteReqHTML()}${tdH}</div><div class="my-scroll">${tdL}${doneTodayHTML()}</div></div>`
+    + `<div class="my-col fx"><div class="my-fix">${colSel(2, v2)}${h2}</div><div class="my-scroll">${l2}</div></div><div class="my-col fx"><div class="my-fix">${colSel(3, v3)}${h3}</div><div class="my-scroll">${l3}</div></div></div>`;
+  document.querySelectorAll('#myBody .my-scroll').forEach((x,i)=>{ if(keep[i]) x.scrollTop=keep[i]; });
 }
 document.addEventListener('change', e=>{ const n=e.target.dataset && e.target.dataset.mycol; if(!n) return; try{ localStorage.setItem('sy_my_col'+n, e.target.value); }catch(_){} renderMy(); });
 function paintMyCount(){ const n=savedOwner() ? dueTasks().length + personalDueCount() : 0;   // 마감이 오늘이거나 지난 과업 수 (단체 + 개인고객)
