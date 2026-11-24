@@ -1,4 +1,4 @@
-// ===== 운영보조 화면 엔진 (분실물 찾기 · 사고현황 접수 · 재고확인 · 스마트스토어 발송 보고가 같이 씀) =====
+// ===== 운영보조 화면 엔진 (분실물 찾기 · 사고현황 접수 · 재고관리 · 스마트스토어 발송 보고가 같이 씀) =====
 // 2026-11-23 리팩토링: js/lost.js · accident.js · stock.js · ship.js 네 파일이 칸 정의만 다르고 나머지 230줄이 똑같아서 하나로 모음
 //  - 페이지 파일(js/lost.js 등)은 그 페이지의 칸만: const OPS_PAGE = { key, title, add, hint, fields, cols, status, open, summary }
 //  - 이 파일은 그 OPS_PAGE 로 목록 · 추가/고치기 팝업 · 저장을 그림. 읽는 순서: common.js → opslib.js → (페이지).js → opsboard.js
