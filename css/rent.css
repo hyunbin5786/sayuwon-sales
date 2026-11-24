@@ -1,0 +1,45 @@
+/* 대관 규정 및 상품 (2026-11-24 · rent.html · js/rent.js) */
+main.rent-main{display:block;max-width:1600px}
+.rent-tools{margin:8px 0 10px}
+.rent-tools input{height:34px;min-width:280px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit;font-size:14px}
+.save-st{font-size:12px;color:var(--muted)}
+.save-st.ok{color:var(--pine)}.save-st.bad{color:#b5442c}
+.tw{overflow-x:auto}
+.rent-t{width:100%;border-collapse:collapse;font-size:13.5px;line-height:1.55}
+.rent-t th{background:#3f5a46;color:#fff;font-weight:600;text-align:left;padding:8px 10px;white-space:nowrap}
+.rent-t td{padding:9px 10px;border-bottom:1px solid #e7e3d8;vertical-align:top}
+.rent-t tbody tr{cursor:pointer}
+.rent-t tbody tr:nth-child(even) td{background:#faf8f3}
+.rent-t tbody tr:hover td{background:#eef3ec}
+.rent-t td.c-item{min-width:150px}
+.rent-t td.c-item b{font-size:14px}
+.rent-t td.c-basis{min-width:110px}
+.rent-t td.c-price{min-width:220px;font-variant-numeric:tabular-nums}
+.rent-t td.c-extra{min-width:170px}
+.rent-t td.c-place{min-width:200px}
+.rent-t td.c-note{min-width:280px;color:#3d3b35}
+.rent-t td.acts{white-space:nowrap;text-align:right}
+.rent-t td.acts .btn{padding:4px 9px;margin-left:4px}
+.rent-t td.empty{text-align:center;color:var(--muted);padding:24px}
+.rent-log{margin-top:10px}
+.rent-edit{max-width:640px !important}
+.rent-edit .ef{display:flex;flex-direction:column;gap:4px;margin:0 0 10px;font-size:12.5px;color:var(--muted)}
+.rent-edit .ef i{color:#b5442c;font-style:normal}
+.rent-edit textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:7px;padding:7px 9px;font:inherit;font-size:14px;color:var(--ink);line-height:1.5;resize:vertical}
+.rent-edit textarea:focus{border-color:var(--pine);outline:none}
+.err{color:#b5442c;font-size:13px;margin:4px 0 0}
+#editModal{overflow:auto;padding-top:40px}
+/* 휴대폰: 한 항목 = 카드 한 장 · 칸 이름을 앞에 */
+@media (max-width:760px){
+  .rent-tools input{min-width:0;width:100%;box-sizing:border-box}
+  .rent-t,.rent-t tbody{display:block}
+  .rent-t thead{display:none}
+  .rent-t tr{display:block;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 10px;background:#fff}
+  .rent-t td{display:block;border:0;padding:4px 0;background:none !important}
+  .rent-t td:empty{display:none}
+  .rent-t td[data-l]::before{content:attr(data-l);display:block;font-size:11.5px;color:var(--muted);margin-bottom:1px}
+  .rent-t td.c-item::before{display:none}
+  .rent-t td.c-item{font-size:16px;color:var(--pine);border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:4px}
+  #editModal{padding:0}
+  .rent-edit{max-width:none !important;min-height:100%;border-radius:0}
+}
