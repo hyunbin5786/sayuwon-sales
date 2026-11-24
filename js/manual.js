@@ -27,14 +27,17 @@
     ['rule','공통 규정'],['trans','교통 · 숙박'],['ticket','매표소 응대'],['proc','내부 업무 절차'],['link','자주 쓰는 링크'],
   ];
   const CH_NAME = Object.fromEntries(CH);
-  // 차례: 1. 공통 규정(절대 하지 말 것 · 공통 규정 · 한눈에 보기) 2. 상품 3. 응대 FAQ(FAQ · 교통 · 숙박 · 전화 받는 순서 · 매표소 응대) 4. 내부 업무 절차(절차 · 자주 쓰는 링크) · 「처음 읽기」(intro)는 보이지 않음 (2026-11-24 지움 · 찾기에도 안 나옴)
-  const PARTS = [['p1','1. 공통 규정',['dont','rule','glance']],['p2','2. 상품',['prod']],['p3','3. 응대 FAQ',['faq','trans','call','ticket']],['p4','4. 내부 업무 절차',['proc','link']]];
+  // 차례 (2026-11-24 다시 나눔): 1. 응대 기본(전화 받는 순서 · 절대 하지 말 것 · 한눈에 보기) 2. 상품 3. 응대 FAQ(손님이 묻는 것은 모두 여기 — 예전 공통 규정 · 교통 · 숙박 글은 FAQ로 옮김) 4. 내부 업무 절차(절차 · 자주 쓰는 링크 · 매표소 응대는 절차로)
+  //   rule · trans · ticket 장 키는 예전 글 자리라 CH 에만 남김 (지금 글 없음) · 「처음 읽기」(intro)는 보이지 않음 (2026-11-24 지움 · 찾기에도 안 나옴)
+  const PARTS = [['p1','1. 응대 기본',['call','dont','glance']],['p2','2. 상품',['prod']],['p3','3. 응대 FAQ',['faq']],['p4','4. 내부 업무 절차',['proc','link']]];
   const PART_NAME = Object.fromEntries(PARTS.map(p=>[p[0],p[1]]));
   const partOf = k => (PARTS.find(p=>p[2].includes(k))||[])[0] || '';
   const chLabel = k => partOf(k) ? `${PART_NAME[partOf(k)]} › ${CH_NAME[k]}` : CH_NAME[k]||k;
   const toView = h => !h || h==='home' ? 'home' : h==='notice' || PART_NAME[h] ? h : partOf(h) || 'home';   // 예전 주소(#prod · #intro …)도 그 묶음으로
   view = toView(view);
   const PROD_CATS = ['관람','관람+식사','체험 프로그램','카페·식당','대관'];
+  const FAQ_CATS = ['운영·관람','예약','결제·환불','우천·날씨','할인','입장·반입','관람권','식사·카페','프로그램·도슨트','단체·대관','교통·주차','숙박','기타'];   // FAQ 카테고리 차례 (2026-11-24) · 없는 것은 뒤에 가나다순
+  const fcatSort = (a,b) => (FAQ_CATS.indexOf(a)+1||99)-(FAQ_CATS.indexOf(b)+1||99) || a.localeCompare(b,'ko');
 
   // ---------- 서버 ----------
   async function load(quiet){
@@ -132,7 +135,7 @@
     return `<details class="fq${phase(r)==='past'?' past':''}" id="r-${esc(r.id)}"${open?' open':''}><summary><span class="q">${esc(r.title)}</span>${d.boss?'<span class="tag boss">상급자 확인 필요</span>':''}${perTag(r)}${r.cat?`<span class="tag">${esc(r.cat)}</span>`:''}</summary>`
       + `<div class="a md">${md(d.a)}${d.body?md(d.body):''}<div style="text-align:right;margin-top:4px">${d.catAI?'<span class="tag ai" title="노션에서 카테고리가 비어 있어 AI가 붙인 것 — 맞지 않으면 「고치기」">카테고리 AI 추천</span> ':''}<button type="button" class="ed" style="opacity:1" data-edit="${esc(r.id)}">고치기</button></div></div></details>`; }
   function faqHTML(){
-    const all=byKind('faq').filter(visible), cats=[...new Set(all.map(r=>r.cat||'(카테고리 없음)'))].sort((a,b)=>a.localeCompare(b,'ko'));
+    const all=byKind('faq').filter(visible), cats=[...new Set(all.map(r=>r.cat||'(카테고리 없음)'))].sort(fcatSort);
     const L=all.filter(r=>!faqCat || (r.cat||'(카테고리 없음)')===faqCat);
     return `<div class="fq-cats"><button type="button" class="chip${!faqCat?' on':''}" data-fcat="">전체<small>${all.length}</small></button>${cats.map(c=>`<button type="button" class="chip${faqCat===c?' on':''}" data-fcat="${esc(c)}">${esc(c)}<small>${all.filter(r=>(r.cat||'(카테고리 없음)')===c).length}</small></button>`).join('')}</div>`
       + (L.length ? L.map(r=>faqItem(r,false)).join('') : '<p class="hint">FAQ가 없습니다.</p>');
@@ -184,7 +187,7 @@
     const r=id ? rows.find(x=>x.id===id) : null; if(id && !r) return;
     const v=r ? {title:r.title, cat:r.cat, start:r.start, end:r.end, ...r.data} : {cat:cat||'', ...(preset||{})};
     form={id:id||null, kind, preset:preset||null};
-    const fcats=[...new Set(byKind('faq').map(x=>x.cat).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko')), pcats=[...new Set([...PROD_CATS, ...byKind('prod').map(x=>x.cat).filter(Boolean)])];
+    const fcats=[...new Set([...FAQ_CATS, ...byKind('faq').map(x=>x.cat).filter(Boolean)])].sort(fcatSort), pcats=[...new Set([...PROD_CATS, ...byKind('prod').map(x=>x.cat).filter(Boolean)])];
     const fld=([k,l,t,w])=>{ const val=v[k]==null?'':v[k];
       if(t==='per') return `<label class="full">${l}<span style="display:flex;gap:8px;align-items:center">${dateBox('start', v.start)} ~ ${dateBox('end', v.end)}<span class="hint">시작만 · 끝만 넣어도 됨</span></span></label>`;
       if(t==='ck') return `<label class="ck"><input type="checkbox" data-f="${k}"${val?' checked':''}> ${l}</label>`;
