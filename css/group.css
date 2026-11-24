@@ -1123,3 +1123,7 @@ html.g-loading body{overflow:hidden}
 .my-col.fx > .my-scroll{flex:1;min-height:0;overflow:auto;margin:0 -4px;padding:0 4px 4px}
 .my-col.fx > .my-fix .my-h:last-child{margin-bottom:6px}
 @media (max-width:900px){ .my-col.fx{overflow:visible} .my-col.fx > .my-scroll{overflow:visible} }
+/* 추후과업 메시지 관리 · 전산 비고 규칙 참고 (2026-11-24 · js/group/09-tasks.js ERP_NOTE_RULES) */
+.tcfg-rule{border:1px solid #cfe0cc;background:#f4f8f1;border-radius:8px;padding:6px 10px;margin:4px 0 8px}
+.tcfg-rule summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--pine,#3f5236)}
+.tcfg-rule pre{white-space:pre-wrap;word-break:keep-all;font:13px/1.7 "Noto Sans KR",sans-serif;color:#2b2a26;margin:8px 0 2px;max-height:52vh;overflow:auto}

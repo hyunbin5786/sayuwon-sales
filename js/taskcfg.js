@@ -207,6 +207,7 @@ function tcfgEdHTML(T, c, builtin, id){
       <label class="chk"><input type="checkbox" data-tf="${T}|onsiteSub"${c.onsiteSub?' checked':''}> <b>${esc(ONSITE_SUB)}</b> <small class="hint">— 결제 방법이 현장 결제일 때 · 고객님께 최종 인원을 확인하고 당일 인원 변경이 어렵다는 점을 안내</small></label>
       <label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> <b>미정 항목에 대한 내용</b> <small class="hint">— 미정 항목 · 아직 안 넣은 칸을 하나씩 (예: 「미정 · 결제 방법」 「미입력 · 입장 시간」)</small></label>
     </div>` : ''}
+    ${builtin && (id==='erp' || id==='erpfix') && typeof ERP_NOTE_RULES!=='undefined' ? `<details class="tcfg-rule"><summary>📋 전산 비고 {전산비고} 가 만들어지는 규칙 (참고 · 누르면 펼침)</summary><pre>${esc(ERP_NOTE_RULES)}</pre></details>` : ''}
     <div class="tcfg-two">
       <label>과업 문구 <small class="hint">(「문구 복사」 버튼으로 복사 · 비우면 없음${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''})</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '')}</label>
       <label>과업 아래 안내 줄 <small class="hint">(과업 제목 아래에 자동으로 붙는 글 · 예: 바뀐 내용 · 비우면 없음)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '')}</label>
