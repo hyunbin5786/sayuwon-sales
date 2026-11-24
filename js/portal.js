@@ -425,8 +425,8 @@ let ntShowOff=false;   // 예약 · 지난 공지도 보기 (목록 맨 아래 �
 function noticeHTML(){
   const today=opsToday(), A=ntRows(lastItems).slice().sort((a,b)=>String(b.at).localeCompare(String(a.at)));
   const L=A.filter(r=>ntState(r,today)==='on'), off=A.filter(r=>ntState(r,today)!=='on');
-  const li = r => { const s=ntState(r,today); return `<li><button type="button" class="nt-i${s==='on' && ntIsNew(r)?' new':''}${s!=='on'?' off':''}" data-nt="${esc(r.id)}"><span class="nt-t">${s==='sched'?'<span class="nt-st">예약</span> ':s==='past'?'<span class="nt-st">지남</span> ':ntIsNew(r)?'<span class="nt-new">새 글</span> ':''}${esc(r.title)}</span><small>${esc(r.by||'')} · ${esc(ntDay(r.at))}${r.to?` · 게시 ${esc(ntPer(r))}`:''}</small></button></li>`; };
-  return `<div class="dcol-h"><b>공지사항</b><button type="button" class="cm-btn" id="ntAddBtn" title="공지사항 게시물 등록">게시물 등록</button><span class="dn">${L.length}</span></div>`
+  const li = r => { const s=ntState(r,today); return `<li><button type="button" class="nt-i${s!=='on'?' off':''}" data-nt="${esc(r.id)}"><span class="nt-t">${s==='sched'?'<span class="nt-st">예약</span> ':s==='past'?'<span class="nt-st">지남</span> ':''}${esc(r.title)}</span><small>${esc(r.by||'')} · ${esc(ntDay(r.at))}${r.to?` · 게시 ${esc(ntPer(r))}`:''}</small></button></li>`; };
+  return `<div class="dcol-h"><b>공지사항</b><button type="button" class="cm-btn" id="ntAddBtn" title="공지사항 게시물 등록">게시물 등록</button></div>`
     + (L.length || off.length ? `<ul class="dlist nt-list">${L.map(li).join('')}${!L.length?'<li class="hint nt-none">지금 게시 중인 공지사항이 없습니다.</li>':''}`
         + (off.length ? `<li><button type="button" class="nt-offbtn" id="ntOffBtn">${ntShowOff?'예약 · 지난 공지 접기 ▴':`예약 · 지난 공지 ${off.length}개 보기 ▾`}</button></li>${ntShowOff?off.map(li).join(''):''}` : '') + `</ul>`
       : `<p class="hint dempty">공지사항이 없습니다. 「게시물 등록」으로 올리세요.</p>`);
