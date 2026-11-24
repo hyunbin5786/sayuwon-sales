@@ -325,8 +325,8 @@ function calHTML(today){
     + `<div class="cal-g"><span class="cw">일</span><span class="cw">월</span><span class="cw">화</span><span class="cw">수</span><span class="cw">목</span><span class="cw">금</span><span class="cw">토</span>${cells}</div>`
     + legend
     + `<div class="cal-day">`
-    + (dv.length||de.length ? `<ul>${dv.map(x=>`<li class="cv-i"><span class="cv-l">${calTag(CAL_GRP)} <a class="cv-org" href="group.html?open=${encodeURIComponent(x.id)}" title="이 단체예약 열기">${esc(x.org)}</a>${x.n?` ${esc(x.n)}명`:''}${x.tm?` · ${esc(x.tm)}`:''}${x.st==='가예약'?' <small>(가예약)</small>':''}${x.own?` <small class="own">영업 ${esc(x.own)}</small>`:''}</span>${x.items.length?`<div class="cv-items">${x.items.map(i=>`<span>${esc(i.t)}${i.s?`<em>담당 ${esc(i.s)}</em>`:''}</span>`).join('')}</div>`:''}</li>`).join('')}`
-        + `${de.map(x=>{ const c=calCat(x); return `<li class="ce-i" style="background:${c[2]}" data-cedit="${esc(x.id)}" title="누르면 고치기 · 삭제"><span>${calTag(c)} ${per(x)}${x.tm?`<b class="ctm">${esc(x.tm)}</b> · `:''}${esc(x.title)} <small>${esc(x.by||'')}</small></span></li>`; }).join('')}</ul>` : '<p class="hint">이날 단체 방문 · 일정이 없습니다.</p>')
+    + (dv.length||de.length ? `<ul>${dv.map(x=>`<li class="cv-i"><span class="cv-l">${calTag(CAL_GRP)} <a class="cv-org" href="group.html?open=${encodeURIComponent(x.id)}" title="이 단체예약 열기">${esc(x.org)}</a>${x.n?` ${esc(x.n)}명`:''}${x.tm?` · ${esc(x.tm)}`:''}${x.st==='가예약'?' <small>(가예약)</small>':''}</span>${x.items.length?`<div class="cv-items">${x.items.map(i=>`<span>${esc(i.t)}${i.s?`<em>담당 ${esc(i.s)}</em>`:''}</span>`).join('')}</div>`:''}</li>`).join('')}`
+        + `${de.map(x=>{ const c=calCat(x); return `<li class="ce-i" style="background:${c[2]}" data-cedit="${esc(x.id)}" title="누르면 고치기 · 삭제"><span>${calTag(c)} ${per(x)}${x.tm?`<b class="ctm">${esc(x.tm)}</b> · `:''}${esc(x.title)}</span></li>`; }).join('')}</ul>` : '<p class="hint">이날 단체 방문 · 일정이 없습니다.</p>')
     + `</div>`;
 }
 function calRestore(){}   // 예전 칸 안 입력(제목 · 시간 · 끝나는 날)은 없앰 (2026-11-24) — 「+」 팝업으로
