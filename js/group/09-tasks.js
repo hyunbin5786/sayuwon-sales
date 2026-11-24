@@ -85,8 +85,8 @@ function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문�
     items.push([erpProgT(sub('tm')), /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
     if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2)) items.push([erpProgT(r.tm_seminar2), name+(r.plc_seminar2?`(${String(r.plc_seminar2).trim()})`:'')].filter(Boolean).join(' '));
   });
-  if(r.pay==='현장 결제' || r.onsite) items.push('현장결제');
-  { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy' && s.k!=='dGuide'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인`)); if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
+  if(r.pay==='현장 결제' || r.onsite) items.push('현장결제 필요');   // 2026-11-24: 「현장결제」 → 「현장결제 필요」 (사전답사 비고의 「n명 현장결제 필요」와 같은 말투)
+  { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy' && s.k!=='dGuide'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인 필요`));   /* 2026-11-24: 끝에 「필요」 */ if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
   { const st=viewsParse(r.views).filter(x=>/학생/.test(x.src)).reduce((a,x)=>a+(+x.qty||0),0) + Object.values(istuMap(r)).reduce((a,n)=>a+n,0); if(st) items.push(`학생 ${st}명 확인 필요`); }
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';
   const arrive = r.tin ? `${erpShortT(r.tin)} ${gate || '입장'}` : '';   // 입장문을 아직 안 정했으면 「9시 입장」 · 입장 시간이 미정이면 도착은 안 씀 (2026-11-19)
