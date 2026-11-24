@@ -161,3 +161,44 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .stock-due{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin:0 0 12px;padding:12px 14px;border:1px solid #e3a08f;background:#fdf0ec;border-radius:10px;color:#262620;text-decoration:none;font-size:14px}
 .stock-due b{color:#b5442c;font-size:15px}
 .stock-due:hover{border-color:#b5442c}
+/* ===== 대시보드 4열 · 2행 (2026-11-24): ①②③ 은 두 행 통째로 · ④ 1행 캘린더 · 2행 공통 업무 ===== */
+.dcols.d2{grid-template-rows:auto minmax(0,1fr)}
+.dcols.d2 > .span2{grid-row:1 / span 2}
+.dcols.d2 > .dcal-col{grid-column:4;grid-row:1}
+.dcols.d2 > .dcommon{grid-column:4;grid-row:2}
+#menuView:not(.guest) .dcols.d2 > .dcal-col{overflow:visible}
+.dcol-h .dmem{margin-left:auto;margin-right:6px;height:26px;border:1px solid var(--line);border-radius:6px;padding:0 4px;font:inherit;font-size:12.5px;background:#fff;max-width:110px}
+/* 캘린더 */
+.cal-nav{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--ink)}
+.cal-nav button{border:1px solid var(--line);background:#fff;border-radius:6px;width:24px;height:24px;cursor:pointer;font:inherit;line-height:1}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:11.5px}
+.cal-g .cw{text-align:center;color:var(--muted);font-size:11px;padding:2px 0}
+.cal-g .cd{position:relative;height:34px;border:1px solid #eeebe3;border-radius:5px;background:#fff;padding:2px 3px;text-align:left;cursor:pointer;font:inherit;display:flex;flex-wrap:wrap;align-content:flex-start;gap:1px}
+.cal-g .cd.e{border:0;background:none;cursor:default}
+.cal-g .cd i{font-style:normal;width:100%;line-height:1.1}
+.cal-g .cd.sun i{color:#b5442c}
+.cal-g .cd.sat i{color:#3d5a80}
+.cal-g .cd.today{border-color:var(--pine)}
+.cal-g .cd.today i{font-weight:700}
+.cal-g .cd.on{background:var(--pine-soft,#e6efe8);border-color:var(--pine)}
+.cal-g b.cv,.cal-g b.ce,.cal-lg b{display:inline-block;min-width:13px;height:13px;border-radius:7px;font-size:9.5px;line-height:13px;text-align:center;color:#fff;padding:0 2px}
+.cv{background:var(--pine)}
+.ce{background:#3d5a80}
+.cal-lg{margin:4px 0 6px;font-size:11px;color:var(--muted)}
+.cal-lg b.cv{background:var(--pine)}.cal-lg b.ce{background:#3d5a80}
+.cal-day{border-top:1px solid var(--line);padding-top:6px;font-size:12.5px}
+.cal-day > b{font-size:13px}
+.cal-day ul{list-style:none;margin:4px 0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto}
+.cal-day li{display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:5px}
+.cal-day li.cv-i{background:#eef4ee}
+.cal-day li.cv-i a{color:var(--ink);text-decoration:none;flex:1}
+.cal-day li.ce-i{background:#eaf0f7}
+.cal-day li.ce-i span{flex:1}
+.cal-day li small{color:var(--muted)}
+.cal-day li button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:14px;padding:0 2px}
+.cal-day .hint{margin:4px 0}
+.cal-add{display:flex;gap:4px;margin-top:6px}
+.cal-add input{min-width:0;height:28px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:12.5px}
+.cal-add #calTitle{flex:1}
+.cal-add #calTm{width:58px}
+@media (max-width:1100px){ .dcols.d2{grid-template-rows:none} .dcols.d2 > .span2,.dcols.d2 > .dcal-col,.dcols.d2 > .dcommon{grid-row:auto;grid-column:auto} }
