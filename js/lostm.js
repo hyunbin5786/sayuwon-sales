@@ -7,7 +7,7 @@
   const card = x => { const d=x.d, k=lostKind(d), s=lostStatus(d), ps=Array.isArray(d.photos) ? d.photos : [];
     return `<div class="m-card" data-mid="${esc(x.r.id)}">`
       + (ps.length ? `<img data-phimg="${esc(ps[0].id)}" data-phview="${esc(ps[0].id)}" alt="${esc(d.item||'사진')}">` : `<span class="m-noph">${k==='습득'?'사진 없음':'신고'}</span>`)
-      + `<div class="m-c"><b>${esc(d.item||'')}</b>${d.feature?`<span>${esc(d.feature)}</span>`:''}`
+      + `<div class="m-c"><b>${esc(d.item||'')}</b>${d.feature && k!=='습득'?`<span>${esc(d.feature)}</span>`:''}`
       + `<small>${k==='습득'?'분실물 습득':'분실물 신고'} · ${esc(opsDateLabel(d.date))}${d.place?` · ${esc(d.place)}`:''}${k==='습득' && d.storage?` · 보관 ${esc(d.storage)}`:''}</small>`
       + `<small class="st st-${esc(s)}">${esc(s)}</small></div></div>`; };
   function paint(){

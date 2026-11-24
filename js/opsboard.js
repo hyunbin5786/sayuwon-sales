@@ -101,7 +101,7 @@ function renderLost(hit){
     const tr=x=>{ const s=stOf(x), ps=Array.isArray(x.d.photos) ? x.d.photos : [];
       return `<tr class="${b.open.includes(s)?'':'closed'}">`
         + (b.photo ? `<td class="lost-ph">${ps.length ? `<img data-phimg="${esc(ps[0].id)}" data-phview="${esc(ps[0].id)}" alt="${esc(x.d.item||'습득물')}" title="누르면 크게">${ps.length>1?`<small>+${ps.length-1}</small>`:''}` : '<span class="hint">사진 없음</span>'}</td>` : '')
-        + b.cols.map(([k,,fn])=>`<td>${esc(fn?fn(x.d[k], x.d):x.d[k]||'')}</td>`).join('')
+        + b.cols.map(([k,,fn])=>{ const v=fn?fn(x.d[k], x.d):x.d[k]||''; return `<td>${v && typeof v==='object' ? v.html : esc(v)}</td>`; }).join('')   // {html} 이면 그대로 (물품 아래 줄에 설명)
         + (GUEST ? `<td class="st st-${esc(s)}">${esc(s)}</td><td></td></tr>`   // 로그인 없이: 상태는 보기만 · 열기 없음
           : `<td class="st st-${esc(s)}"><select class="lost-st" data-lst="${esc(x.r.id)}" title="상태 바꾸기">${LOST_ST[b.kind].map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select></td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">열기</button></td></tr>`); };
     return `<section class="lost-board"><div class="lb-head"><h3>${esc(b.title)} <small>${all.length}건</small></h3><button type="button" class="btn primary" data-ladd="${esc(b.kind)}">＋ ${esc(b.add)}</button></div>`
