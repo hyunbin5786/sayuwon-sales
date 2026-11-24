@@ -8,7 +8,7 @@ param([switch]$SelfTest)
 $ErrorActionPreference = 'Stop'
 $cfgPath = Join-Path $PSScriptRoot 'backup-config.json'
 $api = 'https://sayuwon-api.serendipity5786-9e7.workers.dev/'
-$tables = 'calls', 'members', 'quotereq', 'quote_history', 'kv', 'files', 'file_chunks', 'clergy'
+$tables = 'calls', 'members', 'quotereq', 'quote_history', 'kv', 'files', 'file_chunks', 'clergy', 'press'
 
 # 서버 답 {"ok":true,"table":"…","rows":[ … ],"next":123} 에서 rows 안쪽 글자와 next 를 꺼냄 (큰 답도 통째로 풀지 않고 글자로만 다룸)
 function Split-Page([string]$text) {

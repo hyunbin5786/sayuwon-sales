@@ -420,6 +420,41 @@ async function importData(env, req) {
   return out;
 }
 
+// ---------- 홍보 기자 리스트 (press · 2026-11-24 · press.html) ----------
+//  한 줄 = 기자 한 명 (리스트 · 구분 · 매체 · 이름 · 직위/소속 · 휴대폰 · 이메일 · 메모). 개인 연락처이므로 로그인한 사람만 · 화면 코드(GitHub)에는 넣지 않음
+//  pressList → {items:[…]} 지워지지 않은 줄 전체 · pressSave {rows} 있으면 고치고 없으면 더함(id) · pressDel {ids} 지운 표시 · 모두 바꾸면 rev 를 올려 다른 화면이 바로 받음
+const PRESS_COLS = ['id', 'list', 'cat', 'media', 'name', 'pos', 'phone', 'email', 'memo', 'ord'];
+let pressReady = false;
+async function ensurePress(env) {
+  if (pressReady) return;
+  await env.DB.batch([
+    q(env, "CREATE TABLE IF NOT EXISTS press (id TEXT PRIMARY KEY, list TEXT NOT NULL DEFAULT '', cat TEXT NOT NULL DEFAULT '', media TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '', pos TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', memo TEXT NOT NULL DEFAULT '', ord REAL NOT NULL DEFAULT 0, updated TEXT NOT NULL DEFAULT '', \"by\" TEXT NOT NULL DEFAULT '', deleted TEXT NOT NULL DEFAULT '')"),
+    q(env, 'CREATE INDEX IF NOT EXISTS press_list ON press(list)'),
+  ]);
+  pressReady = true;
+}
+const PRESS_JSON = "json_object('id',id,'list',list,'cat',cat,'media',media,'name',name,'pos',pos,'phone',phone,'email',email,'memo',memo,'ord',ord,'updated',updated,'by',\"by\")";
+async function pressList(env) {
+  const r = await q(env, "SELECT json_group_array(" + PRESS_JSON + ") AS j FROM (SELECT * FROM press WHERE deleted='' ORDER BY ord, rowid)").first();
+  return { __raw: '{"ok":true,"items":' + ((r && r.j) || '[]') + ',"api":10}' };
+}
+async function pressSave(env, req) {
+  const by = clT(req.who && req.who.name, 20), now = iso(), t = (v, n) => String(v == null ? '' : v).replace(/\r\n?/g, '\n').trim().slice(0, n);
+  const list = (Array.isArray(req.rows) ? req.rows : []).slice(0, 3000).map((r, i) => ({ id: /^[a-z0-9]{4,40}$/.test(String(r.id || '')) ? String(r.id) : 'p' + rand(6) + i.toString(36),
+    list: t(r.list, 80), cat: t(r.cat, 40), media: t(r.media, 80), name: t(r.name, 60), pos: t(r.pos, 120), phone: t(r.phone, 40), email: t(r.email, 120), memo: t(r.memo, 600), ord: Number(r.ord) || 0, updated: now, by }));
+  if (!list.length) return [];
+  // 한 문장으로 (D1 은 요청 하나에 쿼리 50번까지): 있으면 고치고 없으면 더함
+  await q(env, 'INSERT INTO press (id, list, cat, media, name, pos, phone, email, memo, ord, updated, "by", deleted) SELECT ' + ['id','list','cat','media','name','pos','phone','email','memo','ord','updated','by'].map(k => "json_extract(value,'$." + k + "')").join(',') + ", '' FROM json_each(?1) WHERE true "
+    + 'ON CONFLICT(id) DO UPDATE SET list=excluded.list, cat=excluded.cat, media=excluded.media, name=excluded.name, pos=excluded.pos, phone=excluded.phone, email=excluded.email, memo=excluded.memo, ord=excluded.ord, updated=excluded.updated, "by"=excluded."by", deleted=\'\'', JSON.stringify(list)).run();
+  return list.map(r => r.id);
+}
+async function pressDel(env, req) {
+  const ids = (Array.isArray(req.ids) ? req.ids : []).map(String).filter(x => /^[a-z0-9]{4,40}$/.test(x)).slice(0, 3000);
+  if (!ids.length) return 0;
+  const r = await q(env, "UPDATE press SET deleted=?1, updated=?2 WHERE deleted='' AND id IN (SELECT value FROM json_each(?3))", kstStamp() + ' ' + clT(req.who && req.who.name, 20), iso(), JSON.stringify(ids)).run();
+  return (r.meta && r.meta.changes) || 0;
+}
+
 // ---------- 대구대교구 무료입장 명부 (clergy · 2026-11-23) ----------
 //  한 줄 = 한 번 방문. 화면(js/clergy.js)은 열 때 · 바뀔 때(rev) 명부 전체를 받아 그 안에서 찾음 (천여 줄 · 약 150KB)
 //  clergyList → {items:[{id, date, org, name, pos, phone, note, turn, added, by}], moved}
@@ -494,6 +529,7 @@ const EXPORT_SQL = () => { const tail = ' WHERE rowid>? ORDER BY rowid LIMIT ?';
   quote_history: 'SELECT rowid AS seq, id, at, data FROM quote_history' + tail,
   files: 'SELECT rowid AS seq, id, kind, name, mime, size, at, "by" FROM files' + tail,
   file_chunks: 'SELECT rowid AS seq, id, n, data FROM file_chunks' + tail,
+  press: 'SELECT rowid AS seq, id, list, cat, media, name, pos, phone, email, memo, ord, updated, "by", deleted FROM press' + tail,
   clergy: 'SELECT rowid AS seq, id, visit_date, org, name, pos, phone, note, turn, who, added, "by", updated, deleted FROM clergy' + tail,
   kv: "SELECT rowid AS seq, k, v FROM kv WHERE rowid>? AND k NOT LIKE 'fail:%' AND k<>'qr_rate' AND k<>'rev' ORDER BY rowid LIMIT ?",
 }; };
@@ -538,11 +574,14 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'quoteGet') return rawRows('history', await rows(env, 'SELECT data FROM (SELECT rowid AS r, data FROM quote_history ORDER BY rowid DESC LIMIT ?) ORDER BY r DESC', Number(req.limit) || 500), '');
   if (a === 'quotePost') { try { return await quotePost(env, req); } catch (e) { return err('', e); } }
   // 전체 내려받기 (백업 · 다른 DB 로 옮길 때): 표 하나를 넣은 순서대로 조금씩 — {table, after(마지막으로 받은 seq), limit} → {rows, next}. table 이 없으면 표 이름 목록
+  if (a === 'pressList') { await ensurePress(env); return pressList(env); }   // 홍보 기자 리스트 (2026-11-24)
+  if (a === 'pressSave') { try { await ensurePress(env); const ids = await pressSave(env, req); await bumpRev(env); return { ok: true, ids, api: 10 }; } catch (e) { return err('', e); } }
+  if (a === 'pressDel') { try { await ensurePress(env); const n = await pressDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 10 }; } catch (e) { return err('', e); } }
   if (a === 'clergyList') { await ensureClergy(env); return clergyList(env); }
   if (a === 'clergyAdd') { try { await ensureClergy(env); const item = await clergyAdd(env, req); await bumpRev(env); return { ok: true, item, api: 8 }; } catch (e) { return err('', e); } }
   if (a === 'clergyDel') { try { await ensureClergy(env); const n = await clergyDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 8 }; } catch (e) { return err('', e); } }
   if (a === 'clergyImport') { try { await ensureClergy(env); const n = await clergyImport(env, req, req.who && req.who.name); await bumpRev(env); return { ok: true, imported: n, api: 8 }; } catch (e) { return err('', e); } }
-  if (a === 'export') { if (req.table === 'clergy') await ensureClergy(env); if (req.table === 'members') await ensureMemberPhone(env); const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };
+  if (a === 'export') { if (req.table === 'clergy') await ensureClergy(env); if (req.table === 'press') await ensurePress(env); if (req.table === 'members') await ensureMemberPhone(env); const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };
     const lim = t === 'file_chunks' ? 1 : Math.min(Number(req.limit) || 200, 500), rs = await rows(env, sql, Number(req.after) || 0, lim);
     return { ok: true, table: t, rows: rs, next: rs.length === lim ? rs[rs.length - 1].seq : null }; }
   if (a === 'wait') return waitRev(env, String(req.rev || ''));

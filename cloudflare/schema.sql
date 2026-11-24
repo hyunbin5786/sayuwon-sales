@@ -68,3 +68,11 @@ CREATE TABLE IF NOT EXISTS clergy (
 );
 CREATE INDEX IF NOT EXISTS clergy_who ON clergy(who);
 CREATE INDEX IF NOT EXISTS clergy_date ON clergy(visit_date);
+
+-- 홍보 기자 리스트 (2026-11-24 · press.html): 한 줄 = 기자 한 명. 개인 연락처 — 로그인한 사람만 · 서버(worker.js ensurePress)가 처음 쓸 때 스스로 만듦
+CREATE TABLE IF NOT EXISTS press (
+  id TEXT PRIMARY KEY, list TEXT NOT NULL DEFAULT '', cat TEXT NOT NULL DEFAULT '', media TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '',
+  pos TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', memo TEXT NOT NULL DEFAULT '', ord REAL NOT NULL DEFAULT 0,
+  updated TEXT NOT NULL DEFAULT '', "by" TEXT NOT NULL DEFAULT '', deleted TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS press_list ON press(list);

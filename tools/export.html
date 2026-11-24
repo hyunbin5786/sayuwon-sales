@@ -23,7 +23,7 @@
 <label><input type="checkbox" id="withFiles" checked> 올린 파일(이미지 · PDF)도 함께 (끄면 글자 자료만 — 파일이 많아지면 오래 걸립니다)</label>
 <button id="go">내려받기</button>
 <div id="log"></div>
-<script src="../js/common.js?v=20261124zt"></script>
+<script src="../js/common.js?v=20261124zu"></script>
 <script>
 (function(){
   const $ = id => document.getElementById(id), logEl = $('log');
@@ -42,6 +42,7 @@
       await table('quote_history', r => T.quote_history.push({ seq: r.seq, id: r.id, at: r.at, data: parse(r.data) }));
       await table('kv', r => T.kv.push({ seq: r.seq, k: r.k, v: parse(r.v) }));
       await table('clergy', r => T.clergy.push(r));   // 대구대교구 무료입장 명부 (2026-11-23)
+      T.press = []; await table('press', r => T.press.push(r));   // 홍보 기자 리스트 (2026-11-24)
       const files = new Map(); await table('files', r => { const f = { ...r, base64: '' }; files.set(r.id, f); T.files.push(f); });
       if ($('withFiles').checked) await table('file_chunks', r => { const f = files.get(r.id); if (f) f.base64 += r.data; });
       else { T.files.forEach(f => delete f.base64); log('파일 내용은 넣지 않았습니다 (목록만).'); }
