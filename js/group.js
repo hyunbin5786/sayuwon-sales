@@ -1445,7 +1445,7 @@ document.addEventListener('input', e=>{ if(e.target.id!=='baImp') return; bookIm
   $('#baImpPrev').innerHTML = !bookImp ? '' : bookImp.rows.length ? `<b>${bookImp.rows.length}건</b><ul>${bookImp.rows.map(x=>`<li>${esc(dateLabel(x.d))} · ${esc(BOOK_CATS[x.cat])}${x.kind?' '+esc(x.kind):''} ${esc(x.tm||'')} · <b>${esc(x.org)}</b> · ${x.ppl}명${x.staff?' · '+esc(x.staff.replace(/\n/g,', ')):''}${x.note?' · '+esc(x.note):''}</li>`).join('')}</ul>${bookImp.skipped.length?`<div class="hint">읽지 못한 줄 ${bookImp.skipped.length}개</div>`:''}` : '<b class="late">읽은 줄이 없습니다.</b>';
   $('#baImpSave').disabled = !(bookImp && bookImp.rows.length); });
 document.addEventListener('click', async e=>{ const t=e.target;
-  if(t.id==='bookAddBtn'){ bookEdit=null; bookAddOpen(); return; }   // 로그인 없이도 (이름 칸이 나옴)
+  if(t.id==='bookAddBtn' || t.id==='bookAddBtn2'){ bookEdit=null; bookAddOpen(); return; }   // bookAddBtn2 = 휴대폰에서 출력하기 아래 (2026-11-24)   // 로그인 없이도 (이름 칸이 나옴)
   if(t.id==='baSave'){ t.disabled=true; const ok=await bookAddSave(); if(!ok){ t.disabled=false; return; } bookAddClose(); return; }
   if(t.id==='baCancel'){ bookAddClose(); return; }
   if(t.id==='baImpSave' && bookImp){ const key=x=>[x.cat,x.d,x.org,x.tm,x.kind].join('|'), have=new Set(bkDb().rows.map(key)), add=bookImp.rows.filter(x=>!have.has(key(x)));
@@ -1552,10 +1552,27 @@ async function bkTableImg(me, days){
   return { blob, n:evs.length, name:`담당일정_${me}_${days[0].replace(/-/g,'')}-${days[days.length-1].slice(5).replace('-','')}.png` };
 }
 const bkDownload = (blob, name) => { const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000); };
-async function bkSave(files, title){   // 휴대폰은 공유(사진에 저장), 컴퓨터는 파일로 내려받기 (여러 장이면 차례로)
+async function bkSave(files, title){   // 휴대폰은 이미지 보기 창(저장 · 길게 눌러 저장 · 공유), 컴퓨터는 파일로 내려받기 (여러 장이면 차례로)
   if(!files.length) return false;
-  if(matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({files})){ try{ await navigator.share({files, title}); return true; }catch(e){ if(e && e.name==='AbortError') return false; } }
+  if(matchMedia('(pointer:coarse)').matches){ await bkShowImg(files[0], title); return true; }   // 2026-11-24: 바로 공유 창을 띄우면 「이미지 저장」이 없는 휴대폰이 있어서
   for(let i=0;i<files.length;i++){ bkDownload(files[i], files[i].name); if(i<files.length-1) await new Promise(r=>setTimeout(r, 450)); } return true; }
+// 휴대폰: 만든 표 이미지를 화면 가득 보여 주고 「이미지 저장」(내려받기) · 「공유」 · 길게 눌러 저장 (2026-11-24)
+const bkDataUrl = blob => new Promise((ok, no)=>{ const r=new FileReader(); r.onload=()=>ok(r.result); r.onerror=no; r.readAsDataURL(blob); });
+async function bkShowImg(file, title){
+  let o=document.getElementById('bkImgView');
+  if(!o){ o=document.createElement('div'); o.id='bkImgView'; o.className='bk-imgview';
+    o.innerHTML='<div class="bkv-top"><b></b><button type="button" class="btn" data-bkv="x">닫기</button></div><div class="bkv-img"><img alt="일정 표 이미지"></div>'
+      + '<div class="bkv-btns"><a class="btn primary" data-bkv="save">이미지 저장</a><button type="button" class="btn" data-bkv="share">공유</button></div><p class="bkv-hint">저장이 안 되면 위 이미지를 길게 눌러 「이미지 저장」 · 「사진에 저장」을 고르세요.</p>';
+    o.addEventListener('click', async e=>{ const a=e.target.closest('[data-bkv]'); if(!a) return;
+      if(a.dataset.bkv==='x'){ o.hidden=true; return; }
+      if(a.dataset.bkv==='share'){ const f=o._file; try{ if(navigator.canShare && navigator.canShare({files:[f]})) await navigator.share({files:[f], title:o._title}); else toast('이 휴대폰은 공유를 지원하지 않습니다. 「이미지 저장」을 눌러 주세요.'); }catch(_){} } });
+    document.body.appendChild(o); }
+  const url=await bkDataUrl(file);
+  o._file=file; o._title=title; o.querySelector('.bkv-top b').textContent=title; o.querySelector('img').src=url;
+  const a=o.querySelector('[data-bkv="save"]'); a.href=url; a.download=file.name;
+  o.querySelector('[data-bkv="share"]').hidden=!(navigator.canShare && navigator.canShare({files:[file]}));
+  o.hidden=false;
+}
 async function bookPrintImg(){
   const me=bkMe(); if(!me){ toast('이름을 먼저 골라 주세요.'); $('#bookMeName').focus(); return; }
   const r=await bkTableImg(me, bkDays()); if(!r.blob){ toast('이미지를 만들지 못했습니다.'); return; }
