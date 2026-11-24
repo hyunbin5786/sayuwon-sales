@@ -314,8 +314,8 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 /* 캘린더 + 버튼 · 일정 고치기 · 하루 / 기간 (2026-11-24) */
 .dcal-col .dcol-h{align-items:center}
 .dcal-col .dcol-h .cal-nav{margin-left:auto}
-.cal-plus{width:24px;height:24px;border:1.5px solid var(--pine);background:#fff;color:var(--pine);border-radius:6px;font:700 16px/1 var(--sans);cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center}
-.cal-plus:hover{background:#eef4ee}
+.cal-plus{width:28px;height:24px;border:1px solid var(--pine);background:var(--pine);color:#fff;border-radius:6px;font:700 16px/1 var(--sans);cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.cal-plus:hover{filter:brightness(1.1)}   /* 공통 업무 「관리」(.cm-btn)처럼 초록 채움 (2026-11-24) */
 .cal-day li.ce-i{cursor:pointer}
 .cal-day li.ce-i:hover{filter:brightness(.96)}
 .cal-kind{display:inline-flex;gap:6px}
