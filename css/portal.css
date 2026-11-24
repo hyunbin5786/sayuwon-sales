@@ -311,3 +311,16 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .cal-tm label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
 .cal-tm input[type=checkbox]{width:17px;height:17px;accent-color:var(--pine)}
 .cal-tm #calNTm{width:150px;height:34px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit;font-size:14px}
+/* 캘린더 + 버튼 · 일정 고치기 · 하루 / 기간 (2026-11-24) */
+.dcal-col .dcol-h{align-items:center}
+.dcal-col .dcol-h .cal-nav{margin-left:auto}
+.cal-plus{width:24px;height:24px;border:1.5px solid var(--pine);background:#fff;color:var(--pine);border-radius:6px;font:700 16px/1 var(--sans);cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.cal-plus:hover{background:#eef4ee}
+.cal-day li.ce-i{cursor:pointer}
+.cal-day li.ce-i:hover{filter:brightness(.96)}
+.cal-kind{display:inline-flex;gap:6px}
+.cal-kind button{height:32px;padding:0 14px;border:1px solid var(--line);border-radius:8px;background:#fff;color:#3d3b35;font:700 13px var(--sans);cursor:pointer}
+.cal-kind button.on{background:var(--pine);border-color:var(--pine);color:#fff}
+.cal-tm small{color:var(--muted);font-size:12px}
+.cal-f[hidden],.cal-to[hidden]{display:none}
+.cal-panel .cm-btns .hint{flex:1}

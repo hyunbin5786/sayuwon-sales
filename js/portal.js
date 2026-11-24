@@ -304,36 +304,35 @@ function grpItems(r){
   return out;
 }
 // 구분 (2026-11-24): 단체예약(단체 방문 · 자동) · 행사 · 교육 · 휴관 · 기타 — 구분마다 색 · 달력 아래 색 안내(범례). 예전 일정(구분 없음)은 「기타」
-//  기업 프로모션 시작 · 만료(주황)도 범례에
+//  기업 프로모션(시작 · 만료)은 캘린더에서 뺌 (2026-11-24 같은 날)
 const CAL_CATS = [['행사','#8b4a9c','#f3e9f6'], ['교육','#3d5a80','#eaf0f7'], ['휴관','#b5442c','#f9e9e5'], ['기타','#7a705c','#f1eee6']];
-const CAL_GRP = ['단체예약','#3f5236','#eef4ee'], CAL_PRO = ['기업 프로모션','#c0772c','#fbefe2'];
+const CAL_GRP = ['단체예약','#3f5236','#eef4ee'];
 const calCat = x => CAL_CATS.find(k=>k[0]===x.cat) || CAL_CATS[3];
 const calTag = c => `<span class="cal-tag" style="background:${c[1]}">${esc(c[0])}</span>`;
 function calHTML(today){
   const [y,m]=calMonth.split('-').map(Number), first=new Date(y, m-1, 1), start=first.getDay(), days=new Date(y, m, 0).getDate();
   // 기간 일정: d2(끝나는 날)가 있으면 d ~ d2 의 모든 날에 보임 (예: 겨울 휴관) · 기간 안의 날은 칸 바탕을 그 구분의 연한 색
-  // 기업 프로모션 시작 · 만료 (promodb): 주황 · 그날 목록에 「프로모션 시작 · 만료」
-  const PR=devOff('promo.html') ? [] : ((histOf('promodb')||{}).rows||[]).flatMap(r=>{ const p=opsPeriod(r.period), n=String(r.name||'').split(/\n/)[0]; return [p.from?{d:p.from, t:'시작', n}:null, p.to?{d:p.to, t:'만료', n}:null].filter(Boolean); });
   const V=calVisits(), E=calRows(lastItems), on=(x,ds)=>x.d2 && x.d2>x.d ? (x.d<=ds && ds<=x.d2) : x.d===ds, cnt=(L,d)=>L.filter(x=>x.d===d).length;
   const badge = (c, n) => n ? `<b class="ck" style="background:${c[1]}" title="${esc(c[0])} ${n}">${n}</b>` : '';
   let cells=''; for(let i=0;i<start;i++) cells+='<span class="cd e"></span>';
   for(let d=1; d<=days; d++){ const ds=`${calMonth}-${String(d).padStart(2,'0')}`, dow=(start+d-1)%7, eD=E.filter(x=>on(x,ds)), rg=eD.find(x=>x.d2 && x.d2>x.d);
     cells+=`<button type="button" class="cd${ds===today?' today':''}${ds===calDay?' on':''}${rg?' rng':''}${dow===0 || CAL_HOLI.has(ds)?' sun':dow===6?' sat':''}" data-cday="${ds}"${CAL_HOLI.has(ds)?' title="공휴일"':''}${rg && ds!==calDay?` style="background:${calCat(rg)[2]}"`:''}><i>${d}</i>`
-      + badge(CAL_GRP, cnt(V,ds)) + CAL_CATS.map(c=>badge(c, eD.filter(x=>calCat(x)===c).length)).join('') + badge(CAL_PRO, PR.filter(x=>x.d===ds).length) + `</button>`; }
+      + badge(CAL_GRP, cnt(V,ds)) + CAL_CATS.map(c=>badge(c, eD.filter(x=>calCat(x)===c).length)).join('') + `</button>`; }
   const dv=V.filter(x=>x.d===calDay).sort((a,b)=>String(a.tm).localeCompare(String(b.tm))), de=E.filter(x=>on(x,calDay)).sort((a,b)=>String(a.d).localeCompare(String(b.d)) || String(a.tm||'99').localeCompare(String(b.tm||'99')));
   const per = x => x.d2 && x.d2>x.d ? `<b class="per">${esc(opsDateLabel(x.d))} ~ ${esc(opsDateLabel(x.d2))}</b> ` : '';
-  const legend = `<div class="cal-lg">${[CAL_GRP, ...CAL_CATS, CAL_PRO].map(c=>`<span><i style="background:${c[1]}"></i>${esc(c[0])}</span>`).join('')}</div>`;
-  return `<div class="dcol-h"><b>캘린더</b><span class="cal-nav"><button type="button" data-cmon="-1" title="이전 달">‹</button><span>${y}년 ${m}월</span><button type="button" data-cmon="1" title="다음 달">›</button></span></div>`
+  const legend = `<div class="cal-lg">${[CAL_GRP, ...CAL_CATS].map(c=>`<span><i style="background:${c[1]}"></i>${esc(c[0])}</span>`).join('')}</div>`;
+  return `<div class="dcol-h"><b>캘린더</b><button type="button" class="cal-plus" id="calAddBtn" title="일정 추가" aria-label="일정 추가">+</button><span class="cal-nav"><button type="button" data-cmon="-1" title="이전 달">‹</button><span>${y}년 ${m}월</span><button type="button" data-cmon="1" title="다음 달">›</button></span></div>`
     + `<div class="cal-g"><span class="cw">일</span><span class="cw">월</span><span class="cw">화</span><span class="cw">수</span><span class="cw">목</span><span class="cw">금</span><span class="cw">토</span>${cells}</div>`
     + legend
     + `<div class="cal-day">`
-    + (dv.length||de.length||PR.some(x=>x.d===calDay) ? `<ul>${dv.map(x=>`<li class="cv-i"><span class="cv-l">${calTag(CAL_GRP)} <a class="cv-org" href="group.html?open=${encodeURIComponent(x.id)}" title="이 단체예약 열기">${esc(x.org)}</a>${x.n?` ${esc(x.n)}명`:''}${x.tm?` · ${esc(x.tm)}`:''}${x.st==='가예약'?' <small>(가예약)</small>':''}${x.own?` <small class="own">영업 ${esc(x.own)}</small>`:''}</span>${x.items.length?`<div class="cv-items">${x.items.map(i=>`<span>${esc(i.t)}${i.s?`<em>담당 ${esc(i.s)}</em>`:''}</span>`).join('')}</div>`:''}</li>`).join('')}`
-        + PR.filter(x=>x.d===calDay).map(x=>`<li class="cp-i">${calTag(CAL_PRO)} <a href="promo.html">${x.t} · ${esc(x.n)}</a></li>`).join('')
-        + `${de.map(x=>{ const c=calCat(x); return `<li class="ce-i" style="background:${c[2]}"><span>${calTag(c)} ${per(x)}${x.tm?`<b class="ctm">${esc(x.tm)}</b> · `:''}${esc(x.title)} <small>${esc(x.by||'')}</small></span><button type="button" data-cdel="${esc(x.id)}" title="이 일정 빼기">×</button></li>`; }).join('')}</ul>` : '<p class="hint">이날 단체 방문 · 일정이 없습니다.</p>')
-    + `<button type="button" class="btn-sm primary cal-addbtn" id="calAddBtn">＋ 일정 추가</button></div>`;
+    + (dv.length||de.length ? `<ul>${dv.map(x=>`<li class="cv-i"><span class="cv-l">${calTag(CAL_GRP)} <a class="cv-org" href="group.html?open=${encodeURIComponent(x.id)}" title="이 단체예약 열기">${esc(x.org)}</a>${x.n?` ${esc(x.n)}명`:''}${x.tm?` · ${esc(x.tm)}`:''}${x.st==='가예약'?' <small>(가예약)</small>':''}${x.own?` <small class="own">영업 ${esc(x.own)}</small>`:''}</span>${x.items.length?`<div class="cv-items">${x.items.map(i=>`<span>${esc(i.t)}${i.s?`<em>담당 ${esc(i.s)}</em>`:''}</span>`).join('')}</div>`:''}</li>`).join('')}`
+        + `${de.map(x=>{ const c=calCat(x); return `<li class="ce-i" style="background:${c[2]}" data-cedit="${esc(x.id)}" title="누르면 고치기 · 삭제"><span>${calTag(c)} ${per(x)}${x.tm?`<b class="ctm">${esc(x.tm)}</b> · `:''}${esc(x.title)} <small>${esc(x.by||'')}</small></span></li>`; }).join('')}</ul>` : '<p class="hint">이날 단체 방문 · 일정이 없습니다.</p>')
+    + `</div>`;
 }
-function calRestore(){}   // 예전 칸 안 입력(제목 · 시간 · 끝나는 날)은 없앰 (2026-11-24) — 「＋ 일정 추가」 팝업으로
-// ===== 일정 추가 팝업 (2026-11-24): 구분 · 제목 · 시작하는 날(기본 오늘) ~ 끝나는 날 · 하루 종일 또는 시간 =====
+function calRestore(){}   // 예전 칸 안 입력(제목 · 시간 · 끝나는 날)은 없앰 (2026-11-24) — 「+」 팝업으로
+// ===== 일정 추가 · 고치기 팝업 (2026-11-24) =====
+//  「캘린더」 옆 + = 추가 · 아래 일정 상자를 누르면 같은 팝업으로 고치기 + 「삭제」
+//  하루 일정 = 날짜 하나 + 시간(선택 · 비우면 하루 종일) / 기간 일정 = 시작하는 날 ~ 끝나는 날 (시간 없음) · 시작하는 날 기본 오늘
 function calDateBox(pick){   // 단체 방문일과 같은 날짜 칸 (칸 안에 「날짜 (요일)」 · 누르면 달력 · 한 번 더 누르거나 숫자를 치면 직접 입력)
   const txt=pick.parentElement.querySelector('.dtxt');
   const paint=()=>{ if(!txt.dataset.editing) txt.value=SY.dateDisp(pick.value); };
@@ -345,42 +344,55 @@ function calDateBox(pick){   // 단체 방문일과 같은 날짜 칸 (칸 안�
     if(!d){ $('#calErr').textContent='날짜를 알아볼 수 없습니다. 2026-12-05 · 12/5 처럼 적어 주세요.'; paint(); return; } pick.value=d; pick.dispatchEvent(new Event('change', {bubbles:true})); });
   pick.addEventListener('input', paint); pick.addEventListener('change', paint); paint();
 }
-let calAddCat='행사';
-function calOpenAdd(){
+let calAddCat='행사', calEditId='';
+const calPlus1 = d => { const x=new Date(d+'T00:00'); x.setDate(x.getDate()+1); return opsYmd(x); };
+function calOpenAdd(row){
   let M=$('#calModal'); if(!M){ M=document.createElement('div'); M.id='calModal'; M.className='cm-modal'; document.body.appendChild(M); }
-  const today=opsToday(), dbox=id=>`<span class="dbox"><input class="dtxt" readonly placeholder="누르면 달력" title="누르면 달력 · 한 번 더 누르면 직접 입력" inputmode="numeric"><input type="date" class="dpick" id="${id}" value="${today}"></span>`;
-  M.innerHTML = `<div class="cm-panel cal-panel" role="dialog" aria-label="일정 추가"><h2>일정 추가</h2>`
-    + `<div class="cal-f"><span class="cal-fl">구분</span><span class="cal-cats">${CAL_CATS.map(c=>`<button type="button" data-ccat="${c[0]}" style="--c:${c[1]};--s:${c[2]}"${c[0]===calAddCat?' class="on"':''}>${c[0]}</button>`).join('')}</span></div>`
-    + `<div class="cal-f"><span class="cal-fl">제목</span><input id="calNTitle" placeholder="예: 정기 점검 · 직원 교육 · 겨울 휴관" data-ime="ko" maxlength="60" autocomplete="off"></div>`
-    + `<div class="cal-f"><span class="cal-fl">기간</span><span class="cal-per">${dbox('calNFrom')}<span>~</span>${dbox('calNTo')}</span></div>`
-    + `<div class="cal-f"><span class="cal-fl">시간</span><span class="cal-tm"><label><input type="checkbox" id="calNAll" checked> 하루 종일</label><input id="calNTm" data-tp="range" placeholder="예: 10:00~11:00" maxlength="11" autocomplete="off" hidden></span></div>`
-    + `<p class="err" id="calErr"></p><div class="cm-btns"><span class="hint">시작하는 날과 끝나는 날이 같으면 하루 일정</span><button type="button" class="btn-sm primary" data-cclose>닫기</button><button type="button" class="btn-sm primary" id="calNSave">추가</button></div></div>`;
-  M.hidden=false; M.querySelectorAll('.dpick').forEach(calDateBox); setTimeout(()=>$('#calNTitle').focus(), 0);
+  calEditId=row ? row.id : ''; calAddCat=row ? calCat(row)[0] : '행사';   // 새 일정은 늘 「행사」부터
+  const d=row ? row.d : opsToday(), isPer=!!(row && row.d2 && row.d2>row.d), d2=isPer ? row.d2 : calPlus1(d);
+  const dbox=(id,v)=>`<span class="dbox"><input class="dtxt" readonly placeholder="누르면 달력" title="누르면 달력 · 한 번 더 누르면 직접 입력" inputmode="numeric"><input type="date" class="dpick" id="${id}" value="${v}"></span>`;
+  M.innerHTML = `<div class="cm-panel cal-panel" role="dialog" aria-label="${row?'일정 고치기':'일정 추가'}"><h2>${row?'일정 고치기':'일정 추가'}</h2>`
+    + `<div class="cal-f"><span class="cal-fl">구분</span><span class="cal-cats">${CAL_CATS.map(c=>`<button type="button" data-ccat="${c[0]}" style="--c:${c[1]}"${c[0]===calAddCat?' class="on"':''}>${c[0]}</button>`).join('')}</span></div>`
+    + `<div class="cal-f"><span class="cal-fl">제목</span><input id="calNTitle" placeholder="예: 정기 점검 · 직원 교육 · 겨울 휴관" data-ime="ko" maxlength="60" autocomplete="off" value="${esc(row?row.title:'')}"></div>`
+    + `<div class="cal-f"><span class="cal-fl">일정</span><span class="cal-kind"><button type="button" data-ckind="day"${isPer?'':' class="on"'}>하루 일정</button><button type="button" data-ckind="per"${isPer?' class="on"':''}>기간 일정</button></span></div>`
+    + `<div class="cal-f"><span class="cal-fl" id="calDLabel">${isPer?'기간':'날짜'}</span><span class="cal-per">${dbox('calNFrom', d)}<span class="cal-to"${isPer?'':' hidden'}>~</span><span class="cal-to"${isPer?'':' hidden'}>${dbox('calNTo', d2)}</span></span></div>`
+    + `<div class="cal-f cal-tmrow"${isPer?' hidden':''}><span class="cal-fl">시간</span><span class="cal-tm"><input id="calNTm" data-tp="range" placeholder="선택 · 예: 10:00~11:00" maxlength="11" autocomplete="off" value="${esc(row&&!isPer?row.tm||'':'')}"><small>비우면 하루 종일</small></span></div>`
+    + `<p class="err" id="calErr"></p><div class="cm-btns">${row?'<button type="button" class="btn-sm primary" id="calNDel">삭제</button>':''}<span class="hint"></span><button type="button" class="btn-sm primary" data-cclose>닫기</button><button type="button" class="btn-sm primary" id="calNSave">${row?'저장':'추가'}</button></div></div>`;
+  M.hidden=false; M.querySelectorAll('.dpick').forEach(calDateBox); setTimeout(()=>{ const t=$('#calNTitle'); t.focus(); const n=t.value.length; try{ t.setSelectionRange(n,n); }catch(_){} }, 0);
 }
-function calCloseAdd(){ const M=$('#calModal'); if(M){ M.hidden=true; M.innerHTML=''; } }
+function calCloseAdd(){ const M=$('#calModal'); if(M){ M.hidden=true; M.innerHTML=''; } calEditId=''; }
+const calIsPer = () => !!document.querySelector('#calModal [data-ckind="per"].on');
 document.addEventListener('change', e=>{
-  if(e.target.id==='calNFrom'){ const t=$('#calNTo'); if(t && (!t.value || t.value<e.target.value)){ t.value=e.target.value; t.dispatchEvent(new Event('change')); } }   // 시작하는 날을 끝나는 날보다 뒤로 옮기면 끝나는 날도 같이
-  if(e.target.id==='calNAll'){ const tm=$('#calNTm'); tm.hidden=e.target.checked; if(!e.target.checked) tm.focus(); }
+  if(e.target.id==='calNFrom' && calIsPer()){ const t=$('#calNTo'); if(t && (!t.value || t.value<=e.target.value)){ t.value=calPlus1(e.target.value); t.dispatchEvent(new Event('change')); } }   // 기간 일정: 시작하는 날을 끝나는 날 뒤로 옮기면 끝나는 날 = 다음 날
 });
 document.addEventListener('keydown', e=>{ const M=$('#calModal'); if(!M || M.hidden) return;
   if(e.key==='Escape' && !document.querySelector('.tp-pop:not([hidden])')) calCloseAdd();
   if(e.key==='Enter' && e.target.id==='calNTitle'){ e.preventDefault(); $('#calNSave').click(); } });
 document.addEventListener('click', e=>{
-  if(e.target.id==='calAddBtn'){ calOpenAdd(); return; }
+  if(e.target.closest('#calAddBtn')){ calOpenAdd(null); return; }
+  const ed=e.target.closest('[data-cedit]'); if(ed){ const r=calRows(lastItems).find(x=>x.id===ed.dataset.cedit); if(r) calOpenAdd(r); return; }
   const M=$('#calModal'); if(!M || M.hidden) return;
   if(e.target===M || e.target.closest('[data-cclose]')){ calCloseAdd(); return; }
   const c=e.target.closest('[data-ccat]'); if(c){ calAddCat=c.dataset.ccat; M.querySelectorAll('[data-ccat]').forEach(b=>b.classList.toggle('on', b===c)); return; }
+  const k=e.target.closest('[data-ckind]'); if(k){ const per=k.dataset.ckind==='per'; M.querySelectorAll('[data-ckind]').forEach(b=>b.classList.toggle('on', b===k));
+    M.querySelectorAll('.cal-to').forEach(x=>x.hidden=!per); M.querySelector('.cal-tmrow').hidden=per; $('#calDLabel').textContent=per?'기간':'날짜';
+    if(per){ const f=$('#calNFrom'), t=$('#calNTo'); if(!t.value || t.value<=f.value){ t.value=calPlus1(f.value); t.dispatchEvent(new Event('change')); } } return; }
+  if(e.target.id==='calNDel'){ const id=calEditId, r=calRows(lastItems).find(x=>x.id===id); if(!id || !confirm(`「${r?r.title:'이 일정'}」을(를) 삭제할까요?`)) return;
+    e.target.disabled=true; calSave(rows=>rows.filter(x=>x.id!==id), '삭제').then(()=>calCloseAdd()).catch(er=>{ e.target.disabled=false; $('#calErr').textContent='삭제하지 못했습니다: '+(er.code||er.message); }); return; }
   if(e.target.id==='calNSave'){
-    const err=$('#calErr'), title=$('#calNTitle').value.trim(), d=$('#calNFrom').value, d2=$('#calNTo').value||d, all=$('#calNAll').checked, tm=all?'':$('#calNTm').value.trim();
+    const err=$('#calErr'), title=$('#calNTitle').value.trim(), per=calIsPer(), d=$('#calNFrom').value, d2=per ? $('#calNTo').value : '', tm=per ? '' : $('#calNTm').value.trim();
     err.textContent='';
     if(!title){ err.textContent='제목을 적어 주세요.'; $('#calNTitle').focus(); return; }
-    if(!d){ err.textContent='시작하는 날을 넣어 주세요.'; return; }
-    if(d2<d){ err.textContent='끝나는 날이 시작하는 날보다 앞입니다.'; return; }
-    if(!all && !tm){ err.textContent='시간을 넣거나 「하루 종일」을 고르세요.'; $('#calNTm').focus(); return; }
-    const row={id:'e'+Date.now().toString(36), cat:calAddCat, d, ...(d2>d ? {d2} : {}), tm, title, by:(getUser()||{}).name||'', at:new Date().toISOString()};
+    if(!d){ err.textContent=per?'시작하는 날을 넣어 주세요.':'날짜를 넣어 주세요.'; return; }
+    if(per && !d2){ err.textContent='끝나는 날을 넣어 주세요.'; return; }
+    if(per && d2<=d){ err.textContent='끝나는 날이 시작하는 날보다 뒤여야 합니다 (같은 날이면 「하루 일정」).'; return; }
+    const me=(getUser()||{}).name||'', now=new Date().toISOString(), id=calEditId;
+    const base={cat:calAddCat, d, tm, title};
     e.target.disabled=true;
-    calSave(rows=>[...rows, row], `추가 ${title}`).then(()=>{ calDay=d; calMonth=d.slice(0,7); calCloseAdd(); renderDash(); })
-      .catch(er=>{ e.target.disabled=false; err.textContent='추가하지 못했습니다: '+(er.code||er.message); });
+    const fn = id ? rows=>rows.map(x=>{ if(x.id!==id) return x; const y={...x, ...base, editBy:me, editAt:now}; if(per) y.d2=d2; else delete y.d2; return y; })
+                  : rows=>[...rows, {id:'e'+Date.now().toString(36), ...base, ...(per ? {d2} : {}), by:me, at:now}];
+    calSave(fn, `${id?'고침':'추가'} ${title}`).then(()=>{ calDay=d; calMonth=d.slice(0,7); calCloseAdd(); renderDash(); })
+      .catch(er=>{ e.target.disabled=false; err.textContent=(id?'저장하지':'추가하지')+' 못했습니다: '+(er.code||er.message); });
   }
 });
 async function calSave(fn, what){   // 최신 일정표를 받아 fn(rows) 로 바꾸고 저장
@@ -395,7 +407,6 @@ async function calSave(fn, what){   // 최신 일정표를 받아 fn(rows) 로 �
 document.addEventListener('click', e=>{
   const d=e.target.closest('[data-cday]'); if(d){ calDay=d.dataset.cday; renderDash(); return; }
   const mo=e.target.closest('[data-cmon]'); if(mo){ const [y,m]=calMonth.split('-').map(Number), x=new Date(y, m-1+(+mo.dataset.cmon), 1); calMonth=`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}`; renderDash(); return; }
-  const del=e.target.closest('[data-cdel]'); if(del){ const id=del.dataset.cdel; calSave(rows=>rows.filter(x=>x.id!==id), '빼기').catch(err=>alert('빼지 못했습니다: '+(err.code||err.message))); return; }
 });
 document.addEventListener('change', e=>{ if(e.target.id==='dashMem'){ dashMem=e.target.value; try{ localStorage.setItem('sy_dash_mem', dashMem); }catch(_){} renderDash(); } });
 function renderDash(){ if(!dashData) return; paintRange();
