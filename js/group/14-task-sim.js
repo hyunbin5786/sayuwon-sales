@@ -127,7 +127,7 @@ const doneTodayOpen = () => { try{ return localStorage.getItem(DONE_TODAY_LS)===
 function doneTodayHTML(){
   const today=ymd(new Date()), me=savedOwner(), isToday = s => { const x=new Date(s||''); return !isNaN(x) && ymd(x)===today; }, rows=[];
   const L=[];   // 같은 과업 줄 모양 (완료 = 줄 그음 · 체크를 풀면 다시 열림, 2026-11-21)
-  (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).tasks.filter(t=>t.done && !t.removed && !SELF_DONE.has(t.id) && isToday(t.doneAt)).forEach(t=>L.push(tkFromG(r, t))));
+  (cache||[]).filter(r=>isGroupRec(r) && (ownerOf(r)===me || mayStaff(r, me))).forEach(r=>parseHist(r).tasks.filter(t=>t.done && !t.removed && !SELF_DONE.has(t.id) && isToday(t.doneAt) && taskForMe(r, t, me)).forEach(t=>L.push(tkFromG(r, t))));   // 내가 담당자인 준비 과업도 (2026-11-24 · 체크를 풀어 다시 열 수 있게)
   (cache||[]).filter(r=>isPersonalRec(r) && (r.owner||r.takenBy)===me).forEach(r=>{ let ts=[]; try{ ts=(JSON.parse(r.history||'{}').tasks)||[]; }catch(_){} ts.filter(t=>t.done && isToday(t.doneAt)).forEach(t=>L.push(tkFromP(r, t))); });
   etcMine().forEach(o=>Object.entries(o.d.done||{}).filter(([,v])=>isToday(v&&v.at)).forEach(([day])=>L.push({...tkFromE(o, day), done:true, src:catLabel(etcCatOf(o.d))||ETC_NOCAT, srcAttr:''})));
   L.forEach(T=>rows.push(tkHTML(T)));

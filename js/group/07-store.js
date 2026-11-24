@@ -95,7 +95,7 @@ SY.live.on(m=>{ const id = m.t==='del' ? m.id : m.item.id; cache=merged(); clear
   liveT=setTimeout(()=>{ if(!window.__tasksReady) return;
     try{
       // 그 예약을 이 화면에서도 열어 두었고 고치던 것이 없으면: 새 내용으로 다시 엶 (화면의 과업이 옛 상태로 남았다가 저장되어 되돌아가지 않게)
-      if(m.t==='put' && editingId===id && !saving && !lockOwner && !isDirty() && $('#listModal').hidden && !document.activeElement?.closest?.('#taskList, #form')){ const r=cache.find(x=>x.id===id); if(r){ const y=window.scrollY; openRecord(r); window.scrollTo(0,y); } }
+      if(m.t==='put' && editingId===id && !saving && (lockOwner ? (typeof lockSaving==='undefined' || !lockSaving) : !isDirty()) && $('#listModal').hidden && !document.activeElement?.closest?.('#taskList, #form')){ const r=cache.find(x=>x.id===id); if(r){ const y=window.scrollY, lk=!!lockOwner, typed=$('#memoBox').value, foc=document.activeElement===$('#memoBox'), was=String(typeof memoOpened!=='undefined' ? memoOpened : ''); openRecord(r); window.scrollTo(0,y); if(lk && typed.trim()!==String(r.note||'').trim() && typed.trim()!==was.trim()){ $('#memoBox').value=typed; } if(lk && foc) $('#memoBox').focus(); } }   // 남이 담당인 예약도 새 내용으로 (2026-11-24 · 적던 통화 메모는 그대로 둠)
       paintMyCount(); if(!$('#listModal').hidden) renderList();
       if(!$('#myModal').hidden && !(typeof etcEdit!=='undefined' && etcEdit && document.activeElement?.closest?.('.etc-edit')) && !document.activeElement?.matches?.('.tk-memoin, .tk-subin, .tk-in')) renderMy();
     }catch(e){ console.warn('live', e); } }, 30); });
@@ -164,7 +164,7 @@ async function pull(inFlush){
   if(flushing && !inFlush) return;
   try{
     const j=await SY.list(inFlush ? {fresh:true} : {});   // 바뀐 것만 받아 사본에 합침 (js/common.js, 2026-11-21)
-    serverItems=j.items||[]; pulledOnce=true; cacheWrite(serverItems);
+    serverItems=j.items||[]; pulledOnce=true; cacheWrite(serverItems); cache=merged();   // 2026-11-24: 받은 것을 바로 합침 — 예전엔 나의 할일 · 알림을 옛 사본으로 다시 그려(합치기는 그 뒤 renderList 에서) 다른 컴퓨터에서 바꾼 과업이 늦게 보였음
     if(j.admin!==undefined){ adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
     dbTime.pulled=new Date().toISOString(); writeJSON(DBT_LS, dbTime);
     syncState='ok'; lastSyncErr=''; syncErrN=0; $('#keyMsg').textContent=''; paintSync(); renderList(); tryOpenG(); liveSync(); if(window.__tasksReady){ checkPayPopup(); takeDocs(); paintMyCount(); checkTbdPopup(); checkMemoPopup(); if(editingId){ const cr=cache.find(x=>x.id===editingId); if(cr){ memos=mergeMemos(memos, parseHist(cr).memos); paintLock(); } } if(!$("#myModal").hidden && !(typeof etcEdit!=="undefined" && etcEdit && document.activeElement?.closest?.(".etc-edit")) && !document.activeElement?.matches?.(".tk-memoin, .tk-subin, .tk-in")) renderMy(); }   // 과업 칸(메모 · 세부 과업)에 적는 중이면 나의 할일을 다시 그리지 않음
