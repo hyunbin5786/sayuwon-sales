@@ -389,7 +389,7 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .owner-memo li small{color:var(--muted)}
 .owner-memo .om-add{display:flex;gap:6px;margin-top:6px}
 .owner-memo textarea{flex:1;min-height:48px;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13px/1.5 var(--sans)}
-body.locked .memo-col,body.locked .form-col > :not(.owner-memo),body.locked .checks > section:not(.day-panel),body.locked #priceWrap{opacity:.6;cursor:not-allowed}
+body.locked .layout :is(input,select,textarea,button,label):not(#memoBox){cursor:not-allowed}   /* 남이 담당인 예약 (2026-11-24): 흐리게 하지 않음 · 고치는 칸만 막음 (js/group/15-lock-popups.js) */
 body.locked #saveBtn{display:none}
 .mbdb-t th{position:sticky;top:0;background:var(--card);font-size:12px;color:var(--muted);font-weight:500}
 .mbdb-t tr.r{cursor:pointer}

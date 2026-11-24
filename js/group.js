@@ -2013,7 +2013,7 @@ async function save(opt){
   if(saving){ if(auto){ clearTimeout(autoT); autoT=setTimeout(()=>save(opt), 3000); return; }   // 자동 저장 중이면: 자동은 잠시 뒤, 저장 버튼은 끝나기를 기다렸다가
     await new Promise(ok=>{ const iv=setInterval(()=>{ if(!saving){ clearInterval(iv); ok(); } }, 50); }); return save(opt); }
   if(editLockBy){ if(!auto) toast(`${editLockBy}님이 다른 PC(창)에서 이 예약을 고치는 중이라 저장할 수 없습니다.`); return; }   // 같은 예약을 두 곳에서 고치지 않게
-  if(lockOwner){ if(!auto) toast(`${lockOwner}님 담당 예약이라 고칠 수 없습니다. 바꿀 내용은 위쪽 메모로 남겨 주세요.`); return; }   // 남이 담당인 예약은 저장 안 함 (메모만)
+  if(lockOwner) return saveLockedParts();   // 남이 담당인 예약: 예약 전체는 저장 안 함 — 통화 메모 · 내가 담당자인 과업만 (2026-11-24 · 15-lock-popups.js)
   if(!canSave()){ if(!auto) toast('업체나 방문일을 먼저 입력하세요.'); return; }
   if(typeof tbdIsLate==='function' && tbdIsLate(rec) && !rec.tbdLate){ if(!auto) openLate(()=>save(opt)); return; }   // 입력 기한을 전주 목요일보다 늦게 잡았으면 사유부터 (자동 저장은 기다림)
   if(auto && !isDirty()) return;
@@ -4149,7 +4149,7 @@ function paintLock(){
   }
   if(lockOwner){
     box.className='owner-memo lock-ok'; box.hidden=false;
-    box.innerHTML = `<div class="om-h">🔒 ${esc(lockOwner)}님 담당 예약입니다 · 고칠 수 없습니다</div><div class="hint" style="margin:0">바꿀 내용이나 전할 말은 아래에 메모로 남겨 주세요. ${esc(lockOwner)}님 화면에 「메모를 확인하세요」 알림이 뜹니다.</div>`
+    box.innerHTML = `<div class="om-h">🔒 ${esc(lockOwner)}님 담당 예약입니다 · 보기만 됩니다</div><div class="hint" style="margin:0">예약 내용 · 예약 현황 · 수정 기록은 볼 수 있고, <b>통화 메모</b>와 <b>내가 담당자인 추후 과업</b>은 고칠 수 있습니다. 통화 메모를 고치거나 아래에 메모를 남기면 ${esc(lockOwner)}님 화면에 「메모를 확인하세요」 알림이 뜹니다.</div>`
       + (list.length ? `<ul>${list.map(m=>memoLi(m,false)).join('')}</ul>` : '')
       + `<div class="om-add"><textarea id="omText" data-ime="ko"></textarea><button type="button" class="btn primary" id="omSend">메모 남기기</button></div>`;
   } else if(editingId && memos.length){
@@ -4173,14 +4173,50 @@ document.addEventListener('click', async e=>{
     paintLock(); toast(`메모를 남겼습니다. ${lockOwner}님께 알림이 갑니다.`); return; }
   if(e.target.id==='omSeen'){ const me=savedOwner(), now=new Date().toISOString(); await saveMemos(editingId, ms=>ms.map(m=>m.by!==me && !m.seen ? {...m, seen:true, seenAt:now} : m)); paintLock(); paintMemoCount(); }
 });
-// 잠긴 예약: 화면의 칸 · 버튼을 누르거나 쳐도 아무 일이 없게 (위쪽 메모 · 예약 현황 목록 · 텍스트 복사는 됨)
-const lockBlocked = t => !!(lockOwner || editLockBy) && t && t.closest && t.closest('.layout') && !t.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn, #noteRegenBtn, #noteModal, #histDet > summary');
+// 잠긴 예약 (2026-11-24 바꿈): 예약 내용 · 예약 현황 · 수정 기록 · 추후 과업은 모두 읽을 수 있음 (흐리게 하지 않음 · 펼치기 · 스크롤 · 복사 됨)
+//  고치는 칸 · 버튼(입력 · 고르기 · 체크 · 버튼)을 누르면 막고 「영업 담당자가 아니어서 편집할 수 없습니다」 팝업
+//  남이 담당인 예약(lockOwner)에서도 고칠 수 있는 것: ① 통화 메모 (고치면 영업 담당에게 「메모를 확인하세요」 알림) ② 내가 담당자인 추후 과업(단체 준비 등 t.who === 나)
+//  다른 PC(창)에서 고치는 중(editLockBy)이면 통화 메모 · 과업도 막음 (같은 예약을 두 곳에서 고치지 않게)
+const LOCK_EDIT_SEL = 'input, select, textarea, button, label, [contenteditable="true"], [data-idel], [data-tmv], .tdrag';
+const myLockTask = el => { const li=el.closest && el.closest('#taskList .task'); if(!li) return false; const t=tasks.find(x=>x.id===li.dataset.id); return !!(t && t.who && t.who===savedOwner()); };
+const lockAllowed = el => !!el.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn, #copyReadBtn, #noteRegenBtn, #noteModal, summary, [data-texp], [data-tcopy], #lockPop')
+  || (!editLockBy && (el.closest('#memoBox') || myLockTask(el)));
+const lockBlocked = t => !!(lockOwner || editLockBy) && t && t.closest && !!t.closest('.layout') && !!t.closest(LOCK_EDIT_SEL) && !lockAllowed(t);
 let lockNudgeT=0;
-['mousedown','click','dblclick','beforeinput','paste','drop','dragstart','change','input'].forEach(ev=>document.addEventListener(ev, e=>{
+function lockPopup(){ if(Date.now()-lockNudgeT<800) return; lockNudgeT=Date.now();
+  let m=document.getElementById('lockPop');
+  if(!m){ m=document.createElement('div'); m.id='lockPop'; m.className='modal'; m.hidden=true;
+    m.innerHTML='<section class="panel ask-box" role="dialog" aria-modal="true" aria-labelledby="lockPopT"><h2 id="lockPopT">🔒 편집할 수 없습니다</h2><p class="ask-msg" id="lockPopMsg"></p><div class="ask-btns"><button type="button" class="btn primary" id="lockPopOk">확인</button></div></section>';
+    document.body.appendChild(m); m.addEventListener('mousedown', e=>{ if(e.target===m) m.hidden=true; }); m.querySelector('#lockPopOk').onclick=()=>{ m.hidden=true; }; }
+  m.querySelector('#lockPopMsg').innerHTML = editLockBy
+    ? `<b>${esc(editLockBy)}</b>님이 다른 PC(창)에서 이 예약을 고치는 중이라 지금은 볼 수만 있습니다. 그쪽에서 닫으면 30초 안에 고칠 수 있게 됩니다.`
+    : `<b>영업 담당자가 아니어서 편집할 수 없습니다.</b><br>이 예약은 <b>${esc(lockOwner)}</b>님 담당입니다. 예약 내용 · 예약 현황 · 수정 기록은 볼 수 있습니다.<br><b>통화 메모</b>는 고칠 수 있고(고치면 ${esc(lockOwner)}님께 「메모를 확인하세요」 알림), <b>내가 담당자인 추후 과업</b>은 체크할 수 있습니다.`;
+  m.hidden=false; setTimeout(()=>m.querySelector('#lockPopOk').focus(), 0); }
+['mousedown','click','dblclick','beforeinput','paste','drop','dragstart','change','input','focusin'].forEach(ev=>document.addEventListener(ev, e=>{
   if(!lockBlocked(e.target)) return; e.preventDefault(); e.stopImmediatePropagation();
-  if(ev==='mousedown' && Date.now()-lockNudgeT>2500){ lockNudgeT=Date.now(); toast(`${lockOwner}님 담당 예약이라 고칠 수 없습니다. 위쪽 메모로 남겨 주세요.`); }
+  if(ev==='mousedown' || ev==='focusin'){ if(ev==='focusin' && e.target.blur) e.target.blur(); lockPopup(); }
 }, true));
-document.addEventListener('keydown', e=>{ if(!lockBlocked(e.target)) return; if(['Tab','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key) || ((e.ctrlKey||e.metaKey) && /^[ca]$/i.test(e.key))) return; e.preventDefault(); e.stopImmediatePropagation(); }, true);
+document.addEventListener('keydown', e=>{ if(!lockBlocked(e.target)) return; if(['Tab','Escape','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key) || ((e.ctrlKey||e.metaKey) && /^[ca]$/i.test(e.key))) return; e.preventDefault(); e.stopImmediatePropagation(); lockPopup(); }, true);
+// 남이 담당인 예약에서 고친 것 저장 (2026-11-24): 예약 전체가 아니라 통화 메모 · 내가 담당자인 과업만 최신 기록 위에 덮어씀 (save 가 lockOwner 일 때 부름)
+let lockSaving=false;
+async function saveLockedParts(){
+  if(!lockOwner || editLockBy || lockSaving || !editingId) return;
+  const me=savedOwner(), id=editingId, r0=cache.find(x=>x.id===id); if(!r0 || !me) return;
+  const note=$('#memoBox').value, mine=tasks.filter(t=>t.who && t.who===me), ph0=parseHist(r0);
+  const noteChanged = note.trim()!==String(r0.note||'').trim(), taskChanged = mine.some(t=>JSON.stringify(ph0.tasks.find(x=>x.id===t.id)||null)!==JSON.stringify(t));
+  if(!noteChanged && !taskChanged) return;
+  lockSaving=true;
+  try{ await pull(true); const r=cache.find(x=>x.id===id); if(!r) return; const ph=parseHist(r), now=new Date().toISOString();
+    mine.forEach(t=>{ const i=ph.tasks.findIndex(x=>x.id===t.id); if(i>=0) ph.tasks[i]={...t}; else ph.tasks.push({...t}); });
+    if(noteChanged){   // 영업 담당에게 알림: 아직 안 읽은 내 「통화 메모를 고쳤습니다」가 있으면 그 줄을 새로 (여러 번 고쳐도 알림 한 줄)
+      const txt=`통화 메모를 고쳤습니다 —\n${note.trim().slice(-400)}`, i=(ph.memos||[]).findIndex(m=>m.by===me && !m.seen && m.kind==='note');
+      if(i>=0) ph.memos[i]={...ph.memos[i], t:now, text:txt}; else ph.memos=[...(ph.memos||[]), {id:'m'+Date.now().toString(36), t:now, by:me, kind:'note', text:txt, seen:false}]; }
+    ph.h.push({t:now, by:me, what: [noteChanged?'[통화 메모] 고침 (담당 아님)':'', ...mine.filter(t=>JSON.stringify(ph0.tasks.find(x=>x.id===t.id)||null)!==JSON.stringify(t)).map(t=>`[과업] ${t.title} ${t.done?'완료':'고침'}`)].filter(Boolean).join(' · ')});
+    const item={...r, ...(noteChanged ? {note} : {}), history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos})};
+    await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
+    memos=ph.memos; paintLock(); status(`저장됨 ${new Date().toTimeString().slice(0,5)} · ${noteChanged?'통화 메모':'과업'}`);
+  }catch(err){ toast('저장하지 못했습니다: '+(err.code||err.message)); }
+  finally{ lockSaving=false; } }
 // 내 예약에 새 메모가 있으면: '메모를 확인하세요' 팝업 (확인할 때까지, 이 화면에서는 새 메모가 생길 때마다)
 let memoShown=new Set();
 function myNewMemos(){ const me=savedOwner(); if(!me) return []; const out=[]; (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).memos.forEach(m=>{ if(!m.seen && m.by!==me) out.push({r, m}); })); return out.sort((a,b)=>String(b.m.t).localeCompare(String(a.m.t))); }
