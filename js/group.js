@@ -2115,7 +2115,7 @@ function tourWithDefaults(r, s){ const o=tourParse(s), c=contactsOf(r)[0]||{}, o
   if(!o.name && c.name) o.name=c.name; if(o.name && org && !o.name.includes(org)) o.name=`${org}(${o.name})`; if(!o.name && org) o.name=org;
   if(!o.phone && c.phone) o.phone=c.phone; return o; }
 const tourPeople = r => numOf(tourParse(r.tour).people);
-const tourNote = r => { const pay=tourPeople(r)-1; return `${String(r.org||'').trim()||'단체명'} 사전답사${pay>=1?`/${pay}명 현장결제 필요`:''}`; };   // 답사 1명은 무료 → 2명 이상이면 (인원 − 1)명 현장결제 필요 (2026-11-17)
+const tourNote = r => { const pay=tourPeople(r)-1; return `${String(r.org||'').trim()||'단체명'} 사전답사${pay>=1?`/${pay}명 현장 결제 필요`:''}`; };   // 답사 1명은 무료 → 2명 이상이면 (인원 − 1)명 현장 결제 필요 (2026-11-17)
 const tourMemo = r => String(r.tour||'').split(/\s*,\s*/).filter(Boolean).join('\n');
 const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', onsitecall:'현장 결제 인원 확인 연락', wkcheck:'다음주 예약 점검', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인', clergy:'대구대교구 정보 기입',
   pplchk:PPL_TITLE, erpkeep:'전산 예약을 예약 내용대로 수정', prep:'단체 준비', memocheck:'통화 메모 확인' };   // memocheck = 영업 담당이 아닌 사람이 통화 메모를 고치거나 메모를 남기면 영업 담당에게 (2026-11-24)   // prep = 담당자마다 생기는 「단체 준비 : 동행 도슨트」 (실제 id 는 prep:이름 · 추후과업 메시지 관리의 「단체 준비」 하나로 이름 · 끄기 · 조건 · 마감 · 세부 과업을 정함, 2026-11-24)   // 2026-11-23: 조건이 아니라 「일이 생겼을 때」 만들어지는 자동 과업 두 개도 추후과업 메시지 관리 목록에 (이름 · 마감 · 세부 과업 · 문구 · 끄기)
@@ -2184,17 +2184,17 @@ const ERP_PROG_NAME = { donghaeng:'동행도슨트', seminar:'PPT세미나', sem
 // 전산 비고 규칙 (2026-11-24 정리) — 추후과업 메시지 관리의 「전산 예약」 · 「전산 예약 수정」을 열면 이 글이 그대로 보임 (js/taskcfg.js). 규칙을 바꾸면 이 글도 같이 고쳐 주세요
 const ERP_NOTE_RULES = `■ 모양
   항목 / 항목 / 항목 … (영업 담당 이름)
-  예) 현장결제 필요 / 10시 입장 / 12시 몽몽마방(사유의 밥상 10명) / 13시 PPT세미나(당두봉갈) / 음료쿠폰 40개 / 굿즈 고추장 2개 (문현빈)
+  예) 현장 결제 필요 / 10시 입장 / 12시 몽몽마방(사유의 밥상 10명) / 13시 PPT세미나(당두봉갈) / 음료쿠폰 40개 / 굿즈 고추장 2개 (문현빈)
 
 ■ 순서
-  ① 맨 앞 — 시간이 없는 확인 사항: 현장결제 필요 → 특별 할인 증빙 → 대구대교구 시트기입 → 학생 확인
+  ① 맨 앞 — 시간이 없는 확인 사항: 현장 결제 필요 → 특별 할인 증빙 → 대구대교구 시트기입 → 학생 확인
   ② 가운데 — 도착(입장)과 시간이 있는 일정을 이른 시간부터: 입장 · 몽몽마방 · 프로그램 · 대관 · 도슨트
      (시간이 있는 일정이 하나도 없으면 ①을 쓰고 도착을 그 뒤에)
   ③ 맨 뒤 — 음료쿠폰 → 굿즈
   ④ 끝에 늘 (영업 담당 이름)
 
 ■ 항목마다 쓰는 말
-  · 현장결제 필요 — 결제 방법이 「현장 결제」이거나 「현장 재결제」에 체크했을 때
+  · 현장 결제 필요 — 결제 방법이 「현장 결제」이거나 「현장 재결제」에 체크했을 때
   · 특별 할인 — 「간송 할인 3명 증빙서류 확인 필요」처럼 할인마다 (가이드 무료는 안 씀)
   · 대구대교구 — 「대구대교구 2명 시트기입」
   · 학생 — 관람 · 관람+식사 줄의 학생 인원을 더해 「학생 5명 확인 필요」
@@ -2235,7 +2235,7 @@ function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문�
     items.push([erpProgT(sub('tm')), /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
     if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2)) items.push([erpProgT(r.tm_seminar2), name+(r.plc_seminar2?`(${String(r.plc_seminar2).trim()})`:'')].filter(Boolean).join(' '));
   });
-  if(r.pay==='현장 결제' || r.onsite) items.push('현장결제 필요');   // 2026-11-24: 「현장결제」 → 「현장결제 필요」 (사전답사 비고의 「n명 현장결제 필요」와 같은 말투)
+  if(r.pay==='현장 결제' || r.onsite) items.push('현장 결제 필요');   // 2026-11-24: 「현장결제」 → 「현장 결제 필요」 (사전답사 비고의 「n명 현장 결제 필요」와 같은 말투)
   { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy' && s.k!=='dGuide'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인 필요`));   /* 2026-11-24: 끝에 「필요」 */ if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
   { const st=viewsParse(r.views).filter(x=>/학생/.test(x.src)).reduce((a,x)=>a+(+x.qty||0),0) + Object.values(istuMap(r)).reduce((a,n)=>a+n,0); if(st) items.push(`학생 ${st}명 확인 필요`); }
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';
@@ -2304,7 +2304,7 @@ function staffBy(r){
   return by;
 }
 const taskAuto = t => { const base=taskAutoBase(t); return typeof tcfgNote==='function' ? tcfgNote(t, base) : base; };   // 추후과업 메시지 관리에서 고친 문구 틀이 있으면 그것 (js/taskcfg.js, 2026-11-20)
-const taskAutoBase = t => t.id==='erp' ? erpNote(rec) : t.id==='erpfix' ? erpNote(rec, true) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : '';   // 단체 준비(prep:이름)는 문구 없음 (2026-11-24 · 예전 [단체예약 준비] 문구는 없앰)   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장결제 필요)   // 자동으로 만든 문구
+const taskAutoBase = t => t.id==='erp' ? erpNote(rec) : t.id==='erpfix' ? erpNote(rec, true) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : '';   // 단체 준비(prep:이름)는 문구 없음 (2026-11-24 · 예전 [단체예약 준비] 문구는 없앰)   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장 결제 필요)   // 자동으로 만든 문구
 const taskText = t => taskAuto(t) ? (t.noteEdit || taskAuto(t)) : '';   // 직접 고쳤으면 그 글 (전산 비고 등)
 // 과업 기한(due): 생기면 그날이 기본, 각자 바꿀 수 있음(dueSet). 미정 항목 연락 = 답변일, 현장 결제 인원 확인 = 전주 목요일(지났으면 전날), 결제 확인 = 다음날
 const todayYmd = () => ymd(new Date());
@@ -4455,7 +4455,7 @@ $('#memoBox').focus();
 })();
 
 // ===== 사전답사 (예약 내용의 「사전답사」 버튼 · 견적서 앞) =====
-// 팝업: 성명 · 연락처(기본 = 담당자 첫 줄) · 일자 · 인원 · 시간 → rec.tour. 정보가 있으면 추후 과업 「사전답사 전산 예약」(메모 = 답사 정보, 비고 문구 = <단체명> 사전답사/n명 현장결제 필요)
+// 팝업: 성명 · 연락처(기본 = 담당자 첫 줄) · 일자 · 인원 · 시간 → rec.tour. 정보가 있으면 추후 과업 「사전답사 전산 예약」(메모 = 답사 정보, 비고 문구 = <단체명> 사전답사/n명 현장 결제 필요)
 function syncTourTask(){   // 답사 정보가 바뀌면 과업 메모도 (메모를 직접 고치지 않았으면)
   const t=tasks.find(x=>x.id==='tour'); if(!t || t.done) return;
   if(!t.memo || t.memo===t.memoTour){ t.memo=tourMemo(rec); t.memoTour=t.memo; }
