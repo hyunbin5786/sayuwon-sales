@@ -333,7 +333,7 @@ function calRestore(){}   // 예전 칸 안 입력(제목 · 시간 · 끝나는
 // ===== 일정 추가 · 고치기 팝업 (2026-11-24) =====
 //  「캘린더」 옆 + = 추가 · 아래 일정 상자를 누르면 같은 팝업으로 고치기 + 「삭제」
 //  하루 일정 = 날짜 하나 + 시간(선택 · 비우면 하루 종일) / 기간 일정 = 시작하는 날 ~ 끝나는 날 (시간 없음) · 시작하는 날 기본 오늘
-function calDateBox(pick){   // 단체 방문일과 같은 날짜 칸 (칸 안에 「날짜 (요일)」 · 누르면 달력 · 한 번 더 누르거나 숫자를 치면 직접 입력)
+function calDateBox(pick, errId){   // 단체 방문일과 같은 날짜 칸 (칸 안에 「날짜 (요일)」 · 누르면 달력 · 한 번 더 누르거나 숫자를 치면 직접 입력)
   const txt=pick.parentElement.querySelector('.dtxt');
   const paint=()=>{ if(!txt.dataset.editing) txt.value=SY.dateDisp(pick.value); };
   const openPick=()=>{ try{ pick.showPicker(); }catch(_){ pick.focus(); } };
@@ -341,7 +341,7 @@ function calDateBox(pick){   // 단체 방문일과 같은 날짜 칸 (칸 안�
   txt.addEventListener('mousedown', e=>{ if(txt.dataset.editing) return; if(Date.now()-(+txt.dataset.pickAt||0)<20000){ e.preventDefault(); txt.dataset.pickAt=''; startEdit(false); return; } txt.dataset.pickAt=String(Date.now()); setTimeout(openPick,0); });
   txt.addEventListener('keydown', e=>{ if(!txt.dataset.editing && /^\d$/.test(e.key)) startEdit(true); else if(!txt.dataset.editing && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); openPick(); } else if(txt.dataset.editing && e.key==='Enter'){ e.preventDefault(); txt.blur(); } });
   txt.addEventListener('blur', ()=>{ if(!txt.dataset.editing) return; const raw=txt.value.trim(), d=raw==='' ? '' : SY.parseDateText(raw); delete txt.dataset.editing; txt.readOnly=true;
-    if(!d){ $('#calErr').textContent='날짜를 알아볼 수 없습니다. 2026-12-05 · 12/5 처럼 적어 주세요.'; paint(); return; } pick.value=d; pick.dispatchEvent(new Event('change', {bubbles:true})); });
+    if(!d){ $('#'+(errId||'calErr')).textContent='날짜를 알아볼 수 없습니다. 2026-12-05 · 12/5 처럼 적어 주세요.'; paint(); return; } pick.value=d; pick.dispatchEvent(new Event('change', {bubbles:true})); });
   pick.addEventListener('input', paint); pick.addEventListener('change', paint); paint();
 }
 let calAddCat='행사', calEditId='';
@@ -358,7 +358,7 @@ function calOpenAdd(row){
     + `<div class="cal-f"><span class="cal-fl" id="calDLabel">${isPer?'기간':'날짜'}</span><span class="cal-per">${dbox('calNFrom', d)}<span class="cal-to"${isPer?'':' hidden'}>~</span><span class="cal-to"${isPer?'':' hidden'}>${dbox('calNTo', d2)}</span></span></div>`
     + `<div class="cal-f cal-tmrow"${isPer?' hidden':''}><span class="cal-fl">시간</span><span class="cal-tm"><label><input type="checkbox" id="calNAll"${tm0?'':' checked'}> 하루 종일</label><input id="calNTm" data-tp="range" placeholder="예: 10:00~11:00" maxlength="11" autocomplete="off" value="${esc(tm0)}"${tm0?'':' hidden'}></span></div>`
     + `<p class="err" id="calErr"></p><div class="cm-btns">${row?'<button type="button" class="btn-sm primary" id="calNDel">삭제</button>':''}<span class="hint"></span><button type="button" class="btn-sm primary" data-cclose>닫기</button><button type="button" class="btn-sm primary" id="calNSave">${row?'저장':'추가'}</button></div></div>`;
-  M.hidden=false; M.querySelectorAll('.dpick').forEach(calDateBox); setTimeout(()=>{ const t=$('#calNTitle'); t.focus(); const n=t.value.length; try{ t.setSelectionRange(n,n); }catch(_){} }, 0);
+  M.hidden=false; M.querySelectorAll('.dpick').forEach(p=>calDateBox(p)); setTimeout(()=>{ const t=$('#calNTitle'); t.focus(); const n=t.value.length; try{ t.setSelectionRange(n,n); }catch(_){} }, 0);
 }
 function calCloseAdd(){ const M=$('#calModal'); if(M){ M.hidden=true; M.innerHTML=''; } calEditId=''; }
 const calIsPer = () => !!document.querySelector('#calModal [data-ckind="per"].on');
@@ -412,16 +412,23 @@ document.addEventListener('click', e=>{
 });
 document.addEventListener('change', e=>{ if(e.target.id==='dashMem'){ dashMem=e.target.value; try{ localStorage.setItem('sy_dash_mem', dashMem); }catch(_){} renderDash(); } });
 // ===== 공지사항 (2026-11-24 · 대시보드 1열 2행 · 캘린더 아래) =====
-//  저장: 공유 기록(calls) 한 줄 id noticedb · 통화 구분 「공지사항」 · 수정 기록 칸 {rows:[{id, title, body, by, at, editBy, editAt}]} (최신을 받아 그 위에)
+//  저장: 공유 기록(calls) 한 줄 id noticedb · 통화 구분 「공지사항」 · 수정 기록 칸 {rows:[{id, title, body, by, at, editBy, editAt, from·to(게시 기간 · 없으면 기한 없음)}]} (최신을 받아 그 위에)
 //  「게시물 등록」 → 팝업(제목 · 내용) · 목록은 최근 것부터 · 누르면 내용 보기 팝업(고치기 · 삭제 · 닫기)
 const NT_ID='noticedb', NT_TYPE='공지사항';
 const ntRows = items => { const it=(items||[]).find(x=>x.id===NT_ID && !x.deleted); let h={}; try{ h=JSON.parse((it||{}).history||'{}')||{}; }catch(_){} return Array.isArray(h.rows) ? h.rows : []; };
 const ntDay = iso => { const s=String(iso||''); return s ? opsDateLabel(opsYmd(new Date(s))) : ''; };
 const ntIsNew = r => Date.now()-new Date(r.at||0).getTime() < 3*864e5;   // 3일 안에 올린 글 = 새 글
+// 게시 기간 (2026-11-24): from · to 가 있으면 그 기간에만 목록에 뜸 (from 이 오늘보다 뒤 = 예약 공지) · 없으면 기한 없음
+const ntState = (r, today) => !r.to ? (r.from && r.from>today ? 'sched' : 'on') : r.from && r.from>today ? 'sched' : r.to<today ? 'past' : 'on';
+const ntPer = r => r.to ? `${opsDateLabel(r.from||'')} ~ ${opsDateLabel(r.to)}` : '기한 없음';
+let ntShowOff=false;   // 예약 · 지난 공지도 보기 (목록 맨 아래 버튼)
 function noticeHTML(){
-  const L=ntRows(lastItems).slice().sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+  const today=opsToday(), A=ntRows(lastItems).slice().sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+  const L=A.filter(r=>ntState(r,today)==='on'), off=A.filter(r=>ntState(r,today)!=='on');
+  const li = r => { const s=ntState(r,today); return `<li><button type="button" class="nt-i${s==='on' && ntIsNew(r)?' new':''}${s!=='on'?' off':''}" data-nt="${esc(r.id)}"><span class="nt-t">${s==='sched'?'<span class="nt-st">예약</span> ':s==='past'?'<span class="nt-st">지남</span> ':ntIsNew(r)?'<span class="nt-new">새 글</span> ':''}${esc(r.title)}</span><small>${esc(r.by||'')} · ${esc(ntDay(r.at))}${r.to?` · 게시 ${esc(ntPer(r))}`:''}</small></button></li>`; };
   return `<div class="dcol-h"><b>공지사항</b><button type="button" class="cm-btn" id="ntAddBtn" title="공지사항 게시물 등록">게시물 등록</button><span class="dn">${L.length}</span></div>`
-    + (L.length ? `<ul class="dlist nt-list">${L.map(r=>`<li><button type="button" class="nt-i${ntIsNew(r)?' new':''}" data-nt="${esc(r.id)}"><span class="nt-t">${ntIsNew(r)?'<span class="nt-new">새 글</span> ':''}${esc(r.title)}</span><small>${esc(r.by||'')} · ${esc(ntDay(r.at))}</small></button></li>`).join('')}</ul>`
+    + (L.length || off.length ? `<ul class="dlist nt-list">${L.map(li).join('')}${!L.length?'<li class="hint nt-none">지금 게시 중인 공지사항이 없습니다.</li>':''}`
+        + (off.length ? `<li><button type="button" class="nt-offbtn" id="ntOffBtn">${ntShowOff?'예약 · 지난 공지 접기 ▴':`예약 · 지난 공지 ${off.length}개 보기 ▾`}</button></li>${ntShowOff?off.map(li).join(''):''}` : '') + `</ul>`
       : `<p class="hint dempty">공지사항이 없습니다. 「게시물 등록」으로 올리세요.</p>`);
 }
 async function ntSave(fn, what){   // 최신 공지사항을 받아 fn(rows) 로 바꾸고 저장
@@ -441,13 +448,23 @@ function ntOpenForm(row){
   M.innerHTML = `<div class="cm-panel nt-panel" role="dialog" aria-label="${row?'게시물 고치기':'게시물 등록'}"><h2>${row?'게시물 고치기':'게시물 등록'}</h2>`
     + `<input id="ntTitle" class="nt-in" placeholder="제목" data-ime="ko" maxlength="80" autocomplete="off" value="${esc(row?row.title:'')}">`
     + `<textarea id="ntBody" class="nt-ta" placeholder="내용" data-ime="ko">${esc(row?row.body||'':'')}</textarea>`
+    + ntPerHTML(row)
     + `<p class="err" id="ntErr"></p><div class="cm-btns"><span class="hint"></span><button type="button" class="btn-sm primary" data-ntclose>닫기</button><button type="button" class="btn-sm primary" id="ntSaveBtn">${row?'저장':'등록'}</button></div></div>`;
-  M.hidden=false; setTimeout(()=>$('#ntTitle').focus(), 0);
+  M.hidden=false; M.querySelectorAll('.dpick').forEach(p=>calDateBox(p, 'ntErr')); setTimeout(()=>$('#ntTitle').focus(), 0);
+}
+// 게시 기간 칸: 「기한 없음」 / 「기한 있음」(시작하는 날 기본 오늘 ~ 끝나는 날 기본 일주일 뒤 · 시작을 뒤로 하면 예약 공지)
+function ntPerHTML(row){
+  const today=opsToday(), has=!!(row && row.to), x=new Date(today+'T00:00'); x.setDate(x.getDate()+7);
+  const from=has ? (row.from||today) : today, to=has ? row.to : opsYmd(x);
+  const dbox=(id,v)=>`<span class="dbox"><input class="dtxt" readonly placeholder="누르면 달력" title="누르면 달력 · 한 번 더 누르면 직접 입력" inputmode="numeric"><input type="date" class="dpick" id="${id}" value="${v}"></span>`;
+  return `<div class="cal-f nt-perrow"><span class="cal-fl">게시</span><span class="cal-kind"><button type="button" data-ntper="0"${has?'':' class="on"'}>기한 없음</button><button type="button" data-ntper="1"${has?' class="on"':''}>기한 있음</button></span></div>`
+    + `<div class="cal-f nt-perdates"${has?'':' hidden'}><span class="cal-fl">기간</span><span class="cal-per">${dbox('ntFrom', from)}<span>~</span>${dbox('ntTo', to)}</span></div>`
+    + `<p class="hint nt-perhint"${has?'':' hidden'}>이 기간에만 공지사항 목록에 뜹니다 · 시작하는 날을 뒤로 하면 그날부터 뜨는 예약 공지</p>`;
 }
 function ntOpenView(r){
   const M=ntModal(); ntEditId=r.id;
   M.innerHTML = `<div class="cm-panel nt-panel" role="dialog" aria-label="공지사항"><h2>${esc(r.title)}</h2>`
-    + `<p class="nt-meta">${esc(r.by||'')} · ${esc(ntDay(r.at))}${r.editAt?` · 고침 ${esc(r.editBy||'')} ${esc(ntDay(r.editAt))}`:''}</p>`
+    + `<p class="nt-meta">${esc(r.by||'')} · ${esc(ntDay(r.at))}${r.editAt?` · 고침 ${esc(r.editBy||'')} ${esc(ntDay(r.editAt))}`:''} · 게시 ${esc(ntPer(r))}${ntState(r,opsToday())==='sched'?' (예약)':ntState(r,opsToday())==='past'?' (지남)':''}</p>`
     + `<div class="nt-body">${esc(r.body||'').replace(/\n/g,'<br>')||'<span class="hint">(내용 없음)</span>'}</div>`
     + `<p class="err" id="ntErr"></p><div class="cm-btns"><button type="button" class="btn-sm primary" id="ntDelBtn">삭제</button><span class="hint"></span><button type="button" class="btn-sm primary" id="ntEditBtn">고치기</button><button type="button" class="btn-sm primary" data-ntclose>닫기</button></div></div>`;
   M.hidden=false;
@@ -455,6 +472,8 @@ function ntOpenView(r){
 document.addEventListener('keydown', e=>{ const M=$('#ntModal'); if(M && !M.hidden && e.key==='Escape') ntClose(); });
 document.addEventListener('click', e=>{
   if(e.target.closest('#ntAddBtn')){ ntOpenForm(null); return; }
+  if(e.target.closest('#ntOffBtn')){ ntShowOff=!ntShowOff; renderDash(); return; }
+  const pk=e.target.closest('[data-ntper]'); if(pk){ const has=pk.dataset.ntper==='1', M=$('#ntModal'); M.querySelectorAll('[data-ntper]').forEach(b=>b.classList.toggle('on', b===pk)); M.querySelector('.nt-perdates').hidden=!has; M.querySelector('.nt-perhint').hidden=!has; return; }
   const v=e.target.closest('[data-nt]'); if(v){ const r=ntRows(lastItems).find(x=>x.id===v.dataset.nt); if(r) ntOpenView(r); return; }
   const M=$('#ntModal'); if(!M || M.hidden) return;
   if(e.target===M || e.target.closest('[data-ntclose]')){ ntClose(); return; }
@@ -464,8 +483,12 @@ document.addEventListener('click', e=>{
   if(e.target.id==='ntSaveBtn'){
     const err=$('#ntErr'), title=$('#ntTitle').value.trim(), body=$('#ntBody').value.replace(/\s+$/,''), me=(getUser()||{}).name||'', now=new Date().toISOString(), id=ntEditId;
     err.textContent=''; if(!title){ err.textContent='제목을 적어 주세요.'; $('#ntTitle').focus(); return; }
+    const has=!!M.querySelector('[data-ntper="1"].on'), from=has ? $('#ntFrom').value : '', to=has ? $('#ntTo').value : '';
+    if(has && (!from || !to)){ err.textContent='게시 기간의 시작하는 날과 끝나는 날을 넣어 주세요.'; return; }
+    if(has && to<from){ err.textContent='끝나는 날이 시작하는 날보다 앞입니다.'; return; }
     e.target.disabled=true;
-    const fn = id ? rows=>rows.map(x=>x.id===id ? {...x, title, body, editBy:me, editAt:now} : x) : rows=>[...rows, {id:'n'+Date.now().toString(36), title, body, by:me, at:now}];
+    const per = x => { const y={...x}; if(has){ y.from=from; y.to=to; } else { delete y.from; delete y.to; } return y; };
+    const fn = id ? rows=>rows.map(x=>x.id===id ? per({...x, title, body, editBy:me, editAt:now}) : x) : rows=>[...rows, per({id:'n'+Date.now().toString(36), title, body, by:me, at:now})];
     ntSave(fn, `${id?'고침':'등록'} ${title}`).then(ntClose).catch(er=>{ e.target.disabled=false; err.textContent=(id?'저장하지':'등록하지')+' 못했습니다: '+(er.code||er.message); });
   }
 });

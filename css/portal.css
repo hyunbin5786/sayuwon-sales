@@ -341,3 +341,11 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .nt-ta{width:100%;min-height:220px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:14px;line-height:1.6;resize:vertical;box-sizing:border-box}
 .nt-meta{color:var(--muted);font-size:12.5px;margin:0 0 10px}
 .nt-body{font-size:14px;line-height:1.7;white-space:normal;word-break:break-word;max-height:60vh;overflow:auto;padding:10px 12px;background:#faf9f5;border-radius:8px}
+/* 공지사항 게시 기간 (2026-11-24) */
+.nt-i.off{opacity:.65}
+.nt-st{display:inline-block;font-size:10.5px;font-weight:700;color:#5b574c;background:#ece8dd;border-radius:999px;padding:0 6px;line-height:16px;vertical-align:1px}
+.nt-offbtn{width:100%;border:0;background:none;color:var(--muted);font:600 12px var(--sans);padding:6px 8px;cursor:pointer;text-align:left}
+.nt-offbtn:hover{color:var(--pine)}
+.nt-none{padding:6px 8px;font-size:12.5px}
+.nt-perhint{margin:-4px 0 0 46px;font-size:12px}
+.nt-perdates[hidden],.nt-perhint[hidden]{display:none}
