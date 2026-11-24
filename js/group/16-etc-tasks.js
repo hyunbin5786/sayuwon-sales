@@ -282,3 +282,16 @@ if(!/[?&]engine=/.test(location.search)){ setTimeout(loadMyQuoteReq, 1500); setI
         if(foc && k===foc.k){ el.focus({preventScroll:true}); try{ if(foc.s!=null) el.setSelectionRange(foc.s, foc.e); }catch(_){} } }); }
     return r; };
 })();
+// 나의 할일 › 내가 만든 구분 탭 (2026-11-24): 오늘 · 지난 것만이 아니라 그 구분의 업무 모두 — 업무마다 한 줄(밀린 날이 있으면 가장 이른 밀린 날 · 없으면 다음 할 날), 마감일 순 · 마감 없음은 맨 아래
+//  (메인은 그대로 「오늘 마감」만 · 개인예약 · 단체예약 탭은 예전부터 모두 마감 순)
+function etcCatAllHTML(c){
+  const today=ymd(new Date()), mine=etcMine().filter(o=>etcCatOf(o.d)===c);
+  const list=mine.filter(o=>o.d.repeat!=='later').map(o=>{ const p=opsPending(o.d, today), day = p.length ? p[0] : etcNext(o.d, today); return day ? {...o, day, before:p.slice(1)} : null; }).filter(Boolean)
+    .sort((a,b)=>a.day.localeCompare(b.day) || String(a.d.title||'').localeCompare(String(b.d.title||''),'ko'));
+  const late=list.filter(o=>o.day<today).length, doneToday=mine.filter(o=>(o.d.done||{})[today]);
+  return `<h3 class="my-h">${esc(c ? catLabel(c) : ETC_NOCAT)} <small>할 일 ${list.length}개${late?` · <b class="late">밀린 것 ${late}개</b>`:''}</small></h3>`
+    + etcAddHTML(c)
+    + (list.length ? tkListHTML(list.map(o=>tkFromE(o, o.day, {before:o.before}))) : '<p class="hint">할 업무가 없습니다.</p>')
+    + etcLaterHTML(mine.filter(o=>o.d.repeat==='later'))
+    + (doneToday.length ? `<details class="etc-more"${etcOpenDone?' open':''} data-etcfold="done"><summary>오늘 완료한 것 ${doneToday.length}개</summary>${tkListHTML(doneToday.map(o=>({...tkFromE(o, today), done:true})))}</details>` : '');
+}
