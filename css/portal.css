@@ -329,11 +329,10 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .cal-f[hidden],.cal-to[hidden]{display:none}
 .cal-panel .cm-btns .hint{flex:1}
 /* 공지사항 (2026-11-24 · 대시보드 1열 2행) */
-.nt-list li{list-style:none;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}   /* 공지 여러 개 = 흰 바탕 + 위 · 아래 줄로 구분 (2026-11-24 · 「새 글」 표시 없앰) */
-.nt-list li + li{border-top:0}
+.nt-list li{list-style:none;background:#fff}   /* 공지 여러 개 = 흰 바탕 + 위 · 아래 줄로 구분 (2026-11-24 · 「새 글」 표시 없앰) */
+.nt-list li + li{border-top:1px solid var(--line)}   /* 공지 사이에만 줄 (맨 위 · 맨 아래는 줄 없음 · 2026-11-24) */
 .nt-list{gap:0}
 .nt-list li:has(.nt-offbtn){border:0;background:none}
-.nt-list li:has(.nt-offbtn) + li{border-top:1px solid var(--line)}
 .nt-i{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;text-align:left;border:0;background:#fff;padding:7px 8px;cursor:pointer;font:inherit;color:var(--ink)}
 .nt-i:hover{background:var(--pine-soft,#e6efe8)}
 .nt-t{font-weight:700;font-size:13.5px}
