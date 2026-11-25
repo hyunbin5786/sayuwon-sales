@@ -1220,3 +1220,15 @@ html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
   .book .mbdb-t .c-s{width:110px}
   .book .mbdb-t .c-a{width:120px;text-align:right}
 }
+/* 찾기 날짜 (2026-11-25 다시): 기본 = 전체(날짜 칸 흐림) · 「기간 설정」 = 오늘 ~ 오늘로 켜짐 */
+.book-find .bf-date{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.book-find .bf-l{white-space:nowrap}
+.book-find .bf-dt{display:inline-flex;align-items:center;gap:6px}
+.book-find .bf-dt.off .dtxt{background:#f1efe9;color:#9a968b;cursor:not-allowed;border-style:dashed}
+.book-find .bf-til{color:var(--muted)}
+@media (min-width:1000px){
+  html.book-only .bk-side .bf-date{display:grid;grid-template-columns:3.2em minmax(0,1fr);gap:8px;align-items:center}
+  html.book-only .bk-side .bf-date .bf-dt{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:4px;align-items:center}
+  html.book-only .bk-side .bf-date .bf-dt .dbox input.dtxt{width:100%;font-size:12.5px;padding:0 4px}
+  html.book-only .bk-side #bfRangeBtn{grid-column:2;justify-self:start}
+}

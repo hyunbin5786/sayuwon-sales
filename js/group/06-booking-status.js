@@ -183,18 +183,32 @@ const bkHeadHTML = c => `<tr>${BK_COLS(c).map((h,i)=>`<th class="${BK_CLS[i]}">$
 // 한 줄: v = {d, tm, org, n, x, staff, note} · cls/attr = 줄 표시 · acts = 오른쪽 끝
 const bkRowHTML = (v, cls, attr, acts) => `<tr class="${cls}"${attr}><td class="c-d">${esc(dateLabel(v.d))}</td><td class="c-t">${esc(v.tm||'')}</td><td class="c-o"><b>${esc(v.org||'')}</b></td><td class="c-n num">${esc(v.n||'')}</td><td class="c-x">${v.x||''}</td><td class="c-s" style="white-space:pre-line">${esc(v.staff||'')}</td><td class="c-m note">${v.note||''}</td><td class="c-a acts">${acts}</td></tr>`;
 function manualRows(){ try{ return bkDb().rows.map(x=>({...x, manual:true, ppl:+x.ppl||0})); }catch(_){ return []; } }   // 직접 넣은 대관 · 도슨트 · 프로그램
-// ===== 예약 목록 찾기 (2026-11-25): 날짜(전체 · 특정일 · 기간) + 검색어(프로그램 · 업체명 · 담당자 이름 · 띄어 쓰면 모두 맞는 것) =====
-function bkFind(){ const v=id=>(document.getElementById(id)||{}).value||'', mode=v('bfMode'), q=v('bfQ').trim().toLowerCase();
-  const day=mode==='day'?v('bfDay'):'', from=mode==='range'?v('bfFrom'):'', to=mode==='range'?v('bfTo'):'';
-  return { q, words:q.split(/\s+/).filter(Boolean), day, from, to, dated:!!(day||from||to), on:!!(q||day||from||to) }; }
+// ===== 예약 목록 찾기 (2026-11-25): 날짜(기본 = 전체 · 「기간 설정」을 누르면 오늘 ~ 오늘로 켜짐 → 시작 = 끝이면 그날 하루, 다르면 기간 · 끝은 시작보다 앞설 수 없음) + 검색어(프로그램 · 업체명 · 담당자 이름 · 띄어 쓰면 모두 맞는 것) =====
+let bfOn=false;   // 기간 설정을 켰는지
+function bkFind(){ const v=id=>(document.getElementById(id)||{}).value||'', q=v('bfQ').trim().toLowerCase();
+  const from=bfOn?v('bfFrom'):'', to=bfOn?v('bfTo'):'';
+  return { q, words:q.split(/\s+/).filter(Boolean), day:'', from, to, dated:!!(from||to), on:!!(q||from||to) }; }
 const bkFindOk = (F, d, hay) => (!F.day || d===F.day) && (!F.from || d>=F.from) && (!F.to || d<=F.to) && F.words.every(w=>String(hay).toLowerCase().includes(w));
-function bkFindPaint(n){ const F=bkFind(), el=document.getElementById('bfN'); if(el) el.textContent = F.on ? `찾은 예약 ${n}건` : '';
-  const m=(document.getElementById('bfMode')||{}).value||''; const dw=document.getElementById('bfDayW'), rw=document.getElementById('bfRangeW'); if(dw) dw.hidden=m!=='day'; if(rw) rw.hidden=m!=='range'; }
-document.addEventListener('change', e=>{ if(['bfMode','bfDay','bfFrom','bfTo'].includes(e.target.id)){
-  if(e.target.id==='bfMode' && e.target.value==='day' && !$('#bfDay').value){ $('#bfDay').value=todayYmd(); $('#bfDay').dispatchEvent(new Event('input',{bubbles:true})); }   // 특정일: 처음엔 오늘
-  paintBook(); } });
+const bfSet = (id, val) => { const p=document.getElementById(id); if(!p) return; p.value=val; const t=p.parentElement.querySelector('.dtxt'); if(t) t.value = val ? dateDisp(val) : ''; };
+function bfPaintDate(){ const w=document.getElementById('bfRangeW'), b=document.getElementById('bfRangeBtn'); if(!w || !b) return;
+  w.classList.toggle('off', !bfOn); w.querySelectorAll('.dtxt').forEach(t=>{ t.disabled=!bfOn; t.placeholder = bfOn ? '날짜 고르기' : '전체'; });
+  const f=$('#bfFrom'); if(f) $('#bfTo').min = f.value || '';   // 달력에서 시작보다 앞선 날은 못 고름
+  b.textContent = bfOn ? '전체 보기' : '기간 설정'; b.title = bfOn ? '날짜 조건 끄기 (전체)' : '누르면 오늘 ~ 오늘로 켜짐 (시작 = 끝이면 그날 하루 · 다르면 기간)'; }
+function bkFindPaint(n){ const F=bkFind(), el=document.getElementById('bfN');
+  if(el) el.textContent = F.on ? `찾은 예약 ${n}건${F.from ? ` · ${F.from===F.to ? mdLabel(F.from)+' 하루' : mdLabel(F.from)+' ~ '+mdLabel(F.to)}` : ''}` : '';
+  bfPaintDate(); }
+document.addEventListener('click', e=>{ if(e.target.id!=='bfRangeBtn') return; bfOn=!bfOn;
+  if(bfOn){ const t=todayYmd(); bfSet('bfFrom', t); bfSet('bfTo', t); } else { bfSet('bfFrom',''); bfSet('bfTo',''); }
+  paintBook(); });
+document.addEventListener('change', e=>{ const id=e.target.id; if(id!=='bfFrom' && id!=='bfTo') return;
+  const f=$('#bfFrom').value, t=$('#bfTo').value;
+  if(id==='bfFrom' && f && (!t || t<f)) bfSet('bfTo', f);   // 시작을 끝보다 뒤로 옮기면 끝도 같이
+  if(id==='bfTo' && t && f && t<f){ bfSet('bfTo', f); toast('끝나는 날은 시작하는 날보다 앞설 수 없습니다.'); }
+  if(id==='bfFrom' && !f) bfSet('bfFrom', t || todayYmd());
+  if(id==='bfTo' && !$('#bfTo').value) bfSet('bfTo', $('#bfFrom').value);
+  paintBook(); });
 document.addEventListener('input', e=>{ if(e.target.id==='bfQ') paintBook(); });
-document.addEventListener('click', e=>{ if(e.target.id!=='bfReset') return; ['bfQ','bfDay','bfFrom','bfTo'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.value=''; el.dispatchEvent(new Event('input',{bubbles:true})); } }); $('#bfMode').value=''; paintBook(); });
+document.addEventListener('click', e=>{ if(e.target.id!=='bfReset') return; bfOn=false; bfSet('bfFrom',''); bfSet('bfTo',''); const q=$('#bfQ'); if(q) q.value=''; paintBook(); });
 function paintBook(){
   document.querySelectorAll('#bookTabs [data-bt]').forEach(b=>b.classList.toggle('on', b.dataset.bt===bookCatNow));
   const isMb = bookCatNow==='mb'; $('#bookMb').hidden=!isMb; $('#bookGen').hidden=isMb;
