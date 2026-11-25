@@ -2299,19 +2299,8 @@
   var lastRevise = false;   // 마지막 출력이 수정발행이었는지 (메일 제목 · 문구, 2026-11-19)
   var elHist = document.getElementById("history-modal");
 
-  function setIssueMeta(m){
-    issueMeta = m;
-    var bar = document.getElementById("issuebar");
-    bar.classList.toggle("on", !!(m && m.kind === "revise"));
-    if(m && m.kind === "revise"){
-      // 수정발행 = 「같은 종류의 문서」를 고쳐 다시 내는 것. 원본이 견적서인데 거래명세서를 내면 (또는 그 반대) 그것은 고친 것이 아니라 그 문서의 새 발급 (2026-11-23)
-      var other = m.doc && state ? (m.doc === "견적서" ? "거래명세서" : "견적서") : "", onlyOther = other && !state.docBoth && m.doc !== docName();
-      document.getElementById("issuebar-text").textContent = onlyOther
-        ? "원본: " + m.label + " → 이 내용으로 " + other + "를 발급합니다 (문서 종류가 달라 수정발행이 아니라 " + other + " 신규 발급으로 남습니다)"
-        : "수정발행 중 · 원본: " + m.label + " → 고친 뒤 출력하면 수정발행으로 남습니다" + (other && state.docBoth ? " (" + other + "는 신규 발급으로 남습니다)" : "");
-    }
-  }
-  document.getElementById("issuebar-cancel").addEventListener("click", function(){ setIssueMeta(null); });
+  // 화면 위 「수정발행 중 · 원본 … · 수정발행 취소」 안내 줄은 없앰 (2026-11-25) — 수정발행을 그만두려면 「새로 작성」
+  function setIssueMeta(m){ issueMeta = m; }
 
   function histId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function fmtAt(iso){
