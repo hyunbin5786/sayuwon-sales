@@ -19,13 +19,13 @@
 | **사람** (새로 맡은 직원) | [개발-시작하기.md](개발-시작하기.md) — 준비물 · 내 PC 로 가져오기 · Claude 에게 이렇게 말하면 된다 · 철칙 · 문제가 생겼을 때 |
 | **Claude Code 등 AI** | [CLAUDE.md](CLAUDE.md) — 일하는 순서 · DB 구조 · 철칙 (이 폴더를 열면 자동으로 읽힘) |
 
-<details>
-<summary><b>AI 코딩 도구에게 — 이 저장소 주소만 받았다면 이 순서로</b> (눌러서 펼치기)</summary>
+**AI 코딩 도구(Claude Code 등)에게 — 이 저장소 주소만 받았다면 이 순서로:**
 
-$1
+1. `git clone https://github.com/hyunbin5786/sayuwon-sales.git` → 그 폴더에서 `git checkout test` (개발은 늘 `test` 에서)
+2. [CLAUDE.md](CLAUDE.md) 를 끝까지 읽고 그대로 따른다 (요청한 사람은 개발자가 아니다 — 쉬운 한국어로)
+3. `powershell -ExecutionPolicy Bypass -File tools\check.ps1` — 지금 상태와 「먼저 할 일」이 나온다 (저장에 남을 이름 · 백업이 맨 먼저 · 종료 코드 3 은 오류가 아니라 「할 일이 있다」는 뜻)
+4. 어느 파일이 무엇인지는 [docs/코드-지도.md](docs/코드-지도.md), 화면의 규칙은 [docs/README.md](docs/README.md) 의 「화면별로 찾기」
 5. 받은 폴더가 세션을 연 폴더와 다르면, 사람에게 「다음부터는 Claude Code 에서 `sayuwon-sales` 폴더를 열어 주세요」 라고 알린다 (그래야 CLAUDE.md 가 자동으로 읽힌다)
-
-</details>
 
 ## 바로가기
 
