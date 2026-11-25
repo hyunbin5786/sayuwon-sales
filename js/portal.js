@@ -567,7 +567,7 @@ function recPopOpen(url){ const P=$('#recPop'), F=$('#recPopFrame'); if(!P) { lo
 function recPopClose(){ const P=$('#recPop'); if(!P || P.hidden) return; P.hidden=true; $('#recPopFrame').src='about:blank'; dashSoon(200); }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && $('#recPop') && !$('#recPop').hidden){ e.preventDefault(); recPopClose(); } });
 document.addEventListener('click', e=>{
-  if(e.target.closest('#calPopBtn')){ const w=window.open('./?cal=1', 'sy_cal', 'width=1000,height=720,resizable=yes,scrollbars=yes'); if(w) w.focus(); else location.href='./?cal=1'; return; }   // 캘린더 새 창 (2026-11-25 · 같은 창이 있으면 그 창을 앞으로)
+  if(e.target.closest('#calPopBtn')){ const w=window.open('./?cal=1', 'sy_cal', 'width=1000,height=460,resizable=yes,scrollbars=yes'); if(w) w.focus(); else location.href='./?cal=1'; return; }   // 캘린더 새 창 (2026-11-25 · 같은 창이 있으면 그 창을 앞으로)
   const rp=e.target.closest('[data-recpop]'); if(rp){ e.preventDefault(); recPopOpen(rp.dataset.recpop); return; }
   if(e.target.id==='recPop' || e.target.closest('#recPopX')){ recPopClose(); return; }
   const w=e.target.closest('[data-dwho]'); if(w){ dashWho = dashWho===w.dataset.dwho ? '' : w.dataset.dwho; renderDash(); }
@@ -607,3 +607,12 @@ document.addEventListener('change', async e=>{ const p=e.target.closest && e.tar
   if(!j || !j.added){ p.disabled=false; if(!$('#memberErr').textContent) $('#memberErr').textContent='사번을 넣지 못했습니다.'; return; }
   await memberCall({action:'memberDel', emp:old, by:u.name||''});
   $('#memberErr').textContent=`${m.name} 님 사번을 ${emp} 로 넣었습니다.`; $('#memberErr').style.color='var(--pine)'; setTimeout(()=>{ $('#memberErr').style.color=''; }, 3000); });
+// 캘린더 새 창(?cal=1 · 2026-11-25): 창 높이를 캘린더 상자에 맞춤 (달마다 줄 수가 달라 상자가 바뀌면 다시 맞춤 · 새 창으로 연 창에서만 됨)
+if(document.documentElement.classList.contains('cal-only')){
+  let calFitH=0;
+  const calFit=()=>{ const c=document.querySelector('.dcal-col'); if(!c || c.offsetParent===null || !window.innerHeight) return;
+    const need=Math.ceil(c.getBoundingClientRect().bottom + 12), diff=need-window.innerHeight;
+    if(Math.abs(diff)<4 || need===calFitH) return; calFitH=need; try{ window.resizeBy(0, diff); }catch(_){} };
+  new MutationObserver(()=>requestAnimationFrame(calFit)).observe(document.body, {childList:true, subtree:true});
+  window.addEventListener('load', ()=>setTimeout(calFit, 300));
+}
