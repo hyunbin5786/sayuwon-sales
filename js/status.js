@@ -88,9 +88,9 @@
     ORDER.forEach(c=>{ if(c==='오전입장' || c==='오후입장') row(c); });   // 입장은 0명이어도 줄
     const rows=Object.values(map).sort((a,b)=>{ const ia=ORDER.indexOf(a.cat), ib=ORDER.indexOf(b.cat); return (ia<0?99:ia)-(ib<0?99:ib) || a.cat.localeCompare(b.cat,'ko'); })
       .filter(r=>r.home>0 || r.naver>0 || ORDER.slice(0,2).includes(r.cat)).map(r=>({cat:r.cat, home:r.home, naver:r.naver, groups:r.groups.join('\n')}));
-    // nvx = 방문자내역에서 센 네이버 인원 (날짜 아래 요약 글에 씀). 네이버 엑셀 · 직접 입력이 있으면 오전 · 오후입장은 그 값이 이김 (applyNaver)
+    // nvx = 방문자내역에서 센 네이버 인원 (날짜 아래 요약 글에 씀). 예전에 넣어 둔 네이버 엑셀 · 직접 입력 값을 입힐지는 readFiles 가 정함 (나중에 넣은 것이 이김)
     const nvAll=rows.reduce((a,r)=>a+r.naver,0), nvOf=c=>(rows.find(r=>r.cat===c)||{}).naver||0;
-    return applyNaver({date:v.date, rows, nvx: nvAll ? {am:nvOf('오전입장'), pm:nvOf('오후입장'), all:nvAll} : null});
+    return {date:v.date, rows, nvx: nvAll ? {am:nvOf('오전입장'), pm:nvOf('오후입장'), all:nvAll} : null};
   }
   // ---------- 네이버 예약자관리 엑셀 (2026-11-19): 날짜마다 오전 · 오후 인원 → 그 날짜의 오전입장 · 오후입장 줄 「네이버」 칸 ----------
   st.naver ||= {};   // { 'YYYY-MM-DD': {am, pm, n, full, partial, check:[]} } · 방문자내역을 나중에 넣어도 들어감
@@ -183,7 +183,7 @@
   const isNaverFile = h => (h[0]===0x50 && h[1]===0x4b) || (h[0]===0xd0 && h[1]===0xcf);   // .xlsx (비밀번호 걸린 것 포함)
   async function readFiles(files){
     if(window.syDaily && files && files.length) syDaily.mark('status', '엑셀 넣음');   // 하루 한 번 작업 기록 (2026-11-24 · js/dailyguard.js)
-    $('#fileErr').textContent=''; const got=[], errs=[], nvGot=[], skip=[]; let nvFail='';   // nvFail: 네이버 엑셀을 못 읽은 이유 → 직접 입력 팝업
+    $('#fileErr').textContent=''; const got=[], errs=[], nvGot=[], skip=[], newDays=[]; let nvFail='';   // nvFail: 네이버 엑셀을 못 읽은 이유 → 직접 입력 팝업
     for(const f of files){
       try{ const buf=await f.arrayBuffer(), h=new Uint8Array(buf.slice(0,4));
         if(isNaverFile(h)){
@@ -201,9 +201,12 @@
         const v=parse(new TextDecoder('utf-8').decode(buf));
         if(!inTwo(v.date)){ skip.push(dLab(v.date)); continue; }   // 오늘 · 내일이 아닌 방문자내역은 넣지 않음 (2026-11-21)
         const day=buildDay(v);
-        st.days=st.days.filter(d=>d.date!==day.date); st.days.push(day); got.push(dLab(day.date)); }
+        st.days=st.days.filter(d=>d.date!==day.date); st.days.push(day); newDays.push(day); got.push(dLab(day.date)); }
       catch(e){ errs.push(`${f.name}: ${e.message||'읽지 못했습니다.'}`); }
     }
+    // 네이버 칸은 나중에 넣은 것이 이김 (2026-11-26): 방문자내역에 「네이버 …」 상품이 있으면 예전에 넣어 둔 네이버 엑셀 · 직접 입력 값은 버리고 방문자내역 값.
+    //  이번에 네이버 엑셀을 함께 넣었으면 엑셀 값 (전체 명단이라서). 방문자내역에 네이버 상품이 없으면 예전처럼 기억해 둔 값을 입힘
+    newDays.forEach(day=>{ if(day.nvx && !nvGot.includes(day.date)) delete st.naver[day.date]; applyNaver(day); });
     if(skip.length) errs.push(`${skip.join(' · ')} 방문자내역은 넣지 않았습니다 (이 화면은 오늘 · 내일만)`);
     $('#fileErr').textContent=errs.join(' · ');
     st.days.sort((a,b)=>a.date.localeCompare(b.date)); save(); render();
