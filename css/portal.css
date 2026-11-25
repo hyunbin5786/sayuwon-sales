@@ -390,12 +390,11 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .cal-pop{margin-left:4px}
 html.cal-only header,html.cal-only .smenu,html.cal-only .dash-h,html.cal-only #menuView .hello,html.cal-only #setupBar,html.cal-only #menuNote,html.cal-only .cal-pop{display:none!important}
 html.cal-only:is(.cal-only,.smenu-dock) body > main{margin:0!important;max-width:none!important;padding:10px 12px!important}
-html.cal-only #menuView .dash{height:calc(100vh - 20px)!important}
-html.cal-only .dcols.d2{display:block!important;height:100%}
+html.cal-only .dcols.d2{display:block!important}
 html.cal-only .dcols.d2 > :not(.dcal-col){display:none!important}
-html.cal-only .dcols.d2 > .dcal-col{height:100%;overflow:hidden!important}
-html.cal-only .cal-body{flex:1;min-height:0;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)!important;gap:20px!important}
-html.cal-only .cal-g .cd{height:clamp(40px,calc((100vh - 170px) / 6),96px)}
+html.cal-only .dcols.d2 > .dcal-col{overflow:hidden!important}
+/* 2026-11-25: 칸 높이 · 상자 높이는 첫 화면과 같게 (창 높이에 맞춰 키우던 것 없앰) · 좁은 창에서도 왼쪽 달력 · 오른쪽 목록 */
+html.cal-only .cal-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:24px!important}
 html.cal-only .cal-r{contain:size!important;padding-top:0!important}
 html.cal-only .cal-r ul{max-height:none!important}
 @media (max-width:620px){ html.cal-only .cal-body{grid-template-columns:1fr!important} html.cal-only .cal-r{contain:none!important} }
