@@ -1,6 +1,6 @@
 // ===== 시험용 모드 전용: 가짜 예약 채우기 · 비우기 (2026-11-25) =====
 //  주소 끝 ?mock=1 로 켠 시험용 모드(js/devcf.js · 이 브라우저 안의 가짜 DB)에서만 보임 — 진짜 기록(공유 DB)에는 절대 쓰지 않음
-//  예약 현황 공유 · 단체 화면 왼쪽 아래 「가짜 예약 채우기」: 오늘 앞뒤 몇 주에 단체 예약 40건 (몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 · 여러 담당 · 지난 날짜 섞임)
+//  단체 화면 · 예약 현황 공유 오른쪽 아래 「가짜 예약 채우기」: 1년 전 ~ 2개월 뒤 단체 예약 130건 (모두 관람 또는 관람+식사 · 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 · 여러 담당 · 지난 날짜 섞임)
 //  「가짜 예약 비우기」: id 가 tst001 ~ (2026-11-25 예전 fake001 ~ 도) 인 것만 지움 (원래 있던 가상 예약 mock0001 등은 그대로)
 //  id 를 fake··· → tst··· 로 바꾼 까닭 (2026-11-25): 예전 버전으로 열려 있던 창 · 첫 화면이 fake··· 를 「진짜 DB 에 샌 가짜」로 알고 테스트 DB 에서도 지워서 채운 것이 자꾸 사라짐 → 예전 버전이 모르는 이름으로
 // 진짜 DB 청소 (2026-11-25 사고): 테스트 사이트의 시험용 모드에서 만든 가상 예약(mock0001 ~ · fake001 ~)이 같은 브라우저 저장소를 타고 진짜 DB 에 올라감
@@ -28,10 +28,21 @@
   const TIMES=['09:30','10:00','10:30','11:00','13:00','13:30','14:00','15:00'];
   const pick=(a,i)=>a[i%a.length];
   const day=n=>{ const d=new Date(); d.setDate(d.getDate()+n); return SY.ymd(d); };
+  // 날짜 (2026-11-25 다시): 1년 전 ~ 2개월 뒤에 고루 100건 + 요즘(지난주 ~ 7주 뒤) 30건 = 130건
+  const FAKE_N=130;
+  const offOf = i => i<100 ? -365 + Math.round(i*425/99) : -7 + (i-100)*2;
   function fakeRec(i){
-    const people=10+((i*7)%31), off=-10+((i*5)%45), owner='테스트';   // 영업 담당 = 테스트 (2026-11-25 · 테스트 멤버로 로그인해 모두 고쳐 보게 · 프로그램 담당은 여러 이름 그대로)
-    const x={ org:pick(ORGS,i)+(i>=ORGS.length?` ${Math.floor(i/ORGS.length)+1}차`:''), date:day(off), owner, people:String(people), contact:'가짜 담당 '+(i+1), phone:`010-9${String(1000+i).slice(-3)}-${String(2000+i)}`,
-      tin:pick(TIMES,i), tout:'16:00', pay:i%3?'결제링크':'현장 결제', note:'가짜 예약 (시험용)' };
+    const people=10+((i*7)%31), off=offOf(i), owner='테스트';   // 영업 담당 = 테스트 (2026-11-25 · 테스트 멤버로 로그인해 모두 고쳐 보게 · 프로그램 담당은 여러 이름 그대로)
+    const date=day(off), tin=pick(TIMES,i);
+    const x={ org:pick(ORGS,i)+(i>=ORGS.length?` ${Math.floor(i/ORGS.length)+1}차`:''), date, owner, people:String(people), contact:'가짜 담당 '+(i+1), phone:`010-9${String(1000+i).slice(-3)}-${String(2000+i)}`,
+      tin, tout:'16:00', pay:i%3?'결제링크':'현장 결제', note:'가짜 예약 (시험용)' };
+    // 모든 예약에 관람 또는 관람+식사 (2026-11-25): 관람만 · 관람+사담 런치1부 · 관람 일부 + 관람+사담 런치2부 · 관람+사담 디너 — 방문일 평일 / 주말·공휴일, 입장 13시 이후면 13~18시 관람권
+    const dayName=typeof isRedDay==='function' && isRedDay(date) ? '주말/공휴일' : '평일', vt=(parseInt(tin)||0)>=13 ? '13:00~18:00' : '09:00~18:00', vsrc=`${dayName} 관람(${vt})`;
+    const kind=i%4, part=Math.max(5, Math.round(people/2));
+    if(kind===0) x.views=`${vsrc} x${people}`;
+    else if(kind===1) x.sadam1=String(people);
+    else if(kind===2){ x.sadam2=String(part); x.views=`${vsrc} x${people-part}`; }
+    else x.sadamD=String(people);
     // 다섯 목록에 고루: 몽몽마방 · 대관(차방 · 당두봉갈) · 도슨트(동행 · 세미나) · 프로그램(요가 · 사운드워킹 · 사유의 향) · 음료쿠폰(가가빈빈)
     if(i%2===0){ x.mabangL=String(people); x.mabangTime=pick(['12:00','12:30','11:30'],i); x.mabangMenu=pick(MENUS,i); }
     if(i%4===1){ x.chabang='2'; x.tm_chabang=pick(TIMES,i+2); x.stf_chabang=pick(STAFF,i+2); }
@@ -44,18 +55,20 @@
   }
   async function fill(n){
     const now=new Date().toISOString(), h=JSON.stringify({h:[{t:now, by:'시험', what:'가짜 예약 (시험용)'}], tasks:[], erp:[], memos:[]});
-    for(let i=0;i<n;i++){ const x=fakeRec(i), stage=i%6===5?'예약상담':i%3===2?'가예약':'예약확정';
+    for(let i=0;i<n;i++){ const x=fakeRec(i), past=x.date<todayYmd(), stage=past ? (i%13===0?'예약취소':'예약확정') : i%6===5?'예약상담':i%3===2?'가예약':'예약확정';   // 지난 예약은 거의 예약확정 · 가끔 예약취소
+      if(stage==='예약취소') x.cancelWhy='가짜 예약 (시험용 취소)';
+      if(i%10===0) toast(`가짜 예약 넣는 중 · ${i}/${n}`, 1500);
       const item={...x, ...packExtra(x), callType:stage, summary:`가짜 예약 ${i+1}`, takenBy:x.owner, callStart:now, id:'tst'+String(i+1).padStart(3,'0'), saved:now, history:h};
       await store.put(item); }   // 화면이 저장할 때와 같은 모양 (칸 + packExtra 로 묶은 비고)
     await synced();
   }
-  const synced = async () => { for(let i=0;i<360 && pending.length;i++){ await new Promise(r=>setTimeout(r,250)); if(pending.length && i%8===7) flush(); } };   // 가짜 DB에 다 들어갈 때까지
+  const synced = async () => { for(let i=0;i<1200 && pending.length;i++){ await new Promise(r=>setTimeout(r,250)); if(pending.length && i%8===7) flush(); } };   // 가짜 DB에 다 들어갈 때까지
   async function clear(){ const L=(cache||[]).filter(r=>/^(fake|tst)\d+$/.test(r.id)); for(const r of L) await store.del(r.id); await synced(); return L.length; }
   function bar(){ if(document.getElementById('fakeBar')) return; const b=document.createElement('div'); b.id='fakeBar';
-    b.innerHTML='<b>'+(window.SY_CF?'시험용':'테스트 DB')+'</b><button type="button" class="btn primary" data-fake="fill" title="오늘 앞뒤 몇 주에 단체 예약 40건 (지금 DB 에만 · 배포 DB 에는 안 감)">가짜 예약 채우기</button><button type="button" class="btn primary" data-fake="clear" title="가짜 예약(fake…)만 지움">가짜 예약 비우기</button>';
+    b.innerHTML='<b>'+(window.SY_CF?'시험용':'테스트 DB')+'</b><button type="button" class="btn primary" data-fake="fill" title="1년 전 ~ 2개월 뒤 단체 예약 130건 · 모두 관람 또는 관람+식사 (지금 DB 에만 · 배포 DB 에는 안 감 · 2~3분 걸림)">가짜 예약 채우기</button><button type="button" class="btn primary" data-fake="clear" title="가짜 예약(tst… · 예전 fake…)만 지움">가짜 예약 비우기</button>';
     document.body.appendChild(b); }
   document.addEventListener('click', async e=>{ const b=e.target.closest?.('[data-fake]'); if(!b) return; b.disabled=true;
-    try{ if(b.dataset.fake==='fill'){ await fill(40); toast('가짜 예약 40건을 넣었습니다. 다시 불러옵니다.'); }
+    try{ if(b.dataset.fake==='fill'){ await fill(FAKE_N); toast(`가짜 예약 ${FAKE_N}건을 넣었습니다. 다시 불러옵니다.`); }
       else { const n=await clear(); toast(`가짜 예약 ${n}건을 지웠습니다. 다시 불러옵니다.`); }
       setTimeout(()=>location.reload(), 700); }
     catch(er){ b.disabled=false; toast('못 했습니다: '+(er.code||er.message)); console.error(er); } });
