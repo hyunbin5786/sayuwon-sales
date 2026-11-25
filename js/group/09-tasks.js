@@ -578,7 +578,7 @@ let listSearchT=null; document.addEventListener('input', e=>{ if(e.target.id!=='
 async function renderList(){
   // 예전 기록의 '단체예약'도 함께 (일반 문의·기타는 제외)
   const all=(await store.list()).filter(r=>['단체예약',...STAGES,...Object.keys(OLD_STAGE)].includes(r.callType||'단체예약'));
-  const del=id=>`<span class="row-acts"><button class="btn act-fix" data-fix="${id}" title="목록에 보이는 단계 · 전산 · 견적서 · 거래명세서 상태 고치기">수정</button><button class="btn act-del" data-del="${id}" title="이 예약 삭제 (사유를 고른 뒤)">삭제</button></span>`;
+  const del=id=>`<span class="row-acts"><button class="btn act-fix" data-fix="${id}" title="목록에 보이는 단계 · 전산 · 견적서 · 거래명세서 · 영업 담당 고치기 (남의 예약은 영업 담당만 · 사유 필수)">수정</button><button class="btn act-del" data-del="${id}" title="이 예약 삭제 (사유를 고른 뒤)">삭제</button></span>`;
   const needCall = r => /^자동 등록/.test(r.summary||'');
   const nCall = all.filter(needCall).length;
   // 단계: 시트 '통화 구분' 칸 (예전 이름은 normStage). 예전 '단체예약'은 결제 · 전산으로 판단. 관리자 사이트에서 온 예약은 예약확정

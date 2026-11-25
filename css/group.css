@@ -64,6 +64,7 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 .del-box input{margin-top:8px}
 .fix-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center}
 .fix-grid .del-l{margin:0}
+.fix-grid input{margin-top:0}
 .price-need{margin:0;padding:8px 10px;border-radius:7px;background:var(--amber-soft);color:var(--amber);font-size:13px}   /* 가격표: 방문일 · 관람 인원 중 빠진 것 안내 */
 #opt_mabang .fields{grid-template-columns:minmax(0,1.4fr) minmax(0,.8fr) minmax(0,1fr) minmax(0,.9fr)}   /* 시간 칸을 넓게 */
 .mb-menu{display:flex;flex-wrap:wrap;gap:6px}   /* 몽몽마방 메뉴 O 체크 */

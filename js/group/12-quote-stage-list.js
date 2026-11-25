@@ -362,28 +362,36 @@ const docTag = (r,id) => { const s=docState(r,id); return s==='발행' ? '<span 
 const DEL_REASONS = ['고객 취소 (방문 취소)','일정 연기 · 날짜 다시 잡기로','다른 예약과 중복 등록','잘못 입력 · 테스트','인원이 줄어 단체 예약 아님 (개인 예약으로)','다른 곳으로 결정 · 견적 후 진행 안 함','연락 두절','기타 (직접 입력)'];
 // ===================== 단체예약 목록 '수정': 상태가 실제와 다를 때 사유를 받고 고침 =====================
 // 사유 기본 목록 (피드백 받아 고칠 것)
-const FIX_REASONS = ['잘못 눌러 발행으로 표시됨 (실제로는 발행 안 함)','다른 경로로 이미 발행함 (메일 · 수기 등)','고객이 서류 요청을 취소함','전산 등록 상태가 실제와 다름','예약 단계가 실제와 다름 (결제 · 확정 여부 변경)','기타 (직접 입력)'];
+const FIX_REASONS = ['영업 담당 변경 (인수인계 · 담당 바뀜)','잘못 눌러 발행으로 표시됨 (실제로는 발행 안 함)','다른 경로로 이미 발행함 (메일 · 수기 등)','고객이 서류 요청을 취소함','전산 등록 상태가 실제와 다름','예약 단계가 실제와 다름 (결제 · 확정 여부 변경)','기타 (직접 입력)'];
 let fixId=null, fixBase=null;
 const DOC_LABEL = { '발행':'발행', '요청':'요청 · 미발행', '':'없음' };
-function fixStateOf(r){ return { stage: stageOfRec(r), erp: (/^adm/.test(r.id) || !!unpackExtra(r).erp) ? '1' : '', quote: docState(r,'quote'), stmt: docState(r,'stmt') }; }
+function fixStateOf(r){ return { owner: ownerOf(r), stage: stageOfRec(r), erp: (/^adm/.test(r.id) || !!unpackExtra(r).erp) ? '1' : '', quote: docState(r,'quote'), stmt: docState(r,'stmt') }; }
 function fixDiffList(a,b){ const out=[];
+  if(a.owner!==b.owner) out.push(`영업 담당 ${a.owner||'없음'} → ${b.owner||'없음'}`);
   if(a.stage!==b.stage) out.push(`예약 단계 ${a.stage} → ${b.stage}`);
   if(a.erp!==b.erp) out.push(`전산 ${a.erp?'등록':'미등록'} → ${b.erp?'등록':'미등록'}`);
   if(a.quote!==b.quote) out.push(`견적서 ${DOC_LABEL[a.quote]} → ${DOC_LABEL[b.quote]}`);
   if(a.stmt!==b.stmt) out.push(`거래명세서 ${DOC_LABEL[a.stmt]} → ${DOC_LABEL[b.stmt]}`);
   return out; }
-const fixCur = () => ({ stage:$('#fixStage').value, erp:$('#fixErp').value, quote:$('#fixQuote').value, stmt:$('#fixStmt').value });
-function paintFixDiff(){ const d=fixDiffList(fixBase, fixCur()); $('#fixDiff').textContent = d.length ? '바뀌는 것: '+d.join(', ') : '바꿀 상태를 고르세요.'; $('#fixOk').disabled=!d.length; }
+const fixCur = () => ({ owner:$('#fixOwner').value.trim(), stage:$('#fixStage').value, erp:$('#fixErp').value, quote:$('#fixQuote').value, stmt:$('#fixStmt').value });
+function paintFixDiff(){ const c=fixCur(), d=fixDiffList(fixBase, c); $('#fixDiff').textContent = (d.length ? '바뀌는 것: '+d.join(', ') : '바꿀 상태를 고르세요.') + (c.owner!==fixBase.owner ? ' · 영업 담당을 바꾸면 자세한 사유를 꼭 적어 주세요.' : ''); $('#fixOk').disabled=!d.length; }
 function openFix(id){
-  const r=cache.find(x=>x.id===id); if(!r) return; if(notMineMsg(r)) return;   // 남이 담당인 예약은 고칠 수 없음
+  const r=cache.find(x=>x.id===id); if(!r) return;
+  // 2026-11-25: 남이 담당인 예약도 열림 — 영업 담당만 바꿀 수 있음(사유 직접 입력 필수) · 단계 · 전산 · 서류는 담당만
+  const o=ownerOf(r), me=savedOwner(), other=!!(o && me && o!==me);
   fixId=id; fixBase=fixStateOf(r);
+  ['#fixStage','#fixErp','#fixQuote','#fixStmt'].forEach(s=>{ $(s).disabled=other; $(s).title=other?`${o}님 담당 예약이라 영업 담당만 바꿀 수 있습니다.`:''; });
+  $('#fixOwnerList').innerHTML=[...new Set([me, ...cache.map(ownerOf)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko')).map(n=>`<option value="${esc(n)}">`).join('');
+  $('#fixOwner').value=fixBase.owner;
+  // 예약 단계 목록은 지금 단계 이름(STAGES)으로 — 예전 목록(예약상담 · 예약접수)엔 가예약 · 예약확정이 없어 그 예약을 고치면 단계가 비던 것 (2026-11-25)
+  $('#fixStage').innerHTML=[...new Set([...STAGES, fixBase.stage].filter(Boolean))].map(s=>`<option>${esc(s)}</option>`).join('');
   $('#fixWho').textContent = [r.org||r.contact||'(업체 미정)', r.date&&dateLabel(r.date)].filter(Boolean).join(' · ');
   $('#fixStage').value=fixBase.stage; $('#fixErp').value=fixBase.erp; $('#fixQuote').value=fixBase.quote; $('#fixStmt').value=fixBase.stmt;
   $('#fixReason').innerHTML = '<option value="">사유를 고르세요</option>' + FIX_REASONS.map(x=>`<option>${esc(x)}</option>`).join('');
   $('#fixNote').value=''; paintFixDiff(); $('#fixModal').hidden=false; $('#fixStage').focus();
 }
 const closeFix = () => { $('#fixModal').hidden=true; fixId=null; };
-['#fixStage','#fixErp','#fixQuote','#fixStmt'].forEach(s=>$(s).addEventListener('change', paintFixDiff));
+['#fixStage','#fixErp','#fixQuote','#fixStmt'].forEach(s=>$(s).addEventListener('change', paintFixDiff)); $('#fixOwner').addEventListener('input', paintFixDiff);
 $('#fixCancel').onclick=closeFix;
 $('#fixModal').addEventListener('mousedown', e=>{ if(e.target.id==='fixModal') closeFix(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#fixModal').hidden){ e.preventDefault(); closeFix(); } });
@@ -392,6 +400,9 @@ $('#fixOk').onclick=async ()=>{
   const reason=$('#fixReason').value, note=$('#fixNote').value.trim();
   if(!reason){ toast('수정 사유를 골라 주세요.'); $('#fixReason').focus(); return; }
   if(/^기타/.test(reason) && !note){ toast('기타 사유를 적어 주세요.'); $('#fixNote').focus(); return; }
+  if(cur.owner!==fixBase.owner){
+    if(!cur.owner){ toast('영업 담당 이름을 적어 주세요.'); $('#fixOwner').focus(); return; }
+    if(!note){ toast('영업 담당을 바꾸는 사유를 적어 주세요.'); $('#fixNote').focus(); return; } }
   const r=cache.find(x=>x.id===fixId); if(!r){ closeFix(); return; }
   if(editingId===r.id && baseSnap && diffSnap(baseSnap, snap()).length){ toast('이 예약을 지금 고치는 중입니다. 먼저 저장한 뒤 수정해 주세요.'); return; }
   const now=new Date().toISOString(), ph=parseHist(r), x=unpackExtra(r), why = /^기타/.test(reason) ? note : reason + (note ? ` · ${note}` : '');
@@ -406,7 +417,7 @@ $('#fixOk').onclick=async ()=>{
     t.done = cur[id]==='발행'; t.doneAt = t.done ? now : ''; t.subs=Object.fromEntries(DOC_SUBS[id].map(([k])=>[k, t.done])); ex[wk]='있음'; });
   ph.h.push({t:now, by:savedOwner()||'', what:`[목록 수정] ${diff.join(', ')} · 사유: ${why}`});
   const pk=packExtra(ex);
-  const item={...r, pay:pk.pay, memo:pk.memo, callType:cur.stage, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now};
+  const item={...r, ...(cur.owner!==fixBase.owner ? {owner:cur.owner} : {}), pay:pk.pay, memo:pk.memo, callType:cur.stage, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now};
   await store.put(item); closeFix(); await renderList();
   if(editingId===r.id){ openRecord(cache.find(x=>x.id===r.id)||item); $('#listModal').hidden=false; }   // 열어 둔 예약이면 고친 상태로 다시 불러옴
   toast('목록 상태를 고쳤습니다. 사유는 수정 기록에 남았습니다.');
