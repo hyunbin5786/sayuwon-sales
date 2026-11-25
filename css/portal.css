@@ -386,3 +386,16 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .dtd-go:hover{background:#dedad0;color:#3d3b35}
 .dtd-go::after{content:attr(data-tip);position:absolute;right:calc(100% + 5px);top:50%;transform:translateY(-50%);background:#3d3b35;color:#fff;font:600 11px var(--sans);padding:3px 7px;border-radius:5px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s;z-index:5}
 .dtd-go:hover::after,.dtd-go:focus-visible::after{opacity:1}
+/* ===== 캘린더 새 창 (2026-11-25 · ./?cal=1 · 캘린더 옆 ↗ 버튼): 캘린더 상자만 창 가득 · 첫 화면처럼 계속 새로 받음 ===== */
+.cal-pop{margin-left:4px}
+html.cal-only header,html.cal-only .smenu,html.cal-only .dash-h,html.cal-only #menuView .hello,html.cal-only #setupBar,html.cal-only #menuNote,html.cal-only .cal-pop{display:none!important}
+html.cal-only:is(.cal-only,.smenu-dock) body > main{margin:0!important;max-width:none!important;padding:10px 12px!important}
+html.cal-only #menuView .dash{height:calc(100vh - 20px)!important}
+html.cal-only .dcols.d2{display:block!important;height:100%}
+html.cal-only .dcols.d2 > :not(.dcal-col){display:none!important}
+html.cal-only .dcols.d2 > .dcal-col{height:100%;overflow:hidden!important}
+html.cal-only .cal-body{flex:1;min-height:0;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)!important;gap:20px!important}
+html.cal-only .cal-g .cd{height:clamp(40px,calc((100vh - 170px) / 6),96px)}
+html.cal-only .cal-r{contain:size!important;padding-top:0!important}
+html.cal-only .cal-r ul{max-height:none!important}
+@media (max-width:620px){ html.cal-only .cal-body{grid-template-columns:1fr!important} html.cal-only .cal-r{contain:none!important} }

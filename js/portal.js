@@ -321,7 +321,7 @@ function calHTML(today){
   const dv=V.filter(x=>x.d===calDay).sort((a,b)=>String(a.tm).localeCompare(String(b.tm))), de=E.filter(x=>on(x,calDay)).sort((a,b)=>String(a.d).localeCompare(String(b.d)) || String(a.tm||'99').localeCompare(String(b.tm||'99')));
   const per = x => x.d2 && x.d2>x.d ? `<b class="per">${esc(opsDateLabel(x.d))} ~ ${esc(opsDateLabel(x.d2))}</b> ` : '';
   const legend = `<div class="cal-lg">${[CAL_GRP, ...CAL_CATS].map(c=>`<span><i style="background:${c[1]}"></i>${esc(c[0])}</span>`).join('')}</div>`;
-  return `<div class="dcol-h"><b>캘린더</b><button type="button" class="cal-plus" id="calAddBtn" title="일정 추가" aria-label="일정 추가">+</button><span class="cal-nav"><button type="button" data-cmon="-1" title="이전 달">‹</button><span>${y}년 ${m}월</span><button type="button" data-cmon="1" title="다음 달">›</button></span></div>`
+  return `<div class="dcol-h"><b>캘린더</b><button type="button" class="cal-plus" id="calAddBtn" title="일정 추가" aria-label="일정 추가">+</button><button type="button" class="cal-plus cal-pop" id="calPopBtn" title="캘린더를 새 창으로 띄우기" aria-label="캘린더를 새 창으로"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M12 9.5v3.5a.5.5 0 0 1-.5.5h-8.5a.5.5 0 0 1-.5-.5V4.5a.5.5 0 0 1 .5-.5H7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button><span class="cal-nav"><button type="button" data-cmon="-1" title="이전 달">‹</button><span>${y}년 ${m}월</span><button type="button" data-cmon="1" title="다음 달">›</button></span></div>`
     + `<div class="cal-body"><div class="cal-l"><div class="cal-g"><span class="cw">일</span><span class="cw">월</span><span class="cw">화</span><span class="cw">수</span><span class="cw">목</span><span class="cw">금</span><span class="cw">토</span>${cells}</div>`
     + legend + `</div>`
     + `<div class="cal-day cal-r"><b class="cal-dh">${esc(opsDateLabel(calDay))}</b>`
@@ -567,6 +567,7 @@ function recPopOpen(url){ const P=$('#recPop'), F=$('#recPopFrame'); if(!P) { lo
 function recPopClose(){ const P=$('#recPop'); if(!P || P.hidden) return; P.hidden=true; $('#recPopFrame').src='about:blank'; dashSoon(200); }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && $('#recPop') && !$('#recPop').hidden){ e.preventDefault(); recPopClose(); } });
 document.addEventListener('click', e=>{
+  if(e.target.closest('#calPopBtn')){ const w=window.open('./?cal=1', 'sy_cal', 'width=1000,height=720,resizable=yes,scrollbars=yes'); if(w) w.focus(); else location.href='./?cal=1'; return; }   // 캘린더 새 창 (2026-11-25 · 같은 창이 있으면 그 창을 앞으로)
   const rp=e.target.closest('[data-recpop]'); if(rp){ e.preventDefault(); recPopOpen(rp.dataset.recpop); return; }
   if(e.target.id==='recPop' || e.target.closest('#recPopX')){ recPopClose(); return; }
   const w=e.target.closest('[data-dwho]'); if(w){ dashWho = dashWho===w.dataset.dwho ? '' : w.dataset.dwho; renderDash(); }
