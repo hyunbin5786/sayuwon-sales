@@ -185,7 +185,7 @@ function tcfgModal(){ let m=$('#tcfgModal'); if(m) return m;
     <div class="tcfg-head"><h2 id="tcfgTitle">추후과업 메시지 관리</h2>
       <span class="seg tcfg-seg"><button type="button" data-tcview="edit">과업별 편집</button><button type="button" data-tcview="table">한눈에 보기</button></span>
       <small class="hint" id="tcfgMsg"></small><button type="button" class="tcfg-x" data-tcfgclose title="닫기 (Esc)" aria-label="닫기">×</button></div>
-    <p class="hint tcfg-lead">단체예약에 자동으로 생기는 추후 과업의 <b>이름 · 언제 생길지(조건) · 마감 · 담당 · 세부 과업 · 과업 문구 · 과업 아래 안내 줄</b>을 모두 고칠 수 있습니다. 저장하면 모든 직원에게 같게 적용됩니다.</p>
+    <p class="hint tcfg-lead">단체예약에 자동으로 생기는 추후 과업의 <b>이름 · 언제 생길지(조건) · 마감 · 담당 · 세부 과업 · 과업 보조 설명 · 복사 멘트</b>을 모두 고칠 수 있습니다. 저장하면 모든 직원에게 같게 적용됩니다.</p>
     <div class="tcfg-main" id="tcfgMain">
       <aside class="tcfg-side"><input id="tcfgQ" class="tcfg-q" type="search" placeholder="과업 찾기 (이름 · 조건 · 담당)" data-ime="ko" autocomplete="off"><div id="tcfgList" class="tcfg-items"></div><button type="button" class="btn primary" data-tcfgadd>＋ 새 과업 추가</button></aside>
       <div class="tcfg-pane" id="tcfgBody"></div>
@@ -222,13 +222,12 @@ function tcfgEdHTML(T, c, builtin, id){
   const fixedNote = builtin && ['erp','erpfix','tour','tax'].includes(id);
   const names=(typeof MEMBER_NAMES!=='undefined' ? MEMBER_NAMES : []), w=String(c.who||'').trim();
   const whoHTML = TCFG_WHO_FIXED[id] ? `<div class="tcfg-fixed">${esc(TCFG_WHO_FIXED[id])}</div>`
-    : `<select class="tcfg-who" data-tf="${T}|who"><option value="">영업 담당 (그 예약의 영업 담당 · 기본)</option>${names.map(n=>`<option value="${esc(n)}"${n===w?' selected':''}>${esc(n)}</option>`).join('')}${w && !names.includes(w) ? `<option value="${esc(w)}" selected>${esc(w)} (멤버 아님)</option>` : ''}</select>
+    : `<select class="tcfg-who" data-tf="${T}|who"><option value="">영업 담당 (기본)</option>${names.map(n=>`<option value="${esc(n)}"${n===w?' selected':''}>${esc(n)}</option>`).join('')}${w && !names.includes(w) ? `<option value="${esc(w)}" selected>${esc(w)} (멤버 아님)</option>` : ''}</select>
       <small class="hint">멤버를 고르면 모든 예약의 이 과업이 그 사람의 나의 할일 · 알림으로 갑니다 (이미 끝낸 과업은 그대로).</small>`;
   const rule = builtin && (id==='erp' || id==='erpfix') && typeof ERP_NOTE_RULES!=='undefined' ? ['전산 비고 {전산비고} 가 만들어지는 규칙', ERP_NOTE_RULES]
     : builtin && id==='prep' && typeof PREP_RULES!=='undefined' ? ['단체 준비 과업 규칙', PREP_RULES]
     : builtin && id==='memocheck' && typeof MEMOCHECK_RULES!=='undefined' ? ['통화 메모 확인 과업 규칙', MEMOCHECK_RULES]
     : builtin && id==='pplchk' && typeof PPLCHK_RULES!=='undefined' ? ['예약내역&전산 확인 과업 규칙', PPLCHK_RULES] : null;
-  const vars = TCFG_VARS.map(v=>`<code data-tvar="${esc(v[0])}" title="눌러서 커서 자리에 넣기">{${esc(v[0])}}</code>`).join(' ');
   return `<div class="tcfg-ed">
     <div class="tcfg-card tcfg-top">
       <div class="tcfg-name"><input class="tcfg-in tcfg-title" data-tf="${T}|title" data-ime="ko" value="${esc(c.title||'')}" placeholder="${esc(builtin ? TCFG_BASE_TITLES[id] : '과업 이름')}" aria-label="과업 이름">
@@ -242,38 +241,60 @@ function tcfgEdHTML(T, c, builtin, id){
         <label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> <b>미정 항목에 대한 내용</b> <small class="hint">— 미정 항목 · 아직 안 넣은 칸을 하나씩 (예: 「미정 · 결제 방법」)</small></label></div>` : ''}
       ${builtin && id==='pplchk' ? `<div class="tcfg-auto"><label class="chk"><input type="checkbox" data-tf="${T}|autoDone"${c.autoDone?' checked':''}> <b>전산 내역이 이미 같으면 저절로 완료</b> <small class="hint">— 가장 최근 전산 내역과 예약 내역의 총 금액 · 할인이 같으면</small></label></div>` : ''}
     </div>
-    <div class="tcfg-card"><h4>언제 생기고 언제까지 <small class="hint">조건이 모두 맞을 때 생김 · 조건이 없으면 ${builtin?'모든 예약':'가예약 · 예약확정인 모든 예약'}</small></h4>
+    <div class="tcfg-card"><h4>언제 생기고 · 언제까지 · 누구에게 <small class="hint">조건이 모두 맞을 때 생김 · 조건이 없으면 ${builtin?'모든 예약':'가예약 · 예약확정인 모든 예약'}</small></h4>
       <div class="tcfg-when">
         <div class="tcfg-wl"><div class="tcfg-lab">언제 생길지</div><div class="tcfg-conds">${conds.map(condRow).join('') || `<span class="hint">모든 예약</span>`}</div><button type="button" class="btn primary sm" data-tccadd="${T}">＋ 조건 더하기</button></div>
         <div class="tcfg-wr"><div class="tcfg-lab">마감</div><div class="tcfg-due"><select data-tf="${T}|dueBase">${TCFG_DUE.map(([k,l])=>`<option value="${k}"${k===due.base?' selected':''}>${esc(l)}</option>`).join('')}</select>${TCFG_N_DUE.has(due.base)?`<input data-tf="${T}|dueN" inputmode="numeric" data-ime="num" value="${esc(due.n??0)}" style="width:56px"> 일`:''}</div></div>
+        <div class="tcfg-wh"><div class="tcfg-lab">담당</div>${whoHTML}</div>
       </div>
     </div>
-    <div class="tcfg-card"><h4>담당</h4>${whoHTML}</div>
-    <div class="tcfg-card"><h4>문구 <button type="button" class="tcfg-help${tcfgHelp?' on':''}" data-tchelp title="과업 문구와 과업 아래 안내 줄이 어떻게 다른지 예시로 보기" aria-expanded="${tcfgHelp}">?</button> <small class="hint">{단체명} 처럼 바꿔 넣는 말 → 예약마다 그 값으로 · 비우면 없음</small></h4>
+    <div class="tcfg-card"><h4>문구 <button type="button" class="tcfg-help${tcfgHelp?' on':''}" data-tchelp title="과업 보조 설명과 복사 멘트가 어떻게 다른지 예시로 보기" aria-expanded="${tcfgHelp}">?</button> <small class="hint">비우면 없음</small></h4>
+      ${tcfgVarsHTML()}
       ${tcfgHelp ? tcfgHelpHTML() : ''}
       <div class="tcfg-two">
-        <label><span class="tcfg-lh"><span class="hb a">A</span> 과업 문구</span> <small class="hint">과업의 「문구 복사」로 복사${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''}</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '예: [세금계산서] {단체명} …', 5)}</label>
-        <label><span class="tcfg-lh"><span class="hb b">B</span> 과업 아래 안내 줄</span> <small class="hint">과업 제목 아래에 붙는 글 (예: 바뀐 내용)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '예: 바뀐 내용: {바뀐내용}', 5)}</label>
+        <label><span class="tcfg-lh"><span class="hb a">A</span> 과업 보조 설명</span> <small class="hint">과업 이름 아래에 늘 보이는 짧은 설명 (읽기만)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '예: 바뀐 내용: {바뀐내용}', 5)}</label>
+        <label><span class="tcfg-lh"><span class="hb b">B</span> 복사 멘트</span> <small class="hint">과업의 「문구 복사」로 복사해 붙여 넣는 글${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''}</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '예: [세금계산서] {단체명} …', 5)}</label>
       </div>
-      <div class="tcfg-vars"><span class="hint">바꿔 넣는 말 — 글 칸을 누른 뒤 고르면 그 자리에 들어감:</span><br>${vars}</div>
     </div>
     ${rule ? `<details class="tcfg-rule"><summary>📋 ${esc(rule[0])} (참고 · 누르면 펼침)</summary><pre>${esc(rule[1])}</pre></details>` : ''}
   </div>`; }
-// 문구 ? 도움말 (2026-11-25): 과업 문구 vs 과업 아래 안내 줄 — 나의 할일 · 단체 화면의 과업 모양으로 어디에 나오는지 보여 줌
+// 문구 ? 도움말 (2026-11-25): 과업 보조 설명(A) vs 복사 멘트(B) — 과업 모양으로 어디에 나오는지 보여 줌
 let tcfgHelp=false;
 function tcfgHelpHTML(){
   return `<div class="tcfg-helpbox">
-    <div class="tcfg-hcol"><div class="tcfg-hh"><span class="hb a">A</span> 과업 문구</div>
-      <p>과업 안 회색 칸에 들어가고, <b>「문구 복사」</b>를 눌러 <b>다른 곳에 붙여 넣는 글</b>입니다. 전산 비고, 세금계산서 요청 메시지, 고객에게 보낼 문자 등에 씁니다.</p>
-      <p class="hint">예: 「전산 예약」 → 전산 예약 비고 칸에 붙여 넣을 글 · 「세금계산서 발행」 → 담당 부서에 보낼 요청 글</p></div>
-    <div class="tcfg-hcol"><div class="tcfg-hh"><span class="hb b">B</span> 과업 아래 안내 줄</div>
+    <div class="tcfg-hcol"><div class="tcfg-hh"><span class="hb a">A</span> 과업 보조 설명</div>
       <p>과업 이름 바로 아래에 <b>늘 보이는 짧은 설명</b>입니다. 복사하지 않고 <b>읽기만</b> 합니다. 왜 이 과업이 생겼는지, 무엇이 바뀌었는지 알려 줄 때 씁니다.</p>
       <p class="hint">예: 「예약내역&전산 확인」 → 바뀐 내용: 관람 인원 20 → 25</p></div>
+    <div class="tcfg-hcol"><div class="tcfg-hh"><span class="hb b">B</span> 복사 멘트</div>
+      <p>과업 안 회색 칸에 들어가고, <b>「문구 복사」</b>를 눌러 <b>다른 곳에 붙여 넣는 글</b>입니다. 전산 비고, 세금계산서 요청 메시지, 고객에게 보낼 문자 등에 씁니다.</p>
+      <p class="hint">예: 「전산 예약」 → 전산 예약 비고 칸에 붙여 넣을 글 · 「세금계산서 발행」 → 담당 부서에 보낼 요청 글</p></div>
     <div class="tcfg-hdemo"><div class="hint" style="margin-bottom:4px">과업이 이렇게 보입니다 (예시)</div>
       <div class="tcfg-mock"><div class="mk-h"><span class="mk-ck"></span><b>전산 예약 수정</b><span class="mk-due">마감 11/26(목)</span></div>
-        <div class="mk-desc"><span class="hb b">B</span> 바뀐 내용: 관람 인원 20 → 25 · 입장 10:00 → 11:00</div>
-        <div class="mk-note"><span class="hb a">A</span> 현장 결제 필요 / 11시 입장 / 12시 몽몽마방(사유의 밥상 25명) (김영업)</div>
-        <div class="mk-btns"><span class="mk-btn">문구 복사</span><span class="hint">← A 를 복사</span></div></div></div>
+        <div class="mk-desc"><span class="hb a">A</span> 바뀐 내용: 관람 인원 20 → 25 · 입장 10:00 → 11:00</div>
+        <div class="mk-note"><span class="hb b">B</span> 현장 결제 필요 / 11시 입장 / 12시 몽몽마방(사유의 밥상 25명) (김영업)</div>
+        <div class="mk-btns"><span class="mk-btn">문구 복사</span><span class="hint">← B 를 복사</span></div></div></div>
+  </div>`; }
+// 바꿔 넣는 말 (2026-11-25): 지금 쓰는 것만 보여 줌 (원래 과업의 기본 문구 · 규칙 안내에 쓰인 것). 누르면 설명 · 예시가 펼쳐짐 (글 칸에 넣지 않음 — 직접 {이름} 으로 적음)
+//  예전에 보이던 나머지({담당자} {인원} {결제방식} …)는 목록에서만 뺐고, 이미 저장된 문구에 있으면 그대로 바뀌어 들어감 (TCFG_VARS)
+const TCFG_VAR_SHOW = [
+  ['단체명','예약의 업체(단체) 이름','중앙교육연수원'],
+  ['방문일','방문일 (요일)','11/28(토)'],
+  ['방문일점','방문일을 점 날짜로 (세금계산서 요청 글)','2026.11.28 (토)'],
+  ['입장시간','입장 시각','10:00'],
+  ['바뀐내용','예약에서 바뀐 것 (예약내역&전산 확인 · 전산 예약 수정) — 바뀐 것이 없으면 그 줄은 안 보임','관람 인원 20 → 25 · 입장 10:00 → 11:00'],
+  ['메모고친사람','통화 메모를 고치거나 메모를 남긴 사람 (통화 메모 확인)','김수정'],
+  ['전산비고','전산 예약 비고에 넣을 글 — 규칙대로 자동 (📋 전산 비고 규칙)','현장 결제 필요 / 10시 입장 / 12시 몽몽마방(사유의 밥상 20명) (김영업)'],
+  ['답사비고','사전답사 전산 예약 비고','중앙교육연수원 사전답사/2명 현장 결제 필요'],
+  ['사유원금액','결제 금액 중 ㈜사유원(비과세 · 입장료) 몫','900,000'],
+  ['신라금액','결제 금액 중 신라(과세 · 식사 · 프로그램 · 대관) 몫','1,440,000'],
+  ['이메일','담당자 이메일 중 맨 위','sample@example.com']];
+let tcfgVarOpen='';
+function tcfgVarsHTML(){
+  const o=TCFG_VAR_SHOW.find(v=>v[0]===tcfgVarOpen);
+  let now=''; if(o && typeof rec!=='undefined' && rec && (rec.org||rec.date)){ try{ const f=(TCFG_VARS.find(v=>v[0]===o[0])||[])[1]; now=f ? String(f(rec, null)||'') : ''; }catch(_){ now=''; } }
+  return `<div class="tcfg-vars"><span class="tcfg-vh">바꿔 넣는 말</span> <small class="hint">문구에 {단체명} 처럼 적으면 예약마다 그 값으로 바뀜 · 누르면 설명과 예시</small>
+    <div class="tcfg-chips">${TCFG_VAR_SHOW.map(v=>`<button type="button" class="tcfg-chip${v[0]===tcfgVarOpen?' on':''}" data-tvar="${esc(v[0])}" aria-expanded="${v[0]===tcfgVarOpen}">{${esc(v[0])}}</button>`).join('')}</div>
+    ${o ? `<div class="tcfg-varbox"><b>{${esc(o[0])}}</b> — ${esc(o[1])}<div class="tcfg-vex">예: <span>${esc(o[2])}</span></div>${now ? `<div class="tcfg-vex">지금 열어 둔 예약에서: <span>${esc(now)}</span></div>` : ''}<div class="hint" style="margin-top:4px">쓰는 법: 문구 칸에 <code>{${esc(o[0])}}</code> 그대로 적기</div></div>` : ''}
   </div>`; }
 // 왼쪽 목록
 function tcfgPaintList(){ const box=$('#tcfgList'); if(!box || !tcfgDraft) return; const st=box.scrollTop, q=tcfgQ.toLowerCase();
@@ -296,8 +317,8 @@ function tcfgTableHTML(){
       <td>${c.off?'<span class="tag off">끔</span>':'<span class="tag on">켜짐</span>'}</td>
       <td>${esc(tcfgWhenTxt(it))}</td><td>${esc(tcfgDueTxt(c.due||{base:'visit',n:3}))}</td><td>${esc(tcfgWhoTxt(it.id, c))}</td>
       <td>${subs.length ? `<ol>${subs.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>` : (it.id==='wkcheck' ? '<span class="hint">자동</span>' : '')}</td>
-      <td class="tx">${esc(cut(c.note, 80))}</td><td class="tx">${esc(cut(c.desc, 60))}</td></tr>`; }).join('');
-  return `<div class="tcfg-tablewrap"><table class="tcfg-table"><thead><tr><th>과업</th><th>상태</th><th>언제 생길지</th><th>마감</th><th>담당</th><th>세부 과업</th><th>과업 문구</th><th>안내 줄</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
+      <td class="tx">${esc(cut(c.desc, 60))}</td><td class="tx">${esc(cut(c.note, 80))}</td></tr>`; }).join('');
+  return `<div class="tcfg-tablewrap"><table class="tcfg-table"><thead><tr><th>과업</th><th>상태</th><th>언제 생길지</th><th>마감</th><th>담당</th><th>세부 과업</th><th>과업 보조 설명</th><th>복사 멘트</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
 function tcfgPaint(){ const d=tcfgDraft; if(!d) return; const body=$('#tcfgBody'), main=$('#tcfgMain');
   document.querySelectorAll('#tcfgModal [data-tcview]').forEach(b=>b.classList.toggle('on', b.dataset.tcview===tcfgView));
   main.classList.toggle('table', tcfgView==='table');
@@ -325,12 +346,11 @@ document.addEventListener('change', e=>{ if(!e.target.closest?.('#tcfgModal')) r
 document.addEventListener('keydown', e=>{ const el=e.target; if(!el.dataset || el.dataset.tsubnew==null || e.key!=='Enter' || e.isComposing) return; e.preventDefault(); tcfgSubAdd(el); });
 // 「＋ 세부 과업」에 적고 Enter 를 안 누른 채 저장해도 들어가게 (저장 때 모음)
 const tcfgPendSubs = () => document.querySelectorAll('#tcfgModal [data-tsubnew]').forEach(el=>{ const v=el.value.trim(); if(!v) return; const c=tcfgTarget(el.dataset.tsubnew); if(!c) return; (c.subs ||= []).push(v); el.value=''; });
-document.addEventListener('mousedown', e=>{ if(e.target.closest?.('#tcfgModal [data-tvar]')) e.preventDefault(); });   // 바꿔 넣는 말을 눌러도 글 칸 커서가 그대로
 document.addEventListener('click', async e=>{
   if(e.target.closest?.('#tcfgBtn')){ tcfgOpen(); return; }
   if(!e.target.closest?.('#tcfgModal') || !tcfgDraft) return; const d=tcfgDraft;
-  const tv=e.target.closest('[data-tvar]'); if(tv){ const el=tcfgLastIn; if(!el || !document.body.contains(el)){ toast('먼저 넣을 글 칸(과업 문구 · 과업 아래 안내 줄)을 누르세요.'); return; }
-    const s='{'+tv.dataset.tvar+'}', a=el.selectionStart??el.value.length, b=el.selectionEnd??a; el.value=el.value.slice(0,a)+s+el.value.slice(b); el.focus(); el.selectionStart=el.selectionEnd=a+s.length; tcfgSet(el); return; }
+  const tv=e.target.closest("[data-tvar]"); if(tv){
+    tcfgVarOpen = tcfgVarOpen===tv.dataset.tvar ? "" : tv.dataset.tvar; tcfgPaint(); return; }   // 바꿔 넣는 말: 눌러서 설명 · 예시 펼치기 / 접기 (2026-11-25 · 글 칸에 넣지 않음)
   if(e.target.closest('[data-tcfgclose]')){ if(tcfgSaved && JSON.stringify(tcfgDraft)!==tcfgSaved && !confirm('저장하지 않은 고친 내용이 있습니다. 저장하지 않고 닫을까요?')) return; tcfgClose(); return; }
   if(e.target.closest('[data-tchelp]')){ tcfgHelp=!tcfgHelp; tcfgPaint(); return; }
   const vw=e.target.closest('[data-tcview]'); if(vw){ tcfgPendSubs(); tcfgView=vw.dataset.tcview; tcfgPaint(); return; }
