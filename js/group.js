@@ -2187,14 +2187,15 @@ const ERP_NOTE_RULES = `■ 모양
   예) 현장 결제 필요 / 10시 입장 / 12시 몽몽마방(사유의 밥상 10명) / 13시 PPT세미나(당두봉갈) / 음료쿠폰 40개 / 굿즈 고추장 2개 (문현빈)
 
 ■ 순서
-  ① 맨 앞 — 시간이 없는 확인 사항: 현장 결제 필요 → 특별 할인 증빙 → 대구대교구 시트기입 → 학생 확인
+  ① 맨 앞 — 시간이 없는 확인 사항: 현장 결제 필요(또는 현장 재결제 필요) → 특별 할인 증빙 → 대구대교구 시트기입 → 학생 확인
   ② 가운데 — 도착(입장)과 시간이 있는 일정을 이른 시간부터: 입장 · 몽몽마방 · 프로그램 · 대관 · 도슨트
      (시간이 있는 일정이 하나도 없으면 ①을 쓰고 도착을 그 뒤에)
   ③ 맨 뒤 — 음료쿠폰 → 굿즈
   ④ 끝에 늘 (영업 담당 이름)
 
 ■ 항목마다 쓰는 말
-  · 현장 결제 필요 — 결제 방법이 「현장 결제」이거나 「현장 재결제」에 체크했을 때
+  · 현장 결제 필요 — 결제 방법이 「현장 결제」일 때
+  · 현장 재결제 필요 — 「현장 재결제」에 체크했을 때 (결제링크로 받고 현장에서 카드로 다시 결제)
   · 특별 할인 — 「간송 할인 3명 증빙서류 확인 필요」처럼 할인마다 (가이드 무료는 안 씀)
   · 대구대교구 — 「대구대교구 2명 시트기입」
   · 학생 — 관람 · 관람+식사 줄의 학생 인원을 더해 「학생 5명 확인 필요」
@@ -2235,7 +2236,7 @@ function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문�
     items.push([erpProgT(sub('tm')), /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
     if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2)) items.push([erpProgT(r.tm_seminar2), name+(r.plc_seminar2?`(${String(r.plc_seminar2).trim()})`:'')].filter(Boolean).join(' '));
   });
-  if(r.pay==='현장 결제' || r.onsite) items.push('현장 결제 필요');   // 2026-11-24: 「현장결제」 → 「현장 결제 필요」 (사전답사 비고의 「n명 현장 결제 필요」와 같은 말투)
+  if(r.onsite) items.push('현장 재결제 필요'); else if(r.pay==='현장 결제') items.push('현장 결제 필요');   // 2026-11-25: 「현장 재결제」 체크면 「현장 재결제 필요」 · 2026-11-24: 「현장결제」 → 「현장 결제 필요」 (사전답사 비고의 「n명 현장 결제 필요」와 같은 말투)
   { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy' && s.k!=='dGuide'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인 필요`));   /* 2026-11-24: 끝에 「필요」 */ if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
   { const st=viewsParse(r.views).filter(x=>/학생/.test(x.src)).reduce((a,x)=>a+(+x.qty||0),0) + Object.values(istuMap(r)).reduce((a,n)=>a+n,0); if(st) items.push(`학생 ${st}명 확인 필요`); }
   const gate = r.gate && r.gate!=='미정' ? r.gate : '';
