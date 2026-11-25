@@ -161,15 +161,17 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .stock-due{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;margin:0 0 12px;padding:12px 14px;border:1px solid #e3a08f;background:#fdf0ec;border-radius:10px;color:#262620;text-decoration:none;font-size:14px}
 .stock-due b{color:#b5442c;font-size:15px}
 .stock-due:hover{border-color:#b5442c}
-/* ===== 대시보드 4열 · 2행 (2026-11-24): ①②③ 은 두 행 통째로 · ④ 1행 캘린더 · 2행 공통 업무 ===== */
+/* ===== 대시보드 4열 · 2행 (2026-11-25 배치) — 1행: 캘린더(1 · 2열) · 개인고객 전화 · 개인 업무 / 2행: 오늘 마감 · 공지사항 · 단체고객 전화 · 공통 업무 ===== */
 .dcols.d2{grid-template-rows:auto minmax(0,1fr)}
-.dcols.d2 > .span2{grid-row:1 / span 2}
-.dcols.d2 > .dcal-col{grid-column:1;grid-row:1}   /* 2026-11-24 배치 바꿈: 1열 캘린더 · 공지사항 / 2 · 3열 전화 / 4열 개인 업무 · 공통 업무 */
-.dcols.d2 > .dnotice{grid-column:1;grid-row:2}
-.dcols.d2 > .dpc{grid-column:2}
-.dcols.d2 > .dgc{grid-column:3}
-.dcols.d2 > .dmine{grid-column:4;grid-row:1;contain:size}   /* 1행 높이는 캘린더에 맞춤 (개인 업무가 길면 안에서 스크롤) */
+.dcols.d2 > .dcal-col{grid-column:1 / span 2;grid-row:1}
+.dcols.d2 > .dtoday{grid-column:1;grid-row:2}
+.dcols.d2 > .dnotice{grid-column:2;grid-row:2}
+.dcols.d2 > .dpc{grid-column:3;grid-row:1;contain:size}   /* 1행 높이는 캘린더에 맞춤 (길면 안에서 스크롤) */
+.dcols.d2 > .dgc{grid-column:3;grid-row:2}
+.dcols.d2 > .dmine{grid-column:4;grid-row:1;contain:size}
 .dcols.d2 > .dcommon{grid-column:4;grid-row:2}
+.dmy-btn{display:inline-flex;align-items:center;text-decoration:none}
+.dmy-btn:hover{filter:brightness(1.1)}
 #menuView:not(.guest) .dcols.d2 > .dcal-col{overflow:visible}
 .dcol-h .dmem{margin-left:auto;margin-right:6px;height:26px;border:1px solid var(--line);border-radius:6px;padding:0 4px;font:inherit;font-size:12.5px;background:#fff;max-width:110px}
 /* 캘린더 */
@@ -211,7 +213,7 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .cal-add input{min-width:0;height:28px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:12.5px}
 .cal-add #calTitle{flex:1}
 .cal-add #calTm{width:58px}
-@media (max-width:1100px){ .dcols.d2{grid-template-rows:none} .dcols.d2 > .span2,.dcols.d2 > .dcal-col,.dcols.d2 > .dcommon,.dcols.d2 > .dnotice,.dcols.d2 > .dmine{grid-row:auto;grid-column:auto} .dcols.d2 > .dmine{contain:none} }
+@media (max-width:1100px){ .dcols.d2{grid-template-rows:none} .dcols.d2 > :is(.dcal-col,.dtoday,.dnotice,.dpc,.dgc,.dmine,.dcommon){grid-row:auto;grid-column:auto} .dcols.d2 > :is(.dpc,.dmine){contain:none} }
 /* 캘린더 기간 일정 (2026-11-24): 기간 안의 날 = 연한 파랑 · 추가 칸 아래 「기간이면 끝나는 날」 */
 .cal-g .cd.rng{background:#eaf0f7}
 .cal-g .cd.rng.on{background:var(--pine-soft,#e6efe8)}

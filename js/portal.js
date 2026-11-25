@@ -517,13 +517,18 @@ function renderDash(){ if(!dashData) return; paintRange();
   const memSel = `<select id="dashMem" class="dmem" title="이 사람의 개인 업무만"><option value="">전체</option>${names.map(n=>`<option${n===dashMem?' selected':''}>${esc(n)}</option>`).join('')}</select>`;
   const etc = mine.filter(r=>r.kind==='기타' && (!dashMem || r.owner===dashMem));
   // ④ 2행 공통 업무: 담당이 없는 과업 (고객 견적 요청 · 담당 없는 예약 과업 등) + 정기 재고조사 날
+  // 2026-11-25 · 1열 2행 「오늘 마감」: 내 것(단체 · 개인 · 개인 업무) 중 오늘 마감 + 지난 마감 — 위 마감 기간 버튼과 상관없이 늘 오늘 · 초록 「나의 할일」 = 팝업 열기
+  const todayBox = () => { const L=all.filter(r=>me && r.owner===me).map(r=>({...r, due:r.tasks.filter(t=>t.due<=today)})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name));
+    return `<div class="dcol dtoday"><div class="dcol-h"><b>오늘 마감</b><a href="#mypop" class="cm-btn dmy-btn" title="나의 할일 열기">나의 할일</a><span class="dn">${L.length}</span></div>`
+      + (L.length ? `<ul class="dlist">${items(L, false)}</ul>` : `<p class="hint dempty">${q?'검색에 맞는 것이 없습니다.':'오늘 마감인 내 과업이 없습니다.'}</p>`) + `</div>`; };
   const RS = cmRule('stock'), st = cmOn('stock') && !devOff('stock.html') ? stockDue(today) : '', pre = st ? `<li class="drec late"><a href="stock.html"><span class="dr-h"><b>${esc(RS.title||'📋 정기 재고조사')}</b></span><span class="dr-t">${dl(st)} · ${esc(RS.text||'붕정 · 차방을 세어 재고관리에 기록')}</span></a></li>` : '';
   $('#dashBody').innerHTML = `<div class="dcols d2">`
-    // 2026-11-24 배치 바꿈: 1열 = 캘린더 · 공지사항 / 2열 개인고객 전화 · 3열 단체고객 전화 (두 행 통째로) / 4열 = 개인 업무 · 공통 업무
+    // 2026-11-25 배치: 1행 = 캘린더(1 · 2열) · 개인고객 전화(3열) · 개인 업무(4열) / 2행 = 오늘 마감(1열) · 공지사항(2열) · 단체고객 전화(3열) · 공통 업무(4열)
     + `<div class="dcol dcal-col">${calHTML(today)}</div>`
+    + todayBox()
     + `<div class="dcol dnotice">${noticeHTML()}</div>`
-    + box('개인','개인고객 전화', mine.filter(r=>r.kind==='개인'), '', {cls:'span2 dpc'})
-    + box('단체','단체고객 전화', mine.filter(r=>r.kind==='단체'), '', {cls:'span2 dgc'})
+    + box('개인','개인고객 전화', mine.filter(r=>r.kind==='개인'), '', {cls:'dpc'})
+    + box('단체','단체고객 전화', mine.filter(r=>r.kind==='단체'), '', {cls:'dgc'})
     + box('기타','개인 업무', etc, memSel, {cls:'dmine'})
     + box('공통','공통 업무', common, cmMgrBtn, {cls:'dcommon', pre, preN:st?1:0, owner:false})
     + `</div>`;
