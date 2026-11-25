@@ -359,3 +359,27 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .cal-r ul{max-height:none;margin-top:6px}
 .cal-dh{font-size:13px;color:var(--ink)}
 @media (max-width:1100px){ .cal-body{grid-template-columns:1fr;gap:0} .cal-r{contain:none;padding-top:6px} .cal-r ul{max-height:240px} }
+/* ===== 오늘 마감 (2026-11-25): 구분 표시 · 체크 칸 · 누르면 예약 팝업 · 바로가기 ===== */
+.dtd-list{gap:0}
+.dtd{padding:7px 4px;background:#fff}
+.dtd + .dtd{border-top:1px solid #f0ede5}
+.dtd-h{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.dtd-t{display:flex;align-items:center;gap:6px;padding:2px 0 2px 2px;font-size:12.5px}
+.dtd-t.done{opacity:.45}
+.dtd-t.done .dtd-x{text-decoration:line-through}
+.dtd-ck{display:inline-flex;align-items:center;cursor:pointer;flex:none}
+.dtd-ck input{width:16px;height:16px;margin:0;accent-color:var(--pine);cursor:pointer}
+.dtd-x{border:0;background:none;padding:0;font:inherit;color:var(--ink);text-align:left;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dtd-x:hover{text-decoration:underline;text-underline-offset:3px}
+.dtd-name{font-size:14px;font-weight:700;flex:1}
+.dtd-t .dtd-x{flex:1}
+.dtd-t small.late{color:var(--red);font-weight:700;flex:none;font-size:11.5px}
+.dtd-go{flex:none;height:22px;display:inline-flex;align-items:center;padding:0 8px;border-radius:6px;background:var(--pine);border:1px solid var(--pine);color:#fff;font:600 11.5px var(--sans);text-decoration:none}
+.dtd-go:hover{filter:brightness(1.1)}
+.dk{flex:none;display:inline-block;font-size:10.5px;font-weight:700;border-radius:999px;padding:0 7px;line-height:17px;white-space:nowrap}
+.dk-g{background:#e3ece0;color:#3f5236}
+.dk-p{background:#e6eef7;color:#3d5a80}
+.dk-e{background:#efe9dc;color:#6b5f45}
+/* 예약 팝업 (단체 · 개인고객 화면을 머리줄 없이) */
+.recpop .box{position:relative}
+.recpop .rp-x{position:absolute;top:10px;right:14px;z-index:2}

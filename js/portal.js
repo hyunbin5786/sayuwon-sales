@@ -210,27 +210,27 @@ function dashRecs(items){
       if(ct==='예약취소') return;   // 예약취소는 과업 없음
       const consult = ct==='예약상담' || ct==='상담';
       if(E){   // 나의 할일과 같은 규칙 (안 끝난 과업 모두 · 마감 = 나의 할일과 같음)
-        let ts=[]; try{ ts=(E.tasksOf(r)||[]).filter(t=>!t.done && !t.removed).map(t=>({title:t.title, due:t.due||dueOf(t,r), who:t.who||''})); }catch(_){ ts=null; }
+        let ts=[]; try{ ts=(E.tasksOf(r)||[]).filter(t=>!t.done && !t.removed).map(t=>({id:t.id, title:t.title, due:t.due||dueOf(t,r), who:t.who||''})); }catch(_){ ts=null; }
         // 담당자 준비 과업(who)은 그 담당자의 줄로 따로 (2026-11-24 · 영업 담당 줄에는 안 나옴)
         if(ts){ const own=(r.owner||r.takenBy||'').trim(), by={}; ts.forEach(t=>{ (by[t.who||own] ||= []).push(t); });
-          Object.entries(by).forEach(([o, L])=>recs.push({kind:'단체', owner:o, name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:L, href:'group.html?open='+encodeURIComponent(r.id)})); return; } }
+          Object.entries(by).forEach(([o, L])=>recs.push({kind:'단체', rid:r.id, owner:o, name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:L, href:'group.html?open='+encodeURIComponent(r.id)})); return; } }
       const d00=String(r.date||'').slice(0,10), wkSoon = histTasks(r).some(t=>t.id==='wkcheck' && !t.removed) || (booked(r) && d00>=opsToday());   // 다음주 예약 점검이 따로 나올 예약인지
       const ts=histTasks(r).filter(t=>!t.done && !t.removed && !doneByRec(t, r) && (!consult || ['tour','clergy'].includes(t.id) || t.custom) && !((t.id==='tbdcall' || t.id==='onsitecall') && wkSoon))   // 예전 「미정 항목 확인 연락」 · 「현장 결제 인원 확인 연락」은 다음주 예약 점검에 합침 (2026-11-23)
-        .map(t=>({title: t.id==='tbdcall' ? '다음주 예약 점검' : t.title, due:dueOf(t,r), who:t.who||''}));
+        .map(t=>({id:t.id, title: t.id==='tbdcall' ? '다음주 예약 점검' : t.title, due:dueOf(t,r), who:t.who||''}));
       // 다음주 예약 점검 (2026-11-20 · group.js wkcheck 와 같은 기준): 가예약 · 예약확정이고 방문일이 오늘 이후면 예약마다 방문일 전주 목요일 마감 (아직 저장된 과업이 없어도)
       const d0=String(r.date||'').slice(0,10), o0=(r.owner||r.takenBy||'').trim();
       if(booked(r) && d0>=opsToday() && !histTasks(r).some(t=>t.id==='wkcheck')){ const thu=wkPrevThu(d0), w=items.find(x=>x.id==='wk'+wkHash(o0)+thu.replace(/-/g,'')); let dn={}; try{ dn=(JSON.parse((w||{}).history||'{}')||{}).done||{}; }catch(_){}
-        if(!dn[r.id]) ts.push({title:'다음주 예약 점검', due:wkLimit(d0)}); }
-      { const own=(r.owner||r.takenBy||'').trim(), by={}; ts.forEach(t=>{ (by[t.who||own] ||= []).push(t); }); Object.entries(by).forEach(([o, L])=>recs.push({kind:'단체', owner:o, name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:L, href:'group.html?open='+encodeURIComponent(r.id)})); }   // 담당자 준비 과업은 그 담당자 줄로 (2026-11-24)
+        if(!dn[r.id]) ts.push({id:'wkcheck', title:'다음주 예약 점검', due:wkLimit(d0)}); }
+      { const own=(r.owner||r.takenBy||'').trim(), by={}; ts.forEach(t=>{ (by[t.who||own] ||= []).push(t); }); Object.entries(by).forEach(([o, L])=>recs.push({kind:'단체', rid:r.id, owner:o, name:r.org||r.contact||r.phone||'(업체 미정)', q:[r.org,r.contact,r.phone].join(' '), tasks:L, href:'group.html?open='+encodeURIComponent(r.id)})); }   // 담당자 준비 과업은 그 담당자 줄로 (2026-11-24)
     } else if(ct==='개인고객'){
-      const ts=histTasks(r).filter(t=>!t.done).map(t=>({title:t.title, due:dueOf(t,r)}));
-      if(ts.length) recs.push({kind:'개인', owner:(r.owner||r.takenBy||'').trim(), name:r.contact||r.phone||'(이름 없음)', q:[r.contact,r.phone].join(' '), tasks:ts, href:'personal.html?open='+encodeURIComponent(r.id)});
+      const ts=histTasks(r).filter(t=>!t.done).map(t=>({id:t.id, title:t.title, due:dueOf(t,r)}));
+      if(ts.length) recs.push({kind:'개인', rid:r.id, owner:(r.owner||r.takenBy||'').trim(), name:r.contact||r.phone||'(이름 없음)', q:[r.contact,r.phone].join(' '), tasks:ts, href:'personal.html?open='+encodeURIComponent(r.id)});
     } else if(ct===OPS_TYPES.task){
       const j=opsParse(r); if(!j) return; const d=j.d||{}, today=opsToday(), tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const t2=opsYmd(tm);
       const days=opsPending(d, today); if(opsOccurs(d, t2) && !(d.done||{})[t2]) days.push(t2);
       for(let i=2;i<400;i++){ const x=new Date(today+'T00:00'); x.setDate(x.getDate()+i); const day=opsYmd(x); if(opsOccurs(d, day) && !(d.done||{})[day]){ days.push(day); break; } }   // 그 뒤 다음 할 날도 (개인 할일 보기의 이번주 · 전체 숫자용)
       const subs=d.subs||[], subTxt = day => subs.length ? `세부 과업 ${subs.filter(s=>((d.subDone||{})[day]||{})[s.id]).length}/${subs.length}` : opsRepeatLabel(d);
-      if(days.length) recs.push({kind:'기타', owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({title:subTxt(day), due:day})), href:'#mypop'});
+      if(days.length) recs.push({kind:'기타', rid:r.id, owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({day, title:subTxt(day), due:day})), href:'#mypop'});
     }
   });
   // 고객 견적 요청 (2026-11-23 · 2026-11-24 바꿈): 아직 「접수」인 요청 = 담당 없는 공통 업무 (대시보드 4열 2행) · 마감 = 접수한 날
@@ -505,7 +505,7 @@ function renderDash(){ if(!dashData) return; paintRange();
   const list = src => ({ L:src.map(r=>({...r, due:r.tasks.filter(t=>(!rFrom || t.due>=rFrom) && t.due<=rTo)})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name)) });
   const items = (L, showOwner) => L.map(r=>{ const late=r.due.some(t=>t.due<today);
     const D=r.due.slice().sort((a,b)=>a.due.localeCompare(b.due)), A=r.href ? `a href="${r.href}"` : 'div class="dnolink"';
-    return `<li class="drec${late?' late':''}${r.cm?' cm':''}${showOwner && me && r.owner===me?' mine':''}"><${A}><span class="dr-h"><b>${esc(r.name)}</b>${showOwner?`<span class="downer${r.owner===me?' me':''}">${esc(r.owner||'담당 없음')}</span>`:''}</span>`
+    return `<li class="drec${late?' late':''}${r.cm?' cm':''}"><${A}><span class="dr-h"><b>${esc(r.name)}</b>${showOwner?`<span class="downer">${esc(r.owner||'담당 없음')}</span>`:''}</span>`   // 내 것도 초록으로 칠하지 않음 (2026-11-25)
       + D.map(t=>`<span class="dr-t">${dl(t.due)} · ${esc(t.title)}</span>`).join('') + `</${r.href?'a':'div'}>`
       + (r.cm ? `<button type="button" class="cm-done" data-cmdone="${esc(r.cm)}" data-day="${esc(D[0].due)}" title="${esc(opsDateLabel(D[0].due))} 것을 끝냄">완료</button>` : '') + `</li>`; }).join('');
   const box = (kind, title, src, extraHead, opt={}) => { const {L}=list(src), pre=opt.pre||'', n=L.length+(opt.preN||0);
@@ -518,9 +518,18 @@ function renderDash(){ if(!dashData) return; paintRange();
   const etc = mine.filter(r=>r.kind==='기타' && (!dashMem || r.owner===dashMem));
   // ④ 2행 공통 업무: 담당이 없는 과업 (고객 견적 요청 · 담당 없는 예약 과업 등) + 정기 재고조사 날
   // 2026-11-25 · 1열 2행 「오늘 마감」: 내 것(단체 · 개인 · 개인 업무) 중 오늘 마감 + 지난 마감 — 위 마감 기간 버튼과 상관없이 늘 오늘 · 초록 「나의 할일」 = 팝업 열기
-  const todayBox = () => { const L=all.filter(r=>me && r.owner===me).map(r=>({...r, due:r.tasks.filter(t=>t.due<=today)})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name));
-    return `<div class="dcol dtoday"><div class="dcol-h"><b>오늘 마감</b><a href="#mypop" class="cm-btn dmy-btn" title="나의 할일 열기">나의 할일</a><span class="dn">${L.length}</span></div>`
-      + (L.length ? `<ul class="dlist">${items(L, false)}</ul>` : `<p class="hint dempty">${q?'검색에 맞는 것이 없습니다.':'오늘 마감인 내 과업이 없습니다.'}</p>`) + `</div>`; };
+  //  2026-11-25 고침: 제목 「오늘 마감 · 내 이름」 · 줄마다 구분 표시 · 과업마다 체크 칸(바로 완료) · 이름 · 과업을 누르면 그 예약을 팝업으로 열어 바로 고침 · 단체 · 개인고객은 「바로가기」(그 화면으로) · 「오늘」 글자는 안 씀 (지난 것만 「지남 날짜」)
+  const todayBox = () => { const L=all.filter(r=>me && r.owner===me).map(r=>({...r, due:r.tasks.filter(t=>t.due<=today).sort((a,b)=>a.due.localeCompare(b.due))})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name));
+    const n=L.reduce((s,r)=>s+r.due.length, 0);
+    const ck = (r, t) => `<label class="dtd-ck" title="체크하면 완료"><input type="checkbox" data-dck="${esc([r.kind, r.rid||'', t.id||'', t.day||''].join('|'))}"></label>`;
+    const open = r => r.kind==='기타' ? 'data-mypop' : `data-recpop="${esc(r.href.replace('?open=', '?embed=1&open='))}"`;
+    const late = t => t.due<today ? `<small class="late">지남 ${esc(opsDateLabel(t.due))}</small>` : '';
+    const li = r => { const k=DTD_KIND[r.kind]||[r.kind,''];
+      if(r.kind==='기타') return `<li class="dtd">${r.due.map(t=>`<div class="dtd-t">${ck(r,t)}<span class="dk ${k[1]}">${k[0]}</span><button type="button" class="dtd-x" ${open(r)} title="나의 할일에서 고치기">${esc(r.name)}</button>${late(t)}</div>`).join('')}</li>`;
+      return `<li class="dtd"><div class="dtd-h"><span class="dk ${k[1]}">${k[0]}</span><button type="button" class="dtd-x dtd-name" ${open(r)} title="눌러서 바로 고치기 (팝업)">${esc(r.name)}</button>${r.href?`<a class="dtd-go" href="${esc(r.href)}" title="그 화면으로 가기">바로가기</a>`:''}</div>`
+        + r.due.map(t=>`<div class="dtd-t">${ck(r,t)}<button type="button" class="dtd-x" ${open(r)} title="눌러서 바로 고치기 (팝업)">${esc(t.title)}</button>${late(t)}</div>`).join('') + `</li>`; };
+    return `<div class="dcol dtoday"><div class="dcol-h"><b>오늘 마감${me?` · ${esc(me)}`:''}</b><a href="#mypop" class="cm-btn dmy-btn" title="나의 할일 열기">나의 할일</a><span class="dn">${n}</span></div>`
+      + (L.length ? `<ul class="dlist dtd-list">${L.map(li).join('')}</ul>` : `<p class="hint dempty">${q?'검색에 맞는 것이 없습니다.':'마감인 내 과업이 없습니다.'}</p>`) + `</div>`; };
   const RS = cmRule('stock'), st = cmOn('stock') && !devOff('stock.html') ? stockDue(today) : '', pre = st ? `<li class="drec late"><a href="stock.html"><span class="dr-h"><b>${esc(RS.title||'📋 정기 재고조사')}</b></span><span class="dr-t">${dl(st)} · ${esc(RS.text||'붕정 · 차방을 세어 재고관리에 기록')}</span></a></li>` : '';
   $('#dashBody').innerHTML = `<div class="dcols d2">`
     // 2026-11-25 배치: 1행 = 캘린더(1 · 2열) · 개인고객 전화(3열) · 개인 업무(4열) / 2행 = 오늘 마감(1열) · 공지사항(2열) · 단체고객 전화(3열) · 공통 업무(4열)
@@ -534,8 +543,32 @@ function renderDash(){ if(!dashData) return; paintRange();
     + `</div>`;
   calRestore();
 }
+// ===== 오늘 마감 (2026-11-25): 체크 = 나의 할일과 같은 완료 처리 · 누르면 그 예약을 팝업으로 =====
+const DTD_KIND = {단체:['단체예약','dk-g'], 개인:['개인고객','dk-p'], 기타:['개인 업무','dk-e']};
+//  체크: 첫 화면의 과업 계산 창(#dashEngine = 나의 할일 화면)에 같은 체크 칸을 만들어 넘김 → 나의 할일에서 체크한 것과 똑같이 저장 (단체 · 개인고객 과업 · 개인 업무)
+//  전산 내역을 붙여넣어야 끝나는 과업(SELF_DONE)은 나의 할일처럼 체크 대신 그 예약을 엶
+function dashCheck(inp){
+  const [kind, rid, tid, day]=inp.dataset.dck.split('|'), E=engine();
+  if(!E){ inp.checked=false; alert('과업 계산 창을 준비하는 중입니다. 잠시 뒤 다시 체크해 주세요.'); return; }
+  try{
+    const it=(lastItems||[]).find(x=>x.id===rid);   // 계산 창의 기록을 첫 화면의 최신 것으로 맞춘 뒤
+    if(it) E.eval('(it=>{ const i=cache.findIndex(x=>x.id===it.id); if(i>=0) cache[i]=it; else cache.push(it); })')(JSON.parse(JSON.stringify(it)));
+    if(kind==='단체' && E.eval('SELF_DONE').has(tid)){ inp.checked=false; recPopOpen('group.html?embed=1&open='+encodeURIComponent(rid)); return; }
+    const x=E.document.createElement('input'); x.type='checkbox'; x.checked=true; x.hidden=true;
+    if(kind==='기타') x.dataset.etcdone=`${rid}|${day||opsToday()}`; else x.dataset.myck=`${kind==='개인'?'p':'g'}|${rid}|${tid}`;
+    E.document.body.appendChild(x); x.dispatchEvent(new E.Event('change', {bubbles:true})); setTimeout(()=>x.remove(), 10000);
+  }catch(err){ inp.checked=false; alert('완료로 표시하지 못했습니다: '+(err.message||err)); return; }
+  inp.disabled=true; inp.closest('.dtd-t')?.classList.add('done');   // 바로 흐리게 → 저장되면 다시 받아 목록에서 빠짐
+  dashSoon(1500);
+}
+document.addEventListener('change', e=>{ if(e.target.matches?.('[data-dck]') && e.target.checked) dashCheck(e.target); });
+// 예약 팝업: 단체 · 개인고객 화면을 머리줄 없이(embed=1) 띄워 그 자리에서 고침 · 닫으면 대시보드를 다시 받음
+function recPopOpen(url){ const P=$('#recPop'), F=$('#recPopFrame'); if(!P) { location.href=url.replace('embed=1&',''); return; } F.src=url; P.hidden=false; }
+function recPopClose(){ const P=$('#recPop'); if(!P || P.hidden) return; P.hidden=true; $('#recPopFrame').src='about:blank'; dashSoon(200); }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && $('#recPop') && !$('#recPop').hidden){ e.preventDefault(); recPopClose(); } });
 document.addEventListener('click', e=>{
-
+  const rp=e.target.closest('[data-recpop]'); if(rp){ e.preventDefault(); recPopOpen(rp.dataset.recpop); return; }
+  if(e.target.id==='recPop' || e.target.closest('#recPopX')){ recPopClose(); return; }
   const w=e.target.closest('[data-dwho]'); if(w){ dashWho = dashWho===w.dataset.dwho ? '' : w.dataset.dwho; renderDash(); }
 });
 if($('#dashQ')) $('#dashQ').addEventListener('input', ()=>renderDash());
