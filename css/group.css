@@ -905,7 +905,12 @@ html.my-only #myFullBtn{display:none}
 .my-ck.self input{accent-color:#b9b2a2}.done-today{margin-top:8px}.done-today li.done s{color:var(--muted)}
 /* 나의 할일 설정 팝업 (2026-11-19) */
 #mySetModal{z-index:26}
-#mySetModal .set-pop{width:min(420px,100%);margin-top:8vh}
+#mySetModal .set-pop{width:min(760px,100%);margin-top:8vh;position:relative}
+#mySetModal .set-x{position:absolute;top:12px;right:12px;width:30px;height:30px;border:0;border-radius:8px;background:var(--pine);color:#fff;font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}   /* 닫기 = 오른쪽 위 X (2026-11-25 · 초록) */
+#mySetModal .set-x:hover{filter:brightness(1.12)}
+#mySetModal .set-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
+#mySetModal .al-set{margin:0;padding:0;border:0}
+@media (max-width:620px){ #mySetModal .set-cols{grid-template-columns:1fr} #mySetModal .set-col + .set-col{border-top:1px solid var(--line);padding-top:12px} }
 #mySetModal .cat-manage{margin:0;border:0;padding:0}
 /* 설정 › 구분 추가: 추가 버튼 · 위 구분 줄과 같은 너비 · 높이 (2026-11-19) */
 .cat-ord li{height:36px;box-sizing:border-box}

@@ -166,7 +166,9 @@ const SY_DEV = (function(){
   const isTest = /^\/sayuwon-sales\/test(\/|$)/.test(path) || /[?&]test=1\b/.test(location.search);
   const isProd = /[?&]asprod=1\b/.test(location.search) || (host==='hyunbin5786.github.io' && /^\/sayuwon-sales(\/|$)/.test(path) && !isTest);
   const page = path.split('/').pop() || 'index.html';
-  const off = p => isProd && Object.prototype.hasOwnProperty.call(DEV_PAGES, String(p||'').replace(/^.*\//,'').replace(/[?#].*$/,''));
+  const devPage = p => Object.prototype.hasOwnProperty.call(DEV_PAGES, String(p||'').replace(/^.*\//,'').replace(/[?#].*$/,''));
+  const off = p => isProd && devPage(p);
+  const tag = p => !isProd && devPage(p);   // 메뉴 이름표 「test에만 보임」: 테스트 사이트 · 이 컴퓨터에서만 (배포 사이트엔 이름표 없음 · 2026-11-25)
   function block(){
     const name=DEV_PAGES[page]||'이 기능';
     const d=document.createElement('div'); d.id='syDevBlock';
@@ -189,7 +191,7 @@ const SY_DEV = (function(){
       document.body.append(f, b); document.title='[테스트] '+document.title; };   // 위 가운데 이름표(top)는 머리 줄 버튼을 가려서 안 붙임
     if(document.body) t(); else document.addEventListener('DOMContentLoaded', t);
   }
-  return Object.freeze({isProd, isTest, isLocal, off, DEV_PAGES});
+  return Object.freeze({isProd, isTest, isLocal, off, tag, DEV_PAGES});
 })();
 
 // 팝업이 떠 있으면 뒤 화면은 스크롤 안 됨 (2026-11-24 · 모든 화면) — 팝업 안은 그대로 스크롤
