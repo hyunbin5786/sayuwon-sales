@@ -17,8 +17,10 @@
 //  → 시험용 모드에서는 저장소 이름 앞에 「mock:」을 붙여 완전히 따로 씀 (로그인 sy_user · sayuwon_owner · 시험용 스위치 · 가짜 DB 자체는 그대로)
 //  시험용 모드는 이 컴퓨터(localhost)에서만 켜짐 — 배포 · 테스트 사이트(github.io)에서는 ?mock=1 을 붙여도 아무 일도 없음
 // 저장소 칸막이: 이름 앞에 pre(「mock:」 · 「test:」)를 붙여 다른 환경과 완전히 따로 씀 (로그인 · 시험용 스위치 · 가짜 DB 자체는 그대로)
+//  테스트 사이트(「test:」)는 로그인(sy_user · sayuwon_owner)도 따로 (2026-11-25 · 테스트 DB 멤버는 배포와 다름 — 테스트 사이트에서 「테스트」로 로그인해도 배포 사이트 로그인은 그대로)
+//  HTML 머리의 로그인 확인 줄도 테스트 사이트면 test:sy_user 를 읽음
 function syWall(pre){ try{
-  const KEEP=/^(sy_mock|sy_cf_db|sy_cf_ver|sy_user|sayuwon_owner|mock:.*|test:.*)$/, K=k=>KEEP.test(String(k)) ? k : pre+k, P=Storage.prototype;
+  const KEEP = pre==='test:' ? /^(sy_mock|sy_cf_db|sy_cf_ver|mock:.*|test:.*)$/ : /^(sy_mock|sy_cf_db|sy_cf_ver|sy_user|sayuwon_owner|mock:.*|test:.*)$/, K=k=>KEEP.test(String(k)) ? k : pre+k, P=Storage.prototype;
   const g=P.getItem, s=P.setItem, r=P.removeItem;
   P.getItem=function(k){ return g.call(this, K(k)); }; P.setItem=function(k,v){ return s.call(this, K(k), v); }; P.removeItem=function(k){ return r.call(this, K(k)); };
   if(window.indexedDB){ const o=indexedDB.open.bind(indexedDB), d=indexedDB.deleteDatabase.bind(indexedDB); indexedDB.open=(n,v)=>o(pre+n, v); indexedDB.deleteDatabase=n=>d(pre+n); }
