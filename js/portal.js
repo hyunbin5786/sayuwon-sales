@@ -505,7 +505,7 @@ function renderDash(){ if(!dashData) return; paintRange();
   const list = src => ({ L:src.map(r=>({...r, due:r.tasks.filter(t=>(!rFrom || t.due>=rFrom) && t.due<=rTo)})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name)) });
   const items = (L, showOwner) => L.map(r=>{ const late=r.due.some(t=>t.due<today);
     const D=r.due.slice().sort((a,b)=>a.due.localeCompare(b.due)), A=r.href ? `a href="${r.href}"` : 'div class="dnolink"';
-    return `<li class="drec${late?' late':''}${r.cm?' cm':''}"><${A}><span class="dr-h"><b>${esc(r.name)}</b>${showOwner?`<span class="downer">${esc(r.owner||'담당 없음')}</span>`:''}</span>`   // 내 것도 초록으로 칠하지 않음 (2026-11-25)
+    return `<li class="drec${late?' late':''}${r.cm?' cm':''}"><${A}><span class="dr-h"><b>${esc(r.name)}</b>${showOwner?`<span class="downer${me && r.owner===me?' me':''}">${esc(r.owner||'담당 없음')}</span>`:''}</span>`   // 줄은 칠하지 않고 내 이름 칸만 초록 (2026-11-25)
       + D.map(t=>`<span class="dr-t">${dl(t.due)} · ${esc(t.title)}</span>`).join('') + `</${r.href?'a':'div'}>`
       + (r.cm ? `<button type="button" class="cm-done" data-cmdone="${esc(r.cm)}" data-day="${esc(D[0].due)}" title="${esc(opsDateLabel(D[0].due))} 것을 끝냄">완료</button>` : '') + `</li>`; }).join('');
   const box = (kind, title, src, extraHead, opt={}) => { const {L}=list(src), pre=opt.pre||'', n=L.length+(opt.preN||0);
@@ -526,9 +526,9 @@ function renderDash(){ if(!dashData) return; paintRange();
     const late = t => t.due<today ? `<small class="late">지남 ${esc(opsDateLabel(t.due))}</small>` : '';
     const li = r => { const k=DTD_KIND[r.kind]||[r.kind,''];
       if(r.kind==='기타') return `<li class="dtd">${r.due.map(t=>`<div class="dtd-t">${ck(r,t)}<span class="dk ${k[1]}">${k[0]}</span><button type="button" class="dtd-x" ${open(r)} title="나의 할일에서 고치기">${esc(r.name)}</button>${late(t)}</div>`).join('')}</li>`;
-      return `<li class="dtd"><div class="dtd-h"><span class="dk ${k[1]}">${k[0]}</span><button type="button" class="dtd-x dtd-name" ${open(r)} title="눌러서 바로 고치기 (팝업)">${esc(r.name)}</button>${r.href?`<a class="dtd-go" href="${esc(r.href)}" title="그 화면으로 가기">바로가기</a>`:''}</div>`
+      return `<li class="dtd"><div class="dtd-h"><span class="dk ${k[1]}">${k[0]}</span>${r.href?`<a class="dtd-go" href="${esc(r.href)}" data-tip="바로가기" aria-label="바로가기 (그 화면으로)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="6.8" cy="6.8" r="4.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.3 10.3l3.9 3.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></a>`:''}<button type="button" class="dtd-x dtd-name" ${open(r)} title="눌러서 바로 고치기 (팝업)">${esc(r.name)}</button></div>`
         + r.due.map(t=>`<div class="dtd-t">${ck(r,t)}<button type="button" class="dtd-x" ${open(r)} title="눌러서 바로 고치기 (팝업)">${esc(t.title)}</button>${late(t)}</div>`).join('') + `</li>`; };
-    return `<div class="dcol dtoday"><div class="dcol-h"><b>오늘 마감${me?` · ${esc(me)}`:''}</b><a href="#mypop" class="cm-btn dmy-btn" title="나의 할일 열기">나의 할일</a><span class="dn">${n}</span></div>`
+    return `<div class="dcol dtoday"><div class="dcol-h"><b>오늘 마감${me?` · ${esc(me)}`:''}</b><span class="dn">${n}</span></div>`
       + (L.length ? `<ul class="dlist dtd-list">${L.map(li).join('')}</ul>` : `<p class="hint dempty">${q?'검색에 맞는 것이 없습니다.':'마감인 내 과업이 없습니다.'}</p>`) + `</div>`; };
   const RS = cmRule('stock'), st = cmOn('stock') && !devOff('stock.html') ? stockDue(today) : '', pre = st ? `<li class="drec late"><a href="stock.html"><span class="dr-h"><b>${esc(RS.title||'📋 정기 재고조사')}</b></span><span class="dr-t">${dl(st)} · ${esc(RS.text||'붕정 · 차방을 세어 재고관리에 기록')}</span></a></li>` : '';
   $('#dashBody').innerHTML = `<div class="dcols d2">`
@@ -544,7 +544,7 @@ function renderDash(){ if(!dashData) return; paintRange();
   calRestore();
 }
 // ===== 오늘 마감 (2026-11-25): 체크 = 나의 할일과 같은 완료 처리 · 누르면 그 예약을 팝업으로 =====
-const DTD_KIND = {단체:['단체예약','dk-g'], 개인:['개인고객','dk-p'], 기타:['개인 업무','dk-e']};
+const DTD_KIND = {단체:['단체고객','dk-g'], 개인:['개인고객','dk-p'], 기타:['개인 업무','dk-e']};
 //  체크: 첫 화면의 과업 계산 창(#dashEngine = 나의 할일 화면)에 같은 체크 칸을 만들어 넘김 → 나의 할일에서 체크한 것과 똑같이 저장 (단체 · 개인고객 과업 · 개인 업무)
 //  전산 내역을 붙여넣어야 끝나는 과업(SELF_DONE)은 나의 할일처럼 체크 대신 그 예약을 엶
 function dashCheck(inp){

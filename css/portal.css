@@ -93,7 +93,7 @@ main{max-width:1400px}
 .dtm.on{border-style:solid;background:var(--pine-soft);border-color:#cdd8c5;color:var(--pine);font-weight:700}
 .dcol .dlist{border-top:0;padding:0}
 .downer{grid-area:owner;align-self:center;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;background:#ece9e2;color:#55534d;white-space:nowrap}
-.downer.me{background:var(--pine-soft);color:var(--pine)}
+.downer.me{background:var(--pine);color:#fff}   /* 내 이름 = 초록 (다른 사람은 회색 · 2026-11-25) */
 .dlist li.late a{background:#fdf3f0}
 .dempty{margin:6px 2px}
 .dpeople{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
@@ -371,11 +371,8 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .dtd-ck input{width:16px;height:16px;margin:0;accent-color:var(--pine);cursor:pointer}
 .dtd-x{border:0;background:none;padding:0;font:inherit;color:var(--ink);text-align:left;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dtd-x:hover{text-decoration:underline;text-underline-offset:3px}
-.dtd-name{font-size:14px;font-weight:700;flex:1}
 .dtd-t .dtd-x{flex:1}
 .dtd-t small.late{color:var(--red);font-weight:700;flex:none;font-size:11.5px}
-.dtd-go{flex:none;height:22px;display:inline-flex;align-items:center;padding:0 8px;border-radius:6px;background:var(--pine);border:1px solid var(--pine);color:#fff;font:600 11.5px var(--sans);text-decoration:none}
-.dtd-go:hover{filter:brightness(1.1)}
 .dk{flex:none;display:inline-block;font-size:10.5px;font-weight:700;border-radius:999px;padding:0 7px;line-height:17px;white-space:nowrap}
 .dk-g{background:#e3ece0;color:#3f5236}
 .dk-p{background:#e6eef7;color:#3d5a80}
@@ -383,3 +380,11 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 /* 예약 팝업 (단체 · 개인고객 화면을 머리줄 없이) */
 .recpop .box{position:relative}
 .recpop .rp-x{position:absolute;top:10px;right:14px;z-index:2}
+/* 2026-11-25 고침: 단체고객 · 개인고객 이름도 개인 업무와 같은 글자 서식 · 바로가기 = 구분 옆 회색 돋보기 (올리면 「바로가기」) */
+.dtd-name{flex:1;font-size:12.5px;font-weight:400}
+.dtd-go{position:relative;flex:none;width:22px;height:20px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;background:#ece9e2;color:#6f6c64;text-decoration:none}
+.dtd-go:hover{background:#dedad0;color:#3d3b35}
+.dtd-go::after{content:attr(data-tip);position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);background:#3d3b35;color:#fff;font:600 11px var(--sans);padding:3px 7px;border-radius:5px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s;z-index:5}
+.dtd-go:hover::after,.dtd-go:focus-visible::after{opacity:1}
+/* 1행 · 2행 높이 같게 (2026-11-25) */
+@media (min-width:1101px){ #menuView:not(.guest) .dcols.d2{grid-template-rows:minmax(0,1fr) minmax(0,1fr)} }
