@@ -1168,3 +1168,13 @@ html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
 .al-list input[type=time]{height:30px;border:1px solid var(--line);border-radius:5px;padding:0 4px;font:14px var(--sans)}
 .al-list .btn,.al-set .al-btns .btn{padding:3px 8px;font-size:12.5px}
 .al-set .al-btns{display:flex;gap:6px;flex-wrap:wrap}
+/* 예약 목록 찾기 (2026-11-25): 날짜(전체 · 특정일 · 기간) + 검색어 */
+.book-find{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13px}
+.book-find label{display:flex;align-items:center;gap:6px;margin:0}
+.book-find select,.book-find .bf-q{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:inherit;background:#fff;color:var(--ink)}
+.book-find .bf-q{flex:1;min-width:220px}
+.book-find .bf-dt{display:inline-flex;align-items:center;gap:6px}
+.book-find .bf-dt[hidden]{display:none}
+.book-find .dbox input.dtxt{height:30px;width:128px;font-size:13px}
+.book-find .bf-n{margin:0;white-space:nowrap}
+@media (max-width:700px){ .book-find{font-size:16px} .book-find select,.book-find .bf-q,.book-find .dbox input.dtxt{height:42px;font-size:16px} .book-find .bf-q{min-width:0;width:100%} }
