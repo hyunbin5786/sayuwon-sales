@@ -1,6 +1,6 @@
 // ===== 시험용 모드 전용: 가짜 예약 채우기 · 비우기 (2026-11-25) =====
 //  주소 끝 ?mock=1 로 켠 시험용 모드(js/devcf.js · 이 브라우저 안의 가짜 DB)에서만 보임 — 진짜 기록(공유 DB)에는 절대 쓰지 않음
-//  단체 화면 · 예약 현황 공유 오른쪽 아래 「가짜 예약 채우기」: 1년 전 ~ 2개월 뒤 단체 예약 130건 (모두 관람 또는 관람+식사 · 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 · 여러 담당 · 지난 날짜 섞임)
+//  단체 화면 · 예약 현황 공유 오른쪽 아래 「가짜 예약 채우기」: 단체 예약 약 210건 · 11 ~ 12월은 날마다 0 ~ 7건 · 그 밖(1년 전 ~ 다음 해 2월)은 드문드문 (모두 관람 또는 관람+식사 · 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 · 여러 담당 · 지난 날짜 섞임)
 //  「가짜 예약 비우기」: id 가 tst001 ~ (2026-11-25 예전 fake001 ~ 도) 인 것만 지움 (원래 있던 가상 예약 mock0001 등은 그대로)
 //  id 를 fake··· → tst··· 로 바꾼 까닭 (2026-11-25): 예전 버전으로 열려 있던 창 · 첫 화면이 fake··· 를 「진짜 DB 에 샌 가짜」로 알고 테스트 DB 에서도 지워서 채운 것이 자꾸 사라짐 → 예전 버전이 모르는 이름으로
 // 진짜 DB 청소 (2026-11-25 사고): 테스트 사이트의 시험용 모드에서 만든 가상 예약(mock0001 ~ · fake001 ~)이 같은 브라우저 저장소를 타고 진짜 DB 에 올라감
@@ -28,12 +28,18 @@
   const TIMES=['09:30','10:00','10:30','11:00','13:00','13:30','14:00','15:00'];
   const pick=(a,i)=>a[i%a.length];
   const day=n=>{ const d=new Date(); d.setDate(d.getDate()+n); return SY.ymd(d); };
-  // 날짜 (2026-11-25 다시): 1년 전 ~ 2개월 뒤에 고루 100건 + 요즘(지난주 ~ 7주 뒤) 30건 = 130건
-  const FAKE_N=130;
-  const offOf = i => i<100 ? -365 + Math.round(i*425/99) : -7 + (i-100)*2;
+  // 날짜 (2026-11-25 다시 · 테스트를 11 ~ 12월에서 하므로): 올해 11월 1일 ~ 12월 31일은 날마다 0 ~ 7건 (없는 날 · 1건 · … · 가장 많은 날 7건이 고루 섞임)
+  //  그 밖은 드문드문: 1년 전 11월 ~ 올해 10월은 9일에 1건 · 다음 해 1 ~ 2월은 6일에 1건. 누를 때마다 같은 날짜가 나옴 (난수 없음)
+  const FAKE_DATES=(()=>{ const out=[], t=new Date(), y=t.getMonth()<6 ? t.getFullYear()-1 : t.getFullYear(), W=[0,1,1,2,2,3,3,4,0,5,2,6,1,7,3,4];
+    const add=(d,c)=>{ for(let k=0;k<c;k++) out.push(SY.ymd(d)); };
+    for(let d=new Date(y-1,10,1), k=0; d<new Date(y,10,1); d.setDate(d.getDate()+1), k++) if(k%9===4) add(d,1);
+    for(let d=new Date(y,10,1), k=0; d<new Date(y+1,0,1); d.setDate(d.getDate()+1), k++) add(d, W[(k*7+3)%16]);
+    for(let d=new Date(y+1,0,1), k=0; d<new Date(y+1,2,1); d.setDate(d.getDate()+1), k++) if(k%6===2) add(d,1);
+    return out; })();
+  const FAKE_N=FAKE_DATES.length;
   function fakeRec(i){
-    const people=10+((i*7)%31), off=offOf(i), owner='테스트';   // 영업 담당 = 테스트 (2026-11-25 · 테스트 멤버로 로그인해 모두 고쳐 보게 · 프로그램 담당은 여러 이름 그대로)
-    const date=day(off), tin=pick(TIMES,i);
+    const people=10+((i*7)%31), owner='테스트';   // 영업 담당 = 테스트 (2026-11-25 · 테스트 멤버로 로그인해 모두 고쳐 보게 · 프로그램 담당은 여러 이름 그대로)
+    const date=FAKE_DATES[i], tin=pick(TIMES,i);
     const x={ org:pick(ORGS,i)+(i>=ORGS.length?` ${Math.floor(i/ORGS.length)+1}차`:''), date, owner, people:String(people), contact:'가짜 담당 '+(i+1), phone:`010-9${String(1000+i).slice(-3)}-${String(2000+i)}`,
       tin, tout:'16:00', pay:i%3?'결제링크':'현장 결제', note:'가짜 예약 (시험용)' };
     // 모든 예약에 관람 또는 관람+식사 (2026-11-25): 관람만 · 관람+사담 런치1부 · 관람 일부 + 관람+사담 런치2부 · 관람+사담 디너 — 방문일 평일 / 주말·공휴일, 입장 13시 이후면 13~18시 관람권
@@ -65,7 +71,7 @@
   const synced = async () => { for(let i=0;i<1200 && pending.length;i++){ await new Promise(r=>setTimeout(r,250)); if(pending.length && i%8===7) flush(); } };   // 가짜 DB에 다 들어갈 때까지
   async function clear(){ const L=(cache||[]).filter(r=>/^(fake|tst)\d+$/.test(r.id)); for(const r of L) await store.del(r.id); await synced(); return L.length; }
   function bar(){ if(document.getElementById('fakeBar')) return; const b=document.createElement('div'); b.id='fakeBar';
-    b.innerHTML='<b>'+(window.SY_CF?'시험용':'테스트 DB')+'</b><button type="button" class="btn primary" data-fake="fill" title="1년 전 ~ 2개월 뒤 단체 예약 130건 · 모두 관람 또는 관람+식사 (지금 DB 에만 · 배포 DB 에는 안 감 · 2~3분 걸림)">가짜 예약 채우기</button><button type="button" class="btn primary" data-fake="clear" title="가짜 예약(tst… · 예전 fake…)만 지움">가짜 예약 비우기</button>';
+    b.innerHTML='<b>'+(window.SY_CF?'시험용':'테스트 DB')+'</b><button type="button" class="btn primary" data-fake="fill" title="단체 예약 '+FAKE_N+'건 · 11 ~ 12월은 날마다 0 ~ 7건 · 그 밖은 드문드문 · 모두 관람 또는 관람+식사 (지금 DB 에만 · 배포 DB 에는 안 감 · 4~5분 걸림)">가짜 예약 채우기</button><button type="button" class="btn primary" data-fake="clear" title="가짜 예약(tst… · 예전 fake…)만 지움">가짜 예약 비우기</button>';
     document.body.appendChild(b); }
   document.addEventListener('click', async e=>{ const b=e.target.closest?.('[data-fake]'); if(!b) return; b.disabled=true;
     try{ if(b.dataset.fake==='fill'){ await fill(FAKE_N); toast(`가짜 예약 ${FAKE_N}건을 넣었습니다. 다시 불러옵니다.`); }
