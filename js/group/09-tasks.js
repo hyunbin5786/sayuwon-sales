@@ -270,6 +270,7 @@ function syncAutoTasks(){
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec), ...(id==='wkcheck' && editingId && rec.date && wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId] ? {done:true, doneAt:wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId]} : {})}); });   // 사전 답사 과업 메모 = 답사 정보
   if(typeof tcfgSubs==="function") tcfgSubs(tasks);
   if(typeof tcfgWhoApply==="function") tcfgWhoApply(tasks);   // 추후과업 메시지 관리의 담당 (2026-11-25)
+  if(typeof tcfgOnFix==="function") tcfgOnFix(tasks);   // 다시 켠 과업: 끈 동안 지난 마감 → 다시 켠 날 (js/taskcfg.js · 2026-11-25)
   // 예약내역&전산 확인 (pplchk · 2026-11-24): 가장 최근에 붙여 넣은 전산 내역이 지금 예약 내역과 같으면(총 금액 · 할인 · erpCheck) 바뀐 내용이 이미 전산에 반영된 것 → 저절로 완료
   //  열지 않은 예약도 같음 (나의 할일 · 첫 화면) · 추후과업 메시지 관리 「전날 확인 변경 → 예약내역&전산 확인」의 📋 규칙
   { const pc=tasks.find(t=>t.id==='pplchk' && !t.removed);

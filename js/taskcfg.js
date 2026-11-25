@@ -111,12 +111,16 @@ function tcfgDue(id, r){ const c=tcfgOf(id); if(!c || !c.due || !c.due.base || c
   if(d.base==='prevFri') return staffFri(r.date);
   if(d.base==='visitMon'){ const x=new Date(r.date+'T00:00'); x.setDate(x.getDate()-((x.getDay()+6)%7)); const v=ymd(x); return v>=today ? v : today; }
   const x=new Date(r.date+'T00:00'); x.setDate(x.getDate()-n); const v=ymd(x); return v>=today ? v : today; }
+// 다시 켠 과업 (2026-11-25): 추후과업 메시지 관리에서 껐다가 다시 켜면 그날(onAt)을 적어 둠 → 안 끝난 과업의 마감이 그날보다 이르면 그날로 (끈 동안 지나간 마감이 「기간이 지난 과업」으로 뜨지 않게)
+const tcfgOnDue = t => { if(!t || t.done) return ''; const on=String((tcfgOf(t.id)||{}).onAt||''); if(!on) return ''; const d = typeof taskDue==='function' ? taskDue(t) : String(t.due||''); return d && d<on ? on : ''; };
+function tcfgOnFix(list){ (list||[]).forEach(t=>{ const d=tcfgOnDue(t); if(d) t.due=d; }); }
 // 열지 않은 예약(나의 할일 등): 조건이 맞는 과업은 넣고, 끄거나 조건이 안 맞는 (손대지 않은) 원래 과업은 빼고, 바꾼 마감은 맞춤
 function tcfgVirtual(r, x, ts, has){
   const ctx={orig:new Set(ts.map(t=>t.id)), hasWk: ts.some(t=>t.id==='wkcheck')};
   for(let i=ts.length-1;i>=0;i--){ const t=ts[i], b=(tcfg.b||{})[t.id]; if(!b || t.done || t.custom) continue;
     if(!tcfgBuiltinOn(t.id, b, x, true, ctx) && !t.memo && !(t.xsubs||[]).some(s=>s.done)){ ts.splice(i,1); continue; }
     if(!t.dueSet){ const d=tcfgDue(t.id, x); if(d) ts[i]={...t, due:d}; } }
+  ts.forEach((t,i)=>{ const d=tcfgOnDue(t); if(d) ts[i]={...t, due:d}; });   // 다시 켠 과업: 끈 동안 지난 마감 → 다시 켠 날 (2026-11-25)
   if(!r.date || r.date<ymd(new Date())) return;
   Object.keys(TCFG_BASE_TITLES).forEach(id=>{ const b=(tcfg.b||{})[id]; if(!b || !Array.isArray(b.when) || has(id) || ts.some(t=>t.id===id) || id==='erpfix' || id==='prep') return;
     if(tcfgBuiltinOn(id, b, x, false, ctx) && !quietStage(effStage(x))) ts.push({id, title:AUTO_TASKS[id], done:false, due:tcfgDue(id, x)||autoDue(id, x)}); });
@@ -366,6 +370,9 @@ document.addEventListener('click', async e=>{
     const bad=d.c.findIndex(c=>!String(c.title||'').trim()); if(bad>=0){ toast('새 과업의 이름을 적어 주세요.'); tcfgOpenId='c:'+bad; tcfgPaint(); return; }
     const B={}; Object.keys(d.b).forEach(id=>{ const o=tcfgPack(id, d.b[id]); if(Object.keys(o).length) B[id]=o; });
     const C=d.c.map(tcfgPackC);
+    { const pb=tcfg.b||{}, pc=tcfg.c||[], today=ymd(new Date()), onOf=p=>p ? (p.off ? today : String(p.onAt||'')) : '';   // 다시 켠 날 (껐던 과업을 켜면 오늘 · 이미 적힌 날은 이어감 · 끄면 지움)
+      Object.keys(TCFG_BASE_TITLES).forEach(id=>{ if(B[id] && B[id].off) return; const on=onOf(pb[id]); if(on) (B[id] ||= {}).onAt=on; });
+      C.forEach(o=>{ if(o.off) return; const on=onOf(pc.find(x=>x && x.id===o.id)); if(on) o.onAt=on; }); }
     const btn=e.target.closest('[data-tcfgsave]'); btn.disabled=true;
     try{ const old=(cache||[]).find(x=>x.id===TCFG_ID), now=new Date().toISOString(), me=savedOwner()||'';
       const item={...(old||{}), id:TCFG_ID, callType:TCFG_TYPE, saved:(old&&old.saved)||now, takenBy:me, summary:`추후과업 설정 · 고친 과업 ${Object.keys(B).length}개 · 새 과업 ${C.length}개`, history:JSON.stringify({b:B, c:C, at:now, by:me})};
