@@ -235,13 +235,6 @@ function tcfgEdHTML(T, c, builtin, id){
         <label class="chk tcfg-onoff"><input type="checkbox" data-tf="${T}|off"${c.off?' checked':''}> ${builtin?'자동으로 만들지 않음 (끄기)':'잠시 끄기'}</label></div>
       <div class="tcfg-meta">${builtin ? `<span class="tag">원래 있는 과업</span>${TCFG_BASE_TITLES[id] && String(c.title||'').trim() && String(c.title).trim()!==TCFG_BASE_TITLES[id] ? `<span class="hint">원래 이름: ${esc(TCFG_BASE_TITLES[id])}</span>` : ''}` : '<span class="tag">새 과업</span>'}<span class="sp"></span>${builtin ? `<button type="button" class="btn primary sm" data-tcreset="${T}">원래대로 되돌리기</button>` : `<button type="button" class="btn primary sm" data-tcdel="${T}">이 과업 삭제</button>`}</div>
     </div>
-    <div class="tcfg-grid">
-      <div class="tcfg-card"><h4>언제 생길지 <small class="hint">조건이 모두 맞을 때 · 조건이 없으면 ${builtin?'모든 예약':'가예약 · 예약확정인 모든 예약'}</small></h4>
-        <div class="tcfg-conds">${conds.map(condRow).join('') || `<span class="hint">모든 예약</span>`}</div><button type="button" class="btn primary sm" data-tccadd="${T}">＋ 조건 더하기</button></div>
-      <div class="tcfg-card"><h4>마감</h4>
-        <div class="tcfg-due"><select data-tf="${T}|dueBase">${TCFG_DUE.map(([k,l])=>`<option value="${k}"${k===due.base?' selected':''}>${esc(l)}</option>`).join('')}</select>${TCFG_N_DUE.has(due.base)?`<input data-tf="${T}|dueN" inputmode="numeric" data-ime="num" value="${esc(due.n??0)}" style="width:56px"> 일`:''}</div>
-        <h4 style="margin-top:12px">담당</h4>${whoHTML}</div>
-    </div>
     <div class="tcfg-card"><h4>세부 과업 <small class="hint">과업 안에 체크 칸으로 들어감 · 모두 체크하면 그 과업 완료</small></h4>
       <div class="tcfg-subs">${subs.map((s,i)=>`<span class="tcfg-sub"><span class="tcfg-n">${i+1}</span><input class="tcfg-in" data-tsub="${T}|${i}" data-ime="ko" value="${esc(s)}"><button type="button" class="del" data-tsubdel="${T}|${i}" title="이 세부 과업 빼기">×</button></span>`).join('')}<span class="tcfg-sub"><span class="tcfg-n">＋</span><input class="tcfg-in" data-tsubnew="${T}" data-ime="ko" placeholder="세부 과업 더하기 (적고 Enter)"></span></div>
       ${builtin && id==='wkcheck' ? `<div class="tcfg-auto"><div class="tcfg-lab">예약 내용에 따라 저절로 넣는 세부 과업 (체크를 빼면 넣지 않음)</div>
@@ -249,14 +242,38 @@ function tcfgEdHTML(T, c, builtin, id){
         <label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> <b>미정 항목에 대한 내용</b> <small class="hint">— 미정 항목 · 아직 안 넣은 칸을 하나씩 (예: 「미정 · 결제 방법」)</small></label></div>` : ''}
       ${builtin && id==='pplchk' ? `<div class="tcfg-auto"><label class="chk"><input type="checkbox" data-tf="${T}|autoDone"${c.autoDone?' checked':''}> <b>전산 내역이 이미 같으면 저절로 완료</b> <small class="hint">— 가장 최근 전산 내역과 예약 내역의 총 금액 · 할인이 같으면</small></label></div>` : ''}
     </div>
-    <div class="tcfg-card"><h4>문구 <small class="hint">{단체명} 처럼 바꿔 넣는 말 → 예약마다 그 값으로 · 비우면 없음</small></h4>
+    <div class="tcfg-card"><h4>언제 생기고 언제까지 <small class="hint">조건이 모두 맞을 때 생김 · 조건이 없으면 ${builtin?'모든 예약':'가예약 · 예약확정인 모든 예약'}</small></h4>
+      <div class="tcfg-when">
+        <div class="tcfg-wl"><div class="tcfg-lab">언제 생길지</div><div class="tcfg-conds">${conds.map(condRow).join('') || `<span class="hint">모든 예약</span>`}</div><button type="button" class="btn primary sm" data-tccadd="${T}">＋ 조건 더하기</button></div>
+        <div class="tcfg-wr"><div class="tcfg-lab">마감</div><div class="tcfg-due"><select data-tf="${T}|dueBase">${TCFG_DUE.map(([k,l])=>`<option value="${k}"${k===due.base?' selected':''}>${esc(l)}</option>`).join('')}</select>${TCFG_N_DUE.has(due.base)?`<input data-tf="${T}|dueN" inputmode="numeric" data-ime="num" value="${esc(due.n??0)}" style="width:56px"> 일`:''}</div></div>
+      </div>
+    </div>
+    <div class="tcfg-card"><h4>담당</h4>${whoHTML}</div>
+    <div class="tcfg-card"><h4>문구 <button type="button" class="tcfg-help${tcfgHelp?' on':''}" data-tchelp title="과업 문구와 과업 아래 안내 줄이 어떻게 다른지 예시로 보기" aria-expanded="${tcfgHelp}">?</button> <small class="hint">{단체명} 처럼 바꿔 넣는 말 → 예약마다 그 값으로 · 비우면 없음</small></h4>
+      ${tcfgHelp ? tcfgHelpHTML() : ''}
       <div class="tcfg-two">
-        <label>과업 문구 <small class="hint">과업의 「문구 복사」로 복사${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''}</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '예: [세금계산서] {단체명} …', 5)}</label>
-        <label>과업 아래 안내 줄 <small class="hint">과업 제목 아래에 붙는 글 (예: 바뀐 내용)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '예: 바뀐 내용: {바뀐내용}', 5)}</label>
+        <label><span class="tcfg-lh"><span class="hb a">A</span> 과업 문구</span> <small class="hint">과업의 「문구 복사」로 복사${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''}</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '예: [세금계산서] {단체명} …', 5)}</label>
+        <label><span class="tcfg-lh"><span class="hb b">B</span> 과업 아래 안내 줄</span> <small class="hint">과업 제목 아래에 붙는 글 (예: 바뀐 내용)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '예: 바뀐 내용: {바뀐내용}', 5)}</label>
       </div>
       <div class="tcfg-vars"><span class="hint">바꿔 넣는 말 — 글 칸을 누른 뒤 고르면 그 자리에 들어감:</span><br>${vars}</div>
     </div>
     ${rule ? `<details class="tcfg-rule"><summary>📋 ${esc(rule[0])} (참고 · 누르면 펼침)</summary><pre>${esc(rule[1])}</pre></details>` : ''}
+  </div>`; }
+// 문구 ? 도움말 (2026-11-25): 과업 문구 vs 과업 아래 안내 줄 — 나의 할일 · 단체 화면의 과업 모양으로 어디에 나오는지 보여 줌
+let tcfgHelp=false;
+function tcfgHelpHTML(){
+  return `<div class="tcfg-helpbox">
+    <div class="tcfg-hcol"><div class="tcfg-hh"><span class="hb a">A</span> 과업 문구</div>
+      <p>과업 안 회색 칸에 들어가고, <b>「문구 복사」</b>를 눌러 <b>다른 곳에 붙여 넣는 글</b>입니다. 전산 비고, 세금계산서 요청 메시지, 고객에게 보낼 문자 등에 씁니다.</p>
+      <p class="hint">예: 「전산 예약」 → 전산 예약 비고 칸에 붙여 넣을 글 · 「세금계산서 발행」 → 담당 부서에 보낼 요청 글</p></div>
+    <div class="tcfg-hcol"><div class="tcfg-hh"><span class="hb b">B</span> 과업 아래 안내 줄</div>
+      <p>과업 이름 바로 아래에 <b>늘 보이는 짧은 설명</b>입니다. 복사하지 않고 <b>읽기만</b> 합니다. 왜 이 과업이 생겼는지, 무엇이 바뀌었는지 알려 줄 때 씁니다.</p>
+      <p class="hint">예: 「예약내역&전산 확인」 → 바뀐 내용: 관람 인원 20 → 25</p></div>
+    <div class="tcfg-hdemo"><div class="hint" style="margin-bottom:4px">과업이 이렇게 보입니다 (예시)</div>
+      <div class="tcfg-mock"><div class="mk-h"><span class="mk-ck"></span><b>전산 예약 수정</b><span class="mk-due">마감 11/26(목)</span></div>
+        <div class="mk-desc"><span class="hb b">B</span> 바뀐 내용: 관람 인원 20 → 25 · 입장 10:00 → 11:00</div>
+        <div class="mk-note"><span class="hb a">A</span> 현장 결제 필요 / 11시 입장 / 12시 몽몽마방(사유의 밥상 25명) (김영업)</div>
+        <div class="mk-btns"><span class="mk-btn">문구 복사</span><span class="hint">← A 를 복사</span></div></div></div>
   </div>`; }
 // 왼쪽 목록
 function tcfgPaintList(){ const box=$('#tcfgList'); if(!box || !tcfgDraft) return; const st=box.scrollTop, q=tcfgQ.toLowerCase();
@@ -315,6 +332,7 @@ document.addEventListener('click', async e=>{
   const tv=e.target.closest('[data-tvar]'); if(tv){ const el=tcfgLastIn; if(!el || !document.body.contains(el)){ toast('먼저 넣을 글 칸(과업 문구 · 과업 아래 안내 줄)을 누르세요.'); return; }
     const s='{'+tv.dataset.tvar+'}', a=el.selectionStart??el.value.length, b=el.selectionEnd??a; el.value=el.value.slice(0,a)+s+el.value.slice(b); el.focus(); el.selectionStart=el.selectionEnd=a+s.length; tcfgSet(el); return; }
   if(e.target.closest('[data-tcfgclose]')){ if(tcfgSaved && JSON.stringify(tcfgDraft)!==tcfgSaved && !confirm('저장하지 않은 고친 내용이 있습니다. 저장하지 않고 닫을까요?')) return; tcfgClose(); return; }
+  if(e.target.closest('[data-tchelp]')){ tcfgHelp=!tcfgHelp; tcfgPaint(); return; }
   const vw=e.target.closest('[data-tcview]'); if(vw){ tcfgPendSubs(); tcfgView=vw.dataset.tcview; tcfgPaint(); return; }
   const o=e.target.closest('[data-tcfgopen]'); if(o){ tcfgPendSubs(); tcfgOpenId=o.dataset.tcfgopen; tcfgView='edit'; tcfgPaint(); return; }
   if(e.target.closest('[data-tcfgadd]')){ tcfgPendSubs(); const id='u'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); d.c.push({id, title:'', conds:[], due:{base:'visit', n:3}, subs:[], note:'', desc:'', who:''}); tcfgView='edit'; tcfgQ=''; if($('#tcfgQ')) $('#tcfgQ').value=''; tcfgOpenId='c:'+(d.c.length-1); tcfgPaint(); setTimeout(()=>{ const t=document.querySelector(`#tcfgModal [data-tf="c:${d.c.length-1}|title"]`); t?.scrollIntoView({block:'center'}); t?.focus(); },0); return; }

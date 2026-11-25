@@ -1308,3 +1308,32 @@ html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
 }
 body:has(.modal:not([hidden])) #fakeBar{display:none}   /* 팝업이 떠 있으면 가짜 예약 버튼은 숨김 (팝업 저장 버튼을 가리지 않게) */
 #tcfgModal .tcfg-table .tag{white-space:nowrap}
+/* 추후과업 메시지 관리 (2026-11-25 고침): 조건 상자가 카드 밖으로 넘치던 것 · 언제 생길지 + 마감 한 카드 · 문구 ? 도움말 */
+#tcfgModal .tcfg-conds{min-width:0;align-items:stretch;flex-wrap:nowrap}
+#tcfgModal .tcfg-cond{min-width:0;width:100%;max-width:100%;box-sizing:border-box}
+#tcfgModal .tcfg-cond select{min-width:0}
+#tcfgModal .tcfg-cond select:first-of-type{flex:1 1 0;width:0;min-width:0}
+#tcfgModal .tcfg-cond .del{flex:none}
+#tcfgModal .tcfg-when{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
+#tcfgModal .tcfg-when .tcfg-lab{font-weight:700;color:var(--ink);margin:0 0 6px}
+#tcfgModal .tcfg-due{flex-wrap:wrap}
+#tcfgModal .tcfg-due select{max-width:100%}
+#tcfgModal .tcfg-help{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--pine);background:#fff;color:var(--pine);font-weight:700;font-size:13px;line-height:1;cursor:pointer;padding:0}
+#tcfgModal .tcfg-help.on{background:var(--pine);color:#fff}
+#tcfgModal .tcfg-helpbox{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;background:#f4f8f1;border:1px solid #cfdcc8;border-radius:10px;padding:12px 14px;margin:0 0 10px;font-size:13px;line-height:1.6}
+#tcfgModal .tcfg-helpbox p{margin:4px 0}
+#tcfgModal .tcfg-hh{font-weight:700;display:flex;align-items:center;gap:6px}
+#tcfgModal .hb{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:11px;font-weight:700;color:#fff;flex:none}
+#tcfgModal .hb.a{background:#2f5aa8}
+#tcfgModal .hb.b{background:#b26a00}
+#tcfgModal .tcfg-hdemo{grid-column:1 / -1}
+#tcfgModal .tcfg-mock{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;max-width:560px}
+#tcfgModal .mk-h{display:flex;align-items:center;gap:8px}
+#tcfgModal .mk-ck{width:16px;height:16px;border:1.5px solid #9a968b;border-radius:4px;flex:none}
+#tcfgModal .mk-due{margin-left:auto;font-size:12px;color:var(--muted)}
+#tcfgModal .mk-desc{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#8a5a00;background:#fff6e5;border-radius:6px;padding:3px 8px;margin:6px 0 0 24px}
+#tcfgModal .mk-note{display:flex;align-items:flex-start;gap:6px;font-size:12.5px;background:#eef1f6;border-radius:6px;padding:6px 8px;margin:6px 0 0 24px}
+#tcfgModal .mk-btns{display:flex;align-items:center;gap:8px;margin:6px 0 0 24px}
+#tcfgModal .mk-btn{background:var(--pine);color:#fff;border-radius:6px;padding:2px 10px;font-size:12px;font-weight:700}
+@media (max-width:900px){ #tcfgModal .tcfg-when,#tcfgModal .tcfg-helpbox{grid-template-columns:1fr} }
+#tcfgModal .tcfg-lh{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--ink)}
