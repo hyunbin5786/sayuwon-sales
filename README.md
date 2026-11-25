@@ -1075,9 +1075,7 @@ localStorage (그 브라우저 · 그 사이트 주소에만 — **사이트 주
 - 공유 DB 전체를 파일 하나(JSON)로 받아 **`\(서버 주소)\(공유 이름)\11. 운영보조플랫폼 자료다운`** 에 `sayuwon-backup-날짜-시각.json` 으로 저장. 브라우저 없이 서버 동작 `export` 를 직접 부름 (읽기만 함). 같은 폴더의 `backup-log.txt` 에 성공 · 실패를 한 줄씩 남김
 - **설정**(예전): `tools/backup-config.json` (처음 실행하면 생김 · 저장소에 올리지 않음) 에 `name`(이름) · `emp`(사번) · `dest`(저장할 폴더). 그 사람이 멤버에서 빠지면 백업이 「로그인이 확인되지 않았습니다」로 실패하므로 다른 멤버 것으로 바꿀 것
 - **직접 돌리기**: `powershell -ExecutionPolicy Bypass -File tools\backup.ps1` · 도구 자체 점검: `… -File tools\backup.ps1 -SelfTest`
-- **매주 자동** (작업 스케줄러 · 한 번만 등록 · 매주 월요일 9시, 그때 컴퓨터가 꺼져 있었으면 켜진 뒤에 실행). 이 컴퓨터에 로그인돼 있고 네트워크 폴더에 연결돼 있어야 함:
-  `Register-ScheduledTask -TaskName '사유원 백업' -Action (New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -File "C:\Users\user\Desktop\문현빈\AI\단체예약\tools\backup.ps1"') -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 9am) -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable)`
-  지우기: `Unregister-ScheduledTask -TaskName '사유원 백업' -Confirm:$false` · 폴더를 옮기면 위 경로를 고쳐 다시 등록
+- (예전) 작업 스케줄러에 매주 월요일 9시로 등록해 돌렸음 — 등록 명령은 지움 (다시 걸지 않음 · 2026-11-25)
 - **파일 모양** (`format: "raw-1"` — `tools/export.html` 의 `format: 1` 과 조금 다름): 표마다 서버가 준 줄 그대로. `calls.data` · `quote_history.data` · `kv.v` 는 JSON **글자**(한 번 더 풀어야 함), 파일 내용은 `files` 가 아니라 `file_chunks`(`id` · `n` 순서로 `data` 를 이으면 base64) 에 있음
 - **최신 몇 개만 남김** (2026-11-23): 새 파일이 제대로 저장된 뒤에 예전 `sayuwon-backup-*.json` 을 지움. 몇 개 남길지는 `backup-config.json` 의 `"keep"` (지금 4 = 한 달치 · 적지 않으면 1 · 0 = 지우지 않음). 한 개만 두면 「DB 내용이 잘못된 채로 백업된 것」이 유일한 백업이 될 수 있음
 - 이 백업은 **사이트 기능이 아니라 이 컴퓨터의 작업 스케줄러가 돌리는 것** → 이 컴퓨터가 켜져 있고 네트워크 폴더에 연결돼 있을 때만 (꺼져 있었으면 켜진 뒤에 실행). 늘 켜져 있는 컴퓨터 · 파일 서버가 있으면 그쪽에 `toolsbackup.ps1` · `backup-config.json` 을 두고 등록하는 것이 좋음 (서버(Cloudflare)는 사내 네트워크 폴더에 직접 쓸 수 없음)
