@@ -4000,7 +4000,7 @@ function mergedTasksHTML(recs, c, _recLi, emptyMsg){
 // 전체 화면으로 보기 (× 옆, 2026-11-19): 다음 탭에 나의 할일 한 페이지 (group.html?my=1)
 // (「전체 보기」 버튼 · 나의 할일 한 페이지는 2026-11-24에 없앰 — 나의 할일은 팝업으로만. group.html?my=1 을 주소로 열면 첫 화면의 팝업으로 넘어감)
 let mySetOpen=false;
-function paintMySet(){ const m=$('#mySetModal'), b=$('#mySet'); if(!m || !b) return; m.hidden=!mySetOpen; $('#mySetBtn')?.classList.toggle('on', mySetOpen); if(mySetOpen) b.innerHTML = catManageHTML(); }   // 설정 = 팝업 (2026-11-19)
+function paintMySet(){ const m=$('#mySetModal'), b=$('#mySet'); if(!m || !b) return; m.hidden=!mySetOpen; $('#mySetBtn')?.classList.toggle('on', mySetOpen); if(mySetOpen) b.innerHTML = catManageHTML() + alertSetHTML(); }   // 설정 = 팝업 (2026-11-19)
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && mySetOpen){ e.stopImmediatePropagation(); mySetOpen=false; paintMySet(); } }, true);
 document.addEventListener('mousedown', e=>{ if(e.target.id==='mySetModal'){ mySetOpen=false; paintMySet(); } });
 document.addEventListener('click', e=>{ if(e.target.closest?.('#mySetBtn')){ mySetOpen=!mySetOpen; paintMySet(); return; } if(e.target.closest?.('[data-mysetclose]')){ mySetOpen=false; paintMySet(); } });
@@ -4311,34 +4311,46 @@ setInterval(()=>{ if(window.__tasksReady) checkMemoPopup(); }, 60000);
 // ===================== 마감이 된 추후 과업 팝업 =====================
 // 마감이 오늘이거나 지난, 해결 안 된 과업(영업 담당이 있으면 내 예약만)을 해결될 때까지 계속 띄움: 열 때 · 9시 · '나중에'를 누르면 2시간 뒤 다시
 const TASK_SNOOZE_LS='sayuwon_task_snooze', SNOOZE_MS=2*3600e3, TASK_SLOT_LS='sayuwon_task_slot', QUIET_MS=30*60e3;
-const ALERT_HOURS=[8,11,13,17];   // 추후 과업 마감 알림 시각 (개인고객 화면과 같음)
+// 알림 시각 (2026-11-25): 예전엔 늘 8 · 11 · 13 · 17시 → 나의 할일 설정에서 사람마다 (SY_ALERT · js/common.js) · 알림은 새 창(group.html?alert=1)으로
+const ALERT_WIN = /[?&]alert=1/.test(location.search);   // 과업 알림 새 창
+if(ALERT_WIN) document.documentElement.classList.add('alert-only');
+// 공유 기록(내 개인업무목록 줄)에 저장된 알림 시각을 이 컴퓨터에 맞춤 — 개인고객 화면 · 다른 컴퓨터도 같게
+function alertSync(){ try{ const r=typeof etcCatRec==='function' && etcCatRec(); if(!r) return; const a=(JSON.parse(r.history||'{}')||{}).alertTimes; if(Array.isArray(a) && JSON.stringify(a)!==JSON.stringify(SY_ALERT.times())) SY_ALERT.set(a); }catch(_){} }
 const SELF_DONE = new Set(['erp','erpcheck','erpfix','progstaff','mbmenu']);   // erp · erpfix: 전산 내역을 붙여넣어야 완료 · 칸을 채우면 저절로 완료되는 과업은 '열기'만 (2026-11-23에 비웠다가 같은 날 되돌림)   // erp · erpfix: 전산 내역을 붙여넣어야 완료   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
+let engTried='';
 function checkTbdPopup(force){
-  if(BOOK_ONLY || MY_EMBED) return;   // 예약 현황 공유 페이지 · 나의 할일 팝업 안에서는 안 함
+  alertSync(); if(ALERT_WIN) force=true;
+  const ENG=/[?&]engine=/.test(location.search);   // 첫 화면의 과업 계산 창: 새 창으로만 알림 (2026-11-25 · 첫 화면만 켜 둬도 알림)
+  if(BOOK_ONLY || (MY_EMBED && !ENG)) return;   // 예약 현황 공유 페이지 · 나의 할일 팝업 안에서는 안 함
   // 마감 지난 과업: 열 때 · 1분마다 (나중에 = 2시간 뒤). 오늘 마감 과업: 오후 1시, 아직 안 끝났으면 오후 5시에 (시간마다 한 번)
   // 단, 입력(과업이 생기거나 마감을 바꾼 것)한 지 30분이 안 된 과업은 알리지 않음
   // 2026-11-14부터: 오전 8시 · 11시 · 오후 1시 · 5시에 (그 시각이 지나고 처음 화면을 볼 때, 시각마다 한 번) 마감이 오늘이거나 지난 과업을 단체 + 개인고객 함께
   // 개인고객 화면과 같은 기록(TASK_SLOT_LS)을 써서, 한 시각에 두 화면에서 두 번 뜨지 않음
   const nowD=new Date(), now=+nowD, today=ymd(nowD); let slots=''; try{ slots=localStorage.getItem(TASK_SLOT_LS)||''; }catch(_){}
   if(!force && [...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)
-  const h=nowD.getHours(), slotH=ALERT_HOURS.filter(x=>h>=x).pop(), slotKey=`${today}|${slotH}`;
+  const slotH=SY_ALERT.slot(nowD), slotKey=`${today}|${slotH}`;
   if(!force && (slotH==null || slots.split(',').includes(slotKey))) return;
   const fresh = ({r,t}) => now - Math.max(+new Date(t.dueSetAt||0)||0, +new Date(t.at||r.saved||0)||0) < QUIET_MS;
   const pers = myPersonalOpen().flatMap(o=>o.left.filter(t=>t.due<=today).map(t=>({r:o.r, t, personal:true})));
   const due=[...dueTasks(), ...pers].filter(o=>!fresh(o)).sort((a,b)=>a.t.due.localeCompare(b.t.due));
-  if(!due.length) return;
-  if(slotH!=null){ try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), slotKey].join(',')); }catch(_){} }
+  if(!due.length){ if(ALERT_WIN){ $('#tbdList').innerHTML='<li class="hint">지금 알릴 과업이 없습니다.</li>'; $('#tbdTitle').textContent='과업 알림'; $('#tbdModal').hidden=false; } return; }
+  if(ENG){ if(engTried===slotKey) return; engTried=slotKey; }   // 과업 계산 창: 시각마다 한 번만 새 창을 열어 봄 (막혀도 1분마다 다시 시도하지 않음)
+  if(!force && slotH!=null && SY_ALERT.openWin()){ try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), slotKey].join(',')); }catch(_){} return; }   // 새 창으로 (막히면 아래 이 화면 팝업)
+  if(ENG) return;   // 과업 계산 창은 보이지 않으므로 이 화면 팝업은 없음 (팝업이 막히면 다음 시각에 다시)
+  if(slotH!=null && !ALERT_WIN){ try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), slotKey].join(',')); }catch(_){} }
   $('#tbdList').innerHTML = due.map(({r,t,personal})=>{ const n=daysFrom(today,t.due);
     if(personal) return `<li class="${n<0?'late':'today'}"><span class="who"><span class="tag">개인</span> <b>${esc(r.contact||'(이름 없음)')}</b>${r.phone?` · ${esc(r.phone)}`:''}<br>`
       + `<b class="${n<0?'late':''}">${esc(t.title)}</b> <small class="hint" style="margin:0">마감 ${esc(mdLabel(t.due))} ${n<0?`(${-n}일 지남)`:'(오늘)'}</small></span>`
-      + `<button class="btn primary" data-pdone="${esc(r.id)}|${esc(t.id)}">완료</button><button class="btn" data-popen2="${esc(r.id)}">열기</button></li>`;
+      + `<button class="btn primary" data-pdone="${esc(r.id)}|${esc(t.id)}">완료</button><button class="btn primary" data-popen2="${esc(r.id)}">열기</button></li>`;
     return `<li class="${n<0?'late':'today'}"><span class="who"><b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date)||'미정')}${r.owner?` · ${esc(r.owner)}`:''}<br>`
       + `<b class="${n<0?'late':''}">${esc(t.title)}</b> <small class="hint" style="margin:0">마감 ${esc(mdLabel(t.due))} ${n<0?`(${-n}일 지남)`:'(오늘)'}${t.id==='wkcheck'||t.id==='onsitecall'?` · ${esc(firstContact(r)||'담당자 연락처 없음')}`:''}</small></span>`
-      + (SELF_DONE.has(t.id) ? '' : `<button class="btn primary" data-tdone="${esc(r.id)}|${esc(t.id)}">완료</button>`) + `<button class="btn" data-tbdopen="${esc(r.id)}">열기</button></li>`; }).join('');
-  $('#tbdTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b> · 단체 + 개인 · 알림은 오전 8시 · 11시 · 오후 1시 · 5시</small>`;
+      + (SELF_DONE.has(t.id) ? '' : `<button class="btn primary" data-tdone="${esc(r.id)}|${esc(t.id)}">완료</button>`) + `<button class="btn primary" data-tbdopen="${esc(r.id)}">열기</button></li>`; }).join('');
+  $('#tbdTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b> · 단체 + 개인 · 알림은 ${esc(SY_ALERT.label())}</small>`;
+  $('#tbdLater').title=`다음 알림 시각(${SY_ALERT.label()})에 다시`;
   $('#tbdModal').hidden=false;
 }
-$('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; };   // 다음 알림 시각에 다시
+$('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; if(ALERT_WIN) window.close(); };   // 다음 알림 시각에 다시 (알림 새 창이면 창을 닫음)
+const alertWinEmpty = () => { if(!$('#tbdList').children.length){ if(ALERT_WIN) window.close(); else $('#tbdModal').hidden=true; } };
 // 과업 하나 완료 (열어 둔 예약이면 화면의 과업, 아니면 저장된 기록을 고쳐 저장)
 async function doneTask(id, tid){
   const r=cache.find(x=>x.id===id); if(!r) return;
@@ -4354,18 +4366,20 @@ async function doneTask(id, tid){
 }
 $('#tbdList').addEventListener('click', async e=>{
   // 개인고객 과업: 열기 = 개인고객 화면에서 그 통화, 완료 = 그 통화 기록에 완료로 저장
+  // 알림 새 창: 열기 = 새 탭에서 그 예약 (알림 창은 그대로)
+  if(ALERT_WIN && (e.target.dataset.popen2 || e.target.dataset.tbdopen)){ const p=e.target.dataset.popen2; window.open((p ? 'personal.html?open=' : 'group.html?open=')+encodeURIComponent(p || e.target.dataset.tbdopen), '_blank'); return; }
   if(e.target.dataset.popen2){ const id=e.target.dataset.popen2; $('#tbdModal').hidden=true; guardLeave(()=>{ location.href='personal.html?open='+encodeURIComponent(id); }); return; }
   if(e.target.dataset.pdone){ const [id,tid]=e.target.dataset.pdone.split('|'), r=cache.find(x=>x.id===id); if(!r) return; e.target.disabled=true;
     let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const t=(h.tasks||[]).find(x=>x.id===tid); if(t){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=savedOwner()||''; (t.xsubs||[]).forEach(x=>x.done=true); }
     const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
-    e.target.closest('li').remove(); if(!$('#tbdList').children.length) $('#tbdModal').hidden=true; toast('과업을 완료로 표시했습니다.'); paintMyCount(); if(!$('#myModal').hidden) renderMy(); return; }
+    e.target.closest('li').remove(); alertWinEmpty(); toast('과업을 완료로 표시했습니다.'); paintMyCount(); if(!$('#myModal').hidden) renderMy(); return; }
   const dn=e.target.dataset.tdone, open=e.target.dataset.tbdopen;
   if(open){ const r=cache.find(x=>x.id===open); $('#tbdModal').hidden=true; if(r) openRecordG(r); }
   if(dn){ const [id,tid]=dn.split('|'); e.target.disabled=true; await doneTask(id, tid);
-    e.target.closest('li').remove(); if(!$('#tbdList').children.length) $('#tbdModal').hidden=true;
+    e.target.closest('li').remove(); alertWinEmpty();
     toast('과업을 완료로 표시했습니다.'); paintMyCount(); if(!$('#myModal').hidden) renderMy(); }
 });
-setInterval(()=>{ if(window.__tasksReady) checkTbdPopup(); }, 60000);   // 1분마다 확인 (나중에 = 2시간 뒤 다시)
+setInterval(()=>{ if(window.__tasksReady && !ALERT_WIN) checkTbdPopup(); }, 60000);   // 1분마다 확인 (나중에 = 2시간 뒤 다시)
 
 // ===================== 미정 항목 입력 기한: 방문일 전주 목요일까지 =====================
 // 그보다 늦게 잡으면 사유를 받는다 (비고 칸 '입력 기한 늦춘 사유', 수정 기록에도 남음)
@@ -4577,8 +4591,25 @@ function etcCats(){ let saved=[]; try{ saved=(JSON.parse((etcCatRec()||{}).histo
   const used=etcMine().map(o=>o.d.list).filter(Boolean); return [...new Set([...saved, ...used])].filter(c=>c && c!=='작업' && !/^@/.test(c)); }   // @personal · @group (개인예약 · 단체예약에 넣은 업무)은 내 구분이 아님
 async function etcSaveCats(lists, order){ const me=savedOwner()||'', now=new Date().toISOString(), old=etcCatRec();
   let prev={}; try{ prev=JSON.parse((old||{}).history||'{}')||{}; }catch(_){}
-  const item={...(old||{}), id: old ? old.id : 'el'+tdHash(me), callType:'개인업무목록', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:`나의 할일 구분 ${lists.join(', ')}`.slice(0,120), history:JSON.stringify({lists, order: order || prev.order || []})};
+  const item={...(old||{}), id: old ? old.id : 'el'+tdHash(me), callType:'개인업무목록', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:`나의 할일 구분 ${lists.join(', ')}`.slice(0,120), history:JSON.stringify({...prev, lists, order: order || prev.order || []})};   // ...prev: 알림 시각(alertTimes) 등 다른 설정은 그대로
   await store.put(item); const i=cache.findIndex(x=>x.id===item.id); if(i>=0) cache[i]=item; else cache.push(item); }
+// 과업 알림 시각 (2026-11-25 · 나의 할일 설정): 시각마다 고치기 · 빼기 · 추가(횟수) · 기본으로 — 내 개인업무목록 줄(alertTimes)에 저장 + 이 컴퓨터(SY_ALERT)
+async function etcSaveAlert(L){ L=SY_ALERT.set(L); const me=savedOwner()||'', now=new Date().toISOString(), old=etcCatRec();
+  let prev={}; try{ prev=JSON.parse((old||{}).history||'{}')||{}; }catch(_){}
+  const item={...(old||{}), id: old ? old.id : 'el'+tdHash(me), callType:'개인업무목록', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:(old&&old.summary)||'나의 할일 설정', history:JSON.stringify({...prev, lists: prev.lists || etcCats(), order: prev.order || [], alertTimes:L})};
+  await store.put(item); const i=cache.findIndex(x=>x.id===item.id); if(i>=0) cache[i]=item; else cache.push(item); }
+function alertSetHTML(){ const L=SY_ALERT.times();
+  return `<div class="al-set"><b>과업 알림</b> <small class="hint" style="margin:0">하루 ${L.length}번 · 그 시각이 지나고 처음 화면을 볼 때 새 창으로 (브라우저에서 팝업 허용)</small>`
+    + (L.length ? `<ul class="al-list">${L.map((t,i)=>`<li><input type="time" step="600" value="${SY_ALERT.hm(t)}" data-alt="${i}" title="알림 시각"><button type="button" class="btn primary" data-aldel="${i}" title="이 시각 빼기">빼기</button></li>`).join('')}</ul>` : `<p class="hint" style="margin:8px 0">알림을 끈 상태입니다.</p>`)
+    + `<div class="al-btns"><button type="button" class="btn primary" data-aladd>＋ 알림 시각 추가</button><button type="button" class="btn primary" data-aldef title="오전 8시 · 11시 · 오후 1시 · 5시">기본으로</button></div></div>`; }
+const alRepaint = () => { if(typeof paintMySet==='function') paintMySet(); };
+document.addEventListener('change', async e=>{ const i=e.target.dataset?.alt; if(i==null) return; const v=e.target.value; if(!/^\d\d:\d\d$/.test(v)) return;
+  const L=SY_ALERT.times(); L[+i]=+v.slice(0,2)*60 + +v.slice(3); await etcSaveAlert(L); alRepaint(); toast(`과업 알림: ${SY_ALERT.label()}`); });
+document.addEventListener('click', async e=>{ const b=e.target.closest?.('[data-aldel],[data-aladd],[data-aldef]'); if(!b) return; e.preventDefault(); let L=SY_ALERT.times();
+  if(b.dataset.aldel!=null) L.splice(+b.dataset.aldel, 1);
+  else if(b.dataset.aladd!=null){ const last=L.length ? L[L.length-1] : 480; let n=Math.min(last+60, 1380); while(L.includes(n) && n<1430) n+=10; L.push(n); }
+  else L=SY_ALERT.DEF.slice();
+  await etcSaveAlert(L); alRepaint(); toast(`과업 알림: ${SY_ALERT.label()}`); });
 // 나의 할일 구분 (2026-11-19): 개인예약(개인고객 추후 과업) · 단체예약(단체 추후 과업) · 내가 만든 구분(기타 업무) · 구분 없음 — 순서는 사람마다 저장(▲▼로 바꿈)
 const CAT_P='@personal', CAT_G='@group', CAT_N='@none';
 const catLabel = c => c===CAT_P ? '개인예약' : c===CAT_G ? '단체예약' : c===CAT_N ? ETC_NOCAT : c;

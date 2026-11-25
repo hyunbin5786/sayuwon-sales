@@ -609,10 +609,9 @@ document.addEventListener('change', async e=>{ const p=e.target.closest && e.tar
   $('#memberErr').textContent=`${m.name} 님 사번을 ${emp} 로 넣었습니다.`; $('#memberErr').style.color='var(--pine)'; setTimeout(()=>{ $('#memberErr').style.color=''; }, 3000); });
 // 캘린더 새 창(?cal=1 · 2026-11-25): 창 높이를 캘린더 상자에 맞춤 (달마다 줄 수가 달라 상자가 바뀌면 다시 맞춤 · 새 창으로 연 창에서만 됨)
 if(document.documentElement.classList.contains('cal-only')){
-  let calFitH=0;
   const calFit=()=>{ const c=document.querySelector('.dcal-col'); if(!c || c.offsetParent===null || !window.innerHeight) return;
-    const need=Math.ceil(c.getBoundingClientRect().bottom + 12), diff=need-window.innerHeight;
-    if(Math.abs(diff)<4 || need===calFitH) return; calFitH=need; try{ window.resizeBy(0, diff); }catch(_){} };
+    const need=Math.ceil(c.getBoundingClientRect().bottom + 22), diff=need-window.innerHeight;   // 22 = 아래 여백 10 + 테스트 사이트 빨간 테두리 · 여유
+    if(Math.abs(diff)<3) return; try{ window.resizeBy(0, diff); }catch(_){} };
   new MutationObserver(()=>requestAnimationFrame(calFit)).observe(document.body, {childList:true, subtree:true});
-  window.addEventListener('load', ()=>setTimeout(calFit, 300));
+  window.addEventListener('load', ()=>{ setTimeout(calFit, 300); setTimeout(calFit, 1200); });
 }

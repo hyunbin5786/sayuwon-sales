@@ -206,3 +206,20 @@ const SY_DEV = (function(){
   const start = () => { new MutationObserver(q).observe(document.body, {subtree:true, childList:true, attributes:true, attributeFilter:['hidden','class','style','open']}); q(); };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
+
+// ===== 과업 알림 시각 (2026-11-25 · 나의 할일 설정에서 사람마다 · 시각 · 횟수) =====
+//  분 단위 목록(480 = 오전 8시) · 이 컴퓨터(sy_alert_times)에 두고, 단체 화면이 공유 기록(내 개인업무목록 줄의 alertTimes)과 맞춤
+//  알림은 새 창(group.html?alert=1 · 창 이름 sy_alert)으로 · 브라우저가 팝업을 막으면 그 화면 안 팝업으로
+const SY_ALERT = (function(){
+  const LS='sy_alert_times', DEF=[480,660,780,1020];
+  const clean = a => [...new Set((a||[]).map(Number).filter(n=>Number.isFinite(n) && n>=0 && n<1440))].sort((x,y)=>x-y);
+  const times = () => { try{ const a=JSON.parse(localStorage.getItem(LS)||'null'); if(Array.isArray(a)) return clean(a); }catch(_){} return DEF.slice(); };
+  const set = a => { const L=clean(a); try{ localStorage.setItem(LS, JSON.stringify(L)); }catch(_){} return L; };
+  const hm = n => `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
+  const say = n => { const h=Math.floor(n/60), m=n%60, ap=h<12?'오전':'오후', hh=h%12||12; return `${ap} ${hh}시${m?` ${m}분`:''}`; };
+  const label = (L=times()) => L.length ? L.map(say).join(' · ') : '알림 끔';
+  // 지금 시각이 지난 마지막 알림 시각의 이름 (예전 기록과 같게 정시는 「8」, 그 밖은 분 「510」) · 없으면 null
+  const slot = d => { const m=d.getHours()*60+d.getMinutes(), t=times().filter(x=>m>=x).pop(); return t==null ? null : String(t%60 ? t : t/60); };
+  const openWin = () => { let w=null; try{ w=window.open('group.html?alert=1', 'sy_alert', 'width=760,height=560,resizable=yes,scrollbars=yes'); }catch(_){} if(w){ try{ w.focus(); }catch(_){} } return !!w; };
+  return Object.freeze({ DEF, times, set, hm, say, label, slot, openWin });
+})();

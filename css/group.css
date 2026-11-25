@@ -1150,3 +1150,16 @@ html.g-loading body{overflow:hidden}
 .memo-panel .memo-st{font:400 12px var(--sans);color:var(--muted)}
 .memo-panel .memo-st.ok{color:var(--pine)}
 .memo-lock-hint{margin:-2px 0 6px;color:#9a968a;font-size:12.5px}
+/* 과업 알림 새 창 (group.html?alert=1 · 2026-11-25): 알림 목록만 창 가득 */
+html.alert-only body > header,html.alert-only body > .layout,html.alert-only .smenu,html.alert-only .modal:not(#tbdModal){display:none!important}
+html.alert-only .g-loading-box{top:0}
+html.alert-only body{overflow:auto}
+html.alert-only #tbdModal{position:static;background:var(--bg,#f6f4ee);padding:12px;min-height:100vh;box-sizing:border-box}
+html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
+/* 나의 할일 설정 · 과업 알림 시각 */
+.al-set{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.al-list{list-style:none;margin:8px 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.al-list li{display:flex;gap:4px;align-items:center;background:var(--paper,#fff);border:1px solid var(--line);border-radius:6px;padding:3px 4px 3px 6px}
+.al-list input[type=time]{height:30px;border:1px solid var(--line);border-radius:5px;padding:0 4px;font:14px var(--sans)}
+.al-list .btn,.al-set .al-btns .btn{padding:3px 8px;font-size:12.5px}
+.al-set .al-btns{display:flex;gap:6px;flex-wrap:wrap}

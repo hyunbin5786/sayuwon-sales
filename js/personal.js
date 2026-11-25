@@ -422,7 +422,7 @@ $('#allBody').addEventListener('click', e=>{ const del=e.target.closest('[data-p
 
 // ===================== 마감이 된 추후 과업 알림: 오전 8시 · 11시 · 오후 1시 · 5시 =====================
 // 그 시각이 지나고 처음 화면을 볼 때 (시각마다 한 번, 단체 화면과 같은 기록이라 두 화면에서 두 번 뜨지 않음). 내 개인고객 과업 + 내가 영업 담당인 단체 과업
-const TASK_SLOT_LS='sayuwon_task_slot', ALERT_HOURS=[8,11,13,17], QUIET_MS=30*60e3;
+const TASK_SLOT_LS='sayuwon_task_slot', QUIET_MS=30*60e3;   // 알림 시각 = 나의 할일 설정(SY_ALERT · js/common.js · 2026-11-25) · 알림은 새 창(group.html?alert=1) · 막히면 이 화면 팝업
 let groupMine=[];
 // 나의 할일 버튼 옆 빨간 표시: 마감이 오늘이거나 지난 내 과업 수 (개인 + 내가 영업 담당인 단체, 단체 화면과 같은 모양)
 function paintMyCount(){ const today=todayYmd(), me=user.name||''; let n=0;
@@ -431,7 +431,7 @@ function paintMyCount(){ const today=todayYmd(), me=user.name||''; let n=0;
   const b=$('#myCount'); b.hidden=!n; b.textContent = n ? `과업 ${n}` : ''; }
 function checkDue(){
   if(document.querySelector('.modal:not([hidden])')) return;
-  const nowD=new Date(), today=todayYmd(), h=nowD.getHours(), slotH=ALERT_HOURS.filter(x=>h>=x).pop(); if(slotH==null) return;
+  const nowD=new Date(), today=todayYmd(), slotH=SY_ALERT.slot(nowD); if(slotH==null) return;
   let slots=''; try{ slots=localStorage.getItem(TASK_SLOT_LS)||''; }catch(_){} const key=`${today}|${slotH}`; if(slots.split(',').includes(key)) return;
   const me=user.name||'', fresh = t => +nowD - (+new Date(t.dueSetAt||t.at||0)||0) < QUIET_MS;
   const due=[];
@@ -439,11 +439,12 @@ function checkDue(){
   groupMine.forEach(r=>tasksOfItem(r).forEach(t=>{ const d=t.due||String(r.saved||'').slice(0,10)||today; if(!t.done && d<=today && !fresh(t)) due.push({r, t:{...t, due:d}}); }));
   if(!due.length) return;
   try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), key].join(',')); }catch(_){}
+  if(SY_ALERT.openWin()) return;   // 새 창 (단체 + 개인 함께)
   due.sort((a,b)=>a.t.due.localeCompare(b.t.due));
   $('#dueList').innerHTML = due.map(({r,t,personal})=>{ const late=t.due<today;
     return `<li class="${late?'late':'today'}"><span class="who"><span class="tag">${personal?'개인':'단체'}</span> <b>${esc(personal ? (r.contact||'(이름 없음)') : (r.org||r.contact||'(업체 미정)'))}</b>${personal&&r.phone?` · ${esc(r.phone)}`:''}${!personal&&r.date?` · 방문 ${esc(dLabel(r.date))}`:''}<br><b class="t">${esc(t.title)}</b> <small class="hint" style="display:inline">마감 ${esc(dLabel(t.due))} ${late?'(지남)':'(오늘)'}</small></span>`
       + (personal ? `<button class="btn primary" data-ddone="${esc(r.id)}|${esc(t.id)}">완료</button><button class="btn" data-dopen="${esc(r.id)}">열기</button>` : `<button class="btn" data-gopen="${esc(r.id)}">열기</button>`) + `</li>`; }).join('');
-  $('#dueTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b> · 단체 + 개인 · 알림은 오전 8시 · 11시 · 오후 1시 · 5시</small>`;
+  $('#dueTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b> · 단체 + 개인 · 알림은 ${esc(SY_ALERT.label())}</small>`;
   $('#dueModal').hidden=false;
 }
 $('#dueClose').onclick=()=>{ $('#dueModal').hidden=true; };
