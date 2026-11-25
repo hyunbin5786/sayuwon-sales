@@ -589,7 +589,7 @@ admin > 예약상담관리의 상담 내역을 통째로 붙여 넣고 「칸에
 
 ## 13. 고칠 때
 
-**순서: 고치기 → (단체 화면이면) 합치기 → 가짜 서버로 확인 → `?v=` 바꾸기 → README 고치기 → 올리기**
+**순서: 고치기 → (단체 화면이면) 합치기 → 가짜 서버로 확인 → `?v=` 바꾸기(`tools/bump.ps1`) → README 고치기(46절) → 올리기** — 지금 규칙은 `CLAUDE.md` 6절이 기준 (아래에는 옛 이름 `devmock.js` · `SY_MOCK` · 「구글 시트」가 남아 있음: 지금은 `js/devcf.js` · `SY_CF` · Cloudflare D1)
 
 - **로컬 미리보기**: `tools/serve.ps1`(2026-11-25 저장소에 넣음 · 예전엔 올리지 않는 `.claude/serve.ps1`)로 이 폴더를 띄워 봅니다 — `powershell -ExecutionPolicy Bypass -File tools\serve.ps1` → http://localhost:8767/ . CSS · JS 파일 형식을 맞게 보내야 화면이 제대로 보입니다
 - **시험 서버로 확인하기** (2026-11-23, `js/devcf.js` — 처음의 `js/devmock.js` 는 없앰 · 20-5절. 아래 설명 중 `SY_MOCK` 은 `SY_CF` 로: `SY_CF.log` · `SY_CF.sql('SELECT …')` · `SY_CF.reset()`, 표시는 파란 「시험용 (로컬 SQLite)」): 로컬 주소 끝에 `?mock=1` 을 한 번 붙여 열면(예: `http://localhost:8767/index.html?mock=1`) 그 브라우저는 계속 가짜 서버를 씁니다 — 화면 오른쪽 아래에 빨간 「가짜 서버 (시험용)」 표시. **진짜 구글 시트에는 아무것도 가지 않습니다.** 끄기는 `?mock=0`
@@ -1737,3 +1737,11 @@ powershell -ExecutionPolicy Bypass -File tools\test-start.ps1
 
 - **둘 다 고르면 미리보기에도 둘 다**: `renderDoc` 이 `state.docBoth` 면 양식마다 견적서(왼쪽) · 거래명세서(오른쪽)를 나란히 그린다 (`withDoc(type, fn)` 으로 문서 종류를 잠깐 바꿔 `sheetHTML`). 내부용 + 외부용이면 견적서의 내부용 · 외부용 줄, 이어서 거래명세서의 내부용 · 외부용 줄. 이름표 앞에 「견적서 · 」「거래명세서 · 」.
 - **거래명세서는 「거래금액」**: 표 위 한 줄(`거 래 금 액 : …`)과 표 맨 아래 합계 줄 이름을 `amtName()` / `amtNameWide()` 로 낸다 (견적서 = 견적금액). 화면 · PDF · 엑셀 모두 같은 함수.
+
+## 46. 바뀐 것 기록 (2026-11-25부터 · 새로 고친 것은 여기에 한 줄씩)
+
+적는 모양: `- (날짜) **무엇**: 어떻게 바뀌었는지 · 왜 (파일 · 함수 이름)`. 큰 기능이면 새 번호 절을 만들고 여기에는 한 줄로 가리킴. 일하는 규칙은 `CLAUDE.md`, 사람이 읽는 시작 안내는 `개발-시작하기.md`.
+
+- (2026-11-25) **넘겨주기 준비**: `CLAUDE.md`(Claude Code 가 자동으로 읽는 규칙 · DB 구조 · 철칙) · `개발-시작하기.md`(코드를 모르는 사람용) · 로컬 서버 `tools/serve.ps1` · `?v=` 한꺼번에 올리기 `tools/bump.ps1`(모든 HTML 을 같은 값으로 — 이때부터 화면마다 다르던 값을 하나로 맞춤)
+- (2026-11-25) **매주 백업에 매뉴얼 표 넣음**: `tools/backup.ps1` 의 `$tables` 에 `manual` 이 빠져 있었음 (그 전 백업 파일에는 매뉴얼이 없음). 되살리기 도구 `tools/restore.html` 은 아직 `press` · `manual` 을 넣지 못함 (할 일)
+- (2026-11-25) `tools/test-start.ps1`: `-DryRun` · `-CodeOnly` 일 때는 열쇠 파일을 만들지 않음

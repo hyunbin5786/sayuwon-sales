@@ -21,12 +21,15 @@ $utf8 = New-Object Text.UTF8Encoding $false
 
 # ---- 열쇠 (TEST_SYNC_KEY) ----
 $keyPath = Join-Path $PSScriptRoot 'test-sync-key.txt'
-if (-not (Test-Path $keyPath)) {
-  $b = New-Object byte[] 24; (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($b)
-  [IO.File]::WriteAllText($keyPath, (($b | ForEach-Object { $_.ToString('x2') }) -join ''), $utf8)
-  "열쇠 파일을 만들었습니다: $keyPath"
+$key = ''
+if (-not $DryRun -and -not $CodeOnly) {   # 세어만 볼 때 · 코드만 맞출 때는 열쇠가 필요 없음 (파일도 만들지 않음)
+  if (-not (Test-Path $keyPath)) {
+    $b = New-Object byte[] 24; (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($b)
+    [IO.File]::WriteAllText($keyPath, (($b | ForEach-Object { $_.ToString('x2') }) -join ''), $utf8)
+    "열쇠 파일을 새로 만들었습니다: $keyPath  (앞 담당자에게 받은 열쇠가 있으면 이 파일 내용을 그 값으로 바꿔 넣으세요)"
+  }
+  $key = ([IO.File]::ReadAllText($keyPath)).Trim()
 }
-$key = ([IO.File]::ReadAllText($keyPath)).Trim()
 if ($CopyKey) { Set-Clipboard -Value $key; '열쇠(TEST_SYNC_KEY 값)를 클립보드에 복사했습니다. Cloudflare › sayuwon-api-test › Settings › Variables and Secrets 에 붙여 넣으세요.'; exit 0 }
 
 # ---- 1) 코드: test = main ----
