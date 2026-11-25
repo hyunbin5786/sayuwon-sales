@@ -28,11 +28,11 @@
     const now=new Date().toISOString(), h=JSON.stringify({h:[{t:now, by:'시험', what:'가짜 예약 (시험용)'}], tasks:[], erp:[], memos:[]});
     for(let i=0;i<n;i++){ const x=fakeRec(i), stage=i%6===5?'예약상담':i%3===2?'가예약':'예약확정';
       const item={...x, ...packExtra(x), callType:stage, summary:`가짜 예약 ${i+1}`, takenBy:x.owner, callStart:now, id:'fake'+String(i+1).padStart(3,'0'), saved:now, history:h};
-      MEMO_PARTS.forEach(([k])=>{ if(!['owner'].includes(k)) delete item[k]; });
-      Object.keys(item).forEach(k=>{ if(/^(tm|stf|crs|plc)_/.test(k)) delete item[k]; });
-      await store.put(item); }
+      await store.put(item); }   // 화면이 저장할 때와 같은 모양 (칸 + packExtra 로 묶은 비고)
+    await synced();
   }
-  async function clear(){ const L=(cache||[]).filter(r=>/^fake\d+$/.test(r.id)); for(const r of L){ await SY.call({action:'del', id:r.id}).catch(()=>store.put({...r, deleted:new Date().toISOString()})); } return L.length; }
+  const synced = async () => { for(let i=0;i<80 && pending.length;i++){ await new Promise(r=>setTimeout(r,250)); if(pending.length && i%8===7) flush(); } };   // 가짜 DB에 다 들어갈 때까지
+  async function clear(){ const L=(cache||[]).filter(r=>/^fake\d+$/.test(r.id)); for(const r of L) await store.del(r.id); await synced(); return L.length; }
   function bar(){ if(document.getElementById('fakeBar')) return; const b=document.createElement('div'); b.id='fakeBar';
     b.innerHTML='<b>시험용</b><button type="button" class="btn primary" data-fake="fill" title="오늘 앞뒤 몇 주에 단체 예약 40건 (이 브라우저의 가짜 DB에만)">가짜 예약 채우기</button><button type="button" class="btn primary" data-fake="clear" title="가짜 예약(fake…)만 지움">가짜 예약 비우기</button>';
     document.body.appendChild(b); }

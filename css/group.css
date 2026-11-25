@@ -1232,3 +1232,7 @@ html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
   html.book-only .bk-side .bf-date .bf-dt .dbox input.dtxt{width:100%;font-size:12.5px;padding:0 4px}
   html.book-only .bk-side #bfRangeBtn{grid-column:2;justify-self:start}
 }
+/* 시험용 모드 전용 (2026-11-25): 가짜 예약 채우기 · 비우기 (오른쪽 아래 · 「시험용」 표시 위) */
+#fakeBar{position:fixed;right:8px;bottom:34px;z-index:9999;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border:1px solid #1d4ed8;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.12);font-size:12.5px}
+#fakeBar b{color:#1d4ed8}
+#fakeBar .btn{padding:4px 10px;font-size:12.5px}

@@ -39,6 +39,8 @@
       ]) { queries = 0; await mod.api({ action: 'put', who, item }, env); }
       persist();
     }
+    // 지금 로그인한 사람도 시험용 멤버로 (2026-11-25 · 테스트 사이트에서 진짜 이름으로 로그인한 채 시험용 모드를 켜도 저장이 막히지 않게 · 같은 사번은 한 번만)
+    try { const u = JSON.parse(localStorage.getItem('sy_user') || 'null'); if (u && u.name && u.emp) { queries = 0; await mod.api({ action: 'memberAdd', who: { name: '테스트', emp: 'T001' }, by: '시험', list: [{ name: u.name, emp: u.emp }] }, env); persist(); } } catch (e) { console.warn('[cf] 로그인한 사람을 시험용 멤버로 넣지 못함', e); }
     return mod;
   })();
   ready.catch(e => console.error('[cf] 시작 실패', e));
