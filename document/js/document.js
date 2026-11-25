@@ -2505,7 +2505,8 @@
       document.getElementById("hist-status").insertAdjacentElement("beforebegin", bar);
       bar.addEventListener("click", function(e){ if(e.target.closest("[data-hfall]")){ histFocus = null; renderHistory(); } }); }
     bar.hidden = !histFocus;
-    if(histFocus) bar.innerHTML = "단체 예약 <b>" + esc(histFocus.org || "") + "</b> (" + esc(fmtDate(histFocus.date, true)) + ") " + esc(histFocus.doc || "") + " 발급 내역만 보는 중 · <button class=\"btn small\" type=\"button\" data-hfall>전체 보기</button>";
+    if(histFocus) bar.innerHTML = "단체 예약 <b>" + esc(histFocus.org || "") + "</b> (" + esc(fmtDate(histFocus.date, true)) + ") " + esc(histFocus.doc || "") + " 발급 내역만 보는 중 · <button class=\"btn small\" type=\"button\" data-hfall>전체 보기</button>"
+      + (freshIntake ? "<br><b>지금 예약 내용을 받아 왔습니다.</b> 예약이 바뀌어 다시 발급하려면 가장 최근 발급의 <b>「수정발행」</b>을 누르세요 → 새 예약 내용으로 품목을 만들고 지난번 결제 방식 · 내부용 / 외부용 설정을 이어받습니다." : "");
   }
   function openHistory(){
     document.getElementById("hist-search").value = "";
@@ -2531,6 +2532,94 @@
     }
     renderHistory();
     flushHistory();
+  }
+  // ---------- 예약이 바뀐 뒤 수정발행 (2026-11-25) ----------
+  // 단체 화면 견적서 · 거래명세서 버튼 → (이미 발급했으면) 발급 내역 + 지금 예약 내용(freshIntake.raw)
+  // 그 예약의 발급에서 「수정발행」: 품목은 지금 예약 내용으로 새로 만들고, 지난 발급의 설정을 이어받음
+  //  · 결제(인터넷 결제 / 현장 결제) · 문서(내부용만 / 내부용 + 외부용) · 문서 종류 · 수신 담당자 · 하단 문구 · 외부용 차액 사유
+  //  · 내부용 + 외부용이었으면 외부용에서 바꾼 품목(swaps)을 같은 품목 줄에 그대로 넣고, 수량은 새 금액에 맞춰 같은 규칙(syncFake)으로 다시 맞춤
+  //  예약 내용(품목 · 수량 · 할인)이 지난 발급과 같으면 예전처럼 지난 문서 그대로(직접 고친 단가 · 비고도 그대로) 불러옴
+  var freshIntake = null;   // { raw, client, clientMgr, sender, doc, recId, org, date }
+  if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) window.__docTest = { state: function(){ return state; }, setFresh: function(v){ freshIntake = v; }, reviseFresh: function(h){ return reviseFresh(h); }, fakeRows: function(){ return fakeRows(); } };   // 이 컴퓨터에서 시험할 때만
+  function freshFor(h){
+    var f = freshIntake; if(!f || !f.raw) return false;
+    var s = h.snapshot || {};
+    if(f.recId && s.intakeRec) return s.intakeRec === f.recId;
+    return String(h.client || "").replace(/\s/g, "") === String(f.org || f.client || "").replace(/\s/g, "") && dateOnly(s.useDate || h.useDate) === f.date;
+  }
+  function rowSig(r){ return (r.pid || "") + "|" + (r.name || ""); }
+  function rowsSame(a, b){
+    function sig(L){ return (L || []).filter(function(r){ return !r.adj; }).map(function(r){ return rowSig(r) + "|" + (Number(r.qty) || 0) + "|" + (Number(r.rate) || 0); }).sort().join("\n"); }
+    return sig(a) === sig(b);
+  }
+  var PAY_KO = { online:"인터넷 결제", site:"현장 결제" };
+  function payKo(v){ return PAY_KO[v] || (v === "online" ? "인터넷 결제" : "현장 결제"); }
+  function reviseFresh(h){
+    var old = JSON.parse(JSON.stringify(h.snapshot)), f = freshIntake;
+    var res = parseBooking(f.raw); if(!res.blocks.length) return false;
+    // 새 예약 내용으로 품목을 만들어 봄 → 지난 발급과 같으면 지난 문서 그대로 (false → 예전 수정발행)
+    document.getElementById("f-raw").value = f.raw;
+    applyBooking();
+    if(rowsSame(old.rows, state.rows)){ status("예약 내용이 지난 발급과 같아 지난 문서 그대로 불러왔습니다."); return false; }
+    var oldRows = old.rows || [], newRows = state.rows;
+    // 지난 설정 이어받기
+    state.payMode = old.payMode || state.payMode;
+    state.docUse = old.docUse || "real";
+    state.docType = old.docType || (h.doc === "거래명세서" ? "statement" : "quote");
+    if(old.footnote) state.footnote = old.footnote;
+    if(old.gapNote) state.gapNote = old.gapNote;
+    if(f.client) state.client = f.client;
+    state.clientMgr = f.clientMgr || old.clientMgr || "";
+    if(f.sender){ state.sender = f.sender; } else if(old.sender) state.sender = old.sender;
+    // 지난 품목 줄 → 새 품목 줄 (같은 품목끼리 · 앞에서부터 하나씩)
+    var used = {}, map = {};
+    oldRows.forEach(function(o){
+      var n = newRows.filter(function(r){ return !used[r.key] && rowSig(r) === rowSig(o); })[0];
+      if(n){ used[n.key] = true; map[o.key] = n; }
+    });
+    // 바뀐 품목 (추가 · 빠짐 · 수량 · 할인)
+    var changes = [];
+    oldRows.forEach(function(o){ if(o.adj) return; var n = map[o.key];
+      if(!n) changes.push("빠짐: " + o.name + " " + won(Number(o.qty) || 0));
+      else if((Number(n.qty) || 0) !== (Number(o.qty) || 0) || (Number(n.rate) || 0) !== (Number(o.rate) || 0))
+        changes.push(o.name + ": " + won(Number(o.qty) || 0) + (Number(o.rate) ? " (" + o.rate + "%)" : "") + " → " + won(Number(n.qty) || 0) + (Number(n.rate) ? " (" + n.rate + "%)" : "")); });
+    newRows.forEach(function(n){ if(!used[n.key]) changes.push("새로 생김: " + n.name + " " + won(Number(n.qty) || 0)); });
+    // 외부용: 바꾼 품목 · 외부용 수량 · 외부용 순서를 새 줄로 옮김
+    var swapNotes = [], lost = [];
+    state.swaps = {}; state.fakeQty = {}; state.fakeOrder = [];
+    if(state.docUse !== "real"){
+      Object.keys(old.swaps || {}).forEach(function(k){
+        var lines = old.swaps[k] || []; if(!lines.length) return;
+        var o = oldRows.filter(function(r){ return String(r.key) === String(k); })[0], n = o && map[o.key];
+        var was = lines.map(function(l){ return product(l.pid).name + " " + won(Number(l.qty) || 0); }).join(", ");
+        if(!n){ lost.push((o ? o.name : "품목") + " → " + was + " (이번 예약에 그 품목이 없어 넣지 않음)"); return; }
+        state.swaps[n.key] = lines.map(function(l){ return { pid: l.pid, qty: Number(l.qty) || 1 }; });
+        swapNotes.push({ key: n.key, name: n.name, was: was });
+      });
+      Object.keys(old.fakeQty || {}).forEach(function(k){
+        var o = oldRows.filter(function(r){ return String(r.key) === String(k); })[0], n = o && map[o.key]; if(!n) return;
+        if((Number(n.qty) || 0) === (Number(o.qty) || 0)) state.fakeQty[n.key] = old.fakeQty[k];
+        else lost.push(o.name + " 외부용 수량 " + won(Number(old.fakeQty[k]) || 0) + " (내부용 수량이 " + won(Number(o.qty) || 0) + " → " + won(Number(n.qty) || 0) + "로 바뀌어 넣지 않음 · 다시 확인)");
+      });
+      state.fakeOrder = (old.fakeOrder || []).map(function(x){ var m = String(x).match(/^r:(.+)$/); if(!m) return x;
+        var o = oldRows.filter(function(r){ return String(r.key) === m[1]; })[0], n = o && map[o.key]; return n ? "r:" + n.key : null; }).filter(Boolean);
+    }
+    setIssueMeta({ kind:"revise", parent: h.id, label: histLabel(h), doc: h.doc });
+    closeHistory();
+    paint();   // 품목 · 외부용 다시 계산 (바꾼 품목 수량은 새 금액에 맞춰 syncFake 가 다시 정함)
+    setEditOpen(true);
+    // 알림: 무엇을 이어받았고 무엇이 바뀌었는지
+    var now = swapNotes.map(function(s){ var ls = state.swaps[s.key] || [];
+      return s.name + " → " + ls.map(function(l){ return product(l.pid).name + " " + won(Number(l.qty) || 0); }).join(", ") + " (지난번: " + s.was + ")"; });
+    var html = '<div class="small" style="font-weight:700;margin-bottom:4px">예약 내용을 새로 불러와 수정발행합니다</div>'
+      + '<div class="small">지난 발급(' + esc(histLabel(h)) + ') 설정을 이어받음: <b>' + esc(payKo(state.payMode)) + '</b> · <b>' + (state.docUse === "real" ? "내부용만" : "내부용 + 외부용") + '</b></div>'
+      + (changes.length ? '<div class="small" style="margin-top:6px;font-weight:600">바뀐 예약 내용</div>' + changes.map(function(c){ return '<div class="warn">' + esc(c) + '</div>'; }).join("") : "")
+      + (state.docUse !== "real" ? '<div class="small" style="margin-top:6px;font-weight:600">외부용 바꾼 품목 (지난번과 같은 품목으로 · 수량은 새 금액에 맞춤)</div>'
+          + (now.length ? now.map(function(t){ return '<div class="small">' + esc(t) + '</div>'; }).join("") : '<div class="small">지난번에 바꾼 품목 없음</div>')
+          + lost.map(function(t){ return '<div class="warn">' + esc(t) + '</div>'; }).join("") : "");
+    document.getElementById("parseinfo").innerHTML = html;
+    status("새 예약 내용으로 수정발행 중 · 결제 " + payKo(state.payMode) + " · " + (state.docUse === "real" ? "내부용만" : "내부용 + 외부용"));
+    return true;
   }
   // 그때 문서 내용으로 되돌린다
   function restoreIssue(h){
@@ -2573,6 +2662,7 @@
     if(act === "cancel" || act === "uncancel"){ setCanceled(h, act === "cancel"); return; }
     if(!h.snapshot) return;
     if(hasWork() && !confirm("지금 작성 중인 내용 대신 이 내역을 불러올까요?")) return;
+    if(b.getAttribute("data-h") === "revise" && freshFor(h) && reviseFresh(h)) return;   // 단체 화면에서 넘어온 예약이 바뀌었으면 새 예약 내용으로 수정발행 (2026-11-25)
     restoreIssue(h);
     if(b.getAttribute("data-h") === "reissue"){
       setIssueMeta({ kind:"reissue", parent: h.id, label: histLabel(h), doc: h.doc });
@@ -2811,6 +2901,8 @@
     if(h && h.mode === "history" && Date.now() - (h.at || 0) < 5 * 60000){   // 이미 발급한 문서: 발급 내역에서 그 예약 것만 (2026-11-21)
       histFocus = { recId: h.recId || "", org: h.org || "", date: h.date || "", doc: DOC_NAME[h.doc] || "" };
       if(h.recId) intakeLink = { recId: h.recId, doc: h.doc || "quote", org: h.org || "", date: h.date || "" };   // 거기서 수정발행 · 재발행해도 그 예약에 파일이 붙게
+      if(h.raw) freshIntake = h;   // 지금 예약 내용 (2026-11-25): 수정발행을 누르면 이것으로 품목을 다시 만들고 지난 설정을 이어받음
+      if(h.email){ intakeMail = String(h.email); document.getElementById("mail-to").value = intakeMail; }
       closeStart(); openHistory(); return;
     }
     if(!h || !h.raw || !(Date.now() - (h.at || 0) < 5 * 60000)) return;

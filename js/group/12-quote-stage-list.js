@@ -164,12 +164,20 @@ function issuedDocs(doc){
   return quoteHist.filter(h=>!h.canceled && h.doc===name && ((editingId && h.rec===editingId) || (org && normSrc(h.client)===org && rec.date && h.date===rec.date)));
 }
 // 이미 발급했으면 발급 내역으로, 아니면 새로 발급
-function docBtn(doc){
+// 2026-11-25: 발급 내역으로 갈 때도 지금 예약 내용(최신으로 다시 불러온 것)을 같이 넘김 → 견적서 사이트에서 「수정발행」을 누르면
+//  새 예약 내용으로 품목을 만들고 지난 발급의 결제 방식 · 내부용 / 외부용 · 외부용 바꾼 품목을 이어받음 (document/js/document.js reviseFresh)
+async function docBtn(doc){
   if(!issuedDocs(doc).length){ openQuote(doc); return; }
-  const h={ at:Date.now(), mode:'history', doc, recId:editingId||'', org:rec.org||'', date:rec.date||'' };
-  try{ localStorage.setItem('sy_intake_handoff', JSON.stringify(h)); }catch(_){ toast('이 브라우저에서는 넘길 수 없습니다.'); return; }
-  window.open(QUOTE_URL, '_blank');
-  toast(`${DOC_KO[doc]} 발급 내역을 열었습니다 · 거기서 재발행 · 수정발행`);
+  const win=window.open('about:blank', '_blank');   // 누르는 순간 탭을 열어 둠 (불러오는 동안 팝업 차단 피하기)
+  await freshRec(); fitViewNow();
+  if(isDirty()) await save(true);   // 화면에서 고친 것까지 저장한 뒤 그 내용으로
+  const {blocks} = quoteBlocks(rec), c = contactsOf(rec)[0] || {};
+  const email = (contactsOf(rec).map(x=>String(x.email||'').split(/[\s,;\/]+/).find(s=>/@/.test(s))||'').find(Boolean)) || '';
+  const h={ at:Date.now(), mode:'history', doc, recId:editingId||'', org:rec.org||'', date:rec.date||'',
+    raw: blocks.length ? quoteRaw(rec, blocks) : '', client:rec.org||'', clientMgr:c.name||'', email, sender:savedOwner()||rec.owner||'' };
+  try{ localStorage.setItem('sy_intake_handoff', JSON.stringify(h)); }catch(_){ try{ win && win.close(); }catch(__){} toast('이 브라우저에서는 넘길 수 없습니다.'); return; }
+  if(win && !win.closed) win.location.href=new URL(QUOTE_URL, location.href).href; else window.open(QUOTE_URL, '_blank');
+  toast(`${DOC_KO[doc]} 발급 내역을 열었습니다 · 예약이 바뀌었으면 「수정발행」 = 새 예약 내용 + 지난 설정`, 4000);
 }
 $('#quoteBtn').onclick=()=>docBtn('quote');
 $('#stmtBtn').onclick=()=>docBtn('statement');
