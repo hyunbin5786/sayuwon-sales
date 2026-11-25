@@ -935,7 +935,7 @@ localStorage (그 브라우저 · 그 사이트 주소에만 — **사이트 주
 
 테스트 사이트(`…/sayuwon-sales/test/`)와 이 컴퓨터(localhost · 시험용 모드가 아닐 때)는 **`js/common.js` 의 `SY_TEST_API_URL`** 주소의 서버 · DB 를 씁니다. 비어 있으면 예전처럼 배포 DB 를 쓰고, 테스트 사이트 왼쪽 아래 빨간 이름표에 「DB = 배포 (아직 분리 전)」이 보입니다. 테스트 사이트는 배포 사이트와 같은 주소(github.io)라 브라우저 저장소를 같이 쓰므로, 테스트 사이트는 저장소 이름 앞에 「test:」를 붙여 따로 씁니다(저장 대기열 · 예약 사본이 섞여 다른 DB 로 새지 않게 · 로그인은 같이 씀).
 
-1. **DB 만들기**: D1 SQL Database → Create → 이름 `sayuwon-test` → Console 에 `cloudflare/schema.sql` 을 통째로 붙여 넣고 실행 (18-2 의 2번과 같음)
+1. **DB 만들기**: D1 SQL Database → Create → 이름 `sayuwon-test` → Console 에 **`cloudflare/schema-console.sql`**(schema.sql 에서 설명 줄을 뺀 것) 을 통째로 붙여 넣고 실행 — schema.sql 을 붙이면 Console 이 줄바꿈을 없애 첫 `--` 설명 뒤가 모두 설명이 되어 「No SQL statements detected」
 2. **서버 만들기**: Workers & Pages → Create → Hello World → 이름 `sayuwon-api-test` → Deploy → Edit code → `cloudflare/worker.js` 를 통째로 붙여 넣고 Deploy (배포 서버와 **같은 코드**)
 3. **DB 연결**: 그 Worker 의 Settings → Bindings → D1 database → Variable name **`DB`** → Database 는 **`sayuwon-test`** (← 배포용 `sayuwon` 을 고르면 안 됨)
 4. **비밀 값 (골라서)**: `ADMIN_ID` · `ADMIN_PW` 는 관리자 사이트 자동 가져오기를 시험할 때만 · `MIGRATE_KEY` 는 배포 자료를 복사해 올 때만. 15분 예약 작업(Cron)은 안 걸어도 됨
