@@ -29,7 +29,7 @@
   const pick=(a,i)=>a[i%a.length];
   const day=n=>{ const d=new Date(); d.setDate(d.getDate()+n); return SY.ymd(d); };
   function fakeRec(i){
-    const people=10+((i*7)%31), off=-10+((i*5)%45), owner=pick(STAFF,i+1);
+    const people=10+((i*7)%31), off=-10+((i*5)%45), owner='테스트';   // 영업 담당 = 테스트 (2026-11-25 · 테스트 멤버로 로그인해 모두 고쳐 보게 · 프로그램 담당은 여러 이름 그대로)
     const x={ org:pick(ORGS,i)+(i>=ORGS.length?` ${Math.floor(i/ORGS.length)+1}차`:''), date:day(off), owner, people:String(people), contact:'가짜 담당 '+(i+1), phone:`010-9${String(1000+i).slice(-3)}-${String(2000+i)}`,
       tin:pick(TIMES,i), tout:'16:00', pay:i%3?'결제링크':'현장 결제', note:'가짜 예약 (시험용)' };
     // 다섯 목록에 고루: 몽몽마방 · 대관(차방 · 당두봉갈) · 도슨트(동행 · 세미나) · 프로그램(요가 · 사운드워킹 · 사유의 향) · 음료쿠폰(가가빈빈)
