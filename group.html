@@ -7,8 +7,8 @@
 <script>/* 불러오는 중 화면 (2026-11-21): 단체 화면을 열면 예약 정보가 준비될 때까지 빈 새 통화 화면 대신 「불러오는 중」 (예약 현황 공유 · 나의 할일 · 과업 계산 창은 빼고) */ (function(){ if(!/[?&](book|my|engine)=/.test(location.search)) document.documentElement.classList.add('g-loading'); })();</script>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem("sayuwon_owner", u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search) && !/[?&]embed=1/.test(location.search)){ location.replace("./#mypop"); return; }   /* 2026-11-24: 나의 할일 한 페이지는 없앰 — 첫 화면의 팝업으로 (팝업 안 · 과업 계산 창은 embed=1 이라 그대로) */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261125x">
-<link rel="stylesheet" href="css/menu.css?v=20261125x">
+<link rel="stylesheet" href="css/group.css?v=20261125y">
+<link rel="stylesheet" href="css/menu.css?v=20261125y">
 </head>
 <body>
 <header>
@@ -408,14 +408,14 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/common.js?v=20261125x"></script>
-<script src="js/opslib.js?v=20261125x"></script>
-<script src="js/group.js?v=20261125x"></script>
-<script src="js/taskcfg.js?v=20261125x"></script>
-<script src="js/mytask.js?v=20261125x"></script>
-<script src="js/ime.js?v=20261125x"></script>
-<script src="js/keepsize.js?v=20261125x"></script>
-<script src="js/menu.js?v=20261125x"></script>
-<script src="js/timepick.js?v=20261125x"></script>
+<script src="js/common.js?v=20261125y"></script>
+<script src="js/opslib.js?v=20261125y"></script>
+<script src="js/group.js?v=20261125y"></script>
+<script src="js/taskcfg.js?v=20261125y"></script>
+<script src="js/mytask.js?v=20261125y"></script>
+<script src="js/ime.js?v=20261125y"></script>
+<script src="js/keepsize.js?v=20261125y"></script>
+<script src="js/menu.js?v=20261125y"></script>
+<script src="js/timepick.js?v=20261125y"></script>
 </body>
 </html>

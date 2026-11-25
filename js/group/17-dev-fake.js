@@ -7,12 +7,17 @@
 (function(){
   if(window.SY_CF || typeof SY_MOCK_ON==='undefined' || SY_MOCK_ON) return;
   const FAKE=/^(mock\d{4}|fake\d{3})$/;
-  let done=false;
-  const t=setInterval(async ()=>{ if(done || !window.__tasksReady || !Array.isArray(cache)) return; done=true; clearInterval(t);
+  // 2026-11-25 고침: 한 번만 돌던 것을 계속 (예전 코드로 열려 있던 창이 다시 올려도 또 지움) · 지운 것은 화면 목록에서 바로 뺌 · 열어 둔 게 가상 예약이면 새 화면으로
+  const sent={};   // id → 지우라고 보낸 시각 (같은 것을 2분 안에 또 보내지 않음)
+  let busy=false;
+  const sweep=async ()=>{ if(busy || !window.__tasksReady || !Array.isArray(cache)) return; busy=true;
     try{ const before=pending.length; pending=pending.filter(p=>!(p.action==='put' && p.item && FAKE.test(String(p.item.id)))); if(pending.length!==before) writeJSON(PEND_LS, pending);
-      const L=cache.filter(r=>FAKE.test(String(r.id)) && !r.deleted); for(const r of L) await store.del(r.id);
-      if(L.length) console.info('[청소] 시험용 가상 예약을 진짜 DB 에서 지움:', L.map(r=>`${r.id} ${r.org||r.contact||''}`).join(', '));
-    }catch(e){ console.warn('[청소] 실패', e); done=false; } }, 3000);
+      const L=cache.filter(r=>FAKE.test(String(r.id)));
+      for(const r of L){ if(Date.now()-(sent[r.id]||0) < 120e3) continue; sent[r.id]=Date.now(); await store.del(r.id); console.info('[청소] 시험용 가상 예약을 진짜 DB 에서 지움:', r.id, r.org||r.contact||''); }
+      if(L.length){ cache=cache.filter(r=>!FAKE.test(String(r.id))); if(typeof renderList==='function') try{ renderList(); }catch(_){} }
+      if(typeof editingId!=='undefined' && FAKE.test(String(editingId||''))){ location.replace('group.html'); }
+    }catch(e){ console.warn('[청소] 실패', e); } finally{ busy=false; } };
+  setInterval(sweep, 5000);
 })();
 (function(){
   if(!window.SY_CF) return;   // 진짜 서버로 돌 때는 아무것도 안 함
