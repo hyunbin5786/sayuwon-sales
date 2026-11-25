@@ -1,3 +1,4 @@
+// ▣ js/group/07-store.js — 통화 메모 · 통화 시간 · 알림 글(toast) · 텍스트 복사(보고 글) · 저장: 대기열(pending) · 서버 목록 사본 · 합치기(merged) · 보내기(flush) · 받기(pull)
 // ===================== 통화 메모 (특이사항만 적어 두는 칸 · 예약 칸을 채우지 않음) =====================
 $('#memoBox').addEventListener('input', ()=>startTimer());
 function status(s){ $('#status').textContent=s; }

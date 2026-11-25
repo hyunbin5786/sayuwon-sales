@@ -42,7 +42,7 @@ header .timer{margin-left:auto;font-size:13px;font-variant-numeric:tabular-nums;
 header .sync{font-size:12px;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.14)}
 header .sync.ok{background:#cfe3c6;color:var(--pine)}
 header .sync.warn{background:#f3d9b5;color:#6b4513}
-header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7efe1}   /* 구글 시트(Apps Script)에 마지막으로 저장된 시각 */
+header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7efe1}   /* 서버 DB 에 마지막으로 저장된 시각 */
 #keyMsg{color:var(--red)}
 /* 순서: 예약 내용 · 통화 중 확인 · 통화 메모 */
 .layout{display:grid;grid-template-columns:minmax(420px,1.35fr) minmax(280px,.9fr) minmax(300px,1fr);gap:14px;padding:14px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));align-items:start}
@@ -544,7 +544,7 @@ body.locked #saveBtn{display:none}
 .my-tabs button{border:0;background:transparent;padding:4px 14px;border-radius:6px;font:600 13px var(--sans);color:var(--muted);cursor:pointer}
 .my-tabs button.on{background:var(--pine);color:#fff}
 .my-cols.two{grid-template-columns:1fr 1fr}
-/* 나의 할일 단독 페이지 (mypage.html → group.html?my=1): 단체 화면은 숨기고 나의 할일만 한 페이지로 */
+/* 나의 할일만 보는 모드 (group.html?my=1&embed=1 — 팝업 안에서 씀 · 주소로 바로 열면 첫 화면의 나의 할일 팝업으로 넘김): 단체 화면은 숨기고 나의 할일만 한 페이지로 */
 html.my-only header > *:not(.sys-brand):not(.sys-crumb):not(.me):not(.sync){display:none!important}
 html.my-only .layout{display:none!important}
 html.my-only #myModal{position:static;background:none;padding:12px max(16px,env(safe-area-inset-left,0px));display:block}

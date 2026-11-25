@@ -1,3 +1,4 @@
+// ▣ js/group/02-state-form.js — 상태: rec(지금 예약의 칸 값) · tasks · hist · editingId · 새 예약으로 비우기 · 비고 칸에 모아 저장하는 값 쓰기/읽기(packExtra · unpackExtra) · 미정 · 몽몽마방 메뉴
 // ===================== 상태 =====================
 let rec, touched, startedAt, editingId, nContacts;
 let cache=[];

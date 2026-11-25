@@ -1,4 +1,4 @@
-﻿# 테스트 환경을 새로 시작 (2026-11-25 · README 45절) — 새 개발을 시작할 때마다 한 번
+﻿# 테스트 환경을 새로 시작 (2026-11-25 · docs 45절) — 새 개발을 시작할 때마다 한 번
 #   1) 코드:  test 브랜치를 main 과 똑같이 (test 에 main 에 없는 커밋이 있으면 멈추고 알림 — 지우지 않음)
 #   2) DB:    배포 DB(sayuwon) 의 모든 표를 읽어 테스트 DB(sayuwon-test) 를 비우고 그대로 넣음 (배포 DB 는 읽기만 함)
 #   실행:        powershell -ExecutionPolicy Bypass -File tools\test-start.ps1
@@ -10,6 +10,7 @@
 #   · tools\test-sync-key.txt (없으면 이 스크립트가 만듦 · 저장소에 올리지 않음) 의 값을 테스트 서버 sayuwon-api-test 의 비밀 값 TEST_SYNC_KEY 로
 #     ※ 배포 서버 sayuwon-api 에는 TEST_SYNC_KEY 를 절대 넣지 않음 (넣지 않으면 배포 DB 는 이 동작으로 지워질 수 없음)
 param([switch]$DbOnly, [switch]$CodeOnly, [switch]$DryRun, [switch]$CopyKey)
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}   # 한글 출력이 어디서 돌려도 깨지지 않게
 $ErrorActionPreference = 'Stop'
 $src = 'https://sayuwon-api.serendipity5786-9e7.workers.dev/'        # 배포 서버 (읽기만)
 $dst = 'https://sayuwon-api-test.serendipity5786-9e7.workers.dev/'   # 테스트 서버 (비우고 다시 채움)
@@ -73,7 +74,7 @@ try {
   if (-not $DryRun) {
     $wc = New-Object Net.WebClient; $wc.Encoding = $utf8; $st = $wc.DownloadString($dst) | ConvertFrom-Json; $wc.Dispose()
     if (-not $st.testSync) {
-      '테스트 서버가 아직 준비되지 않았습니다 (처음 한 번 · README 45-3절):'
+      '테스트 서버가 아직 준비되지 않았습니다 (처음 한 번 · docs 45-3절):'
       '  ① Cloudflare › Workers & Pages › sayuwon-api-test › Edit code → cloudflare\worker.js 를 통째로 붙여 넣고 Deploy'
       '  ② 같은 서버 › Settings › Variables and Secrets › Add › Type = Secret · 이름 TEST_SYNC_KEY · 값 = 열쇠  (열쇠 복사: tools\test-start.ps1 -CopyKey)'
       exit 2

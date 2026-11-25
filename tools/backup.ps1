@@ -9,6 +9,7 @@
 # ※ 백업 파일에는 고객 연락처 · 멤버 이름 · 사번이 들어 있음 → 저장소 폴더 안에 두지 않음 · 메일 · 메신저로 보내지 않음
 # ※ 매주 자동은 이 PC 의 작업 스케줄러가 돌림 → 이 PC 가 켜져 있을 때만 (꺼져 있었으면 켠 뒤에). 이 사람이 멤버에서 빠지면 「로그인이 확인되지 않았습니다」로 실패
 param([switch]$Setup, [switch]$Status, [switch]$Unregister, [switch]$SelfTest)
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}   # 한글 출력이 어디서 돌려도 깨지지 않게
 $ErrorActionPreference = 'Stop'
 $api = 'https://sayuwon-api.serendipity5786-9e7.workers.dev/'   # 배포 서버 (읽기만)
 $taskName = '사유원 백업'

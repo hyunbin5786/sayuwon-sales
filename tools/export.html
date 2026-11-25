@@ -7,8 +7,8 @@
 <!-- 전체 내려받기 (2026-11-23): 공유 DB 의 모든 표를 JSON 파일 하나로 이 컴퓨터에 내려받음
      - 쓰임 ① 백업 (가끔 눌러서 파일을 안전한 곳에 보관) ② 다른 DB(사내 DB 등)로 옮길 때의 원본 — DB 종류와 상관없는 모양
      - 로그인한 멤버만 (서버 동작 export). 사이트에서: (사이트 주소)/tools/export.html · 로컬 미리보기에서도 됨
-     - 파일 모양은 README 20절. 고객 연락처 · 멤버 이름과 사번이 모두 들어 있으니 파일을 아무 데나 두지 말 것 -->
-<script>(function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("../"); }catch(e){} })();</script>
+     - 파일 모양은 docs 20절. 고객 연락처 · 멤버 이름과 사번이 모두 들어 있으니 파일을 아무 데나 두지 말 것 -->
+<script>(function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("../"); }catch(e){} })();</script>
 <style>
   body{font:15px/1.6 "Noto Sans KR",system-ui,sans-serif;max-width:720px;margin:24px auto;padding:0 16px;color:#22231f;background:#f6f5f1}
   h1{font-size:20px} button{margin-top:12px;padding:10px 18px;border:0;border-radius:6px;background:#3f5236;color:#fff;font:inherit;font-weight:600;cursor:pointer} button:disabled{opacity:.5;cursor:default}
@@ -23,7 +23,7 @@
 <label><input type="checkbox" id="withFiles" checked> 올린 파일(이미지 · PDF)도 함께 (끄면 글자 자료만 — 파일이 많아지면 오래 걸립니다)</label>
 <button id="go">내려받기</button>
 <div id="log"></div>
-<script src="../js/common.js?v=20261126m"></script>
+<script src="../js/common.js?v=20261126n"></script>
 <script>
 (function(){
   const $ = id => document.getElementById(id), logEl = $('log');

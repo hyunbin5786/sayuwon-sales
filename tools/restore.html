@@ -9,8 +9,8 @@
      - 두 가지 방식: ① 빠진 것만 채우기 (지금 DB 에 없는 것만 넣음 · 있는 것은 건드리지 않음) ② 백업 때 모습으로 덮어쓰기 (같은 id 는 백업 내용으로 바꿈)
        어느 쪽이든 백업 뒤에 새로 생긴 것은 지우지 않음. 멤버는 늘 「없는 사람만 더하기」(멤버를 빼지 않음)
      - 2026-11-25: 홍보 기자 리스트(press) · 고객 응대 매뉴얼(manual) 표도 되살림 (서버 api 10 부터 · 매뉴얼에 올린 파일도 제 종류로)
-     - 비어 있는 새 DB 에 통째로 넣을 때도 이 도구 (② 로). 쓰는 법 · 파일 모양은 README 20절 -->
-<script>(function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("../"); }catch(e){} })();</script>
+     - 비어 있는 새 DB 에 통째로 넣을 때도 이 도구 (② 로). 쓰는 법 · 파일 모양은 docs 20절 -->
+<script>(function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("../"); }catch(e){} })();</script>
 <style>
   body{font:15px/1.6 "Noto Sans KR",system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#22231f;background:#f6f5f1}
   h1{font-size:20px} button{margin-top:14px;padding:10px 18px;border:0;border-radius:6px;background:#3f5236;color:#fff;font:inherit;font-weight:600;cursor:pointer} button:disabled{opacity:.5;cursor:default}
@@ -32,7 +32,7 @@
 <input type="password" id="mkey" autocomplete="off">
 <button id="go" disabled>되살리기 시작</button>
 <div id="log"></div>
-<script src="../js/common.js?v=20261126m"></script>
+<script src="../js/common.js?v=20261126n"></script>
 <script>
 (function(){
   const $ = id => document.getElementById(id), logEl = $('log');

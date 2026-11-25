@@ -1,5 +1,5 @@
 // ===== 개인고객 응대 (personal.html) =====
-// 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 README 14절
+// 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 docs 14절
 // 통화 기록(구분 · 보고전달자 · 예약 여부) · 추후 과업 · 통화 기록 전체 · 삭제된 통화 · 마감 알림 · 보고 글자 복사
 
 const $ = s => document.querySelector(s);
@@ -14,7 +14,7 @@ let toastT; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList
 const user = readJSON('sy_user', {}) || {};
 $('#me').innerHTML = user.name ? `👤 <b>${esc(user.name)}</b>` : '';
 
-// ===================== 공유 기록 (단체 화면과 같은 Apps Script · 같은 팀 비밀번호) =====================
+// ===================== 공유 기록 (단체 화면과 같은 서버 · 로그인 = 이름 + 사번) =====================
 const PEND_LS='sayuwon_personal_pending', CACHE_LS='sayuwon_personal_cache';
 const CALL_TYPE='개인고객';
 const getKey=SY.getKey;   // 팀 비밀번호 대신 로그인 (2026-11-21, js/common.js)

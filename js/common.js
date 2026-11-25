@@ -6,10 +6,10 @@
 //   SY.call(body)     공유 기록 서버에 요청 {action:'put'|'del'|'list'|…} → 응답(JSON). ok 가 아니면 Error(e.code = 서버가 준 error) 를 던짐
 //   SY.callRaw(body)  같은 요청, 던지지 않고 응답 그대로 (로그인 확인처럼 ok:false 도 직접 보는 곳)
 //   SY.beacon(body)   창을 닫는 순간에 보내는 요청 (고치는 중 표시 풀기) — 응답을 기다리지 않음
-//   SY.quote.get(query) · SY.quote.post(body)   견적서 서버 (품목 목록 · 발급 내역 — 다른 Apps Script)
+//   SY.quote.get(query) · SY.quote.post(body)   견적서 (품목 목록 · 발급 내역 — 같은 서버의 quoteGet · quotePost)
 //  모든 요청에 로그인(이름 + 사번 = who)을 붙임 → 서버가 멤버 목록으로 확인 (예전 팀 비밀번호 key 는 2026-11-23에 완전히 없앰)
 //
-//  로컬 미리보기에서 진짜 DB 에 쓰지 않고 시험하기: 주소 끝에 ?mock=1 (끄기 ?mock=0) → js/devcf.js 가 서버 코드(cloudflare/worker.js)를 브라우저 안 SQLite 로 돌림 (localhost 에서만 · README 13절)
+//  로컬 미리보기에서 진짜 DB 에 쓰지 않고 시험하기: 주소 끝에 ?mock=1 (끄기 ?mock=0) → js/devcf.js 가 서버 코드(cloudflare/worker.js)를 브라우저 안 SQLite 로 돌림 (localhost 에서만 · docs 13절)
 //
 // ── 시험용 모드 칸막이 (2026-11-25 사고 뒤) ──
 //  시험용 모드 화면과 진짜 화면이 같은 브라우저 저장소(localStorage · IndexedDB · 화면끼리 알림 BroadcastChannel)를 같이 쓰면
@@ -42,7 +42,7 @@ if(SY_TEST_SITE && /^\/sayuwon-sales\/test(\/|$)/.test(location.pathname)) syWal
 const SY_DB_NAME = SY_MOCK_ON ? '시험용 가짜 DB' : SY_TEST_SITE && SY_TEST_API_URL ? '테스트 DB' : '배포 DB';
 const SY_BACKEND = {
   API_URL:   (SY_TEST_SITE && SY_TEST_API_URL) || "https://sayuwon-api.serendipity5786-9e7.workers.dev/",   // 공유 기록 (cloudflare/worker.js · 2026-11-23 구글 시트에서 옮김 · 되돌릴 때: https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec)
-  // Content-Type 을 붙이지 않아야 Apps Script 로 사전 확인(preflight) 요청 없이 바로 감
+  // Content-Type 을 붙이지 않아야 서버로 사전 확인(preflight) 요청 없이 바로 감 (cloudflare/worker.js 도 그렇게 받음)
   main(body){ return fetch(this.API_URL, {method:'POST', body:JSON.stringify(body)}).then(r=>r.json()); },
   beacon(body){ const s=JSON.stringify(body); try{ if(navigator.sendBeacon && navigator.sendBeacon(this.API_URL, s)) return; }catch(_){} fetch(this.API_URL, {method:'POST', body:s, keepalive:true}).catch(()=>{}); },
   // 견적서 서버(품목 목록 · 발급 내역)도 2026-11-23부터 같은 서버의 동작(quoteGet · quotePost) — 예전에는 QUOTE_URL(다른 Apps Script · 로그인 확인 없음)로 따로 갔음

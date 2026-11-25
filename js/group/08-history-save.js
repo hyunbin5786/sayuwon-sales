@@ -1,3 +1,4 @@
+// ▣ js/group/08-history-save.js — 수정 기록(무엇이 바뀌었나 · 되돌리기) · 저장(save) · 30초 자동 저장 · 저장 안 한 표시 · 나갈 때 확인
 // ===================== 수정 기록 =====================
 // 저장할 때마다 바뀐 항목을 시각·영업 담당과 함께 남긴다 (시트 '수정 기록' 칸에 JSON)
 const mealSum = r => [r.sadam1&&`사담1부 ${r.sadam1}`, r.sadam2&&`사담2부 ${r.sadam2}`, r.sadamD&&`사담디너 ${r.sadamD}`, r.mabangL&&`마방 ${r.mabangTime?r.mabangTime+' ':''}${r.mabangL}`, r.mabangD&&`마방디너 ${r.mabangD}`].filter(Boolean).join(" · ") || r.meal || "";

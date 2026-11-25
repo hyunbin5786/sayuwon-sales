@@ -1,6 +1,7 @@
-// !! 자동으로 합친 파일 — 직접 고치지 마세요. 소스는 js/group/*.js, 고친 뒤 tools/build.ps1 실행 (README 14절) !!
+// !! 자동으로 합친 파일 — 직접 고치지 마세요. 소스는 js/group/*.js, 고친 뒤 tools/build.ps1 실행 (어느 조각에 무엇이 있는지: docs/코드-지도.md 3절) !!
+// ▣ js/group/01-fields.js — 칸 정의: FIELDS(묶음 · 키 · 이름 · 칸 모양 · 물어볼 말) · 담당자 칸 · 프로그램에 딸린 칸(담당 · 시간대 · 코스 · 장소) · 프로그램 → 견적서 품목
 // ===== 단체고객 응대 (group.html) =====
-// 구역 지도 · 데이터 모양 · 자주 하는 수정은 README 14절. 공통 도구(SY: 주소 · 날짜 · 전화 · esc)는 js/common.js
+// 구역 지도 · 데이터 모양 · 자주 하는 수정은 docs 14절. 공통 도구(SY: 주소 · 날짜 · 전화 · esc)는 js/common.js
 // 예약 칸 · 예약 내역(가격 · 할인) · 추후 과업 · 전산 내역 · 예약 현황 · 단체예약 목록 · 나의 할일 · 잠금 · 메모 · 알림
 
 // ===================== 필드 정의 (엑셀 메인 시트 열 기준) =====================
@@ -146,6 +147,7 @@ const esc = SY.esc;
 const ymd = SY.ymd;
 const isCKey = k => /^c\d+_(name|phone|email|memo)$/.test(k);   // 담당자 칸 (시트에는 담당자 · 연락처 · 이메일 열에 " / "로 모아서, 메모는 비고 칸에)
 
+// ▣ js/group/02-state-form.js — 상태: rec(지금 예약의 칸 값) · tasks · hist · editingId · 새 예약으로 비우기 · 비고 칸에 모아 저장하는 값 쓰기/읽기(packExtra · unpackExtra) · 미정 · 몽몽마방 메뉴
 // ===================== 상태 =====================
 let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
@@ -289,6 +291,7 @@ function setItemDisc(k, v, auto){ const m=idiscMap(rec), kk=dkey(k); if(v===auto
 // 할인액 직접 고치기: rec.idamt = "sadam1=200000:125000" (줄마다 과세(신라) 할인액:비과세(사유원) 할인액). 없으면 할인 버튼(%)으로 계산한 값
 const idamtMap = r => Object.fromEntries(String((r&&r.idamt)||'').split(/\s*;\s*/).map(s=>{ const i=s.lastIndexOf('='); if(i<=0) return null; const [tx,tf]=s.slice(i+1).split(':').map(v=>Math.max(0,parseInt(v)||0)); return [s.slice(0,i).trim(), {tx, tf}]; }).filter(Boolean));
 function setItemDamt(k, val){ const m=idamtMap(rec), kk=dkey(k); if(!val && !m[kk]) return; if(val) m[kk]=val; else delete m[kk]; rec.idamt=Object.entries(m).map(([a,b])=>`${a}=${b.tx}:${b.tf}`).join('; '); touched.add('idamt'); }
+// ▣ js/group/03-special-discount.js — 품목마다 특별 할인(팝업) · 예약 내역 줄(itemRows): 수량 · 관람 인원 자동 · 품목 고르기 · 줄 그리기
 // ===== 품목마다 특별 할인 (2026-11-16): 예약 내역 줄의 「특별할인」 버튼 → 팝업(특별 할인 인원 · 기타 할인) =====
 // rec.isp = "줄=dKansong:2,dMerit:1|비과세(사유원):과세(신라)|사유; …" (시트 비고 칸 '항목 특별 할인')
 // 예약 전체 칸(간송 · 국가유공자 · 군위 주민 · 대구대교구 인원, 기타 할인 비과세 · 과세 · 사유)은 줄마다 넣은 것의 합 → 안내 문구 · 전산 대조 · 합계가 그대로 씀
@@ -518,6 +521,7 @@ function itemSrc(k){ const t=itemKind(k), DAY=rec.date && isRedDay(rec.date) ? '
   if(t==='prog') return progSrc(k, rec) || '';
   if(t==='goods') return k.slice(2);
   return ''; }
+// ▣ js/group/04-erp-match.js — 전산 내역 ↔ 예약 내역 맞추기: 같은 품목 찾기 · 전산 할인 버튼 · 줄 금액 · 할인 표시 그리기(paintItemPrices)
 // 전산 상품 → 예약 내역 줄 key (erpFields와 같은 기준)
 // 전산 같은 품목 (2026-11-21): 「전산 내역과 예약 내용이 다릅니다」의 「같은 품목 (이름만 다름)」 → {전산 쪽 칸: 예약 쪽 칸}
 const erpSameMap = (r=rec) => Object.fromEntries(String((r&&r.erpSame)||'').split(/\s*;\s*/).map(s=>s.split('>')).filter(p=>p.length===2 && p[0] && p[1]));
@@ -683,6 +687,7 @@ document.addEventListener('click', async e=>{ const b=e.target.closest('#itemsBo
   renderSide(); paintItemPrices();
   const k=erpKeyOf(x.product); if(k){ setItemQty(k, String(numOf(itemQty(k)) + (x.people||0))); if(!itemRows.includes(k)) itemRows.push(k); itemChanged(true); }   // 그대로 예약 내역 줄로
 });
+// ▣ js/group/05-item-rows.js — 칸 그리기: 양식 만들기(buildForm · renderForm) · 값과 빨강/노랑/초록 색(paintFields) · 날짜 · 시각 · 전화 · 차량 입력 · 미정 기한
 // 예약 내역: 품목을 고르면 비고를 뺀 모든 칸(인원 · 수량 · 시작 · 끝 · 장소 · 코스 · 결제 등)이 비었을 때 빨간 칸 — 고객님께 여쭤볼 정보 (2026-11-18)
 // (담당은 paintItemState 에서 · 결제 미정은 노란 칸 · 코스 「앵당삼거리 시작」을 켜면 채운 것)
 function paintTmMissing(){
@@ -1210,12 +1215,13 @@ function newMemberAsk(k){
     finally{ ok.disabled=false; ok.textContent='추가하고 고르기'; } };
 }
 loadMemberNames();
+// ▣ js/group/06-booking-status.js — 그날 예약 현황 · 삭제된 단체 예약 · 예약 목록(몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 = 예약 현황 공유 화면) · 직접 추가 · 찾기
 // ===================== 그날 예약 현황 (식사·프로그램) =====================
 const INFO_OF = k => isSub(k) ? null : OPT[GROUP_OF[k]]?.id || null;   // sadam · mabang · prog
 let curInfoKey = null;
 const numOf = v => { const s=String(v||'').trim(); return /^\d+(\s*\+\s*\d+)*\s*명?$/.test(s) ? s.match(/\d+/g).reduce((a,x)=>a+(+x),0) : 0; };   // 인원만 더함 (10:30 같은 시간은 제외)
 function sameDay(){ return cache.filter(r=>r.date===rec.date && r.id!==editingId && r.callType!=="개인고객" && r.id!==MBDB_ID); }
-// 관리자 사이트(admin.sayuwon.com) 사담·마방 현황: Apps Script 가 15분마다 가져와 둔 것
+// 관리자 사이트(admin.sayuwon.com) 사담·마방 현황: 서버(cloudflare/worker.js 의 syncAdmin)가 15분마다 가져와 둔 것
 const ADMIN_SLOT = { sadam1:['L1','사담 런치1부'], sadam2:['L2','사담 런치2부'], sadamD:['D','사담 디너'], mabangL:['MB','마방 사유의 밥상'] };
 const fmtAgo = s => { if(!s) return ''; const m=Math.round((Date.now()-new Date(s))/60000); return m<1?'방금':m<60?`${m}분 전`:`${Math.round(m/60)}시간 전`; };
 function renderInfo(k){
@@ -1242,7 +1248,7 @@ function renderInfo(k){
 
 // ===================== 예약 현황 (방문일 하루): 단체 · 몽몽마방 · 사담 =====================
 // 단체 = 이 시스템의 다른 단체 예약 · 몽몽마방 = '몽몽마방 예약 목록'(NAS 엑셀 몽몽마방 예약 탭을 붙여 넣은 것) · 사담 = 예약 전산에서 확인
-// 몽몽마방 예약 목록은 공유 기록(구글 시트)에 한 줄(id mabangdb, 통화 구분 '몽몽마방예약')로 저장: 수정 기록 칸에 {rows:[{d,t,n,p,m}], at, by}
+// 몽몽마방 예약 목록은 공유 기록(서버 DB 의 calls 표)에 한 줄(id mabangdb, 통화 구분 '몽몽마방예약')로 저장: 수정 기록 칸에 {rows:[{d,t,n,p,m}], at, by}
 var MBDB_ID='mabangdb', MBDB_TYPE='몽몽마방예약';   // var: sameDay가 먼저 불려도 되게
 function mbDb(){ const r=cache.find(x=>x.id===MBDB_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return { rows:Array.isArray(j.rows)?j.rows:[], at:j.at||'', by:j.by||'' }; }
 const mbDbOn = d => mbDb().rows.filter(x=>x.d===d).sort((a,b)=>String(a.t).localeCompare(String(b.t)));
@@ -1297,7 +1303,7 @@ function dayPicked(d, rows){
     return `<div class="dp-box"><div class="dp-h">${esc(dateLabel(d))} ${c==='mb'?'몽몽마방':BOOK_CATS[c]} <small>${li.length?`다른 예약 ${li.length}건`:'다른 예약 없음'}</small></div>${li.length?`<ul class="dp-list">${li.join('')}</ul>`:''}</div>`;
   }).join('');
 }
-// ===================== 삭제된 단체 예약 (Apps Script 'deleted', 보기 전용) =====================
+// ===================== 삭제된 단체 예약 (서버 동작 'deleted', 보기 전용) =====================
 let trashItems=null, trashErr='';
 const delInfo = r => { const h=parseHist(r).h, e=[...h].reverse().find(x=>/^\[삭제\]/.test(x.what||'')); return { by:e?e.by:'', why:e?String(e.what).replace(/^\[삭제\]\s*/,''):'(사유 기록 없음)' }; };
 function paintTrash(){
@@ -1772,6 +1778,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#warnModal'
 
 function autoSummary(){ return ['단체', rec.org, rec.people&&`${rec.people}명`, rec.date&&dateLabel(rec.date), rec.meal&&rec.meal!=='없음'&&`식사 ${rec.meal}`].filter(Boolean).join(' · '); }
 
+// ▣ js/group/07-store.js — 통화 메모 · 통화 시간 · 알림 글(toast) · 텍스트 복사(보고 글) · 저장: 대기열(pending) · 서버 목록 사본 · 합치기(merged) · 보내기(flush) · 받기(pull)
 // ===================== 통화 메모 (특이사항만 적어 두는 칸 · 예약 칸을 채우지 않음) =====================
 $('#memoBox').addEventListener('input', ()=>startTimer());
 function status(s){ $('#status').textContent=s; }
@@ -1961,6 +1968,7 @@ const store={
 // (팀 비밀번호 입력 칸은 없앰 · 2026-11-21 — 서버는 로그인으로 확인, 안 되면 「로그인 확인 필요」 안내만)
 window.addEventListener('focus', ()=>{ if(pending.length) flush(); else pull(); });   // 다른 창에서 돌아오면 최신 목록
 setInterval(()=>{ if(!document.hidden){ if(pending.length) flush(); else pull(); } }, 30000);   // 30초마다 (2026-11-18 · 예전 1분)
+// ▣ js/group/08-history-save.js — 수정 기록(무엇이 바뀌었나 · 되돌리기) · 저장(save) · 30초 자동 저장 · 저장 안 한 표시 · 나갈 때 확인
 // ===================== 수정 기록 =====================
 // 저장할 때마다 바뀐 항목을 시각·영업 담당과 함께 남긴다 (시트 '수정 기록' 칸에 JSON)
 const mealSum = r => [r.sadam1&&`사담1부 ${r.sadam1}`, r.sadam2&&`사담2부 ${r.sadam2}`, r.sadamD&&`사담디너 ${r.sadamD}`, r.mabangL&&`마방 ${r.mabangTime?r.mabangTime+' ':''}${r.mabangL}`, r.mabangD&&`마방디너 ${r.mabangD}`].filter(Boolean).join(" · ") || r.meal || "";
@@ -2142,6 +2150,7 @@ $('#revOk').onclick=async()=>{
 // 맨 위 예약 단계 줄의 미정 항목 입력 기한
 $('#f_tbdDate').addEventListener('input', e=>{ rec.tbdDate=e.target.value; tbdAuto=false; touched.add('tbdDate'); startTimer(); paintFields(); renderSide(); });
 
+// ▣ js/group/09-tasks.js — 추후 과업: 자동 과업 목록(AUTO_TASKS) · 조건으로 생기고 빠짐(syncAutoTasks) · 마감(autoDue) · 과업 문구(전산 비고 등) · 서류 올리기 · 입금 확인 알림
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
 // ---- 사전답사 정보 (rec.tour = "성명: 홍길동, 연락처: 010-…, 일자: 2026-12-01, 인원: 2명, 시간: 10:00") ----
@@ -2560,7 +2569,7 @@ function renderTasks(){
   if(typeof paintDirty==='function' && window.__autoReady) paintDirty();   // 다시 그린 과업 「저장」에도 노란 점
 }
 const autoSave = () => { if(editingId) save({auto:true}); };   // 과업 체크 · 메모 등은 바로 자동 저장 (수정 기록은 이 세션 줄에 모임)
-// 사업자등록증 올리기 → Apps Script 가 구글 드라이브에 저장하고 링크를 돌려줌 → 과업에 링크 보관
+// 사업자등록증 올리기 → 서버가 DB(files · file_chunks 표)에 저장하고 링크(/file/…)를 돌려줌 (2026-11-23 전에는 구글 드라이브) → 과업에 링크 보관
 let upBusy=false;
 async function uploadFile(t, file){
   if(!getKey()){ toast('공유 기록에 연결된 뒤에 올릴 수 있습니다.'); return; }
@@ -2811,7 +2820,7 @@ function openRecord(r){
     setTimeout(()=>syncSavedTasks(r.id), 1200);   // 화면에서 저절로 바뀐 과업 상태를 저장된 예약에도 (나의 할일 · 대시보드가 같게)
 }
 
-// 관리자 사이트에서 지금 가져오기 (평소에는 Apps Script 가 15분마다 자동으로)
+// 관리자 사이트에서 지금 가져오기 (평소에는 서버가 15분마다 자동으로)
 $('#adminSyncBtn').onclick=async()=>{
   const b=$('#adminSyncBtn'); b.disabled=true; b.textContent='가져오는 중…';
   try{
@@ -2876,6 +2885,7 @@ const PPLCHK_RULES = `■ 언제 생기나
 
 ■ 다시 열리는 때
   관람 인원이 또 바뀌면 다시 열림 (바뀐 내용 줄이 새로)`;
+// ▣ js/group/10-price.js — 가격표: 견적서 화면의 품목 · 가격 읽기 · 품목 관리 창 · 특별 할인 종류 편집 · 단체 할인율(groupRate) · 학생 인원 · 금액 계산
 // ===================== 가격표 =====================
 // 가격은 견적서&거래명세서 사이트에서 그때그때 읽어 온다 → 그 사이트의 품목·가격이 바뀌면 여기도 바뀜
 //  · 기본 품목: 그 사이트 페이지의 CATALOG_RAW (품목 | 가격 | 할인 대상)와 굿즈·단체 프로그램 목록
@@ -3161,6 +3171,7 @@ function fullPriceHTML(day, g){
 }
 // 전체 가격표 보기 / 접기
 if($('#priceAllBtn')) $('#priceAllBtn').onclick=()=>{ const a=$('#priceAll'), open=a.hidden; a.hidden=!open; $('#priceAllBtn').textContent = open ? '전체 가격표 접기' : '전체 가격표 보기'; $('#priceAllBtn').setAttribute('aria-expanded', open); renderPrice(); };
+// ▣ js/group/11-erp-paste.js — 전산 내역 붙여넣기: 읽기(parseErp) · 합계 · 예약 칸 채우기 · 전산과 예약 내용이 다른지 견주기(erpCompare)
 // ===================== 전산 내역 붙여넣기 =====================
 // 사유원 전산의 상품 정보를 통째로 붙여넣으면 상품마다 방문일 · 상품 · 인원 · 상품금액 · 할인 · 금액으로 읽어 표로 보여 줌 (예약에 함께 저장)
 const wonNum = s => parseInt(String(s||'').replace(/[^\d]/g,''))||0;
@@ -3434,6 +3445,7 @@ document.querySelectorAll('[data-dk]').forEach(el=>{
   el.addEventListener('blur', take);
 });
 
+// ▣ js/group/12-quote-stage-list.js — 견적서 · 거래명세서 화면으로 넘기기 · 발급 내역 · 예약 단계(상담 · 가예약 · 확정 · 취소) · 단체상담 글 읽기 · 엑셀 내려받기 · 단체 예약 목록 · 목록의 「수정」
 // ===================== 견적서 발급: 견적서&거래명세서 사이트로 넘기기 =====================
 // 그 사이트의 '예약 정보 붙여넣기'가 읽는 형식(방문일자 · 상품정보 · 방문자정보 · 예약인원 · * 할인)으로 만들어
 // 같은 사이트(hyunbin5786.github.io) 저장소에 두고 연다. 그쪽이 자동 채우기를 한다.
@@ -3906,6 +3918,7 @@ document.addEventListener('keydown', e=>{
   if(e.altKey && e.key.toLowerCase()==='n'){ e.preventDefault(); guardLeave(()=>newCall()); }
 });
 
+// ▣ js/group/13-start-my.js — 시작(처음 한 번 그리기 · 받기) · 내가 영업 담당인 예약 고르기(myRecords) · 저장된 과업 맞추기
 // ===================== 시작 =====================
 resetState(); buildForm(); mergePriceLayout(); renderForm();
 paintSync(); renderList();
@@ -3948,6 +3961,7 @@ function settleTasks(list, r, x){
       else { const ds=DOC_SUBS[u.id], st=[...(ds && u.subs ? ds.map(([k])=>!!u.subs[k]) : []), ...(u.xsubs||[]).map(s=>!!s.done)]; if(st.length && st.every(Boolean)) u.done=true; }
       return u; });
 }
+// ▣ js/group/14-task-sim.js — 열지 않은 예약의 추후 과업 계산(simTasks — 열었을 때와 같게) · 나의 할일 화면(renderMy: 탭 · 오늘 마감 · 오늘 완료) · 바깥에서 예약 열기
 // ===== 열지 않은 예약의 추후 과업 = 열었을 때와 똑같이 (2026-11-21) =====
 // 예전: 예약을 열어야 syncAutoTasks(과업 규칙)가 돌아 새 과업(전산 예약 · 견적서 · 담당자에게 일정 전달 …)이 생기고 저장됨 →
 //       열기 전에는 나의 할일에 안 뜨다가, 누군가 그 예약을 열면 그때 (이미 기한이 지난 채로) 나타났음
@@ -4021,7 +4035,7 @@ const myStaffRecs = me => (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)!==me
 // 개인고객 통화 (personal.html, 통화 구분 '개인고객')의 추후 과업: 내가 받은(저장한) 통화의 안 끝난 과업
 const isPersonalRec = r => r && r.callType==='개인고객';
 let myTab = (()=>{ const fix=t=>(!t || t==='all' || t==='etc') ? 'main' : t; const q=new URLSearchParams(location.search).get('tab'); return q ? fix(q) : 'main'; })();   // 열 때는 늘 메인 (주소에 tab= 이 있을 때만 그 탭, 2026-11-19)   // 2026-11-19: 메인 · personal(개인예약) · group(단체예약) · cat:구분 (예전 all · etc 는 메인)   // 나의 할일 탭: all · personal · group (개인고객 화면에서 열면 ?tab=personal → 개인부터)
-const MY_ONLY = new URLSearchParams(location.search).get('my')==='1';   // 나의 할일 단독 페이지 (mypage.html → group.html?my=1)
+const MY_ONLY = new URLSearchParams(location.search).get('my')==='1';   // 나의 할일만 보는 모드 (group.html?my=1 — 팝업(embed=1) 안에서 씀)
 function myPersonalOpen(){
   const me=savedOwner(); if(!me) return [];
   return (cache||[]).filter(r=>isPersonalRec(r) && (r.owner||r.takenBy)===me).map(r=>{ let ts=[]; try{ ts=(JSON.parse(r.history||'{}').tasks)||[]; }catch(_){}
@@ -4228,14 +4242,15 @@ $('#myBody').addEventListener('click', e=>{ if(e.target.closest('.my-ck, .etc-su
   closeMy(); openRecordG(r); erpPasteAfter(r.id); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#myModal').hidden){ e.preventDefault(); closeMy(); } });
 
+// ▣ js/group/15-lock-popups.js — 남이 담당인 예약(잠금 · 통화 메모만 고침) · 두 PC 동시 수정 막기(고치는 중) · 마감 알림 · 미정 기한 알림 · 보던 화면 기억
 // ===================== 남이 담당인 예약: 잠금 + 담당자에게 메모 =====================
 // 영업 담당이 다른 사람인 예약을 열면 아무것도 고칠 수 없음(저장 · 과업 · 수정 · 삭제 모두). 바꿀 내용은 위쪽 메모로 → 담당자 화면에 '메모를 확인하세요' 팝업
 const mergeMemos = (a, b) => { const m=new Map(); [...(b||[]), ...(a||[])].forEach(x=>{ if(!x||!x.id) return; const o=m.get(x.id); m.set(x.id, o ? {...x, ...o, seen: !!(o.seen||x.seen), seenAt:o.seenAt||x.seenAt||''} : x); }); return [...m.values()].sort((x,y)=>String(x.t).localeCompare(String(y.t))); };
 function notMineMsg(r){ const o=ownerOf(r), me=savedOwner(); if(o && me && o!==me){ toast(`${o}님 담당 예약이라 고치거나 지울 수 없습니다. 예약을 열어 메모로 남겨 주세요.`); return true; } return false; }
 const memoLi = (m, own) => `<li class="${own && !m.seen ? 'new' : ''}"><small>${esc(fmt(m.t))} · <b>${esc(m.by||'')}</b>${own ? (m.seen ? ' · 확인함' : ' · <b style="color:var(--red)">새 메모</b>') : ''}</small><br>${esc(m.text).replace(/\n/g,'<br>')}</li>`;
 // ===================== 같은 예약을 두 PC(창)에서 동시에 고치지 않기 =====================
-// 예약을 열면 Apps Script 에 '고치는 중'(lock)을 잡고 1분마다 연장. 이미 다른 창이 잡고 있으면 읽기 전용(editLockBy)으로 열고 30초마다 다시 확인
-// → 풀리면 최신 기록을 받아 다시 열어 고칠 수 있게. 다른 예약을 열거나 새 통화 · 화면을 닫으면 풀어 줌. Apps Script 가 예전 버전이면 아무것도 막지 않음
+// 예약을 열면 서버에 '고치는 중'(lock)을 잡고 1분마다 연장. 이미 다른 창이 잡고 있으면 읽기 전용(editLockBy)으로 열고 30초마다 다시 확인
+// → 풀리면 최신 기록을 받아 다시 열어 고칠 수 있게. 다른 예약을 열거나 새 통화 · 화면을 닫으면 풀어 줌. 서버가 예전 버전이면 아무것도 막지 않음
 var editLockBy='', editHeld='', editRetryT=null;
 const EDIT_SID = (()=>{ try{ let s=sessionStorage.getItem('sy_edit_sid'); if(!s){ s=Date.now().toString(36)+Math.random().toString(36).slice(2,8); sessionStorage.setItem('sy_edit_sid', s); } return s; }catch(_){ return Math.random().toString(36).slice(2); } })();   // 창마다 (새로고침해도 그대로)
 async function acquireEdit(id){
@@ -4246,7 +4261,7 @@ async function acquireEdit(id){
     if(j.locked){ const was=editLockBy; editLockBy=j.by||'다른 직원'; editHeld=''; if(!was) paintLock(); clearTimeout(editRetryT); editRetryT=setTimeout(()=>acquireEdit(id), 30000); return; }
     editHeld=id; clearTimeout(editRetryT);
     if(editLockBy){ editLockBy=''; await pull(); const r=cache.find(x=>x.id===id); if(r){ editHeld=''; openRecord(r); toast('이제 이 예약을 고칠 수 있습니다. 최신 내용으로 다시 불러왔습니다.'); } else paintLock(); }
-  }catch(e){ /* 예전 Apps Script (bad_action) · 연결 문제: 막지 않음 */ }
+  }catch(e){ /* 예전 서버 (bad_action) · 연결 문제: 막지 않음 */ }
 }
 function releaseEdit(beacon){
   clearTimeout(editRetryT); const id=editHeld; editHeld=''; editLockBy='';
@@ -4588,6 +4603,7 @@ $('#memoSave').addEventListener('click', async ()=>{
   clearTimeout(memoLockT); const ms=$('#memoSt');
   if(lockOwner){ await saveLockedParts(); if(ms && ms.textContent==='저장 안 함'){ ms.textContent='바뀐 것 없음'; } return; }
   await save(); if(ms){ ms.textContent=`저장됨 ${new Date().toTimeString().slice(0,5)}`; ms.className='memo-st ok'; } });
+// ▣ js/group/16-etc-tasks.js — 나의 할일의 기타 개인 업무(직접 넣는 업무 · 반복) · 개인 업무 구분 · 과업 알림 시각 설정
 // ===== 나의 할일 · 기타 개인 업무 (통화 구분 '개인업무', 2026-11-18 전부 여기로 · 예전 ops.html?p=task 화면은 없앰) =====
 // 저장: 공유 기록 한 줄 = 업무 하나. history = {kind:'task', d:{title, repeat, dows, dom, due, start, owner, memo, subs:[{id,title}], done:{날짜:{at,by}}, subDone:{날짜:{sid:1}}}, log}
 // 화면 (나의 할일 › 전체 3열의 기타 · 기타 탭):
@@ -4902,6 +4918,7 @@ function etcCatAllHTML(c){
     + etcLaterHTML(mine.filter(o=>o.d.repeat==='later'))
     + (doneToday.length ? `<details class="etc-more"${etcOpenDone?' open':''} data-etcfold="done"><summary>오늘 완료한 것 ${doneToday.length}개</summary>${tkListHTML(doneToday.map(o=>({...tkFromE(o, today), done:true})))}</details>` : '');
 }
+// ▣ js/group/17-dev-fake.js — 시험용: 가짜 예약 채우기 · 비우기 (테스트 DB · 가짜 DB 에서만 · 배포 DB 에 샌 가짜 예약 청소)
 // ===== 시험용 모드 전용: 가짜 예약 채우기 · 비우기 (2026-11-25) =====
 //  주소 끝 ?mock=1 로 켠 시험용 모드(js/devcf.js · 이 브라우저 안의 가짜 DB)에서만 보임 — 진짜 기록(공유 DB)에는 절대 쓰지 않음
 //  단체 화면 · 예약 현황 공유 오른쪽 아래 「가짜 예약 채우기」: 단체 예약 약 210건 · 11 ~ 12월은 날마다 0 ~ 7건 · 그 밖(1년 전 ~ 다음 해 2월)은 드문드문 (모두 관람 또는 관람+식사 · 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 · 여러 담당 · 지난 날짜 섞임)

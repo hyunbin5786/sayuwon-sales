@@ -1,11 +1,11 @@
 // ===== 사유원 운영 보조 시스템 · 공유 기록 서버 (Cloudflare Worker + D1) =====
-// apps-script/group-intake.gs 가 하던 일을 그대로 옮긴 것 (2026-11-23). 화면은 js/common.js 의 SY.call 로 예전과 같은 요청을 보냄 (README 11절 「서버 동작 목록」)
+// 예전 서버(구글 Apps Script · legacy/apps-script/group-intake.gs)가 하던 일을 그대로 옮긴 것 (2026-11-23). 화면은 js/common.js 의 SY.call 로 예전과 같은 요청을 보냄 (docs 11절 「서버 동작 목록」)
 //   요청: POST 본문 = JSON { action, who:{name, emp}, … }  (Content-Type 없이 보내도 됨 — 사전 확인 요청 없이 바로 옴)
 //   응답: { ok:true, … } 또는 { ok:false, error }
 // 연결(바인딩): DB = D1 데이터베이스 (cloudflare/schema.sql 로 표를 만든 것)
 // 견적서 서버(품목 목록 · 발급 내역)도 여기에 (quoteGet · quotePost) · 틀린 로그인이 이어지면 그곳을 15분 막음 (too_many)
 // 비밀 값(Worker 설정 → 변수와 비밀): MIGRATE_KEY (예전 서버에서 자료를 들여올 때만 · 끝나면 지움) · ADMIN_ID · ADMIN_PW (관리자 사이트 자동 가져오기를 쓸 때만)
-// ── 다른 DB(사내 DB 등)로 옮길 때 (README 20절) ──
+// ── 다른 DB(사내 DB 등)로 옮길 때 (docs 20절) ──
 //   · 화면과의 약속은 api() 의 action 목록뿐 — 새 서버가 같은 요청에 같은 답을 주면 화면은 js/common.js 의 주소만 바꾸면 됨
 //   · 자료는 action 'export' 로 표마다 통째로 내려받음 (tools/export.html) — DB 종류와 상관없는 JSON
 //   · SQL 은 표준 문법만 쓰되, 아래 셋만 SQLite(D1) 방식이라 다른 DB 에서는 그 DB 문법으로 바꿈:
@@ -428,7 +428,7 @@ async function importData(env, req) {
   return out;
 }
 
-// ---------- 테스트 DB 를 배포 DB 와 똑같이 만들기 (2026-11-25 · tools/test-start.ps1 · README 45절) ----------
+// ---------- 테스트 DB 를 배포 DB 와 똑같이 만들기 (2026-11-25 · tools/test-start.ps1 · docs 45절) ----------
 //  비밀 값 TEST_SYNC_KEY 가 있는 서버에서만 됨 — 이 값은 테스트 서버(sayuwon-api-test)에만 넣음. 배포 서버에는 절대 넣지 않음 (넣지 않으면 이 동작은 늘 bad_key → 배포 DB 는 지워질 수 없음)
 //  mirror {key, step:'begin'} 모든 표를 비움 → {key, table, rows:[export 가 준 줄 그대로]} 넣은 순서대로 넣음 → {key, step:'done'} 화면에 알리고 표마다 줄 수를 돌려줌
 const MIRROR = { members: ['emp', 'name', 'phone', 'added', 'by', 'deleted'], calls: ['id', 'call_type', 'visit_date', 'updated', 'deleted', 'data'], quotereq: QR_KEYS, quote_history: ['id', 'at', 'data'],
@@ -635,68 +635,68 @@ async function waitRev(env, have) {
   return { ok: true, rev: cur, changed: false };
 }
 
-// ---------- 요청 하나 처리 (apps-script 의 doPost 와 같은 순서) ----------
+// ---------- 요청 하나 처리 (예전 Apps Script 의 doPost 와 같은 순서) ----------
 export async function api(req, env, origin = '', ip = '') {
   const a = req.action, err = (pre, e) => ({ ok: false, error: pre + String((e && e.message) || e) });
   // 로그인 없이 되는 것
-  if (a === 'login') { if (isBlocked(await failState(env, ip))) return { ok: false, error: 'too_many' };
+  if (a === 'login') { if (isBlocked(await failState(env, ip))) return { ok: false, error: 'too_many' };   // 로그인 확인 (이름 + 사번이 멤버인지) · 틀린 로그인이 이어지면 잠시 막음
     const r = await memberLogin(env, req.name, req.emp); if (!r.member) await noteFail(env, ip, req.name, req.emp); return r; }
   if (a === 'quoteGet' && !req.history) return { ok: true, data: await readCatalog(env), historyApi: 3 };   // 품목 목록(가격표)은 로그인 없이 읽기
-  if (a === 'mentList') { try { const o = await getItem(env, 'mentdb'); return { ok: true, ment: o && !o.deleted ? { history: o.history, saved: o.saved } : null }; } catch (e) { return err('mentlist: ', e); } }
-  if (a === 'mentImgGet') { try { return { ok: true, file: await mentImgGet(env, String(req.id || '')) }; } catch (e) { return err('mentimg: ', e); } }
-  if (a === 'bookList') { try { return { ok: true, items: await bookList(env), api: 6 }; } catch (e) { return err('booklist: ', e); } }
-  if (a === 'lostList') { try { return { ok: true, items: await lostList(env), api: 9 }; } catch (e) { return err('lostlist: ', e); } }
-  if (a === 'lostAdd') { try { const id = await lostAdd(env, req); await bumpRev(env); return { ok: true, id, api: 9 }; } catch (e) { return err('', e); } }
-  if (a === 'lostImgPut') { try { return { ok: true, file: await lostImgPut(env, req), api: 9 }; } catch (e) { return err('', e); } }
-  if (a === 'bookAdd') { try { return { ok: true, item: await bookAdd(env, req), api: 6 }; } catch (e) { return err('bookadd: ', e); } }
-  if (a === 'quoteReqAdd') { try { const id = await quoteReqAdd(env, req.item || {}); await bumpRev(env); return { ok: true, id, api: 7 }; } catch (e) { return err('', e); } }
-  if (a === 'import') { try { return { ok: true, imported: await importData(env, req) }; } catch (e) { return err('', e); } }
+  if (a === 'mentList') { try { const o = await getItem(env, 'mentdb'); return { ok: true, ment: o && !o.deleted ? { history: o.history, saved: o.saved } : null }; } catch (e) { return err('mentlist: ', e); } }   // 전화응대 멘트 읽기
+  if (a === 'mentImgGet') { try { return { ok: true, file: await mentImgGet(env, String(req.id || '')) }; } catch (e) { return err('mentimg: ', e); } }   // 멘트 이미지 한 장
+  if (a === 'bookList') { try { return { ok: true, items: await bookList(env), api: 6 }; } catch (e) { return err('booklist: ', e); } }   // 예약 현황 공유 목록 (연락처 칸은 빼고 줌)
+  if (a === 'lostList') { try { return { ok: true, items: await lostList(env), api: 9 }; } catch (e) { return err('lostlist: ', e); } }   // 분실물 목록 (로그인 없이 보는 화면용)
+  if (a === 'lostAdd') { try { const id = await lostAdd(env, req); await bumpRev(env); return { ok: true, id, api: 9 }; } catch (e) { return err('', e); } }   // 분실물 접수
+  if (a === 'lostImgPut') { try { return { ok: true, file: await lostImgPut(env, req), api: 9 }; } catch (e) { return err('', e); } }   // 습득물 사진 올리기
+  if (a === 'bookAdd') { try { return { ok: true, item: await bookAdd(env, req), api: 6 }; } catch (e) { return err('bookadd: ', e); } }   // 예약 현황에 직접 추가
+  if (a === 'quoteReqAdd') { try { const id = await quoteReqAdd(env, req.item || {}); await bumpRev(env); return { ok: true, id, api: 7 }; } catch (e) { return err('', e); } }   // 고객 견적 요청 넣기 (고객이 로그인 없이)
+  if (a === 'import') { try { return { ok: true, imported: await importData(env, req) }; } catch (e) { return err('', e); } }   // 백업에서 되살리기 (서버에 MIGRATE_KEY 가 있을 때만)
   if (a === 'mirror') { try { return { ok: true, ...(await mirror(env, req)) }; } catch (e) { return err('', e); } }   // 테스트 서버에서만 (TEST_SYNC_KEY)
   // 여기부터 로그인(멤버)만
   if (req.who && isBlocked(await failState(env, ip))) return { ok: false, error: 'too_many' };
   if (!(await authOk(env, req))) { if (req.who) await noteFail(env, ip, req.who.name, req.who.emp); return { ok: false, error: 'bad_key' }; }
   // 견적서 발급 내역(최근 것부터) · 품목 목록 고치기 · 발급 내역 더하기 · 발급 취소
-  if (a === 'quoteGet') return rawRows('history', await rows(env, 'SELECT data FROM (SELECT rowid AS r, data FROM quote_history ORDER BY rowid DESC LIMIT ?) ORDER BY r DESC', Number(req.limit) || 500), '');
-  if (a === 'quotePost') { try { return await quotePost(env, req); } catch (e) { return err('', e); } }
+  if (a === 'quoteGet') return rawRows('history', await rows(env, 'SELECT data FROM (SELECT rowid AS r, data FROM quote_history ORDER BY rowid DESC LIMIT ?) ORDER BY r DESC', Number(req.limit) || 500), '');   // 견적서 발급 내역 (최근 것부터)
+  if (a === 'quotePost') { try { return await quotePost(env, req); } catch (e) { return err('', e); } }   // 품목 고치기 · 발급 내역 더하기 · 발급 취소
   // 전체 내려받기 (백업 · 다른 DB 로 옮길 때): 표 하나를 넣은 순서대로 조금씩 — {table, after(마지막으로 받은 seq), limit} → {rows, next}. table 이 없으면 표 이름 목록
   if (a === 'pressList') { await ensurePress(env); return pressList(env); }   // 홍보 기자 리스트 (2026-11-24)
-  if (a === 'pressSave') { try { await ensurePress(env); const ids = await pressSave(env, req); await bumpRev(env); return { ok: true, ids, api: 10 }; } catch (e) { return err('', e); } }
-  if (a === 'pressDel') { try { await ensurePress(env); const n = await pressDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 10 }; } catch (e) { return err('', e); } }
+  if (a === 'pressSave') { try { await ensurePress(env); const ids = await pressSave(env, req); await bumpRev(env); return { ok: true, ids, api: 10 }; } catch (e) { return err('', e); } }   // 기자 리스트 저장 (있으면 고치고 없으면 더함)
+  if (a === 'pressDel') { try { await ensurePress(env); const n = await pressDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 10 }; } catch (e) { return err('', e); } }   // 기자 리스트에서 지운 표시
   if (a === 'manualList') { await ensureManual(env); return manualList(env); }   // 고객 응대 매뉴얼 (2026-11-24)
-  if (a === 'manualSave') { try { await ensureManual(env); const ids = await manualSave(env, req); await bumpRev(env); return { ok: true, ids, api: 11 }; } catch (e) { return err('', e); } }
-  if (a === 'manualDel') { try { await ensureManual(env); const n = await manualDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 11 }; } catch (e) { return err('', e); } }
-  if (a === 'manualFilePut') { try { return { ok: true, file: await manualFilePut(env, req), api: 11 }; } catch (e) { return err('', e); } }
-  if (a === 'manualFileGet') { try { return { ok: true, file: await manualFileGet(env, req.id), api: 11 }; } catch (e) { return err('', e); } }
-  if (a === 'clergyList') { await ensureClergy(env); return clergyList(env); }
-  if (a === 'clergyAdd') { try { await ensureClergy(env); const item = await clergyAdd(env, req); await bumpRev(env); return { ok: true, item, api: 8 }; } catch (e) { return err('', e); } }
-  if (a === 'clergyDel') { try { await ensureClergy(env); const n = await clergyDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 8 }; } catch (e) { return err('', e); } }
-  if (a === 'clergyImport') { try { await ensureClergy(env); const n = await clergyImport(env, req, req.who && req.who.name); await bumpRev(env); return { ok: true, imported: n, api: 8 }; } catch (e) { return err('', e); } }
-  if (a === 'export') { if (req.table === 'clergy') await ensureClergy(env); if (req.table === 'press') await ensurePress(env); if (req.table === 'manual') await ensureManual(env); if (req.table === 'members') await ensureMemberPhone(env); const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };
+  if (a === 'manualSave') { try { await ensureManual(env); const ids = await manualSave(env, req); await bumpRev(env); return { ok: true, ids, api: 11 }; } catch (e) { return err('', e); } }   // 매뉴얼 저장 (있으면 고치고 없으면 더함)
+  if (a === 'manualDel') { try { await ensureManual(env); const n = await manualDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 11 }; } catch (e) { return err('', e); } }   // 매뉴얼에서 지운 표시
+  if (a === 'manualFilePut') { try { return { ok: true, file: await manualFilePut(env, req), api: 11 }; } catch (e) { return err('', e); } }   // 매뉴얼 안내문 파일 올리기
+  if (a === 'manualFileGet') { try { return { ok: true, file: await manualFileGet(env, req.id), api: 11 }; } catch (e) { return err('', e); } }   // 매뉴얼 안내문 파일 읽기
+  if (a === 'clergyList') { await ensureClergy(env); return clergyList(env); }   // 무료입장 명부 읽기
+  if (a === 'clergyAdd') { try { await ensureClergy(env); const item = await clergyAdd(env, req); await bumpRev(env); return { ok: true, item, api: 8 }; } catch (e) { return err('', e); } }   // 무료입장 명부에 한 명 추가 (그해 몇 회차인지 서버가 셈)
+  if (a === 'clergyDel') { try { await ensureClergy(env); const n = await clergyDel(env, req); await bumpRev(env); return { ok: true, removed: n, api: 8 }; } catch (e) { return err('', e); } }   // 무료입장 명부에서 지운 표시
+  if (a === 'clergyImport') { try { await ensureClergy(env); const n = await clergyImport(env, req, req.who && req.who.name); await bumpRev(env); return { ok: true, imported: n, api: 8 }; } catch (e) { return err('', e); } }   // 무료입장 명부 엑셀로 한꺼번에 넣기
+  if (a === 'export') { if (req.table === 'clergy') await ensureClergy(env); if (req.table === 'press') await ensurePress(env); if (req.table === 'manual') await ensureManual(env); if (req.table === 'members') await ensureMemberPhone(env); const t = String(req.table || ''), sql = EXPORT_SQL()[t]; if (!sql) return { ok: true, tables: Object.keys(EXPORT_SQL()) };   // 전체 내려받기: 표 하나를 넣은 순서대로 조금씩 (백업 · 테스트 DB 복사가 씀)
     const lim = t === 'file_chunks' ? 1 : Math.min(Number(req.limit) || 200, 500), rs = await rows(env, sql, Number(req.after) || 0, lim);
     return { ok: true, table: t, rows: rs, next: rs.length === lim ? rs[rs.length - 1].seq : null }; }
-  if (a === 'wait') return waitRev(env, String(req.rev || ''));
-  if (a === 'quoteReqList') return { ok: true, items: await quoteReqList(env), api: 7 };
-  if (a === 'quoteReqMark') { try { const item = await quoteReqMark(env, req); await bumpRev(env); return { ok: true, item, api: 7 }; } catch (e) { return err('', e); } }
-  if (a === 'members') return { ok: true, members: await readMembers(env), roles: await readRoles(env) };
-  if (a === 'memberRole') { try { await setRole(env, String(req.role || ''), req.emp, !!req.on); await bumpRev(env); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
-  if (a === 'memberAdd') { try { return { ok: true, added: await addMembers(env, req.list || [], req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
+  if (a === 'wait') return waitRev(env, String(req.rev || ''));   // 바뀜 기다리기: 다른 화면이 저장하면 그 순간 답함 (다른 컴퓨터에 바로 알리기)
+  if (a === 'quoteReqList') return { ok: true, items: await quoteReqList(env), api: 7 };   // 고객 견적 요청 목록
+  if (a === 'quoteReqMark') { try { const item = await quoteReqMark(env, req); await bumpRev(env); return { ok: true, item, api: 7 }; } catch (e) { return err('', e); } }   // 고객 견적 요청 처리 표시 (완료 · 삭제)
+  if (a === 'members') return { ok: true, members: await readMembers(env), roles: await readRoles(env) };   // 멤버 목록 · 담당 지정
+  if (a === 'memberRole') { try { await setRole(env, String(req.role || ''), req.emp, !!req.on); await bumpRev(env); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }   // 담당 지정 (견적서 담당 등)
+  if (a === 'memberAdd') { try { return { ok: true, added: await addMembers(env, req.list || [], req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }   // 멤버 추가
   if (a === 'memberPhone') { try { await setMemberPhone(env, req.emp, req.phone); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }   // 멤버 연락처 고치기 (2026-11-24)
-  if (a === 'memberDel') { try { return { ok: true, removed: await delMember(env, req.emp, req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }
+  if (a === 'memberDel') { try { return { ok: true, removed: await delMember(env, req.emp, req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }   // 멤버 빼기 (지운 표시)
   // 목록: since(ISO 일시)를 주면 그 뒤에 저장 · 삭제된 줄만 (delta · 삭제된 줄은 deleted 가 채워져 옴). 없으면 최근 2,000줄 중 지워지지 않은 것
-  if (a === 'list') {
+  if (a === 'list') {   // 기록 목록: 전체 또는 since 뒤에 바뀐 것만 (예약 · 통화 · 업무 · 설정 줄 모두)
     const now = iso(), tail = ',"now":' + JSON.stringify(now) + ',"admin":' + (await adminRaw(env)) + ',"api":5';
     if (req.since) return rawList(await rows(env, 'SELECT data FROM calls WHERE updated>?1 OR deleted>?1 ORDER BY rowid', String(req.since)), ',"delta":true' + tail);
     const lim = Number(req.limit) || 2000;
     return rawList(await rows(env, "SELECT data FROM (SELECT rowid AS r, data, deleted FROM calls ORDER BY rowid DESC LIMIT ?) WHERE deleted='' ORDER BY r", lim), tail);
   }
-  if (a === 'deleted') return rawList(await rows(env, "SELECT data FROM (SELECT rowid AS r, data FROM calls WHERE deleted<>'' ORDER BY rowid DESC LIMIT ?) ORDER BY r", Number(req.limit) || 1000), ',"api":4');
-  if (a === 'lock') return editLock(env, req);
-  if (a === 'upload') { try { return { ok: true, file: await upload(env, req, origin) }; } catch (e) { return err('upload: ', e); } }
-  if (a === 'mentImgPut') { try { return { ok: true, file: await mentImgPut(env, req) }; } catch (e) { return err('mentimg: ', e); } }
-  if (a === 'syncAdmin') { try { const result = await syncAdmin(env); return { ok: true, result, admin: JSON.parse(await adminRaw(env)) }; } catch (e) { return err('admin_sync: ', e); } }
+  if (a === 'deleted') return rawList(await rows(env, "SELECT data FROM (SELECT rowid AS r, data FROM calls WHERE deleted<>'' ORDER BY rowid DESC LIMIT ?) ORDER BY r", Number(req.limit) || 1000), ',"api":4');   // 지운 기록 목록 (화면의 「삭제된 …」)
+  if (a === 'lock') return editLock(env, req);   // 「고치는 중」 표시 잡기 · 풀기 (두 PC 가 같은 예약을 동시에 못 고치게)
+  if (a === 'upload') { try { return { ok: true, file: await upload(env, req, origin) }; } catch (e) { return err('upload: ', e); } }   // 단체 서류 올리기 (사업자등록증 등)
+  if (a === 'mentImgPut') { try { return { ok: true, file: await mentImgPut(env, req) }; } catch (e) { return err('mentimg: ', e); } }   // 멘트 이미지 올리기
+  if (a === 'syncAdmin') { try { const result = await syncAdmin(env); return { ok: true, result, admin: JSON.parse(await adminRaw(env)) }; } catch (e) { return err('admin_sync: ', e); } }   // 관리자 사이트에서 지금 가져오기 (사담 · 마방 현황 · 큰 단체 자동 등록)
   try {
-    if (a === 'put') { const id = await put(env, req.item || {}); await bumpRev(env); return { ok: true, id }; }
-    if (a === 'del') { const id = await del(env, String(req.id || '')); await bumpRev(env); return { ok: true, id }; }
+    if (a === 'put') { const id = await put(env, req.item || {}); await bumpRev(env); return { ok: true, id }; }   // 기록 한 줄 저장 (있으면 고치고 없으면 더함 · 수정 일시는 서버가 적음)
+    if (a === 'del') { const id = await del(env, String(req.id || '')); await bumpRev(env); return { ok: true, id }; }   // 기록 한 줄 삭제 = 지운 표시 (줄은 남음)
     return { ok: false, error: 'bad_action' };
   } catch (e) { return err('Error: ', e); }
 }

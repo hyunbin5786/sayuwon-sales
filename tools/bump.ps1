@@ -2,6 +2,7 @@
 #   실행:  powershell -ExecutionPolicy Bypass -File tools\bump.ps1
 #   왜:    ?v= 가 그대로면 직원 브라우저가 예전 CSS · JS 를 계속 씀
 #   새 값: 오늘 날짜 + a (예 20261127a). 지금 값이 그보다 크거나 같으면 지금 값의 끝 글자를 하나 올림 (…k → …l · …z → …za)
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}   # 한글 출력이 어디서 돌려도 깨지지 않게
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $utf8 = New-Object Text.UTF8Encoding $false

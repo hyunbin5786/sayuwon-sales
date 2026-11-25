@@ -1,3 +1,4 @@
+// ===== 네이버 예약 → 사유원 전산 이관 (naver.html · 2026-11-19) — 원래 따로 있던 사이트를 옮겨 온 것이라 작은 도구($ · esc · toast)를 이 파일 안에 따로 둠. 엑셀 비밀번호 풀기는 js/naverxl.js(예약 현황 공유)에도 같은 코드가 있음 =====
 /* ---------- 공통 ---------- */
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));

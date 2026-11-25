@@ -1,3 +1,4 @@
+// ▣ js/group/04-erp-match.js — 전산 내역 ↔ 예약 내역 맞추기: 같은 품목 찾기 · 전산 할인 버튼 · 줄 금액 · 할인 표시 그리기(paintItemPrices)
 // 전산 상품 → 예약 내역 줄 key (erpFields와 같은 기준)
 // 전산 같은 품목 (2026-11-21): 「전산 내역과 예약 내용이 다릅니다」의 「같은 품목 (이름만 다름)」 → {전산 쪽 칸: 예약 쪽 칸}
 const erpSameMap = (r=rec) => Object.fromEntries(String((r&&r.erpSame)||'').split(/\s*;\s*/).map(s=>s.split('>')).filter(p=>p.length===2 && p[0] && p[1]));

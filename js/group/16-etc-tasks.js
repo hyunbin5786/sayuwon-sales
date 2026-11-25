@@ -1,3 +1,4 @@
+// ▣ js/group/16-etc-tasks.js — 나의 할일의 기타 개인 업무(직접 넣는 업무 · 반복) · 개인 업무 구분 · 과업 알림 시각 설정
 // ===== 나의 할일 · 기타 개인 업무 (통화 구분 '개인업무', 2026-11-18 전부 여기로 · 예전 ops.html?p=task 화면은 없앰) =====
 // 저장: 공유 기록 한 줄 = 업무 하나. history = {kind:'task', d:{title, repeat, dows, dom, due, start, owner, memo, subs:[{id,title}], done:{날짜:{at,by}}, subDone:{날짜:{sid:1}}}, log}
 // 화면 (나의 할일 › 전체 3열의 기타 · 기타 탭):

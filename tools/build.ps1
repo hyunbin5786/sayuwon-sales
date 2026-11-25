@@ -4,9 +4,10 @@
 #   확인만:  powershell -ExecutionPolicy Bypass -File tools/build.ps1 -Check   (js/group.js 가 소스와 다르면 오류로 끝남)
 # 파일 이름 순서(01- 02- …)대로 그대로 이어 붙임 — 한 파일일 때와 동작이 똑같음 (순서를 바꾸면 안 됨: 뒤 파일이 앞 파일의 이름을 씀)
 param([switch]$Check)
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}   # 한글 출력이 어디서 돌려도 깨지지 않게
 $root = Split-Path $PSScriptRoot -Parent
 $out  = Join-Path $root 'js\group.js'
-$head = [Text.Encoding]::UTF8.GetBytes("// !! 자동으로 합친 파일 — 직접 고치지 마세요. 소스는 js/group/*.js, 고친 뒤 tools/build.ps1 실행 (README 14절) !!`n")
+$head = [Text.Encoding]::UTF8.GetBytes("// !! 자동으로 합친 파일 — 직접 고치지 마세요. 소스는 js/group/*.js, 고친 뒤 tools/build.ps1 실행 (어느 조각에 무엇이 있는지: docs/코드-지도.md 3절) !!`n")
 $ms = New-Object IO.MemoryStream
 $ms.Write($head, 0, $head.Length)
 Get-ChildItem (Join-Path $root 'js\group') -Filter '*.js' | Sort-Object Name | ForEach-Object {

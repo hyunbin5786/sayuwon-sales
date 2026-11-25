@@ -1,8 +1,8 @@
-// ===== 나의 할일 팝업 (첫 화면 · 개인고객 · 다음날 준비 공통) =====
+// ===== 나의 할일 팝업 (「나의 할일」 버튼이 있는 화면 공통: 첫 화면 · 개인고객 · 다음날 준비 · 운영보조 4개) — 이 파일을 안 읽는 화면은 js/menu.js 가 같은 팝업을 띄움 =====
 
 (function(){
   const pop=document.getElementById('myPop'), fr=document.getElementById('myPopFrame');
-  // 나의 할일 팝업 (개인고객 · 다음날 준비 화면 공통). <body data-my-tab="personal"> 이면 그 탭부터
+  // 나의 할일 팝업. <body data-my-tab="personal"> 이면 그 탭부터
   const tab=document.body.dataset.myTab||'';
   window.openMyPop = () => { fr.src='group.html?my=1&embed=1&t='+Date.now(); pop.hidden=false; };   // 어디서든 메인부터 (2026-11-19 · data-my-tab 은 안 씀)
   const close = () => { pop.hidden=true; fr.src='about:blank'; };

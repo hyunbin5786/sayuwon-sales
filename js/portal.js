@@ -1,5 +1,5 @@
 // ===== 첫 화면 (index.html): 로그인 · 메뉴 · 품목관리 · 멤버관리 =====
-// 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 README 14절
+// 공통 도구(SY: 공유 주소 · 날짜 · 전화 · esc · 저장소)는 js/common.js, 전체 구조는 docs 14절
 
 // 로그인 정보: localStorage 'sy_user' = {name, emp, at}. 같은 주소(hyunbin5786.github.io)의 단체 화면 · 견적서 사이트가 함께 씀
 const $ = s => document.querySelector(s);
@@ -30,7 +30,7 @@ function paint(){
 }
 const esc = SY.esc;   // 공통 도구 (js/common.js)
 
-// ===================== 공유 저장소 (단체 화면과 같은 Apps Script) =====================
+// ===================== 공유 저장소 (단체 화면과 같은 서버) =====================
 const getKey = SY.getKey;
 
 // ===================== 로그인: 멤버 목록(이름 + 사번)과 맞아야 =====================

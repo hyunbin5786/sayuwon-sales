@@ -1,4 +1,4 @@
-// ===== 재고관리 (stock.html) — 이 페이지의 칸 · 목록 열만. 동작은 js/opsboard.js (운영보조 공통 엔진) =====
+// ===== 재고관리 (stock.html) — 이 페이지의 칸 · 목록 열만. 틀은 js/opsboard.js (운영보조 공통 엔진) · 화면 그리기(renderStock)는 뒤에 읽는 js/stockx.js 가 바꿔 씀 =====
 // 칸: {k 저장 이름, l 화면 이름, type, req 꼭 넣기, def 처음 값, show 보일 조건, w:2 두 칸 너비, ph 안내 글씨} · cols: 목록 열 [k, 이름, 보이는 모양]
 // open: 「진행 중」으로 치는 상태들 · summary: 공유 기록 요약 칸에 넣을 한 줄
 const OPS_PAGE =

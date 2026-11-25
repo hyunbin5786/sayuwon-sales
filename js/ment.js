@@ -1,9 +1,9 @@
 // ===== 고객 응대 보조 · 전화응대 멘트 (ment.html, 2026-11-18) =====
 // 자주 쓰는 안내 멘트(문자 · 카톡으로 보내는 글)를 모아 두고 「복사」로 바로 붙여 넣기
-//  - 저장: 공유 기록(구글 시트 calls, 단체 화면과 같은 Apps Script)의 한 줄 id=mentdb (통화 구분 '응대멘트')
+//  - 저장: 공유 기록(서버 DB 의 calls 표 · 단체 화면과 같은 서버)의 한 줄 id=mentdb (통화 구분 '응대멘트')
 //          수정 기록 칸(history)에 JSON {items:[{id, title, body, imgs:[{id, name}]}], at, by}
 //  - 이미지: 추가 · 수정할 때 「＋ 이미지」(여러 장) · 붙여넣기(Ctrl+V) · 끌어다 놓기 → 줄여서(긴 쪽 1600px) 구글 드라이브 '응대멘트 이미지' 폴더에
-//           (Apps Script mentImgPut · mentImgGet). 카드에 작은 그림 + 「이미지 복사」(크롬: 그림 그대로 클립보드 → 카톡에 Ctrl+V)
+//           (서버 동작 mentImgPut · mentImgGet). 카드에 작은 그림 + 「이미지 복사」(크롬: 그림 그대로 클립보드 → 카톡에 Ctrl+V)
 //  - 로그인하지 않아도 보고 복사할 수 있음 (팀 비밀번호는 필요). 추가 · 수정 · 삭제는 로그인한 사람만
 //  - 처음(아직 아무것도 없을 때)은 기본 멘트 [홈페이지링크] 하나
 //  - 화면 (2026-11-23): 컴퓨터 = 1열 제목 목록(순서 · ★ · ⠿) → 누르면 2열에 글 전체 + 올린 이미지 / 휴대폰 = 예전 그대로 (제목 + 복사 버튼 한 줄)
@@ -31,7 +31,7 @@
   const toast = (m, ms=2200) => { const t=$('#toast'); t.textContent=m; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>{ t.hidden=true; }, ms); };
   const setSync = t => { $('#sync').textContent=t; };
   const needDeploy = () => '';   // (예전 서버가 이미지 기능이 없는 버전일 때 안내하던 것 — 이제 늘 됨)
-  // 불러오기: 팀 비밀번호 없이 (Apps Script mentList · 2026-11-18, 주로 휴대폰). 예전 배포면 비밀번호가 있는 기기만 전체 목록에서
+  // 불러오기: 팀 비밀번호 없이 (서버 동작 mentList · 2026-11-18, 주로 휴대폰). 예전 배포면 비밀번호가 있는 기기만 전체 목록에서
   const applyRow = r => { row = r ? {...(row||{}), ...r} : row; let h=null; try{ h=r ? JSON.parse(r.history||'{}') : null; }catch(_){}
     items = h && Array.isArray(h.items) ? h.items : DEFAULT.slice(); SY.writeJSON(CACHE_LS, items); loaded=true; failed=false; setSync(''); if(!edit) render();
     // 예전에 이 컴퓨터에서만 해 둔 즐겨찾기 → 공유 즐겨찾기로 한 번 옮김 (아직 아무 멘트도 즐겨찾기가 없을 때만)

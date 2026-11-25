@@ -1,3 +1,4 @@
+// ▣ js/group/13-start-my.js — 시작(처음 한 번 그리기 · 받기) · 내가 영업 담당인 예약 고르기(myRecords) · 저장된 과업 맞추기
 // ===================== 시작 =====================
 resetState(); buildForm(); mergePriceLayout(); renderForm();
 paintSync(); renderList();

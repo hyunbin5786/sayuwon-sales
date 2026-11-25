@@ -4,6 +4,7 @@
 #   다른 번호로:  … -Port 8770
 # localhost 로 연 화면은 테스트 DB 를 씀 (배포 DB 아님 · js/common.js SY_TEST_SITE)
 param([int]$Port = 8767)
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}   # 한글 출력이 어디서 돌려도 깨지지 않게
 $root = Split-Path $PSScriptRoot -Parent
 $types = @{ '.html' = 'text/html; charset=utf-8'; '.css' = 'text/css; charset=utf-8'; '.js' = 'text/javascript; charset=utf-8'; '.json' = 'application/json; charset=utf-8'; '.sql' = 'text/plain; charset=utf-8'; '.md' = 'text/plain; charset=utf-8'
   '.png' = 'image/png'; '.jpg' = 'image/jpeg'; '.jpeg' = 'image/jpeg'; '.svg' = 'image/svg+xml'; '.ico' = 'image/x-icon'; '.woff2' = 'font/woff2'; '.wasm' = 'application/wasm' }

@@ -1,9 +1,10 @@
+// ▣ js/group/06-booking-status.js — 그날 예약 현황 · 삭제된 단체 예약 · 예약 목록(몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 = 예약 현황 공유 화면) · 직접 추가 · 찾기
 // ===================== 그날 예약 현황 (식사·프로그램) =====================
 const INFO_OF = k => isSub(k) ? null : OPT[GROUP_OF[k]]?.id || null;   // sadam · mabang · prog
 let curInfoKey = null;
 const numOf = v => { const s=String(v||'').trim(); return /^\d+(\s*\+\s*\d+)*\s*명?$/.test(s) ? s.match(/\d+/g).reduce((a,x)=>a+(+x),0) : 0; };   // 인원만 더함 (10:30 같은 시간은 제외)
 function sameDay(){ return cache.filter(r=>r.date===rec.date && r.id!==editingId && r.callType!=="개인고객" && r.id!==MBDB_ID); }
-// 관리자 사이트(admin.sayuwon.com) 사담·마방 현황: Apps Script 가 15분마다 가져와 둔 것
+// 관리자 사이트(admin.sayuwon.com) 사담·마방 현황: 서버(cloudflare/worker.js 의 syncAdmin)가 15분마다 가져와 둔 것
 const ADMIN_SLOT = { sadam1:['L1','사담 런치1부'], sadam2:['L2','사담 런치2부'], sadamD:['D','사담 디너'], mabangL:['MB','마방 사유의 밥상'] };
 const fmtAgo = s => { if(!s) return ''; const m=Math.round((Date.now()-new Date(s))/60000); return m<1?'방금':m<60?`${m}분 전`:`${Math.round(m/60)}시간 전`; };
 function renderInfo(k){
@@ -30,7 +31,7 @@ function renderInfo(k){
 
 // ===================== 예약 현황 (방문일 하루): 단체 · 몽몽마방 · 사담 =====================
 // 단체 = 이 시스템의 다른 단체 예약 · 몽몽마방 = '몽몽마방 예약 목록'(NAS 엑셀 몽몽마방 예약 탭을 붙여 넣은 것) · 사담 = 예약 전산에서 확인
-// 몽몽마방 예약 목록은 공유 기록(구글 시트)에 한 줄(id mabangdb, 통화 구분 '몽몽마방예약')로 저장: 수정 기록 칸에 {rows:[{d,t,n,p,m}], at, by}
+// 몽몽마방 예약 목록은 공유 기록(서버 DB 의 calls 표)에 한 줄(id mabangdb, 통화 구분 '몽몽마방예약')로 저장: 수정 기록 칸에 {rows:[{d,t,n,p,m}], at, by}
 var MBDB_ID='mabangdb', MBDB_TYPE='몽몽마방예약';   // var: sameDay가 먼저 불려도 되게
 function mbDb(){ const r=cache.find(x=>x.id===MBDB_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return { rows:Array.isArray(j.rows)?j.rows:[], at:j.at||'', by:j.by||'' }; }
 const mbDbOn = d => mbDb().rows.filter(x=>x.d===d).sort((a,b)=>String(a.t).localeCompare(String(b.t)));
@@ -85,7 +86,7 @@ function dayPicked(d, rows){
     return `<div class="dp-box"><div class="dp-h">${esc(dateLabel(d))} ${c==='mb'?'몽몽마방':BOOK_CATS[c]} <small>${li.length?`다른 예약 ${li.length}건`:'다른 예약 없음'}</small></div>${li.length?`<ul class="dp-list">${li.join('')}</ul>`:''}</div>`;
   }).join('');
 }
-// ===================== 삭제된 단체 예약 (Apps Script 'deleted', 보기 전용) =====================
+// ===================== 삭제된 단체 예약 (서버 동작 'deleted', 보기 전용) =====================
 let trashItems=null, trashErr='';
 const delInfo = r => { const h=parseHist(r).h, e=[...h].reverse().find(x=>/^\[삭제\]/.test(x.what||'')); return { by:e?e.by:'', why:e?String(e.what).replace(/^\[삭제\]\s*/,''):'(사유 기록 없음)' }; };
 function paintTrash(){

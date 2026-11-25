@@ -1,3 +1,4 @@
+// ▣ js/group/09-tasks.js — 추후 과업: 자동 과업 목록(AUTO_TASKS) · 조건으로 생기고 빠짐(syncAutoTasks) · 마감(autoDue) · 과업 문구(전산 비고 등) · 서류 올리기 · 입금 확인 알림
 // ===================== 추후 과업 =====================
 // 예약 단계·결제 방식에 따라 자동으로 생기는 과업 + 직접 추가한 과업. 과업마다 체크 · 메모
 // ---- 사전답사 정보 (rec.tour = "성명: 홍길동, 연락처: 010-…, 일자: 2026-12-01, 인원: 2명, 시간: 10:00") ----
@@ -416,7 +417,7 @@ function renderTasks(){
   if(typeof paintDirty==='function' && window.__autoReady) paintDirty();   // 다시 그린 과업 「저장」에도 노란 점
 }
 const autoSave = () => { if(editingId) save({auto:true}); };   // 과업 체크 · 메모 등은 바로 자동 저장 (수정 기록은 이 세션 줄에 모임)
-// 사업자등록증 올리기 → Apps Script 가 구글 드라이브에 저장하고 링크를 돌려줌 → 과업에 링크 보관
+// 사업자등록증 올리기 → 서버가 DB(files · file_chunks 표)에 저장하고 링크(/file/…)를 돌려줌 (2026-11-23 전에는 구글 드라이브) → 과업에 링크 보관
 let upBusy=false;
 async function uploadFile(t, file){
   if(!getKey()){ toast('공유 기록에 연결된 뒤에 올릴 수 있습니다.'); return; }
@@ -667,7 +668,7 @@ function openRecord(r){
     setTimeout(()=>syncSavedTasks(r.id), 1200);   // 화면에서 저절로 바뀐 과업 상태를 저장된 예약에도 (나의 할일 · 대시보드가 같게)
 }
 
-// 관리자 사이트에서 지금 가져오기 (평소에는 Apps Script 가 15분마다 자동으로)
+// 관리자 사이트에서 지금 가져오기 (평소에는 서버가 15분마다 자동으로)
 $('#adminSyncBtn').onclick=async()=>{
   const b=$('#adminSyncBtn'); b.disabled=true; b.textContent='가져오는 중…';
   try{

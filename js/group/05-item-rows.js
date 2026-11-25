@@ -1,3 +1,4 @@
+// ▣ js/group/05-item-rows.js — 칸 그리기: 양식 만들기(buildForm · renderForm) · 값과 빨강/노랑/초록 색(paintFields) · 날짜 · 시각 · 전화 · 차량 입력 · 미정 기한
 // 예약 내역: 품목을 고르면 비고를 뺀 모든 칸(인원 · 수량 · 시작 · 끝 · 장소 · 코스 · 결제 등)이 비었을 때 빨간 칸 — 고객님께 여쭤볼 정보 (2026-11-18)
 // (담당은 paintItemState 에서 · 결제 미정은 노란 칸 · 코스 「앵당삼거리 시작」을 켜면 채운 것)
 function paintTmMissing(){

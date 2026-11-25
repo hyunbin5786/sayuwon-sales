@@ -1,11 +1,12 @@
+// ▣ js/group/15-lock-popups.js — 남이 담당인 예약(잠금 · 통화 메모만 고침) · 두 PC 동시 수정 막기(고치는 중) · 마감 알림 · 미정 기한 알림 · 보던 화면 기억
 // ===================== 남이 담당인 예약: 잠금 + 담당자에게 메모 =====================
 // 영업 담당이 다른 사람인 예약을 열면 아무것도 고칠 수 없음(저장 · 과업 · 수정 · 삭제 모두). 바꿀 내용은 위쪽 메모로 → 담당자 화면에 '메모를 확인하세요' 팝업
 const mergeMemos = (a, b) => { const m=new Map(); [...(b||[]), ...(a||[])].forEach(x=>{ if(!x||!x.id) return; const o=m.get(x.id); m.set(x.id, o ? {...x, ...o, seen: !!(o.seen||x.seen), seenAt:o.seenAt||x.seenAt||''} : x); }); return [...m.values()].sort((x,y)=>String(x.t).localeCompare(String(y.t))); };
 function notMineMsg(r){ const o=ownerOf(r), me=savedOwner(); if(o && me && o!==me){ toast(`${o}님 담당 예약이라 고치거나 지울 수 없습니다. 예약을 열어 메모로 남겨 주세요.`); return true; } return false; }
 const memoLi = (m, own) => `<li class="${own && !m.seen ? 'new' : ''}"><small>${esc(fmt(m.t))} · <b>${esc(m.by||'')}</b>${own ? (m.seen ? ' · 확인함' : ' · <b style="color:var(--red)">새 메모</b>') : ''}</small><br>${esc(m.text).replace(/\n/g,'<br>')}</li>`;
 // ===================== 같은 예약을 두 PC(창)에서 동시에 고치지 않기 =====================
-// 예약을 열면 Apps Script 에 '고치는 중'(lock)을 잡고 1분마다 연장. 이미 다른 창이 잡고 있으면 읽기 전용(editLockBy)으로 열고 30초마다 다시 확인
-// → 풀리면 최신 기록을 받아 다시 열어 고칠 수 있게. 다른 예약을 열거나 새 통화 · 화면을 닫으면 풀어 줌. Apps Script 가 예전 버전이면 아무것도 막지 않음
+// 예약을 열면 서버에 '고치는 중'(lock)을 잡고 1분마다 연장. 이미 다른 창이 잡고 있으면 읽기 전용(editLockBy)으로 열고 30초마다 다시 확인
+// → 풀리면 최신 기록을 받아 다시 열어 고칠 수 있게. 다른 예약을 열거나 새 통화 · 화면을 닫으면 풀어 줌. 서버가 예전 버전이면 아무것도 막지 않음
 var editLockBy='', editHeld='', editRetryT=null;
 const EDIT_SID = (()=>{ try{ let s=sessionStorage.getItem('sy_edit_sid'); if(!s){ s=Date.now().toString(36)+Math.random().toString(36).slice(2,8); sessionStorage.setItem('sy_edit_sid', s); } return s; }catch(_){ return Math.random().toString(36).slice(2); } })();   // 창마다 (새로고침해도 그대로)
 async function acquireEdit(id){
@@ -16,7 +17,7 @@ async function acquireEdit(id){
     if(j.locked){ const was=editLockBy; editLockBy=j.by||'다른 직원'; editHeld=''; if(!was) paintLock(); clearTimeout(editRetryT); editRetryT=setTimeout(()=>acquireEdit(id), 30000); return; }
     editHeld=id; clearTimeout(editRetryT);
     if(editLockBy){ editLockBy=''; await pull(); const r=cache.find(x=>x.id===id); if(r){ editHeld=''; openRecord(r); toast('이제 이 예약을 고칠 수 있습니다. 최신 내용으로 다시 불러왔습니다.'); } else paintLock(); }
-  }catch(e){ /* 예전 Apps Script (bad_action) · 연결 문제: 막지 않음 */ }
+  }catch(e){ /* 예전 서버 (bad_action) · 연결 문제: 막지 않음 */ }
 }
 function releaseEdit(beacon){
   clearTimeout(editRetryT); const id=editHeld; editHeld=''; editLockBy='';

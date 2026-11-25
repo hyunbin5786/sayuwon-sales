@@ -10,14 +10,14 @@
 // start/end = 운영 · 판매 기간 (비면 늘). 기간이 지난 것은 「지난 것도 보기」를 켜면 보임 (찾기에는 늘 나오되 「지난」 표시 · 아래로)
 // 고칠 때마다 data.hist 에 바로 앞 내용을 남김 (최근 30개 · 자세히 보기의 「고친 이력」에서 되돌리기)
 // 찾기: 서버 · AI 없이 이 화면 안에서 — 낱말 · 문장 모두. 조사 떼기 · 비슷한 말(SYN) · 붙여 쓰기 무시 · 제목에 있으면 더 높게 · 가장 맞는 것 하나를 크게 + 나머지 목록
-// 나중 과제 (README 35절): 멤버 권한 — 모두 고칠 수 있게 두었음. 관리자 검토 후 반영으로 바꿀 자리 = canApprove()
+// 나중 과제 (docs 35절): 멤버 권한 — 모두 고칠 수 있게 두었음. 관리자 검토 후 반영으로 바꿀 자리 = canApprove()
 (function(){
   const $ = s => document.querySelector(s), esc = SY.esc, user = SY.user() || {};
   const today = () => opsToday();
   let rows = [], loaded = false, view = location.hash.slice(1) || 'home', showPast = false, prodCat = '', faqCat = '', busy = false;
   let toastT; const toast = (m, ms=2800) => { const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), ms); };
   const st = (t, c) => { const el=$('#st'); el.textContent=t; el.className='mn-st '+(c||''); };
-  const canApprove = () => true;   // TODO(멤버 권한): 관리자만 「반영」 — README 35절
+  const canApprove = () => true;   // TODO(멤버 권한): 관리자만 「반영」 — docs 35절
   if($('#me')) $('#me').textContent = user.name ? `${user.name} 님` : '';
 
   // ---------- 장 (목차) ----------

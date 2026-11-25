@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS calls (
   id         TEXT PRIMARY KEY,          -- 영문 소문자 · 숫자 4~40자 (화면이 만듦)
-  call_type  TEXT NOT NULL DEFAULT '',  -- 통화 구분 (예약확정 · 개인고객 · 분실물 …  README 14-4절)
+  call_type  TEXT NOT NULL DEFAULT '',  -- 통화 구분 (예약확정 · 개인고객 · 분실물 …  docs 14-4절)
   visit_date TEXT NOT NULL DEFAULT '',  -- 방문일 YYYY-MM-DD
   updated    TEXT NOT NULL DEFAULT '',  -- 수정 일시 (ISO · 서버가 적음)
   deleted    TEXT NOT NULL DEFAULT '',  -- 삭제 일시 (지우면 줄을 없애지 않고 여기에 일시)

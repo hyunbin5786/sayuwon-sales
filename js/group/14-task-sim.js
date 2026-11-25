@@ -1,3 +1,4 @@
+// ▣ js/group/14-task-sim.js — 열지 않은 예약의 추후 과업 계산(simTasks — 열었을 때와 같게) · 나의 할일 화면(renderMy: 탭 · 오늘 마감 · 오늘 완료) · 바깥에서 예약 열기
 // ===== 열지 않은 예약의 추후 과업 = 열었을 때와 똑같이 (2026-11-21) =====
 // 예전: 예약을 열어야 syncAutoTasks(과업 규칙)가 돌아 새 과업(전산 예약 · 견적서 · 담당자에게 일정 전달 …)이 생기고 저장됨 →
 //       열기 전에는 나의 할일에 안 뜨다가, 누군가 그 예약을 열면 그때 (이미 기한이 지난 채로) 나타났음
@@ -71,7 +72,7 @@ const myStaffRecs = me => (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)!==me
 // 개인고객 통화 (personal.html, 통화 구분 '개인고객')의 추후 과업: 내가 받은(저장한) 통화의 안 끝난 과업
 const isPersonalRec = r => r && r.callType==='개인고객';
 let myTab = (()=>{ const fix=t=>(!t || t==='all' || t==='etc') ? 'main' : t; const q=new URLSearchParams(location.search).get('tab'); return q ? fix(q) : 'main'; })();   // 열 때는 늘 메인 (주소에 tab= 이 있을 때만 그 탭, 2026-11-19)   // 2026-11-19: 메인 · personal(개인예약) · group(단체예약) · cat:구분 (예전 all · etc 는 메인)   // 나의 할일 탭: all · personal · group (개인고객 화면에서 열면 ?tab=personal → 개인부터)
-const MY_ONLY = new URLSearchParams(location.search).get('my')==='1';   // 나의 할일 단독 페이지 (mypage.html → group.html?my=1)
+const MY_ONLY = new URLSearchParams(location.search).get('my')==='1';   // 나의 할일만 보는 모드 (group.html?my=1 — 팝업(embed=1) 안에서 씀)
 function myPersonalOpen(){
   const me=savedOwner(); if(!me) return [];
   return (cache||[]).filter(r=>isPersonalRec(r) && (r.owner||r.takenBy)===me).map(r=>{ let ts=[]; try{ ts=(JSON.parse(r.history||'{}').tasks)||[]; }catch(_){}

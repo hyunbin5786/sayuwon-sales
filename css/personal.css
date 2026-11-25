@@ -1,6 +1,6 @@
 /* ===== 개인고객 응대 (personal.html) ===== */
 /* 개인고객 응대: 왼쪽 통화 기록 · 오른쪽 다시 연락할 통화 · 최근 통화 · 가격 · 사담 현황
-   저장은 단체 화면과 같은 공유 기록(구글 시트 calls 시트, 통화 구분 '개인고객'). 단체 목록에는 나오지 않음 */
+   저장은 단체 화면과 같은 공유 기록(서버 DB 의 calls 표, 통화 구분 '개인고객'). 단체 목록에는 나오지 않음 */
 :root{
   --bg:#f3f1ec; --card:#fffefb; --ink:#262620; --muted:#77736a; --line:#dfdace;
   --pine:#3f5236; --pine-soft:#e4eadf; --amber:#b0742a; --amber-soft:#f8ecd9; --red:#a4442c; --red-soft:#f6e1da;
