@@ -16,19 +16,30 @@
 //  시험용에서 만든 저장 대기열 · 예약 사본이 진짜 화면으로 넘어가 진짜 DB 에 올라감 (2026-11-25 테스트 사이트에서 실제로 일어남 → 가짜 예약이 배포 사이트에 보임)
 //  → 시험용 모드에서는 저장소 이름 앞에 「mock:」을 붙여 완전히 따로 씀 (로그인 sy_user · sayuwon_owner · 시험용 스위치 · 가짜 DB 자체는 그대로)
 //  시험용 모드는 이 컴퓨터(localhost)에서만 켜짐 — 배포 · 테스트 사이트(github.io)에서는 ?mock=1 을 붙여도 아무 일도 없음
+// 저장소 칸막이: 이름 앞에 pre(「mock:」 · 「test:」)를 붙여 다른 환경과 완전히 따로 씀 (로그인 · 시험용 스위치 · 가짜 DB 자체는 그대로)
+function syWall(pre){ try{
+  const KEEP=/^(sy_mock|sy_cf_db|sy_cf_ver|sy_user|sayuwon_owner|mock:.*|test:.*)$/, K=k=>KEEP.test(String(k)) ? k : pre+k, P=Storage.prototype;
+  const g=P.getItem, s=P.setItem, r=P.removeItem;
+  P.getItem=function(k){ return g.call(this, K(k)); }; P.setItem=function(k,v){ return s.call(this, K(k), v); }; P.removeItem=function(k){ return r.call(this, K(k)); };
+  if(window.indexedDB){ const o=indexedDB.open.bind(indexedDB), d=indexedDB.deleteDatabase.bind(indexedDB); indexedDB.open=(n,v)=>o(pre+n, v); indexedDB.deleteDatabase=n=>d(pre+n); }
+  if(window.BroadcastChannel){ const BC=window.BroadcastChannel; window.BroadcastChannel=function(n){ return new BC(pre+n); }; }
+}catch(_){} }
 const SY_MOCK_ON = (function(){
   if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return false;
   try{ const q=new URLSearchParams(location.search).get('mock'); if(q==='1' || q==='cf') localStorage.setItem('sy_mock', '1'); if(q==='0') localStorage.removeItem('sy_mock');
     if(!localStorage.getItem('sy_mock')) return false;
-    const KEEP=/^(sy_mock|sy_cf_db|sy_cf_ver|sy_user|sayuwon_owner|mock:.*)$/, K=k=>KEEP.test(String(k)) ? k : 'mock:'+k, P=Storage.prototype;
-    const g=P.getItem, s=P.setItem, r=P.removeItem;
-    P.getItem=function(k){ return g.call(this, K(k)); }; P.setItem=function(k,v){ return s.call(this, K(k), v); }; P.removeItem=function(k){ return r.call(this, K(k)); };
-    if(window.indexedDB){ const o=indexedDB.open.bind(indexedDB), d=indexedDB.deleteDatabase.bind(indexedDB); indexedDB.open=(n,v)=>o('mock:'+n, v); indexedDB.deleteDatabase=n=>d('mock:'+n); }
-    if(window.BroadcastChannel){ const BC=window.BroadcastChannel; window.BroadcastChannel=function(n){ return new BC('mock:'+n); }; }
-    return true;
+    syWall('mock:'); return true;
   }catch(_){ return false; } })();
+// ── 테스트 DB 분리 (2026-11-25) ──
+//  테스트 사이트(…/sayuwon-sales/test/)와 이 컴퓨터(localhost, 시험용 모드가 아닐 때)는 배포 사이트와 다른 서버 · DB(TEST_API_URL)를 씀
+//  TEST_API_URL 이 비어 있으면 아직 따로 만든 서버가 없다는 뜻 → 예전처럼 배포 DB 를 씀 (테스트 사이트 위 빨간 이름표에 「DB = 배포」로 표시)
+//  테스트 사이트는 배포 사이트와 같은 주소(github.io)라 브라우저 저장소를 같이 씀 → 「test:」 칸막이로 따로 (저장 대기열 · 예약 사본이 섞여 다른 DB 로 새지 않게)
+const SY_TEST_API_URL = "";   // ← 테스트용 Cloudflare Worker 주소 (예: https://sayuwon-api-test.serendipity5786-9e7.workers.dev/) — 넣으면 테스트 사이트 · localhost 가 그 DB 를 씀
+const SY_TEST_SITE = /^\/sayuwon-sales\/test(\/|$)/.test(location.pathname) || (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !SY_MOCK_ON);
+if(SY_TEST_SITE && /^\/sayuwon-sales\/test(\/|$)/.test(location.pathname)) syWall('test:');
+const SY_DB_NAME = SY_MOCK_ON ? '시험용 가짜 DB' : SY_TEST_SITE && SY_TEST_API_URL ? '테스트 DB' : '배포 DB';
 const SY_BACKEND = {
-  API_URL:   "https://sayuwon-api.serendipity5786-9e7.workers.dev/",   // 공유 기록 (cloudflare/worker.js · 2026-11-23 구글 시트에서 옮김 · 되돌릴 때: https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec)
+  API_URL:   (SY_TEST_SITE && SY_TEST_API_URL) || "https://sayuwon-api.serendipity5786-9e7.workers.dev/",   // 공유 기록 (cloudflare/worker.js · 2026-11-23 구글 시트에서 옮김 · 되돌릴 때: https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec)
   // Content-Type 을 붙이지 않아야 Apps Script 로 사전 확인(preflight) 요청 없이 바로 감
   main(body){ return fetch(this.API_URL, {method:'POST', body:JSON.stringify(body)}).then(r=>r.json()); },
   beacon(body){ const s=JSON.stringify(body); try{ if(navigator.sendBeacon && navigator.sendBeacon(this.API_URL, s)) return; }catch(_){} fetch(this.API_URL, {method:'POST', body:s, keepalive:true}).catch(()=>{}); },
@@ -204,7 +215,7 @@ const SY_DEV = (function(){
       f.setAttribute('style','position:fixed;inset:0;z-index:99998;border:5px solid #d32f2f;pointer-events:none;box-sizing:border-box');
       const top=document.createElement('div'); top.textContent='테스트 사이트 · 배포 사이트 아님';
       top.setAttribute('style','position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:99999;background:#d32f2f;color:#fff;font:700 12.5px "Noto Sans KR",sans-serif;padding:3px 14px 5px;border-radius:0 0 10px 10px;pointer-events:none;letter-spacing:.02em;white-space:nowrap');
-      const b=document.createElement('div'); b.textContent='테스트 사이트';
+      const b=document.createElement('div'); b.textContent='테스트 사이트 · '+(SY_DB_NAME==='배포 DB' ? 'DB = 배포 (아직 분리 전)' : SY_DB_NAME);   // 어느 DB 를 쓰는지 (2026-11-25)
       b.setAttribute('style','position:fixed;left:12px;bottom:12px;z-index:99999;background:#d32f2f;color:#fff;font:700 12px "Noto Sans KR",sans-serif;padding:4px 10px;border-radius:999px;pointer-events:none');
       document.body.append(f, b); document.title='[테스트] '+document.title; };   // 위 가운데 이름표(top)는 머리 줄 버튼을 가려서 안 붙임
     if(document.body) t(); else document.addEventListener('DOMContentLoaded', t);
