@@ -2413,6 +2413,7 @@ function syncAutoTasks(){
   if(consult){ const keep=want.filter(id=>id==='tour' || id==='clergy'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약만 (손대지 않은 것은 아래에서 빠짐)
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec), ...(id==='wkcheck' && editingId && rec.date && wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId] ? {done:true, doneAt:wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId]} : {})}); });   // 사전 답사 과업 메모 = 답사 정보
   if(typeof tcfgSubs==="function") tcfgSubs(tasks);
+  if(typeof tcfgWhoApply==="function") tcfgWhoApply(tasks);   // 추후과업 메시지 관리의 담당 (2026-11-25)
   // 예약내역&전산 확인 (pplchk · 2026-11-24): 가장 최근에 붙여 넣은 전산 내역이 지금 예약 내역과 같으면(총 금액 · 할인 · erpCheck) 바뀐 내용이 이미 전산에 반영된 것 → 저절로 완료
   //  열지 않은 예약도 같음 (나의 할일 · 첫 화면) · 추후과업 메시지 관리 「전날 확인 변경 → 예약내역&전산 확인」의 📋 규칙
   { const pc=tasks.find(t=>t.id==='pplchk' && !t.removed);
@@ -3998,6 +3999,7 @@ function tasksOf(r){
   if(((r.date && r.date>=ymd(new Date())) || x.tbd) && !has('wkcheck')){ const thu=prevWeekThu(r.date), old=(typeof wkDone==='function' && thu) ? wkDone(ownerOf(r), thu)[r.id] : '';   // 예전 「다음주 예약 점검」 한 줄에서 체크한 예약은 끝난 것으로
     ts.push({id:'wkcheck', title:AUTO_TASKS.wkcheck, done:!!old, ...(old?{doneAt:old}:{}), due:autoDue('wkcheck', {...x, date:r.date})}); }
   if(typeof tcfgVirtual==="function") tcfgVirtual(r, x, ts, has);   // 추후과업 메시지 관리의 새 과업 (열지 않은 예약도, 2026-11-20)
+  if(typeof tcfgWhoApply==="function") tcfgWhoApply(ts);   // 추후과업 메시지 관리의 담당 (2026-11-25)
   return ts.filter(t=> t.id!=='tbdcall' && !(t.id==='onsitecall' && (x.pay!=='현장 결제' || ts.some(y=>y.id==='wkcheck'))))   // 조건이 사라진 것은 뺌 · 현장 결제 인원 확인 연락은 다음주 예약 점검에 합침
     .map(t=>({...t, ...(!t.custom && !t.titleSet && AUTO_TASKS[t.id] ? {title:AUTO_TASKS[t.id]} : t.id==='pplchk' && !t.titleSet ? {title:PPL_TITLE} : {}), due: t.id==='wkcheck' && !t.dueSet && !t.done && x.tbd && x.tbdDate && x.tbdDate < taskDue(t) ? x.tbdDate : taskDue(t)}));
 }
@@ -4011,7 +4013,7 @@ function dueTasks(){   // 마감이 오늘이거나 지난 해결 안 된 과업
 }
 // 과업 담당 (2026-11-24): 과업에 who(담당자 준비 과업)가 있으면 그 사람 것 — 영업 담당에게는 안 보임 · 없으면 예약의 영업 담당 것
 const taskForMe = (r, t, me) => t.who ? t.who===me : ownerOf(r)===me;
-const mayStaff = (r, me) => !!me && String(r.memo||'').includes(me);   // 저장된 비고(프로그램 담당 …)에 내 이름이 있는 예약만 계산 (빠르게)
+const mayStaff = (r, me) => !!me && (String(r.memo||'').includes(me) || (typeof tcfgWhoSet==='function' && tcfgWhoSet().has(me)));   // 2026-11-25: 추후과업 메시지 관리에서 과업 담당으로 정해진 사람은 모든 예약을 훑음   // 저장된 비고(프로그램 담당 …)에 내 이름이 있는 예약만 계산 (빠르게)
 // 내가 영업 담당이 아니지만 담당자로 들어간 예약의 준비 과업
 const myStaffRecs = me => (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)!==me && mayStaff(r, me) && taskRecActive(r) && isBooked(stageOfRec(r)))
   .map(r=>({r, x:xOf(r), tasks:openTasksOf(r).filter(t=>t.who===me)})).filter(o=>o.tasks.length);

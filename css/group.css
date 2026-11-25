@@ -1236,3 +1236,75 @@ html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
 #fakeBar{position:fixed;right:8px;bottom:34px;z-index:9999;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border:1px solid #1d4ed8;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.12);font-size:12.5px}
 #fakeBar b{color:#1d4ed8}
 #fakeBar .btn{padding:4px 10px;font-size:12.5px}
+/* ===== 추후과업 메시지 관리 (2026-11-25 다시): 넓은 창 · 왼쪽 과업 목록 · 오른쪽 그 과업의 칸들(카드) · 「한눈에 보기」 표 ===== */
+#tcfgModal{padding:16px !important;align-items:center}
+#tcfgModal .tcfg-pop{width:min(1320px,100%);height:calc(100vh - 32px);max-height:none;margin:0 auto;display:flex;flex-direction:column;gap:8px;padding:14px 16px}
+#tcfgModal .tcfg-head{display:flex;align-items:center;gap:12px}
+#tcfgModal .tcfg-head h2{margin:0;font-size:20px}
+#tcfgModal .tcfg-head #tcfgMsg{margin:0 0 0 auto}
+#tcfgModal .tcfg-seg button{min-width:96px}
+#tcfgModal .tcfg-x{width:32px;height:32px;border:0;border-radius:8px;background:var(--pine);color:#fff;font-size:20px;line-height:1;cursor:pointer;flex:none}
+#tcfgModal .tcfg-lead{margin:0}
+#tcfgModal .tcfg-main{flex:1;min-height:0;display:grid;grid-template-columns:320px minmax(0,1fr);gap:14px}
+#tcfgModal .tcfg-main.table{grid-template-columns:minmax(0,1fr)}
+#tcfgModal .tcfg-main.table .tcfg-side{display:none}
+#tcfgModal .tcfg-side{display:flex;flex-direction:column;gap:8px;min-height:0;background:var(--bg,#f6f4ee);border:1px solid var(--line);border-radius:12px;padding:10px}
+#tcfgModal .tcfg-q{height:34px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font:13px var(--sans);background:#fff}
+#tcfgModal .tcfg-items{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:3px;padding-right:2px}
+#tcfgModal .tcfg-items .tcfg-sec{font-size:12px;font-weight:700;color:var(--muted);margin:8px 4px 2px}
+#tcfgModal .tcfg-items .tcfg-sec:first-child{margin-top:0}
+#tcfgModal .tcfg-item{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;text-align:left;width:100%;border:1px solid transparent;background:#fff;border-radius:9px;padding:8px 10px;cursor:pointer;font:inherit;color:var(--ink)}
+#tcfgModal .tcfg-item:hover{border-color:#cfdcc8}
+#tcfgModal .tcfg-item.on{background:#e6efe0;border-color:var(--pine)}
+#tcfgModal .tcfg-item .nm{font-weight:700;font-size:13.5px}
+#tcfgModal .tcfg-item.off .nm{color:var(--muted);text-decoration:line-through}
+#tcfgModal .tcfg-item .tg{display:inline-flex;gap:3px;flex-wrap:wrap}
+#tcfgModal .tcfg-item .sm{flex-basis:100%;font-size:11.5px;color:var(--muted);line-height:1.45}
+#tcfgModal .tag.off{background:#ece9e2;color:#8b877c}
+#tcfgModal .tag.chg{background:#fff3d6;color:#8a5a00}
+#tcfgModal .tag.new{background:#e3ecfb;color:#2f5aa8}
+#tcfgModal .tag.who{background:#e6efe0;color:var(--pine)}
+#tcfgModal .tag.on{background:#e6efe0;color:var(--pine)}
+#tcfgModal .tcfg-pane{min-height:0;overflow:auto;padding-right:4px}
+#tcfgModal .tcfg-ed{display:flex;flex-direction:column;gap:10px;padding:0;border:0}
+#tcfgModal .tcfg-card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px 14px}
+#tcfgModal .tcfg-card h4{margin:0 0 8px;font-size:14px;color:var(--pine);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+#tcfgModal .tcfg-card h4 small{font-weight:400}
+#tcfgModal .tcfg-top{background:#f4f8f1;border-color:#cfdcc8}
+#tcfgModal .tcfg-name{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#tcfgModal input.tcfg-title{flex:1;min-width:220px;height:42px;font-size:17px;font-weight:700}
+#tcfgModal .tcfg-meta{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px}
+#tcfgModal .tcfg-meta .sp{flex:1}
+#tcfgModal .tcfg-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:10px}
+#tcfgModal .tcfg-conds{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+#tcfgModal .tcfg-cond{display:flex;gap:6px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 6px}
+#tcfgModal .tcfg-and{font-size:11.5px;font-weight:700;color:var(--pine);min-width:30px;text-align:center}
+#tcfgModal .tcfg-cond select:first-of-type{flex:1;min-width:0}
+#tcfgModal .tcfg-who{width:100%;height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:13px var(--sans);background:#fff;margin-bottom:4px}
+#tcfgModal .tcfg-fixed{font-size:13px;padding:7px 10px;background:var(--bg);border-radius:6px}
+#tcfgModal .tcfg-subs{display:flex;flex-direction:column;gap:5px}
+#tcfgModal .tcfg-sub{display:flex;gap:6px;align-items:center}
+#tcfgModal .tcfg-n{width:22px;height:22px;border-radius:50%;background:#e6efe0;color:var(--pine);font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none}
+#tcfgModal .tcfg-auto{margin:10px 0 0}
+#tcfgModal .tcfg-two{grid-template-columns:1fr 1fr;gap:10px}
+#tcfgModal .tcfg-two textarea.tcfg-in{height:120px;max-height:320px}
+#tcfgModal .tcfg-vars{margin:10px 0 0}
+#tcfgModal .tcfg-foot{display:flex;align-items:center;gap:8px;padding-top:4px}
+#tcfgModal .tcfg-foot .sp{flex:1}
+#tcfgModal #tcfgDirty{margin:0;color:#8a5a00;font-weight:700}
+#tcfgModal .tcfg-tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff}
+#tcfgModal .tcfg-table{width:100%;border-collapse:collapse;font-size:12.5px}
+#tcfgModal .tcfg-table th{position:sticky;top:0;background:#eef2ea;color:var(--pine);text-align:left;padding:8px;font-size:12px;white-space:nowrap;z-index:1}
+#tcfgModal .tcfg-table td{padding:8px;border-top:1px solid var(--line);vertical-align:top;line-height:1.5}
+#tcfgModal .tcfg-table tr{cursor:pointer}
+#tcfgModal .tcfg-table tbody tr:hover td{background:#f4f8f1}
+#tcfgModal .tcfg-table tr.off td{color:var(--muted)}
+#tcfgModal .tcfg-table td.nm{min-width:170px}
+#tcfgModal .tcfg-table td.tx{max-width:220px;white-space:pre-wrap;color:#4a4740}
+#tcfgModal .tcfg-table ol{margin:0;padding-left:16px}
+@media (max-width:900px){
+  #tcfgModal .tcfg-main{grid-template-columns:1fr;grid-template-rows:200px minmax(0,1fr)}
+  #tcfgModal .tcfg-grid,#tcfgModal .tcfg-two{grid-template-columns:1fr}
+}
+body:has(.modal:not([hidden])) #fakeBar{display:none}   /* 팝업이 떠 있으면 가짜 예약 버튼은 숨김 (팝업 저장 버튼을 가리지 않게) */
+#tcfgModal .tcfg-table .tag{white-space:nowrap}
