@@ -6,7 +6,7 @@
 #   세어만 보기: … -DryRun        (배포 DB 를 읽어 줄 수만 셈 · 테스트 DB 는 건드리지 않음)
 #   열쇠 복사:   … -CopyKey       (TEST_SYNC_KEY 값을 클립보드에 — Cloudflare 테스트 서버의 비밀 값에 붙여 넣을 때)
 # 필요한 것 (처음 한 번):
-#   · tools\backup-config.json 의 name · emp (배포 DB 를 읽을 로그인 · 백업과 같은 파일)
+#   · tools\my-login.json 의 name · emp (배포 DB 를 읽을 로그인 · 없으면 이 스크립트가 빈 틀을 만듦 · 저장소에 올리지 않음)
 #   · tools\test-sync-key.txt (없으면 이 스크립트가 만듦 · 저장소에 올리지 않음) 의 값을 테스트 서버 sayuwon-api-test 의 비밀 값 TEST_SYNC_KEY 로
 #     ※ 배포 서버 sayuwon-api 에는 TEST_SYNC_KEY 를 절대 넣지 않음 (넣지 않으면 배포 DB 는 이 동작으로 지워질 수 없음)
 param([switch]$DbOnly, [switch]$CodeOnly, [switch]$DryRun, [switch]$CopyKey)
@@ -49,7 +49,7 @@ if ($CodeOnly) { exit 0 }
 # ---- 2) DB: 배포 → 테스트 ----
 function Post([string]$url, [string]$body) { $wc = New-Object Net.WebClient; $wc.Encoding = $utf8; try { return $wc.UploadString($url, 'POST', $body) } finally { $wc.Dispose() } }
 function Need-Ok([string]$text, [string]$what) { if (-not $text.StartsWith('{"ok":true')) { throw ("$what — 서버가 거절했습니다: " + $text.Substring(0, [Math]::Min(200, $text.Length))) } }
-# 서버 답 {"ok":true,"table":"…","rows":[ … ],"next":123} 에서 rows 안쪽 글자와 next 를 꺼냄 (큰 답도 통째로 풀지 않고 글자로만 다룸 · tools/backup.ps1 과 같음)
+# 서버 답 {"ok":true,"table":"…","rows":[ … ],"next":123} 에서 rows 안쪽 글자와 next 를 꺼냄 (큰 답도 통째로 풀지 않고 글자로만 다룸)
 function Split-Page([string]$text) {
   Need-Ok $text '배포 DB 읽기'
   $a = $text.IndexOf('"rows":['); $b = $text.LastIndexOf('],"next":')
@@ -58,10 +58,15 @@ function Split-Page([string]$text) {
 }
 
 try {
-  $cfgPath = Join-Path $PSScriptRoot 'backup-config.json'
-  if (-not (Test-Path $cfgPath)) { throw "tools\backup-config.json 이 없습니다 — tools\backup.ps1 을 한 번 실행해 만들고 name · emp 를 적어 주세요" }
+  # 내 로그인 (배포 DB 를 읽을 이름 · 사번): tools\my-login.json — 없으면 빈 틀을 만들고 멈춤 (예전 backup-config.json 이 있으면 거기서 옮김)
+  $cfgPath = Join-Path $PSScriptRoot 'my-login.json'; $oldPath = Join-Path $PSScriptRoot 'backup-config.json'
+  if (-not (Test-Path $cfgPath)) {
+    $o = if (Test-Path $oldPath) { Get-Content $oldPath -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null }
+    [IO.File]::WriteAllText($cfgPath, ("{`r`n  `"name`": " + (ConvertTo-Json ([string]$o.name)) + ",`r`n  `"emp`": " + (ConvertTo-Json ([string]$o.emp)) + "`r`n}`r`n"), (New-Object Text.UTF8Encoding $true))
+    if (-not $o -or -not $o.name -or -not $o.emp) { "로그인 파일을 만들었습니다: $cfgPath"; '메모장으로 열어 name 의 "" 안에 내 이름, emp 의 "" 안에 내 사번을 적고 저장한 뒤 다시 실행해 주세요.'; exit 2 }
+  }
   $cfg = Get-Content $cfgPath -Raw -Encoding UTF8 | ConvertFrom-Json
-  if (-not $cfg.name -or -not $cfg.emp) { throw 'backup-config.json 에 name(이름) 과 emp(사번) 을 적어 주세요' }
+  if (-not $cfg.name -or -not $cfg.emp) { "tools\my-login.json 에 name(이름) 과 emp(사번) 을 적어 주세요: $cfgPath"; exit 2 }
   $who = '{"name":' + (ConvertTo-Json ([string]$cfg.name)) + ',"emp":' + (ConvertTo-Json ([string]$cfg.emp)) + '}'
   $keyJson = ConvertTo-Json $key
 
@@ -75,7 +80,7 @@ try {
     }
   }
   $have = (Post $src ('{"action":"export","who":' + $who + '}') | ConvertFrom-Json)
-  if (-not $have.ok) { throw ('배포 DB 로그인이 확인되지 않았습니다 (' + $have.error + ') — backup-config.json 의 이름 · 사번 확인') }
+  if (-not $have.ok) { throw ('배포 DB 로그인이 확인되지 않았습니다 (' + $have.error + ') — tools\my-login.json 의 이름 · 사번 확인') }
   $tables = $order | Where-Object { $have.tables -contains $_ }
   $extra = $have.tables | Where-Object { $order -notcontains $_ }
   if ($extra) { throw ('배포 DB 에 이 스크립트가 모르는 표가 있습니다: ' + ($extra -join ', ') + ' — tools\test-start.ps1 의 $order 와 cloudflare\worker.js 의 MIRROR 에 더해 주세요') }

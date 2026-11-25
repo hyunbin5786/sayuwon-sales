@@ -69,7 +69,7 @@ tools/
   build.ps1           js/group/*.js → js/group.js 합치기 (-Check: 같은지 확인만)
   migrate.html        구글 시트 → 새 DB 로 자료 옮기기 (한 번만 쓰는 도구 · 18절)
   export.html         전체 내려받기 (백업 · 다른 DB 로 옮길 때 · 20절) — 사이트에서 /tools/export.html
-  backup.ps1          매주 자동 백업 (네트워크 폴더에 저장 · 20-6절) · backup-config.json 은 저장소에 없음
+  test-start.ps1      새 개발 시작: 배포 DB · 코드를 테스트로 복사 (45절) · serve.ps1 로컬 서버 · bump.ps1 ?v= 올리기 (자동 백업 backup.ps1 은 2026-11-25 없앰)
   restore.html        백업에서 되살리기 (20-7절) — 사이트에서 /tools/restore.html
 cloudflare/
   schema.sql          새 DB(Cloudflare D1) 표 만들기
@@ -1068,10 +1068,12 @@ localStorage (그 브라우저 · 그 사이트 주소에만 — **사이트 주
 
 **확인 방법**: 지운 이름(`KEY_LS` · `QUOTE_URL` · `devmock` · `SY_MOCK` · `PASSCODE` · `json_set` · `setup==='old'`)을 코드 전체에서 찾아 남은 곳이 없는 것을 보고, `?mock=1` 로 첫 화면 · 단체 · 견적서 · 멘트 · 개인고객 · 분실물 · 내려받기 화면을 열어 콘솔 오류가 없는 것 · 삭제 / 발급 취소 / 내려받기(표 7개 · 나눠 받기 · 로그인 없으면 거절)가 되는 것을 확인.
 
-### 20-6. 매주 자동 백업 (`tools/backup.ps1` · 2026-11-23)
+### 20-6. ~~매주 자동 백업~~ — **2026-11-25 없앰** (`tools/backup.ps1` 삭제 · 작업 스케줄러 등록도 지움)
+
+> 지금은 자동 백업이 없습니다. 백업은 사이트 주소 뒤 `/tools/export.html` 의 「내려받기」로 직접 받습니다 (달마다 · 큰 일 전). 아래는 예전 기록입니다 — 예전에 받아 둔 `raw-1` 모양 파일은 `tools/restore.html` 이 계속 읽습니다. 다시 만들려면 `git log -- tools/backup.ps1` 에서 꺼냅니다.
 
 - 공유 DB 전체를 파일 하나(JSON)로 받아 **`\(서버 주소)\(공유 이름)\11. 운영보조플랫폼 자료다운`** 에 `sayuwon-backup-날짜-시각.json` 으로 저장. 브라우저 없이 서버 동작 `export` 를 직접 부름 (읽기만 함). 같은 폴더의 `backup-log.txt` 에 성공 · 실패를 한 줄씩 남김
-- **설정**: `tools/backup-config.json` (처음 실행하면 생김 · 저장소에 올리지 않음) 에 `name`(이름) · `emp`(사번) · `dest`(저장할 폴더). 그 사람이 멤버에서 빠지면 백업이 「로그인이 확인되지 않았습니다」로 실패하므로 다른 멤버 것으로 바꿀 것
+- **설정**(예전): `tools/backup-config.json` (처음 실행하면 생김 · 저장소에 올리지 않음) 에 `name`(이름) · `emp`(사번) · `dest`(저장할 폴더). 그 사람이 멤버에서 빠지면 백업이 「로그인이 확인되지 않았습니다」로 실패하므로 다른 멤버 것으로 바꿀 것
 - **직접 돌리기**: `powershell -ExecutionPolicy Bypass -File tools\backup.ps1` · 도구 자체 점검: `… -File tools\backup.ps1 -SelfTest`
 - **매주 자동** (작업 스케줄러 · 한 번만 등록 · 매주 월요일 9시, 그때 컴퓨터가 꺼져 있었으면 켜진 뒤에 실행). 이 컴퓨터에 로그인돼 있고 네트워크 폴더에 연결돼 있어야 함:
   `Register-ScheduledTask -TaskName '사유원 백업' -Action (New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -File "C:\Users\user\Desktop\문현빈\AI\단체예약\tools\backup.ps1"') -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 9am) -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable)`
@@ -1743,5 +1745,7 @@ powershell -ExecutionPolicy Bypass -File tools\test-start.ps1
 적는 모양: `- (날짜) **무엇**: 어떻게 바뀌었는지 · 왜 (파일 · 함수 이름)`. 큰 기능이면 새 번호 절을 만들고 여기에는 한 줄로 가리킴. 일하는 규칙은 `CLAUDE.md`, 사람이 읽는 시작 안내는 `개발-시작하기.md`.
 
 - (2026-11-25) **넘겨주기 준비**: `CLAUDE.md`(Claude Code 가 자동으로 읽는 규칙 · DB 구조 · 철칙) · `개발-시작하기.md`(코드를 모르는 사람용) · 로컬 서버 `tools/serve.ps1` · `?v=` 한꺼번에 올리기 `tools/bump.ps1`(모든 HTML 을 같은 값으로 — 이때부터 화면마다 다르던 값을 하나로 맞춤)
-- (2026-11-25) **매주 백업에 매뉴얼 표 넣음**: `tools/backup.ps1` 의 `$tables` 에 `manual` 이 빠져 있었음 (그 전 백업 파일에는 매뉴얼이 없음). 되살리기 도구 `tools/restore.html` 은 아직 `press` · `manual` 을 넣지 못함 (할 일)
+- (2026-11-25) **매주 자동 백업 없앰**: `tools/backup.ps1` 삭제 · 앞 담당자 PC 의 작업 스케줄러 「사유원 백업」도 지움 (그 PC · 그 사람 로그인에 묶여 있어 담당자가 떠나면 멈추는 구조였음). 백업은 `/tools/export.html` 로 직접 (달마다 · 큰 일 전 · `CLAUDE.md` 철칙 8). 첫 화면 매뉴얼(`manual/index.html`)도 고침. 되살리기 도구 `tools/restore.html` 은 `press` · `manual` 표를 넣지 못함 (알고 둔 것)
+- (2026-11-25) **로그인 파일 이름**: 배포 DB 를 읽을 이름 · 사번은 `tools/my-login.json` (예전 `backup-config.json` · 없으면 `tools/test-start.ps1` 이 빈 틀을 만들고, 예전 파일이 있으면 옮김)
+- (2026-11-25) **계정**: GitHub 저장소 · Cloudflare 계정은 앞 담당자 개인 계정 그대로 두기로 함
 - (2026-11-25) `tools/test-start.ps1`: `-DryRun` · `-CodeOnly` 일 때는 열쇠 파일을 만들지 않음

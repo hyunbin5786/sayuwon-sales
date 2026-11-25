@@ -3,4 +3,5 @@
 api-key.txt
 data/
 tools/backup-config.json
+tools/my-login.json
 tools/test-sync-key.txt
