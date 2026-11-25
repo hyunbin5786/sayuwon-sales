@@ -10,6 +10,23 @@
 //  모든 요청에 로그인(이름 + 사번 = who)을 붙임 → 서버가 멤버 목록으로 확인 (예전 팀 비밀번호 key 는 2026-11-23에 완전히 없앰)
 //
 //  로컬 미리보기에서 진짜 DB 에 쓰지 않고 시험하기: 주소 끝에 ?mock=1 (끄기 ?mock=0) → js/devcf.js 가 서버 코드(cloudflare/worker.js)를 브라우저 안 SQLite 로 돌림 (localhost 에서만 · README 13절)
+//
+// ── 시험용 모드 칸막이 (2026-11-25 사고 뒤) ──
+//  시험용 모드 화면과 진짜 화면이 같은 브라우저 저장소(localStorage · IndexedDB · 화면끼리 알림 BroadcastChannel)를 같이 쓰면
+//  시험용에서 만든 저장 대기열 · 예약 사본이 진짜 화면으로 넘어가 진짜 DB 에 올라감 (2026-11-25 테스트 사이트에서 실제로 일어남 → 가짜 예약이 배포 사이트에 보임)
+//  → 시험용 모드에서는 저장소 이름 앞에 「mock:」을 붙여 완전히 따로 씀 (로그인 sy_user · sayuwon_owner · 시험용 스위치 · 가짜 DB 자체는 그대로)
+//  시험용 모드는 이 컴퓨터(localhost)에서만 켜짐 — 배포 · 테스트 사이트(github.io)에서는 ?mock=1 을 붙여도 아무 일도 없음
+const SY_MOCK_ON = (function(){
+  if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return false;
+  try{ const q=new URLSearchParams(location.search).get('mock'); if(q==='1' || q==='cf') localStorage.setItem('sy_mock', '1'); if(q==='0') localStorage.removeItem('sy_mock');
+    if(!localStorage.getItem('sy_mock')) return false;
+    const KEEP=/^(sy_mock|sy_cf_db|sy_cf_ver|sy_user|sayuwon_owner|mock:.*)$/, K=k=>KEEP.test(String(k)) ? k : 'mock:'+k, P=Storage.prototype;
+    const g=P.getItem, s=P.setItem, r=P.removeItem;
+    P.getItem=function(k){ return g.call(this, K(k)); }; P.setItem=function(k,v){ return s.call(this, K(k), v); }; P.removeItem=function(k){ return r.call(this, K(k)); };
+    if(window.indexedDB){ const o=indexedDB.open.bind(indexedDB), d=indexedDB.deleteDatabase.bind(indexedDB); indexedDB.open=(n,v)=>o('mock:'+n, v); indexedDB.deleteDatabase=n=>d('mock:'+n); }
+    if(window.BroadcastChannel){ const BC=window.BroadcastChannel; window.BroadcastChannel=function(n){ return new BC('mock:'+n); }; }
+    return true;
+  }catch(_){ return false; } })();
 const SY_BACKEND = {
   API_URL:   "https://sayuwon-api.serendipity5786-9e7.workers.dev/",   // 공유 기록 (cloudflare/worker.js · 2026-11-23 구글 시트에서 옮김 · 되돌릴 때: https://script.google.com/macros/s/AKfycbwVW9NxrEhRDNRS-wmuXkgB1fOpt473vxCJpdksCfCmqV91eWnPhNmNgklmXaPc2GHi/exec)
   // Content-Type 을 붙이지 않아야 Apps Script 로 사전 확인(preflight) 요청 없이 바로 감
@@ -26,8 +43,10 @@ const SY = Object.freeze({
   // ---- 서버 요청 ----
   // 요청에 로그인을 붙임 (이미 who 가 있으면 그대로)
   sign: body => { const b={...body}, u=SY.user(); if(u && !b.who) b.who={name:u.name, emp:u.emp}; return b; },
-  callRaw: body => SY_BACKEND.main(SY.sign(body)),
-  call: async body => { const j=await SY_BACKEND.main(SY.sign(body)); if(!j || !j.ok){ const e=new Error((j && j.error)||'error'); e.code=j && j.error; throw e; } return j; },
+  // 시험용 가짜 예약(id mock0001 · fake001 …)은 진짜 서버에 절대 저장하지 않음 (2026-11-25 사고 뒤 안전장치 · 저장 대기열에 남아 있어도 「된 것」으로 치고 버림)
+  callRaw: body => SY.fakePut(body) ? Promise.resolve({ok:true, skipped:'fake'}) : SY_BACKEND.main(SY.sign(body)),
+  fakePut: body => !SY_MOCK_ON && !!body && body.action==='put' && !!body.item && /^(mock\d{4}|fake\d{3})$/.test(String(body.item.id||'')),
+  call: async body => { if(SY.fakePut(body)) return {ok:true, skipped:'fake'}; const j=await SY_BACKEND.main(SY.sign(body)); if(!j || !j.ok){ const e=new Error((j && j.error)||'error'); e.code=j && j.error; throw e; } return j; },
   beacon: body => SY_BACKEND.beacon(SY.sign(body)),
   quote: Object.freeze({ get: query => SY_BACKEND.quoteGet(query||''), post: body => SY_BACKEND.quotePost(body) }),
   // HTML 에 넣을 글자 (따옴표까지 바꿈)
@@ -144,11 +163,10 @@ const SY = Object.freeze({
         return [...map.values()]; },
     }; })(),
 });
-// ===== 시험용 모드 (배포 사이트에서는 절대 읽지 않음) — 이 컴퓨터(localhost) · 테스트 사이트(/sayuwon-sales/test/ · 2026-11-25부터)에서 주소 끝에 ?mock=1 을 한 번 붙이면 그 브라우저에 기억 (끄기 ?mock=0) =====
-//   js/devcf.js 가 서버 코드 cloudflare/worker.js 를 브라우저 안 SQLite 로 돌림 → 진짜 DB 에는 아무것도 가지 않음
-(function(){ if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !/^\/sayuwon-sales\/test(\/|$)/.test(location.pathname)) return;
-  try{ const q=new URLSearchParams(location.search).get('mock'); if(q==='1' || q==='cf') localStorage.setItem('sy_mock', '1'); if(q==='0') localStorage.removeItem('sy_mock');
-    const m=localStorage.getItem('sy_mock'), me=document.currentScript && document.currentScript.src; if(!me || !m) return;
+// ===== 시험용 모드 (이 컴퓨터 localhost 에서만 · 2026-11-25: 테스트 사이트에서도 켜게 했다가 가짜 예약이 진짜 DB 로 새어 같은 날 되돌림) — 주소 끝에 ?mock=1 을 한 번 붙이면 그 브라우저에 기억 (끄기 ?mock=0) =====
+//   js/devcf.js 가 서버 코드 cloudflare/worker.js 를 브라우저 안 SQLite 로 돌림 → 진짜 DB 에는 아무것도 가지 않음 (저장소 칸막이는 맨 위 SY_MOCK_ON)
+(function(){ if(!SY_MOCK_ON) return;
+  try{ const me=document.currentScript && document.currentScript.src; if(!me) return;
     document.write('<script src="'+me.replace(/common\.js.*$/, 'devcf.js')+'"><\/script>');
   }catch(_){} })();
 

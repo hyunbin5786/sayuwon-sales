@@ -4895,6 +4895,18 @@ function etcCatAllHTML(c){
 //  주소 끝 ?mock=1 로 켠 시험용 모드(js/devcf.js · 이 브라우저 안의 가짜 DB)에서만 보임 — 진짜 기록(공유 DB)에는 절대 쓰지 않음
 //  예약 현황 공유 · 단체 화면 왼쪽 아래 「가짜 예약 채우기」: 오늘 앞뒤 몇 주에 단체 예약 40건 (몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 · 여러 담당 · 지난 날짜 섞임)
 //  「가짜 예약 비우기」: id 가 fake 로 시작하는 것만 지움 (원래 있던 가상 예약 mock0001 등은 그대로)
+// 진짜 DB 청소 (2026-11-25 사고): 테스트 사이트의 시험용 모드에서 만든 가상 예약(mock0001 ~ · fake001 ~)이 같은 브라우저 저장소를 타고 진짜 DB 에 올라감
+//  → 진짜 서버로 도는 단체 화면을 누가 열든, 목록에 그런 id 가 있으면 지움 (그 id 는 시험용 DB 만 만듦 · 진짜 예약 id 는 시각으로 만든 다른 모양) · 저장 대기열에 남은 것도 버림
+(function(){
+  if(window.SY_CF || typeof SY_MOCK_ON==='undefined' || SY_MOCK_ON) return;
+  const FAKE=/^(mock\d{4}|fake\d{3})$/;
+  let done=false;
+  const t=setInterval(async ()=>{ if(done || !window.__tasksReady || !Array.isArray(cache)) return; done=true; clearInterval(t);
+    try{ const before=pending.length; pending=pending.filter(p=>!(p.action==='put' && p.item && FAKE.test(String(p.item.id)))); if(pending.length!==before) writeJSON(PEND_LS, pending);
+      const L=cache.filter(r=>FAKE.test(String(r.id)) && !r.deleted); for(const r of L) await store.del(r.id);
+      if(L.length) console.info('[청소] 시험용 가상 예약을 진짜 DB 에서 지움:', L.map(r=>`${r.id} ${r.org||r.contact||''}`).join(', '));
+    }catch(e){ console.warn('[청소] 실패', e); done=false; } }, 3000);
+})();
 (function(){
   if(!window.SY_CF) return;   // 진짜 서버로 돌 때는 아무것도 안 함
   const ORGS=['대구시교육청','중앙교육연수원','대구정책연구원','한국은행 대구본부','경북대학교 평생교육원','영남일보 독자모임','포항제철 신우회','안동시청 문화과','계명대 경영학과','대구가톨릭대 동문회','칠곡군 여성단체','삼성전자 구미 동호회','대구은행 퇴직자회','경산시 노인복지관','청송 산림조합','군위군청 관광과'];
