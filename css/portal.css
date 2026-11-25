@@ -398,3 +398,5 @@ html.cal-only .cal-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!import
 html.cal-only .cal-r{contain:size!important;padding-top:0!important}
 html.cal-only .cal-r ul{max-height:none!important}
 @media (max-width:620px){ html.cal-only .cal-body{grid-template-columns:1fr!important} html.cal-only .cal-r{contain:none!important} }
+/* 캘린더 그날 일정(행사 · 교육 · 휴관 · 기타) 제목도 단체명처럼 진하게 · 구분 색 (2026-11-25) */
+.cal-day li.ce-i b.ce-t{font-weight:600}
