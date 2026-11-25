@@ -381,8 +381,9 @@ function openFix(id){
   const o=ownerOf(r), me=savedOwner(), other=!!(o && me && o!==me);
   fixId=id; fixBase=fixStateOf(r);
   ['#fixStage','#fixErp','#fixQuote','#fixStmt'].forEach(s=>{ $(s).disabled=other; $(s).title=other?`${o}님 담당 예약이라 영업 담당만 바꿀 수 있습니다.`:''; });
-  $('#fixOwnerList').innerHTML=[...new Set([me, ...cache.map(ownerOf)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko')).map(n=>`<option value="${esc(n)}">`).join('');
-  $('#fixOwner').value=fixBase.owner;
+  // 2026-11-25: 영업 담당 = 멤버관리의 사람 모두 (고르기) · 지금 담당이 멤버가 아니면 「(멤버 아님)」으로 그대로
+  const paintOwner=()=>{ const cur=fixBase.owner, L=MEMBER_NAMES.slice(); $('#fixOwner').innerHTML=(cur?'':'<option value="">담당 고르기</option>') + L.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('') + (cur && !L.includes(cur) ? `<option value="${esc(cur)}">${esc(cur)} (멤버 아님)</option>` : ''); $('#fixOwner').value=cur; };
+  paintOwner(); loadMemberNames().then(()=>{ if(fixId===id && $('#fixOwner').value===fixBase.owner){ paintOwner(); paintFixDiff(); } });
   // 예약 단계 목록은 지금 단계 이름(STAGES)으로 — 예전 목록(예약상담 · 예약접수)엔 가예약 · 예약확정이 없어 그 예약을 고치면 단계가 비던 것 (2026-11-25)
   $('#fixStage').innerHTML=[...new Set([...STAGES, fixBase.stage].filter(Boolean))].map(s=>`<option>${esc(s)}</option>`).join('');
   $('#fixWho').textContent = [r.org||r.contact||'(업체 미정)', r.date&&dateLabel(r.date)].filter(Boolean).join(' · ');
@@ -391,7 +392,7 @@ function openFix(id){
   $('#fixNote').value=''; paintFixDiff(); $('#fixModal').hidden=false; $('#fixStage').focus();
 }
 const closeFix = () => { $('#fixModal').hidden=true; fixId=null; };
-['#fixStage','#fixErp','#fixQuote','#fixStmt'].forEach(s=>$(s).addEventListener('change', paintFixDiff)); $('#fixOwner').addEventListener('input', paintFixDiff);
+['#fixStage','#fixErp','#fixQuote','#fixStmt'].forEach(s=>$(s).addEventListener('change', paintFixDiff)); $('#fixOwner').addEventListener('change', paintFixDiff);
 $('#fixCancel').onclick=closeFix;
 $('#fixModal').addEventListener('mousedown', e=>{ if(e.target.id==='fixModal') closeFix(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#fixModal').hidden){ e.preventDefault(); closeFix(); } });
@@ -401,7 +402,7 @@ $('#fixOk').onclick=async ()=>{
   if(!reason){ toast('수정 사유를 골라 주세요.'); $('#fixReason').focus(); return; }
   if(/^기타/.test(reason) && !note){ toast('기타 사유를 적어 주세요.'); $('#fixNote').focus(); return; }
   if(cur.owner!==fixBase.owner){
-    if(!cur.owner){ toast('영업 담당 이름을 적어 주세요.'); $('#fixOwner').focus(); return; }
+    if(!cur.owner){ toast('영업 담당을 골라 주세요.'); $('#fixOwner').focus(); return; }
     if(!note){ toast('영업 담당을 바꾸는 사유를 적어 주세요.'); $('#fixNote').focus(); return; } }
   const r=cache.find(x=>x.id===fixId); if(!r){ closeFix(); return; }
   if(editingId===r.id && baseSnap && diffSnap(baseSnap, snap()).length){ toast('이 예약을 지금 고치는 중입니다. 먼저 저장한 뒤 수정해 주세요.'); return; }
