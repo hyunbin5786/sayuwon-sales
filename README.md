@@ -941,7 +941,7 @@ localStorage (그 브라우저 · 그 사이트 주소에만 — **사이트 주
 4. **비밀 값 (골라서)**: `ADMIN_ID` · `ADMIN_PW` 는 관리자 사이트 자동 가져오기를 시험할 때만 · `MIGRATE_KEY` 는 배포 자료를 복사해 올 때만. 15분 예약 작업(Cron)은 안 걸어도 됨
 5. 확인: 브라우저로 `https://sayuwon-api-test.(계정 이름).workers.dev` → `{"ok":true,…}`
 6. 주소를 `js/common.js` 의 `const SY_TEST_API_URL = "";` 따옴표 안에 넣고 → 버전 올려 main 에 푸시 → test 에 합침. 테스트 사이트 이름표가 「테스트 사이트 · 테스트 DB」로 바뀌면 끝
-7. 처음 테스트 DB 는 비어 있음: 멤버도 없으므로 **처음 로그인한 사람이 그대로 들어감**(멤버가 없으면 누구나 통과 · 서버 `authOk`) → 멤버관리에서 다른 사람을 넣음. 배포 자료를 복사해 오려면 `tools/migrate.html`(새 서버 주소 = 테스트 서버)
+7. 처음 테스트 DB 는 비어 있음: 멤버도 없으므로 **처음 로그인한 사람이 그대로 들어감**(멤버가 없으면 누구나 통과 · 서버 `authOk`) → 멤버관리에서 다른 사람을 넣음. 배포 자료를 통째로 복사해 오려면 **`tools/test-start.ps1`** (45절 · 멤버까지 배포와 같아짐)
 
 ### 18-3. 옮기고 전환하기
 
@@ -1596,10 +1596,10 @@ Claude Code 가 할 일 (다음 세션도 이대로):
 ## 40. main = 배포 · test = 확인 (2026-11-24 · `.github/workflows/pages.yml` · `test-ping.yml`)
 - **main** 브랜치 → 배포 사이트 `https://hyunbin5786.github.io/sayuwon-sales/` (직원들이 쓰는 곳)
 - **test** 브랜치 → 테스트 사이트 `https://hyunbin5786.github.io/sayuwon-sales/test/` (왼쪽 아래 빨간 「테스트 사이트」 · 개발 중 기능도 모두 보임)
-- 작업 순서: 고친 것은 **test 에 커밋 · push** → 1~2분 뒤 테스트 사이트에서 확인 → 「배포」라고 하면 **test 를 main 에 합침** (`git checkout main && git merge test && git push`, 다시 `git checkout test`) · 다 만든 기능은 그때 `js/common.js` DEV_PAGES 에서 뺌
+- 작업 순서 (2026-11-25 다시 정함 · **45절**): 고친 것은 **test 에 커밋 · push** → 1~2분 뒤 테스트 사이트에서 확인 → 「푸시」라고 하면 **test 를 main 에 합침** (`git checkout main && git merge test && git push`, 다시 `git checkout test`) · 다 만든 기능은 그때 `js/common.js` DEV_PAGES 에서 뺌
 - 자동 배포: main 에 올리면 「사이트 배포」가 바로 · test 에 올리면 「test 브랜치 알림」이 끝난 뒤 「사이트 배포」가 main 에서 돌아 둘을 함께 올림 (GitHub 는 기본 브랜치에서만 Pages 배포를 허락해서 이렇게)
 - 저장소 설정 › Pages › Build and deployment › Source = **GitHub Actions** (예전 「Deploy from a branch」 아님)
-- 서버(Cloudflare Worker) · DB(D1)는 하나 → 테스트 사이트에서 저장한 것도 실제 데이터 · 두 사이트는 같은 github.io 라 로그인 · 브라우저 저장값을 같이 씀
+- 서버 · DB 는 사이트마다 따로 (2026-11-25): 배포 사이트 = `sayuwon-api` + D1 `sayuwon` · 테스트 사이트 = `sayuwon-api-test` + D1 `sayuwon-test` → **테스트 사이트에서 저장한 것은 테스트 DB 에만** · 두 사이트는 같은 github.io 지만 테스트 사이트는 브라우저 저장값 · 로그인을 「test:」로 따로 씀 (18-2b절 · 45절)
 
 ## 41. 단체: 전산 비고 + 담당자 준비 과업 (2026-11-24 · `js/group/09-tasks.js` · `14-task-sim.js` · `js/portal.js`)
 - **전산 비고**(전산 예약 과업 문구)에 **몽몽마방 식사**(`12시 몽몽마방(사유의 밥상 10명)`) · **음료쿠폰**(`음료쿠폰 40개`)도 넣음 — 대관 · 도슨트 · 프로그램은 예전부터 · 시간이 있으면 도착 시각과 함께 시간 순
@@ -1684,6 +1684,52 @@ Claude Code 가 할 일 (다음 세션도 이대로):
 - (2026-11-25) **추후과업 메시지 관리 다듬기**: 「언제 생길지」 조건 상자가 카드 밖으로 넘치던 것 고침 · 순서 = 이름 → **세부 과업** → **언제 생기고 언제까지**(조건 + 마감 한 카드) → 담당 → 문구 · 문구 옆 **? 버튼** = 과업 문구(A · 「문구 복사」로 다른 곳에 붙여 넣는 글)와 과업 아래 안내 줄(B · 과업 이름 아래 늘 보이는 짧은 설명)의 차이 + 과업 모양 예시
 - (2026-11-25) **추후과업 메시지 관리 다듬기 2**: 언제 생길지 · 마감 · 담당을 한 칸(「언제 생기고 · 언제까지 · 누구에게」) · 이름 바꿈 **과업 아래 안내 줄 → 과업 보조 설명(A · 1열)** · **과업 문구 → 복사 멘트(B · 2열)** (? 도움말 · 한눈에 보기 표도) · **바꿔 넣는 말**을 문구 제목 바로 아래로 · 지금 쓰는 11개만({단체명} {방문일} {방문일점} {입장시간} {바뀐내용} {메모고친사람} {전산비고} {답사비고} {사유원금액} {신라금액} {이메일} — 원래 과업 기본 문구 · 규칙 안내에 쓰인 것) · 누르면 글 칸에 넣지 않고 **설명 · 예시가 펼쳐짐**(지금 열어 둔 예약이 있으면 그 값도). 목록에서 뺀 15개는 이미 저장된 문구에 있으면 그대로 바뀌어 들어감
 
+
+## 45. 테스트 환경 만드는 법 (2026-11-25 정함 · `tools/test-start.ps1` · `cloudflare/worker.js` mirror)
+
+**앞으로 테스트 환경은 늘 이렇게 만든다.**
+
+1. **메인 DB 의 내용을 모두 가져와 테스트 DB 에 복사** — 배포 DB(`sayuwon`)의 모든 표를 읽어, 테스트 DB(`sayuwon-test`)를 비우고 그대로 넣음 (배포 DB 는 읽기만)
+2. **메인 코드를 test 브랜치에 복사** — test 브랜치 = main
+3. **테스트에서 생기는 데이터는 테스트 DB 에만 저장** — 테스트 사이트(`…/sayuwon-sales/test/`) · 이 컴퓨터(localhost)는 테스트 서버만 부름 (`js/common.js` `SY_TEST_API_URL` · 브라우저 저장값도 「test:」로 따로)
+4. **「푸시」 = test 브랜치 코드를 main 으로** — 개발 중에는 test 에만 커밋 · push, 「푸시」라고 하면 test 를 main 에 합침 (40절). **DB 는 옮기지 않음** — 테스트 DB 의 데이터는 배포 DB 로 가지 않음
+5. **새 개발을 시작할 때마다 1 · 2 를 다시** — 메인 DB 를 다시 복사하고 메인 코드를 다시 복사한 뒤 테스트 환경에서 시작
+
+### 45-1. 새 개발 시작 (1 · 2 를 한 번에)
+
+```
+powershell -ExecutionPolicy Bypass -File tools\test-start.ps1
+```
+
+- ① 코드: `git fetch` → test 브랜치를 main 에 맞추고 push. **test 에 main 에 없는 커밋(아직 「푸시」하지 않은 작업)이 있으면 멈추고 알림** — 지우지 않음 (먼저 푸시할지 버릴지 정함) · 저장 안 한 수정이 있어도 멈춤
+- ② DB: 테스트 DB 를 비우고 → 배포 DB 의 표를 넣은 순서 그대로 복사(멤버 먼저) → 표마다 줄 수를 맞춰 봄 → 「끝났습니다. 테스트 DB 가 지금의 배포 DB 와 같습니다」
+- 복사하는 표: `members` · `calls` · `quotereq` · `quote_history` · `kv`(품목 관리 · 담당 지정 등) · `clergy` · `press` · `manual` · `files` · `file_chunks`. 「고치는 중」 표시(`locks`) · 틀린 로그인 횟수는 복사하지 않음
+- 고르기: `-DbOnly`(DB 만) · `-CodeOnly`(코드만) · `-DryRun`(배포 DB 를 읽어 줄 수만 셈 · 테스트 DB 는 그대로) · `-CopyKey`(열쇠를 클립보드에)
+- 복사한 뒤: 테스트 사이트를 새로고침 · **로그인은 배포 사이트와 같은 이름 · 사번** (멤버도 복사되므로 · 예전 테스트 멤버 「테스트 / T001」 과 가짜 예약 tst··· 은 사라짐 — 필요하면 단체 화면 오른쪽 아래 「가짜 예약 채우기」)
+- 테스트 DB 에는 **진짜 고객 자료의 사본**이 들어감 → 테스트 서버도 멤버만 로그인됨 (배포와 같은 멤버). 테스트 서버 주소 · 열쇠를 밖에 알리지 않기
+- 다른 창에서 테스트 사이트를 열어 둔 채 복사하면 그 창의 사본에 예전 테스트 데이터가 잠깐 남을 수 있음 (새로고침 · 길어야 30분 안에 전체를 다시 받음)
+
+### 45-2. 서버 코드(`cloudflare/worker.js`)를 고쳤을 때
+
+- 서버 코드는 두 서버가 같은 파일을 씀. 개발 중에는 **테스트 서버 `sayuwon-api-test` 에만** 붙여 넣고 Deploy → 「푸시」할 때 **배포 서버 `sayuwon-api` 에도** 붙여 넣고 Deploy
+- 표를 새로 만들었으면 `cloudflare/worker.js` 의 `EXPORT_SQL` · `MIRROR` 와 `tools/test-start.ps1` 의 `$order` 에도 더함 (모르는 표가 있으면 스크립트가 멈추고 알려 줌)
+
+### 45-3. 처음 한 번 (사람이 하는 일 · Cloudflare)
+
+1. Workers & Pages → **`sayuwon-api-test`** → Edit code → `cloudflare/worker.js` 를 통째로 붙여 넣고 Deploy
+2. 같은 서버 → Settings → Variables and Secrets → Add → Type **Secret** · 이름 **`TEST_SYNC_KEY`** · 값 = `tools\test-sync-key.txt` 의 내용 (`tools\test-start.ps1 -CopyKey` 로 클립보드에 복사 · 파일은 스크립트가 처음 실행될 때 만들고 저장소에 올리지 않음) → Deploy
+3. 확인: 브라우저로 `https://sayuwon-api-test.….workers.dev` → `{"ok":true,…,"api":9,…,"testSync":true}`
+4. **배포 서버 `sayuwon-api` 에는 `TEST_SYNC_KEY` 를 절대 넣지 않음** — 이 값이 없는 서버는 `mirror` 요청을 늘 `bad_key` 로 거절하므로 배포 DB 는 이 동작으로 지워질 수 없음 (스크립트도 받는 주소가 `sayuwon-api-test` 가 아니면 멈춤)
+
+### 45-4. 서버 동작 `mirror` (로그인 대신 `key` = TEST_SYNC_KEY)
+
+| 요청 | 하는 일 |
+|---|---|
+| `{action:'mirror', key, step:'begin'}` | 위 표 10개 + `locks` 를 한 묶음으로 비움 (`kv` 의 틀린 로그인 횟수는 둠) |
+| `{action:'mirror', key, table, rows:[…]}` | `export` 가 준 줄을 그대로 넣음 (수정 일시 · 삭제 표시 · 넣은 순서 그대로). 줄 5개까지는 값을 그대로 묶고, 그보다 많으면 한 문장(`json_each`) — 보내는 쪽이 한 번에 0.7MB 아래로 끊음 |
+| `{action:'mirror', key, step:'done'}` | 화면에 바뀜을 알리고(`rev`) 표마다 줄 수를 돌려줌 |
+
+- 로컬 확인(`?mock=cf` · 2026-11-25): 열쇠 없음 / 틀림 → `bad_key` · 비우기 → 0줄 · 예약 236줄 + 멤버 + 파일을 되넣어 `calls` 내용이 글자 하나까지 같음 · 테스트에만 있던 줄은 사라짐 · 허락 안 된 표 → `bad_table` · 복사 뒤 로그인 · 목록 정상. 스크립트 `-DryRun` 으로 배포 DB 읽기 확인. **진짜 테스트 서버에 넣는 것은 45-3 뒤에 확인**
 
 ## 44. 견적서 · 거래명세서: 둘 다 미리보기 · 거래금액 (2026-11-25 · `document/js/document.js`)
 

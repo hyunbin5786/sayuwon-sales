@@ -420,6 +420,28 @@ async function importData(env, req) {
   return out;
 }
 
+// ---------- 테스트 DB 를 배포 DB 와 똑같이 만들기 (2026-11-25 · tools/test-start.ps1 · README 45절) ----------
+//  비밀 값 TEST_SYNC_KEY 가 있는 서버에서만 됨 — 이 값은 테스트 서버(sayuwon-api-test)에만 넣음. 배포 서버에는 절대 넣지 않음 (넣지 않으면 이 동작은 늘 bad_key → 배포 DB 는 지워질 수 없음)
+//  mirror {key, step:'begin'} 모든 표를 비움 → {key, table, rows:[export 가 준 줄 그대로]} 넣은 순서대로 넣음 → {key, step:'done'} 화면에 알리고 표마다 줄 수를 돌려줌
+const MIRROR = { members: ['emp', 'name', 'phone', 'added', 'by', 'deleted'], calls: ['id', 'call_type', 'visit_date', 'updated', 'deleted', 'data'], quotereq: QR_KEYS, quote_history: ['id', 'at', 'data'],
+  files: ['id', 'kind', 'name', 'mime', 'size', 'at', 'by'], file_chunks: ['id', 'n', 'data'], press: ['id', 'list', 'cat', 'media', 'name', 'pos', 'phone', 'email', 'memo', 'ord', 'updated', 'by', 'deleted'],
+  manual: ['id', 'kind', 'cat', 'title', 'start', 'end', 'ord', 'data', 'updated', 'by', 'deleted'], clergy: ['id', 'visit_date', 'org', 'name', 'pos', 'phone', 'note', 'turn', 'who', 'added', 'by', 'updated', 'deleted'], kv: ['k', 'v'] };
+async function mirror(env, req) {
+  if (!env.TEST_SYNC_KEY || String(req.key || '') !== env.TEST_SYNC_KEY) throw fail('bad_key');
+  await ensureMemberPhone(env); await ensureClergy(env); await ensurePress(env); await ensureManual(env);
+  const names = Object.keys(MIRROR);
+  if (req.step === 'begin') { await env.DB.batch(names.map(t => q(env, 'DELETE FROM ' + t + (t === 'kv' ? " WHERE k NOT LIKE 'fail:%'" : ''))).concat(q(env, 'DELETE FROM locks'))); return { wiped: names }; }   // 한 묶음(트랜잭션)
+  if (req.step === 'done') { await bumpRev(env);
+    return { counts: await q(env, 'SELECT ' + names.map(t => '(SELECT count(*) FROM ' + t + (t === 'kv' ? " WHERE k NOT LIKE 'fail:%' AND k<>'qr_rate' AND k<>'rev'" : '') + ') AS ' + t).join(', ')).first() }; }
+  const t = String(req.table || ''), cols = MIRROR[t]; if (!cols) throw fail('bad_table');
+  const list = (Array.isArray(req.rows) ? req.rows : []).filter(Boolean); if (!list.length) return { table: t, rows: 0 };
+  const C = cols.map(k => '"' + k + '"').join(',');
+  // 줄이 적으면(큰 파일 조각 등) 값을 그대로 묶고, 많으면 한 문장으로 (D1 은 요청 하나에 쿼리 50번 · 값 하나 2MB 까지 — 보내는 쪽이 한 번에 0.7MB 아래로 끊어 보냄)
+  if (list.length <= 5) await env.DB.batch(list.map(r => q(env, 'INSERT OR REPLACE INTO ' + t + ' (' + C + ') VALUES (' + cols.map(() => '?').join(',') + ')', ...cols.map(k => r[k] == null ? '' : r[k]))));
+  else await q(env, 'INSERT OR REPLACE INTO ' + t + ' (' + C + ') SELECT ' + cols.map(k => "json_extract(value,'$." + k + "')").join(',') + ' FROM json_each(?)', JSON.stringify(list)).run();
+  return { table: t, rows: list.length };
+}
+
 // ---------- 홍보 기자 리스트 (press · 2026-11-24 · press.html) ----------
 //  한 줄 = 기자 한 명 (리스트 · 구분 · 매체 · 이름 · 직위/소속 · 휴대폰 · 이메일 · 메모). 개인 연락처이므로 로그인한 사람만 · 화면 코드(GitHub)에는 넣지 않음
 //  pressList → {items:[…]} 지워지지 않은 줄 전체 · pressSave {rows} 있으면 고치고 없으면 더함(id) · pressDel {ids} 지운 표시 · 모두 바꾸면 rev 를 올려 다른 화면이 바로 받음
@@ -621,6 +643,7 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'bookAdd') { try { return { ok: true, item: await bookAdd(env, req), api: 6 }; } catch (e) { return err('bookadd: ', e); } }
   if (a === 'quoteReqAdd') { try { const id = await quoteReqAdd(env, req.item || {}); await bumpRev(env); return { ok: true, id, api: 7 }; } catch (e) { return err('', e); } }
   if (a === 'import') { try { return { ok: true, imported: await importData(env, req) }; } catch (e) { return err('', e); } }
+  if (a === 'mirror') { try { return { ok: true, ...(await mirror(env, req)) }; } catch (e) { return err('', e); } }   // 테스트 서버에서만 (TEST_SYNC_KEY)
   // 여기부터 로그인(멤버)만
   if (req.who && isBlocked(await failState(env, ip))) return { ok: false, error: 'too_many' };
   if (!(await authOk(env, req))) { if (req.who) await noteFail(env, ip, req.who.name, req.who.emp); return { ok: false, error: 'bad_key' }; }
@@ -680,7 +703,7 @@ export default {
     if (request.method === 'GET') {
       // 2026-11-23: /file/<id>/<보이는 이름> 도 받음 — 브라우저는 탭 제목 · 저장 이름을 주소 끝에서 가져가므로 화면에 보이는 이름을 주소 끝에 붙임 (뒤 이름은 무시하고 id 로 찾음)
       const m = url.pathname.match(/^\/file\/([a-zA-Z0-9_-]{8,80})(?:\/[^/]*)?$/);
-      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 8, db: 'd1' });   // api 8 = /file/<id>/<이름> 받음
+      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 9, db: 'd1', ...(env.TEST_SYNC_KEY ? { testSync: true } : {}) });   // api 8 = /file/<id>/<이름> 받음 · api 9 = mirror (testSync 는 테스트 서버에서만 보임)
       const f = await readFile(env, m[1]);
       if (!f || f.kind !== 'doc') return new Response('파일이 없습니다', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       const bin = atob(f.data), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
