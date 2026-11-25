@@ -54,9 +54,9 @@ const SY = Object.freeze({
   // ---- 서버 요청 ----
   // 요청에 로그인을 붙임 (이미 who 가 있으면 그대로)
   sign: body => { const b={...body}, u=SY.user(); if(u && !b.who) b.who={name:u.name, emp:u.emp}; return b; },
-  // 시험용 가짜 예약(id mock0001 · fake001 …)은 진짜 서버에 절대 저장하지 않음 (2026-11-25 사고 뒤 안전장치 · 저장 대기열에 남아 있어도 「된 것」으로 치고 버림)
+  // 시험용 가짜 예약(id mock0001 · fake001 · tst001 …)은 배포 DB 에 절대 저장하지 않음 (테스트 DB · 시험용 DB 는 됨) (2026-11-25 사고 뒤 안전장치 · 저장 대기열에 남아 있어도 「된 것」으로 치고 버림)
   callRaw: body => SY.fakePut(body) ? Promise.resolve({ok:true, skipped:'fake'}) : SY_BACKEND.main(SY.sign(body)),
-  fakePut: body => SY_DB_NAME==='배포 DB' && !!body && body.action==='put' && !!body.item && /^(mock\d{4}|fake\d{3})$/.test(String(body.item.id||'')),
+  fakePut: body => SY_DB_NAME==='배포 DB' && !!body && body.action==='put' && !!body.item && /^(mock\d{4}|fake\d{3}|tst\d{3})$/.test(String(body.item.id||'')),
   call: async body => { if(SY.fakePut(body)) return {ok:true, skipped:'fake'}; const j=await SY_BACKEND.main(SY.sign(body)); if(!j || !j.ok){ const e=new Error((j && j.error)||'error'); e.code=j && j.error; throw e; } return j; },
   beacon: body => SY_BACKEND.beacon(SY.sign(body)),
   quote: Object.freeze({ get: query => SY_BACKEND.quoteGet(query||''), post: body => SY_BACKEND.quotePost(body) }),
