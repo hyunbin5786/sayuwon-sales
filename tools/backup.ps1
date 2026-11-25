@@ -1,4 +1,4 @@
-﻿# 배포 DB 전체를 파일 하나(JSON)로 내려받아 이 PC 의 폴더에 저장 — 개발을 맡은 사람이 **가장 먼저** 자기 PC 에 걸어 두는 것 (개발-시작하기.md 「0. 가장 먼저」 · CLAUDE.md 2절)
+﻿# 배포 DB 전체를 파일 하나(JSON)로 내려받아 이 PC 의 폴더에 저장 — 개발을 맡은 사람이 **가장 먼저** 자기 PC 에 걸어 두는 것 (개발-시작하기.md 5절 · CLAUDE.md 2절)
 #   처음 한 번 (지금 한 번 받고 + 매주 자동으로 걸기):   powershell -ExecutionPolicy Bypass -File tools\backup.ps1 -Setup
 #   지금 한 번만 받기:                                    powershell -ExecutionPolicy Bypass -File tools\backup.ps1
 #   걸려 있는지 · 마지막 백업이 언제인지:                 … -File tools\backup.ps1 -Status     (괜찮으면 종료 코드 0 · 손봐야 하면 3)

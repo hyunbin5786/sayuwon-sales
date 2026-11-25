@@ -47,7 +47,7 @@
 
 ## 4. DB 는 이렇게 생겼다
 
-표는 `cloudflare/schema.sql` 에 있다 (`press` · `manual` · `clergy` · 멤버 연락처 칸은 서버가 처음 쓸 때 스스로 만든다 — `worker.js` 의 `ensure…`).
+표는 모두 `cloudflare/schema.sql` 에 있다. 뒤에 생긴 표(`clergy` · `press` · `manual`)와 멤버 연락처 칸은 서버도 처음 쓸 때 스스로 만든다 (`worker.js` 의 `ensure…` — 그래서 Cloudflare 콘솔에서 따로 실행하지 않아도 된다). 칸 목록은 `docs/코드-지도.md` 6절.
 
 | 표 | 한 줄 = | 알아 둘 것 |
 |---|---|---|
@@ -88,7 +88,7 @@
 ## 6. 일하는 순서
 
 **새 개발을 시작할 때** (사람이 「새 개발 시작」이라고 하거나, 「푸시」 뒤 새 기능을 시작할 때):
-`powershell -ExecutionPolicy Bypass -File tools\test-start.ps1` → test 브랜치를 main 에 맞추고, 테스트 DB 를 비운 뒤 지금의 배포 DB 를 그대로 복사한다. **테스트 DB 의 것이 모두 사라지므로 개발 도중에는 묻지 않고 돌리지 않는다.** `-DbOnly` · `-CodeOnly` · `-DryRun`(세어만 봄) · `-CopyKey`. 배포 DB 를 읽을 로그인은 `tools\my-login.json`(없으면 스크립트가 빈 틀을 만들고 멈춤 — 이름 · 사번은 사람이 메모장으로 직접 적는다), 열쇠는 `tools\test-sync-key.txt`. 처음 설정 · 오류는 `개발-시작하기.md` 5절 · docs 45절.
+`powershell -ExecutionPolicy Bypass -File tools\test-start.ps1` → test 브랜치를 main 에 맞추고, 테스트 DB 를 비운 뒤 지금의 배포 DB 를 그대로 복사한다. **테스트 DB 의 것이 모두 사라지므로 개발 도중에는 묻지 않고 돌리지 않는다.** `-DbOnly` · `-CodeOnly` · `-DryRun`(세어만 봄) · `-CopyKey`. 배포 DB 를 읽을 로그인은 `tools\my-login.json`(없으면 스크립트가 빈 틀을 만들고 멈춤 — 이름 · 사번은 사람이 메모장으로 직접 적는다), 열쇠는 `tools\test-sync-key.txt`. 처음 설정 · 오류는 `개발-시작하기.md` 5 · 6 · 10절 · docs 45절.
 
 **고칠 때**
 1. 고친다. 단체 화면이면 `js/group/NN-*.js` 를 고치고 `powershell -ExecutionPolicy Bypass -File tools\build.ps1` (파일 순서 · 번호는 바꾸지 않는다).
@@ -96,7 +96,7 @@
    - `?mock=1` = 브라우저 안 가짜 DB (서버 코드 `worker.js` 도 그 안에서 진짜처럼 돈다). 로그인 `테스트` / `T001` (이미 「테스트」로 들어가 있기도 하다 · 이 로그인은 가짜 DB 에서만 된다). 끄기 `?mock=0` — 끈 뒤에는 로그아웃하고 진짜 이름 · 사번으로.
    - `?mock` 없이 = 테스트 DB (진짜 고객 자료의 사본). 로그인은 그 사람의 이름 · 사번. **Claude 는 확인할 때 가짜 DB 를 쓴다** — 테스트 DB 로 봐야 하는 것은 사람에게 테스트 사이트에서 봐 달라고 한다.
    - **가짜 DB 스위치는 주소(포트)마다 따로 기억된다.** 포트를 바꿨거나 처음 여는 주소면 꼭 `?mock=1` 을 붙인다. 무엇을 누르기 전에 화면 오른쪽 아래 이름표가 「시험용 …」(가짜 DB)인지 본다 (`SY_DB_NAME` 으로도 확인).
-   - `.claude/launch.json` 은 저장소에 없다(새 PC 에서는 만든다): `{"version":"0.0.1","configurations":[{"name":"sayuwon","runtimeExecutable":"powershell","runtimeArgs":["-NoProfile","-ExecutionPolicy","Bypass","-File","tools\\serve.ps1","-Port","8767"],"port":8767}]}` (경로가 안 잡히면 `tools\\serve.ps1` 을 전체 경로로).
+   - 미리보기 도구는 **세션을 연 폴더**의 `.claude/launch.json` 을 읽는다. 이 폴더가 아닌 곳에서 열린 세션이면 `serve.ps1` 을 직접 돌리고 주소를 연다 (그리고 사람에게 다음부터는 `sayuwon-sales` 폴더를 열어 달라고 한다 — 그래야 이 파일도 자동으로 읽힌다). `.claude/launch.json` 은 저장소에 없다(새 PC 에서는 만든다): `{"version":"0.0.1","configurations":[{"name":"sayuwon","runtimeExecutable":"powershell","runtimeArgs":["-NoProfile","-ExecutionPolicy","Bypass","-File","tools\\serve.ps1","-Port","8767"],"port":8767}]}` (경로가 안 잡히면 `tools\\serve.ps1` 을 전체 경로로).
    - `.ps1` 을 Bash 로 돌리면 한글 출력이 깨져 보일 수 있다. 동작은 정상이다 — PowerShell 도구로 돌리거나 숫자 · 종료 코드로 판단한다.
 3. CSS · JS 를 고쳤으면 `powershell -ExecutionPolicy Bypass -File tools\bump.ps1` — 모든 HTML 의 `?v=` 를 새 값 하나로 바꾼다 (안 바꾸면 직원 브라우저가 예전 파일을 쓴다). 값은 오늘 날짜와 다를 수 있다 — 앞 값보다 크기만 하면 되므로 손으로 고치지 않는다.
 4. 문서에 적는다: **`docs/바뀐-것-기록.md` 맨 아래에 한 줄** — `- (날짜) **무엇**: 어떻게 바뀌었는지 · 왜 (파일 · 함수 이름)`. 화면의 규칙이 바뀌었으면 그 화면 문서(`docs/README.md` 「화면별로 찾기」에서 찾음)의 틀려진 설명도 고친다. 큰 기능을 새로 만들었으면 `docs/화면/` 에 새 파일을 만들고 `docs/README.md` 의 표에 한 줄 넣는다. 화면 · JS · CSS 파일을 더하거나 뺐으면, 서버 동작 · DB 표를 더했으면 `powershell -ExecutionPolicy Bypass -File tools\map.ps1` 로 코드 지도를 다시 만든다 (새 파일의 맨 위 첫 줄에는 「이 파일이 무엇인지」 설명을 적는다 — 지도가 그 줄을 읽는다).
@@ -111,7 +111,7 @@
 
 1. `localhost` 의 `?mock=cf` (또는 `?mock=1`)로 먼저 확인한다. `SY_CF.sql('SELECT …')` 로 가짜 DB 를 들여다볼 수 있다.
 2. 파일을 클립보드에 넣고, 사람에게 시킨다: Cloudflare › Workers & Pages › **`sayuwon-api-test`** › Edit code › 전체 지우고 붙여넣기 › Deploy.
-3. 올라갔는지 직접 확인한다 (서버 주소를 열면 `api` 번호가 나온다 — 고칠 때 번호를 하나 올려 두면 확인하기 쉽다).
+3. 올라갔는지 직접 확인한다: 서버 주소를 열면 `{"ok":true,…,"api":10,…}` 이 나온다. 이 번호는 `worker.js` 맨 아래 `app: 'sayuwon-group-intake', api: 10` 의 숫자다 (동작마다 돌려주는 `api: 7` · `api: 11` 같은 숫자와는 다른 것). **서버 코드를 고칠 때 이 숫자를 하나 올려 두면** 올라갔는지 숫자로 알 수 있다 (`tools\check.ps1` 도 이 숫자로 견준다).
 4. 「푸시」할 때 같은 내용을 **`sayuwon-api`** 에도. 화면보다 서버 먼저.
 5. 비밀 값은 Settings › Variables and Secrets 에 **Type = Secret**, 이름은 정확히 (예전에 이름 칸에 `Secret` 을 넣어 안 된 적이 있다).
 
@@ -131,8 +131,10 @@
 
 - **`css/prep.css` 는 다음날 준비 화면 것이면서 9개 화면의 기본 모양이다** (머리줄 · 버튼 · 표: agency · cancel · clergy · manual · press · promo · rent · status). `css/ops.css` 도 분실물 · 사고 · 재고 · 스마트스토어 · 멘트가 같이 읽는다. 이 둘을 고치면 여러 화면이 바뀐다 — 어느 화면이 읽는지는 `docs/코드-지도.md` 4절.
 - **「매뉴얼」이 둘이다.** `manual.html` + `js/manual.js` = 고객 응대 매뉴얼(기능). `manual/` 폴더 = 첫 화면 「매뉴얼」 버튼이 띄우는 사용법 글(`js/menu.js` 가 읽음). 서로 상관없다.
-- **재고관리는 `js/stockx.js` 가 진짜다.** `js/stock.js` 는 칸 정의뿐이고, `js/opsboard.js` 의 `renderStock` 은 `stockx.js` 가 바꿔 써서 돌지 않는다.
+- **재고관리는 `js/stockx.js` 가 진짜다.** `js/stock.js` 는 칸 정의뿐이고, `js/opsboard.js` 의 `renderStock` 은 `stockx.js` 가 바꿔 써서 돌지 않는다. 재고 품목의 속성(이름 · 가격 등)을 화면에서 손으로 고치는 창은 없다 — 품목관리(굿즈)와 엑셀 불러오기에서 온다.
+- **운영보조 화면(분실물 · 사고 · 재고 · 스마트스토어)의 제목 글자는 HTML 이 아니라 `js/opsboard.js` 가 그 화면 파일의 `OPS_PAGE.title` 로 넣는다** (자리는 HTML 의 `.b-head`). 분실물은 휴대폰 폭(700px 아래)에서 `js/lostm.js` 가 다른 첫 화면을 보인다 — **휴대폰으로 쓰는 화면은 좁은 폭으로도 확인한다.**
 - **품목 · 가격 목록은 `document/js/document.js` 안에 있고**, 세 곳이 그 파일을 글자로 읽어 간다: `js/group/10-price.js` · `js/opslib.js` · `document/js/request.js`. 품목 목록의 모양을 바꾸면 셋 다 본다.
+- **단체 할인율 규칙이 두 벌이다**: 단체 화면 `js/group/10-price.js` 의 `groupRate` (0명 0% · 1~19명 5% · 20명부터 10% · **전체 인원이 아니라 그 품목 줄의 인원** 기준) 와 견적서 화면 `document/js/document.js` 의 `autoRate`. 규칙을 바꾸면 둘 다 고친다. 금액 · 할인처럼 돈이 걸린 규칙은 답하기 전에 부르는 곳까지 확인한다.
 - **네이버 엑셀 읽기(비밀번호 풀기 · 취소 계산)가 두 벌이다**: `js/naver.js` 와 `js/naverxl.js`. 한쪽을 고치면 다른 쪽도 본다.
 - **나의 할일 팝업이 두 벌이다**: `js/mypop.js` (그 파일을 읽는 화면) 와 `js/menu.js` 안의 같은 코드 (나머지 화면).
 - **작은 도구가 파일마다 따로 있기도 하다**: `esc` · `toast` · 날짜 글자 등. 공통은 `js/common.js` 의 `SY.*` 이고, 새로 만들 때는 그것을 쓴다. `js/naver.js` 는 옮겨 온 화면이라 자기 것만 쓴다.

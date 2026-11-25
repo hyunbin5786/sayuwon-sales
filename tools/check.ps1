@@ -33,14 +33,14 @@ else {
 # ---- 백업 · 로그인 · 열쇠 ----
 $login = Join-Path $PSScriptRoot 'my-login.json'; $hasLogin = $false
 if (Test-Path $login) { try { $c = Get-Content $login -Raw -Encoding UTF8 | ConvertFrom-Json; $hasLogin = [bool]($c.name -and $c.emp) } catch {} }
-if ($hasLogin) { Row '내 로그인' $OK 'tools\my-login.json 에 이름 · 사번 있음' } else { Row '내 로그인' $NO 'tools\my-login.json 이 없거나 비어 있음'; $todo.Add('메모장으로 tools\my-login.json 에 내 이름 · 사번을 적습니다 (없으면 tools\backup.ps1 을 한 번 돌리면 빈 틀이 생김 · 사번은 Claude 에게 말하지 않고 직접).') }
+if ($hasLogin) { Row '내 로그인' $OK 'tools\my-login.json 에 이름 · 사번 있음' } else { Row '내 로그인' $NO 'tools\my-login.json 이 없거나 비어 있음'; $todo.Add('★ 백업의 첫걸음: 사람이 메모장으로 tools\my-login.json 에 내 이름 · 사번을 적습니다 (없으면 tools\backup.ps1 을 한 번 돌리면 빈 틀이 생김 · 사번은 Claude 에게 말하지 않고 직접).') }
 $task = Get-ScheduledTask -TaskName '사유원 백업' -ErrorAction SilentlyContinue
 $dest = if ($hasLogin -and $c.backupDest) { [string]$c.backupDest } else { Join-Path ([Environment]::GetFolderPath('MyDocuments')) '사유원-백업' }
 $last = if (Test-Path -LiteralPath $dest) { Get-ChildItem -LiteralPath $dest -Filter 'sayuwon-backup-*.json' -File | Sort-Object Name -Descending | Select-Object -First 1 } else { $null }
 $days = if ($last) { [int]((Get-Date) - $last.LastWriteTime).TotalDays } else { 9999 }
 if ($task -and $days -le 8) { Row '백업' $OK "매주 자동 걸려 있음 · 마지막 $days 일 전 ($dest)" }
-else { Row '백업' $NO ($(if ($task) { '걸려 있으나 ' } else { '매주 자동이 안 걸려 있음 · ' }) + $(if ($last) { "마지막 백업 $days 일 전" } else { '받아 둔 백업 없음' })); $todo.Insert(0, '★ 가장 먼저: 백업을 겁니다:  powershell -ExecutionPolicy Bypass -File tools\backup.ps1 -Setup   (자료는 DB 한 곳에만 있고, 백업은 개발을 맡은 사람의 PC 가 받습니다)') }
-if (Test-Path (Join-Path $PSScriptRoot 'test-sync-key.txt')) { Row '열쇠' $OK 'tools\test-sync-key.txt 있음 (「새 개발 시작」 때 테스트 DB 복사에 씀)' } else { Row '열쇠' $IN 'tools\test-sync-key.txt 없음 — 「새 개발 시작」(테스트 DB 복사) 때 필요'; $note.Add('열쇠(TEST_SYNC_KEY)가 없습니다 — 앞 담당자에게 받아 tools\test-sync-key.txt 에 넣거나, 새로 만들어 Cloudflare 테스트 서버의 값을 바꿉니다 (개발-시작하기.md 5절).') }
+else { Row '백업' $NO ($(if ($task) { '걸려 있으나 ' } else { '매주 자동이 안 걸려 있음 · ' }) + $(if ($last) { "마지막 백업 $days 일 전" } else { '받아 둔 백업 없음' })); $todo.Add('★ 가장 먼저 백업: 자료는 DB 한 곳에만 있고, 백업은 개발을 맡은 사람의 PC 가 받습니다. 사람이 「백업 걸어 줘」 라고 하면 →  powershell -ExecutionPolicy Bypass -File tools\backup.ps1 -Setup   (내 로그인이 먼저 있어야 함 · 이 PC 에 매주 월요일로 걸림)') }
+if (Test-Path (Join-Path $PSScriptRoot 'test-sync-key.txt')) { Row '열쇠' $OK 'tools\test-sync-key.txt 있음 (「새 개발 시작」 때 테스트 DB 복사에 씀)' } else { Row '열쇠' $IN 'tools\test-sync-key.txt 없음 — 「새 개발 시작」(테스트 DB 복사) 때 필요'; $note.Add('열쇠(TEST_SYNC_KEY)가 없습니다 — 앞 담당자에게 받아 tools\test-sync-key.txt 에 넣거나, 새로 만들어 Cloudflare 테스트 서버의 값을 바꿉니다 (개발-시작하기.md 6절).') }
 ''
 # ---- 서버 ----
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12

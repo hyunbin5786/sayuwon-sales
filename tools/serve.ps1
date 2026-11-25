@@ -1,4 +1,4 @@
-﻿# 이 컴퓨터에서 화면을 띄워 보는 작은 서버 (개발-시작하기.md 3절)
+﻿# 이 컴퓨터에서 화면을 띄워 보는 작은 서버 (docs/개발/명령-모음.md · CLAUDE.md 6절)
 #   실행:  powershell -ExecutionPolicy Bypass -File tools\serve.ps1
 #   → 브라우저에서 http://localhost:8767/  (끄기: 이 창에서 Ctrl+C 또는 창 닫기)
 #   다른 번호로:  … -Port 8770

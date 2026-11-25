@@ -6,11 +6,11 @@
 - 자료: Cloudflare (서버 = Worker · DB = D1)
 - 고치는 사람: 코드를 모르는 운영팀 직원이 **Claude Code 에게 말로 시켜서** 고칩니다
 
-> ## ⚠️ 이 저장소를 받아 개발을 시작한다면 — 가장 먼저 백업 설정
+> **⚠️ 이 저장소를 받아 개발을 시작한다면 — 가장 먼저 백업 설정**
 >
 > 이 시스템의 자료(예약 · 통화 기록 · 멤버 · 견적서 · 매뉴얼)는 DB 한 곳에만 있고, **백업은 개발을 맡은 사람의 PC 가 받아 둡니다.** 서버가 알아서 해 주는 백업은 없습니다. **코드를 한 줄이라도 고치기 전에** 내 PC 에 백업을 걸어 주세요.
 >
-> Claude Code 로 이 폴더를 열고 **「백업 설정부터 해 줘」** 라고 하면 됩니다. 순서는 [개발-시작하기.md](개발-시작하기.md) 0절.
+> Claude Code 로 이 폴더를 열고 **「백업 설정부터 해 줘」** 라고 하면 됩니다. 순서는 [개발-시작하기.md](개발-시작하기.md) 5절.
 
 ## 처음이라면
 
@@ -19,12 +19,13 @@
 | **사람** (새로 맡은 직원) | [개발-시작하기.md](개발-시작하기.md) — 준비물 · 내 PC 로 가져오기 · Claude 에게 이렇게 말하면 된다 · 철칙 · 문제가 생겼을 때 |
 | **Claude Code 등 AI** | [CLAUDE.md](CLAUDE.md) — 일하는 순서 · DB 구조 · 철칙 (이 폴더를 열면 자동으로 읽힘) |
 
-**AI 코딩 도구에게 — 이 저장소 주소만 받았다면 이 순서로:**
+<details>
+<summary><b>AI 코딩 도구에게 — 이 저장소 주소만 받았다면 이 순서로</b> (눌러서 펼치기)</summary>
 
-1. `git clone https://github.com/hyunbin5786/sayuwon-sales.git` → 그 폴더에서 `git checkout test` (개발은 늘 `test` 에서)
-2. [CLAUDE.md](CLAUDE.md) 를 끝까지 읽고 그대로 따른다 (요청한 사람은 개발자가 아니다 — 쉬운 한국어로)
-3. `powershell -ExecutionPolicy Bypass -File tools\check.ps1` — 지금 상태와 「먼저 할 일」이 나온다 (백업이 맨 먼저)
-4. 어느 파일이 무엇인지는 [docs/코드-지도.md](docs/코드-지도.md), 화면의 규칙은 [docs/README.md](docs/README.md) 의 「화면별로 찾기」
+$1
+5. 받은 폴더가 세션을 연 폴더와 다르면, 사람에게 「다음부터는 Claude Code 에서 `sayuwon-sales` 폴더를 열어 주세요」 라고 알린다 (그래야 CLAUDE.md 가 자동으로 읽힌다)
+
+</details>
 
 ## 바로가기
 
@@ -40,30 +41,30 @@
 
 ## 화면
 
-메뉴에 나오는 순서입니다. 「배포」 · 「테스트」를 누르면 그 화면이 열립니다 (로그인 = 이름 + 사번). **상태**의 「테스트에만」은 아직 만드는 중이라 배포 사이트에서는 가려 둔 화면입니다 (`js/common.js` 의 `DEV_PAGES`).
+메뉴에 나오는 순서입니다. 「배포」 · 「테스트」를 누르면 그 화면이 열립니다 (로그인 = 이름 + 사번). **상태**의 「테스트에만」은 아직 만드는 중이라 배포 사이트에서는 가려 둔 화면입니다.
 
 | 메뉴 | 화면 | 파일 | 열기 | 상태 |
 |---|---|---|---|---|
 | — | 첫 화면 (로그인 · 대시보드 · 캘린더 · 공지사항) | `index.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/) | 쓰는 중 |
 | — | 나의 할일 | `group.html?my=1` | [배포](https://hyunbin5786.github.io/sayuwon-sales/group.html?my=1) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/group.html?my=1) | 쓰는 중 |
 | 예약보조 › 고객 응대 접수 | 개인고객 응대 | `personal.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/personal.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/personal.html) | 쓰는 중 |
-| | 단체고객 응대 | `group.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/group.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/group.html) | 쓰는 중 |
+| 예약보조 › 고객 응대 접수 | 단체고객 응대 | `group.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/group.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/group.html) | 쓰는 중 |
 | 예약보조 › 고객 응대 보조 | 예약 현황 공유 (공지용 표) | `status.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/status.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/status.html) | 쓰는 중 |
-| | 네이버 예약 → 사유원 전산 이관 | `naver.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/naver.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/naver.html) | 쓰는 중 |
-| | 전화응대 멘트 (로그인 없이 보기) | `ment.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/ment.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/ment.html) | 쓰는 중 |
-| | 견적서 / 거래명세서 발급 | `document/` | [배포](https://hyunbin5786.github.io/sayuwon-sales/document/) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/document/) | 쓰는 중 |
-| | 고객 견적 요청 (고객이 로그인 없이 적음) | `document/request.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/document/request.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/document/request.html) | 쓰는 중 |
-| | 다음날 고객 응대 준비 | `prep.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/prep.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/prep.html) | 쓰는 중 |
-| | 대구대교구 무료입장 명부 | `clergy.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/clergy.html) | 테스트에만 |
-| | 예약 취소 요청 | `cancel.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/cancel.html) | 테스트에만 |
-| | 대관 규정 및 상품 | `rent.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/rent.html) | 테스트에만 |
-| | 협업 여행사 할인 현황 | `agency.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/agency.html) | 테스트에만 |
+| 예약보조 › 고객 응대 보조 | 네이버 예약 → 사유원 전산 이관 | `naver.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/naver.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/naver.html) | 쓰는 중 |
+| 예약보조 › 고객 응대 보조 | 전화응대 멘트 (로그인 없이 보기) | `ment.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/ment.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/ment.html) | 쓰는 중 |
+| 예약보조 › 고객 응대 보조 | 견적서 / 거래명세서 발급 | `document/` | [배포](https://hyunbin5786.github.io/sayuwon-sales/document/) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/document/) | 쓰는 중 |
+| 예약보조 › 고객 응대 보조 | 고객 견적 요청 (고객이 로그인 없이 적음) | `document/request.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/document/request.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/document/request.html) | 쓰는 중 |
+| 예약보조 › 고객 응대 보조 | 다음날 고객 응대 준비 | `prep.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/prep.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/prep.html) | 쓰는 중 |
+| 예약보조 › 고객 응대 보조 | 대구대교구 무료입장 명부 | `clergy.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/clergy.html) | 테스트에만 |
+| 예약보조 › 고객 응대 보조 | 예약 취소 요청 | `cancel.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/cancel.html) | 테스트에만 |
+| 예약보조 › 고객 응대 보조 | 대관 규정 및 상품 | `rent.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/rent.html) | 테스트에만 |
+| 예약보조 › 고객 응대 보조 | 협업 여행사 할인 현황 | `agency.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/agency.html) | 테스트에만 |
 | 운영보조 › 예약현황 공유 | 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 예약 목록 (로그인 없이 보기) | `group.html?book=mb` (`rent` · `docent` · `prog` · `coupon`) | [배포](https://hyunbin5786.github.io/sayuwon-sales/group.html?book=mb) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/group.html?book=mb) | 쓰는 중 |
 | 운영보조 › 운영 참고 자료 | 분실물 찾기 (접수 · 찾기는 로그인 없이) | `lost.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/lost.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/lost.html) | 쓰는 중 |
-| | 사고현황 접수 | `accident.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/accident.html) | 테스트에만 |
-| | 재고관리 | `stock.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/stock.html) | 테스트에만 |
-| | 기업 프로모션 할인 | `promo.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/promo.html) | 테스트에만 |
-| | 스마트스토어 발송 보고 | `ship.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/ship.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/ship.html) | 메뉴에서 뺌 (주소로만) |
+| 운영보조 › 운영 참고 자료 | 사고현황 접수 | `accident.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/accident.html) | 테스트에만 |
+| 운영보조 › 운영 참고 자료 | 재고관리 | `stock.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/stock.html) | 테스트에만 |
+| 운영보조 › 운영 참고 자료 | 기업 프로모션 할인 | `promo.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/promo.html) | 테스트에만 |
+| 운영보조 › 운영 참고 자료 | 스마트스토어 발송 보고 | `ship.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/ship.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/ship.html) | 메뉴에서 뺌 (주소로만) |
 | 홍보 보조 | 홍보 기자 리스트 | `press.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/press.html) | 테스트에만 |
 | 매뉴얼 | 고객 응대 매뉴얼 | `manual.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/manual.html) | 테스트에만 |
 | 기타 설정 | 품목관리 · 멤버관리 | `index.html#catalog` · `#members` | [배포](https://hyunbin5786.github.io/sayuwon-sales/#catalog) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/#catalog) | 쓰는 중 |

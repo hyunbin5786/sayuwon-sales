@@ -3053,7 +3053,7 @@ document.addEventListener('click', e=>{
 });
 document.addEventListener('change', e=>{ if(e.target.classList?.contains('spd-offck')) e.target.closest('tr').classList.toggle('off', e.target.checked); });
 applySpd();
-function groupRate(n){ return !n ? 0 : n>=20 ? .10 : .05; }   // 20명부터 단체예약 10% (2026-11-17, 견적서와 같게)
+function groupRate(n){ return !n ? 0 : n>=20 ? .10 : .05; }   // 인원 0 = 0% · 1~19명 사전예약 5% · 20명부터 단체예약 10% (2026-11-17, 견적서와 같게). n 은 전체 인원이 아니라 「그 품목 줄의 인원」 (2026-11-21 · 부르는 곳: 12-quote-stage-list.js quoteBlocks · 05-item-rows.js followDiscBand). 견적서 화면에는 같은 규칙이 따로 있음: document/js/document.js autoRate — 바꾸면 둘 다
 function specialCounts(r){ return SPECIAL.map(s=>({...s, n: Math.max(0, parseInt(r[s.k])||0)})).filter(s=>s.n>0); }
 // 선택한 항목 예상 금액 (견적서 발급과 같은 계산) + 전체 가격표(버튼으로)
 const discPct = name => (/관람/.test(name) && !/\(관람,/.test(name)) || /사담\s*런치/.test(name);
@@ -3445,7 +3445,7 @@ document.querySelectorAll('[data-dk]').forEach(el=>{
   el.addEventListener('blur', take);
 });
 
-// ▣ js/group/12-quote-stage-list.js — 견적서 · 거래명세서 화면으로 넘기기 · 발급 내역 · 예약 단계(상담 · 가예약 · 확정 · 취소) · 단체상담 글 읽기 · 엑셀 내려받기 · 단체 예약 목록 · 목록의 「수정」
+// ▣ js/group/12-quote-stage-list.js — 견적서에 넘길 품목 줄과 할인 줄 계산(quoteBlocks · 단체 할인은 줄 인원 기준) · 견적서 · 거래명세서 화면으로 넘기기 · 발급 내역 · 예약 단계(상담 · 가예약 · 확정 · 취소) · 단체상담 글 읽기 · 엑셀 내려받기 · 단체 예약 목록 · 목록의 「수정」
 // ===================== 견적서 발급: 견적서&거래명세서 사이트로 넘기기 =====================
 // 그 사이트의 '예약 정보 붙여넣기'가 읽는 형식(방문일자 · 상품정보 · 방문자정보 · 예약인원 · * 할인)으로 만들어
 // 같은 사이트(hyunbin5786.github.io) 저장소에 두고 연다. 그쪽이 자동 채우기를 한다.

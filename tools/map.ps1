@@ -125,6 +125,7 @@ $L.Add('')
 $L.Add('| action | 줄 | 그 줄의 설명 |'); $L.Add('|---|---|---|'); $mem | ForEach-Object { $L.Add($_) }
 $L.Add('')
 $L.Add('- `import`(되살리기) 는 비밀 값 `MIGRATE_KEY`, `mirror`(테스트 DB 를 배포 DB 와 같게) 는 `TEST_SYNC_KEY` 가 서버에 있을 때만 됩니다 — 로그인 대신 그 값으로 확인합니다.')
+$L.Add('- `quoteGet` 은 두 표에 다 나옵니다: 이름은 같고, 품목 목록(가격표)은 로그인 없이 · 발급 내역(`history`)은 로그인해야 줍니다.')
 $L.Add('- 주소로 바로 여는 것(GET): `/` = 서버 상태(`api` 번호) · `/file/<id>/<이름>` = 올린 서류 열기.')
 $L.Add('')
 

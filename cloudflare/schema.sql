@@ -76,3 +76,12 @@ CREATE TABLE IF NOT EXISTS press (
   updated TEXT NOT NULL DEFAULT '', "by" TEXT NOT NULL DEFAULT '', deleted TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS press_list ON press(list);
+
+-- 고객 응대 매뉴얼 (2026-11-24 · manual.html): 한 줄 = 매뉴얼의 한 조각 (kind: sec 글 · prod 상품 · faq · proc 절차 · notice 안내문 · prop 반영 제안). 그 밖의 칸은 data(JSON 글자)
+--   서버(worker.js ensureManual)가 처음 쓸 때 스스로 만들기도 함. 내부 연락처 · 링크가 들어 있어 로그인한 사람만
+CREATE TABLE IF NOT EXISTS manual (
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT '', cat TEXT NOT NULL DEFAULT '', title TEXT NOT NULL DEFAULT '', start TEXT NOT NULL DEFAULT '',
+  "end" TEXT NOT NULL DEFAULT '', ord REAL NOT NULL DEFAULT 0, data TEXT NOT NULL DEFAULT '{}',
+  updated TEXT NOT NULL DEFAULT '', "by" TEXT NOT NULL DEFAULT '', deleted TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS manual_kind ON manual(kind);
