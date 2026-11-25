@@ -65,8 +65,10 @@
   }
   // 상품 → 구분
   const ORDER=['오전입장','오후입장','사담 런치 1부','사담 런치 2부','사담 디너','몽몽마방 사유의 밥상'];
+  // 방문자내역의 상품 이름이 「네이버 …」로 시작하면 네이버 예약 (2026-11-26 · 예: 「네이버 평일 관람(09:00~18:00)」) → 구분은 같은 줄, 인원은 「네이버」 칸
+  const NV_RE=/^\s*네이버\s*/;
   function catOf(p){
-    const s=String(p).replace(/^(평일|주말\/공휴일|주말|공휴일)\s*/,'').trim();
+    const s=String(p).replace(NV_RE,'').replace(/^(평일|주말\/공휴일|주말|공휴일)\s*/,'').trim();
     if(/사유의\s*밥상\(단체\)/.test(s)) return null;   // 단체 식사는 뺌 (관람은 따로 셈)
     const pk=s.match(/^\(관람,\s*(.+)\)$/); if(pk) return pk[1].replace(/\s+/g,' ').replace(/런치\s*(\d)부/,'런치 $1부').trim();
     if(/관람\(09:00~18:00\)/.test(s) || /^관람$/.test(s)) return '오전입장';
@@ -81,12 +83,14 @@
       const ppl = x.items.reduce((a,it)=>a+(+it.n||0),0);
       const isGroup = /단체관람/.test(x.disc) || ppl>=10;
       const gName = String(x.name||'').trim();
-      x.items.forEach(it=>{ const c=catOf(it.p); if(!c || !it.n) return; const r=row(c); r.home+=it.n; if(isGroup) r.groups.push(`${gName} ${it.n}명`); });
+      x.items.forEach(it=>{ const c=catOf(it.p); if(!c || !it.n) return; const r=row(c); r[NV_RE.test(it.p)?'naver':'home']+=it.n; if(isGroup) r.groups.push(`${gName} ${it.n}명`); });   // 「네이버 …」 상품은 네이버 칸 (2026-11-26)
     });
     ORDER.forEach(c=>{ if(c==='오전입장' || c==='오후입장') row(c); });   // 입장은 0명이어도 줄
     const rows=Object.values(map).sort((a,b)=>{ const ia=ORDER.indexOf(a.cat), ib=ORDER.indexOf(b.cat); return (ia<0?99:ia)-(ib<0?99:ib) || a.cat.localeCompare(b.cat,'ko'); })
-      .filter(r=>r.home>0 || ORDER.slice(0,2).includes(r.cat)).map(r=>({cat:r.cat, home:r.home, naver:0, groups:r.groups.join('\n')}));
-    return applyNaver({date:v.date, rows});
+      .filter(r=>r.home>0 || r.naver>0 || ORDER.slice(0,2).includes(r.cat)).map(r=>({cat:r.cat, home:r.home, naver:r.naver, groups:r.groups.join('\n')}));
+    // nvx = 방문자내역에서 센 네이버 인원 (날짜 아래 요약 글에 씀). 네이버 엑셀 · 직접 입력이 있으면 오전 · 오후입장은 그 값이 이김 (applyNaver)
+    const nvAll=rows.reduce((a,r)=>a+r.naver,0), nvOf=c=>(rows.find(r=>r.cat===c)||{}).naver||0;
+    return applyNaver({date:v.date, rows, nvx: nvAll ? {am:nvOf('오전입장'), pm:nvOf('오후입장'), all:nvAll} : null});
   }
   // ---------- 네이버 예약자관리 엑셀 (2026-11-19): 날짜마다 오전 · 오후 인원 → 그 날짜의 오전입장 · 오후입장 줄 「네이버」 칸 ----------
   st.naver ||= {};   // { 'YYYY-MM-DD': {am, pm, n, full, partial, check:[]} } · 방문자내역을 나중에 넣어도 들어감
@@ -233,7 +237,8 @@
       + `<div class="sh-foot">${esc(st.foot)}</div></div>`;
   }
   // 날짜 아래 네이버 엑셀 요약 (몇 건 · 전액환불 · 일부 환불 · 확인할 것)
-  const naverSum = date => { const v=st.naver[date];
+  const naverSum = date => { const v=st.naver[date], x=(st.days.find(d=>d.date===date)||{}).nvx;
+    if(!v && x) return `<p class="nv-sum">네이버 (방문자내역 엑셀의 「네이버 …」 상품): 오전 <b>${x.am}</b>명 · 오후 <b>${x.pm}</b>명${x.all>x.am+x.pm?` · 그 밖 <b>${x.all-x.am-x.pm}</b>명`:''}</p>`;
     if(!v) return `<p class="nv-sum">네이버: 예약자관리 엑셀이나 사진을 아직 넣지 않음 (넣거나 「네이버」 칸에 직접)</p>`;
     if(v.src==='manual') return `<p class="nv-sum">네이버 직접 입력: 오전 <b>${v.am}</b>명 · 오후 <b>${v.pm}</b>명</p>`;
     if(v.src==='img') return `<p class="nv-sum">네이버 사진: 오전 <b>${v.am}</b>명 · 오후 <b>${v.pm}</b>명${Object.entries(v.extra||{}).map(([c,n])=>` · ${esc(c)} <b>${n}</b>명`).join('')} (사진의 확정 인원)</p>`;
