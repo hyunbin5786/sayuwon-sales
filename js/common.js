@@ -34,7 +34,7 @@ const SY_MOCK_ON = (function(){
 //  테스트 사이트(…/sayuwon-sales/test/)와 이 컴퓨터(localhost, 시험용 모드가 아닐 때)는 배포 사이트와 다른 서버 · DB(TEST_API_URL)를 씀
 //  TEST_API_URL 이 비어 있으면 아직 따로 만든 서버가 없다는 뜻 → 예전처럼 배포 DB 를 씀 (테스트 사이트 위 빨간 이름표에 「DB = 배포」로 표시)
 //  테스트 사이트는 배포 사이트와 같은 주소(github.io)라 브라우저 저장소를 같이 씀 → 「test:」 칸막이로 따로 (저장 대기열 · 예약 사본이 섞여 다른 DB 로 새지 않게)
-const SY_TEST_API_URL = "";   // ← 테스트용 Cloudflare Worker 주소 (예: https://sayuwon-api-test.serendipity5786-9e7.workers.dev/) — 넣으면 테스트 사이트 · localhost 가 그 DB 를 씀
+const SY_TEST_API_URL = "https://sayuwon-api-test.serendipity5786-9e7.workers.dev/";   // 테스트용 Cloudflare Worker sayuwon-api-test + D1 sayuwon-test (2026-11-25) — 테스트 사이트 · localhost 가 이 DB 를 씀 · 비우면 배포 DB
 const SY_TEST_SITE = /^\/sayuwon-sales\/test(\/|$)/.test(location.pathname) || (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !SY_MOCK_ON);
 if(SY_TEST_SITE && /^\/sayuwon-sales\/test(\/|$)/.test(location.pathname)) syWall('test:');
 const SY_DB_NAME = SY_MOCK_ON ? '시험용 가짜 DB' : SY_TEST_SITE && SY_TEST_API_URL ? '테스트 DB' : '배포 DB';
