@@ -1178,3 +1178,47 @@ html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
 .book-find .dbox input.dtxt{height:30px;width:128px;font-size:13px}
 .book-find .bf-n{margin:0;white-space:nowrap}
 @media (max-width:700px){ .book-find{font-size:16px} .book-find select,.book-find .bf-q,.book-find .dbox input.dtxt{height:42px;font-size:16px} .book-find .bf-q{min-width:0;width:100%} }
+/* ===== 예약 현황 공유 배치 (2026-11-25) =====
+   넓은 화면(예약 현황 공유 페이지): 왼쪽 = 찾기 · 담당 일정(세로 카드) / 오른쪽 = 날짜별로 묶은 목록 (가운데로 모아 너무 길지 않게)
+   좁은 화면 · 단체 화면 안 팝업: 예전처럼 위아래 */
+.bk-sh{display:none}
+.mbdb-t tr.bk-day td{background:#eef2ea;color:var(--pine);padding:7px 10px;font-size:13.5px;border-bottom:1px solid var(--line)}
+.mbdb-t tr.bk-day td b{font-weight:700}
+.mbdb-t tr.bk-day td small{margin-left:8px;color:var(--muted);font-weight:400}
+.mbdb-t tr.bk-day.today td{background:var(--pine);color:#fff}
+.mbdb-t tr.bk-day.today td small{color:#e3ecdd}
+.mbdb-t tr.bk-day.past td{background:#f1efe9;color:#8b877c}
+.bk-dtag{display:inline-block;margin-left:6px;padding:0 7px;border-radius:999px;background:#fff;color:var(--pine);font-size:11.5px;font-weight:700;line-height:18px}
+.bk-dtag.soft{background:#dfe8d8}
+.book .mbdb-t .c-d{display:none !important}   /* 날짜는 날짜 머리 줄에 (휴대폰 카드에서도) */
+@media (min-width:1000px){
+  html.book-only #bookModal > section{max-width:1360px;margin:0 auto}
+  html.book-only .bk-wrap{display:grid;grid-template-columns:290px minmax(0,1fr);gap:18px;align-items:start}
+  html.book-only .bk-side{position:sticky;top:12px;display:flex;flex-direction:column;gap:12px}
+  html.book-only .bk-sh{display:block;font-size:13.5px;color:var(--pine);margin:0 0 2px}
+  html.book-only .bk-side .book-find,html.book-only .bk-side .book-me{flex-direction:column;align-items:stretch;gap:10px;margin:0;padding:14px;background:#fff;border:1px solid var(--line);border-radius:12px}
+  html.book-only .bk-side label{display:grid;grid-template-columns:3.2em minmax(0,1fr);align-items:center;gap:8px}
+  html.book-only .bk-side label.bm-mine{display:flex;gap:6px}
+  html.book-only .bk-side select,html.book-only .bk-side .bf-q,html.book-only .bk-side #bookMeName,html.book-only .bk-side #bookRange{width:100%;min-width:0;height:34px}
+  html.book-only .bk-side .bf-q{min-width:0;flex:none}
+  html.book-only .bk-side .bf-dt{display:flex;flex-direction:column;align-items:stretch;gap:6px}
+  html.book-only .bk-side .bf-dt[hidden]{display:none}
+  html.book-only .bk-side .dbox{display:flex}
+  html.book-only .bk-side .dbox input.dtxt{width:100%;height:34px}
+  html.book-only .bk-side #bfReset{align-self:flex-start}
+  html.book-only .bk-side .bf-n{color:var(--pine);font-weight:700}
+  html.book-only .bk-side .bm-btns{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  html.book-only .bk-side .bm-btns .btn{width:100%}
+  html.book-only .bk-main{background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 10px 10px;min-width:0}
+  html.book-only .bk-main .mbdb-t{width:100%}
+  html.book-only .bk-main .mbdb-t th{position:sticky;top:0;background:#fff;z-index:1}
+  html.book-only .bk-main .mbdb-t tr.r td{padding-top:9px;padding-bottom:9px}
+}
+/* 휴대폰: 날짜 머리 줄은 카드가 아니라 제목처럼 */
+@media (max-width:760px){
+  html.book-only .mbdb-t tr.bk-day{background:none;border:0;box-shadow:none;padding:10px 2px 2px;margin:4px 0 6px}
+  html.book-only .mbdb-t tr.bk-day td{display:block;background:none !important;color:var(--pine);font-size:19px !important;font-weight:700;padding:0 !important;border:0 !important;margin:0}
+  html.book-only .mbdb-t tr.bk-day.today td{color:var(--pine)}
+  html.book-only .mbdb-t tr.bk-day td small{color:var(--muted) !important;font-size:15px}
+  html.book-only .mbdb-t tr.bk-day.today .bk-dtag{background:var(--pine);color:#fff}
+}
