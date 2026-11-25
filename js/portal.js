@@ -322,12 +322,12 @@ function calHTML(today){
   const per = x => x.d2 && x.d2>x.d ? `<b class="per">${esc(opsDateLabel(x.d))} ~ ${esc(opsDateLabel(x.d2))}</b> ` : '';
   const legend = `<div class="cal-lg">${[CAL_GRP, ...CAL_CATS].map(c=>`<span><i style="background:${c[1]}"></i>${esc(c[0])}</span>`).join('')}</div>`;
   return `<div class="dcol-h"><b>캘린더</b><button type="button" class="cal-plus" id="calAddBtn" title="일정 추가" aria-label="일정 추가">+</button><span class="cal-nav"><button type="button" data-cmon="-1" title="이전 달">‹</button><span>${y}년 ${m}월</span><button type="button" data-cmon="1" title="다음 달">›</button></span></div>`
-    + `<div class="cal-g"><span class="cw">일</span><span class="cw">월</span><span class="cw">화</span><span class="cw">수</span><span class="cw">목</span><span class="cw">금</span><span class="cw">토</span>${cells}</div>`
-    + legend
-    + `<div class="cal-day">`
+    + `<div class="cal-body"><div class="cal-l"><div class="cal-g"><span class="cw">일</span><span class="cw">월</span><span class="cw">화</span><span class="cw">수</span><span class="cw">목</span><span class="cw">금</span><span class="cw">토</span>${cells}</div>`
+    + legend + `</div>`
+    + `<div class="cal-day cal-r"><b class="cal-dh">${esc(opsDateLabel(calDay))}</b>`
     + (dv.length||de.length ? `<ul>${dv.map(x=>`<li class="cv-i"><span class="cv-l">${calTag(CAL_GRP)} <a class="cv-org" href="group.html?open=${encodeURIComponent(x.id)}" title="이 단체예약 열기">${esc(x.org)}</a>${x.n?` ${esc(x.n)}명`:''}${x.tm?` · ${esc(x.tm)}`:''}${x.st==='가예약'?' <small>(가예약)</small>':''}</span>${x.items.length?`<div class="cv-items">${x.items.map(i=>`<span>${esc(i.t)}${i.s?`<em>담당 ${esc(i.s)}</em>`:''}</span>`).join('')}</div>`:''}</li>`).join('')}`
         + `${de.map(x=>{ const c=calCat(x); return `<li class="ce-i" style="background:${c[2]}" data-cedit="${esc(x.id)}" title="누르면 고치기 · 삭제"><span>${calTag(c)} ${per(x)}${x.tm?`<b class="ctm">${esc(x.tm)}</b> · `:''}${esc(x.title)}</span></li>`; }).join('')}</ul>` : '<p class="hint">이날 단체 방문 · 일정이 없습니다.</p>')
-    + `</div>`;
+    + `</div></div>`;
 }
 function calRestore(){}   // 예전 칸 안 입력(제목 · 시간 · 끝나는 날)은 없앰 (2026-11-24) — 「+」 팝업으로
 // ===== 일정 추가 · 고치기 팝업 (2026-11-24) =====

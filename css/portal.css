@@ -353,3 +353,9 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .nt-none{padding:6px 8px;font-size:12.5px}
 .nt-perhint{margin:-4px 0 0 46px;font-size:12px}
 .nt-perdates[hidden],.nt-perhint[hidden]{display:none}
+/* 캘린더 안을 둘로 (2026-11-25): 왼쪽 = 달력 · 구분 표시 / 오른쪽 = 고른 날의 단체 방문 · 일정 — 대시보드 1 · 2열 자리와 맞춤 · 오른쪽은 달력 높이에 맞추고 길면 안에서 스크롤 */
+.cal-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+.cal-r{contain:size;overflow-y:auto;padding-top:0;display:flex;flex-direction:column}
+.cal-r ul{max-height:none;margin-top:6px}
+.cal-dh{font-size:13px;color:var(--ink)}
+@media (max-width:1100px){ .cal-body{grid-template-columns:1fr;gap:0} .cal-r{contain:none;padding-top:6px} .cal-r ul{max-height:240px} }
