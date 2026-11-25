@@ -2568,11 +2568,12 @@
     });
     // 바뀐 품목 (추가 · 빠짐 · 수량 · 할인)
     var changes = [];
+    function qr(r){ return won(Number(r.qty) || 0) + (Number(r.rate) ? " (할인 " + r.rate + "%)" : ""); }   // 수량 (할인율)
     oldRows.forEach(function(o){ if(o.adj) return; var n = map[o.key];
-      if(!n) changes.push("빠짐: " + o.name + " " + won(Number(o.qty) || 0));
+      if(!n) changes.push({ name: o.name, was: qr(o), now: "", tag: "빠짐" });
       else if((Number(n.qty) || 0) !== (Number(o.qty) || 0) || (Number(n.rate) || 0) !== (Number(o.rate) || 0))
-        changes.push(o.name + ": " + won(Number(o.qty) || 0) + (Number(o.rate) ? " (" + o.rate + "%)" : "") + " → " + won(Number(n.qty) || 0) + (Number(n.rate) ? " (" + n.rate + "%)" : "")); });
-    newRows.forEach(function(n){ if(!used[n.key]) changes.push("새로 생김: " + n.name + " " + won(Number(n.qty) || 0)); });
+        changes.push({ name: o.name, was: qr(o), now: qr(n), tag: "" }); });
+    newRows.forEach(function(n){ if(!used[n.key]) changes.push({ name: n.name, was: "", now: qr(n), tag: "새로 생김" }); });
     // 외부용: 바꾼 품목 · 외부용 수량 · 외부용 순서를 새 줄로 옮김
     var swapNotes = [], lost = [];
     state.swaps = {}; state.fakeQty = {}; state.fakeOrder = [];
@@ -2581,14 +2582,14 @@
         var lines = old.swaps[k] || []; if(!lines.length) return;
         var o = oldRows.filter(function(r){ return String(r.key) === String(k); })[0], n = o && map[o.key];
         var was = lines.map(function(l){ return product(l.pid).name + " " + won(Number(l.qty) || 0); }).join(", ");
-        if(!n){ lost.push((o ? o.name : "품목") + " → " + was + " (이번 예약에 그 품목이 없어 넣지 않음)"); return; }
+        if(!n){ lost.push((o ? o.name : "품목") + " → " + was + " : 이번 예약에 그 품목이 없어 넣지 않았습니다"); return; }
         state.swaps[n.key] = lines.map(function(l){ return { pid: l.pid, qty: Number(l.qty) || 1 }; });
         swapNotes.push({ key: n.key, name: n.name, was: was });
       });
       Object.keys(old.fakeQty || {}).forEach(function(k){
         var o = oldRows.filter(function(r){ return String(r.key) === String(k); })[0], n = o && map[o.key]; if(!n) return;
         if((Number(n.qty) || 0) === (Number(o.qty) || 0)) state.fakeQty[n.key] = old.fakeQty[k];
-        else lost.push(o.name + " 외부용 수량 " + won(Number(old.fakeQty[k]) || 0) + " (내부용 수량이 " + won(Number(o.qty) || 0) + " → " + won(Number(n.qty) || 0) + "로 바뀌어 넣지 않음 · 다시 확인)");
+        else lost.push(o.name + " 외부용 수량 " + won(Number(old.fakeQty[k]) || 0) + " : 내부용 수량이 " + won(Number(o.qty) || 0) + " → " + won(Number(n.qty) || 0) + "로 바뀌어 넣지 않았습니다. 다시 확인해 주세요");
       });
       state.fakeOrder = (old.fakeOrder || []).map(function(x){ var m = String(x).match(/^r:(.+)$/); if(!m) return x;
         var o = oldRows.filter(function(r){ return String(r.key) === m[1]; })[0], n = o && map[o.key]; return n ? "r:" + n.key : null; }).filter(Boolean);
@@ -2598,14 +2599,25 @@
     paint();   // 품목 · 외부용 다시 계산 (바꾼 품목 수량은 새 금액에 맞춰 syncFake 가 다시 정함)
     setEditOpen(true);
     // 알림: 무엇을 이어받았고 무엇이 바뀌었는지
-    var now = swapNotes.map(function(s){ var ls = state.swaps[s.key] || [];
-      return s.name + " → " + ls.map(function(l){ return product(l.pid).name + " " + won(Number(l.qty) || 0); }).join(", ") + " (지난번: " + s.was + ")"; });
-    var html = '<div class="small" style="font-weight:700;margin-bottom:4px">예약 내용을 새로 불러와 수정발행합니다</div>'
-      + '<div class="small">지난 발급(' + esc(histLabel(h)) + ') 설정을 이어받음: <b>' + esc(payKo(state.payMode)) + '</b> · <b>' + (state.docUse === "real" ? "내부용만" : "내부용 + 외부용") + '</b></div>'
-      + (changes.length ? '<div class="small" style="margin-top:6px;font-weight:600">바뀐 예약 내용</div>' + changes.map(function(c){ return '<div class="warn">' + esc(c) + '</div>'; }).join("") : "")
-      + (state.docUse !== "real" ? '<div class="small" style="margin-top:6px;font-weight:600">외부용 바꾼 품목 (지난번과 같은 품목으로 · 수량은 새 금액에 맞춤)</div>'
-          + (now.length ? now.map(function(t){ return '<div class="small">' + esc(t) + '</div>'; }).join("") : '<div class="small">지난번에 바꾼 품목 없음</div>')
-          + lost.map(function(t){ return '<div class="warn">' + esc(t) + '</div>'; }).join("") : "");
+    // 표로 보여 줌 (2026-11-25 · 예전엔 글 여러 줄): 이어받은 설정 · 바뀐 예약 내용(품목 | 지난번 | 이번) · 외부용 바꾼 품목(원래 품목 | 지난번 | 이번) · 못 옮긴 것
+    var swapNow = swapNotes.map(function(s){ var ls = state.swaps[s.key] || [];
+      return { name: s.name, was: s.was, now: ls.map(function(l){ return product(l.pid).name + " " + won(Number(l.qty) || 0); }).join(", ") }; });
+    var fakeOn = state.docUse !== "real";
+    function rvTable(head, rows){
+      return '<table class="rv-t"><thead><tr><th>' + esc(head) + '</th><th>지난번</th><th>이번</th></tr></thead><tbody>' + rows.map(function(c){
+        return '<tr><td>' + esc(c.name) + (c.tag ? ' <span class="rv-tag">' + esc(c.tag) + '</span>' : '') + '</td>' +
+          '<td class="rv-was">' + (c.was ? esc(c.was) : '–') + '</td><td class="rv-now">' + (c.now ? esc(c.now) : '–') + '</td></tr>'; }).join("") + '</tbody></table>';
+    }
+    var html = '<div class="rv">'
+      + '<div class="rv-h">예약 내용을 새로 불러와 수정발행합니다</div>'
+      + '<dl class="rv-kv"><dt>지난 발급</dt><dd>' + esc(histLabel(h)) + '</dd>'
+        + '<dt>이어받은 설정</dt><dd><span class="rv-chip">' + esc(payKo(state.payMode)) + '</span><span class="rv-chip">' + (fakeOn ? "내부용 + 외부용" : "내부용만") + '</span></dd></dl>'
+      + '<div class="rv-s">바뀐 예약 내용' + (changes.length ? ' <span class="rv-n">' + changes.length + '</span>' : '') + '</div>'
+      + (changes.length ? rvTable("품목 · 수량", changes) : '<div class="rv-none">지난 발급과 품목 · 수량이 같습니다</div>')
+      + (fakeOn ? '<div class="rv-s">외부용 바꾼 품목' + (swapNow.length ? ' <span class="rv-n">' + swapNow.length + '</span>' : '') + '</div>'
+          + (swapNow.length ? rvTable("원래 품목", swapNow) + '<div class="rv-note">지난번과 같은 품목으로 바꾸고, 수량은 새 금액에 맞췄습니다</div>' : '<div class="rv-none">지난번에 바꾼 품목이 없습니다</div>') : '')
+      + (lost.length ? '<div class="rv-s">옮기지 못한 것 <span class="rv-n">' + lost.length + '</span></div><ul class="rv-lost">' + lost.map(function(t){ return '<li>' + esc(t) + '</li>'; }).join("") + '</ul>' : '')
+      + '</div>';
     document.getElementById("parseinfo").innerHTML = html;
     status("새 예약 내용으로 수정발행 중 · 결제 " + payKo(state.payMode) + " · " + (state.docUse === "real" ? "내부용만" : "내부용 + 외부용"));
     return true;

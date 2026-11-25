@@ -467,3 +467,22 @@ html.reqhtml, html.reqhtml body{height:auto; min-height:100%; overflow:visible}
 .reqpage .grid2.same{grid-template-columns:1fr 1fr; gap:10px}
 .reqpage .rowpair .grid2 > div{min-width:0}
 .reqpage .rowpair .grid2 input{width:100%; box-sizing:border-box}
+/* 수정발행 알림 (2026-11-25): 이어받은 설정 · 바뀐 예약 내용 · 외부용 바꾼 품목을 표로 */
+.rv{border:1px solid var(--line); border-radius:10px; background:var(--surface-2); padding:12px 14px; font-size:13px; line-height:1.5}
+.rv-h{font-weight:700; font-size:14px; margin-bottom:8px}
+.rv-kv{display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0 0 4px}
+.rv-kv dt{color:var(--muted); white-space:nowrap}
+.rv-kv dd{margin:0; min-width:0}
+.rv-chip{display:inline-block; padding:1px 9px; border-radius:999px; background:var(--accent-soft); color:var(--accent); font-weight:700; font-size:12px; margin-right:5px}
+.rv-s{font-weight:700; margin:12px 0 5px}
+.rv-n{display:inline-block; min-width:18px; padding:0 6px; border-radius:999px; background:var(--accent); color:var(--surface); font-size:11px; line-height:18px; text-align:center; vertical-align:1px}
+.rv-t{width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden; font-size:13px}
+.rv-t th{text-align:left; font-weight:600; font-size:12px; color:var(--muted); background:var(--paper); padding:5px 9px}
+.rv-t td{padding:6px 9px; border-top:1px solid var(--line); vertical-align:top}
+.rv-t th:nth-child(1),.rv-t td:nth-child(1){width:34%}
+.rv-t td.rv-was{color:var(--muted)}
+.rv-t td.rv-now{font-weight:700}
+.rv-tag{display:inline-block; padding:0 7px; border-radius:999px; background:var(--steel-soft); color:var(--steel); font-size:11px; font-weight:700; white-space:nowrap}
+.rv-note,.rv-none{font-size:12px; color:var(--muted); margin-top:4px}
+.rv-lost{margin:0; padding:8px 10px 8px 26px; border-radius:8px; background:var(--surface); border:1px solid var(--danger); color:var(--danger); font-size:12.5px}
+.rv-lost li + li{margin-top:3px}
