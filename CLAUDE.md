@@ -12,10 +12,11 @@
 
 ## 2. 세션을 시작하면
 
-1. **상태 점검부터.** `powershell -ExecutionPolicy Bypass -File tools\check.ps1` 을 돌린다 (아무것도 바꾸지 않는다). 브랜치 · 저장 안 한 수정 · test 와 main 의 차이 · **백업** · 내 로그인 · 열쇠 · 두 서버 · 합친 파일 · `?v=` · 코드 지도를 보고, 끝에 「먼저 할 일」을 적어 준다. 그 결과를 사람에게 쉬운 말로 알린다.
+1. **상태 점검부터.** `powershell -ExecutionPolicy Bypass -File tools\check.ps1` 을 돌린다 (아무것도 바꾸지 않는다). 저장에 남을 이름 · 브랜치 · 저장 안 한 수정 · test 와 main 의 차이 · **백업** · 내 로그인 · 열쇠 · 두 서버 · 합친 파일 · `?v=` · 코드 지도를 보고, 끝에 「먼저 할 일」을 적어 준다. 그 결과를 사람에게 쉬운 말로 알린다.
 2. **백업이 「할 일」로 나오면 다른 일보다 먼저** 사람에게 이렇게 말한다: 「코드를 고치기 전에 백업 설정부터 해야 합니다. 이 시스템의 자료는 DB 한 곳에만 있고, 백업은 개발을 맡은 사람의 PC 가 받아 둡니다.」 그리고 설정을 도와준다 — ① `tools\my-login.json` 에 이름 · 사번을 사람이 메모장으로 적게 한다 (없으면 `tools\backup.ps1` 을 한 번 돌리면 빈 틀이 생긴다 · 사번을 Claude 에게 말하게 하지 않는다) ② 사람이 「걸어 줘」라고 하면 `powershell -ExecutionPolicy Bypass -File tools\backup.ps1 -Setup` (지금 한 번 받고 · 이 PC 의 작업 스케줄러에 매주 월요일로 건다) ③ `tools\backup.ps1 -Status` 로 확인. 사람이 「나중에」라고 하면 한 번만 더 권하고 일을 계속하되, 자료에 손대는 큰 일(철칙 8)은 백업 없이는 하지 않는다. 멤버 등록이 아직 안 돼 로그인이 안 되면 그것부터 안내한다.
-3. **브랜치는 `test`** 여야 한다 (아니면 `git checkout test`). test 에 아직 메인에 올리지 않은 작업이 있으면 먼저 알린다.
-4. **무엇이 어디 있는지는 문서에서 찾는다** (아래 「문서 읽는 법」). 코드를 통째로 읽으며 헤매지 않는다.
+3. **저장(커밋)에 남을 이름이 없으면 먼저 정한다** (새로 받은 폴더에는 없다 — 없으면 `git commit` 이 실패한다). 사람에게 어떤 이름으로 남길지 묻는다: 이 저장소는 공개라 커밋의 이름 · 메일은 누구나 본다 — 별명도 되고, 메일은 `GitHub아이디@users.noreply.github.com` 을 쓴다. 이 폴더에만 정한다: `git config user.name "…"` · `git config user.email "…"` (`--global` 을 붙이지 않는다).
+4. **브랜치는 `test`** 여야 한다 (아니면 `git checkout test`). test 에 아직 메인에 올리지 않은 작업이 있으면 먼저 알린다.
+5. **무엇이 어디 있는지는 문서에서 찾는다** (아래 「문서 읽는 법」). 코드를 통째로 읽으며 헤매지 않는다.
 
 ### 문서 읽는 법
 
@@ -96,7 +97,7 @@
    - `?mock=1` = 브라우저 안 가짜 DB (서버 코드 `worker.js` 도 그 안에서 진짜처럼 돈다). 로그인 `테스트` / `T001` (이미 「테스트」로 들어가 있기도 하다 · 이 로그인은 가짜 DB 에서만 된다). 끄기 `?mock=0` — 끈 뒤에는 로그아웃하고 진짜 이름 · 사번으로.
    - `?mock` 없이 = 테스트 DB (진짜 고객 자료의 사본). 로그인은 그 사람의 이름 · 사번. **Claude 는 확인할 때 가짜 DB 를 쓴다** — 테스트 DB 로 봐야 하는 것은 사람에게 테스트 사이트에서 봐 달라고 한다.
    - **가짜 DB 스위치는 주소(포트)마다 따로 기억된다.** 포트를 바꿨거나 처음 여는 주소면 꼭 `?mock=1` 을 붙인다. 무엇을 누르기 전에 화면 오른쪽 아래 이름표가 「시험용 …」(가짜 DB)인지 본다 (`SY_DB_NAME` 으로도 확인).
-   - 미리보기 도구는 **세션을 연 폴더**의 `.claude/launch.json` 을 읽는다. 이 폴더가 아닌 곳에서 열린 세션이면 `serve.ps1` 을 직접 돌리고 주소를 연다 (그리고 사람에게 다음부터는 `sayuwon-sales` 폴더를 열어 달라고 한다 — 그래야 이 파일도 자동으로 읽힌다). `.claude/launch.json` 은 저장소에 없다(새 PC 에서는 만든다): `{"version":"0.0.1","configurations":[{"name":"sayuwon","runtimeExecutable":"powershell","runtimeArgs":["-NoProfile","-ExecutionPolicy","Bypass","-File","tools\\serve.ps1","-Port","8767"],"port":8767}]}` (경로가 안 잡히면 `tools\\serve.ps1` 을 전체 경로로).
+   - 미리보기 도구는 **세션을 연 폴더**의 `.claude/launch.json` 을 읽는다. 이 폴더가 아닌 곳에서 열린 세션이면 `serve.ps1` 을 직접 돌리고 주소를 연다 (그리고 사람에게 다음부터는 `sayuwon-sales` 폴더를 열어 달라고 한다 — 그래야 이 파일도 자동으로 읽힌다). `.claude/launch.json` 은 저장소에 없다(새 PC 에서는 만든다): `{"version":"0.0.1","configurations":[{"name":"sayuwon","runtimeExecutable":"powershell","runtimeArgs":["-NoProfile","-ExecutionPolicy","Bypass","-File","tools/serve.ps1"],"port":8767}]}` — 경로는 `/` 로 적는다(역슬래시는 JSON 에서 깨지기 쉽다). `-Port` 는 적지 않는다: 8767 을 다른 것이 쓰고 있으면 미리보기 도구가 다른 번호(8768 …)를 정해 주고 `serve.ps1` 이 그 번호(환경 변수 `PORT`)를 따른다 — **도구가 알려 준 주소를 쓰고, 번호가 바뀌었으면 `?mock=1` 을 다시 붙인다.**
    - `.ps1` 을 Bash 로 돌리면 한글 출력이 깨져 보일 수 있다. 동작은 정상이다 — PowerShell 도구로 돌리거나 숫자 · 종료 코드로 판단한다.
 3. CSS · JS 를 고쳤으면 `powershell -ExecutionPolicy Bypass -File tools\bump.ps1` — 모든 HTML 의 `?v=` 를 새 값 하나로 바꾼다 (안 바꾸면 직원 브라우저가 예전 파일을 쓴다). 값은 오늘 날짜와 다를 수 있다 — 앞 값보다 크기만 하면 되므로 손으로 고치지 않는다.
 4. 문서에 적는다: **`docs/바뀐-것-기록.md` 맨 아래에 한 줄** — `- (날짜) **무엇**: 어떻게 바뀌었는지 · 왜 (파일 · 함수 이름)`. 화면의 규칙이 바뀌었으면 그 화면 문서(`docs/README.md` 「화면별로 찾기」에서 찾음)의 틀려진 설명도 고친다. 큰 기능을 새로 만들었으면 `docs/화면/` 에 새 파일을 만들고 `docs/README.md` 의 표에 한 줄 넣는다. 화면 · JS · CSS 파일을 더하거나 뺐으면, 서버 동작 · DB 표를 더했으면 `powershell -ExecutionPolicy Bypass -File tools\map.ps1` 로 코드 지도를 다시 만든다 (새 파일의 맨 위 첫 줄에는 「이 파일이 무엇인지」 설명을 적는다 — 지도가 그 줄을 읽는다).

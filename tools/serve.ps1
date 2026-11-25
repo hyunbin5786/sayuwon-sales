@@ -3,7 +3,7 @@
 #   → 브라우저에서 http://localhost:8767/  (끄기: 이 창에서 Ctrl+C 또는 창 닫기)
 #   다른 번호로:  … -Port 8770
 # localhost 로 연 화면은 테스트 DB 를 씀 (배포 DB 아님 · js/common.js SY_TEST_SITE)
-param([int]$Port = 8767)
+param([int]$Port = $(if ($env:PORT -match '^[0-9]+$') { [int]$env:PORT } else { 8767 }))   # 번호를 안 주면 환경 변수 PORT(미리보기 도구가 정해 줌) · 그것도 없으면 8767
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}   # 한글 출력이 어디서 돌려도 깨지지 않게
 $root = Split-Path $PSScriptRoot -Parent
 $types = @{ '.html' = 'text/html; charset=utf-8'; '.css' = 'text/css; charset=utf-8'; '.js' = 'text/javascript; charset=utf-8'; '.json' = 'application/json; charset=utf-8'; '.sql' = 'text/plain; charset=utf-8'; '.md' = 'text/plain; charset=utf-8'

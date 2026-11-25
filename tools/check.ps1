@@ -1,6 +1,6 @@
 ﻿# 지금 상태 한눈에 보기 — 일을 시작할 때 맨 먼저 돌림 (CLAUDE.md 2절 · 개발-시작하기.md 4절). 아무것도 바꾸지 않음 (git fetch 만 함)
 #   실행:  powershell -ExecutionPolicy Bypass -File tools\check.ps1
-#   보는 것: Git · 브랜치 · 저장 안 한 수정 · test 와 main 의 차이 · 백업 · 내 로그인 · 열쇠 · 두 서버 · 합친 파일(js/group.js) · ?v= · 코드 지도
+#   보는 것: Git · 저장에 남을 이름 · 브랜치 · 저장 안 한 수정 · test 와 main 의 차이 · 백업 · 내 로그인 · 열쇠 · 두 서버 · 합친 파일(js/group.js) · ?v= · 코드 지도
 #   끝에 「먼저 할 일」을 적어 줌.  종료 코드: 0 = 바로 일해도 됨 · 3 = 먼저 할 일이 있음
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}   # 한글 출력이 어디서 돌려도 깨지지 않게
 $ErrorActionPreference = 'Stop'
@@ -17,6 +17,8 @@ if (-not $git) { Row 'Git' $NO '설치돼 있지 않음 → https://git-scm.com/
 else {
   $branch = (git -C $root rev-parse --abbrev-ref HEAD 2>$null)
   if ($branch -eq 'test') { Row '브랜치' $OK 'test (개발하는 곳)' } else { Row '브랜치' $NO "$branch — 개발은 test 에서 합니다"; $todo.Add('브랜치를 test 로 바꿉니다:  git checkout test') }
+  $gname = (git -C $root config user.name 2>$null); $gmail = (git -C $root config user.email 2>$null)
+  if ($gname -and $gmail) { Row 'Git 이름' $OK '저장(커밋)에 남을 이름 · 메일이 정해져 있음' } else { Row 'Git 이름' $NO '저장(커밋)에 남을 이름 · 메일이 없음 — 이대로는 저장이 실패함'; $todo.Add('저장(커밋)에 남을 이름을 정합니다. 사람에게 어떤 이름으로 남길지 묻고(공개 저장소라 누구나 봄 · 별명도 됨), 이 폴더에만:  git config user.name "이름"   그리고  git config user.email "GitHub아이디@users.noreply.github.com"  (GitHub 아이디를 모르면 사람에게 물음)') }
   $dirty = @(git -C $root status --porcelain)
   if ($dirty.Count) { Row '저장 안 한 수정' $IN "$($dirty.Count)개 파일 (git status 로 확인)"; $note.Add("저장(커밋)하지 않은 수정이 $($dirty.Count)개 있습니다 — 지난 작업이 남은 것인지 먼저 확인합니다.") } else { Row '저장 안 한 수정' $OK '없음' }
   $fetched = $true; git -C $root fetch --quiet origin 2>$null; if ($LASTEXITCODE) { $fetched = $false }
