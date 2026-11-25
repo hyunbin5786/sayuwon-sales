@@ -316,6 +316,11 @@
     return COMPANY[form].sheetLabel;
   }
   function docName(){ return DOC_NAME[state.docType] || DOC_NAME.quote; }
+  // 표 위 · 표 맨 아래 줄의 금액 이름: 견적서 = 견적금액 · 거래명세서 = 거래금액 (화면 · PDF · 엑셀 모두)
+  function amtName(){ return state.docType === "statement" ? "거래금액" : "견적금액"; }
+  function amtNameWide(){ return amtName().split("").join(" "); }
+  // 문서 종류를 잠깐 바꿔서 그려 보기 (둘 다 고른 미리보기)
+  function withDoc(type, fn){ var keep = state.docType; state.docType = type; try { return fn(); } finally { state.docType = keep; } }
 
   var MIN_ROWS = { sayuwon:11, shilla:11 };
   var MAX_ROWS = 15;
@@ -1108,8 +1113,8 @@
       body += '<tr>' + new Array(cols.length+1).join('<td>&nbsp;</td>') + '</tr>';
     }
     var totalRow = isSay
-      ? '<tr class="total"><td class="label" colspan="4">견적금액</td><td class="num">'+won(total)+'</td><td class="ctr">' + (taxOf(form) === "면세" ? "-" : "Vat 포함") + '</td></tr>'
-      : '<tr class="total"><td class="label" colspan="3">견적금액</td><td class="num">'+won(total)+'</td><td class="ctr">Vat 포함</td></tr>';
+      ? '<tr class="total"><td class="label" colspan="4">' + amtName() + '</td><td class="num">'+won(total)+'</td><td class="ctr">' + (taxOf(form) === "면세" ? "-" : "Vat 포함") + '</td></tr>'
+      : '<tr class="total"><td class="label" colspan="3">' + amtName() + '</td><td class="num">'+won(total)+'</td><td class="ctr">Vat 포함</td></tr>';
 
 
     var useTxt = state.useDateText.trim() || fmtDate(state.useDate, true);
@@ -1131,7 +1136,7 @@
           '<div>발 행 일 : ' + esc(fmtDate(issueDate(), true)) + '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="amountline">견 적 금 액 : ' + (isSay ? "" : "₩ ") + won(total) + '원(' + taxOf(form) + ')</div>' +
+      '<div class="amountline">' + amtNameWide() + ' : ' + (isSay ? "" : "₩ ") + won(total) + '원(' + taxOf(form) + ')</div>' +
       '<table><colgroup>' + widths.map(function(w){ return '<col style="width:'+w+'">'; }).join("") + '</colgroup>' +
         '<thead><tr>' + cols.map(function(h){ return '<th>'+esc(h)+'</th>'; }).join("") + '</tr></thead>' +
         '<tbody>' + body + totalRow + '</tbody></table>' +
@@ -1156,9 +1161,30 @@
         return '<div class="sheetwrap"><div class="sheetlabel">' + esc(label) + '</div>' +
           '<div class="scaler"><div class="sheetbox">' + html + '</div></div></div>';
       };
-      elPreview.classList.toggle("pairs", fake);
+      // 견적서 · 거래명세서를 둘 다 골랐으면 미리보기에도 둘 다 (2026-11-25): 양식마다 견적서(왼쪽) · 거래명세서(오른쪽)
+      var both = !!state.docBoth, docs = both ? ["quote", "statement"] : [state.docType];
+      elPreview.classList.toggle("pairs", fake || both);
       if(!fake){
-        elPreview.innerHTML = forms.map(function(f){ return wrap(sheetLabelOf(f), sheetHTML(f)); }).join("");
+        elPreview.innerHTML = forms.map(function(f){
+          return docs.map(function(d){ return withDoc(d, function(){ return wrap((both ? DOC_NAME[d] + " · " : "") + sheetLabelOf(f), sheetHTML(f)); }); }).join("");
+        }).join("");
+      } else if(both){
+        // 외부용 + 둘 다: 견적서의 내부용 · 외부용 줄들, 이어서 거래명세서의 내부용 · 외부용 줄들
+        var fr2 = fakeRows();
+        elPreview.innerHTML = docs.map(function(d){
+          return withDoc(d, function(){
+            var ps = forms.map(function(f){
+              var inner = sheetHTML(f);
+              var outer = withRows(fr2, function(){ return rowsOf(f).length ? sheetHTML(f) : ""; });
+              return { f:f, inner:inner, outer:outer, changed: inner !== outer };
+            });
+            ps.sort(function(a, b){ return (b.changed ? 1 : 0) - (a.changed ? 1 : 0); });
+            return ps.map(function(p){
+              return wrap(DOC_NAME[d] + " · 내부용 · " + sheetLabelOf(p.f), p.inner) +
+                     (p.outer ? wrap(DOC_NAME[d] + " · 외부용 · " + sheetLabelOf(p.f), p.outer) : '<div class="sheetwrap"></div>');
+            }).join("");
+          });
+        }).join("");
       } else {
         // 외부용: 양식마다 내부용(왼쪽) · 외부용(오른쪽)을 나란히. 바뀐 양식이 먼저
         var fr = fakeRows();
@@ -1555,7 +1581,7 @@
     rowTo(m.amount.y);
     var ar = rowTo(m.amount.b);
     ws.mergeCells(ar, C0, ar, CN);
-    for(var col=C0; col<=CN; col++) cell(ar, col, col === C0 ? "견 적 금 액 : " + (isSay ? "" : "₩ ") + won(total) + "원(" + taxOf(form) + ")" : null,
+    for(var col=C0; col<=CN; col++) cell(ar, col, col === C0 ? amtNameWide() + " : " + (isSay ? "" : "₩ ") + won(total) + "원(" + taxOf(form) + ")" : null,
       { size:11, bold:true, v:"top", border:{ bottom:{ style:"medium" } } });
 
     // 표
@@ -1592,7 +1618,7 @@
     rowTo(m.trs[nRows + 1].b);
     var amt = span[span.length - 2], vat = span[span.length - 1];
     var tot = { size:11, bold:true, h:"center", fill:true };
-    put(lastRow, C0, XL_TOTAL[form], "견적금액", Object.assign({}, tot), hr, lastRow);
+    put(lastRow, C0, XL_TOTAL[form], amtName(), Object.assign({}, tot), hr, lastRow);
     put(lastRow, amt[0], amt[1], total, Object.assign({}, tot, { h:"right", indent:1, fmt:"#,##0" }), hr, lastRow);
     put(lastRow, vat[0], vat[1], taxOf(form) === "면세" ? "-" : "Vat 포함", Object.assign({}, tot), hr, lastRow);
 
@@ -2097,8 +2123,8 @@
       var btns = document.getElementById(m[0]).querySelectorAll("button");
       for(var i=0;i<btns.length;i++) btns[i].classList.toggle("on", (m[1] === "docType" && state.docBoth) || btns[i].getAttribute("data-v") === state[m[1]]);
     });
-    // 견적서 · 거래명세서 둘 다 (2026-11-23): 두 버튼이 모두 켜진 상태 = 출력하면 견적서와 거래명세서를 이어서 한 번에 발급. 미리보기는 견적서
-    document.getElementById("m-doc-hint").textContent = state.docBoth ? "견적서와 거래명세서를 한 번에 발급합니다 (미리보기는 견적서 · 거래명세서의 발행일은 오늘)" : "두 가지를 모두 눌러 켜면 함께 발급합니다";
+    // 견적서 · 거래명세서 둘 다 (2026-11-23): 두 버튼이 모두 켜진 상태 = 출력하면 견적서와 거래명세서를 이어서 한 번에 발급. 미리보기에도 둘 다
+    document.getElementById("m-doc-hint").textContent = state.docBoth ? "견적서와 거래명세서를 한 번에 발급합니다 (거래명세서의 발행일은 오늘)" : "두 가지를 모두 눌러 켜면 함께 발급합니다";
     document.getElementById("m-pay-hint").textContent = state.payMode === "online"
       ? "모든 품목을 ㈜사유원 한 장으로 발급합니다"
       : "관람은 ㈜사유원, 식음 · 프로그램 · 대관은 신라철강㈜으로 나눠 발급합니다";
