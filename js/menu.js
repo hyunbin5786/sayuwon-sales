@@ -17,6 +17,8 @@
     {k:'manual', t:'매뉴얼', login:1, items:[ I('manual.html','고객 응대 매뉴얼') ]},   // 2026-11-24 홍보 보조 아래 · 보기 · 찾기 · 안내문 올리기 · 반영은 한 화면(manual.html)에서
     {k:'set', t:'기타 설정', login:1, items:[ I('./#catalog','품목관리','', 'catalog'), I('./#members','멤버관리','', 'members') ]},
   ];
+  // 개발 중 기능 (2026-11-25): 배포 사이트에서는 메뉴에서 아예 뺌 (테스트 사이트에만 있음 · js/common.js SY_DEV.DEV_PAGES) · 다 빠진 묶음(홍보 보조 · 매뉴얼 등)도 안 보임
+  if(typeof SY_DEV!=='undefined' && SY_DEV.isProd){ G.forEach(g=>{ g.items=g.items.filter(i=>!(i.href && SY_DEV.off(i.href))); }); for(let i=G.length-1;i>=0;i--) if(!G[i].items.some(x=>x.href || x.chips)) G.splice(i,1); }
   let st={}; try{ st=JSON.parse(localStorage.getItem('sy_menu_acc2')||'{}')||{}; }catch(_){}
   // 지금 화면 표시: 파일 이름이 같고, 메뉴 주소의 ?값(tab · p 등)이 지금 주소에도 있으면 (단체고객 응대는 나의 할일 · 예약 현황이 아닐 때만)
   const herePath = /\/document\//.test(location.pathname) ? 'document/' : (location.pathname.replace(/.*\//,'') || 'index.html'), hereQ = new URLSearchParams(location.search);
@@ -30,7 +32,7 @@
     : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}${typeof SY_DEV!=="undefined" && SY_DEV.tag && SY_DEV.tag(it.href)?`<small class="sm-dev">test에만 보임</small>`:""}</b></a>`;   /* 개발 중 기능: 배포 사이트엔 이름표 없음 · 테스트 사이트에만 「test에만 보임」 (2026-11-25 · js/common.js SY_DEV.tag) */   // 메뉴 아래 회색 설명은 없앰 (2026-11-18)
   const wrap=document.createElement('div'); wrap.className='smenu'; wrap.id='smenu'; wrap.hidden=true;
   wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"><div class="sm-top"><b class="sm-title">메뉴</b><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
-    + G.filter(g=>logged || !g.login || g.items.some(i=>i.guest)).map(g=>{ const its = logged || !g.login ? g.items : g.items.filter((i,n,a)=>i.guest || (i.sub && a.slice(n+1).find(x=>x.sub || x.guest)?.guest));   // 로그인 안 했으면 로그인 묶음에서는 guest 항목(과 그 소제목)만
+    + G.filter(g=>g.items.length && (logged || !g.login || g.items.some(i=>i.guest))).map(g=>{ const its = logged || !g.login ? g.items : g.items.filter((i,n,a)=>i.guest || (i.sub && a.slice(n+1).find(x=>x.sub || x.guest)?.guest));   // 로그인 안 했으면 로그인 묶음에서는 guest 항목(과 그 소제목)만
       return `<details class="sm-g" data-acc="${g.k}"${(g.k in st ? st[g.k] : false)?' open':''}><summary>${esc(g.t)}</summary>${its.map(itemHTML).join('')}</details>`; }).join('')
     + (logged ? '' : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>`) + `</nav>`;
   document.body.appendChild(wrap);
