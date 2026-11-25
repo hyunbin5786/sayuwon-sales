@@ -402,7 +402,7 @@ async function importData(env, req) {
   }
   const qs = (req.quotereq || []).filter(o => o && o.id).map(o => q(env, 'INSERT INTO quotereq (' + QR_COLS + ') VALUES (' + QR_KEYS.map((k, i) => '?' + (i + 1)).join(',') + ') ON CONFLICT(id) DO UPDATE SET ' + QR_KEYS.slice(1).map((k, i) => '"' + k + '"=?' + (i + 2)).join(','), ...QR_KEYS.map(k => String(o[k] == null ? '' : o[k]))));
   await batch(qs); out.quotereq = qs.length;
-  for (const f of (req.files || [])) { if (!f || !f.id || !f.data) continue; await saveFile(env, String(f.id), f.kind === 'doc' ? 'doc' : 'ment', String(f.name || ''), String(f.mime || ''), String(f.data), '이관'); out.files++; }
+  for (const f of (req.files || [])) { if (!f || !f.id || !f.data) continue; await saveFile(env, String(f.id), ['doc', 'manual'].includes(f.kind) ? f.kind : 'ment', String(f.name || ''), String(f.mime || ''), String(f.data), '이관'); out.files++; }
   if (req.admin) await kvSet(env, 'admin', JSON.stringify(req.admin));
   if (Array.isArray(req.clergy) && req.clergy.length) {   // 무료입장 명부 (백업에서 되살리기 · 줄 그대로 · replace 면 같은 id 를 덮어씀)
     await ensureClergy(env);
@@ -410,6 +410,14 @@ async function importData(env, req) {
     const list = req.clergy.filter(r => r && r.id).map(r => Object.fromEntries(C.map(k => [k, String(r[k] == null ? '' : r[k])])));
     await q(env, 'INSERT OR ' + (req.replace ? 'REPLACE' : 'IGNORE') + ' INTO clergy (' + C.map(k => '"' + k + '"').join(',') + ') SELECT ' + C.map(k => "json_extract(value,'$." + k + "')").join(',') + ' FROM json_each(?)', JSON.stringify(list)).run();
     await kvSet(env, 'clergy_moved', '1'); out.clergy = list.length;
+  }
+  // 홍보 기자 리스트 · 고객 응대 매뉴얼 (2026-11-25 · 되살리기에 빠져 있던 것): export 가 준 줄 그대로 (수정 일시 · 지운 표시 유지) · replace 면 같은 id 를 덮어쓰고 아니면 없는 id 만
+  for (const [t, ens] of [['press', ensurePress], ['manual', ensureManual]]) {
+    const list = (Array.isArray(req[t]) ? req[t] : []).filter(r => r && r.id).map(r => Object.fromEntries(MIRROR[t].map(k => [k, k === 'ord' ? Number(r.ord) || 0 : k === 'data' ? (typeof r.data === 'string' ? r.data : JSON.stringify(r.data || {})) : String(r[k] == null ? '' : r[k])])));
+    if (!list.length) continue;
+    await ens(env);
+    await q(env, 'INSERT OR ' + (req.replace ? 'REPLACE' : 'IGNORE') + ' INTO ' + t + ' (' + MIRROR[t].map(k => '"' + k + '"').join(',') + ') SELECT ' + MIRROR[t].map(k => "json_extract(value,'$." + k + "')").join(',') + ' FROM json_each(?)', JSON.stringify(list)).run();
+    out[t] = list.length;
   }
   // 견적서 서버 자료: 발급 내역은 없는 id 만 더함 (있는 줄은 그대로 — 새 서버에서 한 발급 취소를 지우지 않게) · 품목 목록은 새 서버에 아직 없을 때만
   //   replace:true (tools/restore.html 의 「백업 때 모습으로 덮어쓰기」) 이면 발급 내역 · 품목 목록도 받은 것으로 바꿈
@@ -703,7 +711,7 @@ export default {
     if (request.method === 'GET') {
       // 2026-11-23: /file/<id>/<보이는 이름> 도 받음 — 브라우저는 탭 제목 · 저장 이름을 주소 끝에서 가져가므로 화면에 보이는 이름을 주소 끝에 붙임 (뒤 이름은 무시하고 id 로 찾음)
       const m = url.pathname.match(/^\/file\/([a-zA-Z0-9_-]{8,80})(?:\/[^/]*)?$/);
-      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 9, db: 'd1', ...(env.TEST_SYNC_KEY ? { testSync: true } : {}) });   // api 8 = /file/<id>/<이름> 받음 · api 9 = mirror (testSync 는 테스트 서버에서만 보임)
+      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 10, db: 'd1', ...(env.TEST_SYNC_KEY ? { testSync: true } : {}) });   // api 8 = /file/<id>/<이름> 받음 · api 9 = mirror · api 10 = import 가 press · manual 도 받음 (testSync 는 테스트 서버에서만 보임)
       const f = await readFile(env, m[1]);
       if (!f || f.kind !== 'doc') return new Response('파일이 없습니다', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       const bin = atob(f.data), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);

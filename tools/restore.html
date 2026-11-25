@@ -8,6 +8,7 @@
      - 로그인한 멤버 + 서버의 비밀 값 MIGRATE_KEY 가 있어야 함 (평소에는 MIGRATE_KEY 를 지워 두므로 아무나 못 함 — 되살릴 때만 Cloudflare 에 넣었다가 끝나면 지움)
      - 두 가지 방식: ① 빠진 것만 채우기 (지금 DB 에 없는 것만 넣음 · 있는 것은 건드리지 않음) ② 백업 때 모습으로 덮어쓰기 (같은 id 는 백업 내용으로 바꿈)
        어느 쪽이든 백업 뒤에 새로 생긴 것은 지우지 않음. 멤버는 늘 「없는 사람만 더하기」(멤버를 빼지 않음)
+     - 2026-11-25: 홍보 기자 리스트(press) · 고객 응대 매뉴얼(manual) 표도 되살림 (서버 api 10 부터 · 매뉴얼에 올린 파일도 제 종류로)
      - 비어 있는 새 DB 에 통째로 넣을 때도 이 도구 (② 로). 쓰는 법 · 파일 모양은 README 20절 -->
 <script>(function(){ try{ var u=JSON.parse(localStorage.getItem("sy_user")||"null"); if(!u || !u.name || !u.emp) location.replace("../"); }catch(e){} })();</script>
 <style>
@@ -49,7 +50,7 @@
       members: bySeq(T.members).filter(m => !m.deleted && m.name && m.emp),
       quotereq: bySeq(T.quotereq),
       history: bySeq(T.quote_history).map(r => parse(r.data)).filter(x => x && x.id),
-      clergy: bySeq(T.clergy),
+      clergy: bySeq(T.clergy), press: bySeq(T.press).filter(r => r && r.id), manual: bySeq(T.manual).filter(r => r && r.id),   // press · manual 은 2026-11-25 부터 되살림 (예전 백업 파일에 없으면 빈 목록)
       catalog: kv.catalog || null, admin: kv.admin || null,
       files: bySeq(T.files).map(f => ({ id: f.id, kind: f.kind, name: f.name, mime: f.mime, data: f.base64 != null ? f.base64 : (chunks[f.id] || []).join('') })) };
   }
@@ -58,7 +59,8 @@
     const f = e.target.files[0]; if (!f) return;
     try { B = read(JSON.parse(await f.text()));
       const noData = B.files.filter(x => !x.data).length;
-      $('sum').textContent = `백업 시각: ${B.at ? new Date(B.at).toLocaleString('ko-KR') : '(모름)'}\n기록 ${B.calls.length}줄 (그중 지워진 줄 ${B.calls.filter(x => x.deleted).length}) · 멤버 ${B.members.length}명 · 고객 견적 요청 ${B.quotereq.length}건\n견적서 발급 내역 ${B.history.length}건 · 품목 관리 내용 ${B.catalog ? '있음' : '없음'} · 파일 ${B.files.length}개` + (noData ? ` (그중 ${noData}개는 내용 없이 목록만 — 「올린 파일도 함께」를 끄고 받은 백업)` : '');
+      $('sum').textContent = `백업 시각: ${B.at ? new Date(B.at).toLocaleString('ko-KR') : '(모름)'}\n기록 ${B.calls.length}줄 (그중 지워진 줄 ${B.calls.filter(x => x.deleted).length}) · 멤버 ${B.members.length}명 · 고객 견적 요청 ${B.quotereq.length}건\n견적서 발급 내역 ${B.history.length}건 · 품목 관리 내용 ${B.catalog ? '있음' : '없음'} · 파일 ${B.files.length}개
+무료입장 명부 ${B.clergy.length}줄 · 기자 리스트 ${B.press.length}줄 · 매뉴얼 ${B.manual.length}줄` + (noData ? ` (그중 ${noData}개는 내용 없이 목록만 — 「올린 파일도 함께」를 끄고 받은 백업)` : '');
       $('sum').hidden = false; $('go').disabled = false;
     } catch (err) { log('파일을 읽지 못했습니다: ' + err.message, 'err'); }
   });
@@ -80,6 +82,15 @@
       for (let i = 0; i < calls.length; i += 30) { const r = await imp({ calls: calls.slice(i, i + 30) }); (r.imported.skipped || []).forEach(id => log(`   ⚠ id 모양이 맞지 않아 건너뜀: ${id}`, 'err')); }
       if (calls.length) log(`   기록 ${calls.length}줄`);
       if (B.clergy.length) { for (let i = 0; i < B.clergy.length; i += 1000) await imp({ clergy: B.clergy.slice(i, i + 1000) }); log(`   무료입장 명부 ${B.clergy.length}줄`); }
+      // 기자 리스트 · 매뉴얼: 줄 그대로 (빠진 것만 채우기면 서버가 없는 id 만 넣음). 요청 하나가 너무 커지지 않게 글자 수로 끊어 보냄
+      for (const [key, name] of [['press', '기자 리스트'], ['manual', '매뉴얼']]) {
+        const rows = B[key]; if (!rows.length) continue;
+        let part = [], size = 0, old = false;
+        const send = async () => { if (!part.length) return; const r = await imp({ [key]: part }); if (r.imported[key] == null) old = true; part = []; size = 0; };
+        for (const row of rows) { const n = JSON.stringify(row).length; if (part.length && (size + n > 300000 || part.length >= 300)) await send(); part.push(row); size += n; }
+        await send();
+        if (old) log(`   ⚠ ${name}: 서버가 예전 버전이라 넣지 못했습니다 — Cloudflare 에 새 cloudflare/worker.js 를 올린 뒤 다시`, 'err'); else log(`   ${name} ${rows.length}줄`);
+      }
       const r1 = await imp({ members: B.members, quotereq: qr, catalog: B.catalog || undefined, admin: replace && B.admin ? B.admin : undefined });
       log(`   멤버 ${r1.imported.members}명 더함 (이미 있는 사람은 그대로) · 견적 요청 ${qr.length}건 · 품목 관리 내용 ${r1.imported.catalog ? '넣음' : '그대로 둠'}`);
       for (let i = 0; i < hist.length; i += 10) await imp({ quoteHistory: hist.slice(i, i + 10) });
@@ -90,8 +101,10 @@
       let miss = 0, diff = 0; B.calls.forEach(x => { const d = now.get(x.id); if (d == null) miss++; else if (replace && JSON.stringify(parse(d)) !== JSON.stringify(x)) diff++; });
       const nh = new Set(await exportAll('quote_history', r => r.id)), nf = new Set(await exportAll('files', r => r.id));
       const mh = B.history.filter(x => !nh.has(x.id)).length, mf = B.files.filter(f => f.data && !nf.has(f.id)).length;
-      log(`   기록 ${now.size}줄 · 발급 내역 ${nh.size}건 · 파일 ${nf.size}개`);
-      if (miss || diff || mh || mf) log(`⚠ 맞지 않는 것이 있습니다: 없는 기록 ${miss} · 내용이 다른 기록 ${diff} · 없는 발급 내역 ${mh} · 없는 파일 ${mf}`, 'err');
+      const np = new Set(await exportAll('press', r => r.id)), nm = new Set(await exportAll('manual', r => r.id));
+      const mp = B.press.filter(x => !np.has(x.id)).length, mm = B.manual.filter(x => !nm.has(x.id)).length;
+      log(`   기록 ${now.size}줄 · 발급 내역 ${nh.size}건 · 파일 ${nf.size}개 · 기자 리스트 ${np.size}줄 · 매뉴얼 ${nm.size}줄`);
+      if (miss || diff || mh || mf || mp || mm) log(`⚠ 맞지 않는 것이 있습니다: 없는 기록 ${miss} · 내용이 다른 기록 ${diff} · 없는 발급 내역 ${mh} · 없는 파일 ${mf} · 없는 기자 리스트 ${mp} · 없는 매뉴얼 ${mm}`, 'err');
       else log(replace ? '끝났습니다. 백업에 있던 것이 모두 백업 내용 그대로 DB 에 있습니다.' : '끝났습니다. 백업에 있던 것이 모두 DB 에 있습니다 (이미 있던 것은 그대로 둠).', 'ok');
       log('화면을 열어 둔 사람은 새로고침(F5) 하면 되살린 내용이 보입니다. Cloudflare 의 MIGRATE_KEY 는 지워 두세요.');
     } catch (e) { log('멈췄습니다: ' + (e.code === 'bad_key' ? 'MIGRATE_KEY 가 다르거나(또는 서버에 없거나) 로그인이 확인되지 않았습니다' : (e.message || e)) + ' — 다시 눌러도 됩니다 (같은 것은 한 번만 들어감)', 'err'); }
