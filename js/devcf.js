@@ -2,6 +2,7 @@
 // localhost 에서 주소 끝에 ?mock=1 을 한 번 붙이면 켜짐 (끄기 ?mock=0). js/common.js 맨 아래가 이 파일을 읽음. (손으로 흉내 낸 가짜 서버 js/devmock.js 는 2026-11-23에 없앰 — 진짜 서버 코드를 돌리는 이쪽 하나로)
 //  - cloudflare/worker.js (진짜 서버 코드) 를 그대로 불러와, cloudflare/schema.sql 로 만든 SQLite DB(sql.js) 에 붙여 돌림
 //    → 서버에 올리기 전에 「화면 + 서버 코드 + SQL」이 맞물리는지 확인. Cloudflare D1 의 제한(값 하나 2MB · 묶는 값 100개 · 요청 하나에 쿼리 50번)도 넘으면 오류를 냄
+//  - 2026-11-25: 테스트 사이트(/sayuwon-sales/test/)에서도 켜짐 (배포 사이트는 안 됨 · js/common.js)
 //  - DB 는 이 브라우저 localStorage 'sy_cf_db' 에만 (지우기: SY_CF.reset()). 처음엔 멤버 테스트 / T001 · 김영업 / T002 와 가상 예약
 //  - 견적서 서버(SY.quote)도 서버 코드의 quoteGet · quotePost 로 감. 틀린 로그인 제한을 시험하려면 콘솔에서 SY_CF_IP='1.2.3.4' (IP 가 없으면 세지 않음)
 (function(){

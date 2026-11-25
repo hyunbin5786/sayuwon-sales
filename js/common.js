@@ -144,9 +144,9 @@ const SY = Object.freeze({
         return [...map.values()]; },
     }; })(),
 });
-// ===== 로컬 미리보기 전용 (운영 주소에서는 절대 읽지 않음) — localhost 에서 주소 끝에 ?mock=1 을 한 번 붙이면 그 브라우저에 기억 (끄기 ?mock=0) =====
+// ===== 시험용 모드 (배포 사이트에서는 절대 읽지 않음) — 이 컴퓨터(localhost) · 테스트 사이트(/sayuwon-sales/test/ · 2026-11-25부터)에서 주소 끝에 ?mock=1 을 한 번 붙이면 그 브라우저에 기억 (끄기 ?mock=0) =====
 //   js/devcf.js 가 서버 코드 cloudflare/worker.js 를 브라우저 안 SQLite 로 돌림 → 진짜 DB 에는 아무것도 가지 않음
-(function(){ if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+(function(){ if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !/^\/sayuwon-sales\/test(\/|$)/.test(location.pathname)) return;
   try{ const q=new URLSearchParams(location.search).get('mock'); if(q==='1' || q==='cf') localStorage.setItem('sy_mock', '1'); if(q==='0') localStorage.removeItem('sy_mock');
     const m=localStorage.getItem('sy_mock'), me=document.currentScript && document.currentScript.src; if(!me || !m) return;
     document.write('<script src="'+me.replace(/common\.js.*$/, 'devcf.js')+'"><\/script>');
