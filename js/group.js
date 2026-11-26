@@ -4127,8 +4127,7 @@ document.addEventListener('change', async e=>{ const v=e.target.dataset && e.tar
 document.addEventListener('change', async e=>{ const v=e.target.dataset && e.target.dataset.myck; if(!v || !e.target.checked) return; const [kind,id,tid]=v.split('|'); e.target.disabled=true;
   try{
     if(kind==='g') await doneTask(id, tid);
-    else { const r=cache.find(x=>x.id===id); if(!r) return; let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const t=(h.tasks||[]).find(x=>x.id===tid); if(t){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=savedOwner()||''; (t.xsubs||[]).forEach(x=>x.done=true); }
-      const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item; }
+    else await donePersonalTask(id, tid);   // js/group/15-lock-popups.js (알림의 체크 칸과 같이 씀 · 2026-11-26)
     toast('과업을 완료로 표시했습니다.'); paintMyCount(); renderMy();
   }catch(err){ e.target.disabled=false; e.target.checked=false; toast('완료로 표시하지 못했습니다: '+(err.code||err.message)); } });
 function renderMy(){ paintMySet();
@@ -4410,10 +4409,15 @@ function alertList(){
   myQuoteReqs().filter(q=>old(q.at)).forEach(q=>{ const a=new Date(q.at||''); list.push({kind:'q', q, due: isNaN(a) ? String(q.at||'').slice(0,10) : ymd(a), title:'견적서 · 거래명세서 발급'}); });
   return list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
 }
-// 알림 한 줄: [이름표] 누구 것 / 할 일 · 마감 / 「열기」 하나 (2026-11-26: 「완료」 버튼은 없앰 — 끝내는 것은 그 예약 · 나의 할일에서)
+// 알림 한 줄: [☐] [이름표] 누구 것 / 할 일 · 마감 / 「열기」
+//  2026-11-26: 초록 「완료」 버튼은 없애고, 나의 할일 「오늘 마감」처럼 맨 앞 체크 칸으로 완료 (체크하면 바로 저장 · 그 줄이 사라짐)
+//  예약을 열어 처리해야 끝나는 과업(전산 예약 · 전산 내역 대조 등 SELF_DONE)은 회색 체크 칸 — 누르면 그 예약을 엶 · 견적 요청은 체크 칸 없음(견적서 화면에서 끝냄)
 function alertRowHTML(T, today){
   const n = T.due ? daysFrom(today, T.due) : 0, late=n<0, when = `${late?`(${-n}일 지남)`:'(오늘)'}`;
-  const row = (tag, who, sub, open) => `<li class="${late?'late':'today'}"><span class="who"><span class="tag">${tag}</span> ${who}<br>`
+  const ck = T.kind==='q' ? '<span class="my-ck no"></span>'
+    : T.kind==='g' && SELF_DONE.has(T.tid) ? `<label class="my-ck self" title="예약을 열어 처리하면 완료됩니다 (체크하면 그 예약을 엶)"><input type="checkbox" data-ackopen="${esc(T.rid)}"></label>`
+    : `<label class="my-ck" title="체크하면 완료"><input type="checkbox" data-ack="${esc([T.kind, T.rid, T.tid||'', T.day||''].join('|'))}"></label>`;
+  const row = (tag, who, sub, open) => `<li class="${late?'late':'today'}">${ck}<span class="who"><span class="tag">${tag}</span> ${who}<br>`
     + `<b class="${late?'late':''}">${esc(T.title||'')}</b> <small class="hint" style="margin:0">${sub}</small></span><button class="btn primary" ${open}>열기</button></li>`;
   if(T.kind==='q'){ const q=T.q; return row('견적', `<b>${esc(q.org||'(업체 미정)')}</b>${q.name?` · ${esc(q.name)}님`:''}${q.date?` · 방문 ${esc(dateLabel(String(q.date).slice(0,10)))}`:''}${q.pax?` · ${esc(q.pax)}명`:''}`, `접수 ${esc(fmt(q.at))} ${when}`, 'data-aopen="quote"'); }
   if(T.kind==='e') return row('업무', `<b>${esc(catLabel(etcCatOf(T.d))||ETC_NOCAT)}</b>${T.rep && T.rep!=='none' ? ` · ${esc(opsRepeatLabel(T.d))}` : ''}`, `마감 ${esc(mdLabel(T.due))} ${when}${T.before&&T.before.length?` · 안 한 지난 날 ${T.before.length}일 더`:''}`, 'data-aopen="my"');
@@ -4459,6 +4463,25 @@ async function doneTask(id, tid){
   const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item);
   const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;   // 공유 기록에서 다시 받기 전에도 바로 반영
 }
+// 개인고객 과업 하나 완료 (그 통화 기록에 완료로 저장) — 나의 할일의 체크 칸과 알림의 체크 칸이 같이 씀
+async function donePersonalTask(id, tid){
+  const r=cache.find(x=>x.id===id); if(!r) return; let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){}
+  const t=(h.tasks||[]).find(x=>x.id===tid); if(t){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=savedOwner()||''; (t.xsubs||[]).forEach(x=>x.done=true); }
+  const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
+}
+// 알림의 체크 칸 (2026-11-26): 체크 = 완료로 저장하고 목록을 다시 그림 (남은 것이 없으면 「지금 알릴 과업이 없습니다」 · 이 화면 팝업이면 닫힘)
+const alertRepaint = () => { const d=alertList(); if(d.length){ paintAlert(d); return; }
+  if(ALERT_WIN){ $('#tbdList').innerHTML='<li class="hint">지금 알릴 과업이 없습니다.</li>'; $('#tbdTitle').textContent='과업 알림'; } else $('#tbdModal').hidden=true; };
+$('#tbdList').addEventListener('change', async e=>{ const d=e.target.dataset||{};
+  if(d.ackopen){ e.target.checked=false; toast('이 과업은 예약을 열어 처리하면 완료됩니다 (전산 내역 붙여넣기 · 칸 채우기).', 3200); e.target.closest('li')?.querySelector('[data-tbdopen]')?.click(); return; }
+  if(!d.ack || !e.target.checked) return; const [kind, rid, tid, day]=d.ack.split('|'); e.target.disabled=true;
+  try{
+    if(kind==='g') await doneTask(rid, tid);
+    else if(kind==='p') await donePersonalTask(rid, tid);
+    else { const o=etcMine().find(x=>x.r.id===rid); if(!o) return; const dd=day||opsToday();
+      await etcPut(o.r, {...o.d, done:{...(o.d.done||{}), [dd]:{at:new Date().toISOString(), by:savedOwner()||''}}}, `${dd} 완료 (과업 알림)`); }
+    toast('과업을 완료로 표시했습니다.'); paintMyCount(); if(!$('#myModal').hidden) renderMy(); alertRepaint();
+  }catch(err){ e.target.disabled=false; e.target.checked=false; toast('완료로 표시하지 못했습니다: '+(err.code||err.message)); } });
 $('#tbdList').addEventListener('click', e=>{
   // 「열기」만 있음 (2026-11-26: 「완료」 버튼은 없앰). 단체 = 그 예약 · 개인 = 개인고객 화면의 그 통화 · 업무 = 나의 할일 · 견적 = 견적서 화면
   const d=e.target.dataset, kind = d.tbdopen ? 'g' : d.popen2 ? 'p' : d.aopen; if(!kind) return;

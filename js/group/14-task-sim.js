@@ -154,8 +154,7 @@ document.addEventListener('change', async e=>{ const v=e.target.dataset && e.tar
 document.addEventListener('change', async e=>{ const v=e.target.dataset && e.target.dataset.myck; if(!v || !e.target.checked) return; const [kind,id,tid]=v.split('|'); e.target.disabled=true;
   try{
     if(kind==='g') await doneTask(id, tid);
-    else { const r=cache.find(x=>x.id===id); if(!r) return; let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const t=(h.tasks||[]).find(x=>x.id===tid); if(t){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=savedOwner()||''; (t.xsubs||[]).forEach(x=>x.done=true); }
-      const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item; }
+    else await donePersonalTask(id, tid);   // js/group/15-lock-popups.js (알림의 체크 칸과 같이 씀 · 2026-11-26)
     toast('과업을 완료로 표시했습니다.'); paintMyCount(); renderMy();
   }catch(err){ e.target.disabled=false; e.target.checked=false; toast('완료로 표시하지 못했습니다: '+(err.code||err.message)); } });
 function renderMy(){ paintMySet();

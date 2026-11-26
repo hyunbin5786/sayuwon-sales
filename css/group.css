@@ -381,6 +381,7 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .modal .book .tw{flex:none}
 #trashModal{z-index:25}   /* 단체예약 목록 위에 뜸 */
 #trashSearch{flex:none;max-width:380px}   /* 세로로 늘어나지 않게 */
+#trashBody td:nth-child(6){white-space:normal;word-break:keep-all;min-width:180px;max-width:320px}   /* 담당자가 여러 명이면 칸 안에서 줄바꿈 (옆 칸을 덮지 않게 · 2026-11-26) */
 /* 남이 담당인 예약: 잠금 (메모만) */
 .owner-memo{border:1px solid #e0c48a;background:#fff8e6;border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:13px}
 .owner-memo.mine{border-color:#bccab4;background:var(--pine-soft)}
@@ -1408,3 +1409,7 @@ html.g-start #startBox{display:flex;flex-direction:column;justify-content:center
 .past-bar .dbox input.dtxt{height:30px;width:122px;font-size:13px}
 .past-bar .pb-til{color:var(--muted)}
 .past-bar.dim .dbox,.past-bar.dim #pastClear,.past-bar.dim b,.past-bar.dim .pb-til{opacity:.45}
+/* 과업 알림의 체크 칸 (2026-11-26 · 나의 할일 「오늘 마감」과 같은 체크 칸을 줄 맨 앞에) */
+#tbdList .my-ck{flex:none;margin-right:2px}
+#tbdList .my-ck input{width:18px;height:18px}
+#tbdList .my-ck.no{width:18px}
