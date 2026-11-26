@@ -64,15 +64,13 @@ window.syFont = (function(){
     : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}${typeof SY_DEV!=="undefined" && SY_DEV.tag && SY_DEV.tag(it.href)?`<small class="sm-dev">test에만 보임</small>`:""}</b></a>`;   /* 개발 중 기능: 배포 사이트엔 이름표 없음 · 테스트 사이트에만 「test에만 보임」 (2026-11-25 · js/common.js SY_DEV.tag) */   // 메뉴 아래 회색 설명은 없앰 (2026-11-18)
   const wrap=document.createElement('div'); wrap.className='smenu'; wrap.id='smenu'; wrap.hidden=true;
   wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"><div class="sm-top"><b class="sm-title">메뉴</b><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
-    // 휴대폰 메뉴 (2026-11-26 · 700px 아래에서만 보임 · css/menu.css): 운영팀이 정한 것만 — 나의 할일(로그인한 사람만) · 전화응대 멘트 · 예약현황 공유 · 분실물 찾기 · 맨 아래 로그아웃. PC 의 묶음(.sm-g)은 휴대폰에서 숨김
-    //  나의 할일 = 헤더의 「나의 할일」 버튼과 같은 것을 엶 (같은 자료라 체크는 PC 와 그대로 이어짐). 여기에 항목을 더하려면 이 줄에만 더한다
-    + `<div class="sm-m">` + (logged ? `<button type="button" class="sm-my" data-smmy>나의 할일</button>` : '')
-      + `<a class="sm-mi${isHere(base+'ment.html')?' on':''}" href="${base}ment.html">전화응대 멘트</a>`
-      + `<div class="sm-mbox"><b>예약현황 공유</b><div class="sm-chips">${[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']].map(([k,l])=>`<a class="sm-chip" href="${base}group.html?book=${k}">${esc(l)}</a>`).join('')}</div></div>`
-      + `<a class="sm-mi${isHere(base+'lost.html')?' on':''}" href="${base}lost.html">분실물 찾기</a></div>`
+    // 휴대폰 메뉴 (700px 아래 · css/menu.css · 2026-11-26 같은 날 다시 정함): PC 와 같은 묶음(.sm-g · 예약보조 · 운영보조 …) 그대로 — 달라지는 것은 둘뿐: 맨 위에 「나의 할일」 버튼(로그인한 사람만 · .sm-m) · 맨 아래 로그아웃(로그인 안 했으면 로그인)
+    //  (처음에는 휴대폰에 전화응대 멘트 · 예약현황 공유 · 분실물 찾기만 따로 보였음 — 운영팀이 PC 와 같은 형식으로 바꿈)
+    //  나의 할일 = 헤더의 「나의 할일」 버튼과 같은 것을 엶 (같은 자료라 체크는 PC 와 그대로 이어짐 · 휴대폰 헤더에서는 그 버튼을 숨기므로 여기에 둠)
+    + (logged ? `<div class="sm-m"><button type="button" class="sm-my" data-smmy>나의 할일</button></div>` : '')
     + G.filter(g=>g.items.length && (logged || !g.login || g.items.some(i=>i.guest))).map(g=>{ const its = logged || !g.login ? g.items : g.items.filter((i,n,a)=>i.guest || (i.sub && a.slice(n+1).find(x=>x.sub || x.guest)?.guest));   // 로그인 안 했으면 로그인 묶음에서는 guest 항목(과 그 소제목)만
       return `<details class="sm-g" data-acc="${g.k}"${(g.k in st ? st[g.k] : false)?' open':''}><summary>${esc(g.t)}</summary>${its.map(itemHTML).join('')}</details>`; }).join('')
-    + (logged ? `<button type="button" class="sm-out" data-smout>로그아웃</button>` : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>`) + `</nav>`;   // 로그아웃: 휴대폰 메뉴 맨 아래 (휴대폰 헤더에서는 이름 · 로그아웃 · 글자 크기 버튼을 숨김 · 2026-11-26)
+    + (logged ? `<button type="button" class="sm-out" data-smout>로그아웃</button>` : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>` + (isHomePg ? '' : `<a class="sm-in" href="${base}index.html">로그인</a>`)) + `</nav>`;   // 로그아웃: 휴대폰 메뉴 맨 아래 (휴대폰 헤더에서는 이름 · 로그아웃 · 글자 크기 버튼을 숨김 · 2026-11-26) · 로그인(.sm-in): 로그인하지 않았을 때 메뉴 아래 — 누르면 첫 화면(로그인 화면)으로 · PC · 휴대폰 모두 · 첫 화면은 그 자체가 로그인 화면이라 넣지 않음 (2026-11-26)
   document.body.appendChild(wrap);
   const btn=document.createElement('button'); btn.type='button'; btn.className='smenu-btn'; btn.title='메뉴 열기 / 닫기'; btn.setAttribute('aria-label','메뉴'); btn.innerHTML='☰ <span>메뉴</span>';
   hd.insertBefore(btn, hd.firstChild);
