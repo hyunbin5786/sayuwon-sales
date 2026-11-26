@@ -19,7 +19,8 @@ const OPS_PAGE =
 { key:'lost', title:'분실물 찾기', add:'분실물 접수', hint:'분실 신고 · 습득물 보관 · 반환까지', guest:true,   // guest: 로그인 없이 보기 · 접수 (2026-11-24 · opsboard.js GUEST)
     fields:[ {k:'kind', l:'구분', type:'select', opts:['습득','분실 신고'], def:()=>'습득'}, {k:'date', l:'접수일', type:'date', def:()=>opsToday()},
       {k:'item', l:'물품', type:'text', req:1}, {k:'feature', l:'설명', type:'text', ph:'색 · 브랜드 · 안에 든 것', show:d=>lostKind(d)!=='습득'},   // 설명은 분실물 신고만 (습득은 사진으로 · 2026-11-24)
-      {k:'photos', l:'습득물 사진', type:'photos', w:2, req:1, show:d=>lostKind(d)==='습득'},   // 습득이면 사진 꼭 (찍기 · 고르기 · png / jpeg) — js/opsboard.js 의 photos 칸
+      {k:'photos', l:d=>lostKind(d)==='습득' ? '습득물 사진' : '분실물 사진 (고객이 보내 준 사진 · 없어도 됨)', type:'photos', w:2, req:d=>lostKind(d)==='습득',   // 습득이면 사진 꼭 (찍기 · 고르기 · 붙여넣기 · png / jpeg) — js/opsboard.js 의 photos 칸
+        show:d=>lostKind(d)==='습득' || !(typeof GUEST!=='undefined' && GUEST)},   // 신고에도 사진 (2026-11-26 · 꼭은 아님). 로그인 없이 넣는 신고는 서버 lostAdd 가 사진을 받지 않아 칸을 보이지 않음
       {k:'place', l:d=>lostKind(d)==='습득' ? '발견 장소' : '분실 추정 장소', type:'text'}, {k:'storage', l:'보관 위치', type:'text', show:d=>lostKind(d)==='습득'},
       // 2026-11-24: 구분에 따라 이름이 바뀜 (분실물 신고 = 신고자 · 분실물 습득 = 습득자)
       {k:'person', l:d=>lostWho(d), type:'text', req:1}, {k:'phone', l:d=>lostWho(d)+' 연락처', type:'tel', req:d=>lostKind(d)==='분실 신고'},   // 이름은 꼭 · 신고는 연락처도 꼭 (연락드려야 하니까)
@@ -36,7 +37,7 @@ const OPS_PAGE =
     normalize:d=>{ d.status = lostStatus(d); },
     // 두 대시보드 (opsboard.js renderLost)
     boards:[
-      { kind:'분실 신고', title:'분실물 신고', add:'분실 신고 접수', open:['찾는 중'],
+      { kind:'분실 신고', title:'분실물 신고', add:'분실 신고 접수', open:['찾는 중'], photo:true, noPhoto:'',   // 사진 칸 (2026-11-26): 고객이 보내 준 사진이 있으면 작게 · 없으면 빈칸
         cols:[['date','접수일',v=>opsDateLabel(v)],['item','물품',(v,d)=>({html:`<b>${esc(v||'')}</b>${d.feature?`<br><span class="hint">${esc(d.feature)}</span>`:''}`})],['place','분실 추정 장소'],['person','신고자'],['phone','연락처']] },
       { kind:'습득', title:'분실물 습득', add:'습득물 접수', open:['보관중'], photo:true,
         cols:[['date','접수일',v=>opsDateLabel(v)],['item','물품'],['place','발견 장소'],['storage','보관 위치'],['person','습득자'],['phone','습득자 연락처']] } ],
