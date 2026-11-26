@@ -1,6 +1,37 @@
 // ===== 전체 메뉴 (모든 화면 공통, 2026-11-18) =====
 // 헤더 맨 앞 ☰ 버튼 → 왼쪽에서 메뉴가 화면 위로 뜸 (뒤는 회색으로 가림 · 화면을 밀지 않음). 바깥 · × · Esc 로 닫기
 // 묶음(예약보조 · 운영보조 · 홍보 보조 · 매뉴얼 · 기타 설정)은 눌러서 펼치고 접으며, 펼친 상태는 이 브라우저에 기억 (sy_menu_acc2 · 2026-11-24: 처음에는 모두 접힘 — 예전 기억은 쓰지 않음)
+// ===== 글자 크기 (2026-11-26): 헤더의 「가가」 버튼 → 작게 · 보통 · 크게 · 아주 크게. 고른 크기는 이 브라우저에 기억 (sy_fz) =====
+//  화면 전체를 확대(zoom)하지 않고 글자만 키움: 확대하면 달력 · 시간 고르는 창의 자리와 화면 높이(vh) 계산이 어긋남.
+//  방법: CSS 파일의 글자 크기(…px)를 「…px × --sy-fz」 로 바꿔 두고, html 의 --sy-fz 값만 바꿈. 「보통」만 쓰는 브라우저에서는 아무것도 바꾸지 않음.
+//  견적서 종이 · 사진으로 저장하는 표 · 인쇄는 늘 원래 크기 (css/menu.css 에서 --sy-fz:1 로 되돌림). 팝업(iframe) 안에서도 같은 크기로 보이게 이 부분은 팝업 안에서도 돈다.
+window.syFont = (function(){
+  const KEY='sy_fz', STEPS=[['작게',.9],['보통',1],['크게',1.12],['아주 크게',1.25]], root=document.documentElement;
+  const get = () => { try{ const v=+localStorage.getItem(KEY); return STEPS.some(s=>s[1]===v) ? v : 1; }catch(_){ return 1; } };
+  const PX=/^([\d.]+)px$/;
+  const fixRules = rules => { for(const r of rules){
+    const s=r.style;
+    if(s && typeof s.getPropertyValue==='function'){ const v=s.getPropertyValue('font-size'), m=PX.exec(v);
+      if(m) s.setProperty('font-size', `calc(${m[1]}px * var(--sy-fz,1))`, s.getPropertyPriority('font-size'));
+      else if(!v){ const f=s.getPropertyValue('font');   // font 한 줄에 var(…) 가 섞여 있으면 font-size 가 따로 읽히지 않음 → 그 줄의 첫 px 값(=글자 크기)을 바꿈
+        if(/var\(/.test(f) && !/--sy-fz/.test(f) && /[\d.]+px/.test(f)) s.setProperty('font', f.replace(/([\d.]+)px/, 'calc($1px * var(--sy-fz,1))'), s.getPropertyPriority('font')); } }
+    let sub=null; try{ sub=r.cssRules; }catch(_){}
+    if(sub && sub.length) fixRules(sub); } };
+  let on=false, timer=0;
+  const fixAll = () => { for(const sh of document.styleSheets){ let rules=null; try{ rules=sh.cssRules; }catch(_){}   // 다른 곳의 CSS(글꼴)는 읽을 수 없음 → 건너뜀
+    if(rules) try{ fixRules(rules); }catch(_){} } };
+  const later = () => { clearTimeout(timer); timer=setTimeout(fixAll, 30); };
+  const start = () => { if(on) return; on=true; fixAll(); window.addEventListener('load', fixAll);
+    // 나중에 더해지는 CSS (나의 할일 팝업 · 시간 고르는 창 등)도 같이
+    try{ new MutationObserver(ms=>{ for(const m of ms) for(const n of m.addedNodes){ if(n.nodeName==='STYLE') later(); else if(n.nodeName==='LINK'){ n.addEventListener('load', later); later(); } } }).observe(root, {childList:true, subtree:true}); }catch(_){} };
+  const apply = () => { const v=get(); if(v!==1) start(); if(v===1) root.style.removeProperty('--sy-fz'); else root.style.setProperty('--sy-fz', v); window.dispatchEvent(new Event('resize')); return v; };   // resize: 크기에 맞춰 다시 재는 화면(예약 현황 미리보기 등)이 다시 재게
+  const set = v => { try{ if(v===1) localStorage.removeItem(KEY); else localStorage.setItem(KEY, v); }catch(_){}
+    document.querySelectorAll('iframe').forEach(f=>{ try{ f.contentWindow.syFont.apply(); }catch(_){} });   // 열려 있는 팝업(나의 할일 · 품목관리 등) 안도 바로
+    return apply(); };
+  window.addEventListener('storage', e=>{ if(e.key===null || /sy_fz$/.test(e.key)) apply(); });   // 다른 창에서 바꾸면 여기도
+  if(get()!==1) apply();
+  return {STEPS, get, set, apply};
+})();
 (function(){
   if(window.parent!==window) return;   // 팝업 안(나의 할일 · 품목관리 등)에서는 안 띄움
   const hd=document.querySelector('header'); if(!hd) return;
@@ -39,6 +70,18 @@
   document.body.appendChild(wrap);
   const btn=document.createElement('button'); btn.type='button'; btn.className='smenu-btn'; btn.title='메뉴 열기 / 닫기'; btn.setAttribute('aria-label','메뉴'); btn.innerHTML='☰ <span>메뉴</span>';
   hd.insertBefore(btn, hd.firstChild);
+  // 글자 크기 버튼 (2026-11-26): ☰ 메뉴 바로 뒤. 누르면 작은 창에서 크기를 고름 (바깥 · Esc 로 닫기). 보기 글자는 늘 같은 크기로 보이게 줄에 직접 크기를 적음
+  { const fw=document.createElement('span'); fw.className='fz-wrap';
+    const FS=[12,14,16.5,19];
+    const draw = () => { const cur=syFont.get(); fw.querySelectorAll('[data-fz]').forEach(b=>{ const on=+b.dataset.fz===cur; b.classList.toggle('on', on); b.setAttribute('aria-checked', on?'true':'false'); }); };
+    fw.innerHTML = `<button type="button" class="smenu-btn fz-btn" title="글자 크기 바꾸기" aria-label="글자 크기" aria-haspopup="true"><b class="fz-ic"><small>가</small>가</b></button>`
+      + `<div class="fz-pop" role="menu" aria-label="글자 크기" hidden><div class="fz-t">글자 크기</div>${syFont.STEPS.map(([l,v],i)=>`<button type="button" role="menuitemradio" data-fz="${v}" style="font-size:${FS[i]}px">${esc(l)}</button>`).join('')}</div>`;
+    btn.after(fw);
+    const fb=fw.querySelector('.fz-btn'), fp=fw.querySelector('.fz-pop'), fopen = v => { fp.hidden=!v; fb.classList.toggle('on', v); if(v) draw(); };
+    fb.addEventListener('click', ()=>fopen(fp.hidden));
+    fp.addEventListener('click', e=>{ const b=e.target.closest('[data-fz]'); if(!b) return; syFont.set(+b.dataset.fz); draw(); });
+    document.addEventListener('click', e=>{ if(!fp.hidden && !fw.contains(e.target)) fopen(false); });
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !fp.hidden){ fopen(false); fb.focus(); } }); }
   // ===== 매뉴얼 (2026-11-21): 헤더 맨 오른쪽 위 책 버튼 → 이 페이지의 매뉴얼(manual/페이지.html)을 큰 창으로 =====
   //  형식(노션 「네이버→사유원 예약 이관」 따라): [1단계] 제목 · 화면 사진(번호 표시) · 짧은 설명 · 접는 칸(이럴 때는 …). 아직 없는 페이지는 「준비 중」
   const MAN_KEY = herePath==='document/' ? 'document' : herePath==='group.html' ? (hereQ.get('my') ? 'my' : hereQ.get('book') ? 'book' : 'group') : herePath.replace(/\.html$/,'');
