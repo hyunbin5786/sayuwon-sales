@@ -59,17 +59,32 @@ async function etcSaveAlert(L){ L=SY_ALERT.set(L); const me=savedOwner()||'', no
   let prev={}; try{ prev=JSON.parse((old||{}).history||'{}')||{}; }catch(_){}
   const item={...(old||{}), id: old ? old.id : 'el'+tdHash(me), callType:'개인업무목록', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:(old&&old.summary)||'나의 할일 설정', history:JSON.stringify({...prev, lists: prev.lists || etcCats(), order: prev.order || [], alertTimes:L})};
   await store.put(item); const i=cache.findIndex(x=>x.id===item.id); if(i>=0) cache[i]=item; else cache.push(item); }
-function alertSetHTML(){ const L=SY_ALERT.times();
-  return `<div class="al-set"><b>과업 알림</b> <small class="hint" style="margin:0">하루 ${L.length}번 · 그 시각이 지나고 처음 화면을 볼 때 캘린더처럼 따로 뜨는 창으로 · 나의 할일에 있는 것 모두 (창이 바로 안 뜨는 브라우저에서는 화면을 한 번 누를 때 뜹니다)</small>`
-    + (L.length ? `<ul class="al-list">${L.map((t,i)=>`<li><input type="time" step="600" value="${SY_ALERT.hm(t)}" data-alt="${i}" title="알림 시각"><button type="button" class="btn primary" data-aldel="${i}" title="이 시각 빼기">빼기</button></li>`).join('')}</ul>` : `<p class="hint" style="margin:8px 0">알림을 끈 상태입니다.</p>`)
-    + `<div class="al-btns"><button type="button" class="btn primary" data-aladd>＋ 알림 시각 추가</button><button type="button" class="btn primary" data-aldef title="오전 8시 · 11시 · 오후 1시 · 5시">기본으로</button></div></div>`; }
+// 2026-11-26: 「기본으로」 버튼은 없앰 (처음에는 오전 8시 · 11시 · 오후 1시 · 5시 — SY_ALERT.DEF 그대로) · 하루 몇 번(− n번 ＋ · 0번 = 끔 · 많아야 8번)부터 고르고, 시각은 오전/오후 · 시 · 분(10분 단위) 고르기로
+const AL_MAX=8;
+function alertSetHTML(){ const L=SY_ALERT.times(), n=L.length;
+  const row = (t,i) => { const h=Math.floor(t/60), m=t%60, pm=h>=12, h12=h%12||12, m10=Math.floor(m/10)*10;
+    return `<li><span class="al-no">${i+1}번째</span>`
+      + `<select data-alp="${i}" aria-label="${i+1}번째 알림 오전 · 오후"><option value="0"${pm?'':' selected'}>오전</option><option value="1"${pm?' selected':''}>오후</option></select>`
+      + `<select data-alh="${i}" aria-label="${i+1}번째 알림 시">${[12,1,2,3,4,5,6,7,8,9,10,11].map(x=>`<option value="${x}"${x===h12?' selected':''}>${x}시</option>`).join('')}</select>`
+      + `<select data-alm="${i}" aria-label="${i+1}번째 알림 분">${[0,10,20,30,40,50].map(x=>`<option value="${x}"${x===m10?' selected':''}>${x ? x+'분' : '정각'}</option>`).join('')}</select>`
+      + `<button type="button" class="btn primary" data-aldel="${i}" title="이 시각 빼기">빼기</button></li>`; };
+  return `<div class="al-set"><b>과업 알림</b>`
+    + `<p class="hint al-say">마감이 오늘이거나 지난 내 할 일을, 정한 시각이 지나고 화면을 처음 볼 때 따로 뜨는 창으로 알려 줍니다. (창이 바로 안 뜨는 브라우저에서는 화면을 한 번 누를 때 뜹니다)</p>`
+    + `<div class="al-count"><span>하루에 몇 번 알릴까요?</span><span class="al-step"><button type="button" class="btn primary" data-alminus${n?'':' disabled'} title="한 번 줄이기 (맨 뒤 시각을 뺌)" aria-label="알림 횟수 줄이기">−</button><b>${n ? n+'번' : '끔'}</b><button type="button" class="btn primary" data-aladd${n>=AL_MAX?' disabled':''} title="한 번 늘리기" aria-label="알림 횟수 늘리기">＋</button></span></div>`
+    + (n ? `<ul class="al-list">${L.map(row).join('')}</ul><p class="hint al-say">시각을 바꾸면 바로 저장됩니다 · 이른 시각부터 차례로 놓입니다.</p>` : `<p class="hint al-say">알림을 끈 상태입니다. <b>＋</b> 를 누르면 다시 켜집니다.</p>`)
+    + `</div>`; }
 const alRepaint = () => { if(typeof paintMySet==='function') paintMySet(); };
-document.addEventListener('change', async e=>{ const i=e.target.dataset?.alt; if(i==null) return; const v=e.target.value; if(!/^\d\d:\d\d$/.test(v)) return;
-  const L=SY_ALERT.times(); L[+i]=+v.slice(0,2)*60 + +v.slice(3); await etcSaveAlert(L); alRepaint(); toast(`과업 알림: ${SY_ALERT.label()}`); });
-document.addEventListener('click', async e=>{ const b=e.target.closest?.('[data-aldel],[data-aladd],[data-aldef]'); if(!b) return; e.preventDefault(); let L=SY_ALERT.times();
+document.addEventListener('change', async e=>{ const d=e.target.dataset||{}, i = d.alp ?? d.alh ?? d.alm; if(i==null) return; const li=e.target.closest('li'); if(!li) return;
+  const pm=li.querySelector('[data-alp]').value==='1', h12=+li.querySelector('[data-alh]').value, m=+li.querySelector('[data-alm]').value, t=((h12%12)+(pm?12:0))*60+m;
+  const L=SY_ALERT.times(); if(L[+i]===t) return;
+  if(L.includes(t)){ toast(`${SY_ALERT.say(t)} 알림은 이미 있습니다.`); alRepaint(); return; }
+  L[+i]=t; await etcSaveAlert(L); alRepaint(); toast(`과업 알림: ${SY_ALERT.label()}`); });
+document.addEventListener('click', async e=>{ const b=e.target.closest?.('[data-aldel],[data-aladd],[data-alminus]'); if(!b || b.disabled) return; e.preventDefault(); let L=SY_ALERT.times();
   if(b.dataset.aldel!=null) L.splice(+b.dataset.aldel, 1);
-  else if(b.dataset.aladd!=null){ const last=L.length ? L[L.length-1] : 480; let n=Math.min(last+60, 1380); while(L.includes(n) && n<1430) n+=10; L.push(n); }
-  else L=SY_ALERT.DEF.slice();
+  else if(b.dataset.alminus!=null) L.pop();
+  else { if(L.length>=AL_MAX) return;   // 늘리기: 처음 정해 둔 시각(오전 8시 · 11시 · 오후 1시 · 5시) 가운데 빠진 것부터, 다 있으면 맨 뒤 시각의 1시간 뒤
+    let n=SY_ALERT.DEF.find(x=>!L.includes(x)); if(n==null){ n=Math.min((L.length ? L[L.length-1] : 420)+60, 1380); while(L.includes(n) && n<1430) n+=10; if(L.includes(n)){ n=0; while(L.includes(n)) n+=10; } }
+    L.push(n); }
   await etcSaveAlert(L); alRepaint(); toast(`과업 알림: ${SY_ALERT.label()}`); });
 // 나의 할일 구분 (2026-11-19): 개인예약(개인고객 추후 과업) · 단체예약(단체 추후 과업) · 내가 만든 구분(기타 업무) · 구분 없음 — 순서는 사람마다 저장(▲▼로 바꿈)
 const CAT_P='@personal', CAT_G='@group', CAT_N='@none';

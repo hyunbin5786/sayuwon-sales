@@ -1165,11 +1165,18 @@ html.alert-only #tbdModal{position:static;background:var(--bg,#f6f4ee);padding:1
 html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
 /* 나의 할일 설정 · 과업 알림 시각 */
 .al-set{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
-.al-list{list-style:none;margin:8px 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
-.al-list li{display:flex;gap:4px;align-items:center;background:var(--paper,#fff);border:1px solid var(--line);border-radius:6px;padding:3px 4px 3px 6px}
-.al-list input[type=time]{height:30px;border:1px solid var(--line);border-radius:5px;padding:0 4px;font:14px var(--sans)}
-.al-list .btn,.al-set .al-btns .btn{padding:3px 8px;font-size:12.5px}
-.al-set .al-btns{display:flex;gap:6px;flex-wrap:wrap}
+/* 2026-11-26: 하루 몇 번(− n번 ＋) · 시각마다 한 줄(오전/오후 · 시 · 분 고르기) */
+.al-set .al-say{margin:6px 0;line-height:1.5}
+.al-count{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:10px 0;padding:8px 10px;background:var(--bg,#f6f4ee);border-radius:8px;font:600 14px var(--sans)}
+.al-step{display:inline-flex;align-items:center;gap:8px}
+.al-step b{min-width:44px;text-align:center;font-size:16px}
+.al-step .btn{width:34px;height:34px;padding:0;font-size:18px;line-height:1}
+.al-step .btn:disabled{opacity:.35;cursor:default}
+.al-list{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.al-list li{display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:var(--paper,#fff);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.al-list .al-no{min-width:52px;font:600 13px var(--sans);color:var(--muted,#6b6b63)}
+.al-list select{height:34px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:14px var(--sans);background:#fff}
+.al-list .btn{margin-left:auto;padding:5px 10px;font-size:12.5px}
 /* 예약 목록 찾기 (2026-11-25): 날짜(전체 · 특정일 · 기간) + 검색어 */
 .book-find{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13px}
 .book-find label{display:flex;align-items:center;gap:6px;margin:0}
