@@ -257,14 +257,13 @@ function tcfgModal(){ let m=$('#tcfgModal'); if(m) return m;
   m=document.createElement('div'); m.className='modal'; m.id='tcfgModal'; m.hidden=true;
   m.innerHTML=`<style>${TCFG_CSS}</style><section class="panel tcfg-pop" role="dialog" aria-modal="true" aria-labelledby="tcfgTitle">
     <div class="tcfg-head"><h2 id="tcfgTitle">추후과업 메시지 관리</h2>
-      <span class="seg tcfg-seg"><button type="button" data-tcview="edit">과업별 편집</button><button type="button" data-tcview="table">한눈에 보기</button></span>
+      <span class="seg tcfg-seg"><button type="button" data-tcview="table" title="모든 과업을 한 표로 보기 · 다시 누르면 과업 편집으로">한눈에 보기</button></span>
       <small class="hint" id="tcfgMsg"></small><button type="button" class="tcfg-x" data-tcfgclose title="닫기 (Esc)" aria-label="닫기">×</button></div>
-    <p class="hint tcfg-lead">단체예약에 자동으로 생기는 추후 과업의 <b>이름 · 언제 생길지(조건) · 마감 · 담당 · 세부 과업 · 과업 보조 설명 · 복사 멘트</b>을 모두 고칠 수 있습니다. 과업 · 세부 과업이 <b>언제 자동으로 체크되는지</b>도 과업마다 볼 수 있습니다. 저장하면 모든 직원에게 같게 적용됩니다.</p>
     <div class="tcfg-main" id="tcfgMain">
       <aside class="tcfg-side"><input id="tcfgQ" class="tcfg-q" type="search" placeholder="과업 찾기 (이름 · 조건 · 담당)" data-ime="ko" autocomplete="off"><div id="tcfgList" class="tcfg-items"></div><button type="button" class="btn primary" data-tcfgadd>＋ 새 과업 추가</button></aside>
       <div class="tcfg-pane" id="tcfgBody"></div>
     </div>
-    <div class="tcfg-foot"><small class="hint" id="tcfgDirty"></small><span class="sp"></span><button type="button" class="btn primary" data-tcfgclose>취소</button><button type="button" class="btn primary" data-tcfgsave>저장</button></div>
+    <div class="tcfg-foot"><small class="hint" id="tcfgDirty"></small><span class="sp"></span><button type="button" class="btn primary" data-tcfgsave data-tcfoot>저장</button></div>
   </section>`;
   document.body.appendChild(m);
   m.addEventListener('mousedown', e=>{ if(e.target===m) tcfgClose(); });
@@ -305,8 +304,8 @@ function tcfgEdHTML(T, c, builtin, id){
   return `<div class="tcfg-ed">
     <div class="tcfg-card tcfg-top">
       <div class="tcfg-name"><input class="tcfg-in tcfg-title" data-tf="${T}|title" data-ime="ko" value="${esc(c.title||'')}" placeholder="${esc(builtin ? TCFG_BASE_TITLES[id] : '과업 이름')}" aria-label="과업 이름">
-        <label class="chk tcfg-onoff"><input type="checkbox" data-tf="${T}|off"${c.off?' checked':''}> ${builtin?'자동으로 만들지 않음 (끄기)':'잠시 끄기'}</label></div>
-      <div class="tcfg-meta">${builtin && TCFG_BASE_TITLES[id] && String(c.title||'').trim() && String(c.title).trim()!==TCFG_BASE_TITLES[id] ? `<span class="hint">처음 이름: ${esc(TCFG_BASE_TITLES[id])}</span>` : ''}<span class="sp"></span>${builtin ? `<button type="button" class="btn primary sm" data-tcreset="${T}">원래대로 되돌리기</button>` : `<button type="button" class="btn primary sm" data-tcdel="${T}">이 과업 삭제</button>`}</div>
+        ${c.off ? `<label class="chk tcfg-onoff"><input type="checkbox" data-tf="${T}|off" checked> 꺼져 있음 (체크를 빼면 다시 켜짐)</label>` : ''}<button type="button" class="btn primary" data-tcfgsave>저장</button></div>   <!-- 2026-11-26: 끄기 · 원래대로 되돌리기 · 취소를 없애고 저장 버튼을 이 자리에 (이미 꺼 둔 과업만 다시 켤 수 있게 체크를 보임) -->
+      <div class="tcfg-meta">${builtin && TCFG_BASE_TITLES[id] && String(c.title||'').trim() && String(c.title).trim()!==TCFG_BASE_TITLES[id] ? `<span class="hint">처음 이름: ${esc(TCFG_BASE_TITLES[id])}</span>` : ''}<span class="sp"></span>${builtin ? '' : `<button type="button" class="btn primary sm" data-tcdel="${T}">이 과업 삭제</button>`}</div>
     </div>
     <div class="tcfg-card"><h4>세부 과업 <button type="button" class="tcfg-help${tcfgDoneOpen?' on':''}" data-tcdone title="이 과업과 세부 과업이 언제 (자동으로) 체크되는지 보기" aria-expanded="${tcfgDoneOpen}">?</button> <small class="hint">과업 안에 체크 칸으로 들어감 · 모두 체크하면 그 과업 완료</small></h4>
       ${tcfgDoneOpen ? tcfgDoneHTML(T, c, builtin, id) : ''}
@@ -397,6 +396,7 @@ function tcfgTableHTML(){
 function tcfgPaint(){ const d=tcfgDraft; if(!d) return; const body=$('#tcfgBody'), main=$('#tcfgMain');
   document.querySelectorAll('#tcfgModal [data-tcview]').forEach(b=>b.classList.toggle('on', b.dataset.tcview===tcfgView));
   main.classList.toggle('table', tcfgView==='table');
+  { const fb=document.querySelector('#tcfgModal [data-tcfoot]'); if(fb) fb.style.display = tcfgView==='table' ? '' : 'none'; }   // 아래 저장 버튼은 한눈에 보기에서만 (과업 편집에서는 과업 이름 옆 저장)
   if(tcfgView==='table'){ body.innerHTML=tcfgTableHTML(); tcfgPaintList(); return; }
   const st=body.scrollTop, it=tcfgItems().find(i=>i.T===tcfgOpenId);
   body.innerHTML = it ? tcfgEdHTML(it.T, it.c, it.builtin, it.id) : '<p class="hint" style="padding:20px">왼쪽에서 과업을 고르세요.</p>';
@@ -429,7 +429,7 @@ document.addEventListener('click', async e=>{
   if(e.target.closest('[data-tcfgclose]')){ if(tcfgSaved && JSON.stringify(tcfgDraft)!==tcfgSaved && !confirm('저장하지 않은 고친 내용이 있습니다. 저장하지 않고 닫을까요?')) return; tcfgClose(); return; }
   if(e.target.closest('[data-tchelp]')){ tcfgHelp=!tcfgHelp; tcfgPaint(); return; }
   if(e.target.closest('[data-tcdone]')){ tcfgPendSubs(); tcfgDoneOpen=!tcfgDoneOpen; tcfgPaint(); return; }   // 세부 과업 ? : 언제 체크되나
-  const vw=e.target.closest('[data-tcview]'); if(vw){ tcfgPendSubs(); tcfgView=vw.dataset.tcview; tcfgPaint(); return; }
+  const vw=e.target.closest('[data-tcview]'); if(vw){ tcfgPendSubs(); tcfgView = tcfgView==='table' ? 'edit' : 'table'; tcfgPaint(); return; }   // 한눈에 보기: 다시 누르면 과업 편집으로 (2026-11-26 · 「과업별 편집」 버튼 없앰)
   const o=e.target.closest('[data-tcfgopen]'); if(o){ tcfgPendSubs(); tcfgOpenId=o.dataset.tcfgopen; tcfgView='edit'; tcfgPaint(); return; }
   if(e.target.closest('[data-tcfgadd]')){ tcfgPendSubs(); const id='u'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); d.c.push({id, title:'', conds:[], due:{base:'visit', n:3}, subs:[], note:'', desc:'', who:''}); tcfgView='edit'; tcfgQ=''; if($('#tcfgQ')) $('#tcfgQ').value=''; tcfgOpenId='c:'+(d.c.length-1); tcfgPaint(); setTimeout(()=>{ const t=document.querySelector(`#tcfgModal [data-tf="c:${d.c.length-1}|title"]`); t?.scrollIntoView({block:'center'}); t?.focus(); },0); return; }
   const ca=e.target.closest('[data-tccadd]'); if(ca){ tcfgPendSubs(); const c=tcfgTarget(ca.dataset.tccadd); if(c){ (c.conds ||= []).push({k:'mb', v:''}); tcfgPaint(); } return; }
