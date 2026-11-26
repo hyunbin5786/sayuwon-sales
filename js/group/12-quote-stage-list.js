@@ -426,13 +426,12 @@ $('#delOk').onclick=async ()=>{
   // 사유를 수정 기록에 남긴 뒤 삭제 (시트에서는 줄을 지우지 않고 '삭제' 칸에 일시를 적으므로 사유도 남음)
   await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now});
   await store.del(r.id, true);
-  markDeleted({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now, deleted:now});   // 목록의 「예약취소」에 바로 보이게 (js/group/09-tasks.js)
   if(editingId===r.id) newCall(false);
   closeDel(); renderList(); toast(`삭제했습니다 · ${why}`);
 };
 
 // ===================== 단체예약 목록 창 =====================
-function openList(){ $('#listModal').hidden=false; renderList(); if(pending.length) flush(); else pull(); loadDeleted(); $('#listCloseBtn').focus(); }   // loadDeleted: 삭제한 예약(예약취소에 함께 보임)
+function openList(){ $('#listModal').hidden=false; renderList(); if(pending.length) flush(); else pull(); $('#listCloseBtn').focus(); }
 function closeList(){ $('#listModal').hidden=true; }
 $('#listOpenBtn').onclick=openList;
 $('#listCloseBtn').onclick=closeList;

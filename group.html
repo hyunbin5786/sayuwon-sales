@@ -7,8 +7,8 @@
 <script>/* 불러오는 중 화면 (2026-11-21): 단체 화면을 열면 예약 정보가 준비될 때까지 빈 새 통화 화면 대신 「불러오는 중」 (예약 현황 공유 · 나의 할일 · 과업 계산 창은 빼고) */ (function(){ if(!/[?&](book|my|engine)=/.test(location.search)) document.documentElement.classList.add('g-loading'); })();</script>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sayuwon_owner"), u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search) && !/[?&]embed=1/.test(location.search)){ location.replace("./#mypop"); return; }   /* 2026-11-24: 나의 할일 한 페이지는 없앰 — 첫 화면의 팝업으로 (팝업 안 · 과업 계산 창은 embed=1 이라 그대로) */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261126zn">
-<link rel="stylesheet" href="css/menu.css?v=20261126zn">
+<link rel="stylesheet" href="css/group.css?v=20261126zo">
+<link rel="stylesheet" href="css/menu.css?v=20261126zo">
 </head>
 <body>
 <header>
@@ -84,6 +84,16 @@
     <textarea id="noteOut" class="note-out" spellcheck="false" lang="ko"></textarea>
     <p class="hint" id="noteHint"></p>
     <div class="row-btns"><button class="btn primary" id="noteCopy">복사</button><button class="btn" id="noteApply" hidden title="추후 과업 「전산 예약」에 직접 고쳐 둔 비고 문구를 이 멘트로 바꿈">과업 문구도 이걸로 바꾸기</button><button class="btn" id="noteClose">닫기</button></div>
+  </section>
+</div>
+<!-- 삭제된 단체 예약 (시트에만 남아 있던 것을 보기 전용으로) -->
+<div class="modal" id="trashModal" hidden>
+  <section class="list panel mbdb book" role="dialog" aria-modal="true" aria-labelledby="trashTitle">
+    <h2><span id="trashTitle">삭제된 단체 예약</span> <small id="trashSum"></small>
+      <span class="row-btns"><button type="button" class="btn list-x" id="trashClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+    <input id="trashSearch" class="list-search" type="search" data-ime="ko" placeholder="검색: 업체명 · 담당자 · 사유 · 삭제한 사람" autocomplete="off" style="margin:0 0 8px">
+    <div class="tw"><table class="mbdb-t"><thead><tr><th>삭제 일시</th><th>삭제한 사람</th><th>사유</th><th>방문일</th><th>업체</th><th>담당자</th><th>인원</th><th class="owner">영업 담당</th></tr></thead><tbody id="trashBody"></tbody></table></div>
+    <p class="hint" style="margin:8px 0 0">삭제된 예약은 공유 DB에 그대로 남아 있고(‘삭제’ 칸에 일시), 여기서는 보기만 합니다.</p>
   </section>
 </div>
 <!-- 대관 · 도슨트 · 프로그램 예약 목록 (예약접수된 단체 예약에서 자동) -->
@@ -232,6 +242,14 @@
   </section>
 </div>
 
+<!-- 첫 화면 (2026-11-26): 단체명으로 먼저 찾기 → 이미 있는 예약이면 그 예약으로 · 없으면 새 통화에 업체명 (js/group/15-lock-popups.js showStart) -->
+<section class="panel start-box" id="startBox" aria-labelledby="startTitle">
+  <h2 id="startTitle">어느 단체인가요?</h2>
+  <input id="startQ" class="start-q" type="search" data-ime="ko" lang="ko" placeholder="단체명(업체명)을 입력하세요" autocomplete="off" spellcheck="false">
+  <p class="hint" id="startHint"></p>
+  <ul class="start-list" id="startList"></ul>
+  <div class="row-btns"><button type="button" class="btn primary" id="startNew">단체명 없이 새 통화</button></div>
+</section>
 <div class="layout">
   <!-- 통화 메모 -->
   <div class="memo-col col-stack">
@@ -338,15 +356,15 @@
   <section class="list panel" role="dialog" aria-modal="true" aria-labelledby="listTitle">
     <h2><span id="listTitle">단체예약 목록</span> <small id="storeHint"></small>
       <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn list-x" id="listCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
-    <div class="list-bar"><span class="stage-sum" id="stageSum" title="누른 단계만 보입니다 (기본: 가예약 · 예약확정)"></span><div class="seg" id="stageFilter" style="display:inline-flex;background:var(--bg)" title="누르면 그 단계를 보이기 · 숨기기 (여러 개 고를 수 있음 · 삭제한 예약은 예약취소에 함께 보임)">
+    <div class="list-bar"><span class="stage-sum" id="stageSum" title="누른 단계만 보입니다 (기본: 가예약 · 예약확정)"></span><div class="seg" id="stageFilter" style="display:inline-flex;background:var(--bg)" title="누르면 그 단계를 보이기 · 숨기기 (여러 개 고를 수 있음)">
       <button type="button" data-f="예약상담">예약상담</button><button type="button" data-f="가예약">가예약</button><button type="button" data-f="예약확정">예약확정</button><button type="button" data-f="예약취소">예약취소</button>
-    </div><div class="seg" id="pastSeg" style="display:inline-flex;background:var(--bg)" title="방문일이 지난 예약은 평소에는 목록에 없습니다. 누르면 지난 예약까지 방문일 순서대로 보입니다"><button type="button" id="pastBtn">지난 예약 보기</button></div>
+    </div>
     <input id="listSearch" class="list-search" type="search" data-ime="ko" placeholder="검색: 업체명 · 담당자 · 전화번호 (지난 예약까지 전체에서)" autocomplete="off">
-    <div class="seg" id="sortSeg" style="display:inline-flex;background:var(--bg)" title="목록 정렬">
+    <label class="past-ck" id="pastLbl"><input type="checkbox" id="pastCk"> 지난 예약 보기</label><div class="seg" id="sortSeg" style="display:inline-flex;background:var(--bg)" title="목록 정렬">
       <button type="button" data-o="date">방문일 순</button><button type="button" data-o="saved" title="최근에 접수(저장)한 예약부터">접수 순</button>
     </div><div class="seg" id="viewSeg" style="display:inline-flex;background:var(--bg)" title="표 · 캘린더로 보기">
       <button type="button" data-v="table">표</button><button type="button" data-v="cal">캘린더</button>
-    </div></div>
+    </div><button type="button" class="trash-ic" id="trashBtn" title="삭제한 예약 보기 (삭제 일시 · 삭제한 사람 · 사유)" aria-label="삭제한 예약 보기">🗑</button></div>
     <div class="tw"><table><thead><tr><th>방문일</th><th>단계</th><th>업체</th><th>담당자</th><th>인원</th><th>입퇴장</th><th>식사</th><th>견적서</th><th>거래명세서</th><th class="owner">영업 담당</th><th>접수</th><th class="acts">수정 · 삭제</th></tr></thead><tbody id="listBody"></tbody></table></div>
     <div class="lcal" id="listCal" hidden></div>
   </section>
@@ -398,14 +416,14 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/common.js?v=20261126zn"></script>
-<script src="js/opslib.js?v=20261126zn"></script>
-<script src="js/group.js?v=20261126zn"></script>
-<script src="js/taskcfg.js?v=20261126zn"></script>
-<script src="js/mytask.js?v=20261126zn"></script>
-<script src="js/ime.js?v=20261126zn"></script>
-<script src="js/keepsize.js?v=20261126zn"></script>
-<script src="js/menu.js?v=20261126zn"></script>
-<script src="js/timepick.js?v=20261126zn"></script>
+<script src="js/common.js?v=20261126zo"></script>
+<script src="js/opslib.js?v=20261126zo"></script>
+<script src="js/group.js?v=20261126zo"></script>
+<script src="js/taskcfg.js?v=20261126zo"></script>
+<script src="js/mytask.js?v=20261126zo"></script>
+<script src="js/ime.js?v=20261126zo"></script>
+<script src="js/keepsize.js?v=20261126zo"></script>
+<script src="js/menu.js?v=20261126zo"></script>
+<script src="js/timepick.js?v=20261126zo"></script>
 </body>
 </html>

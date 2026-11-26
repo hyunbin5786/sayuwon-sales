@@ -379,6 +379,8 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .modal .mbdb{width:min(860px,100%)}
 .modal .book{width:min(1100px,100%);overflow:auto}   /* 예약 목록 창: 표 + 직접 추가 칸이 창 안에서 스크롤 */
 .modal .book .tw{flex:none}
+#trashModal{z-index:25}   /* 단체예약 목록 위에 뜸 */
+#trashSearch{flex:none;max-width:380px}   /* 세로로 늘어나지 않게 */
 /* 남이 담당인 예약: 잠금 (메모만) */
 .owner-memo{border:1px solid #e0c48a;background:#fff8e6;border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:13px}
 .owner-memo.mine{border-color:#bccab4;background:var(--pine-soft)}
@@ -568,10 +570,15 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 .my-body .late{color:var(--red)}
 .pc-list li.edited{border-color:#b9cde3;background:#f3f7fb}   /* 남이 고친 기록 */
 .list-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-.list-bar #sortSeg{margin-left:auto}   /* 정렬은 오른쪽 */
+.list-bar #pastLbl{margin-left:auto}   /* 지난 예약 보기 · 정렬은 오른쪽 */
+.past-ck{display:inline-flex;align-items:center;gap:5px;font:500 13px var(--sans);color:var(--ink);cursor:pointer;white-space:nowrap}
+.past-ck input{accent-color:var(--pine);width:15px;height:15px;margin:0}
+.past-ck.dim{opacity:.45;cursor:default}   /* 검색 중에는 지난 예약까지 모두에서 찾음 */
+.trash-ic{border:0;background:transparent;padding:2px 4px;font-size:14px;line-height:1;cursor:pointer;opacity:.55;border-radius:6px}   /* 삭제한 예약 보기 (작은 휴지통) */
+.trash-ic:hover,.trash-ic:focus-visible{opacity:1;background:var(--bg)}
 #stageFilter button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font:500 13px var(--sans);color:var(--muted);cursor:pointer}
 #stageFilter button.on{background:var(--pine);color:#fff}
-#stageFilter button.dim,#pastSeg button.dim{opacity:.45}   /* 검색 중에는 탭 대신 전체에서 찾음 (지난 예약까지) */
+#stageFilter button.dim{opacity:.45}   /* 검색 중에는 탭 대신 전체에서 찾음 */
 .list-search{flex:1 1 260px;max-width:380px;height:32px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:13px var(--sans);background:#fff;color:var(--ink)}
 .list-search:focus{outline:none;border-color:var(--pine)}
 .it-amt .dopen{margin-left:8px;border:1px dashed var(--line);background:#fff;border-radius:12px;padding:1px 9px;font:11.5px var(--sans);color:var(--muted);cursor:pointer}   /* 할인 대상이 아닌 품목: 할인 넣기 */
@@ -807,7 +814,6 @@ html.book-guest #bookBody tr{cursor:default}
 #stageSeg button[data-s="예약확정"].on{background:#3f5236;color:#fff}
 #stageSeg button[data-s="예약취소"].on{background:#d9d6cf;color:#55534d}
 #stageSeg button:disabled{opacity:.4;cursor:not-allowed}
-.modal .list tr.gone{cursor:default}   /* 삭제한 예약: 예약취소에 함께 보임 · 보기만 */
 .modal .list tr.cancel td{color:var(--muted)}
 .stage-sum{font-size:12.5px;font-weight:700;color:var(--pine);margin-right:4px}
 .tag.tbd-tag{background:var(--amber-soft);color:var(--amber)}   /* 미정 항목 (노랑) */
@@ -1374,3 +1380,20 @@ body:has(.modal:not([hidden])) #fakeBar{display:none}   /* 팝업이 떠 있으�
   #myModal .my-col:has(> .my-fix > .my-colpick){display:none}
   #myModal .my-col:has(.today-due) > .my-fix > .my-h:not(.sub), #myModal .my-col:has(.today-due) > .my-fix > .etc-addbox{display:none}
 }
+/* 첫 화면: 단체명으로 먼저 찾기 (2026-11-26) — 예약을 열거나 새 통화를 시작하면 걷힘 */
+#startBox{display:none}
+html.g-start .layout{display:none}
+html.g-start #startBox{display:block;width:min(720px,calc(100% - 24px));margin:56px auto 24px;padding:26px 28px}
+.start-box h2{margin:0 0 14px}
+.start-q{width:100%;height:48px;border:1px solid var(--line);border-radius:10px;padding:0 14px;font:500 18px var(--sans);background:#fff;color:var(--ink);box-sizing:border-box}
+.start-q:focus{outline:none;border-color:var(--pine)}
+.start-box .hint{margin:10px 0}
+.start-list{list-style:none;margin:0 0 14px;padding:0;max-height:46vh;overflow:auto}
+.start-list:empty{display:none}
+.start-it{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--line);border-radius:8px;background:#fff;padding:9px 12px;margin:0 0 6px;font:14px var(--sans);color:var(--ink);cursor:pointer}
+.start-it:hover,.start-it:focus-visible{outline:none;border-color:var(--pine);background:var(--bg)}
+.start-it .num{flex:none;min-width:92px;color:var(--muted)}
+.start-it b{flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.start-it small{flex:1;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.start-box .row-btns{justify-content:flex-end}
+@media (max-width:700px){ html.g-start #startBox{margin-top:20px;padding:18px 16px} .start-it{flex-wrap:wrap} .start-it small{flex-basis:100%} }
