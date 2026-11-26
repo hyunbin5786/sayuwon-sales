@@ -1204,6 +1204,7 @@
     renderSummary();
     renderWarnings();
     updateButtons();
+    paintOther();   // 다른 종류의 문서가 먼저 나갔으면 그 문서와 견준 내용 (2026-11-26)
   }
 
   var wideQuery = window.matchMedia("(min-width:981px)");
@@ -2375,6 +2376,7 @@
       if(same){ h.kind = "revise"; h.parent = same.id; lastRevise = true; if(elMail && !elMail.hidden) mailFill(); }   // 같은 문서가 앞서 있으면 수정발행 → 메일 문구도
     }
     histPending.push(h); writeArr(HIST_PENDING, histPending);
+    myIssues[h.id] = true;   // 이 창에서 낸 발급 (둘 다 발급일 때 방금 낸 것과는 견주지 않음 · otherIssue)
     flushHistory();
   }
   // 발급 취소 / 취소 철회는 서버에 올리기 전까지 이 브라우저에 모아 둔다: [{id, canceled, cancelNote}]
@@ -2621,6 +2623,81 @@
     document.getElementById("parseinfo").innerHTML = html;
     status("새 예약 내용으로 수정발행 중 · 결제 " + payKo(state.payMode) + " · " + (state.docUse === "real" ? "내부용만" : "내부용 + 외부용"));
     return true;
+  }
+  // ---------- 다른 종류의 문서가 먼저 나갔으면 그 문서와 견준 내용 (2026-11-26) ----------
+  // 견적서를 내려는데 같은 건의 거래명세서가 먼저 발급돼 있으면(반대도 같음) 그 발급과 지금 내용을 견줘 왼쪽 위에 보여 줌
+  // 모양은 수정발행 알림(reviseFresh 의 .rv 상자)과 같음. 화면에만 보이고 문서 · 발급 내역 · 메일 문구는 그대로
+  //  · 같은 건 = 수신 · 이용일이 같은 발급 (docKey 에서 문서 종류만 뺀 것). 단체 화면에서 넘어온 예약이면 예약 ID(intakeRec)로 (freshFor 와 같은 기준)
+  //  · 발급 취소한 것은 빼고 가장 최근 것과 견줌
+  //  · 견적서 · 거래명세서를 둘 다 골랐으면 종류와 상관없이 가장 최근 발급과 견줌 (이 창에서 방금 낸 것은 빼고)
+  var myIssues = {}, otherKey = "", otherAt = 0, otherTimer = null, otherHtml = "";
+  function otherCase(){
+    var cl = String(state.client || "").replace(/\s/g, ""), dt = dateOnly(state.useDate);
+    var rec = intakeLink && intakeLink.recId && (!intakeLink.date || intakeLink.date === dt) ? intakeLink.recId : "";
+    return { cl: cl, dt: dt, rec: rec, ok: state.rows.length > 0 && !!(rec || (cl && dt)) };
+  }
+  function otherIssue(){
+    var c = otherCase(); if(!c.ok) return null;
+    var want = state.docBoth ? "" : docName();
+    return allHistory().filter(function(h){
+      var s = h.snapshot; if(!s || h.canceled || !h.doc || h.doc === want) return false;
+      if(state.docBoth && myIssues[h.id]) return false;
+      if(c.rec && s.intakeRec) return s.intakeRec === c.rec;
+      return !!c.cl && !!c.dt && String(h.client || "").replace(/\s/g, "") === c.cl && dateOnly(s.useDate || h.useDate) === c.dt;
+    }).sort(function(a, b){ return String(b.at).localeCompare(String(a.at)); })[0] || null;
+  }
+  function otherBox(h){
+    var old = h.snapshot || {};
+    var oldRows = (old.rows || []).filter(function(r){ return !r.adj; }), newRows = state.rows.filter(function(r){ return !r.adj; });
+    var used = {}, changes = [];
+    function unit(r){ return Number(r.price) || 0; }
+    function qr(r, withPrice){ return won(Number(r.qty) || 0) + (Number(r.rate) ? " (할인 " + r.rate + "%)" : "") + (withPrice ? " · 단가 " + won(unit(r)) + "원" : ""); }   // 수량 (할인율) · 단가는 다를 때만
+    oldRows.forEach(function(o){
+      var n = newRows.filter(function(r){ return !used[r.key] && rowSig(r) === rowSig(o); })[0];
+      if(!n){ changes.push({ name: o.name, was: qr(o), now: "", tag: "빠짐" }); return; }
+      used[n.key] = true;
+      var pd = unit(n) !== unit(o);
+      if(pd || (Number(n.qty) || 0) !== (Number(o.qty) || 0) || (Number(n.rate) || 0) !== (Number(o.rate) || 0))
+        changes.push({ name: o.name, was: qr(o, pd), now: qr(n, pd), tag: "" });
+    });
+    newRows.forEach(function(n){ if(!used[n.key]) changes.push({ name: n.name, was: "", now: qr(n), tag: "새로 생김" }); });
+    var useKo = function(v){ return v && v !== "real" ? "내부용 + 외부용" : "내부용만"; };
+    if(old.payMode && old.payMode !== state.payMode) changes.push({ name: "결제", was: payKo(old.payMode), now: payKo(state.payMode), tag: "" });
+    if(useKo(old.docUse) !== useKo(state.docUse)) changes.push({ name: "문서", was: useKo(old.docUse), now: useKo(state.docUse), tag: "" });
+    var wasT = Number(h.total) || 0, nowT = totalOf("sayuwon") + totalOf("shilla");
+    if(wasT !== nowT) changes.push({ name: "합계", was: won(wasT) + "원", now: won(nowT) + "원", tag: "" });
+    var doc = h.doc, now = state.docBoth ? "견적서 · 거래명세서" : docName();
+    return '<div class="rv">'
+      + '<div class="rv-h">앞서 발급한 ' + esc(doc) + '와 견준 내용</div>'
+      + '<dl class="rv-kv"><dt>앞서 발급</dt><dd>' + esc(histLabel(h)) + '</dd>'
+        + '<dt>그때 설정</dt><dd><span class="rv-chip">' + esc(payKo(old.payMode)) + '</span><span class="rv-chip">' + useKo(old.docUse) + '</span></dd></dl>'
+      + '<div class="rv-s">' + esc(doc) + '에서 달라진 내용' + (changes.length ? ' <span class="rv-n">' + changes.length + '</span>' : '') + '</div>'
+      + (changes.length
+        ? '<table class="rv-t"><thead><tr><th>품목 · 수량</th><th>' + esc(doc) + '</th><th>지금 (' + esc(now) + ')</th></tr></thead><tbody>' + changes.map(function(c){
+            return '<tr><td>' + esc(c.name || "(품명 없음)") + (c.tag ? ' <span class="rv-tag">' + esc(c.tag) + '</span>' : '') + '</td>' +
+              '<td class="rv-was">' + (c.was ? esc(c.was) : '–') + '</td><td class="rv-now">' + (c.now ? esc(c.now) : '–') + '</td></tr>'; }).join("") + '</tbody></table>'
+        : '<div class="rv-none">앞서 발급한 ' + esc(doc) + '와 품목 · 수량 · 합계가 같습니다</div>')
+      + '<div class="rv-note">발급 취소하지 않은 가장 최근 ' + esc(doc) + ' 발급과 견줬습니다 · 이 상자는 화면에만 보입니다</div>'
+      + '</div>';
+  }
+  function paintOther(){
+    try {
+      var box = document.getElementById("otherinfo");
+      if(!box){ box = document.createElement("div"); box.id = "otherinfo"; document.getElementById("parseinfo").insertAdjacentElement("afterend", box); }
+      var h = otherIssue(), html = h ? otherBox(h) : "";
+      if(html !== otherHtml){ otherHtml = html; box.innerHTML = html; }
+      // 수신 · 이용일이 정해지면(바뀌면) 발급 내역을 한 번 받아 와 다시 견줌 (다른 사람이 낸 발급도 보이게 · 30초 안에 받았으면 그대로)
+      var c = otherCase(), key = c.ok ? [c.rec, c.cl, c.dt, state.docBoth ? "both" : state.docType].join("|") : "";
+      if(key && key !== otherKey){
+        otherKey = key;
+        clearTimeout(otherTimer);
+        otherTimer = setTimeout(function(){
+          if(Date.now() - otherAt < 30000) return;
+          otherAt = Date.now();
+          flushHistory().then(loadHistory).then(paintOther, function(){});
+        }, 1200);
+      }
+    } catch(e){ if(window.console) console.warn(e); }
   }
   // 그때 문서 내용으로 되돌린다
   function restoreIssue(h){
