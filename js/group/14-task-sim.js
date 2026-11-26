@@ -37,7 +37,11 @@ function simTasks(r){
   simCache.set(r.id, {k, h:hs, tasks:out}); return out;
 }
 // 저장된 예약의 추후 과업 (열지 않은 예약도): 위 simTasks (열었을 때와 같은 규칙). 계산이 안 되면 예전 방식(저장된 과업 + 미정 · 현장 결제 · 점검)
+// 통화 메모 확인 (2026-11-26): 예약상담 · 예약취소 예약도 영업 담당이 아닌 사람이 고친 안 읽은 메모가 있으면 과업이 뜸 (열었을 때와 같게 simTasks 로 계산)
+const recMemoNew = r => { const own=ownerOf(r); return parseHist(r).memos.some(m=>m && !m.seen && m.by && m.by!==own); };
 function tasksOf(r){
+  if(editingId!==r.id && quietStage(stageOfRec(r)) && recMemoNew(r) && taskRecActive(r)){ const sim=simTasks(r), keep = stageOfRec(r)==='예약취소' ? (t=>t.id==='memocheck') : consultTask;   // 예약취소는 통화 메모 확인만
+    if(sim) return sim.filter(t=>!t.removed && keep(t)).map(t=>({...t, due:taskDue(t)})); }
   if(stageOfRec(r)==='예약상담' && editingId!==r.id){ const x=xOf(r), all=parseHist(r).tasks, st=all.find(t=>t.id==='tour'), own=all.filter(t=>t.custom).map(t=>({...t, due:taskDue(t)})); return [...(x.tour ? [st ? {...st, due:taskDue(st)} : {id:'tour', title:AUTO_TASKS.tour, done:false, due:ymd(new Date(r.saved||Date.now())), at:r.saved}] : []), ...own]; }   // 예약상담: 사전답사 전산 예약 + 직접 추가한 과업
   if(editingId===r.id && quietStage(effStage(rec))) return tasks.filter(consultTask).map(t=>({...t, due:taskDue(t)}));
   if(editingId===r.id) return tasks.map(t=>({...t, due:taskDue(t)}));   // 지금 열어 둔 예약은 화면의 과업

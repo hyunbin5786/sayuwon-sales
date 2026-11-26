@@ -267,7 +267,7 @@ function syncAutoTasks(){
   if(typeof tcfgWant==="function") tcfgWant(rec, want);
   { ['tbdcall','onsitecall'].forEach(id=>{ const i=want.indexOf(id); if(i>=0) want.splice(i,1); });   // 「미정 항목 확인 연락」 · 「현장 결제 인원 확인 연락」은 따로 만들지 않음 (다음주 예약 점검의 세부 과업)
     if(needAsk && !want.includes('wkcheck') && !(typeof tcfgOf==='function' && (tcfgOf('wkcheck')||{}).off)) want.push('wkcheck'); }   // 방문일이 아직 없어도 물어볼 것이 있으면 점검 과업   // 추후과업 메시지 관리: 끈 과업은 빼고 조건이 맞는 새 과업은 넣음 (2026-11-20)
-  if(consult){ const keep=want.filter(id=>id==='tour' || id==='clergy'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약만 (손대지 않은 것은 아래에서 빠짐)
+  if(consult){ const keep=want.filter(id=>id==='tour' || id==='clergy' || id==='memocheck'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약 · 통화 메모 확인(2026-11-26)만 (손대지 않은 것은 아래에서 빠짐)
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec), ...(id==='wkcheck' && editingId && rec.date && wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId] ? {done:true, doneAt:wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId]} : {})}); });   // 사전 답사 과업 메모 = 답사 정보
   if(typeof tcfgSubs==="function") tcfgSubs(tasks);
   if(typeof tcfgWhoApply==="function") tcfgWhoApply(tasks);   // 추후과업 메시지 관리의 담당 (2026-11-25)
@@ -278,7 +278,10 @@ function syncAutoTasks(){
     if(pc && !pc.done && (erpList||[]).length && !(typeof tcfgOf==='function' && (tcfgOf('pplchk')||{}).noAutoDone)){ let ok=false; try{ ok=erpCheck().ok; }catch(_){}
       if(ok){ pc.done=true; pc.doneAt=new Date().toISOString(); pc.autoDone=true; pc.autoWhy='가장 최근 전산 내역에 이미 반영됨'; } } }
   // 통화 메모 확인 (2026-11-24): 안 읽은 메모(영업 담당이 아닌 사람이 통화 메모를 고친 것 · 남긴 메모)가 있으면 영업 담당에게 · 누가 고쳤는지 (memoBy) · 모두 확인하면 저절로 완료 · 새로 고치면 다시 열림
-  { const mc=tasks.find(t=>t.id==='memocheck' && !t.removed);
+  //  2026-11-26: 예약상담 · 예약취소 단계에서도 생김 (예전엔 그 단계는 자동 과업이 없어 안 떴음) · 영업 담당이 이 과업을 지운 뒤에도 누가 또 고치면 다시 생김 (예전엔 한 번 지우면 그 예약에서는 다시 안 떴음)
+  { const mc0=tasks.find(t=>t.id==='memocheck');
+    if(mc0 && mc0.removed){ const last=memoNew().map(m=>m.t||'').sort().pop()||''; if(last && last>(mc0.doneAt||'')){ delete mc0.removed; delete mc0.doneBy; } }   // 지운 뒤에 새로 고친 메모가 있으면 되살림 (아래에서 다시 열림)
+    const mc = mc0 && !mc0.removed ? mc0 : null;
     if(mc){ const nm=memoNew(), now=new Date().toISOString();
       mc.memoBy=[...new Set(nm.map(m=>m.by))].join(', '); mc.memoAt=nm.map(m=>m.t||'').sort().pop()||'';
       if(!nm.length && !mc.done){ mc.done=true; mc.doneAt=now; mc.autoDone=true; }
@@ -362,7 +365,7 @@ function addXsub(tid){
   inp.blur(); renderTasks(); renderSide(); autoSave();
   document.querySelector(`#taskList [data-xadd="${CSS.escape(tid)}"]`)?.focus();   // 이어서 또 적을 수 있게
 }
-const consultTask = t => t.id==='tour' || t.id==='clergy' || t.custom;   // 예약상담에서 보이는 과업: 사전답사 전산 예약 + 직접 추가한 과업
+const consultTask = t => t.id==='tour' || t.id==='clergy' || t.id==='memocheck' || t.custom;   // 예약상담에서 보이는 과업: 사전답사 전산 예약 + 통화 메모 확인(2026-11-26 · 예약상담 · 예약취소에서도 뜸) + 직접 추가한 과업
 function renderTasks(){
   syncAutoTasks();
   const consultOnly = quietStage(effStage(rec));   // 예약상담: 자동 과업은 없고(사전답사 전산 예약만) 직접 추가한 과업은 그대로
@@ -700,6 +703,14 @@ const memoTaskList = () => { const own=String(rec.owner||'').trim(), L=(memos||[
 // 통화 메모 확인 규칙 (추후과업 메시지 관리 「통화 메모 확인」을 열면 보임 · js/taskcfg.js) — 규칙을 바꾸면 이 글도 같이
 const MEMOCHECK_RULES = `■ 무엇
   영업 담당이 아닌 사람이 남의 단체예약에서 통화 메모를 고쳐 저장하면, 그 예약의 영업 담당에게 「통화 메모 확인」 과업이 생김
+
+■ 언제 생기나 (2026-11-26 고침)
+  통화 메모에 원래 글이 있었든 비어 있었든 상관없이, 영업 담당이 아닌 사람이 내용을 바꿔 저장하면 바로 생김
+  예약 단계와 상관없음 — 예약상담 · 예약취소 예약에서도 생김 (예전엔 가예약 · 예약확정에서만 떴음)
+  영업 담당 본인이 고친 것은 생기지 않음
+  이미 안 끝난 과업이 있으면 새로 만들지 않고 그 과업 안에 메모가 더해짐 (같은 사람이 여러 번 고치면 한 줄로)
+  영업 담당이 이 과업을 지웠어도, 그 뒤에 누가 또 고치면 다시 생김
+  방문일이 30일 넘게 지난 예약은 나의 할일에 나오지 않음 (다른 과업과 같음)
   (「메모를 확인하세요」 팝업은 2026-11-24부터 안 뜸 — 메모는 이 과업 안에서 봄)
 
 ■ 과업 보조 설명
