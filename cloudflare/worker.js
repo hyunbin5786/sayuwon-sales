@@ -645,6 +645,7 @@ export async function api(req, env, origin = '', ip = '') {
     const r = await memberLogin(env, req.name, req.emp); if (!r.member) await noteFail(env, ip, req.name, req.emp); return r; }
   if (a === 'quoteGet' && !req.history) return { ok: true, data: await readCatalog(env), historyApi: 3 };   // 품목 목록(가격표)은 로그인 없이 읽기
   if (a === 'mentList') { try { const o = await getItem(env, 'mentdb'); return { ok: true, ment: o && !o.deleted ? { history: o.history, saved: o.saved } : null }; } catch (e) { return err('mentlist: ', e); } }   // 전화응대 멘트 읽기
+  if (a === 'menuGet') { try { const o = await getItem(env, 'menudb'); return { ok: true, menu: o && !o.deleted ? { history: o.history, updated: o.updated } : null, api: 12 }; } catch (e) { return err('menuget: ', e); } }   // 메뉴 설정 읽기 (PC · 모바일에 보일 메뉴 · 2026-11-26 · api 12 — 로그인하지 않은 화면의 메뉴도 이 설정을 따라야 해서 로그인 없이)
   if (a === 'mentImgGet') { try { return { ok: true, file: await mentImgGet(env, String(req.id || '')) }; } catch (e) { return err('mentimg: ', e); } }   // 멘트 이미지 한 장
   if (a === 'bookList') { try { return { ok: true, items: await bookList(env), api: 6 }; } catch (e) { return err('booklist: ', e); } }   // 예약 현황 공유 목록 (연락처 칸은 빼고 줌)
   if (a === 'lostList') { try { return { ok: true, items: await lostList(env), api: 11 }; } catch (e) { return err('lostlist: ', e); } }   // 분실물 목록 (로그인 없이 보는 화면용)
@@ -713,7 +714,7 @@ export default {
     if (request.method === 'GET') {
       // 2026-11-23: /file/<id>/<보이는 이름> 도 받음 — 브라우저는 탭 제목 · 저장 이름을 주소 끝에서 가져가므로 화면에 보이는 이름을 주소 끝에 붙임 (뒤 이름은 무시하고 id 로 찾음)
       const m = url.pathname.match(/^\/file\/([a-zA-Z0-9_-]{8,80})(?:\/[^/]*)?$/);
-      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 11, db: 'd1', ...(env.TEST_SYNC_KEY ? { testSync: true } : {}) });   // api 8 = /file/<id>/<이름> 받음 · api 9 = mirror · api 10 = import 가 press · manual 도 받음 · api 11 = lostAdd 가 분실 신고의 사진도 받음 (lostList 도 api 11 을 돌려줌) (testSync 는 테스트 서버에서만 보임)
+      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 12, db: 'd1', ...(env.TEST_SYNC_KEY ? { testSync: true } : {}) });   // api 8 = /file/<id>/<이름> 받음 · api 9 = mirror · api 10 = import 가 press · manual 도 받음 · api 11 = lostAdd 가 분실 신고의 사진도 받음 (lostList 도 api 11 을 돌려줌) · api 12 = menuGet (메뉴 설정 읽기) (testSync 는 테스트 서버에서만 보임)
       const f = await readFile(env, m[1]);
       if (!f || f.kind !== 'doc') return new Response('파일이 없습니다', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       const bin = atob(f.data), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
