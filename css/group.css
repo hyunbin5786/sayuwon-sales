@@ -572,7 +572,7 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 .pc-list li.edited{border-color:#b9cde3;background:#f3f7fb}   /* 남이 고친 기록 */
 .list-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .list-bar #pastBar{margin-left:auto}   /* 기간 · 정렬은 오른쪽 */
-#trashSeg .trash-ic{display:inline-flex;align-items:center;justify-content:center;padding:0 12px;min-width:60px;color:var(--ink)}   /* 삭제한 예약 보기 (휴지통 · 2026-11-26): 표 · 캘린더 버튼과 같은 틀(.seg) · 같은 높이, 그림은 글자색 선 그림 */
+#trashSeg .trash-ic{display:inline-flex;align-items:center;justify-content:center;padding:0 7px;color:var(--ink)}   /* 삭제한 예약 보기 (휴지통 · 2026-11-26): 표 · 캘린더 버튼과 같은 틀(.seg) · 같은 높이, 그림은 글자색 선 그림 */
 #trashSeg .trash-ic:hover,#trashSeg .trash-ic:focus-visible{outline:none;background:var(--pine);color:#fff}
 #trashSeg{align-self:stretch}
 #stageFilter button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font:500 13px var(--sans);color:var(--muted);cursor:pointer}
