@@ -289,13 +289,24 @@ const SY_ALERT = (function(){
     const BTN='border:0;border-radius:6px;background:#3e4f33;color:#fff;font:600 13px/1 inherit;padding:7px 10px;cursor:pointer;white-space:nowrap';
     const box=el('div', 'position:fixed;right:16px;bottom:44px;z-index:2147483000;width:min(380px,calc(100vw - 32px));max-height:calc(100vh - 80px);overflow:auto;box-sizing:border-box;background:#fff;color:#222;border:1px solid #cfc9b8;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.22);padding:14px 14px 12px;font:14px/1.55 "Noto Sans KR",system-ui,sans-serif');
     box.id='syAlertHelp'; box.setAttribute('role','dialog'); box.setAttribute('aria-label','과업 알림 창 허용 안내');
-    box.appendChild(el('b', 'display:block;font-size:15px;margin-bottom:4px', '과업 알림 창을 브라우저가 막았습니다'));
-    box.appendChild(el('div', 'margin-bottom:8px', '지금은 화면을 한 번 눌러야 알림 창이 뜹니다. 아래처럼 한 번만 허용해 두면, 만지지 않아도 알림 시각에 저절로 뜹니다.'));
+    box.appendChild(el('b', 'display:block;font-size:15px;margin-bottom:4px', '과업 알림이 저절로 뜨게 해 주세요'));
+    box.appendChild(el('div', 'margin-bottom:8px', '브라우저가 알림 창을 막아서, 지금은 화면을 한 번 눌러야 뜹니다. 아래 가운데 하나를 한 번만 해 두면 만지지 않아도 알림을 받습니다.'));
     const row = (text, copy) => { const r=el('div', 'display:flex;gap:8px;align-items:center;margin:4px 0'); r.appendChild(el('span', 'flex:1;min-width:0;word-break:break-all', text));
       if(copy){ const b=el('button', BTN, '복사'); b.type='button'; b.onclick=()=>{ const done=()=>{ b.textContent='복사됨'; T.setTimeout(()=>{ b.textContent='복사'; }, 1500); };
         try{ T.navigator.clipboard.writeText(copy).then(done, ()=>T.prompt('아래 글자를 복사하세요', copy)); }catch(_){ T.prompt('아래 글자를 복사하세요', copy); } }; r.appendChild(b); }
       return r; };
-    box.appendChild(el('b', 'display:block;margin-top:6px', '쉬운 방법'));
+    // 가장 쉬운 방법 (2026-11-26): 버튼 한 번 → 브라우저가 「알림을 표시하려고 합니다 · 허용 / 차단」을 물음 → 허용하면 알림 시각에 윈도우 알림이 뜸 (noti)
+    const perm = notiPerm();
+    if(perm==='default'){
+      box.appendChild(el('b', 'display:block;margin-top:6px', '가장 쉬운 방법 — 버튼 한 번'));
+      const r=row('아래 버튼을 누르고, 브라우저가 물으면 「허용」을 누르세요. 그러면 알림 시각에 화면 오른쪽 아래에 알림이 뜨고, 그것을 누르면 과업 알림 창이 열립니다.'); box.appendChild(r);
+      const ab=el('button', BTN+';padding:10px 14px;font-size:14px;margin:4px 0 2px', '알림 허용'); ab.type='button'; box.appendChild(ab);
+      const say=el('div', 'margin-top:4px;color:#555'); box.appendChild(say);
+      ab.onclick=()=>{ try{ const done = p => { if(p==='granted'){ ab.remove(); say.textContent='허용됐습니다. 이제 알림 시각에 화면 오른쪽 아래에 알림이 뜹니다. (방금 시험 알림을 하나 보냈습니다)'; noti('과업 알림 시험', '이렇게 뜹니다. 누르면 과업 알림 창이 열립니다.'); }
+            else say.textContent = p==='denied' ? '차단됐습니다. 주소 칸 왼쪽 끝의 그림을 누르고 「알림」을 「허용」으로 바꾼 뒤 새로 고치면 됩니다.' : '아직 고르지 않았습니다. 버튼을 다시 눌러 「허용」을 골라 주세요.'; };
+          const q=T.Notification.requestPermission(done); if(q && q.then) q.then(done, ()=>{}); }catch(_){ say.textContent='이 브라우저에서는 알림을 켤 수 없습니다. 아래 방법을 써 주세요.'; } };
+    } else if(perm==='denied') box.appendChild(row('이 브라우저에서 이 사이트의 알림이 차단돼 있습니다. 주소 칸 왼쪽 끝의 그림을 누르고 「알림」을 「허용」으로 바꾸면, 알림 시각에 화면 오른쪽 아래에 알림이 뜹니다.'));
+    box.appendChild(el('b', 'display:block;margin-top:10px', '알림 창이 바로 뜨게 하려면 (팝업 허용)'));
     box.appendChild(row('주소 칸 오른쪽 끝에 「팝업 차단됨」 그림이 보이면 누르고 → 「항상 허용」 → 「완료」'));
     box.appendChild(el('b', 'display:block;margin-top:8px', '그림이 안 보이면'));
     box.appendChild(row('① 새 탭의 주소 칸에 붙여 넣고 Enter:  '+cfg, cfg));
@@ -304,17 +315,29 @@ const SY_ALERT = (function(){
     const foot=el('div', 'display:flex;justify-content:flex-end;margin-top:10px'); const c=el('button', BTN, '닫기'); c.type='button'; c.onclick=()=>box.remove(); foot.appendChild(c); box.appendChild(foot);
     D.body.appendChild(box);
   }catch(_){} };
-  // 설정의 「저절로 뜨는지 시험」: 누른 지 몇 초 지난 뒤(= 사람이 누르지 않은 것과 같은 때) 불러 창을 열어 봄 → 열리면 true, 막히면 안내를 보이고 false
-  const test = () => { if(openWin()){ try{ (window.top.document||document).getElementById('syAlertHelp')?.remove(); }catch(_){} return true; } help(true); return false; };
-  // 지금 시각의 알림을 띄움 (이미 본 시각이면 아무것도 안 함). fallback = 새 창이 끝내 안 열릴 때 그 화면 안에서 보일 함수(없어도 됨)
-  const show = fallback => { const k=keyNow(); if(!k || seen(k) || armed) return;
+  // ── 윈도우 알림 (2026-11-26): 브라우저에서 이 사이트의 「알림」을 허용한 사람은, 알림 창이 막혀도 화면을 만지지 않고 알림을 받음 (화면 오른쪽 아래 · 누를 때까지 남음 · 누르면 과업 알림 창)
+  //    운영 시스템 화면이 하나는 열려 있어야 함 (닫아 둔 브라우저에는 못 보냄)
+  const topWin = () => { try{ if(window.top!==window && window.top.document) return window.top; }catch(_){} return window; };
+  const notiPerm = () => { try{ const N=topWin().Notification; return N ? N.permission : 'none'; }catch(_){ return 'none'; } };
+  let lastNoti=null;
+  const noti = (title, body, onclick) => { try{ const T=topWin(); if(notiPerm()!=='granted') return null;
+    const n=new T.Notification(title, {body, tag:'sy-alert', requireInteraction:true}); lastNoti=n;
+    n.onclick=()=>{ try{ T.focus(); }catch(_){} try{ if(onclick) onclick(); else openWin(T); }catch(_){} try{ n.close(); }catch(_){} }; return n; }catch(_){ return null; } };
+  // 설정의 「저절로 뜨는지 시험」: 누른 지 몇 초 지난 뒤(= 사람이 누르지 않은 것과 같은 때) 불러 봄 → 창이 열리면 'win' · 창은 막혔지만 윈도우 알림을 보냈으면 'noti' · 둘 다 안 되면 안내를 보이고 ''
+  const test = () => { if(openWin()){ try{ topWin().document.getElementById('syAlertHelp')?.remove(); }catch(_){} return 'win'; }
+    if(noti('과업 알림 시험', '이렇게 뜹니다. 누르면 과업 알림 창이 열립니다.')) return 'noti'; help(true); return ''; };
+  // 지금 시각의 알림을 띄움 (이미 본 시각이면 아무것도 안 함). fallback = 새 창이 끝내 안 열릴 때 그 화면 안에서 보일 함수(없어도 됨) · count = 알릴 것의 수(윈도우 알림 글에 씀)
+  //  ① 창을 열어 봄(팝업을 허용한 브라우저는 여기서 끝) ② 막히면: 알림을 허용한 사람에게는 윈도우 알림 · 아닌 사람에게는 허용 방법 안내(하루 한 번) ③ 그리고 화면을 처음 누를 때 창을 엶
+  const show = (fallback, count) => { const k=keyNow(); if(!k || seen(k) || armed) return;
     if(openWin()){ mark(k); return; }
-    help();   // 창이 막힌 브라우저: 팝업 허용 방법 안내 (하루 한 번)
     armed=true; const docs=[document]; try{ if(window.top!==window && window.top.document) docs.push(window.top.document); }catch(_){}   // 첫 화면의 보이지 않는 과업 계산 창: 바깥 화면을 누를 때
-    const go = e => { docs.forEach(d=>{ try{ d.removeEventListener('click', go, true); }catch(_){} }); armed=false;
+    let myNoti=null;
+    const go = e => { docs.forEach(d=>{ try{ d.removeEventListener('click', go, true); }catch(_){} }); armed=false; try{ if(myNoti) myNoti.close(); }catch(_){}
       try{ const k2=keyNow(); if(!k2 || seen(k2)) return;   // 그사이 다른 탭이 띄웠으면 또 띄우지 않음
-        const ok = openWin(e && e.view) || (e && e.view!==window && openWin()); mark(k2); if(!ok && fallback) fallback(); }catch(_){} };
-    docs.forEach(d=>d.addEventListener('click', go, true)); };
+        const v=e && e.view, ok = openWin(v) || (v!==window && openWin()) || (v!==topWin() && openWin(topWin())); mark(k2); if(!ok && fallback) fallback(); }catch(_){} };
+    docs.forEach(d=>d.addEventListener('click', go, true));
+    myNoti = noti('과업 알림', `${count ? `확인할 할 일이 ${count}건 있습니다.` : '확인할 할 일이 있습니다.'} 눌러서 보기`, ()=>go(null));
+    if(!myNoti) help(); };   // 알림도 허용하지 않은 브라우저: 허용 방법 안내 (하루 한 번)
   const LS='sy_alert_times', DEF=[480,660,780,1020];
   const clean = a => [...new Set((a||[]).map(Number).filter(n=>Number.isFinite(n) && n>=0 && n<1440))].sort((x,y)=>x-y);
   const times = () => { try{ const a=JSON.parse(localStorage.getItem(LS)||'null'); if(Array.isArray(a)) return clean(a); }catch(_){} return DEF.slice(); };
@@ -327,5 +350,5 @@ const SY_ALERT = (function(){
   const openWin = from => { let w=null; try{ w=(from||window).open(new URL('group.html?alert=1', location.href).href, 'sy_alert', 'width=760,height=560,resizable=yes,scrollbars=yes'); }catch(_){} if(w){ try{ w.focus(); }catch(_){} } return !!w; };
   // 내가 맡은 고객 견적 요청 (나의 할일 메인의 「고객 견적 요청」과 같은 기준 · 단체 화면이 받아 이 브라우저에 적어 둔 것 sy_my_quotereq)
   const quoteReqs = me => { try{ const q=JSON.parse(localStorage.getItem('sy_my_quotereq')||'null')||{}; return me && (!(q.owners||[]).length || q.owners.includes(me)) ? (q.items||[]) : []; }catch(_){ return []; } };
-  return Object.freeze({ DEF, times, set, hm, say, label, slot, openWin, show, keyNow, seen, mark, quoteReqs, help, test });
+  return Object.freeze({ DEF, times, set, hm, say, label, slot, openWin, show, keyNow, seen, mark, quoteReqs, help, test, notiPerm });
 })();

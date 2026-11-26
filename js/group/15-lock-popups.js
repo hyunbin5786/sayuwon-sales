@@ -183,7 +183,7 @@ function checkTbdPopup(force){
   if(!force && !ENG && [...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)
   const due=alertList(); if(!due.length) return;
   if(force){ paintAlert(due); return; }
-  SY_ALERT.show(ENG ? null : ()=>{ const d=alertList(); if(d.length) paintAlert(d); });   // 과업 계산 창은 보이지 않으므로 이 화면 팝업은 없음
+  SY_ALERT.show(ENG ? null : ()=>{ const d=alertList(); if(d.length) paintAlert(d); }, due.length);   // 과업 계산 창은 보이지 않으므로 이 화면 팝업은 없음
 }
 $('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; if(ALERT_WIN) window.close(); };   // 다음 알림 시각에 다시 (알림 창이면 창을 닫음)
 if(ALERT_WIN){ document.title='과업 알림 · 사유원';

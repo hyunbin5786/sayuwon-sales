@@ -446,7 +446,7 @@ function checkDue(){
   const k=SY_ALERT.keyNow(); if(!k || SY_ALERT.seen(k)) return;
   if(document.querySelector('.modal:not([hidden])')) return;
   if(!dueNow().length && !dueExtra()) return;
-  SY_ALERT.show(paintDue);
+  SY_ALERT.show(paintDue, dueNow().length + dueExtra());
 }
 function paintDue(){ const due=dueNow(), extra=dueExtra(), today=todayYmd(); if(!due.length && !extra) return;
   $('#dueList').innerHTML = due.map(({r,t,personal})=>{ const late=t.due<today;
