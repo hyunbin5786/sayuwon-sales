@@ -240,10 +240,48 @@ const SY_DEV = (function(){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
 
+// ===== 직접 넣은 업무(기타 개인 업무)의 날짜 규칙 (2026-11-26 · js/opslib.js 에서 옮김 — 개인고객 화면의 과업 알림도 같은 규칙을 쓰게) =====
+// d = {repeat:'none'|'later'|'daily'|'weekly'|'monthly', dows:[0..6], dom:1..31 (31 = 말일까지), start, due, stop, done:{날짜:{at,by}}}
+const SY_TASK = (function(){
+  const ymd = x => `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  // 이 업무가 그 날짜(YYYY-MM-DD)에 해야 하는 날인지
+  const occurs = (d, day) => {
+    if(d.stop && day > d.stop) return false;
+    if(d.repeat==='none' || !d.repeat) return day===(d.due||d.start);
+    if(d.start && day < d.start) return false;
+    const t=new Date(day+'T00:00');
+    if(d.repeat==='daily') return true;
+    if(d.repeat==='weekly') return (d.dows||[]).includes(t.getDay());
+    if(d.repeat==='monthly'){ const last=new Date(t.getFullYear(), t.getMonth()+1, 0).getDate(), want=Math.min(+d.dom||1, last); return t.getDate()===want; }
+    return false; };
+  // 아직 안 한 날짜들: 오늘 할 것 + 지난 것 (반복 업무는 최근 7일까지만, 한 번 하는 업무는 마감이 지났으면 계속)
+  const pending = (d, today=ymd(new Date())) => { const done=d.done||{}, out=[];
+    if(d.repeat==='none' || !d.repeat){ const due=d.due||d.start||today; if(!done[due] && due<=today) out.push(due); return out; }
+    for(let i=7;i>=0;i--){ const x=new Date(today+'T00:00'); x.setDate(x.getDate()-i); const day=ymd(x); if(occurs(d, day) && !done[day]) out.push(day); }
+    return out; };
+  return Object.freeze({ occurs, pending });
+})();
+
 // ===== 과업 알림 시각 (2026-11-25 · 나의 할일 설정에서 사람마다 · 시각 · 횟수) =====
 //  분 단위 목록(480 = 오전 8시) · 이 컴퓨터(sy_alert_times)에 두고, 단체 화면이 공유 기록(내 개인업무목록 줄의 alertTimes)과 맞춤
-//  알림은 새 창(group.html?alert=1 · 창 이름 sy_alert)으로 · 브라우저가 팝업을 막으면 그 화면 안 팝업으로
+//  알림은 캘린더 새 창처럼 따로 뜨는 창(group.html?alert=1 · 창 이름 sy_alert)으로.
+//  2026-11-26: 브라우저는 「누르지도 않았는데 뜨는 새 창」을 막는다(팝업 허용을 해 둔 브라우저만 됨) → 막히면 그 시각 뒤 화면을 처음 누를 때 연다
+//  (누를 때 여는 창은 캘린더 ↗ 버튼처럼 팝업 허용 없이 열린다). 그래도 안 열리면 그 화면 안 팝업(fallback)으로.
+//  한 시각에 한 번: 본 시각을 이 브라우저(sayuwon_task_slot)에 적어 두어 다른 화면 · 다른 탭으로 옮겨도 다시 뜨지 않는다.
 const SY_ALERT = (function(){
+  const SLOT_LS='sayuwon_task_slot';
+  const keyNow = () => { const d=new Date(), s=slot(d); return s==null ? '' : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}|${s}`; };
+  const seen = key => { try{ return (localStorage.getItem(SLOT_LS)||'').split(',').includes(key); }catch(_){ return false; } };
+  const mark = key => { try{ const day=key.split('|')[0]; localStorage.setItem(SLOT_LS, [...(localStorage.getItem(SLOT_LS)||'').split(',').filter(s=>s.startsWith(day) && s!==key), key].join(',')); }catch(_){} };
+  let armed=false;
+  // 지금 시각의 알림을 띄움 (이미 본 시각이면 아무것도 안 함). fallback = 새 창이 끝내 안 열릴 때 그 화면 안에서 보일 함수(없어도 됨)
+  const show = fallback => { const k=keyNow(); if(!k || seen(k) || armed) return;
+    if(openWin()){ mark(k); return; }
+    armed=true; const docs=[document]; try{ if(window.top!==window && window.top.document) docs.push(window.top.document); }catch(_){}   // 첫 화면의 보이지 않는 과업 계산 창: 바깥 화면을 누를 때
+    const go = e => { docs.forEach(d=>{ try{ d.removeEventListener('click', go, true); }catch(_){} }); armed=false;
+      try{ const k2=keyNow(); if(!k2 || seen(k2)) return;   // 그사이 다른 탭이 띄웠으면 또 띄우지 않음
+        const ok = openWin(e && e.view) || (e && e.view!==window && openWin()); mark(k2); if(!ok && fallback) fallback(); }catch(_){} };
+    docs.forEach(d=>d.addEventListener('click', go, true)); };
   const LS='sy_alert_times', DEF=[480,660,780,1020];
   const clean = a => [...new Set((a||[]).map(Number).filter(n=>Number.isFinite(n) && n>=0 && n<1440))].sort((x,y)=>x-y);
   const times = () => { try{ const a=JSON.parse(localStorage.getItem(LS)||'null'); if(Array.isArray(a)) return clean(a); }catch(_){} return DEF.slice(); };
@@ -253,6 +291,8 @@ const SY_ALERT = (function(){
   const label = (L=times()) => L.length ? L.map(say).join(' · ') : '알림 끔';
   // 지금 시각이 지난 마지막 알림 시각의 이름 (예전 기록과 같게 정시는 「8」, 그 밖은 분 「510」) · 없으면 null
   const slot = d => { const m=d.getHours()*60+d.getMinutes(), t=times().filter(x=>m>=x).pop(); return t==null ? null : String(t%60 ? t : t/60); };
-  const openWin = () => { let w=null; try{ w=window.open('group.html?alert=1', 'sy_alert', 'width=760,height=560,resizable=yes,scrollbars=yes'); }catch(_){} if(w){ try{ w.focus(); }catch(_){} } return !!w; };
-  return Object.freeze({ DEF, times, set, hm, say, label, slot, openWin });
+  const openWin = from => { let w=null; try{ w=(from||window).open(new URL('group.html?alert=1', location.href).href, 'sy_alert', 'width=760,height=560,resizable=yes,scrollbars=yes'); }catch(_){} if(w){ try{ w.focus(); }catch(_){} } return !!w; };
+  // 내가 맡은 고객 견적 요청 (나의 할일 메인의 「고객 견적 요청」과 같은 기준 · 단체 화면이 받아 이 브라우저에 적어 둔 것 sy_my_quotereq)
+  const quoteReqs = me => { try{ const q=JSON.parse(localStorage.getItem('sy_my_quotereq')||'null')||{}; return me && (!(q.owners||[]).length || q.owners.includes(me)) ? (q.items||[]) : []; }catch(_){ return []; } };
+  return Object.freeze({ DEF, times, set, hm, say, label, slot, openWin, show, keyNow, seen, mark, quoteReqs });
 })();

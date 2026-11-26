@@ -107,16 +107,21 @@ document.addEventListener('mousedown', e=>{ if(e.target.id==='mySetModal'){ mySe
 document.addEventListener('click', e=>{ if(e.target.closest?.('#mySetBtn')){ mySetOpen=!mySetOpen; paintMySet(); return; } if(e.target.closest?.('[data-mysetclose]')){ mySetOpen=false; paintMySet(); } });
 // 나의 할일의 개인예약 · 단체예약 과업을 그 자리에서 체크해 완료 (2026-11-19) — 전산 내역을 붙여넣거나 칸을 채워야 끝나는 과업은 체크 대신 「열기」 안내
 // 메인 1열 개인 업무 입력 아래: 오늘 마감인 과업 모두 (단체예약 · 개인예약 · 기타 업무) — 그 자리에서 체크해 완료 (2026-11-19)
-function todayDueHTML(){
+// 오늘 마감이거나 마감이 지난 내 할 일 모두 (단체 과업 · 개인고객 과업 · 직접 넣은 업무) — 나의 할일 「오늘 마감」과 과업 알림(js/group/15-lock-popups.js alertList)이 같이 씀 (2026-11-26)
+//  줄마다 _r(그 기록) · _t(그 과업)를 달아 둠 — 알림이 「방금 넣은 과업은 30분 동안 알리지 않기」 · 「열기」에 씀
+function myDueList(){
   const today=ymd(new Date()), list=[];   // 단체 · 개인 · 직접 넣은 업무 모두 같은 줄 (js/mytask.js, 2026-11-21)
   // 오늘 마감 + 이미 마감이 지난 것 (2026-11-21): 지난 것 = 빨강, 오늘 = 노랑 · 마감이 이른 것부터
-  dueTasks().filter(o=>o.t.due<=today).forEach(({r,t})=>list.push(tkFromG(r, t)));
-  myPersonalOpen().forEach(o=>o.left.filter(t=>t.due<=today).forEach(t=>list.push(tkFromP(o.r, t))));
+  dueTasks().filter(o=>o.t.due<=today).forEach(({r,t})=>list.push({...tkFromG(r, t), _r:r, _t:t}));
+  myPersonalOpen().forEach(o=>o.left.filter(t=>t.due<=today).forEach(t=>list.push({...tkFromP(o.r, t), _r:o.r, _t:t})));
   // 직접 넣은 업무: 업무마다 한 줄 — 오늘 할 날이 있으면 오늘, 없으면 안 한 지난 날 중 가장 이른 날 (반복 업무의 다른 지난 날은 「지난 n일 모두 완료」)
   const byId={}; myEtcOpen().filter(o=>o.day<=today).forEach(o=>{ (byId[o.r.id] ||= []).push(o); });
-  Object.values(byId).forEach(a=>{ const days=a.map(o=>o.day).sort(), day=days.includes(today) ? today : days[0]; list.push(tkFromE(a[0], day, {before:days.filter(d=>d!==day)})); });
+  Object.values(byId).forEach(a=>{ const days=a.map(o=>o.day).sort(), day=days.includes(today) ? today : days[0]; list.push(tkFromE(a[0], day, {before:days.filter(d=>d!==day), _r:a[0].r})); });
+  return list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
+}
+function todayDueHTML(){
+  const today=ymd(new Date()), list=myDueList();
   const nLate=list.filter(T=>T.due && T.due<today).length;
-  list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
   return `<h3 class="my-h sub">오늘 마감 <small>${list.length}개${nLate?` · <b class="late">지난 마감 ${nLate}개</b>`:''}</small></h3>` + (list.length ? tkListHTML(list).replace('pc-list tk-list', 'pc-list tk-list today-due') : '<p class="hint">오늘 마감인 과업이 없습니다.</p>');
 }
 const myCk = (o, t) => !o.personal && SELF_DONE.has(t.id) ? `<label class="my-ck self" title="예약을 열어 처리하면 완료됩니다 (체크하면 그 예약을 엶)"><input type="checkbox" data-myopenck="${esc(t.id)}"></label>` : `<label class="my-ck" title="체크하면 완료"><input type="checkbox" data-myck="${o.personal?'p':'g'}|${esc(o.r.id)}|${esc(t.id)}"></label>`;   // 전산 예약 · 전산 내역 대조 · 담당 입력처럼 예약에서 끝나는 과업도 체크 칸 (체크하면 그 예약을 엶, 2026-11-19)

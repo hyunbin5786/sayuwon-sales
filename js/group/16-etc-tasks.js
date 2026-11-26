@@ -60,7 +60,7 @@ async function etcSaveAlert(L){ L=SY_ALERT.set(L); const me=savedOwner()||'', no
   const item={...(old||{}), id: old ? old.id : 'el'+tdHash(me), callType:'개인업무목록', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:(old&&old.summary)||'나의 할일 설정', history:JSON.stringify({...prev, lists: prev.lists || etcCats(), order: prev.order || [], alertTimes:L})};
   await store.put(item); const i=cache.findIndex(x=>x.id===item.id); if(i>=0) cache[i]=item; else cache.push(item); }
 function alertSetHTML(){ const L=SY_ALERT.times();
-  return `<div class="al-set"><b>과업 알림</b> <small class="hint" style="margin:0">하루 ${L.length}번 · 그 시각이 지나고 처음 화면을 볼 때 새 창으로 (브라우저에서 팝업 허용)</small>`
+  return `<div class="al-set"><b>과업 알림</b> <small class="hint" style="margin:0">하루 ${L.length}번 · 그 시각이 지나고 처음 화면을 볼 때 캘린더처럼 따로 뜨는 창으로 · 나의 할일에 있는 것 모두 (창이 바로 안 뜨는 브라우저에서는 화면을 한 번 누를 때 뜹니다)</small>`
     + (L.length ? `<ul class="al-list">${L.map((t,i)=>`<li><input type="time" step="600" value="${SY_ALERT.hm(t)}" data-alt="${i}" title="알림 시각"><button type="button" class="btn primary" data-aldel="${i}" title="이 시각 빼기">빼기</button></li>`).join('')}</ul>` : `<p class="hint" style="margin:8px 0">알림을 끈 상태입니다.</p>`)
     + `<div class="al-btns"><button type="button" class="btn primary" data-aladd>＋ 알림 시각 추가</button><button type="button" class="btn primary" data-aldef title="오전 8시 · 11시 · 오후 1시 · 5시">기본으로</button></div></div>`; }
 const alRepaint = () => { if(typeof paintMySet==='function') paintMySet(); };
@@ -262,7 +262,8 @@ async function loadMyQuoteReq(){
     if(m && m.ok && qr && qr.ok){ const up=s=>String(s||'').trim().toUpperCase(), es=((m.roles||{}).quote||[]).map(up);
       myQR={items:(qr.items||[]).filter(r=>(r.status||'접수')==='접수').map(r=>({org:r.org, name:r.name, date:r.date, pax:r.pax, at:r.at})), owners:(m.members||[]).filter(x=>es.includes(up(x.emp))).map(x=>String(x.name||'').trim()).filter(Boolean)};
       try{ localStorage.setItem(MYQR_LS, JSON.stringify(myQR)); }catch(_){}
-      paintMyCount(); if(!$('#myModal').hidden && myTab==='main' && !document.activeElement?.closest?.('#myBody input, #myBody textarea, #myBody select')) renderMy(); }   // 입력 중이면 다시 그리지 않음
+      paintMyCount(); if(typeof ALERT_WIN!=='undefined' && ALERT_WIN && window.__tasksReady) checkTbdPopup(true);   // 과업 알림 창: 견적 요청을 새로 받으면 다시 그림 (2026-11-26)
+      if(!$('#myModal').hidden && myTab==='main' && !document.activeElement?.closest?.('#myBody input, #myBody textarea, #myBody select')) renderMy(); }   // 입력 중이면 다시 그리지 않음
   }catch(_){} finally{ myQRBusy=false; }
 }
 function myQuoteReqHTML(){

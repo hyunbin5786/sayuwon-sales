@@ -4080,16 +4080,21 @@ document.addEventListener('mousedown', e=>{ if(e.target.id==='mySetModal'){ mySe
 document.addEventListener('click', e=>{ if(e.target.closest?.('#mySetBtn')){ mySetOpen=!mySetOpen; paintMySet(); return; } if(e.target.closest?.('[data-mysetclose]')){ mySetOpen=false; paintMySet(); } });
 // 나의 할일의 개인예약 · 단체예약 과업을 그 자리에서 체크해 완료 (2026-11-19) — 전산 내역을 붙여넣거나 칸을 채워야 끝나는 과업은 체크 대신 「열기」 안내
 // 메인 1열 개인 업무 입력 아래: 오늘 마감인 과업 모두 (단체예약 · 개인예약 · 기타 업무) — 그 자리에서 체크해 완료 (2026-11-19)
-function todayDueHTML(){
+// 오늘 마감이거나 마감이 지난 내 할 일 모두 (단체 과업 · 개인고객 과업 · 직접 넣은 업무) — 나의 할일 「오늘 마감」과 과업 알림(js/group/15-lock-popups.js alertList)이 같이 씀 (2026-11-26)
+//  줄마다 _r(그 기록) · _t(그 과업)를 달아 둠 — 알림이 「방금 넣은 과업은 30분 동안 알리지 않기」 · 「열기」에 씀
+function myDueList(){
   const today=ymd(new Date()), list=[];   // 단체 · 개인 · 직접 넣은 업무 모두 같은 줄 (js/mytask.js, 2026-11-21)
   // 오늘 마감 + 이미 마감이 지난 것 (2026-11-21): 지난 것 = 빨강, 오늘 = 노랑 · 마감이 이른 것부터
-  dueTasks().filter(o=>o.t.due<=today).forEach(({r,t})=>list.push(tkFromG(r, t)));
-  myPersonalOpen().forEach(o=>o.left.filter(t=>t.due<=today).forEach(t=>list.push(tkFromP(o.r, t))));
+  dueTasks().filter(o=>o.t.due<=today).forEach(({r,t})=>list.push({...tkFromG(r, t), _r:r, _t:t}));
+  myPersonalOpen().forEach(o=>o.left.filter(t=>t.due<=today).forEach(t=>list.push({...tkFromP(o.r, t), _r:o.r, _t:t})));
   // 직접 넣은 업무: 업무마다 한 줄 — 오늘 할 날이 있으면 오늘, 없으면 안 한 지난 날 중 가장 이른 날 (반복 업무의 다른 지난 날은 「지난 n일 모두 완료」)
   const byId={}; myEtcOpen().filter(o=>o.day<=today).forEach(o=>{ (byId[o.r.id] ||= []).push(o); });
-  Object.values(byId).forEach(a=>{ const days=a.map(o=>o.day).sort(), day=days.includes(today) ? today : days[0]; list.push(tkFromE(a[0], day, {before:days.filter(d=>d!==day)})); });
+  Object.values(byId).forEach(a=>{ const days=a.map(o=>o.day).sort(), day=days.includes(today) ? today : days[0]; list.push(tkFromE(a[0], day, {before:days.filter(d=>d!==day), _r:a[0].r})); });
+  return list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
+}
+function todayDueHTML(){
+  const today=ymd(new Date()), list=myDueList();
   const nLate=list.filter(T=>T.due && T.due<today).length;
-  list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
   return `<h3 class="my-h sub">오늘 마감 <small>${list.length}개${nLate?` · <b class="late">지난 마감 ${nLate}개</b>`:''}</small></h3>` + (list.length ? tkListHTML(list).replace('pc-list tk-list', 'pc-list tk-list today-due') : '<p class="hint">오늘 마감인 과업이 없습니다.</p>');
 }
 const myCk = (o, t) => !o.personal && SELF_DONE.has(t.id) ? `<label class="my-ck self" title="예약을 열어 처리하면 완료됩니다 (체크하면 그 예약을 엶)"><input type="checkbox" data-myopenck="${esc(t.id)}"></label>` : `<label class="my-ck" title="체크하면 완료"><input type="checkbox" data-myck="${o.personal?'p':'g'}|${esc(o.r.id)}|${esc(t.id)}"></label>`;   // 전산 예약 · 전산 내역 대조 · 담당 입력처럼 예약에서 끝나는 과업도 체크 칸 (체크하면 그 예약을 엶, 2026-11-19)
@@ -4389,46 +4394,58 @@ setInterval(()=>{ if(window.__tasksReady) checkMemoPopup(); }, 60000);
 // ===================== 마감이 된 추후 과업 팝업 =====================
 // 마감이 오늘이거나 지난, 해결 안 된 과업(영업 담당이 있으면 내 예약만)을 해결될 때까지 계속 띄움: 열 때 · 9시 · '나중에'를 누르면 2시간 뒤 다시
 const TASK_SNOOZE_LS='sayuwon_task_snooze', SNOOZE_MS=2*3600e3, TASK_SLOT_LS='sayuwon_task_slot', QUIET_MS=30*60e3;
-// 알림 시각 (2026-11-25): 예전엔 늘 8 · 11 · 13 · 17시 → 나의 할일 설정에서 사람마다 (SY_ALERT · js/common.js) · 알림은 새 창(group.html?alert=1)으로
-const ALERT_WIN = /[?&]alert=1/.test(location.search);   // 과업 알림 새 창
+// 알림 시각 (2026-11-25): 예전엔 늘 8 · 11 · 13 · 17시 → 나의 할일 설정에서 사람마다 (SY_ALERT · js/common.js) · 알림은 캘린더처럼 따로 뜨는 창(group.html?alert=1)으로
+const ALERT_WIN = /[?&]alert=1/.test(location.search);   // 과업 알림 창 (따로 뜨는 창)
 if(ALERT_WIN) document.documentElement.classList.add('alert-only');
 // 공유 기록(내 개인업무목록 줄)에 저장된 알림 시각을 이 컴퓨터에 맞춤 — 개인고객 화면 · 다른 컴퓨터도 같게
 function alertSync(){ try{ const r=typeof etcCatRec==='function' && etcCatRec(); if(!r) return; const a=(JSON.parse(r.history||'{}')||{}).alertTimes; if(Array.isArray(a) && JSON.stringify(a)!==JSON.stringify(SY_ALERT.times())) SY_ALERT.set(a); }catch(_){} }
 const SELF_DONE = new Set(['erp','erpcheck','erpfix','progstaff','mbmenu']);   // erp · erpfix: 전산 내역을 붙여넣어야 완료 · 칸을 채우면 저절로 완료되는 과업은 '열기'만 (2026-11-23에 비웠다가 같은 날 되돌림)   // erp · erpfix: 전산 내역을 붙여넣어야 완료   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
-let engTried='';
+// 알림에 나올 것 = 나의 할일에 있는 것 모두 (2026-11-26 · 예전엔 단체 + 개인고객 과업만):
+//  ① 단체 과업 ② 개인고객 과업 ③ 직접 넣은 업무(구분 · 반복 무엇이든 · 오늘 할 것과 안 한 지난 것) — 나의 할일 「오늘 마감」과 같은 목록(myDueList · js/group/14-task-sim.js)
+//  ④ 내가 맡은 고객 견적 요청 (나의 할일 메인의 「고객 견적 요청」 · myQuoteReqs)
+//  단, 넣은 지(마감을 바꾼 지) 30분이 안 된 것은 알리지 않음
+function alertList(){
+  const now=Date.now(), old = s => now - (+new Date(s||0)||0) >= QUIET_MS;
+  const list = myDueList().filter(T => T.kind==='e' ? old(T._r.saved) : now - Math.max(+new Date(T._t.dueSetAt||0)||0, +new Date(T._t.at||T._r.saved||0)||0) >= QUIET_MS);
+  myQuoteReqs().filter(q=>old(q.at)).forEach(q=>{ const a=new Date(q.at||''); list.push({kind:'q', q, due: isNaN(a) ? String(q.at||'').slice(0,10) : ymd(a), title:'견적서 · 거래명세서 발급'}); });
+  return list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
+}
+// 알림 한 줄: [이름표] 누구 것 / 할 일 · 마감 / 「열기」 하나 (2026-11-26: 「완료」 버튼은 없앰 — 끝내는 것은 그 예약 · 나의 할일에서)
+function alertRowHTML(T, today){
+  const n = T.due ? daysFrom(today, T.due) : 0, late=n<0, when = `${late?`(${-n}일 지남)`:'(오늘)'}`;
+  const row = (tag, who, sub, open) => `<li class="${late?'late':'today'}"><span class="who"><span class="tag">${tag}</span> ${who}<br>`
+    + `<b class="${late?'late':''}">${esc(T.title||'')}</b> <small class="hint" style="margin:0">${sub}</small></span><button class="btn primary" ${open}>열기</button></li>`;
+  if(T.kind==='q'){ const q=T.q; return row('견적', `<b>${esc(q.org||'(업체 미정)')}</b>${q.name?` · ${esc(q.name)}님`:''}${q.date?` · 방문 ${esc(dateLabel(String(q.date).slice(0,10)))}`:''}${q.pax?` · ${esc(q.pax)}명`:''}`, `접수 ${esc(fmt(q.at))} ${when}`, 'data-aopen="quote"'); }
+  if(T.kind==='e') return row('업무', `<b>${esc(catLabel(etcCatOf(T.d))||ETC_NOCAT)}</b>${T.rep && T.rep!=='none' ? ` · ${esc(opsRepeatLabel(T.d))}` : ''}`, `마감 ${esc(mdLabel(T.due))} ${when}${T.before&&T.before.length?` · 안 한 지난 날 ${T.before.length}일 더`:''}`, 'data-aopen="my"');
+  const r=T._r, t=T._t;
+  if(T.kind==='p') return row('개인', `<b>${esc(r.contact||'(이름 없음)')}</b>${r.phone?` · ${esc(r.phone)}`:''}`, `마감 ${esc(mdLabel(t.due))} ${when}`, `data-popen2="${esc(r.id)}"`);
+  return row('단체', `<b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date)||'미정')}${r.owner?` · ${esc(r.owner)}`:''}`, `마감 ${esc(mdLabel(t.due))} ${when}${t.id==='wkcheck'||t.id==='onsitecall'?` · ${esc(firstContact(r)||'담당자 연락처 없음')}`:''}`, `data-tbdopen="${esc(r.id)}"`);
+}
+function paintAlert(due){ const today=ymd(new Date());
+  $('#tbdList').innerHTML = due.map(T=>alertRowHTML(T, today)).join('');
+  $('#tbdTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(T=>T.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(T=>T.due>=today).length}</b> · 나의 할일 전체 · 알림은 ${esc(SY_ALERT.label())}</small>`;
+  $('#tbdLater').title=`다음 알림 시각(${SY_ALERT.label()})에 다시`;
+  $('#tbdModal').hidden=false; }
 function checkTbdPopup(force){
   alertSync(); if(ALERT_WIN) force=true;
   const ENG=/[?&]engine=/.test(location.search);   // 첫 화면의 과업 계산 창: 새 창으로만 알림 (2026-11-25 · 첫 화면만 켜 둬도 알림)
   if(BOOK_ONLY || (MY_EMBED && !ENG)) return;   // 예약 현황 공유 페이지 · 나의 할일 팝업 안에서는 안 함
-  // 마감 지난 과업: 열 때 · 1분마다 (나중에 = 2시간 뒤). 오늘 마감 과업: 오후 1시, 아직 안 끝났으면 오후 5시에 (시간마다 한 번)
-  // 단, 입력(과업이 생기거나 마감을 바꾼 것)한 지 30분이 안 된 과업은 알리지 않음
-  // 2026-11-14부터: 오전 8시 · 11시 · 오후 1시 · 5시에 (그 시각이 지나고 처음 화면을 볼 때, 시각마다 한 번) 마감이 오늘이거나 지난 과업을 단체 + 개인고객 함께
-  // 개인고객 화면과 같은 기록(TASK_SLOT_LS)을 써서, 한 시각에 두 화면에서 두 번 뜨지 않음
-  const nowD=new Date(), now=+nowD, today=ymd(nowD); let slots=''; try{ slots=localStorage.getItem(TASK_SLOT_LS)||''; }catch(_){}
-  if(!force && [...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)
-  const slotH=SY_ALERT.slot(nowD), slotKey=`${today}|${slotH}`;
-  if(!force && (slotH==null || slots.split(',').includes(slotKey))) return;
-  const fresh = ({r,t}) => now - Math.max(+new Date(t.dueSetAt||0)||0, +new Date(t.at||r.saved||0)||0) < QUIET_MS;
-  const pers = myPersonalOpen().flatMap(o=>o.left.filter(t=>t.due<=today).map(t=>({r:o.r, t, personal:true})));
-  const due=[...dueTasks(), ...pers].filter(o=>!fresh(o)).sort((a,b)=>a.t.due.localeCompare(b.t.due));
-  if(!due.length){ if(ALERT_WIN){ $('#tbdList').innerHTML='<li class="hint">지금 알릴 과업이 없습니다.</li>'; $('#tbdTitle').textContent='과업 알림'; $('#tbdModal').hidden=false; } return; }
-  if(ENG){ if(engTried===slotKey) return; engTried=slotKey; }   // 과업 계산 창: 시각마다 한 번만 새 창을 열어 봄 (막혀도 1분마다 다시 시도하지 않음)
-  if(!force && slotH!=null && SY_ALERT.openWin()){ try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), slotKey].join(',')); }catch(_){} return; }   // 새 창으로 (막히면 아래 이 화면 팝업)
-  if(ENG) return;   // 과업 계산 창은 보이지 않으므로 이 화면 팝업은 없음 (팝업이 막히면 다음 시각에 다시)
-  if(slotH!=null && !ALERT_WIN){ try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), slotKey].join(',')); }catch(_){} }
-  $('#tbdList').innerHTML = due.map(({r,t,personal})=>{ const n=daysFrom(today,t.due);
-    if(personal) return `<li class="${n<0?'late':'today'}"><span class="who"><span class="tag">개인</span> <b>${esc(r.contact||'(이름 없음)')}</b>${r.phone?` · ${esc(r.phone)}`:''}<br>`
-      + `<b class="${n<0?'late':''}">${esc(t.title)}</b> <small class="hint" style="margin:0">마감 ${esc(mdLabel(t.due))} ${n<0?`(${-n}일 지남)`:'(오늘)'}</small></span>`
-      + `<button class="btn primary" data-pdone="${esc(r.id)}|${esc(t.id)}">완료</button><button class="btn primary" data-popen2="${esc(r.id)}">열기</button></li>`;
-    return `<li class="${n<0?'late':'today'}"><span class="who"><b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date)||'미정')}${r.owner?` · ${esc(r.owner)}`:''}<br>`
-      + `<b class="${n<0?'late':''}">${esc(t.title)}</b> <small class="hint" style="margin:0">마감 ${esc(mdLabel(t.due))} ${n<0?`(${-n}일 지남)`:'(오늘)'}${t.id==='wkcheck'||t.id==='onsitecall'?` · ${esc(firstContact(r)||'담당자 연락처 없음')}`:''}</small></span>`
-      + (SELF_DONE.has(t.id) ? '' : `<button class="btn primary" data-tdone="${esc(r.id)}|${esc(t.id)}">완료</button>`) + `<button class="btn primary" data-tbdopen="${esc(r.id)}">열기</button></li>`; }).join('');
-  $('#tbdTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b> · 단체 + 개인 · 알림은 ${esc(SY_ALERT.label())}</small>`;
-  $('#tbdLater').title=`다음 알림 시각(${SY_ALERT.label()})에 다시`;
-  $('#tbdModal').hidden=false;
+  // 알림 시각(나의 할일 설정 · 기본 오전 8시 · 11시 · 오후 1시 · 5시)이 지나고 처음 화면을 볼 때, 시각마다 한 번
+  // 개인고객 화면과 같은 기록(SY_ALERT · sayuwon_task_slot)을 써서, 한 시각에 여러 화면 · 여러 탭에서 또 뜨지 않음
+  // 2026-11-26: 따로 뜨는 창으로 (SY_ALERT.show · js/common.js — 브라우저가 막으면 화면을 처음 누를 때 엶 · 끝내 안 열리면 이 화면 팝업)
+  if(ALERT_WIN){ const due=alertList();
+    if(!due.length){ $('#tbdList').innerHTML='<li class="hint">지금 알릴 과업이 없습니다.</li>'; $('#tbdTitle').textContent='과업 알림'; $('#tbdModal').hidden=false; return; }
+    paintAlert(due); return; }
+  const k=SY_ALERT.keyNow(); if(!force && (!k || SY_ALERT.seen(k))) return;
+  if(!force && !ENG && [...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)
+  const due=alertList(); if(!due.length) return;
+  if(force){ paintAlert(due); return; }
+  SY_ALERT.show(ENG ? null : ()=>{ const d=alertList(); if(d.length) paintAlert(d); });   // 과업 계산 창은 보이지 않으므로 이 화면 팝업은 없음
 }
-$('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; if(ALERT_WIN) window.close(); };   // 다음 알림 시각에 다시 (알림 새 창이면 창을 닫음)
-const alertWinEmpty = () => { if(!$('#tbdList').children.length){ if(ALERT_WIN) window.close(); else $('#tbdModal').hidden=true; } };
+$('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; if(ALERT_WIN) window.close(); };   // 다음 알림 시각에 다시 (알림 창이면 창을 닫음)
+if(ALERT_WIN){ document.title='과업 알림 · 사유원';
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') window.close(); });
+  setInterval(()=>{ if(window.__tasksReady) checkTbdPopup(true); }, 60000); }   // 열어 둔 알림 창은 1분마다 새로 (다른 화면에서 끝낸 것은 사라짐)
 // 과업 하나 완료 (열어 둔 예약이면 화면의 과업, 아니면 저장된 기록을 고쳐 저장)
 async function doneTask(id, tid){
   const r=cache.find(x=>x.id===id); if(!r) return;
@@ -4442,20 +4459,15 @@ async function doneTask(id, tid){
   const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item);
   const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;   // 공유 기록에서 다시 받기 전에도 바로 반영
 }
-$('#tbdList').addEventListener('click', async e=>{
-  // 개인고객 과업: 열기 = 개인고객 화면에서 그 통화, 완료 = 그 통화 기록에 완료로 저장
-  // 알림 새 창: 열기 = 새 탭에서 그 예약 (알림 창은 그대로)
-  if(ALERT_WIN && (e.target.dataset.popen2 || e.target.dataset.tbdopen)){ const p=e.target.dataset.popen2; window.open((p ? 'personal.html?open=' : 'group.html?open=')+encodeURIComponent(p || e.target.dataset.tbdopen), '_blank'); return; }
-  if(e.target.dataset.popen2){ const id=e.target.dataset.popen2; $('#tbdModal').hidden=true; guardLeave(()=>{ location.href='personal.html?open='+encodeURIComponent(id); }); return; }
-  if(e.target.dataset.pdone){ const [id,tid]=e.target.dataset.pdone.split('|'), r=cache.find(x=>x.id===id); if(!r) return; e.target.disabled=true;
-    let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const t=(h.tasks||[]).find(x=>x.id===tid); if(t){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=savedOwner()||''; (t.xsubs||[]).forEach(x=>x.done=true); }
-    const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
-    e.target.closest('li').remove(); alertWinEmpty(); toast('과업을 완료로 표시했습니다.'); paintMyCount(); if(!$('#myModal').hidden) renderMy(); return; }
-  const dn=e.target.dataset.tdone, open=e.target.dataset.tbdopen;
-  if(open){ const r=cache.find(x=>x.id===open); $('#tbdModal').hidden=true; if(r) openRecordG(r); }
-  if(dn){ const [id,tid]=dn.split('|'); e.target.disabled=true; await doneTask(id, tid);
-    e.target.closest('li').remove(); alertWinEmpty();
-    toast('과업을 완료로 표시했습니다.'); paintMyCount(); if(!$('#myModal').hidden) renderMy(); }
+$('#tbdList').addEventListener('click', e=>{
+  // 「열기」만 있음 (2026-11-26: 「완료」 버튼은 없앰). 단체 = 그 예약 · 개인 = 개인고객 화면의 그 통화 · 업무 = 나의 할일 · 견적 = 견적서 화면
+  const d=e.target.dataset, kind = d.tbdopen ? 'g' : d.popen2 ? 'p' : d.aopen; if(!kind) return;
+  const url = kind==='g' ? 'group.html?open='+encodeURIComponent(d.tbdopen) : kind==='p' ? 'personal.html?open='+encodeURIComponent(d.popen2) : kind==='quote' ? 'document/index.html' : './#mypop';
+  if(ALERT_WIN){ window.open(url, '_blank'); return; }   // 알림 창: 새 탭에서 엶 (알림 창은 그대로)
+  $('#tbdModal').hidden=true;
+  if(kind==='g'){ const r=cache.find(x=>x.id===d.tbdopen); if(r) openRecordG(r); return; }
+  if(kind==='my'){ openMy(); return; }
+  guardLeave(()=>{ location.href=url; });
 });
 setInterval(()=>{ if(window.__tasksReady && !ALERT_WIN) checkTbdPopup(); }, 60000);   // 1분마다 확인 (나중에 = 2시간 뒤 다시)
 
@@ -4526,7 +4538,7 @@ async function restoreView(){
 }
 emptySnap=snap(); window.__autoReady=true; paintDirty();   // 자동 저장 시작 (빈 화면 기준)
 restoreView();   // 새로고침 전에 보던 화면
-window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs(); checkTbdPopup(); checkMemoPopup();   // 추후 과업 · 결제 확인 알림 · 미정 항목 알림
+window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs(); setTimeout(checkTbdPopup, 0) /* 알림 목록이 뒤 조각(16 · 직접 넣은 업무 · 견적 요청)의 것을 써서 파일을 다 읽은 뒤에 (2026-11-26) */; checkMemoPopup();   // 추후 과업 · 결제 확인 알림 · 미정 항목 알림
 // 불러오는 중 화면 걷기 (2026-11-21): 예약 정보(사본 또는 서버)가 준비되고, 열 예약(?open= · 새로고침 전 화면)을 다 연 뒤에. 서버 오류 · 로그인 필요 · 20초가 지나면 그냥 걷음
 (function gLoadingWatch(){ const H=document.documentElement; if(!H.classList.contains('g-loading')) return; const t0=Date.now();
   const top=()=>{ const h=document.querySelector('body > header'); if(h) H.style.setProperty('--gl-top', Math.round(h.getBoundingClientRect().bottom)+'px'); }; top();
@@ -4721,7 +4733,7 @@ async function etcSaveAlert(L){ L=SY_ALERT.set(L); const me=savedOwner()||'', no
   const item={...(old||{}), id: old ? old.id : 'el'+tdHash(me), callType:'개인업무목록', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:(old&&old.summary)||'나의 할일 설정', history:JSON.stringify({...prev, lists: prev.lists || etcCats(), order: prev.order || [], alertTimes:L})};
   await store.put(item); const i=cache.findIndex(x=>x.id===item.id); if(i>=0) cache[i]=item; else cache.push(item); }
 function alertSetHTML(){ const L=SY_ALERT.times();
-  return `<div class="al-set"><b>과업 알림</b> <small class="hint" style="margin:0">하루 ${L.length}번 · 그 시각이 지나고 처음 화면을 볼 때 새 창으로 (브라우저에서 팝업 허용)</small>`
+  return `<div class="al-set"><b>과업 알림</b> <small class="hint" style="margin:0">하루 ${L.length}번 · 그 시각이 지나고 처음 화면을 볼 때 캘린더처럼 따로 뜨는 창으로 · 나의 할일에 있는 것 모두 (창이 바로 안 뜨는 브라우저에서는 화면을 한 번 누를 때 뜹니다)</small>`
     + (L.length ? `<ul class="al-list">${L.map((t,i)=>`<li><input type="time" step="600" value="${SY_ALERT.hm(t)}" data-alt="${i}" title="알림 시각"><button type="button" class="btn primary" data-aldel="${i}" title="이 시각 빼기">빼기</button></li>`).join('')}</ul>` : `<p class="hint" style="margin:8px 0">알림을 끈 상태입니다.</p>`)
     + `<div class="al-btns"><button type="button" class="btn primary" data-aladd>＋ 알림 시각 추가</button><button type="button" class="btn primary" data-aldef title="오전 8시 · 11시 · 오후 1시 · 5시">기본으로</button></div></div>`; }
 const alRepaint = () => { if(typeof paintMySet==='function') paintMySet(); };
@@ -4923,7 +4935,8 @@ async function loadMyQuoteReq(){
     if(m && m.ok && qr && qr.ok){ const up=s=>String(s||'').trim().toUpperCase(), es=((m.roles||{}).quote||[]).map(up);
       myQR={items:(qr.items||[]).filter(r=>(r.status||'접수')==='접수').map(r=>({org:r.org, name:r.name, date:r.date, pax:r.pax, at:r.at})), owners:(m.members||[]).filter(x=>es.includes(up(x.emp))).map(x=>String(x.name||'').trim()).filter(Boolean)};
       try{ localStorage.setItem(MYQR_LS, JSON.stringify(myQR)); }catch(_){}
-      paintMyCount(); if(!$('#myModal').hidden && myTab==='main' && !document.activeElement?.closest?.('#myBody input, #myBody textarea, #myBody select')) renderMy(); }   // 입력 중이면 다시 그리지 않음
+      paintMyCount(); if(typeof ALERT_WIN!=='undefined' && ALERT_WIN && window.__tasksReady) checkTbdPopup(true);   // 과업 알림 창: 견적 요청을 새로 받으면 다시 그림 (2026-11-26)
+      if(!$('#myModal').hidden && myTab==='main' && !document.activeElement?.closest?.('#myBody input, #myBody textarea, #myBody select')) renderMy(); }   // 입력 중이면 다시 그리지 않음
   }catch(_){} finally{ myQRBusy=false; }
 }
 function myQuoteReqHTML(){
