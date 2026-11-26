@@ -240,7 +240,12 @@ header.top{display:flex; align-items:flex-end; justify-content:space-between; ga
 .histtable .acts{display:flex; gap:6px; justify-content:flex-end}
 .histtable tr.pending td{background:var(--surface-2)}
 .histtable tr.canceled td{color:var(--faint)}
-.histtable tr.canceled td:nth-child(n+3):nth-child(-n+7){text-decoration:line-through}
+.histtable tr.canceled td.ln{text-decoration:line-through}
+/* 단체 한 건 = 수신 · 이용일 칸 하나 + 문서 종류마다 한 줄 (2026-11-26 · document.js histRow) */
+.histtable tr.casetop td{border-top:2px solid var(--line-strong)}
+.histtable td.hcase{vertical-align:top; font-weight:700; background:var(--surface-2)}
+.histtable tr.canceled td.hcase{color:var(--ink)}
+.histtable .kind.pair{border-color:var(--steel); color:var(--steel)}
 .histtable .kind.void{border-color:var(--danger); color:var(--danger)}
 .histtable .kinds{display:flex; gap:4px; flex-wrap:wrap}
 .histtable .kind.gap{border-color:var(--steel); color:var(--steel); background:var(--steel-soft)}

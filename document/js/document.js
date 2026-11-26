@@ -1342,11 +1342,15 @@
   var busy = false;
   // 출력 버튼 · 재발행이 부르는 곳. 견적서 · 거래명세서를 둘 다 골랐으면 견적서 → 거래명세서 순서로 이어서 만들고 (파일 · 발급 내역이 각각), 메일 문구는 마지막에 한 번
   var lastBoth = false;   // 마지막 출력이 둘 다였는지 (메일 문구에 「견적서 · 거래명세서」)
+  var bothRun = "";   // 둘 다 발급 중이면 그 한 번의 짝 번호
   async function makeOutput(){
     if(busy) return;
     if(!state.docBoth){ lastBoth = false; return makeOutputOne(false); }
     var ok = true, types = ["quote", "statement"];
-    for(var i=0; i<types.length && ok; i++){ state.docType = types[i]; paintModes(); renderDoc(); ok = await makeOutputOne(i < types.length - 1); }
+    bothRun = histId();   // 함께 발급한 두 문서의 발급 내역에 같은 짝 번호(pair)를 남김 (2026-11-26 · recordIssue)
+    try {
+      for(var i=0; i<types.length && ok; i++){ state.docType = types[i]; paintModes(); renderDoc(); ok = await makeOutputOne(i < types.length - 1); }
+    } finally { bothRun = ""; }
     state.docType = "quote"; paintModes(); renderDoc();
     if(ok){ lastBoth = true; status("견적서와 거래명세서를 모두 저장했습니다.", "ok"); if(elMail && !elMail.hidden) mailFill(); }
   }
@@ -2386,6 +2390,7 @@
       doc: docName(), client: state.client.trim(), useDate: state.useDate, issueDate: issueDate(),
       total: totalOf("sayuwon") + totalOf("shilla"), sender: state.sender, use: state.docUse,
       files: files, snapshot: JSON.parse(JSON.stringify(state)) };
+    if(bothRun) h.pair = bothRun;   // 견적서 · 거래명세서를 한 번에 발급: 두 줄이 같은 짝 번호 (발급 내역에 「함께 발급」)
     if(fromOther) h.from = fromOther;   // 어느 발급의 내용으로 만들었는지 (발급 내역에 「다른 문서 내용으로 발급」)
     if(intakeLink && intakeLink.recId) h.snapshot.intakeRec = intakeLink.recId;   // 단체 예약 ID: 단체 화면 견적서 버튼 ✓ · 발급 내역 찾기 (2026-11-21)
     if(meta && meta.kind === "revise") setIssueMeta({ kind:"revise", parent: h.id, label: histLabel(h), doc: h.doc });   // 또 고쳐 출력하면 이번 것의 수정발행
@@ -2469,34 +2474,45 @@
       : histServer ? "공유 내역입니다. 누가 발급해도 모두에게 보입니다." : "불러오는 중…";
     if(cancelServer === false && histCancel.length) st += " ⚠ 발급 취소를 서버에 저장하지 못했습니다 (지금은 이 브라우저에만 표시).";
     document.getElementById("hist-status").textContent = st;
+    // 표 모양 (2026-11-26): 단체 한 건 = 수신 · 이용일 칸 하나(여러 줄에 걸침) + 그 아래 문서 종류마다 한 줄(견적서 줄 · 거래명세서 줄). 줄마다 그 문서의 판 고르기 · 버튼
+    var DOC_ORDER = { "견적서": 0, "거래명세서": 1 };
     document.getElementById("hist-body").innerHTML = groups.length ? groups.map(function(g){
-      var vs = g.versions, h = vs.filter(function(x){ return x.id === selVer[g.root]; })[0] || vs[0];
+      var subs = {}, names = [];
+      g.versions.forEach(function(v){ var d = v.doc || "문서"; if(!subs[d]){ subs[d] = []; names.push(d); } subs[d].push(v); });   // 최근 것부터
+      names.sort(function(a, b){ return (DOC_ORDER[a] == null ? 9 : DOC_ORDER[a]) - (DOC_ORDER[b] == null ? 9 : DOC_ORDER[b]); });
+      var top = g.versions[0];   // 수신 · 이용일은 가장 최근 발급의 것
+      return names.map(function(d, di){ return histRow(g, d, subs[d], di === 0 ? { rows: names.length, top: top, n: g.versions.length } : null, byId); }).join("");
+    }).join("") : '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--muted)">' + (histFocus ? (histServer ? "이 예약의 발급 내역을 찾지 못했습니다. 「전체 보기」로 찾아 주세요." : "발급 내역을 불러오는 중…") : q ? "찾는 내역이 없습니다." : "아직 발급 내역이 없습니다. 출력하면 여기에 남습니다.") + '</td></tr>';
+  }
+  function histRow(g, d, vs, head, byId){
+    {
+      var selKey = g.root + "|" + d, h = vs.filter(function(x){ return x.id === selVer[selKey]; })[0] || vs[0];
       var par = h.parent && byId[h.parent];
       var kind = KIND_NAME[h.kind] || "신규";
       var useTxt = h.use === "fake" ? '<span class="sub">내부용 + 외부용</span>' : "";
       var off = !!h.canceled;
-      // 한 줄에 그 단체의 견적서 · 거래명세서 발급이 모두 (2026-11-26). 판 번호는 문서 종류마다 따로 (1 = 처음 발급)
-      var n = vs.length, cnt = {}, verNo = {};
-      vs.slice().reverse().forEach(function(v){ var d = v.doc || "문서"; cnt[d] = (cnt[d] || 0) + 1; verNo[v.id] = cnt[d]; });
-      var hd = h.doc || "문서", no = verNo[h.id];
-      var mix = Object.keys(cnt).length > 1 ? Object.keys(cnt).sort().map(function(d){ return d + " " + cnt[d]; }).join(" · ") + " · " : "";
+      var n = vs.length, no = n - vs.indexOf(h);   // 몇 번째 판 (1 = 처음 발급 · 문서 종류마다 따로)
       var when = n > 1
-        ? '<select class="versel" data-root="' + esc(g.root) + '" aria-label="발급 고르기">' + vs.map(function(v){
-            return '<option value="' + esc(v.id) + '"' + (v === h ? ' selected' : '') + '>' + esc(fmtAt(v.at)) + ' · ' + esc(v.doc || "문서") + ' ' + verNo[v.id] + '판' + (v.canceled ? ' (취소)' : '') + '</option>';
-          }).join("") + '</select><span class="sub">' + esc(mix) + '지금 ' + esc(hd) + ' ' + no + '판' + (no === cnt[hd] ? ' (최신)' : '') + '</span>'
+        ? '<select class="versel" data-root="' + esc(selKey) + '" aria-label="판 고르기">' + vs.map(function(v, i){
+            return '<option value="' + esc(v.id) + '"' + (v === h ? ' selected' : '') + '>' + esc(fmtAt(v.at)) + ' · ' + (n - i) + '판' + (v.canceled ? ' (취소)' : '') + '</option>';
+          }).join("") + '</select><span class="sub">' + n + '번 발급 · 지금 ' + no + '판' + (no === n ? ' (최신)' : '') + '</span>'
         : esc(fmtAt(h.at));
-      return '<tr data-id="' + esc(h.id) + '"' + (off ? ' class="canceled"' : h.pending ? ' class="pending"' : '') + '>' +
+      var caseTd = head ? '<td class="hcase" rowspan="' + head.rows + '">' + esc(head.top.client || "") + '<span class="sub">발급 ' + head.n + '번</span></td>' +
+        '<td class="hcase" rowspan="' + head.rows + '">' + esc(fmtDate(dateOnly(head.top.snapshot && head.top.snapshot.useDate || head.top.useDate), true)) + '</td>' : '';
+      var cls = (head ? "casetop " : "") + (off ? "canceled" : h.pending ? "pending" : "");
+      return '<tr data-id="' + esc(h.id) + '" class="' + cls + '">' + caseTd +
+        '<td class="ln"><b>' + esc(h.doc || "") + '</b>' + useTxt + '</td>' +
         '<td>' + when + (h.pending ? '<span class="sub">' + (histServer === false ? '이 브라우저에 보관' : '저장 중') + '</span>' : '') + '</td>' +
         '<td><div class="kinds"><span class="kind' + (h.kind === "revise" ? " revise" : "") + '">' + kind + '</span>' +
+          (h.pair ? '<span class="kind pair" title="견적서와 거래명세서를 한 번에 발급했습니다">함께 발급</span>' : '') +
           // 발급 취소 · 차액 배지는 버튼: 누르면 사유 창
           (off ? '<button type="button" class="kind void" data-note="cancel" title="취소 사유 보기">발급 취소</button>' : '') +
           (h.snapshot && h.snapshot.gapNote ? '<button type="button" class="kind gap" data-note="gap" title="외부용 금액 차이 사유 보기">차액</button>' : '') + '</div>' +
-          (h.parent ? '<span class="sub">원본 ' + esc(par ? fmtAt(par.at) : "") + '</span>' : h.from ? '<span class="sub">' + esc(byId[h.from] ? (byId[h.from].doc || "다른 문서") + " " + fmtAt(byId[h.from].at) : "다른 문서") + ' 내용으로 발급</span>' : '') + '</td>' +
-        '<td>' + esc(h.doc || "") + useTxt + '</td>' +
-        '<td>' + esc(h.client || "") + '</td>' +
-        '<td>' + esc(fmtDate(dateOnly(h.snapshot && h.snapshot.useDate || h.useDate), true)) + '</td>' +
-        '<td class="num">' + won(h.total) + '원</td>' +
-        '<td>' + esc(h.sender || "") + '</td>' +
+          (h.parent ? '<span class="sub">원본 ' + esc(par ? fmtAt(par.at) : "") + '</span>' : h.from ? '<span class="sub">' + esc(byId[h.from] ? (byId[h.from].doc || "다른 문서") + " " + fmtAt(byId[h.from].at) : "다른 문서") + ' 내용으로 발급</span>' : '') +
+          // 이 판의 수신 · 이용일이 맨 앞 칸(가장 최근 발급)과 다르면 여기에 적음
+          (String(h.client || "") !== String(g.versions[0].client || "") ? '<span class="sub">수신 ' + esc(h.client || "") + '</span>' : '') + '</td>' +
+        '<td class="num ln">' + won(h.total) + '원</td>' +
+        '<td class="ln">' + esc(h.sender || "") + '</td>' +
         '<td><div class="acts">' + (off
           // 취소한 줄: 버튼 왼쪽에 취소 일시만 (사유는 구분 칸의 「발급 취소」 버튼을 누르면 창으로)
           ? '<span class="cancelinfo">취소 ' + esc(fmtAt(h.canceled).slice(5)) + '</span>' +
@@ -2504,7 +2520,7 @@
           : (h.snapshot ? '<button class="btn small" type="button" data-h="reissue">재발행</button><button class="btn small" type="button" data-h="revise">수정발행</button>' : '') +
             '<button class="btn small danger" type="button" data-h="cancel">발급 취소</button>') + '</div></td>' +
       '</tr>';
-    }).join("") : '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--muted)">' + (histFocus ? (histServer ? "이 예약의 발급 내역을 찾지 못했습니다. 「전체 보기」로 찾아 주세요." : "발급 내역을 불러오는 중…") : q ? "찾는 내역이 없습니다." : "아직 발급 내역이 없습니다. 출력하면 여기에 남습니다.") + '</td></tr>';
+    }
   }
   // 단체 화면에서 발급한 문서의 견적서 버튼을 다시 누르면: 그 예약의 발급 내역만 (예약 ID 또는 수신 · 이용일 · 문서 종류가 같은 것, 2026-11-21)
   var histFocus = null;   // { recId, org, date, doc }
