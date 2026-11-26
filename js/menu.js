@@ -44,7 +44,7 @@ window.syFont = (function(){
     {k:'book', t:'예약보조', login:1, items:[ {sub:'고객 응대 접수'}, I('personal.html','개인고객 응대'), I('group.html','단체고객 응대'),
       {sub:'고객 응대 보조'}, I('status.html','예약 현황 공유'), I('naver.html','네이버 예약 → 사유원 전산 이관'), {...I('ment.html','전화응대 멘트'), guest:1}, I('document/','견적서 / 거래명세서 발급'), I('prep.html','다음날 고객 응대 준비'), I('clergy.html','대구대교구 무료입장 명부'), I('cancel.html','예약 취소 요청'), I('rent.html','대관 규정 및 상품'), I('agency.html','협업 여행사 할인 현황') ]},   // guest: 로그인하지 않아도 보이는 항목 (2026-11-18) · sep: 가로줄 = 아침 · 일과 중 · 하루 마무리에 하는 일 구분 (2026-11-19)
     {k:'ops', t:'운영보조', items:[ {sub:'예약현황 공유'}, {chips:[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']]},
-      {sub:'운영 참고 자료', login:1}, {...I('lost.html','분실물 찾기'), login:1}, {...I('accident.html','사고현황 접수'), login:1}, {...I('stock.html','재고관리'), login:1}, {...I('promo.html','기업 프로모션 할인'), login:1} ]},   // 스마트스토어 발송 보고는 메뉴에서 뺌 (2026-11-24 · 스마트스토어 판매는 재고관리에서 기록)
+      {sub:'운영 참고 자료'}, I('lost.html','분실물 찾기'),{...I('accident.html','사고현황 접수'), login:1}, {...I('stock.html','재고관리'), login:1}, {...I('promo.html','기업 프로모션 할인'), login:1} ]},   // 스마트스토어 발송 보고는 메뉴에서 뺌 (2026-11-24 · 스마트스토어 판매는 재고관리에서 기록)
     {k:'pr', t:'홍보 보조', login:1, items:[ I('press.html','홍보 기자 리스트') ]},   // 2026-11-24 · 기능은 나중에 (지금은 준비 중 페이지)
     {k:'manual', t:'매뉴얼', login:1, items:[ I('manual.html','고객 응대 매뉴얼') ]},   // 2026-11-24 홍보 보조 아래 · 보기 · 찾기 · 안내문 올리기 · 반영은 한 화면(manual.html)에서
     {k:'set', t:'기타 설정', login:1, items:[ I('./#catalog','품목관리','', 'catalog'), I('./#members','멤버관리','', 'members') ]},
