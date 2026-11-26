@@ -305,7 +305,7 @@ function tcfgEdHTML(T, c, builtin, id){
     <div class="tcfg-card tcfg-top">
       <div class="tcfg-name"><input class="tcfg-in tcfg-title" data-tf="${T}|title" data-ime="ko" value="${esc(c.title||'')}" placeholder="${esc(builtin ? TCFG_BASE_TITLES[id] : '과업 이름')}" aria-label="과업 이름">
         <label class="chk tcfg-onoff"><input type="checkbox" data-tf="${T}|off"${c.off?' checked':''}> ${builtin?'자동으로 만들지 않음 (끄기)':'잠시 끄기'}</label></div>
-      <div class="tcfg-meta">${builtin ? `<span class="tag">원래 있는 과업</span>${TCFG_BASE_TITLES[id] && String(c.title||'').trim() && String(c.title).trim()!==TCFG_BASE_TITLES[id] ? `<span class="hint">원래 이름: ${esc(TCFG_BASE_TITLES[id])}</span>` : ''}` : '<span class="tag">새 과업</span>'}<span class="sp"></span>${builtin ? `<button type="button" class="btn primary sm" data-tcreset="${T}">원래대로 되돌리기</button>` : `<button type="button" class="btn primary sm" data-tcdel="${T}">이 과업 삭제</button>`}</div>
+      <div class="tcfg-meta">${builtin && TCFG_BASE_TITLES[id] && String(c.title||'').trim() && String(c.title).trim()!==TCFG_BASE_TITLES[id] ? `<span class="hint">처음 이름: ${esc(TCFG_BASE_TITLES[id])}</span>` : ''}<span class="sp"></span>${builtin ? `<button type="button" class="btn primary sm" data-tcreset="${T}">원래대로 되돌리기</button>` : `<button type="button" class="btn primary sm" data-tcdel="${T}">이 과업 삭제</button>`}</div>
     </div>
     <div class="tcfg-card"><h4>세부 과업 <small class="hint">과업 안에 체크 칸으로 들어감 · 모두 체크하면 그 과업 완료</small></h4>
       <div class="tcfg-subs">${subs.map((s,i)=>`<span class="tcfg-sub"><span class="tcfg-n">${i+1}</span><input class="tcfg-in" data-tsub="${T}|${i}" data-ime="ko" value="${esc(s)}">${(au=>au ? `<span class="tag auto" title="${esc(au[1])}">자동 체크 · ${esc(au[0])}</span>` : '<span class="tag hand">직접 체크</span>')(tcfgSubAuto(id, builtin, s))}<button type="button" class="del" data-tsubdel="${T}|${i}" title="이 세부 과업 빼기">×</button></span>`).join('')}<span class="tcfg-sub"><span class="tcfg-n">＋</span><input class="tcfg-in" data-tsubnew="${T}" data-ime="ko" placeholder="세부 과업 더하기 (적고 Enter)"></span></div>
@@ -374,11 +374,10 @@ function tcfgPaintList(){ const box=$('#tcfgList'); if(!box || !tcfgDraft) retur
   const row = it => { const name=tcfgName(it), when=tcfgWhenTxt(it), sub=`${when} · 마감 ${tcfgDueTxt(it.c.due||{base:'visit',n:3})} · ${tcfgWhoTxt(it.id, it.c)}`;
     if(q && !(name+' '+sub).toLowerCase().includes(q)) return '';
     const n=tcfgSubsClean(it.c.subs).length;
-    const tags=(it.c.off?'<span class="tag off">끔</span>':'')+(tcfgChanged(it)?'<span class="tag chg">고침</span>':'')+(!it.builtin?'<span class="tag new">새 과업</span>':'')+(n?`<span class="tag">세부 ${n}</span>`:'')+(tcfgHasAuto(it)?'<span class="tag auto">자동 체크</span>':'')+(String(it.c.who||'').trim()?`<span class="tag who">${esc(it.c.who)}</span>`:'');
+    const tags=(it.c.off?'<span class="tag off">끔</span>':'')+(tcfgChanged(it)?'<span class="tag chg">고침</span>':'')+(n?`<span class="tag">세부 ${n}</span>`:'')+(tcfgHasAuto(it)?'<span class="tag auto">자동 체크</span>':'')+(String(it.c.who||'').trim()?`<span class="tag who">${esc(it.c.who)}</span>`:'');
     return `<button type="button" class="tcfg-item${it.T===tcfgOpenId?' on':''}${it.c.off?' off':''}" data-tcfgopen="${esc(it.T)}"><span class="nm">${esc(name)}</span>${tags?`<span class="tg">${tags}</span>`:''}<span class="sm">${esc(sub)}</span></button>`; };
-  const items=tcfgItems(), B=items.filter(i=>i.builtin).map(row).join(''), C=items.filter(i=>!i.builtin).map(row).join('');
-  box.innerHTML = `<div class="tcfg-sec">원래 있는 과업 <small>${items.filter(i=>i.builtin).length}</small></div>${B || '<p class="hint">찾는 과업이 없습니다.</p>'}`
-    + `<div class="tcfg-sec">새 과업 <small>${items.filter(i=>!i.builtin).length}</small></div>${C || `<p class="hint">${q?'찾는 과업이 없습니다.':'아직 없습니다.'}</p>`}`;
+  const items=tcfgItems(), R=items.map(row).join('');   // 2026-11-26: 「원래 있는 과업 / 새 과업」 구분 없이 한 목록으로
+  box.innerHTML = `<div class="tcfg-sec">과업 <small>${items.length}</small></div>${R || '<p class="hint">찾는 과업이 없습니다.</p>'}`;
   box.scrollTop=st;
   const dirty = tcfgSaved && JSON.stringify(tcfgDraft)!==tcfgSaved; const dm=$('#tcfgDirty'); if(dm) dm.textContent = dirty ? '저장하지 않은 고친 내용이 있습니다' : ''; }
 // 한눈에 보기: 모든 과업을 한 표로 (줄을 누르면 그 과업 편집)
@@ -386,7 +385,7 @@ function tcfgTableHTML(){
   const cut=(s,n)=>{ s=String(s||'').replace(/\s+/g,' ').trim(); return s.length>n ? s.slice(0,n)+'…' : s; };
   const rows=tcfgItems().map(it=>{ const c=it.c, subs=tcfgSubsClean(c.subs);
     return `<tr class="${c.off?'off':''}" data-tcfgopen="${esc(it.T)}" title="누르면 이 과업 편집">
-      <td class="nm"><b>${esc(tcfgName(it))}</b>${!it.builtin?' <span class="tag new">새 과업</span>':''}${tcfgChanged(it)?' <span class="tag chg">고침</span>':''}</td>
+      <td class="nm"><b>${esc(tcfgName(it))}</b>${tcfgChanged(it)?' <span class="tag chg">고침</span>':''}</td>
       <td>${c.off?'<span class="tag off">끔</span>':'<span class="tag on">켜짐</span>'}</td>
       <td>${esc(tcfgWhenTxt(it))}</td><td>${esc(tcfgDueTxt(c.due||{base:'visit',n:3}))}</td><td>${esc(tcfgWhoTxt(it.id, c))}</td>
       <td>${subs.length ? `<ol>${subs.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>` : ''}${tcfgDynSubs(it.id, c, it.builtin).map(d=>`<div class="hint">＋ ${esc(d[0])} (예약 내용에 따라 저절로 들어감)</div>`).join('')}</td>
@@ -434,10 +433,10 @@ document.addEventListener('click', async e=>{
   const cd=e.target.closest('[data-tccdel]'); if(cd){ const [T,j]=cd.dataset.tccdel.split('|'), c=tcfgTarget(T); if(c && c.conds) c.conds.splice(+j,1); tcfgPaint(); return; }
   const sd=e.target.closest('[data-tsubdel]'); if(sd){ const [T,i]=sd.dataset.tsubdel.split('|'), c=tcfgTarget(T); if(c && c.subs) c.subs.splice(+i,1); tcfgPaint(); return; }
   const rs=e.target.closest('[data-tcreset]'); if(rs){ const id=rs.dataset.tcreset.slice(2); askDelete(`「${TCFG_BASE_TITLES[id]}」 과업을 원래 규칙(이름 · 조건 · 마감 · 세부 과업 · 문구)으로 되돌릴까요? 저장해야 적용됩니다.`, ()=>{ d.b[id]=tcfgEff(id, {}); tcfgPaint(); }); return; }
-  const dl=e.target.closest('[data-tcdel]'); if(dl){ const i=+dl.dataset.tcdel.slice(2), c=d.c[i]; askDelete(`「${String(c.title||'').trim()||'(이름 없는 과업)'}」 새 과업을 삭제할까요? (이미 예약에 생긴 과업은 그대로 남습니다)`, ()=>{ d.c.splice(i,1); tcfgOpenId=(tcfgItems()[0]||{}).T||''; tcfgPaint(); }); return; }
+  const dl=e.target.closest('[data-tcdel]'); if(dl){ const i=+dl.dataset.tcdel.slice(2), c=d.c[i]; askDelete(`「${String(c.title||'').trim()||'(이름 없는 과업)'}」 과업을 삭제할까요? (이미 예약에 생긴 과업은 그대로 남습니다)`, ()=>{ d.c.splice(i,1); tcfgOpenId=(tcfgItems()[0]||{}).T||''; tcfgPaint(); }); return; }
   if(e.target.closest('[data-tcfgsave]')){
     tcfgPendSubs();
-    const bad=d.c.findIndex(c=>!String(c.title||'').trim()); if(bad>=0){ toast('새 과업의 이름을 적어 주세요.'); tcfgOpenId='c:'+bad; tcfgPaint(); return; }
+    const bad=d.c.findIndex(c=>!String(c.title||'').trim()); if(bad>=0){ toast('과업 이름을 적어 주세요.'); tcfgOpenId='c:'+bad; tcfgPaint(); return; }
     const B={}; Object.keys(d.b).forEach(id=>{ const o=tcfgPack(id, d.b[id]); if(Object.keys(o).length) B[id]=o; });
     const C=d.c.map(tcfgPackC);
     { const pb=tcfg.b||{}, pc=tcfg.c||[], today=ymd(new Date()), onOf=p=>p ? (p.off ? today : String(p.onAt||'')) : '';   // 다시 켠 날 (껐던 과업을 켜면 오늘 · 이미 적힌 날은 이어감 · 끄면 지움)
