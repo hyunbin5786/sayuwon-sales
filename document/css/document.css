@@ -486,3 +486,5 @@ html.reqhtml, html.reqhtml body{height:auto; min-height:100%; overflow:visible}
 .rv-note,.rv-none{font-size:12px; color:var(--muted); margin-top:4px}
 .rv-lost{margin:0; padding:8px 10px 8px 26px; border-radius:8px; background:var(--surface); border:1px solid var(--danger); color:var(--danger); font-size:12.5px}
 .rv-lost li + li{margin-top:3px}
+/* 다른 종류의 문서(견적서 ↔ 거래명세서)가 먼저 나갔을 때 그 문서와 견준 내용 (2026-11-26 · document.js paintOther) */
+#otherinfo:not(:empty){margin-bottom:16px}

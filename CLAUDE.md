@@ -52,7 +52,7 @@
 
 | 표 | 한 줄 = | 알아 둘 것 |
 |---|---|---|
-| `calls` | 기록 하나 (단체 예약 · 개인고객 통화 · 개인 업무 · 분실물 · 사고 · 재고 · 공지 …) | **거의 모든 것이 여기.** 내용 전체는 `data` 칸에 JSON 글자로. `call_type`(통화 구분) · `visit_date` · `updated` · `deleted` 만 따로 칸. 설정도 정해진 id 의 줄로 들어 있다 (`mabangdb` · `bookdb` · `pcats` · `spdisc` · `noticedb` · `mentdb` 등 · docs 14-4절) |
+| `calls` | 기록 하나 (단체 예약 · 개인고객 통화 · 개인 업무 · 분실물 · 사고 · 재고 · 공지 …) | **거의 모든 것이 여기.** 내용 전체는 `data` 칸에 JSON 글자로. `call_type`(통화 구분) · `visit_date` · `updated` · `deleted` 만 따로 칸. 설정도 정해진 id 의 줄로 들어 있다 (`mabangdb` · `bookdb` · `pcats` · `spdisc` · `noticedb` · `mentdb` · `menudb`(메뉴 설정) 등 · docs 14-4절) |
 | `members` | 멤버 한 명 (이름 + 사번 = 로그인) | 빼도 줄은 남고 `deleted` 에 표시 |
 | `quotereq` | 고객 견적 요청 | 로그인 없이 고객이 넣음 |
 | `quote_history` | 견적서 · 거래명세서 발급 한 번 | `data` 에 내역 전체 JSON |

@@ -129,13 +129,35 @@ header .fz-pop .fz-reset:disabled{opacity:.4;cursor:default}
 /* ===== 휴대폰 메뉴 (너비 700px 아래 · js/menu.js · 2026-11-26 같은 날 다시 정함): PC 와 같은 묶음(예약보조 · 운영보조 …) 그대로.
    달라지는 것은 둘뿐 — 맨 위 「나의 할일」 버튼(로그인한 사람만 · 연한 초록 · .sm-m) · 맨 아래 로그아웃. (처음에는 멘트 · 예약현황 공유 · 분실물 찾기만 따로 보였음)
    휴대폰 헤더에서는 이름 · 나의 할일 · 로그아웃 · 글자 크기 버튼을 숨김 (글자 크기는 휴대폰에서 늘 보통) ===== */
-.smenu .sm-m,.smenu .sm-out{display:none}
+.smenu .sm-out{display:none}
 @media (max-width:700px){
   :root{--sy-fz:1 !important}
-  .smenu .sm-m{display:flex;flex-direction:column;gap:10px;flex:none}
-  .smenu .sm-my{display:flex;align-items:center;justify-content:center;height:52px;border:1px solid #c5d3be;border-radius:12px;background:#e4eadf;color:#3f5236;font:700 16px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
   .smenu .sm-out{display:block;flex:none;margin-top:auto;height:46px;border:1px solid #dfdace;border-radius:12px;background:none;color:#77736a;font:600 15px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
   .smenu .sm-in{height:52px;font-size:16px}
   header:has(> .smenu-btn) [data-mypop], header:has(> .smenu-btn) #myOpenBtn, header:has(> .smenu-btn) .smenu-my,
   header:has(> .smenu-btn) .fz-wrap, header:has(> .smenu-btn) .who, header:has(> .smenu-btn) .me, header:has(> .smenu-btn) .sys-me, header:has(> .smenu-btn) #whoName, header:has(> .smenu-btn) #logoutBtn{display:none !important}
 }
+/* ===== 메뉴 설정 (2026-11-26 · js/menu.js mcOpen): 기타 설정 › 메뉴 설정 — 메뉴마다 PC · 모바일 체크 =====
+   맨 위 「나의 할일」(.sm-m)은 설정에서 켠 곳에서만 그려지므로 (기본 = 모바일만) 여기서는 늘 보이게 둠 */
+.smenu .sm-m{display:flex;flex-direction:column;gap:10px;flex:none}
+.smenu .sm-my{display:flex;align-items:center;justify-content:center;height:48px;border:1px solid #c5d3be;border-radius:12px;background:#e4eadf;color:#3f5236;font:700 15px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
+.smc-wrap{position:fixed;inset:0;z-index:1700;background:rgba(30,30,25,.45);display:flex;align-items:center;justify-content:center;padding:20px;--sy-fz:1}
+.smc-wrap[hidden]{display:none}
+.smc-panel{width:min(520px,100%);max-height:100%;display:flex;flex-direction:column;background:#fffefb;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);padding:20px 22px 16px;box-sizing:border-box;color:#262620;font:14px/1.6 "Noto Sans KR",system-ui,sans-serif}
+.smc-panel h2{margin:0 0 4px;font:600 19px "Noto Serif KR",serif}
+.smc-hint{margin:0 0 12px;color:#77736a;font-size:12.5px}
+.smc-body{flex:1;min-height:0;overflow-y:auto;border:1px solid #dfdace;border-radius:10px}
+.smc-t{width:100%;border-collapse:collapse}
+.smc-t th{position:sticky;top:0;z-index:1;background:#3f5236;color:#f3f1ec;font-weight:600;font-size:13px;padding:8px 10px;text-align:center}
+.smc-t th:first-child{text-align:left}
+.smc-t td{padding:7px 10px;border-top:1px solid #efece4;font-size:14px}
+.smc-t td + td{width:64px;text-align:center}
+.smc-t tr.smc-g td{background:#f3f1ec;color:#16803c;font-weight:800;font-size:12.5px;padding:6px 10px}
+.smc-t input[type=checkbox]{width:20px;height:20px;margin:0;accent-color:#3f5236;cursor:pointer;vertical-align:middle}
+.smc-t input[type=checkbox]:disabled{cursor:default;opacity:.55}
+.smc-err{margin:8px 0 0;min-height:1.2em;color:#b3412e;font-size:12.5px}
+.smc-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.smc-b{height:36px;padding:0 20px;border:0;border-radius:8px;background:#3f5236;color:#fff;font:600 14px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
+.smc-b:hover{background:#34452c}
+.smc-b:disabled{opacity:.5;cursor:default}
+@media (max-width:700px){ .smenu .sm-my{height:52px;font-size:16px} .smc-wrap{padding:0} .smc-panel{width:100%;height:100%;border-radius:0} }

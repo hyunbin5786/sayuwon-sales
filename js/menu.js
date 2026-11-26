@@ -39,15 +39,15 @@ window.syFont = (function(){
   const base = /\/document\//.test(location.pathname) ? '../' : '';
   const logged = (()=>{ try{ const u=JSON.parse(localStorage.getItem('sy_user')||'null'); return !!(u && u.name && u.emp); }catch(_){ return false; } })();
   const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const I = (href, b, s, go) => ({href:base+href, b, s, go});
+  const I = (href, b, s, go) => ({href:base+href, key:href, b, s, go});   // key = 메뉴 설정에서 이 항목을 가리키는 열쇠 (주소 그대로)
   const G = [
     {k:'book', t:'예약보조', login:1, items:[ {sub:'고객 응대 접수'}, I('personal.html','개인고객 응대'), I('group.html','단체고객 응대'),
       {sub:'고객 응대 보조'}, I('status.html','예약 현황 공유'), I('naver.html','네이버 예약 → 사유원 전산 이관'), {...I('ment.html','전화응대 멘트'), guest:1}, I('document/','견적서 / 거래명세서 발급'), I('prep.html','다음날 고객 응대 준비'), I('clergy.html','대구대교구 무료입장 명부'), I('cancel.html','예약 취소 요청'), I('rent.html','대관 규정 및 상품'), I('agency.html','협업 여행사 할인 현황') ]},   // guest: 로그인하지 않아도 보이는 항목 (2026-11-18) · sep: 가로줄 = 아침 · 일과 중 · 하루 마무리에 하는 일 구분 (2026-11-19)
-    {k:'ops', t:'운영보조', items:[ {sub:'예약현황 공유'}, {chips:[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']]},
+    {k:'ops', t:'운영보조', items:[ {sub:'예약현황 공유'}, {key:'book', b:'예약현황 공유 (몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰)', chips:[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']]},
       {sub:'운영 참고 자료'}, I('lost.html','분실물 찾기'),{...I('accident.html','사고현황 접수'), login:1}, {...I('stock.html','재고관리'), login:1}, {...I('promo.html','기업 프로모션 할인'), login:1} ]},   // 스마트스토어 발송 보고는 메뉴에서 뺌 (2026-11-24 · 스마트스토어 판매는 재고관리에서 기록)
     {k:'pr', t:'홍보 보조', login:1, items:[ I('press.html','홍보 기자 리스트') ]},   // 2026-11-24 · 기능은 나중에 (지금은 준비 중 페이지)
     {k:'manual', t:'매뉴얼', login:1, items:[ I('manual.html','고객 응대 매뉴얼') ]},   // 2026-11-24 홍보 보조 아래 · 보기 · 찾기 · 안내문 올리기 · 반영은 한 화면(manual.html)에서
-    {k:'set', t:'기타 설정', login:1, items:[ I('./#catalog','품목관리','', 'catalog'), I('./#members','멤버관리','', 'members') ]},
+    {k:'set', t:'기타 설정', login:1, items:[ I('./#catalog','품목관리','', 'catalog'), I('./#members','멤버관리','', 'members'), {key:'menucfg', b:'메뉴 설정', cfgBtn:1} ]},
   ];
   // 개발 중 기능 (2026-11-25): 배포 사이트에서는 메뉴에서 아예 뺌 (테스트 사이트에만 있음 · js/common.js SY_DEV.DEV_PAGES) · 다 빠진 묶음(홍보 보조 · 매뉴얼 등)도 안 보임
   if(typeof SY_DEV!=='undefined' && SY_DEV.isProd){ G.forEach(g=>{ g.items=g.items.filter(i=>!(i.href && SY_DEV.off(i.href))); }); for(let i=G.length-1;i>=0;i--) if(!G[i].items.some(x=>x.href || x.chips)) G.splice(i,1); }
@@ -58,19 +58,62 @@ window.syFont = (function(){
     if(!q) return p!=='group.html' || (!hereQ.get('my') && !hereQ.get('book'));
     return [...new URLSearchParams(q)].every(([k,v])=>hereQ.get(k)===v); };
   const isHomePg = herePath==='index.html';   // 첫 화면: 메뉴를 고르러 오는 곳 → 로그인했으면 메뉴를 펼친 채로 (묶음도 모두 펼침)
-  const itemHTML = it => (it.login && !logged && !it.href) ? '' : it.sep ? (logged ? '<hr class="sm-sep">' : '') : it.sub ? `<div class="sm-sub">${esc(it.sub)}</div>`
-    : it.chips ? `<div class="sm-chips">${it.chips.map(([k,l])=>`<a class="sm-chip" href="${base}group.html?book=${k}">${esc(l)}</a>`).join('')}</div>`
-    : (it.login && !logged) ? ''
-    : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}${typeof SY_DEV!=="undefined" && SY_DEV.tag && SY_DEV.tag(it.href)?`<small class="sm-dev">test에만 보임</small>`:""}</b></a>`;   /* 개발 중 기능: 배포 사이트엔 이름표 없음 · 테스트 사이트에만 「test에만 보임」 (2026-11-25 · js/common.js SY_DEV.tag) */   // 메뉴 아래 회색 설명은 없앰 (2026-11-18)
+  // ===== 메뉴 설정 (2026-11-26): 메뉴 항목마다 PC · 모바일(700px 아래)에 보일지 — 「기타 설정 › 메뉴 설정」에서 체크로 정함. 모두가 같이 쓰는 설정 =====
+  //  저장: 공유 기록(calls) 한 줄 id menudb · 통화 구분 「메뉴설정」 · 수정 기록 칸 {cfg:{항목 열쇠:{pc, m}}}. 읽기: 서버 동작 menuGet (로그인 없이 · api 12 부터 — 예전 서버면 기본값)
+  //  항목 열쇠 = 그 항목의 주소(personal.html · document/ · ./#catalog …) · 예약현황 공유 묶음 = book · 나의 할일 = my · 메뉴 설정 = menucfg
+  //  기본값(설정에 없는 항목 · 새로 생긴 항목): PC · 모바일 모두 보임 / 나의 할일 = 모바일만 (PC 는 헤더에 버튼이 있음) / 메뉴 설정 = PC 만. 메뉴 설정은 PC 에서 늘 보임 (못 끄게 — 끄면 다시 켤 길이 없음)
+  //  받아 온 설정은 이 브라우저에 기억(sy_menu_cfg)해 두고 화면을 열 때 바로 씀 → 뒤에서 새로 받아 달라졌으면 메뉴를 다시 그림. 로그인해야 보이는 항목은 설정과 상관없이 로그인해야 보임
+  const MQ = matchMedia('(max-width:700px)');
+  const DEF = k => k==='my' ? {pc:false, m:true} : k==='menucfg' ? {pc:true, m:false} : {pc:true, m:true};
+  let cfg={}; try{ cfg=JSON.parse(localStorage.getItem('sy_menu_cfg')||'{}')||{}; }catch(_){}
+  const cfgOf = (k, f) => { const c=cfg[k]; return c && typeof c[f]==='boolean' ? c[f] : DEF(k)[f]; };
+  const shown = k => (k==='menucfg' && !MQ.matches) ? true : cfgOf(k, MQ.matches ? 'm' : 'pc');
+  const isItem = it => !!(it.href || it.chips || it.cfgBtn);
+  const vis = (it, g) => isItem(it) && shown(it.key) && (logged || (!it.login && (!g.login || it.guest)));   // 로그인 안 했으면: 로그인 묶음에서는 guest 항목만 · 다른 묶음에서는 login 이 아닌 항목만
+  const itemHTML = it => it.chips ? `<div class="sm-chips">${it.chips.map(([k,l])=>`<a class="sm-chip" href="${base}group.html?book=${k}">${esc(l)}</a>`).join('')}</div>`
+    : it.cfgBtn ? `<a class="sm-i" href="#" data-smcfg><b>${esc(it.b)}</b></a>`
+    : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}${typeof SY_DEV!=="undefined" && SY_DEV.tag && SY_DEV.tag(it.href)?`<small class="sm-dev">test에만 보임</small>`:""}</b></a>`;   /* 개발 중 기능: 배포 사이트엔 이름표 없음 · 테스트 사이트에만 「test에만 보임」 (2026-11-25 · js/common.js SY_DEV.tag) */
+  const groupHTML = g => { const its=g.items.filter((it, n, a)=>{ if(!it.sub) return vis(it, g);
+      for(let j=n+1; j<a.length && !a[j].sub; j++) if(vis(a[j], g)) return true; return false; });   // 소제목은 그 아래에 보이는 항목이 있을 때만
+    return its.some(isItem) ? `<details class="sm-g" data-acc="${g.k}"${(g.k in st ? st[g.k] : false)?' open':''}><summary>${esc(g.t)}</summary>${its.map(it=>it.sub ? `<div class="sm-sub">${esc(it.sub)}</div>` : itemHTML(it)).join('')}</details>` : ''; };
+  // 맨 위 「나의 할일」(로그인한 사람만 · 설정에 따라) = 헤더의 「나의 할일」 버튼과 같은 것을 엶 (같은 자료라 체크는 PC 와 그대로 이어짐 · 휴대폰 헤더에서는 그 버튼을 숨기므로 여기에 둠)
+  //  맨 아래: 로그아웃(휴대폰에서만 보임 · css) / 로그인 안 했으면 「로그인」(누르면 첫 화면 = 로그인 화면 · 첫 화면에서는 넣지 않음)
+  const navHTML = () => `<div class="sm-top"><b class="sm-title">메뉴</b><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
+    + (logged && shown('my') ? `<div class="sm-m"><button type="button" class="sm-my" data-smmy>나의 할일</button></div>` : '')
+    + G.map(groupHTML).join('')
+    + (logged ? `<button type="button" class="sm-out" data-smout>로그아웃</button>` : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>` + (isHomePg ? '' : `<a class="sm-in" href="${base}index.html">로그인</a>`));
   const wrap=document.createElement('div'); wrap.className='smenu'; wrap.id='smenu'; wrap.hidden=true;
-  wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"><div class="sm-top"><b class="sm-title">메뉴</b><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
-    // 휴대폰 메뉴 (700px 아래 · css/menu.css · 2026-11-26 같은 날 다시 정함): PC 와 같은 묶음(.sm-g · 예약보조 · 운영보조 …) 그대로 — 달라지는 것은 둘뿐: 맨 위에 「나의 할일」 버튼(로그인한 사람만 · .sm-m) · 맨 아래 로그아웃(로그인 안 했으면 로그인)
-    //  (처음에는 휴대폰에 전화응대 멘트 · 예약현황 공유 · 분실물 찾기만 따로 보였음 — 운영팀이 PC 와 같은 형식으로 바꿈)
-    //  나의 할일 = 헤더의 「나의 할일」 버튼과 같은 것을 엶 (같은 자료라 체크는 PC 와 그대로 이어짐 · 휴대폰 헤더에서는 그 버튼을 숨기므로 여기에 둠)
-    + (logged ? `<div class="sm-m"><button type="button" class="sm-my" data-smmy>나의 할일</button></div>` : '')
-    + G.filter(g=>g.items.length && (logged || !g.login || g.items.some(i=>i.guest))).map(g=>{ const its = logged || !g.login ? g.items : g.items.filter((i,n,a)=>i.guest || (i.sub && a.slice(n+1).find(x=>x.sub || x.guest)?.guest));   // 로그인 안 했으면 로그인 묶음에서는 guest 항목(과 그 소제목)만
-      return `<details class="sm-g" data-acc="${g.k}"${(g.k in st ? st[g.k] : false)?' open':''}><summary>${esc(g.t)}</summary>${its.map(itemHTML).join('')}</details>`; }).join('')
-    + (logged ? `<button type="button" class="sm-out" data-smout>로그아웃</button>` : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>` + (isHomePg ? '' : `<a class="sm-in" href="${base}index.html">로그인</a>`)) + `</nav>`;   // 로그아웃: 휴대폰 메뉴 맨 아래 (휴대폰 헤더에서는 이름 · 로그아웃 · 글자 크기 버튼을 숨김 · 2026-11-26) · 로그인(.sm-in): 로그인하지 않았을 때 메뉴 아래 — 누르면 첫 화면(로그인 화면)으로 · PC · 휴대폰 모두 · 첫 화면은 그 자체가 로그인 화면이라 넣지 않음 (2026-11-26)
+  wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"></nav>`;
+  const draw = () => { const nav=wrap.querySelector('.sm-panel'), y=nav.scrollTop; nav.innerHTML=navHTML(); nav.scrollTop=y;
+    nav.querySelectorAll('details[data-acc]').forEach(d=>d.addEventListener('toggle', ()=>{ st[d.dataset.acc]=d.open; try{ localStorage.setItem('sy_menu_acc2', JSON.stringify(st)); }catch(_){} })); };
+  draw();
+  try{ MQ.addEventListener('change', draw); }catch(_){}   // 창 너비가 PC ↔ 모바일로 바뀌면 다시
+  const cfgParse = j => { try{ const c=(JSON.parse(((j && j.menu) || {}).history || '{}') || {}).cfg; return c && typeof c==='object' ? c : {}; }catch(_){ return {}; } };
+  const cfgPull = () => (typeof SY==='undefined' ? Promise.resolve(null) : SY.callRaw({action:'menuGet'})).then(j=>{ if(!j || !j.ok) return false;
+      const c=cfgParse(j), s=JSON.stringify(c); if(s!==JSON.stringify(cfg)){ cfg=c; try{ localStorage.setItem('sy_menu_cfg', s); }catch(_){} draw(); } return true; }).catch(()=>false);
+  cfgPull();
+  // 메뉴 설정 창: 묶음마다 항목 · PC ☐ · 모바일 ☐ (체크 = 보임). 「저장」을 눌러야 모두에게 적용
+  let mc=null;
+  const mcRows = () => [{t:'맨 위', items:[{key:'my', b:'나의 할일'}]}].concat(G.map(g=>({t:g.t, items:g.items.filter(isItem).map(it=>({key:it.key, b:it.b}))})).filter(g=>g.items.length));
+  async function mcOpen(){
+    if(!mc){ mc=document.createElement('div'); mc.className='smc-wrap'; mc.hidden=true; document.body.appendChild(mc);
+      mc.addEventListener('click', e=>{ if(e.target===mc || e.target.closest('[data-smcx]')){ mc.hidden=true; return; } if(e.target.closest('[data-smcsave]')) mcSave(); }); }
+    const fresh=await cfgPull();   // 다른 사람이 방금 바꾼 것 위에 덮어쓰지 않게 최신부터
+    mc.innerHTML = `<section class="smc-panel" role="dialog" aria-modal="true" aria-label="메뉴 설정"><h2>메뉴 설정</h2><p class="smc-hint">체크한 곳에서 그 메뉴가 보입니다. 「저장」을 누르면 모든 사람의 메뉴에 적용됩니다. 로그인해야 보이는 메뉴는 로그인한 사람에게만 보입니다.</p>`
+      + `<div class="smc-body"><table class="smc-t"><thead><tr><th>메뉴</th><th>PC</th><th>모바일</th></tr></thead><tbody>`
+      + mcRows().map(g=>`<tr class="smc-g"><td colspan="3">${esc(g.t)}</td></tr>` + g.items.map(it=>`<tr><td>${esc(it.b)}</td>`
+          + ['pc','m'].map(f=>{ const lock=it.key==='menucfg' && f==='pc'; return `<td><input type="checkbox" data-smck="${esc(it.key)}|${f}" aria-label="${esc(it.b)} ${f==='pc'?'PC':'모바일'}"${lock || cfgOf(it.key, f) ? ' checked' : ''}${lock ? ' disabled title="메뉴 설정은 PC 에서 늘 보입니다"' : ''}></td>`; }).join('') + `</tr>`).join('')).join('')
+      + `</tbody></table></div><p class="smc-err" id="smcErr">${fresh ? '' : '서버(Cloudflare)가 아직 예전 코드라 설정을 불러오지 못했습니다 — 저장해도 로그인하지 않은 화면에는 적용되지 않을 수 있습니다.'}</p><div class="smc-btns"><button type="button" class="smc-b" data-smcx>취소</button><button type="button" class="smc-b" data-smcsave>저장</button></div></section>`;
+    mc.hidden=false; }
+  async function mcSave(){
+    const next={...cfg}; mc.querySelectorAll('[data-smck]').forEach(c=>{ const [k,f]=c.dataset.smck.split('|'); (next[k] = {...(next[k]||{})})[f]=c.checked; });   // 이 화면에 없는 항목(다른 사이트에만 있는 것)의 설정은 그대로 둠
+    const errEl=mc.querySelector('#smcErr'), sv=mc.querySelector('[data-smcsave]'); errEl.textContent=''; sv.disabled=true;
+    try{ const now=new Date().toISOString(), me=((typeof SY!=='undefined' && SY.user && SY.user()) || {}).name || '';
+      await SY.call({action:'put', item:{id:'menudb', callType:'메뉴설정', saved:now, takenBy:me, owner:'', summary:'메뉴 설정 (PC · 모바일에 보일 메뉴)', history:JSON.stringify({cfg:next, at:now, by:me})}});
+      cfg=next; try{ localStorage.setItem('sy_menu_cfg', JSON.stringify(cfg)); }catch(_){} draw(); mc.hidden=true; }
+    catch(e){ errEl.textContent='저장하지 못했습니다: '+(e.code==='bad_key' ? '로그인을 다시 해 주세요' : (e.code || e.message || e)); }
+    sv.disabled=false; }
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && mc && !mc.hidden){ e.preventDefault(); e.stopImmediatePropagation(); mc.hidden=true; } }, true);
   document.body.appendChild(wrap);
   const btn=document.createElement('button'); btn.type='button'; btn.className='smenu-btn'; btn.title='메뉴 열기 / 닫기'; btn.setAttribute('aria-label','메뉴'); btn.innerHTML='☰ <span>메뉴</span>';
   hd.insertBefore(btn, hd.firstChild);
@@ -150,7 +193,7 @@ window.syFont = (function(){
       const lb=document.getElementById('logoutBtn'); if(lb){ lb.click(); return; }
       if(!confirm('로그아웃할까요? 다음 사람이 이름과 사번으로 다시 로그인합니다.')) return;
       ['sy_user','sayuwon_owner','sy_sender','sy_dash_cache'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(_){} }); location.href=base+'index.html'; return; }
+    if(e.target.closest('[data-smcfg]')){ e.preventDefault(); if(!dock) open(false); mcOpen(); return; }   // 기타 설정 › 메뉴 설정
     if(e.target.closest('[data-smclose]')) open(false); else if(e.target.closest('a') && !dock) setTimeout(()=>open(false), 0); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !wrap.hidden){ e.preventDefault(); e.stopImmediatePropagation(); open(false); } }, true);
-  wrap.querySelectorAll('details[data-acc]').forEach(d=>d.addEventListener('toggle', ()=>{ st[d.dataset.acc]=d.open; try{ localStorage.setItem('sy_menu_acc2', JSON.stringify(st)); }catch(_){} }));
 })();
