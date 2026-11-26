@@ -1,13 +1,13 @@
 // ===== 전체 메뉴 (모든 화면 공통, 2026-11-18) =====
 // 헤더 맨 앞 ☰ 버튼 → 왼쪽에서 메뉴가 화면 위로 뜸 (뒤는 회색으로 가림 · 화면을 밀지 않음). 바깥 · × · Esc 로 닫기
 // 묶음(예약보조 · 운영보조 · 홍보 보조 · 매뉴얼 · 기타 설정)은 눌러서 펼치고 접으며, 펼친 상태는 이 브라우저에 기억 (sy_menu_acc2 · 2026-11-24: 처음에는 모두 접힘 — 예전 기억은 쓰지 않음)
-// ===== 글자 크기 (2026-11-26): 헤더의 「가가」 버튼 → 작게 · 보통 · 크게 · 아주 크게. 고른 크기는 이 브라우저에 기억 (sy_fz) =====
+// ===== 글자 크기 (2026-11-26): 헤더 오른쪽의 「가가」 버튼 → 슬라이더 (85% ~ 140%). 고른 크기는 이 브라우저에 기억 (sy_fz) =====
 //  화면 전체를 확대(zoom)하지 않고 글자만 키움: 확대하면 달력 · 시간 고르는 창의 자리와 화면 높이(vh) 계산이 어긋남.
 //  방법: CSS 파일의 글자 크기(…px)를 「…px × --sy-fz」 로 바꿔 두고, html 의 --sy-fz 값만 바꿈. 「보통」만 쓰는 브라우저에서는 아무것도 바꾸지 않음.
 //  견적서 종이 · 사진으로 저장하는 표 · 인쇄는 늘 원래 크기 (css/menu.css 에서 --sy-fz:1 로 되돌림). 팝업(iframe) 안에서도 같은 크기로 보이게 이 부분은 팝업 안에서도 돈다.
 window.syFont = (function(){
-  const KEY='sy_fz', STEPS=[['작게',.9],['보통',1],['크게',1.12],['아주 크게',1.25]], root=document.documentElement;
-  const get = () => { try{ const v=+localStorage.getItem(KEY); return STEPS.some(s=>s[1]===v) ? v : 1; }catch(_){ return 1; } };
+  const KEY='sy_fz', MIN=.85, MAX=1.4, root=document.documentElement;
+  const get = () => { try{ const v=+localStorage.getItem(KEY); return v>=MIN && v<=MAX ? Math.round(v*100)/100 : 1; }catch(_){ return 1; } };
   const PX=/^([\d.]+)px$/;
   const fixRules = rules => { for(const r of rules){
     const s=r.style;
@@ -30,7 +30,7 @@ window.syFont = (function(){
     return apply(); };
   window.addEventListener('storage', e=>{ if(e.key===null || /sy_fz$/.test(e.key)) apply(); });   // 다른 창에서 바꾸면 여기도
   if(get()!==1) apply();
-  return {STEPS, get, set, apply};
+  return {MIN, MAX, get, set, apply};
 })();
 (function(){
   if(window.parent!==window) return;   // 팝업 안(나의 할일 · 품목관리 등)에서는 안 띄움
@@ -70,16 +70,22 @@ window.syFont = (function(){
   document.body.appendChild(wrap);
   const btn=document.createElement('button'); btn.type='button'; btn.className='smenu-btn'; btn.title='메뉴 열기 / 닫기'; btn.setAttribute('aria-label','메뉴'); btn.innerHTML='☰ <span>메뉴</span>';
   hd.insertBefore(btn, hd.firstChild);
-  // 글자 크기 버튼 (2026-11-26): ☰ 메뉴 바로 뒤. 누르면 작은 창에서 크기를 고름 (바깥 · Esc 로 닫기). 보기 글자는 늘 같은 크기로 보이게 줄에 직접 크기를 적음
-  { const fw=document.createElement('span'); fw.className='fz-wrap';
-    const FS=[12,14,16.5,19];
-    const draw = () => { const cur=syFont.get(); fw.querySelectorAll('[data-fz]').forEach(b=>{ const on=+b.dataset.fz===cur; b.classList.toggle('on', on); b.setAttribute('aria-checked', on?'true':'false'); }); };
+  // 글자 크기 버튼 (2026-11-26): 헤더 오른쪽 끝 (첫 화면은 매뉴얼 버튼 바로 앞). 누르면 작은 창에 슬라이더 (85% ~ 140% · 5% 씩) — 움직이는 대로 바로 바뀜. 바깥 · Esc 로 닫기
+  const fw=document.createElement('span'); fw.className='fz-wrap';
+  { const pct = v => Math.round(v*100)+'%';
     fw.innerHTML = `<button type="button" class="smenu-btn fz-btn" title="글자 크기 바꾸기" aria-label="글자 크기" aria-haspopup="true"><b class="fz-ic"><small>가</small>가</b></button>`
-      + `<div class="fz-pop" role="menu" aria-label="글자 크기" hidden><div class="fz-t">글자 크기</div>${syFont.STEPS.map(([l,v],i)=>`<button type="button" role="menuitemradio" data-fz="${v}" style="font-size:${FS[i]}px">${esc(l)}</button>`).join('')}</div>`;
-    btn.after(fw);
-    const fb=fw.querySelector('.fz-btn'), fp=fw.querySelector('.fz-pop'), fopen = v => { fp.hidden=!v; fb.classList.toggle('on', v); if(v) draw(); };
+      + `<div class="fz-pop" role="group" aria-label="글자 크기" hidden><div class="fz-t"><b>글자 크기</b><output class="fz-v"></output></div>`
+      + `<div class="fz-row"><i class="fz-s" aria-hidden="true">가</i><input type="range" class="fz-range" min="${syFont.MIN}" max="${syFont.MAX}" step="0.05" aria-label="글자 크기"><i class="fz-l" aria-hidden="true">가</i></div>`
+      + `<button type="button" class="fz-reset">보통으로</button></div>`;
+    hd.appendChild(fw);
+    const fb=fw.querySelector('.fz-btn'), fp=fw.querySelector('.fz-pop'), rg=fw.querySelector('.fz-range'), out=fw.querySelector('.fz-v'), rs=fw.querySelector('.fz-reset');
+    const draw = () => { const cur=syFont.get(); rg.value=cur; out.textContent=pct(cur); rs.disabled = cur===1; };
+    // 창 자리: 버튼 왼쪽에 맞추되 화면 오른쪽 밖으로 나가면 그만큼 왼쪽으로 (줄이 바뀌어 버튼이 왼쪽에 있어도 화면 안에)
+    const place = () => { fp.style.left='0px'; const r=fp.getBoundingClientRect(), over=r.right-(document.documentElement.clientWidth-8); if(over>0) fp.style.left=-Math.min(over, Math.max(0, r.left-8))+'px'; };
+    const fopen = v => { fp.hidden=!v; fb.classList.toggle('on', v); if(v){ draw(); place(); } };
     fb.addEventListener('click', ()=>fopen(fp.hidden));
-    fp.addEventListener('click', e=>{ const b=e.target.closest('[data-fz]'); if(!b) return; syFont.set(+b.dataset.fz); draw(); });
+    rg.addEventListener('input', ()=>{ syFont.set(+rg.value); out.textContent=pct(syFont.get()); rs.disabled = syFont.get()===1; });
+    rs.addEventListener('click', ()=>{ syFont.set(1); draw(); });
     document.addEventListener('click', e=>{ if(!fp.hidden && !fw.contains(e.target)) fopen(false); });
     document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !fp.hidden){ fopen(false); fb.focus(); } }); }
   // ===== 매뉴얼 (2026-11-21): 헤더 맨 오른쪽 위 책 버튼 → 이 페이지의 매뉴얼(manual/페이지.html)을 큰 창으로 =====
@@ -92,10 +98,12 @@ window.syFont = (function(){
   // 2026-11-24: 매뉴얼 버튼은 첫 화면에만 (다른 화면의 매뉴얼 버튼은 모두 없앰 — 요청). 첫 화면의 버튼은 지우면 안 됨
   const manOn = isHomePg;
   if(manOn) hd.appendChild(mbk);
-  const manPlace = () => { if(!manOn) return; mbk.style.marginLeft='8px'; const hr=hd.getBoundingClientRect(), pr=parseFloat(getComputedStyle(hd).paddingRight)||0;
-    if(hr.right-pr-mbk.getBoundingClientRect().right > 4) mbk.style.marginLeft='auto'; };
+  // 2026-11-26: 글자 크기 버튼(fw)이 모든 화면의 오른쪽 끝에 생김 → 밀어 붙이는 것은 fw, 매뉴얼 버튼은 그 바로 뒤
+  if(manOn) mbk.style.marginLeft='0';
+  const manPlace = () => { fw.style.marginLeft='8px'; const hr=hd.getBoundingClientRect(), pr=parseFloat(getComputedStyle(hd).paddingRight)||0, last=(manOn && mbk.offsetParent) ? mbk : fw;
+    if(hr.right-pr-last.getBoundingClientRect().right > 4) fw.style.marginLeft='auto'; };
   requestAnimationFrame(manPlace); window.addEventListener('load', manPlace);
-  try{ new ResizeObserver(()=>requestAnimationFrame(manPlace)).observe(hd); new MutationObserver(ms=>{ if(ms.some(m=>m.target!==mbk && !mbk.contains(m.target))) requestAnimationFrame(manPlace); }).observe(hd, {subtree:true, attributes:true, attributeFilter:['hidden','style','class'], childList:true}); }catch(_){}
+  try{ new ResizeObserver(()=>requestAnimationFrame(manPlace)).observe(hd); new MutationObserver(ms=>{ if(ms.some(m=>m.target!==mbk && !mbk.contains(m.target) && m.target!==fw && !fw.contains(m.target))) requestAnimationFrame(manPlace); }).observe(hd, {subtree:true, attributes:true, attributeFilter:['hidden','style','class'], childList:true}); }catch(_){}
   const man=document.createElement('div'); man.className='man-wrap'; man.hidden=true;
   man.innerHTML=`<div class="man-bg" data-manclose></div><section class="man-panel" role="dialog" aria-modal="true" aria-label="매뉴얼"><div class="man-top"><b>📖 ${esc(MAN_NAME)} 매뉴얼</b><button type="button" class="man-x" data-manclose title="닫기 (Esc)" aria-label="매뉴얼 닫기">×</button></div><div class="man-body" id="manBody"><p class="man-wait">불러오는 중…</p></div></section>`;
   document.body.appendChild(man);
