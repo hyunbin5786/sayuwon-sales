@@ -2750,15 +2750,19 @@ async function renderList(){
   const hit = r => { const t=[r.org, r.contact, r.owner, r.takenBy, r.email].join(' ').replace(/\s/g,'').toLowerCase(); return (qs && t.includes(qs)) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd)); };
   const stageOn = s => !!listShow[s];
   const pool=all, cal=listViewMode==='cal';
+  // 기간 (2026-11-26): 「지난 예약 보기」를 켜고 기간을 고르면 방문일이 그 기간인 예약만 (비워 두면 전체 · 검색 · 캘린더에는 적용 안 함)
+  const pf=$('#pastFrom').value, pt=$('#pastTo').value, inRange = r => !(pf||pt) || (!!r.date && (!pf || r.date>=pf) && (!pt || r.date<=pt));
   // 지난 예약: 표에서는 「지난 예약 보기」를 켰을 때만 · 검색하면 늘 함께 · 캘린더는 달을 넘겨 보므로 늘 함께
-  const shown = q ? pool.filter(hit) : pool.filter(r=>stageOn(stageOf(r)) && (listPast || cal || !isPast(r)));
+  const shown = q ? pool.filter(hit) : pool.filter(r=>stageOn(stageOf(r)) && (cal || (listPast ? inRange(r) : !isPast(r))));
   document.querySelectorAll('#stageFilter button').forEach(b=>b.classList.toggle('dim', !!q));   // 검색 중에는 단계 버튼이 적용 안 됨
   { const pc=$('#pastCk'); pc.checked=listPast; pc.disabled=!!q; $('#pastLbl').classList.toggle('dim', !!q); $('#pastLbl').title = q ? '검색 중에는 지난 예약까지 모두에서 찾습니다' : '체크하면 방문일이 지난 예약까지 방문일 순서대로 보입니다'; }
   document.querySelectorAll('#sortSeg button').forEach(b=>b.classList.toggle('on', b.dataset.o===listSort));
   const stageTag = r => { const s=stageOf(r), cw=s==="예약취소" ? unpackExtra(r).cancelWhy : ""; return `<span class="tag st-${s}"${cw?` title="취소 사유: ${esc(cw)}"`:""}>${s}</span>`; };   // 예약취소는 마우스를 올리면 사유
   // 방문일 순: 가까운 날부터 차례로 (지난 예약을 켜면 옛날 것부터 한 줄로 · 날짜 없음은 맨 아래) · 검색했을 때는 방문일이 늦은 것부터 (내림차순)
   const order = listSort==='date' && q ? (a,b)=>String(b.date||'').localeCompare(String(a.date||'')) || String(b.saved||'').localeCompare(String(a.saved||'')) : listOrder;
-  $('#listBody').innerHTML=shown.slice().sort(order).map(r=>`<tr class="r${stageOf(r)==='예약취소'?' cancel':''}" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td class="acts">${del(r.id)}</td></tr>`).join('')
+  const sorted=shown.slice().sort(order); listView = { shown:sorted, stageOf, erpOf };   // 엑셀로 내려받기에 씀 (표에 보이는 그대로)
+  { const pb=$('#pastBar'); pb.hidden = !listPast || cal; pb.classList.toggle('dim', !!q); $('#pastSum').textContent = `${sorted.length}건${q ? ' (검색 결과 · 기간은 적용 안 됨)' : (pf||pt) ? ' · 방문일이 이 기간인 예약만' : ' · 기간을 고르면 그 기간에 방문한 예약만 보입니다'}`; $('#pastTo').min = pf || ''; }
+  $('#listBody').innerHTML=sorted.map(r=>`<tr class="r${isPast(r)?' past':''}${stageOf(r)==='예약취소'?' cancel':''}" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td class="acts">${del(r.id)}</td></tr>`).join('')
     || `<tr><td colspan="12" class="hint">${q ? `'${esc(q)}'(으)로 찾은 예약이 없습니다.` : !pool.length ? '저장한 단체예약이 없습니다.' : listPast ? '보이는 단계에 해당하는 예약이 없습니다.' : '보이는 단계에 앞으로 있을 예약이 없습니다. 지난 예약은 「지난 예약 보기」에 체크하세요.'}</td></tr>`;
   // 캘린더 보기: 같은 단계 버튼 · 검색으로 고른 예약을 달력에. 검색어가 바뀌면 찾은 예약이 있는 달로 (앞으로 있을 가장 가까운 예약 · 없으면 가장 최근에 지난 예약 — 그 뒤 ‹ › 로 넘기는 것은 그대로)
   if(!q) calJumpQ=''; else if(cal && q!==calJumpQ){ calJumpQ=q; const ds=shown.map(r=>r.date).filter(Boolean).sort(), to=ds.find(d=>d>=today) || ds[ds.length-1]; if(to) calMonth=to.slice(0,7); }
@@ -2778,6 +2782,9 @@ let calMonth = todayYmd().slice(0,7);   // 보고 있는 달 YYYY-MM
 let calJumpQ = '';   // 캘린더를 찾은 예약의 달로 옮겨 준 검색어 (같은 검색어로는 다시 옮기지 않음 — 달을 넘겨 볼 수 있게)
 let listPast = false;   // 「지난 예약 보기」 (2026-11-26 · 기본 꺼짐 · 화면을 새로 열면 다시 꺼짐)
 document.addEventListener('change', e=>{ if(e.target.id==='pastCk'){ listPast=e.target.checked; renderList(); } });
+// 지난 예약 기간 칸 (시작 ~ 끝): 시작이 끝보다 뒤면 끝을 맞춤 · 「기간 지우기」 = 전체
+document.addEventListener('change', e=>{ const id=e.target.id; if(id!=='pastFrom' && id!=='pastTo') return; const f=$('#pastFrom').value, t=$('#pastTo').value; if(f && t && t<f) bfSet(id==='pastFrom'?'pastTo':'pastFrom', id==='pastFrom'?f:t); renderList(); });
+document.addEventListener('click', e=>{ if(e.target.id!=='pastClear') return; bfSet('pastFrom',''); bfSet('pastTo',''); renderList(); });
 function paintListView(){
   document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on', b.dataset.v===listViewMode));
   $('#listModal .tw').hidden = listViewMode==='cal'; $('#listCal').hidden = listViewMode!=='cal';
@@ -3763,6 +3770,42 @@ $('#consultApplyBtn').onclick=()=>{
   toast(`${n}개 항목을 채웠습니다${extra.length?` · ${extra.length}줄은 통화 메모에`:''}`);
 };
 
+// ===================== 단체예약 목록 엑셀로 내려받기 (2026-11-26 되살림 · 「지난 예약 보기」를 켰을 때 그 아래 줄의 버튼): 표에 보이는 예약 그대로 · 같은 순서 =====================
+let listView = null;
+function loadExcelJS(){
+  if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  return new Promise((ok,no)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'; s.onload=()=>window.ExcelJS?ok(window.ExcelJS):no(new Error('엑셀 모듈')); s.onerror=()=>no(new Error('엑셀 모듈을 불러오지 못했습니다')); document.head.appendChild(s); });
+}
+async function downloadXlsx(){
+  if(!listView || !listView.shown.length){ toast('내려받을 예약이 없습니다.'); return; }
+  const btn=$('#xlsxBtn'); btn.disabled=true; btn.textContent='만드는 중…';
+  try{
+    const ExcelJS = await loadExcelJS();
+    const rows = listView.shown.slice();   // 표에 보이는 것 그대로 (같은 순서 · renderList 가 정렬해 둠)
+    const COLS = [['방문일',12],['단계',9],['전산',8],['업체',22],['영업 담당',9],['결제',16],['차량',10],['입장',7],['입장문',8],['퇴장',7],['관람',8],
+      ['사담 1부',8],['사담 2부',8],['사담 디너',9],['마방 시간',12],['마방 인원',9],['마방 메뉴',22],['마방 단가',10],['마방 결제',9],['마방 비고',16],...PROG_KEYS().map(k=>[LABEL[k]+(UNIT(k)==='시간'?' (시간)':''),11]),['기타 프로그램',14],
+      ['견적서',10],['거래명세서',10],['담당자',14],['연락처',16],['이메일',24],['인원 변경',9],['현장 재결제',10],['미정 항목',16],['특별 할인',16],['통화 메모',40],['접수',16]];
+    const wb = new ExcelJS.Workbook(); wb.creator='사유원 단체 예약 도우미'; wb.created=new Date();
+    const ws = wb.addWorksheet('단체예약 현황', { views:[{ state:'frozen', ySplit:1 }] });
+    ws.columns = COLS.map(([h,w])=>({ header:h, width:w }));
+    rows.forEach(r=>{
+      const x={...r, ...unpackExtra(r)}, sp=(String(r.memo||'').match(/(?:^|\s\/\s)특별 할인\s+([^/]+)/)||[])[1]||'';   // 칸 맨 앞 '특별 할인' 만 ('항목 특별 할인' 과 헷갈리지 않게)
+      ws.addRow([r.date||'', listView.stageOf(r), listView.erpOf(r)?'등록':(listView.stageOf(r)==='예약상담'?'':'미등록'), r.org||'', r.owner||r.takenBy||'', r.pay||'', r.vehicle||'', r.tin||'', x.gate||'', r.tout||'', r.people||'',
+        r.sadam1||'', r.sadam2||'', r.sadamD||'', x.mabangTime||'', (r.mabangL||'')+(r.mabangD?` (예전 디너 ${r.mabangD})`:''), r.mabangMenu||'', (mbUnit({...r,...x})||''), x.mabangPay||'', x.mabangNote||'', ...PROG_KEYS().map(k=>x[k]||''), Object.keys(x).filter(k=>x[k] && (LEGACY_KEYS.includes(k) || (/^px:/.test(k) && !PROG_KEYS().includes(k)))).map(k=>`${LABEL[k]||k.slice(3)} ${x[k]}`).join(', '),
+        docState(r,'quote'), docState(r,'stmt'),         r.contact||'', r.phone||'', r.email||'', x.pchg?'있음':'', x.onsite?'있음':'', x.tbd?(x.tbd+(x.tbdDate?` (${x.tbdDate}까지)`:'')):'', sp.trim(), r.note||'', r.saved?fmt(r.saved):'']);
+    });
+    const head = ws.getRow(1); head.font={ bold:true, color:{argb:'FFFFFFFF'} }; head.alignment={ vertical:'middle', horizontal:'center' }; head.height=22;
+    head.eachCell(c=>{ c.fill={ type:'pattern', pattern:'solid', fgColor:{argb:'FF3F5236'} }; });
+    ws.eachRow((row,i)=>{ if(i>1) row.alignment={ vertical:'top', wrapText:true }; row.eachCell(c=>{ c.border={ bottom:{ style:'thin', color:{argb:'FFDDDDDD'} } }; }); });
+    ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:COLS.length} };
+    const buf = await wb.xlsx.writeBuffer();
+    const pf=$('#pastFrom').value, pt=$('#pastTo').value, tag = $('#listSearch')?.value.trim() ? '_검색' : (pf||pt) ? `_${(pf||'처음').replace(/-/g,'')}-${(pt||'끝').replace(/-/g,'')}` : '';   // 검색 · 고른 기간을 파일 이름에
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    a.download=`사유원_단체예약현황${tag}_${ymd(new Date()).replace(/-/g,'')}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+    toast(`${rows.length}건을 엑셀로 내려받았습니다.`);
+  }catch(e){ toast('엑셀을 만들지 못했습니다: '+e.message); }
+  btn.disabled=false; btn.textContent='엑셀로 내려받기';
+}
 // 견적서 · 거래명세서 버튼: 발급했으면 체크 표시
 function paintDocBtns(){
   [['ckQuote','wantQuote'],['ckStmt','wantStmt']].forEach(([c,wk])=>{ const el=document.getElementById(c); if(el) el.checked=!!rec[wk]; });   // 버튼 앞 체크 = 과업 요청
@@ -3772,6 +3815,7 @@ function paintDocBtns(){
     el.classList.toggle('issued', !!hs.length); el.textContent = name;
     el.title = hs.length ? `${name} 발급함 ${last?dtLabel(last):''} · 누르면 발급 내역(재발행 · 수정발행)` : `${name} 발급`; });
 }
+$('#xlsxBtn').onclick=downloadXlsx;
 
 // 목록 · 엑셀: 견적서 / 거래명세서 발행 여부 (추후 과업 기준)
 function docState(r, id){
@@ -4506,7 +4550,8 @@ $('#memoBox').focus();
 //  - 걷히는 때: 예약을 열거나 새 통화를 시작하면(newCall 이 endStart 를 부름) · 단체상담 입력을 적용하면
 function showStart(){
   if(BOOK_ONLY || MY_ONLY || ALERT_WIN || openGId || /[?&]engine=/.test(location.search)) return;
-  document.documentElement.classList.add('g-start'); paintStart(); setTimeout(()=>{ const q=$('#startQ'); if(q) q.focus(); }, 0);
+  document.documentElement.classList.add('g-start'); paintStart();
+  { const h=document.querySelector('body > header'); if(h) document.documentElement.style.setProperty('--start-top', Math.round(h.getBoundingClientRect().bottom)+'px'); }   // 머리줄 아래 남은 높이의 가운데에 (css #startBox) setTimeout(()=>{ const q=$('#startQ'); if(q) q.focus(); }, 0);
 }
 function endStart(){ document.documentElement.classList.remove('g-start'); }
 // 찾기: 업체명 · 담당자 이름(띄어쓰기 무시) · 전화번호(숫자 4자리부터). 앞으로 있을 예약(가까운 날부터) → 지난 예약(최근 것부터)

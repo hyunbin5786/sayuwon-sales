@@ -320,6 +320,42 @@ $('#consultApplyBtn').onclick=()=>{
   toast(`${n}개 항목을 채웠습니다${extra.length?` · ${extra.length}줄은 통화 메모에`:''}`);
 };
 
+// ===================== 단체예약 목록 엑셀로 내려받기 (2026-11-26 되살림 · 「지난 예약 보기」를 켰을 때 그 아래 줄의 버튼): 표에 보이는 예약 그대로 · 같은 순서 =====================
+let listView = null;
+function loadExcelJS(){
+  if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  return new Promise((ok,no)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'; s.onload=()=>window.ExcelJS?ok(window.ExcelJS):no(new Error('엑셀 모듈')); s.onerror=()=>no(new Error('엑셀 모듈을 불러오지 못했습니다')); document.head.appendChild(s); });
+}
+async function downloadXlsx(){
+  if(!listView || !listView.shown.length){ toast('내려받을 예약이 없습니다.'); return; }
+  const btn=$('#xlsxBtn'); btn.disabled=true; btn.textContent='만드는 중…';
+  try{
+    const ExcelJS = await loadExcelJS();
+    const rows = listView.shown.slice();   // 표에 보이는 것 그대로 (같은 순서 · renderList 가 정렬해 둠)
+    const COLS = [['방문일',12],['단계',9],['전산',8],['업체',22],['영업 담당',9],['결제',16],['차량',10],['입장',7],['입장문',8],['퇴장',7],['관람',8],
+      ['사담 1부',8],['사담 2부',8],['사담 디너',9],['마방 시간',12],['마방 인원',9],['마방 메뉴',22],['마방 단가',10],['마방 결제',9],['마방 비고',16],...PROG_KEYS().map(k=>[LABEL[k]+(UNIT(k)==='시간'?' (시간)':''),11]),['기타 프로그램',14],
+      ['견적서',10],['거래명세서',10],['담당자',14],['연락처',16],['이메일',24],['인원 변경',9],['현장 재결제',10],['미정 항목',16],['특별 할인',16],['통화 메모',40],['접수',16]];
+    const wb = new ExcelJS.Workbook(); wb.creator='사유원 단체 예약 도우미'; wb.created=new Date();
+    const ws = wb.addWorksheet('단체예약 현황', { views:[{ state:'frozen', ySplit:1 }] });
+    ws.columns = COLS.map(([h,w])=>({ header:h, width:w }));
+    rows.forEach(r=>{
+      const x={...r, ...unpackExtra(r)}, sp=(String(r.memo||'').match(/(?:^|\s\/\s)특별 할인\s+([^/]+)/)||[])[1]||'';   // 칸 맨 앞 '특별 할인' 만 ('항목 특별 할인' 과 헷갈리지 않게)
+      ws.addRow([r.date||'', listView.stageOf(r), listView.erpOf(r)?'등록':(listView.stageOf(r)==='예약상담'?'':'미등록'), r.org||'', r.owner||r.takenBy||'', r.pay||'', r.vehicle||'', r.tin||'', x.gate||'', r.tout||'', r.people||'',
+        r.sadam1||'', r.sadam2||'', r.sadamD||'', x.mabangTime||'', (r.mabangL||'')+(r.mabangD?` (예전 디너 ${r.mabangD})`:''), r.mabangMenu||'', (mbUnit({...r,...x})||''), x.mabangPay||'', x.mabangNote||'', ...PROG_KEYS().map(k=>x[k]||''), Object.keys(x).filter(k=>x[k] && (LEGACY_KEYS.includes(k) || (/^px:/.test(k) && !PROG_KEYS().includes(k)))).map(k=>`${LABEL[k]||k.slice(3)} ${x[k]}`).join(', '),
+        docState(r,'quote'), docState(r,'stmt'),         r.contact||'', r.phone||'', r.email||'', x.pchg?'있음':'', x.onsite?'있음':'', x.tbd?(x.tbd+(x.tbdDate?` (${x.tbdDate}까지)`:'')):'', sp.trim(), r.note||'', r.saved?fmt(r.saved):'']);
+    });
+    const head = ws.getRow(1); head.font={ bold:true, color:{argb:'FFFFFFFF'} }; head.alignment={ vertical:'middle', horizontal:'center' }; head.height=22;
+    head.eachCell(c=>{ c.fill={ type:'pattern', pattern:'solid', fgColor:{argb:'FF3F5236'} }; });
+    ws.eachRow((row,i)=>{ if(i>1) row.alignment={ vertical:'top', wrapText:true }; row.eachCell(c=>{ c.border={ bottom:{ style:'thin', color:{argb:'FFDDDDDD'} } }; }); });
+    ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:COLS.length} };
+    const buf = await wb.xlsx.writeBuffer();
+    const pf=$('#pastFrom').value, pt=$('#pastTo').value, tag = $('#listSearch')?.value.trim() ? '_검색' : (pf||pt) ? `_${(pf||'처음').replace(/-/g,'')}-${(pt||'끝').replace(/-/g,'')}` : '';   // 검색 · 고른 기간을 파일 이름에
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    a.download=`사유원_단체예약현황${tag}_${ymd(new Date()).replace(/-/g,'')}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+    toast(`${rows.length}건을 엑셀로 내려받았습니다.`);
+  }catch(e){ toast('엑셀을 만들지 못했습니다: '+e.message); }
+  btn.disabled=false; btn.textContent='엑셀로 내려받기';
+}
 // 견적서 · 거래명세서 버튼: 발급했으면 체크 표시
 function paintDocBtns(){
   [['ckQuote','wantQuote'],['ckStmt','wantStmt']].forEach(([c,wk])=>{ const el=document.getElementById(c); if(el) el.checked=!!rec[wk]; });   // 버튼 앞 체크 = 과업 요청
@@ -329,6 +365,7 @@ function paintDocBtns(){
     el.classList.toggle('issued', !!hs.length); el.textContent = name;
     el.title = hs.length ? `${name} 발급함 ${last?dtLabel(last):''} · 누르면 발급 내역(재발행 · 수정발행)` : `${name} 발급`; });
 }
+$('#xlsxBtn').onclick=downloadXlsx;
 
 // 목록 · 엑셀: 견적서 / 거래명세서 발행 여부 (추후 과업 기준)
 function docState(r, id){

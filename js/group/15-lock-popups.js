@@ -291,7 +291,8 @@ $('#memoBox').focus();
 //  - 걷히는 때: 예약을 열거나 새 통화를 시작하면(newCall 이 endStart 를 부름) · 단체상담 입력을 적용하면
 function showStart(){
   if(BOOK_ONLY || MY_ONLY || ALERT_WIN || openGId || /[?&]engine=/.test(location.search)) return;
-  document.documentElement.classList.add('g-start'); paintStart(); setTimeout(()=>{ const q=$('#startQ'); if(q) q.focus(); }, 0);
+  document.documentElement.classList.add('g-start'); paintStart();
+  { const h=document.querySelector('body > header'); if(h) document.documentElement.style.setProperty('--start-top', Math.round(h.getBoundingClientRect().bottom)+'px'); }   // 머리줄 아래 남은 높이의 가운데에 (css #startBox) setTimeout(()=>{ const q=$('#startQ'); if(q) q.focus(); }, 0);
 }
 function endStart(){ document.documentElement.classList.remove('g-start'); }
 // 찾기: 업체명 · 담당자 이름(띄어쓰기 무시) · 전화번호(숫자 4자리부터). 앞으로 있을 예약(가까운 날부터) → 지난 예약(최근 것부터)

@@ -1383,11 +1383,11 @@ body:has(.modal:not([hidden])) #fakeBar{display:none}   /* 팝업이 떠 있으�
 /* 첫 화면: 단체명으로 먼저 찾기 (2026-11-26) — 예약을 열거나 새 통화를 시작하면 걷힘 */
 #startBox{display:none}
 html.g-start .layout{display:none}
-html.g-start #startBox{display:block;width:min(720px,calc(100% - 24px));margin:56px auto 24px;padding:26px 28px}
-.start-box h2{margin:0 0 14px}
+html.g-start #startBox{display:flex;flex-direction:column;justify-content:center;width:min(640px,calc(100% - 32px));min-height:calc(100vh - var(--start-top,60px) - 40px);margin:0 auto;padding:20px 0;background:transparent;border:0;box-shadow:none;box-sizing:border-box}   /* 머리줄 아래 가운데 · 흰 상자 없이 */
+.start-box h2{margin:0 0 16px;justify-content:center;text-align:center;font-size:22px}
 .start-q{width:100%;height:48px;border:1px solid var(--line);border-radius:10px;padding:0 14px;font:500 18px var(--sans);background:#fff;color:var(--ink);box-sizing:border-box}
 .start-q:focus{outline:none;border-color:var(--pine)}
-.start-box .hint{margin:10px 0}
+.start-box .hint{margin:10px 0;text-align:center}
 .start-list{list-style:none;margin:0 0 14px;padding:0;max-height:46vh;overflow:auto}
 .start-list:empty{display:none}
 .start-it{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--line);border-radius:8px;background:#fff;padding:9px 12px;margin:0 0 6px;font:14px var(--sans);color:var(--ink);cursor:pointer}
@@ -1395,5 +1395,13 @@ html.g-start #startBox{display:block;width:min(720px,calc(100% - 24px));margin:5
 .start-it .num{flex:none;min-width:92px;color:var(--muted)}
 .start-it b{flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .start-it small{flex:1;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.start-box .row-btns{justify-content:flex-end}
-@media (max-width:700px){ html.g-start #startBox{margin-top:20px;padding:18px 16px} .start-it{flex-wrap:wrap} .start-it small{flex-basis:100%} }
+.start-box .row-btns{justify-content:center}
+@media (max-width:700px){ .start-it{flex-wrap:wrap} .start-it small{flex-basis:100%} }
+/* 단체예약 목록 › 지난 예약 보기 (2026-11-26): 지난 예약은 흐리게 · 기간 고르기 · 엑셀로 내려받기 줄 */
+.modal .list tr.past td{opacity:.6}
+#pastBar[hidden]{display:none}
+.past-bar{background:var(--bg);border-radius:8px;padding:6px 10px}
+.past-bar b{font:600 13px var(--sans)}
+.past-bar .dbox input.dtxt{height:30px;width:128px;font-size:13px}
+.past-bar .pb-til{color:var(--muted)}
+.past-bar.dim .dbox,.past-bar.dim #pastClear,.past-bar.dim b,.past-bar.dim .pb-til{opacity:.45}
