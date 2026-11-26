@@ -162,11 +162,11 @@ function fieldHTML(f){
   if(f.type==='photos'){ const ps=Array.isArray(form[f.k]) ? form[f.k] : [];   // 사진 (2026-11-23): 휴대폰에서 바로 찍거나 사진첩에서 고름. 값 = [{id, name}] (그림은 서버 files 표 · 아래 「사진 칸」)
     return `<label>${fLabel(f)} <small class="ph-cnt">${ps.length} / ${PH_MAX}장</small></label>`
       + (ps.length ? `<div class="phs">${ps.map((p,i)=>`<span class="ph"><img alt="${esc(p.name||'사진')}" data-phimg="${esc(p.id)}" data-phview="${esc(p.id)}"><button type="button" class="ph-x" data-phdel="${f.k}|${i}" title="이 사진 빼기" aria-label="사진 빼기">×</button></span>`).join('')}</div>` : '')
-      // 휴대폰(700px 아래 · css/ops.css)은 버튼 하나 「사진 찍기 · 고르기」 (2026-11-26): accept="image/*" 이면 휴대폰이 갤러리(사진첩)를 열고 거기서 찍기도 됨 — 예전 「사진 고르기」는 png · jpeg 만 받아 안드로이드에서 파일 앱이 열렸음. 어떤 사진이든 올릴 때 JPEG / PNG 로 바꿈 (phShrink)
-      + (ps.length<PH_MAX ? `<div class="ph-btns"><label class="btn primary ph-btn ph-pc">📷 사진 찍기<input type="file" accept="image/*" capture="environment" data-phadd="${f.k}" hidden></label>`
-          + `<label class="btn primary ph-btn ph-pc">🖼 사진 고르기<input type="file" accept="image/png,image/jpeg" multiple data-phadd="${f.k}" hidden></label>`
-          + `<label class="btn primary ph-btn ph-m">📷 사진 찍기 · 고르기<input type="file" accept="image/*" multiple data-phadd="${f.k}" hidden></label></div>` : '')
-      + `<span class="hint ph-msg" id="phMsg">${phBusy ? '사진을 올리는 중…' : '<span class="ph-pc">PNG · JPEG · 한 번에 여러 장 고를 수 있습니다 · 복사한 사진은 붙여넣기(Ctrl+V)도 됩니다</span><span class="ph-m">갤러리에서 고르거나 바로 찍을 수 있습니다 · 한 번에 여러 장</span>'}</span>`; }
+      // 사진 버튼은 하나 (2026-11-26 · PC 도 휴대폰도): PC = 「사진 고르기」 (PC 는 찍을 수 없으므로 · 여러 장) / 휴대폰 = 「사진 찍기 · 고르기」.
+      //  휴대폰에서 무엇이 열리는지는 휴대폰이 정하고 accept · multiple 값에 따라 달라짐: png · jpeg 만 적거나 multiple 을 붙이면 안드로이드에서 파일 앱 쪽이 열려, 휴대폰은 accept="image/*" 만 (한 장씩 · 5장까지 되풀이).
+      //  어느 값이 갤러리를 바로 여는지 휴대폰에서 직접 견줘 보는 곳: tools/phototest.html. 어떤 사진이든 올릴 때 JPEG / PNG 로 바꿈 (phShrink)
+      + (ps.length<PH_MAX ? `<div class="ph-btns"><label class="btn primary ph-btn">${PH_MOB ? '📷 사진 찍기 · 고르기' : '🖼 사진 고르기'}<input type="file" accept="image/*"${PH_MOB ? '' : ' multiple'} data-phadd="${f.k}" hidden></label></div>` : '')
+      + `<span class="hint ph-msg" id="phMsg">${phBusy ? '사진을 올리는 중…' : PH_MOB ? `갤러리에서 고르거나 바로 찍을 수 있습니다 · ${PH_MAX}장까지 한 장씩` : '한 번에 여러 장 고를 수 있습니다 · 복사한 사진은 붙여넣기(Ctrl+V)도 됩니다'}</span>`; }
   if(f.type==='textarea') return lab+`<textarea id="${id}" data-k="${f.k}" data-ime="ko" rows="3">${esc(v)}</textarea>`;
   if(f.type==='date') return lab+`<span class="dbox"><input class="dtxt" id="${id}" data-dt="${f.k}" readonly value="${esc(dateDisp(v))}" placeholder="누르면 달력"><input type="date" class="dpick" data-dp="${f.k}" value="${esc(v)}" tabindex="-1" aria-hidden="true"></span>`;
   return lab+`<input id="${id}" data-k="${f.k}" value="${esc(v)}"${f.ph?` placeholder="${esc(f.ph)}"`:''}${f.type==='time'?' data-tp="1" readonly':f.type==='num'?' inputmode="numeric" data-ime="num"':f.type==='tel'?' inputmode="tel" data-ime="num"':' data-ime="ko"'}>`;
@@ -176,6 +176,7 @@ function paintForm(){ $('#eFields').innerHTML = B.fields.filter(f=>!f.show || f.
 //  올리기: 화면에서 긴 변 1600px 로 줄여(PNG 는 PNG 그대로, 너무 크면 JPEG) 서버의 그림 저장(mentImgPut — 멘트 이미지와 같은 저장소 · files 표 · 5MB 까지)에 올리고, 기록에는 [{id, name}] 만 둠
 //  보기: mentImgGet 으로 받아 그림으로 (로그인한 사람만 · 한 번 받은 것은 이 화면에 기억). 서버를 바꾸지 않으려고 멘트 이미지 동작을 같이 씀
 const PH_MAX=5, phCache={}, phWait={}; let phBusy=0;
+const PH_MOB = matchMedia("(max-width:700px), (hover:none) and (pointer:coarse)").matches;   // 휴대폰 (좁은 화면 · 터치 화면) — 사진 버튼의 이름 · 받는 방식이 다름 (fieldHTML 의 photos)
 const phLoad = id => phCache[id] ? Promise.resolve(phCache[id]) : (phWait[id] ||= SY.call({action:'mentImgGet', id}).then(j=>(phCache[id]=`data:${j.file.mime};base64,${j.file.data}`)).catch(e=>{ delete phWait[id]; throw e; }));
 function phPaint(){ document.querySelectorAll('#eFields img[data-phimg]').forEach(im=>{ phLoad(im.dataset.phimg).then(u=>{ im.src=u; }).catch(()=>{ im.alt='사진을 불러오지 못했습니다'; im.classList.add('bad'); }); }); }
 function phShrink(file){ return new Promise((ok, no)=>{ const url=URL.createObjectURL(file), im=new Image();

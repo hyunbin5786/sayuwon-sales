@@ -1,0 +1,46 @@
+<!-- 사진 버튼 시험 (2026-11-26 · 잠깐 쓰는 화면): 휴대폰에서 어느 방식이 갤러리를 바로 여는지 견줘 봄. 아무것도 올리지 않음 (고른 장수만 화면에 보임). 정해지면 지운다 — js/opsboard.js 의 사진 버튼에 그 방식을 넣음 -->
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>사진 버튼 시험</title>
+<style>
+  body{margin:0;padding:16px;background:#f3f1ec;color:#262620;font:16px/1.6 "Noto Sans KR",system-ui,sans-serif}
+  h1{font-size:20px;margin:0 0 6px}
+  p{margin:0 0 14px;color:#5b574c;font-size:14.5px}
+  .t{background:#fffefb;border:1px solid #dfdace;border-radius:12px;padding:12px;margin-bottom:12px}
+  .t label{display:flex;align-items:center;justify-content:center;height:52px;border-radius:10px;background:#3f5236;color:#fff;font-weight:700;font-size:17px;cursor:pointer}
+  .t small{display:block;margin-top:6px;color:#77736a;font-size:12.5px;word-break:break-all}
+  .t output{display:block;margin-top:4px;color:#3f5236;font-weight:700;font-size:14px;min-height:1.4em}
+</style>
+</head>
+<body>
+<h1>사진 버튼 시험</h1>
+<p>1번부터 차례로 눌러 보고, <b>갤러리(사진첩)가 바로 열리는 번호</b>와 <b>그 안에서 사진 찍기도 되는지</b>를 알려 주세요. 여기서 고른 사진은 어디에도 올라가지 않습니다.</p>
+<div id="list"></div>
+<script>
+  var V = [
+    ['image/*', false, ''],
+    ['image/*', true, ''],
+    ['image/png,image/jpeg', false, ''],
+    ['image/png,image/jpeg', true, ''],
+    ['.jpg,.jpeg,.png,.heic', false, ''],
+    ['image/*,android/allowCamera', false, ''],
+    ['image/*', false, 'environment'],
+    ['', false, '']
+  ];
+  document.getElementById('list').innerHTML = V.map(function(v, i){
+    var attrs = (v[0] ? ' accept="' + v[0] + '"' : '') + (v[1] ? ' multiple' : '') + (v[2] ? ' capture="' + v[2] + '"' : '');
+    var desc = (v[0] || '(받는 종류 안 적음)') + (v[1] ? ' · 여러 장' : ' · 한 장') + (v[2] ? ' · 바로 카메라' : '');
+    return '<div class="t"><label>' + (i + 1) + '번 눌러 보기<input type="file"' + attrs + ' hidden></label><small>' + desc + '</small><output></output></div>';
+  }).join('');
+  document.addEventListener('change', function(e){
+    var inp = e.target; if(!inp || inp.type !== 'file') return;
+    var n = inp.files ? inp.files.length : 0, o = inp.closest('.t').querySelector('output');
+    o.textContent = n ? '사진 ' + n + '장을 골랐습니다 (올리지 않음)' : '고르지 않았습니다'; inp.value = '';
+  });
+</script>
+</body>
+</html>
