@@ -116,9 +116,11 @@ const SY = Object.freeze({
   //        (90초 겹쳐 받음 · 30분마다 한 번은 전체로 다시 맞춤)
   //  SY.list() → {ok, items, admin, ...} (예전 callApi({action:'list'}) 와 같은 모양) · SY.listCached() → 사본 items (없으면 null)
   listCached: async () => { const st=await SY.idb.get('sy_list_v1'); return st && Array.isArray(st.items) ? st.items : null; },
-  list: (()=>{ let inflight=null;
+  //  테스트 사이트 · 이 컴퓨터(localhost)는 화면을 열고 처음 받을 때 늘 전체로 (2026-11-26): 테스트 DB 는 「새 개발 시작」 때 배포 DB 로 통째로 바뀌는데, 복사된 줄의 수정 시각은 예전 그대로라 「바뀐 줄만」으로는 안 받아져 옛 사본이 30분까지 남았음. 배포 사이트는 그대로(바뀐 줄만)
+  list: (()=>{ let inflight=null, firstFull=SY_TEST_SITE || SY_MOCK_ON;
     const go = async (full) => {
       const st=await SY.idb.get('sy_list_v1'), now0=Date.now();
+      if(firstFull){ full=true; firstFull=false; }
       const delta = !full && st && Array.isArray(st.items) && st.since && now0-(st.fullAt||0) < 30*60000;
       const body={action:'list'}; if(delta) body.since=new Date(Date.parse(st.since)-90000).toISOString();
       const j=await SY.call(body);
