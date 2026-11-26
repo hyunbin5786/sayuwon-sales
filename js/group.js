@@ -1042,6 +1042,7 @@ function renderForm(changed=[]){
   if(need>nContacts){ nContacts=need; renderContacts(); }
   paintFields(changed);
   renderSide();
+  if(typeof paintMobHead==='function') paintMobHead();   // 휴대폰 제목 줄 (업체 · 방문일 · 인원 · 단계 · js/group/15-lock-popups.js)
 }
 function dateLabel(d){ if(!d) return ''; const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; }
 const mdLabel = d => { const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}월 ${t.getDate()}일 (${DOW[t.getDay()]})`; };   // 날짜는 항상 끝에 (요일)
@@ -4596,8 +4597,8 @@ $('#memoBox').focus();
 // 메뉴 · 링크로 단체 화면에 들어오면 입력 칸 하나만 보임 — 단체명을 치면 이미 있는 예약이 아래에 나오고(누르면 그 예약으로), 없으면 새 통화에 업체명이 들어감
 //  - 건너뛰는 때: 새로고침 전에 보던 예약 · 저장 안 한 입력 · 목록을 되살릴 때(restoreView) · ?open= 으로 예약을 열 때 · 예약 현황 공유 · 나의 할일 · 알림 창
 //  - 걷히는 때: 예약을 열거나 새 통화를 시작하면(newCall 이 endStart 를 부름) · 단체상담 입력을 적용하면
-function showStart(){
-  if(BOOK_ONLY || MY_ONLY || ALERT_WIN || openGId || /[?&]engine=/.test(location.search)) return;
+function showStart(force){   // force = 휴대폰 「다른 단체 찾기」: 주소로 연 예약(?open=) 뒤에도 첫 화면으로
+  if(!force && (BOOK_ONLY || MY_ONLY || ALERT_WIN || openGId || /[?&]engine=/.test(location.search))) return;
   document.documentElement.classList.add('g-start'); paintStart();
   { const h=document.querySelector('body > header'); if(h) document.documentElement.style.setProperty('--start-top', Math.round(h.getBoundingClientRect().bottom)+'px'); }   // 머리줄 아래 남은 높이의 가운데에 (css #startBox) setTimeout(()=>{ const q=$('#startQ'); if(q) q.focus(); }, 0);
 }
@@ -4612,6 +4613,11 @@ function paintStart(){
   const q=String($('#startQ').value||'').trim(), L=startHits(q), t=todayYmd();
   $('#startList').innerHTML = L.slice(0,30).map(r=>{ const s=stageOfRec(r);
     return `<li><button type="button" class="start-it" data-sid="${esc(r.id)}"><span class="num">${esc(dateLabel(r.date)||'방문일 미정')}</span><span class="tag st-${esc(s)}">${esc(s)}</span><b>${esc(r.org||r.contact||'(업체 미정)')}</b><small>${[r.people?`${esc(r.people)}명`:'', esc(firstContact(r)), ownerOf(r)?`담당 ${esc(ownerOf(r))}`:'', r.date && r.date<t?'지난 예약':''].filter(Boolean).join(' · ')}</small></button></li>`; }).join('');
+  if(isMobG()){   // 휴대폰: 새 통화(새 예약)는 받지 않음 — 이미 있는 예약을 찾아 통화 메모 · 추후 과업만 (2026-11-27)
+    $('#startHint').textContent = !q ? '단체명을 입력하면 이미 있는 예약을 찾아 줍니다.'
+      : L.length ? `이미 있는 예약 ${L.length}건${L.length>30?' (가까운 30건만 보임 · 더 적어 보세요)':''} — 누르면 그 예약으로 갑니다.`
+      : `「${q}」(으)로 저장된 예약이 없습니다. 새 예약은 PC 에서 받아 주세요.`;
+    return; }
   $('#startHint').textContent = !q ? '단체명을 입력하면 이미 있는 예약을 찾아 줍니다. 없으면 새 통화에 업체명이 들어갑니다.'
     : L.length ? `이미 있는 예약 ${L.length}건${L.length>30?' (가까운 30건만 보임 · 더 적어 보세요)':''} — 누르면 그 예약으로 갑니다. 새로 받는 예약이면 아래 버튼을 누르세요.`
     : `「${q}」(으)로 저장된 예약이 없습니다. Enter 를 누르면 새 통화에 업체명이 들어갑니다.`;
@@ -4626,11 +4632,23 @@ function startNew(org){
 $('#startQ').addEventListener('input', paintStart);
 $('#startQ').addEventListener('keydown', e=>{ if(e.key!=='Enter' || e.isComposing || e.keyCode===229) return; e.preventDefault();
   const q=$('#startQ').value.trim(), L=startHits(q); if(!q) return;
-  if(!L.length){ startNew(q); return; }   // 없는 단체 → 새 통화에 업체명
+  if(!L.length){ if(isMobG()){ toast('저장된 예약이 없습니다. 새 예약은 PC 에서 받아 주세요.'); return; } startNew(q); return; }   // 없는 단체 → 새 통화에 업체명 (휴대폰에서는 새 통화 없음)
   if(L.length===1){ startOpen(L[0].id); return; }   // 한 건뿐이면 바로 그 예약으로
   const f=$('#startList .start-it'); if(f) f.focus(); toast(`이미 있는 예약이 ${L.length}건입니다 · 골라 주세요 (새로 받는 예약이면 아래 버튼)`); });
 $('#startList').addEventListener('click', e=>{ const b=e.target.closest('[data-sid]'); if(b) startOpen(b.dataset.sid); });
 $('#startNew').onclick=()=>startNew($('#startQ').value.trim());
+// ===== 휴대폰(너비 700px 아래 · 2026-11-27): 통화 메모 · 추후 과업만 보임 (예약 내용 · 가격표 · 수정 기록 · 머리줄의 편집 버튼은 css/group.css 맨 끝에서 숨김) =====
+//  맨 위 제목 줄(#mobHead)은 어느 예약인지 읽기만 · 「다른 단체 찾기」 = 첫 화면(단체명으로 찾기)으로. 맨 아래 안내 글(#mobNote)은 group.html
+//  과업 체크는 휴대폰에서 바로 저장 (PC 는 그대로: 과업의 「저장」 · 맨 위 저장 · 30초 자동 저장 — 휴대폰에는 맨 위 저장 버튼이 안 보여서)
+function isMobG(){ return window.matchMedia('(max-width:700px)').matches; }
+function paintMobHead(){
+  try{ const el=$('#mobHead'); if(!el) return; const s=effStage(rec);
+    el.innerHTML = `<div class="mh-row"><span class="tag st-${esc(s)}">${esc(s)}</span><span class="mh-sub">${[esc(dateLabel(rec.date)||'방문일 미정'), rec.people?`${esc(rec.people)}명`:''].filter(Boolean).join(' · ')}</span><button type="button" class="btn primary" id="mobFind">다른 단체 찾기</button></div><b class="mh-org">${esc(rec.org||'(업체 미정)')}</b>`;
+  }catch(_){ /* 화면을 처음 그리는 중 (아직 준비 안 된 값) — 다음에 다시 그림 */ } }
+$('#mobHead').addEventListener('click', e=>{ if(!e.target.closest('#mobFind')) return; guardLeave(()=>{ newCall(false); showStart(true); window.scrollTo(0,0); }); });
+$('#taskList').addEventListener('change', e=>{ if(!isMobG() || e.target.type!=='checkbox') return;
+  setTimeout(()=>{ if(editingId && !editLockBy && isDirty()) save(true); }, 300); });
+window.matchMedia('(max-width:700px)').addEventListener?.('change', ()=>{ if(document.documentElement.classList.contains('g-start')) paintStart(); });   // 폭이 바뀌면 첫 화면 안내 글도 맞게
 document.addEventListener('click', e=>{ if(e.target.id==='consultApplyBtn') setTimeout(()=>{ if($('#consultModal').hidden) endStart(); }, 0); });   // 단체상담 입력을 적용했으면 입력 화면으로
 
 

@@ -353,6 +353,7 @@ function renderForm(changed=[]){
   if(need>nContacts){ nContacts=need; renderContacts(); }
   paintFields(changed);
   renderSide();
+  if(typeof paintMobHead==='function') paintMobHead();   // 휴대폰 제목 줄 (업체 · 방문일 · 인원 · 단계 · js/group/15-lock-popups.js)
 }
 function dateLabel(d){ if(!d) return ''; const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}/${t.getDate()}(${DOW[t.getDay()]})`; }
 const mdLabel = d => { const t=new Date(d+'T00:00'); return isNaN(t)?d:`${t.getMonth()+1}월 ${t.getDate()}일 (${DOW[t.getDay()]})`; };   // 날짜는 항상 끝에 (요일)
