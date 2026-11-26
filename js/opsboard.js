@@ -160,7 +160,7 @@ function fieldHTML(f){
   if(f.type==='dom') return lab+`<select id="${id}" data-k="dom">${Array.from({length:30},(_,i)=>i+1).map(i=>`<option value="${i}"${+v===i?' selected':''}>${i}일</option>`).join('')}<option value="31"${+v>=31?' selected':''}>말일</option></select>`;
   if(f.type==='subs') return lab+`<ul class="esubs">${(form.subs||[]).map(s=>`<li><span>${esc(s.title)}</span><button type="button" class="x" data-subdel="${esc(s.id)}" title="빼기">×</button></li>`).join('')}</ul><div class="esub-add"><input id="e_subAdd" data-ime="ko" placeholder="세부 과업 (적고 Enter)"><button type="button" class="btn sm" id="e_subAddBtn">추가</button></div>`;
   if(f.type==='photos'){ const ps=Array.isArray(form[f.k]) ? form[f.k] : [];   // 사진 (2026-11-23): 휴대폰에서 바로 찍거나 사진첩에서 고름. 값 = [{id, name}] (그림은 서버 files 표 · 아래 「사진 칸」)
-    return `<label>${fLabel(f)} <small class="ph-cnt">${ps.length} / ${PH_MAX}장</small></label>`
+    return `<label>${fLabel(f)}${fReq(f)?' <i>*</i>':''} <small class="ph-cnt">${ps.length} / ${PH_MAX}장</small>${fReq(f) && !ps.length ? ' <small class="ph-need">사진을 꼭 넣어야 저장됩니다</small>' : ''}</label>`   // 꼭 넣는 사진(분실물 습득)은 다른 칸처럼 * 표시 + 안내 (2026-11-26 · 예전에도 저장은 막았지만 표시가 없었음)
       + (ps.length ? `<div class="phs">${ps.map((p,i)=>`<span class="ph"><img alt="${esc(p.name||'사진')}" data-phimg="${esc(p.id)}" data-phview="${esc(p.id)}"><button type="button" class="ph-x" data-phdel="${f.k}|${i}" title="이 사진 빼기" aria-label="사진 빼기">×</button></span>`).join('')}</div>` : '')
       // 사진 버튼은 하나 (2026-11-26 · PC 도 휴대폰도): PC = 「사진 고르기」 (PC 는 찍을 수 없으므로 · 여러 장) / 휴대폰 = 「사진 찍기 · 고르기」.
       //  휴대폰에서 무엇이 열리는지는 휴대폰이 정하고 accept · multiple 값에 따라 달라짐: png · jpeg 만 적거나 multiple 을 붙이면 안드로이드에서 파일 앱 쪽이 열려, 휴대폰은 accept="image/*" 만 (한 장씩 · 5장까지 되풀이).
@@ -228,7 +228,7 @@ $('#eForm').addEventListener('submit', async e=>{ e.preventDefault();
   document.activeElement?.blur?.();
   if($('#e_subAdd')?.value.trim()) addSub();   // 세부 과업 칸에 적어 두고 추가를 안 누른 것도
   if(phBusy){ $('#eErr').textContent='사진을 올리는 중입니다. 끝난 뒤 저장해 주세요.'; return; }
-  const miss=B.fields.filter(f=>fReq(f) && (!f.show || f.show(form)) && !String(form[f.k]||'').trim()); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>fLabel(f)).join(' · ')}을(를) 넣어 주세요.`; return; }
+  const miss=B.fields.filter(f=>fReq(f) && (!f.show || f.show(form)) && (f.type==='photos' ? !(Array.isArray(form[f.k]) && form[f.k].length) : !String(form[f.k]||'').trim())); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>fLabel(f)).join(' · ')}을(를) 넣어 주세요.`; return; }   // 사진 칸은 한 장도 없으면 빠진 것 (2026-11-26)
   const d={...form}; B.fields.forEach(f=>{ if(f.show && !f.show(form) && f.k in d && f.type!=='dows' && f.type!=='dom') delete d[f.k]; });
   const ok=await putRow({...(editRow||{}), d}, editRow?'고침':'추가'); if(ok!==false){ $('#editModal').hidden=true; toast(editRow?'고쳤습니다.':'추가했습니다.'); }
 });

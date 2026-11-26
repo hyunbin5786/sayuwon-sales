@@ -142,6 +142,7 @@ h3.sub + .tbl,h3.sub + .tlist{margin-bottom:18px}
 .ph-btns{display:flex;gap:8px;flex-wrap:wrap}
 .ph-btn{flex:1 1 130px;height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px;cursor:pointer}
 .ef .ph-msg{font-size:11.5px;color:var(--muted);margin-top:2px}
+.ef .ph-need{color:var(--red,#b3412e);font-weight:700;font-size:12px;margin-left:4px}   /* 꼭 넣는 사진이 아직 없을 때 (분실물 습득 · 2026-11-26) */
 .ph-view{position:fixed;inset:0;z-index:90;background:rgba(20,20,16,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px}
 .ph-view[hidden]{display:none}
 .ph-view img{max-width:100%;max-height:calc(100% - 60px);object-fit:contain;border-radius:6px;background:#fff}
