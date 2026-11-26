@@ -379,7 +379,6 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .modal .mbdb{width:min(860px,100%)}
 .modal .book{width:min(1100px,100%);overflow:auto}   /* 예약 목록 창: 표 + 직접 추가 칸이 창 안에서 스크롤 */
 .modal .book .tw{flex:none}
-#trashModal{z-index:25}   /* 단체예약 목록 위에 뜸 */
 /* 남이 담당인 예약: 잠금 (메모만) */
 .owner-memo{border:1px solid #e0c48a;background:#fff8e6;border-radius:8px;padding:10px 12px;margin:0 0 12px;font-size:13px}
 .owner-memo.mine{border-color:#bccab4;background:var(--pine-soft)}
@@ -572,7 +571,7 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 .list-bar #sortSeg{margin-left:auto}   /* 정렬은 오른쪽 */
 #stageFilter button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font:500 13px var(--sans);color:var(--muted);cursor:pointer}
 #stageFilter button.on{background:var(--pine);color:#fff}
-#stageFilter button.dim{opacity:.45}   /* 검색 중에는 탭 대신 전체에서 찾음 */
+#stageFilter button.dim,#pastSeg button.dim{opacity:.45}   /* 검색 중에는 탭 대신 전체에서 찾음 (지난 예약까지) */
 .list-search{flex:1 1 260px;max-width:380px;height:32px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:13px var(--sans);background:#fff;color:var(--ink)}
 .list-search:focus{outline:none;border-color:var(--pine)}
 .it-amt .dopen{margin-left:8px;border:1px dashed var(--line);background:#fff;border-radius:12px;padding:1px 9px;font:11.5px var(--sans);color:var(--muted);cursor:pointer}   /* 할인 대상이 아닌 품목: 할인 넣기 */
@@ -808,7 +807,7 @@ html.book-guest #bookBody tr{cursor:default}
 #stageSeg button[data-s="예약확정"].on{background:#3f5236;color:#fff}
 #stageSeg button[data-s="예약취소"].on{background:#d9d6cf;color:#55534d}
 #stageSeg button:disabled{opacity:.4;cursor:not-allowed}
-.modal .list tr.past td{opacity:.6}
+.modal .list tr.gone{cursor:default}   /* 삭제한 예약: 예약취소에 함께 보임 · 보기만 */
 .modal .list tr.cancel td{color:var(--muted)}
 .stage-sum{font-size:12.5px;font-weight:700;color:var(--pine);margin-right:4px}
 .tag.tbd-tag{background:var(--amber-soft);color:var(--amber)}   /* 미정 항목 (노랑) */
