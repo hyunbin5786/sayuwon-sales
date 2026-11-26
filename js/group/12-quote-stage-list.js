@@ -320,7 +320,7 @@ $('#consultApplyBtn').onclick=()=>{
   toast(`${n}개 항목을 채웠습니다${extra.length?` · ${extra.length}줄은 통화 메모에`:''}`);
 };
 
-// ===================== 단체예약 목록 엑셀로 내려받기 (2026-11-26 되살림 · 「지난 예약 보기」를 켰을 때 그 아래 줄의 버튼): 표에 보이는 예약 그대로 · 같은 순서 =====================
+// ===================== 단체예약 목록 엑셀로 내려받기 (2026-11-26 되살림 · 목록 창 머리줄의 버튼): 표에 보이는 예약 그대로 · 같은 순서 =====================
 let listView = null;
 function loadExcelJS(){
   if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
