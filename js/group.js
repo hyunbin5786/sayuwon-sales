@@ -4153,6 +4153,8 @@ function renderMy(){ paintMySet();
   const order=catOrder(); if(myTab!=='main' && !order.map(catTab).includes(myTab)) myTab='main';
   $('#myTabs').innerHTML = `<button type="button" data-mt="main">메인</button>` + order.map(c=>`<button type="button" data-mt="${esc(catTab(c))}">${esc(catLabel(c))}</button>`).join('');
   document.querySelectorAll('#myTabs [data-mt]').forEach(b=>b.classList.toggle('on', b.dataset.mt===myTab));
+  // 휴대폰(700px 아래)에서는 탭 대신 드롭다운으로 구분을 고름 (2026-11-26 · css/group.css 맨 아래 — 구분이 많아도 한 줄)
+  { const sel=$('#myTabSel'); if(sel){ sel.innerHTML = `<option value="main">메인</option>` + order.map(c=>`<option value="${esc(catTab(c))}">${esc(catLabel(c))}</option>`).join(''); sel.value=myTab; } }
   $('#myPast').closest('label').hidden = myTab!=='group';
   const nG = open.reduce((s,o)=>s+o.left.length,0), persAll = myPersonalOpen(), nP = persAll.reduce((s,o)=>s+o.left.length,0);
   const recLi = (o, ts) => `<li class="r my-tg" ${o.personal?`data-popen="${esc(o.r.id)}"`:`data-myopen="${esc(o.r.id)}"`}><span class="who">`
@@ -4232,6 +4234,7 @@ $('#myReloadBtn').onclick=async()=>{ const b=$('#myReloadBtn'); if(b.disabled) r
 if(location.hash==='#my' && !MY_ONLY) setTimeout(openMy, 300);   // 예전 주소 group.html#my
 if(MY_ONLY){ document.title='나의 할일 · 사유원 운영 보조 시스템'; $('#crumb').textContent='나의 할일'; setTimeout(openMy, 50); }
 document.addEventListener('click', e=>{ const b=e.target.closest('#myTabs [data-mt]'); if(!b) return; myTab=b.dataset.mt; try{ localStorage.setItem('sayuwon_my_tab', myTab); }catch(_){} renderMy(); });
+document.addEventListener('change', e=>{ if(e.target.id!=='myTabSel') return; myTab=e.target.value; try{ localStorage.setItem('sayuwon_my_tab', myTab); }catch(_){} renderMy(); });   // 휴대폰의 구분 드롭다운 (2026-11-26)
 $('#myCloseBtn').onclick=closeMy;
 $('#myPast').onchange=renderMy;
 $('#myModal').addEventListener('mousedown', e=>{ if(e.target.id==='myModal' && !MY_ONLY) closeMy(); });

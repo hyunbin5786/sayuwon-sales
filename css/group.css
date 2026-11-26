@@ -1351,13 +1351,17 @@ body:has(.modal:not([hidden])) #fakeBar{display:none}   /* 팝업이 떠 있으�
 #tcfgModal .tcfg-vex span{color:var(--ink);background:#f4f8f1;border-radius:4px;padding:0 4px}
 @media (max-width:1100px){ #tcfgModal .tcfg-when{grid-template-columns:1fr 1fr} #tcfgModal .tcfg-wl{grid-column:1 / -1} }
 @media (max-width:900px){ #tcfgModal .tcfg-when{grid-template-columns:1fr} }
+.my-tabsel{display:none}   /* 구분 드롭다운은 휴대폰에서만 (아래) */
 /* ===== 나의 할일 · 휴대폰 (2026-11-26 · 너비 700px 아래): 한 줄(1열)로 · 탭은 제목 아래 한 줄 가득 · 체크 칸과 글자를 키움. 메뉴 맨 위 「나의 할일」로 엶 (js/menu.js) ===== */
 @media (max-width:700px){
   html.my-only #myModal{padding:10px 10px 24px}
   #myModal > section > h2{flex-wrap:wrap;gap:8px;align-items:center}
   #myModal > section > h2 > .row-btns{margin-left:auto}
-  #myModal .my-tabs{order:3;display:flex;width:100%;margin:0}
-  #myModal .my-tabs button{flex:1;white-space:nowrap;padding:9px 2px;font-size:14px}
+  #myModal .my-tabs{display:none}   /* 휴대폰: 탭 대신 구분 드롭다운 (#myTabSel) */
+  #myModal .my-tabsel{order:3;display:flex;align-items:center;gap:10px;width:100%;font:600 15px var(--sans);color:var(--muted)}
+  #myModal .my-tabsel select{flex:1;min-width:0;height:46px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 12px;font:700 17px var(--sans);color:var(--ink)}
+  /* 스크롤: 팝업이 떠 있으면 common.js 가 문서 스크롤을 막으므로(sy-noscroll) 이 창이 직접 스크롤 */
+  html.my-only #myModal{height:100vh;height:100dvh;box-sizing:border-box;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   html.my-only .my-body{overflow:visible}
   #myModal .my-cols, #myModal .my-cols.two, #myModal .my-cols.three{grid-template-columns:minmax(0,1fr)}
   #myModal .my-col, #myModal .my-col{max-height:none;min-width:0;overflow:visible}
