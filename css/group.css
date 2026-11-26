@@ -572,8 +572,8 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 .pc-list li.edited{border-color:#b9cde3;background:#f3f7fb}   /* 남이 고친 기록 */
 .list-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .list-bar #pastBar{margin-left:auto}   /* 기간 · 정렬은 오른쪽 */
-.trash-ic{border:0;background:transparent;padding:2px 4px;font-size:14px;line-height:1;cursor:pointer;opacity:.55;border-radius:6px}   /* 삭제한 예약 보기 (작은 휴지통) */
-.trash-ic:hover,.trash-ic:focus-visible{opacity:1;background:var(--bg)}
+.trash-ic{display:inline-flex;align-items:center;justify-content:center;width:34px;height:32px;border:1px solid var(--line);background:#fff;padding:0;font-size:17px;line-height:1;cursor:pointer;border-radius:8px}   /* 삭제한 예약 보기 (휴지통 · 2026-11-26 눈에 띄게: 테두리 있는 단추) */
+.trash-ic:hover,.trash-ic:focus-visible{outline:none;border-color:var(--pine);background:var(--bg)}
 #stageFilter button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font:500 13px var(--sans);color:var(--muted);cursor:pointer}
 #stageFilter button.on{background:var(--pine);color:#fff}
 #stageFilter button.dim{opacity:.45}   /* 검색 중에는 탭 대신 전체에서 찾음 */
