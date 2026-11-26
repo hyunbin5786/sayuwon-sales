@@ -164,7 +164,7 @@ function fieldHTML(f){
       + (ps.length ? `<div class="phs">${ps.map((p,i)=>`<span class="ph"><img alt="${esc(p.name||'사진')}" data-phimg="${esc(p.id)}" data-phview="${esc(p.id)}"><button type="button" class="ph-x" data-phdel="${f.k}|${i}" title="이 사진 빼기" aria-label="사진 빼기">×</button></span>`).join('')}</div>` : '')
       // 사진 버튼은 하나 (2026-11-26 · PC 도 휴대폰도): PC = 「사진 고르기」 (PC 는 찍을 수 없으므로 · 여러 장) / 휴대폰 = 「사진 찍기 · 고르기」.
       //  휴대폰에서 무엇이 열리는지는 휴대폰이 정하고 accept · multiple 값에 따라 달라짐: png · jpeg 만 적거나 multiple 을 붙이면 안드로이드에서 파일 앱 쪽이 열려, 휴대폰은 accept="image/*" 만 (한 장씩 · 5장까지 되풀이).
-      //  어느 값이 갤러리를 바로 여는지 휴대폰에서 직접 견줘 보는 곳: tools/phototest.html. 어떤 사진이든 올릴 때 JPEG / PNG 로 바꿈 (phShrink)
+      //  이 방식으로 두기로 함 (2026-11-26 운영팀 결정). 어떤 사진이든 올릴 때 JPEG / PNG 로 바꿈 (phShrink)
       + (ps.length<PH_MAX ? `<div class="ph-btns"><label class="btn primary ph-btn">${PH_MOB ? '📷 사진 찍기 · 고르기' : '🖼 사진 고르기'}<input type="file" accept="image/*"${PH_MOB ? '' : ' multiple'} data-phadd="${f.k}" hidden></label></div>` : '')
       + `<span class="hint ph-msg" id="phMsg">${phBusy ? '사진을 올리는 중…' : PH_MOB ? `갤러리에서 고르거나 바로 찍을 수 있습니다 · ${PH_MAX}장까지 한 장씩` : '한 번에 여러 장 고를 수 있습니다 · 복사한 사진은 붙여넣기(Ctrl+V)도 됩니다'}</span>`; }
   if(f.type==='textarea') return lab+`<textarea id="${id}" data-k="${f.k}" data-ime="ko" rows="3">${esc(v)}</textarea>`;
