@@ -570,10 +570,7 @@ html.my-only .my-col{max-height:calc(100vh - 150px)}
 .my-body .late{color:var(--red)}
 .pc-list li.edited{border-color:#b9cde3;background:#f3f7fb}   /* 남이 고친 기록 */
 .list-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-.list-bar #pastLbl{margin-left:auto}   /* 지난 예약 보기 · 정렬은 오른쪽 */
-.past-ck{display:inline-flex;align-items:center;gap:5px;font:500 13px var(--sans);color:var(--ink);cursor:pointer;white-space:nowrap}
-.past-ck input{accent-color:var(--pine);width:15px;height:15px;margin:0}
-.past-ck.dim{opacity:.45;cursor:default}   /* 검색 중에는 지난 예약까지 모두에서 찾음 */
+.list-bar #pastBar{margin-left:auto}   /* 기간 · 정렬은 오른쪽 */
 .trash-ic{border:0;background:transparent;padding:2px 4px;font-size:14px;line-height:1;cursor:pointer;opacity:.55;border-radius:6px}   /* 삭제한 예약 보기 (작은 휴지통) */
 .trash-ic:hover,.trash-ic:focus-visible{opacity:1;background:var(--bg)}
 #stageFilter button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font:500 13px var(--sans);color:var(--muted);cursor:pointer}
@@ -1399,9 +1396,8 @@ html.g-start #startBox{display:flex;flex-direction:column;justify-content:center
 @media (max-width:700px){ .start-it{flex-wrap:wrap} .start-it small{flex-basis:100%} }
 /* 단체예약 목록 › 지난 예약 보기 (2026-11-26): 지난 예약은 흐리게 · 기간 고르기 · 엑셀로 내려받기 줄 */
 .modal .list tr.past td{opacity:.6}
-#pastBar[hidden]{display:none}
-.past-bar{background:var(--bg);border-radius:8px;padding:6px 10px}
+.past-bar{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .past-bar b{font:600 13px var(--sans)}
-.past-bar .dbox input.dtxt{height:30px;width:128px;font-size:13px}
+.past-bar .dbox input.dtxt{height:30px;width:122px;font-size:13px}
 .past-bar .pb-til{color:var(--muted)}
 .past-bar.dim .dbox,.past-bar.dim #pastClear,.past-bar.dim b,.past-bar.dim .pb-til{opacity:.45}

@@ -587,7 +587,7 @@ async function renderList(){
   // 단계: 시트 '통화 구분' 칸 (예전 이름은 normStage). 예전 '단체예약'은 결제 · 전산으로 판단. 관리자 사이트에서 온 예약은 예약확정
   const stageOf = r => /^adm/.test(r.id) && !STAGES.includes(normStage(r.callType)) ? '예약확정' : STAGES.includes(normStage(r.callType)) ? normStage(r.callType) : stageAuto({...r, ...unpackExtra(r)});
   const erpOf = r => /^adm/.test(r.id) || !!unpackExtra(r).erp;
-  // 목록 = 앞으로 있을 예약 (2026-11-26: 방문일이 지난 예약은 빼고 「지난 예약 보기」를 켜면 함께 · 검색하면 지난 것까지). 기본은 가예약 · 예약확정만, 「예약상담」 · 「예약취소」는 버튼으로 켜고 끔 (2026-11-18)
+  // 목록 = 앞으로 있을 예약 (2026-11-26: 기본 기간이 오늘부터라 방문일이 지난 예약은 빠짐 — 기간의 시작을 앞으로 고르면 함께 · 검색하면 지난 것까지). 기본은 가예약 · 예약확정만, 「예약상담」 · 「예약취소」는 버튼으로 켜고 끔 (2026-11-18)
   const today=todayYmd(), isPast = r => !!r.date && r.date < today;
   $('#callCount').hidden = !nCall; $('#callCount').textContent = `전화 필요 ${nCall}`;   // 건수 숫자는 없앰 (2026-11-26 · 머리줄 버튼 · 단계 버튼)
   $('#adminHint').textContent = adminData?.updated ? `관리자 사이트 ${fmtAgo(adminData.updated)} 갱신` : '';
@@ -598,20 +598,19 @@ async function renderList(){
   const hit = r => { const t=[r.org, r.contact, r.owner, r.takenBy, r.email].join(' ').replace(/\s/g,'').toLowerCase(); return (qs && t.includes(qs)) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd)); };
   const stageOn = s => !!listShow[s];
   const pool=all, cal=listViewMode==='cal';
-  // 기간 (2026-11-26): 늘 보이는 「기간」 줄 — 기본은 오늘부터 끝까지(= 앞으로 있을 예약). 방문일이 그 기간인 예약만 (방문일 없는 예약은 끝을 안 정했을 때만 · 검색 · 캘린더에는 적용 안 함). 「지난 예약 보기」 체크 = 시작을 비움(처음부터)
-  const pf=$('#pastFrom').value, pt=$('#pastTo').value, inRange = r => r.date ? ((!pf || r.date>=pf) && (!pt || r.date<=pt)) : !pt, listPast = !pf || pf<today;
-  // 지난 예약: 표에서는 「지난 예약 보기」를 켰을 때만 · 검색하면 늘 함께 · 캘린더는 달을 넘겨 보므로 늘 함께
+  // 기간 (2026-11-26): 버튼 줄의 「기간」(방문일 순 왼쪽) — 기본은 오늘부터 끝까지(= 앞으로 있을 예약). 방문일이 그 기간인 예약만 (방문일 없는 예약은 끝을 안 정했을 때만 · 검색 · 캘린더에는 적용 안 함). 지난 예약은 시작을 앞으로 고르거나 비우면 (「지난 예약 보기」 체크 칸은 없앰)
+  const pf=$('#pastFrom').value, pt=$('#pastTo').value, inRange = r => r.date ? ((!pf || r.date>=pf) && (!pt || r.date<=pt)) : !pt;
+  // 지난 예약: 표에서는 기간의 시작을 앞으로 고르거나 비웠을 때 · 검색하면 늘 함께 · 캘린더는 달을 넘겨 보므로 늘 함께
   const shown = q ? pool.filter(hit) : pool.filter(r=>stageOn(stageOf(r)) && (cal || inRange(r)));
   document.querySelectorAll('#stageFilter button').forEach(b=>b.classList.toggle('dim', !!q));   // 검색 중에는 단계 버튼이 적용 안 됨
-  { const pc=$('#pastCk'); pc.checked=listPast; pc.disabled=!!q; $('#pastLbl').classList.toggle('dim', !!q); $('#pastLbl').title = q ? '검색 중에는 지난 예약까지 모두에서 찾습니다' : '체크하면 기간의 시작을 비워 지난 예약까지 보입니다 (체크를 끄면 오늘부터)'; }
   document.querySelectorAll('#sortSeg button').forEach(b=>b.classList.toggle('on', b.dataset.o===listSort));
   const stageTag = r => { const s=stageOf(r), cw=s==="예약취소" ? unpackExtra(r).cancelWhy : ""; return `<span class="tag st-${s}"${cw?` title="취소 사유: ${esc(cw)}"`:""}>${s}</span>`; };   // 예약취소는 마우스를 올리면 사유
   // 방문일 순: 가까운 날부터 차례로 (지난 예약을 켜면 옛날 것부터 한 줄로 · 날짜 없음은 맨 아래) · 검색했을 때는 방문일이 늦은 것부터 (내림차순)
   const order = listSort==='date' && q ? (a,b)=>String(b.date||'').localeCompare(String(a.date||'')) || String(b.saved||'').localeCompare(String(a.saved||'')) : listOrder;
   const sorted=shown.slice().sort(order); listView = { shown:sorted, stageOf, erpOf };   // 엑셀로 내려받기에 씀 (표에 보이는 그대로)
-  { const pb=$('#pastBar'); pb.hidden = cal; pb.classList.toggle('dim', !!q); $('#pastSum').textContent = `${sorted.length}건${q ? ' (검색 결과 · 기간은 적용 안 됨)' : ''}`; $('#pastTo').min = pf || ''; }
+  { const pb=$('#pastBar'); pb.classList.toggle('dim', !!q); $('#pastSum').textContent = `${sorted.length}건`; $('#pastSum').title = q ? '검색 결과 (검색 중에는 기간이 적용되지 않습니다)' : ''; $('#pastTo').min = pf || ''; }
   $('#listBody').innerHTML=sorted.map(r=>`<tr class="r${isPast(r)?' past':''}${stageOf(r)==='예약취소'?' cancel':''}" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td class="acts">${del(r.id)}</td></tr>`).join('')
-    || `<tr><td colspan="12" class="hint">${q ? `'${esc(q)}'(으)로 찾은 예약이 없습니다.` : !pool.length ? '저장한 단체예약이 없습니다.' : '이 기간 · 보이는 단계에 해당하는 예약이 없습니다. 지난 예약은 「지난 예약 보기」에 체크하거나 기간을 바꾸세요.'}</td></tr>`;
+    || `<tr><td colspan="12" class="hint">${q ? `'${esc(q)}'(으)로 찾은 예약이 없습니다.` : !pool.length ? '저장한 단체예약이 없습니다.' : '이 기간 · 보이는 단계에 해당하는 예약이 없습니다. 지난 예약은 기간의 시작 날짜를 앞으로 바꾸세요.'}</td></tr>`;
   // 캘린더 보기: 같은 단계 버튼 · 검색으로 고른 예약을 달력에. 검색어가 바뀌면 찾은 예약이 있는 달로 (앞으로 있을 가장 가까운 예약 · 없으면 가장 최근에 지난 예약 — 그 뒤 ‹ › 로 넘기는 것은 그대로)
   if(!q) calJumpQ=''; else if(cal && q!==calJumpQ){ calJumpQ=q; const ds=shown.map(r=>r.date).filter(Boolean).sort(), to=ds.find(d=>d>=today) || ds[ds.length-1]; if(to) calMonth=to.slice(0,7); }
   const calList = shown;
@@ -629,7 +628,6 @@ let listViewMode = (()=>{ try{ return localStorage.getItem('sayuwon_list_view')=
 let calMonth = todayYmd().slice(0,7);   // 보고 있는 달 YYYY-MM
 let calJumpQ = '';   // 캘린더를 찾은 예약의 달로 옮겨 준 검색어 (같은 검색어로는 다시 옮기지 않음 — 달을 넘겨 볼 수 있게)
 bfSet('pastFrom', todayYmd());   // 기간의 기본 = 오늘부터 끝까지 (화면을 새로 열면 다시 이 값)
-document.addEventListener('change', e=>{ if(e.target.id!=='pastCk') return; const t=todayYmd(); if(e.target.checked) bfSet('pastFrom',''); else { bfSet('pastFrom', t); if($('#pastTo').value && $('#pastTo').value<t) bfSet('pastTo',''); } renderList(); });   // 「지난 예약 보기」 = 시작을 비움 · 끄면 오늘부터
 // 기간 칸 (시작 ~ 끝): 시작이 끝보다 뒤면 끝을 맞춤 · 「오늘부터」 = 기본으로 (오늘 ~ 끝까지)
 document.addEventListener('change', e=>{ const id=e.target.id; if(id!=='pastFrom' && id!=='pastTo') return; const f=$('#pastFrom').value, t=$('#pastTo').value; if(f && t && t<f) bfSet(id==='pastFrom'?'pastTo':'pastFrom', id==='pastFrom'?f:t); renderList(); });
 document.addEventListener('click', e=>{ if(e.target.id!=='pastClear') return; bfSet('pastFrom', todayYmd()); bfSet('pastTo',''); renderList(); });
@@ -637,7 +635,7 @@ function paintListView(){
   document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on', b.dataset.v===listViewMode));
   $('#listModal .tw').hidden = listViewMode==='cal'; $('#listCal').hidden = listViewMode!=='cal';
   $('#sortSeg').style.visibility = listViewMode==='cal' ? 'hidden' : '';   // 캘린더는 날짜 순이라 정렬이 필요 없음
-  $('#pastLbl').style.visibility = listViewMode==='cal' ? 'hidden' : '';   // 캘린더는 달을 넘겨 지난 예약을 봄
+  $('#pastBar').style.visibility = listViewMode==='cal' ? 'hidden' : '';   // 캘린더는 달을 넘겨 보므로 기간이 필요 없음
 }
 document.addEventListener('click', e=>{ const b=e.target.closest('#viewSeg button'); if(!b) return; listViewMode=b.dataset.v; try{ localStorage.setItem('sayuwon_list_view', listViewMode); }catch(_){} renderList(); });
 function renderListCal(list, stageOf, erpOf, needCall){
