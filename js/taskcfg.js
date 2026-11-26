@@ -178,6 +178,75 @@ function tcfgPackC(c){ const o={id:c.id, title:String(c.title||'').trim(), due:t
 // 담당 (2026-11-25): 비우면 그 예약의 영업 담당 · 멤버를 고르면 그 사람에게 (나의 할일 · 알림 · 첫 화면 모두) · 단체 준비는 예약 내역의 담당자마다라 못 바꿈
 const TCFG_WHO_FIXED = { prep:'각 프로그램 · 굿즈 담당자 (예약 내역의 담당 칸 · 사람마다 하나)' };
 const tcfgWhoTxt = (id, c) => TCFG_WHO_FIXED[id] ? '프로그램 · 굿즈 담당자마다' : (String((c||{}).who||'').trim() || '영업 담당');
+// ===== 자동 체크 조건 (2026-11-26 · 화면에 보여 주기만) =====
+// 과업마다: done = 과업 자체가 저절로 끝난 것으로 체크되는 때 · hand = 직접 체크할 때 · back = 다시 열리는 때 · subs = 세부 과업이 저절로 체크되는 때 (원래 키 → 글) · short = 한눈에 보기 표에 쓰는 짧은 글
+// 조건은 설정 값이 아니라 코드에 과업마다 정해져 있음 (예약내역&전산 확인의 켜고 끄기 하나만 설정) — 그 규칙을 바꾸면 이 글도 같이:
+//   js/group/09-tasks.js syncAutoTasks(전산 예약 · 전산 내역 대조 · 전산 예약 수정 · 담당 입력 · 메뉴 선택 · 결제링크 · 입금 확인 · 예약내역&전산 확인 · 통화 메모 확인 · 세부 과업을 모두 체크하면 완료) · takeDocs(견적서 · 거래명세서 「생성」)
+//   js/group/11-erp-paste.js applyErpList(전산 내역을 붙여 넣으면 완료) · js/group/13-start-my.js settleTasks(열지 않은 예약) · js/group/12-quote-stage-list.js pplTask(다시 열림)
+const TCFG_AUTO = {
+  erp: { short:'전산 내역을 붙여 넣으면', done:['과업을 체크하면 전산 내역 붙여넣기 창이 열리고, 전산 내역을 붙여 넣으면 완료 (전산 등록일이 기록됨)', '관리자 사이트에서 가져온 예약은 이미 전산에 있는 예약이라 처음부터 완료'],
+    hand:'체크만으로는 끝나지 않음 — 전산 내역을 붙여 넣어야 함 (나의 할일 · 알림에서는 「열기」만)', back:'과업 체크를 풀면 전산 등록 기록이 지워지고 다시 열림' },
+  erpcheck: { short:'전산 내역의 할인 합계 · 총 금액이 예약과 같으면', done:['전산 내역을 붙여 넣었을 때 예약 내용과 「할인 합계」 · 「총 금액」이 둘 다 같으면 완료'],
+    hand:'직접 체크할 수 없음 — 체크 칸을 누르면 전산 내역 붙여넣기 창이 열림', back:'예약을 고치거나 전산 내역을 다시 붙여 넣어 금액이 달라지면 다시 열림' },
+  erpfix: { short:'예약 내용이 전산에 올린 때와 같아지면 · 전산 내역을 다시 붙여 넣으면', done:['예약 내용을 되돌려 전산에 올린 때와 다시 같아지면 완료 (세부 과업이 없을 때)', '예약 내역(품목 · 인원 · 할인)이 바뀐 경우: 과업을 체크하면 전산 내역 붙여넣기 창이 열리고, 붙여 넣으면 완료'],
+    hand:'예약 내역이 아닌 것(날짜 · 시간 등)만 바뀐 경우는 직접 체크하면 완료', back:'완료한 뒤 예약 내용이 또 바뀌면 다시 열림 (마감 = 그날)' },
+  progstaff: { short:'담당 칸을 모두 채우면', done:['프로그램 · 굿즈 옆 「담당」 칸을 모두 채우면 완료'], hand:'직접 체크할 수 없음 — 담당 칸을 채워야 끝남', back:'담당이 빈 칸이 새로 생기면 다시 열림' },
+  mbmenu: { short:'몽몽마방 메뉴를 고르면', done:['몽몽마방 식사에서 메뉴를 고르면 완료'], hand:'직접 체크할 수 없음 — 메뉴를 골라야 끝남', back:'고른 메뉴를 다시 비우면 다시 열림' },
+  linksend: { short:'「결제링크 전송」을 누르면', done:['예약 내용 결제 칸 아래 「결제링크 전송」을 누르면 완료 (누른 일시가 기록됨)'], hand:'과업을 직접 체크해도 같음 (체크한 일시가 전송 일시로 기록됨)', back:'결제링크 전송 기록을 지우면 다시 열림' },
+  paycheck: { short:'「입금 확인」을 누르면', done:['예약 내용 결제 칸 아래 「입금 확인」을 누르면 완료 (누른 일시가 기록됨)', '결제링크를 보낸 다음날부터 뜨는 결제 확인 알림에서 「입금 확인함」을 눌러도 완료'],
+    hand:'과업을 직접 체크해도 같음 · 결제링크 전송을 먼저 끝내야 체크할 수 있음', back:'결제링크 전송을 풀면 입금 확인도 함께 풀려 다시 열림' },
+  pplchk: { short:'가장 최근 전산 내역과 예약 내역이 같으면', done:['가장 최근에 붙여 넣은 전산 내역과 지금 예약 내역의 총 금액 · 할인이 같으면 완료 (바뀐 내용이 이미 전산에 반영된 것 · 아래 체크로 끌 수 있음)'], back:'완료한 뒤 관람 인원이 또 바뀌면 다시 열림' },
+  memocheck: { short:'안 읽은 메모가 없어지면', done:['안 읽은 메모가 하나도 남지 않으면 완료'], hand:'과업을 직접 체크하면 안 읽은 메모가 모두 「확인함」으로 바뀌고 완료', back:'완료한 뒤 다른 사람이 통화 메모를 또 고치거나 메모를 남기면 다시 열림 (마감 = 그날)' },
+  wkcheck: { short:'예전 한 줄 점검에서 이미 체크해 둔 예약이면', done:['예전 「다음주 예약 점검」 한 줄(나의 할일)에서 이미 체크해 둔 예약은 처음부터 완료'], back:'완료한 뒤 미정 · 미입력 항목이 새로 생기거나 현장 결제로 바뀌면 다시 열림' },
+  staffbrief: { back:'새 담당자가 생기면 그 사람 줄이 더해지고 다시 열림' },
+  erpkeep: { back:'완료한 뒤 전산 내역을 다시 붙여 넣고 「예약 내용 그대로」를 또 고르면 다시 열림' },
+  quote: { subs:{ make:['견적서를 출력하면', '이 예약에서 「견적서 만들기」로 견적서 화면을 열어 출력하면 체크'] } },
+  stmt: { subs:{ make:['거래명세서를 출력하면', '이 예약에서 「거래명세서 만들기」로 견적서 화면을 열어 출력하면 체크'] } } };
+const TCFG_SUB_NOEND = new Set(['erp','erpcheck','progstaff','mbmenu','linksend']);   // 세부 과업을 모두 체크해도 끝나지 않는 과업 (자기 조건으로만 끝남)
+const tcfgAutoOf = (id, builtin) => (builtin && TCFG_AUTO[id]) || {};
+// 과업 자체가 저절로 체크되는 때 (예약내역&전산 확인은 꺼 두었으면 없음)
+const tcfgAutoDone = (id, c, builtin) => id==='pplchk' && c && c.autoDone===false ? [] : (tcfgAutoOf(id, builtin).done||[]);
+// 세부 과업 하나가 저절로 체크되는 때: [짧은 글, 긴 글] (없으면 null = 직접 체크). 원래 세부 과업의 이름을 그대로 둔 것만 (이름을 바꾸면 새 세부 과업이 됨)
+const tcfgSubAuto = (id, builtin, label) => { const s=tcfgAutoOf(id, builtin).subs; return s && TCFG_BASE_DOC[id] ? (s[tcfgDocKey(id, String(label||'').trim())]||null) : null; };
+// 예약 내용에 따라 저절로 들어가는 세부 과업: [이름, 언제 들어가나, 언제 빠지나]
+function tcfgDynSubs(id, c, builtin){ if(!builtin) return [];
+  if(id==='wkcheck') return [c.onsiteSub ? [ONSITE_SUB, '결제 방법이 현장 결제이면 들어감', '현장 결제가 아니게 되면 빠짐'] : null, c.autoSubs ? ['미정 · ○○ / 미입력 · ○○', '미정 항목 · 아직 안 넣은 칸마다 한 줄씩 들어감', '미정이 정해지거나 빈 칸을 채우면 그 줄은 빠짐'] : null].filter(Boolean);
+  if(id==='staffbrief') return [['담당자 이름 : 맡은 프로그램 · 굿즈', '프로그램 · 굿즈 담당자마다 한 줄씩 들어감', '담당에서 빠진 사람의 줄은 (체크 전이면) 빠짐']];
+  return []; }
+const tcfgHasSubs = (id, c, builtin) => tcfgSubsClean(c.subs).length>0 || tcfgDynSubs(id, c, builtin).length>0;
+const tcfgHasAuto = it => tcfgAutoDone(it.id, it.c, it.builtin).length>0 || tcfgSubsClean(it.c.subs).some(s=>tcfgSubAuto(it.id, it.builtin, s));
+// 편집 화면의 카드 「언제 끝난 것으로 체크되나」: 과업 (자동 · 직접 · 다시 열림) + 세부 과업마다 (자동 · 직접)
+function tcfgDoneHTML(T, c, builtin, id){
+  const a=tcfgAutoOf(id, builtin), subs=tcfgSubsClean(c.subs), dyn=tcfgDynSubs(id, c, builtin), has=subs.length>0 || dyn.length>0, noEnd=builtin && TCFG_SUB_NOEND.has(id);
+  const li=(k,l,s)=>`<li><span class="tag ${k}">${l}</span><span>${esc(s)}</span></li>`, L=[];
+  tcfgAutoDone(id, c, builtin).forEach(s=>L.push(li('auto','자동',s)));
+  if(id==='pplchk' && builtin && c.autoDone===false) L.push(li('hand','꺼 둠','전산 내역이 이미 같아도 저절로 완료하지 않음 (아래 체크를 켜면 다시 자동)'));
+  if(has) L.push(noEnd ? li('hand','참고','세부 과업을 모두 체크해도 이 과업은 끝나지 않음 (위 조건으로만 끝남)') : li('auto','자동','세부 과업을 모두 체크하면 과업도 완료'));
+  L.push(li('hand','직접', a.hand || ('과업을 체크하면 완료'+(has ? ' (세부 과업도 모두 체크됨)' : ''))));
+  if(a.back) L.push(li('back','다시 열림',a.back));
+  if(has && !noEnd) L.push(li('back','다시 열림','세부 과업 체크를 하나라도 풀면 다시 열림 (과업을 직접 체크해 끝낸 경우는 그대로)'));
+  const S=[...subs.map((s,i)=>{ const au=tcfgSubAuto(id, builtin, s); return `<li><span class="tcfg-n">${i+1}</span><span><b>${esc(s)}</b> ${au ? `<span class="tag auto">자동</span> ${esc(au[1])} · 직접 체크해도 됨` : '<span class="tag hand">직접</span> 직접 체크'}</span></li>`; }),
+    ...dyn.map(d=>`<li><span class="tcfg-n">＋</span><span><b>${esc(d[0])}</b> <span class="tag hand">직접</span> 직접 체크 · ${esc(d[1])} · ${esc(d[2])}</span></li>`)];
+  return `<div class="tcfg-card tcfg-donecard"><h4>언제 끝난 것으로 체크되나 <small class="hint">자동 체크 조건은 과업마다 정해진 규칙이라 여기서는 보기만 합니다 · 조건이 사라지면 손대지 않은 과업은 목록에서 빠짐</small></h4>
+      <div class="tcfg-dsec"><div class="tcfg-lab">과업</div><ul class="tcfg-dl">${L.join('')}</ul>
+        ${builtin && id==='pplchk' ? `<div class="tcfg-auto"><label class="chk"><input type="checkbox" data-tf="${T}|autoDone"${c.autoDone?' checked':''}> <b>전산 내역이 이미 같으면 저절로 완료</b> <small class="hint">— 가장 최근 전산 내역과 예약 내역의 총 금액 · 할인이 같으면</small></label></div>` : ''}</div>
+      <div class="tcfg-dsec"><div class="tcfg-lab">세부 과업</div>${S.length ? `<ul class="tcfg-dl">${S.join('')}</ul>` : '<span class="hint">세부 과업이 없습니다.</span>'}</div>
+    </div>`; }
+// 한눈에 보기 표의 「자동 체크」 칸
+function tcfgAutoCell(it){ const a=tcfgAutoOf(it.id, it.builtin), c=it.c, out=[];
+  if(tcfgAutoDone(it.id, c, it.builtin).length) out.push(`<div><span class="tag auto">과업</span> ${esc(a.short || tcfgAutoDone(it.id, c, it.builtin)[0])}</div>`);
+  if(tcfgHasSubs(it.id, c, it.builtin) && !(it.builtin && TCFG_SUB_NOEND.has(it.id))) out.push(`<div><span class="tag auto">과업</span> 세부 과업을 모두 체크하면</div>`);
+  tcfgSubsClean(c.subs).forEach(s=>{ const au=tcfgSubAuto(it.id, it.builtin, s); if(au) out.push(`<div><span class="tag auto">세부</span> 「${esc(s)}」 — ${esc(au[0])}</div>`); });
+  return out.join('') || '<span class="hint">직접 체크</span>'; }
+const TCFG_CSS = `#tcfgModal .tag.auto{background:#ece6f7;color:#5b3fa0}#tcfgModal .tag.hand{background:#ece9e2;color:#5f5b52}#tcfgModal .tag.back{background:#fff3d6;color:#8a5a00}
+#tcfgModal .tcfg-dl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.55}
+#tcfgModal .tcfg-dl li{display:flex;gap:8px;align-items:baseline}
+#tcfgModal .tcfg-dl li>.tag{flex:none;min-width:54px;text-align:center;white-space:nowrap}
+#tcfgModal .tcfg-dl .tcfg-n{align-self:flex-start;margin-top:1px}
+#tcfgModal .tcfg-dsec+.tcfg-dsec{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+#tcfgModal .tcfg-dsec .tcfg-lab{font-weight:700;color:var(--ink);margin:0 0 6px}
+#tcfgModal .tcfg-sub .tag{flex:none;white-space:nowrap}
+#tcfgModal .tcfg-table td.au{min-width:210px}#tcfgModal .tcfg-table td.au div+div{margin-top:4px}`;   // 이 화면만의 모양 (css/group.css 의 #tcfgModal 규칙에 더함)
 // 목록에 쓰는 과업들: 원래 과업 → 새 과업
 function tcfgItems(){ const d=tcfgDraft; if(!d) return [];
   return [...Object.keys(TCFG_BASE_TITLES).map(id=>({T:'b:'+id, id, c:d.b[id], builtin:true})), ...(d.c||[]).map((c,i)=>({T:'c:'+i, id:c.id, c, builtin:false}))]; }
@@ -185,11 +254,11 @@ const tcfgName = it => String(it.c.title||'').trim() || (it.builtin ? TCFG_BASE_
 const tcfgChanged = it => it.builtin && Object.keys(tcfgPack(it.id, it.c)).length>0;
 function tcfgModal(){ let m=$('#tcfgModal'); if(m) return m;
   m=document.createElement('div'); m.className='modal'; m.id='tcfgModal'; m.hidden=true;
-  m.innerHTML=`<section class="panel tcfg-pop" role="dialog" aria-modal="true" aria-labelledby="tcfgTitle">
+  m.innerHTML=`<style>${TCFG_CSS}</style><section class="panel tcfg-pop" role="dialog" aria-modal="true" aria-labelledby="tcfgTitle">
     <div class="tcfg-head"><h2 id="tcfgTitle">추후과업 메시지 관리</h2>
       <span class="seg tcfg-seg"><button type="button" data-tcview="edit">과업별 편집</button><button type="button" data-tcview="table">한눈에 보기</button></span>
       <small class="hint" id="tcfgMsg"></small><button type="button" class="tcfg-x" data-tcfgclose title="닫기 (Esc)" aria-label="닫기">×</button></div>
-    <p class="hint tcfg-lead">단체예약에 자동으로 생기는 추후 과업의 <b>이름 · 언제 생길지(조건) · 마감 · 담당 · 세부 과업 · 과업 보조 설명 · 복사 멘트</b>을 모두 고칠 수 있습니다. 저장하면 모든 직원에게 같게 적용됩니다.</p>
+    <p class="hint tcfg-lead">단체예약에 자동으로 생기는 추후 과업의 <b>이름 · 언제 생길지(조건) · 마감 · 담당 · 세부 과업 · 과업 보조 설명 · 복사 멘트</b>을 모두 고칠 수 있습니다. 과업 · 세부 과업이 <b>언제 자동으로 체크되는지</b>도 과업마다 볼 수 있습니다. 저장하면 모든 직원에게 같게 적용됩니다.</p>
     <div class="tcfg-main" id="tcfgMain">
       <aside class="tcfg-side"><input id="tcfgQ" class="tcfg-q" type="search" placeholder="과업 찾기 (이름 · 조건 · 담당)" data-ime="ko" autocomplete="off"><div id="tcfgList" class="tcfg-items"></div><button type="button" class="btn primary" data-tcfgadd>＋ 새 과업 추가</button></aside>
       <div class="tcfg-pane" id="tcfgBody"></div>
@@ -239,12 +308,12 @@ function tcfgEdHTML(T, c, builtin, id){
       <div class="tcfg-meta">${builtin ? `<span class="tag">원래 있는 과업</span>${TCFG_BASE_TITLES[id] && String(c.title||'').trim() && String(c.title).trim()!==TCFG_BASE_TITLES[id] ? `<span class="hint">원래 이름: ${esc(TCFG_BASE_TITLES[id])}</span>` : ''}` : '<span class="tag">새 과업</span>'}<span class="sp"></span>${builtin ? `<button type="button" class="btn primary sm" data-tcreset="${T}">원래대로 되돌리기</button>` : `<button type="button" class="btn primary sm" data-tcdel="${T}">이 과업 삭제</button>`}</div>
     </div>
     <div class="tcfg-card"><h4>세부 과업 <small class="hint">과업 안에 체크 칸으로 들어감 · 모두 체크하면 그 과업 완료</small></h4>
-      <div class="tcfg-subs">${subs.map((s,i)=>`<span class="tcfg-sub"><span class="tcfg-n">${i+1}</span><input class="tcfg-in" data-tsub="${T}|${i}" data-ime="ko" value="${esc(s)}"><button type="button" class="del" data-tsubdel="${T}|${i}" title="이 세부 과업 빼기">×</button></span>`).join('')}<span class="tcfg-sub"><span class="tcfg-n">＋</span><input class="tcfg-in" data-tsubnew="${T}" data-ime="ko" placeholder="세부 과업 더하기 (적고 Enter)"></span></div>
+      <div class="tcfg-subs">${subs.map((s,i)=>`<span class="tcfg-sub"><span class="tcfg-n">${i+1}</span><input class="tcfg-in" data-tsub="${T}|${i}" data-ime="ko" value="${esc(s)}">${(au=>au ? `<span class="tag auto" title="${esc(au[1])}">자동 체크 · ${esc(au[0])}</span>` : '<span class="tag hand">직접 체크</span>')(tcfgSubAuto(id, builtin, s))}<button type="button" class="del" data-tsubdel="${T}|${i}" title="이 세부 과업 빼기">×</button></span>`).join('')}<span class="tcfg-sub"><span class="tcfg-n">＋</span><input class="tcfg-in" data-tsubnew="${T}" data-ime="ko" placeholder="세부 과업 더하기 (적고 Enter)"></span></div>
       ${builtin && id==='wkcheck' ? `<div class="tcfg-auto"><div class="tcfg-lab">예약 내용에 따라 저절로 넣는 세부 과업 (체크를 빼면 넣지 않음)</div>
         <label class="chk"><input type="checkbox" data-tf="${T}|onsiteSub"${c.onsiteSub?' checked':''}> <b>${esc(ONSITE_SUB)}</b> <small class="hint">— 결제 방법이 현장 결제일 때 · 최종 인원 확인 · 당일 인원 변경이 어렵다는 안내</small></label>
         <label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> <b>미정 항목에 대한 내용</b> <small class="hint">— 미정 항목 · 아직 안 넣은 칸을 하나씩 (예: 「미정 · 결제 방법」)</small></label></div>` : ''}
-      ${builtin && id==='pplchk' ? `<div class="tcfg-auto"><label class="chk"><input type="checkbox" data-tf="${T}|autoDone"${c.autoDone?' checked':''}> <b>전산 내역이 이미 같으면 저절로 완료</b> <small class="hint">— 가장 최근 전산 내역과 예약 내역의 총 금액 · 할인이 같으면</small></label></div>` : ''}
     </div>
+    ${tcfgDoneHTML(T, c, builtin, id)}
     <div class="tcfg-card"><h4>언제 생기고 · 언제까지 · 누구에게 <small class="hint">조건이 모두 맞을 때 생김 · 조건이 없으면 ${builtin?'모든 예약':'가예약 · 예약확정인 모든 예약'}</small></h4>
       <div class="tcfg-when">
         <div class="tcfg-wl"><div class="tcfg-lab">언제 생길지</div><div class="tcfg-conds">${conds.map(condRow).join('') || `<span class="hint">모든 예약</span>`}</div><button type="button" class="btn primary sm" data-tccadd="${T}">＋ 조건 더하기</button></div>
@@ -305,7 +374,7 @@ function tcfgPaintList(){ const box=$('#tcfgList'); if(!box || !tcfgDraft) retur
   const row = it => { const name=tcfgName(it), when=tcfgWhenTxt(it), sub=`${when} · 마감 ${tcfgDueTxt(it.c.due||{base:'visit',n:3})} · ${tcfgWhoTxt(it.id, it.c)}`;
     if(q && !(name+' '+sub).toLowerCase().includes(q)) return '';
     const n=tcfgSubsClean(it.c.subs).length;
-    const tags=(it.c.off?'<span class="tag off">끔</span>':'')+(tcfgChanged(it)?'<span class="tag chg">고침</span>':'')+(!it.builtin?'<span class="tag new">새 과업</span>':'')+(n?`<span class="tag">세부 ${n}</span>`:'')+(String(it.c.who||'').trim()?`<span class="tag who">${esc(it.c.who)}</span>`:'');
+    const tags=(it.c.off?'<span class="tag off">끔</span>':'')+(tcfgChanged(it)?'<span class="tag chg">고침</span>':'')+(!it.builtin?'<span class="tag new">새 과업</span>':'')+(n?`<span class="tag">세부 ${n}</span>`:'')+(tcfgHasAuto(it)?'<span class="tag auto">자동 체크</span>':'')+(String(it.c.who||'').trim()?`<span class="tag who">${esc(it.c.who)}</span>`:'');
     return `<button type="button" class="tcfg-item${it.T===tcfgOpenId?' on':''}${it.c.off?' off':''}" data-tcfgopen="${esc(it.T)}"><span class="nm">${esc(name)}</span>${tags?`<span class="tg">${tags}</span>`:''}<span class="sm">${esc(sub)}</span></button>`; };
   const items=tcfgItems(), B=items.filter(i=>i.builtin).map(row).join(''), C=items.filter(i=>!i.builtin).map(row).join('');
   box.innerHTML = `<div class="tcfg-sec">원래 있는 과업 <small>${items.filter(i=>i.builtin).length}</small></div>${B || '<p class="hint">찾는 과업이 없습니다.</p>'}`
@@ -320,9 +389,10 @@ function tcfgTableHTML(){
       <td class="nm"><b>${esc(tcfgName(it))}</b>${!it.builtin?' <span class="tag new">새 과업</span>':''}${tcfgChanged(it)?' <span class="tag chg">고침</span>':''}</td>
       <td>${c.off?'<span class="tag off">끔</span>':'<span class="tag on">켜짐</span>'}</td>
       <td>${esc(tcfgWhenTxt(it))}</td><td>${esc(tcfgDueTxt(c.due||{base:'visit',n:3}))}</td><td>${esc(tcfgWhoTxt(it.id, c))}</td>
-      <td>${subs.length ? `<ol>${subs.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>` : (it.id==='wkcheck' ? '<span class="hint">자동</span>' : '')}</td>
+      <td>${subs.length ? `<ol>${subs.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>` : ''}${tcfgDynSubs(it.id, c, it.builtin).map(d=>`<div class="hint">＋ ${esc(d[0])} (예약 내용에 따라 저절로 들어감)</div>`).join('')}</td>
+      <td class="au">${tcfgAutoCell(it)}</td>
       <td class="tx">${esc(cut(c.desc, 60))}</td><td class="tx">${esc(cut(c.note, 80))}</td></tr>`; }).join('');
-  return `<div class="tcfg-tablewrap"><table class="tcfg-table"><thead><tr><th>과업</th><th>상태</th><th>언제 생길지</th><th>마감</th><th>담당</th><th>세부 과업</th><th>과업 보조 설명</th><th>복사 멘트</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
+  return `<div class="tcfg-tablewrap"><table class="tcfg-table"><thead><tr><th>과업</th><th>상태</th><th>언제 생길지</th><th>마감</th><th>담당</th><th>세부 과업</th><th>자동 체크</th><th>과업 보조 설명</th><th>복사 멘트</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
 function tcfgPaint(){ const d=tcfgDraft; if(!d) return; const body=$('#tcfgBody'), main=$('#tcfgMain');
   document.querySelectorAll('#tcfgModal [data-tcview]').forEach(b=>b.classList.toggle('on', b.dataset.tcview===tcfgView));
   main.classList.toggle('table', tcfgView==='table');
