@@ -197,6 +197,7 @@ function bfPaintDate(){ const w=document.getElementById('bfRangeW'), b=document.
   b.textContent = bfOn ? '전체 보기' : '기간 설정'; b.title = bfOn ? '날짜 조건 끄기 (전체)' : '누르면 오늘 ~ 오늘로 켜짐 (시작 = 끝이면 그날 하루 · 다르면 기간)'; }
 function bkFindPaint(n, by){ const F=bkFind(), el=document.getElementById('bfN');   // by: 모든 목록에서 찾았을 때 목록마다 몇 건인지 (예: 「대관 2 · 도슨트 3」)
   if(el) el.textContent = F.on ? `찾은 예약 ${n}건${by ? ` (${by})` : ''}${F.from ? ` · ${F.from===F.to ? mdLabel(F.from)+' 하루' : mdLabel(F.from)+' ~ '+mdLabel(F.to)}` : ''}` : '';
+  if(el) el.style.whiteSpace = by ? 'normal' : '';   // 목록별 건수는 길어서 줄을 바꿈 (좁은 왼쪽 칸 · 휴대폰에서 잘리지 않게)
   bfPaintDate(); }
 document.addEventListener('click', e=>{ if(e.target.id!=='bfRangeBtn') return; bfOn=!bfOn;
   if(bfOn){ const t=todayYmd(); bfSet('bfFrom', t); bfSet('bfTo', t); } else { bfSet('bfFrom',''); bfSet('bfTo',''); }
@@ -233,8 +234,9 @@ function paintBook(){
   labelCells('#bookBody', BK_COLS(c));   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
 }
 // 대관 · 도슨트 · 프로그램 · 음료쿠폰 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표 · 수정 단추의 data-bcat = 그 줄의 목록)
+const bkTagged = (tag, html) => tag ? `<span style="display:block;white-space:normal;min-width:0">${tag}${html}</span>` : html;   // 이름표가 붙으면 내용 칸 안에서 줄을 바꿈 (옆 칸으로 넘치지 않게)
 const bkWhat = x => x.cat==='rent' ? (x.place||'(장소 미정)') : x.cat==='docent' ? [x.kind, x.place].filter(Boolean).join(' · ') : (x.item||'');   // 내용 칸
-const bkGenRow = (x, today, tag) => bkRowHTML({d:x.d, tm:(x.tm||(x.cat==='docent'?'(미정)':''))+(x.hrs?` (${x.hrs}시간)`:''), org:x.org, n:x.ppl?x.ppl+(x.cat==='coupon'?'장':'명'):'', x:tag+esc(bkWhat(x)), staff:x.staff, note:esc(x.note||'')},
+const bkGenRow = (x, today, tag) => bkRowHTML({d:x.d, tm:(x.tm||(x.cat==='docent'?'(미정)':''))+(x.hrs?` (${x.hrs}시간)`:''), org:x.org, n:x.ppl?x.ppl+(x.cat==='coupon'?'장':'명'):'', x:bkTagged(tag, esc(bkWhat(x))), staff:x.staff, note:esc(x.note||'')},
       `r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}`, x.manual?'':` data-bopen="${esc(x.id)}"`,
       `${x.manual ? `<button type="button" class="btn sm" data-bkedit="${esc(x.id)}" data-bcat="${esc(x.cat)}">수정</button><button type="button" class="del" data-bkdel="${esc(x.id)}" title="빼기">×</button>` : x.me ? '<span class="tag call" title="지금 화면에서 열어 둔 예약 (저장 전 내용도 바로)">지금 이 예약</span>' : '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>'}`);
 // ===== 모든 목록에서 찾기 (2026-11-27): 찾기 칸에 글자를 넣으면 고른 목록 하나가 아니라 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 다섯 목록을 한 표에 (한 사람이 여러 목록의 담당일 때가 있어서)
@@ -514,7 +516,7 @@ function mbAutoRows(){ try{
 }catch(_){ return []; } }
 function mbAllRows(){ return [...mbDb().rows.map((x,i)=>({...x, i})), ...mbAutoRows()]; }   // 직접 넣은 것(i = 몇 번째) + 단체 예약에서 자동
 // 몽몽마방 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표)
-function mbRow(x, today, tag){ return bkRowHTML({d:x.d, tm:x.t, org:x.n, n:x.p?x.p+'명':'', x:tag+esc(x.m||''), staff:x.staff||'', note:[x.pay==='마방'?'마방 결제':'', esc(x.note||'')].filter(Boolean).join(' · ')},
+function mbRow(x, today, tag){ return bkRowHTML({d:x.d, tm:x.t, org:x.n, n:x.p?x.p+'명':'', x:bkTagged(tag, esc(x.m||'')), staff:x.staff||'', note:[x.pay==='마방'?'마방 결제':'', esc(x.note||'')].filter(Boolean).join(' · ')},
       `${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}`, x.auto && !x.cur?` data-bopen="${esc(x.id)}"`:'',
       `${x.cur ? '<span class="tag call" title="지금 화면에서 입력 중인 예약 (저장 전이어도 바로)">지금 이 예약</span>' : x.auto ? '<span class="tag" title="단체 예약에서 자동 · 줄을 누르면 그 예약">단체예약</span>' : `<button type="button" class="btn sm" data-mbedit="${x.i}" data-bcat="mb">수정</button><button type="button" class="del" data-mbdel="${x.i}" title="이 예약 빼기">×</button>`}`); }
 function paintMbDb(){
