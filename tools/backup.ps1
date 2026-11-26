@@ -117,11 +117,11 @@ try {
 }
 
 if ($Setup) {
-  # 매주 월요일 9시 · 그때 꺼져 있었으면 켠 뒤에. 이미 걸려 있으면 이 PC · 이 폴더 것으로 다시 검
+  # 매주 수요일 9시 · 그때 꺼져 있었으면 켠 뒤에. 이미 걸려 있으면 이 PC · 이 폴더 것으로 다시 검
   $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -ExecutionPolicy Bypass -File "' + $PSCommandPath + '"')
-  $trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At 9am
+  $trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Wednesday -At 9am
   Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings (New-ScheduledTaskSettingsSet -StartWhenAvailable) -Force | Out-Null
-  "매주 자동 백업을 걸었습니다 (월요일 9시 · 꺼져 있었으면 켠 뒤에).  저장 폴더: $dest"
+  "매주 자동 백업을 걸었습니다 (수요일 9시 · 꺼져 있었으면 켠 뒤에).  저장 폴더: $dest"
   '이 저장소 폴더를 옮기면 다시 -Setup 을 해 주세요.'
 }
 exit 0

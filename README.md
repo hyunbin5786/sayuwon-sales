@@ -6,12 +6,6 @@
 - 자료: Cloudflare (서버 = Worker · DB = D1)
 - 고치는 사람: 코드를 모르는 운영팀 직원이 **Claude Code 에게 말로 시켜서** 고칩니다
 
-> **⚠️ 이 저장소를 받아 개발을 시작한다면 — 가장 먼저 백업 설정**
->
-> 이 시스템의 자료(예약 · 통화 기록 · 멤버 · 견적서 · 매뉴얼)는 DB 한 곳에만 있고, **백업은 개발을 맡은 사람의 PC 가 받아 둡니다.** 서버가 알아서 해 주는 백업은 없습니다. **코드를 한 줄이라도 고치기 전에** 내 PC 에 백업을 걸어 주세요.
->
-> Claude Code 로 이 폴더를 열고 **「백업 설정부터 해 줘」** 라고 하면 됩니다. 순서는 [개발-시작하기.md](개발-시작하기.md) 5절.
-
 ## 처음이라면
 
 | 누구 | 읽을 것 |
@@ -23,7 +17,7 @@
 
 1. `git clone https://github.com/hyunbin5786/sayuwon-sales.git` → 그 폴더에서 `git checkout test` (개발은 늘 `test` 에서)
 2. [CLAUDE.md](CLAUDE.md) 를 끝까지 읽고 그대로 따른다 (요청한 사람은 개발자가 아니다 — 쉬운 한국어로)
-3. `powershell -ExecutionPolicy Bypass -File tools\check.ps1` — 지금 상태와 「먼저 할 일」이 나온다 (저장에 남을 이름 · 백업이 맨 먼저 · 종료 코드 3 은 오류가 아니라 「할 일이 있다」는 뜻)
+3. `powershell -ExecutionPolicy Bypass -File tools\check.ps1` — 지금 상태와 「먼저 할 일」이 나온다 (저장에 남을 이름이 맨 먼저 · 종료 코드 3 은 오류가 아니라 「할 일이 있다」는 뜻)
 4. 어느 파일이 무엇인지는 [docs/코드-지도.md](docs/코드-지도.md), 화면의 규칙은 [docs/README.md](docs/README.md) 의 「화면별로 찾기」
 5. 받은 폴더가 세션을 연 폴더와 다르면, 사람에게 「다음부터는 Claude Code 에서 `sayuwon-sales` 폴더를 열어 주세요」 라고 알린다 (그래야 CLAUDE.md 가 자동으로 읽힌다)
 
@@ -37,8 +31,6 @@
 | DB (Cloudflare D1) | `sayuwon` | `sayuwon-test` |
 
 - 올라갔는지 보기: [GitHub Actions 「사이트 배포」](https://github.com/hyunbin5786/sayuwon-sales/actions) (올리고 1~2분)
-- 자료 전체 내려받기: 배포 사이트 주소 뒤 [`/tools/export.html`](https://hyunbin5786.github.io/sayuwon-sales/tools/export.html) · 백업에서 되살리기: [`/tools/restore.html`](https://hyunbin5786.github.io/sayuwon-sales/tools/restore.html)
-
 ## 화면
 
 메뉴에 나오는 순서입니다. 「배포」 · 「테스트」를 누르면 그 화면이 열립니다 (로그인 = 이름 + 사번). **상태**의 「테스트에만」은 아직 만드는 중이라 배포 사이트에서는 가려 둔 화면입니다.
@@ -85,10 +77,8 @@ js/group/             단체고객 화면의 소스 17조각 → 합쳐서 js/gr
 document/             견적서 / 거래명세서 · 고객 견적 요청 (화면 + css + js · 품목 · 가격 목록도 여기)
 manual/               첫 화면 「매뉴얼」 버튼이 보여 주는 글
 cloudflare/           서버 코드 worker.js · DB 표 schema.sql  (Cloudflare 화면에 붙여 넣어 올림 — git push 로는 안 올라감)
-tools/                도구: check(상태 점검) · serve(내 PC 에서 띄우기) · backup(백업) · test-start(새 개발 시작)
-                            build(단체 화면 합치기) · bump(?v= 올리기) · map(코드 지도 다시 만들기)
-                            export.html(전체 내려받기) · restore.html(되살리기)
-docs/                 문서: 코드-지도.md(자동) · 바뀐-것-기록.md · 화면/ · 서버-DB/ · 개발/
+tools/                도구: check(상태 점검) · serve(내 PC 에서 띄우기) · test-start(새 개발 시작)
+                            build(단체 화면 합치기) · bump(?v= 올리기) · map(코드 지도 다시 만들기)docs/                 문서: 코드-지도.md(자동) · 바뀐-것-기록.md · 화면/ · 서버-DB/ · 개발/
 .github/workflows/    main · test 에 올리면 사이트를 자동으로 올리는 설정
 ```
 
@@ -106,7 +96,7 @@ docs/                 문서: 코드-지도.md(자동) · 바뀐-것-기록.md �
 
 | 문서 | 무엇 |
 |---|---|
-| [개발-시작하기.md](개발-시작하기.md) | 사람용 시작 안내 (백업 설정이 맨 먼저) |
+| [개발-시작하기.md](개발-시작하기.md) | 사람용 시작 안내 |
 | [CLAUDE.md](CLAUDE.md) | 일하는 규칙 · DB 구조 · 철칙 |
 | [docs/README.md](docs/README.md) | 문서 안내 — 화면별로 찾기 · 서버 · DB · 개발 방법 · 번호로 찾기 |
 | [docs/코드-지도.md](docs/코드-지도.md) | 화면 ↔ 파일 · 파일마다 하는 일 · 서버 동작 · DB 표 (자동) |
