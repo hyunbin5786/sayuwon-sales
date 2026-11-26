@@ -1370,3 +1370,8 @@ body:has(.modal:not([hidden])) #fakeBar{display:none}   /* 팝업이 떠 있으�
   #myModal .etc-addbox .etc-rep > .etc-due, #myModal .etc-addbox .etc-rep > .etc-dows, #myModal .etc-addbox .etc-rep > select{margin-left:0}
   #myModal .my-col input[type=checkbox]{width:22px;height:22px;flex:none}
 }
+/* 휴대폰 나의 할일 「오늘 마감」(= PC 의 메인 탭 · 2026-11-26): 오늘 마감 목록만 — 개인 업무 입력 상자와 구분을 골라 보는 칸(.my-colpick 이 있는 칸)은 숨김. 구분별 과업은 위 드롭다운에서 */
+@media (max-width:700px){
+  #myModal .my-col:has(> .my-fix > .my-colpick){display:none}
+  #myModal .my-col:has(.today-due) > .my-fix > .my-h:not(.sub), #myModal .my-col:has(.today-due) > .my-fix > .etc-addbox{display:none}
+}

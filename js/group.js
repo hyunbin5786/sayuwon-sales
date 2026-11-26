@@ -4154,7 +4154,7 @@ function renderMy(){ paintMySet();
   $('#myTabs').innerHTML = `<button type="button" data-mt="main">메인</button>` + order.map(c=>`<button type="button" data-mt="${esc(catTab(c))}">${esc(catLabel(c))}</button>`).join('');
   document.querySelectorAll('#myTabs [data-mt]').forEach(b=>b.classList.toggle('on', b.dataset.mt===myTab));
   // 휴대폰(700px 아래)에서는 탭 대신 드롭다운으로 구분을 고름 (2026-11-26 · css/group.css 맨 아래 — 구분이 많아도 한 줄)
-  { const sel=$('#myTabSel'); if(sel){ sel.innerHTML = `<option value="main">메인</option>` + order.map(c=>`<option value="${esc(catTab(c))}">${esc(catLabel(c))}</option>`).join(''); sel.value=myTab; } }
+  { const sel=$('#myTabSel'); if(sel){ sel.innerHTML = `<option value="main">오늘 마감</option>`   /* 휴대폰에서는 「메인」 대신 「오늘 마감」 — 오늘 마감 목록만 보임 (개인 업무 입력 · 구분 칸은 css/group.css 맨 아래에서 숨김 · 2026-11-26) */ + order.map(c=>`<option value="${esc(catTab(c))}">${esc(catLabel(c))}</option>`).join(''); sel.value=myTab; } }
   $('#myPast').closest('label').hidden = myTab!=='group';
   const nG = open.reduce((s,o)=>s+o.left.length,0), persAll = myPersonalOpen(), nP = persAll.reduce((s,o)=>s+o.left.length,0);
   const recLi = (o, ts) => `<li class="r my-tg" ${o.personal?`data-popen="${esc(o.r.id)}"`:`data-myopen="${esc(o.r.id)}"`}><span class="who">`
