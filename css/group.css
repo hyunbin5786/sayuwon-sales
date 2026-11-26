@@ -1413,3 +1413,5 @@ html.g-start #startBox{display:flex;flex-direction:column;justify-content:center
 #tbdList .my-ck{flex:none;margin-right:2px}
 #tbdList .my-ck input{width:18px;height:18px}
 #tbdList .my-ck.no{width:18px}
+.al-test{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.al-test .btn{padding:6px 10px;font-size:13px}

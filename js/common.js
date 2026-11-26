@@ -274,9 +274,42 @@ const SY_ALERT = (function(){
   const seen = key => { try{ return (localStorage.getItem(SLOT_LS)||'').split(',').includes(key); }catch(_){ return false; } };
   const mark = key => { try{ const day=key.split('|')[0]; localStorage.setItem(SLOT_LS, [...(localStorage.getItem(SLOT_LS)||'').split(',').filter(s=>s.startsWith(day) && s!==key), key].join(',')); }catch(_){} };
   let armed=false;
+  // ── 팝업 허용 안내 (2026-11-26): 알림 창이 저절로 안 뜬(브라우저가 막은) 사람에게만, 화면 오른쪽 아래 상자로 · 하루 한 번(force = 설정의 시험 버튼에서는 늘)
+  //    허용해 두면 창이 저절로 떠서 이 안내는 다시 나오지 않는다. 첫 화면의 보이지 않는 과업 계산 창에서도 바깥 화면에 그린다 (그래서 모양을 여기서 직접 줌)
+  const HELP_LS='sy_alert_help_day';
+  const help = force => { try{
+    const d=new Date(), day=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    if(!force && navigator.maxTouchPoints>0 && innerWidth<700) return;   // 휴대폰에서는 안내하지 않음 (설정하는 곳이 다름)
+    if(!force){ let last=''; try{ last=localStorage.getItem(HELP_LS)||''; }catch(_){} if(last===day) return; }
+    try{ localStorage.setItem(HELP_LS, day); }catch(_){}
+    let T=window; try{ if(window.top!==window && window.top.document) T=window.top; }catch(_){}
+    const D=T.document; if(!D.body) return; D.getElementById('syAlertHelp')?.remove();
+    const edge=/Edg\//.test(navigator.userAgent), cfg=(edge?'edge':'chrome')+'://settings/content/popups', site=location.origin;
+    const el = (tag, css, text) => { const x=D.createElement(tag); if(css) x.style.cssText=css; if(text!=null) x.textContent=text; return x; };
+    const BTN='border:0;border-radius:6px;background:#3e4f33;color:#fff;font:600 13px/1 inherit;padding:7px 10px;cursor:pointer;white-space:nowrap';
+    const box=el('div', 'position:fixed;right:16px;bottom:44px;z-index:2147483000;width:min(380px,calc(100vw - 32px));max-height:calc(100vh - 80px);overflow:auto;box-sizing:border-box;background:#fff;color:#222;border:1px solid #cfc9b8;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.22);padding:14px 14px 12px;font:14px/1.55 "Noto Sans KR",system-ui,sans-serif');
+    box.id='syAlertHelp'; box.setAttribute('role','dialog'); box.setAttribute('aria-label','과업 알림 창 허용 안내');
+    box.appendChild(el('b', 'display:block;font-size:15px;margin-bottom:4px', '과업 알림 창을 브라우저가 막았습니다'));
+    box.appendChild(el('div', 'margin-bottom:8px', '지금은 화면을 한 번 눌러야 알림 창이 뜹니다. 아래처럼 한 번만 허용해 두면, 만지지 않아도 알림 시각에 저절로 뜹니다.'));
+    const row = (text, copy) => { const r=el('div', 'display:flex;gap:8px;align-items:center;margin:4px 0'); r.appendChild(el('span', 'flex:1;min-width:0;word-break:break-all', text));
+      if(copy){ const b=el('button', BTN, '복사'); b.type='button'; b.onclick=()=>{ const done=()=>{ b.textContent='복사됨'; T.setTimeout(()=>{ b.textContent='복사'; }, 1500); };
+        try{ T.navigator.clipboard.writeText(copy).then(done, ()=>T.prompt('아래 글자를 복사하세요', copy)); }catch(_){ T.prompt('아래 글자를 복사하세요', copy); } }; r.appendChild(b); }
+      return r; };
+    box.appendChild(el('b', 'display:block;margin-top:6px', '쉬운 방법'));
+    box.appendChild(row('주소 칸 오른쪽 끝에 「팝업 차단됨」 그림이 보이면 누르고 → 「항상 허용」 → 「완료」'));
+    box.appendChild(el('b', 'display:block;margin-top:8px', '그림이 안 보이면'));
+    box.appendChild(row('① 새 탭의 주소 칸에 붙여 넣고 Enter:  '+cfg, cfg));
+    box.appendChild(row('② 「팝업 전송 및 리디렉션 사용이 허용됨」 옆 「추가」를 누르고 붙여 넣기:  '+site, site));
+    box.appendChild(row('③ 「추가」를 누르고, 이 화면으로 돌아와 새로 고침'));
+    const foot=el('div', 'display:flex;justify-content:flex-end;margin-top:10px'); const c=el('button', BTN, '닫기'); c.type='button'; c.onclick=()=>box.remove(); foot.appendChild(c); box.appendChild(foot);
+    D.body.appendChild(box);
+  }catch(_){} };
+  // 설정의 「저절로 뜨는지 시험」: 누른 지 몇 초 지난 뒤(= 사람이 누르지 않은 것과 같은 때) 불러 창을 열어 봄 → 열리면 true, 막히면 안내를 보이고 false
+  const test = () => { if(openWin()){ try{ (window.top.document||document).getElementById('syAlertHelp')?.remove(); }catch(_){} return true; } help(true); return false; };
   // 지금 시각의 알림을 띄움 (이미 본 시각이면 아무것도 안 함). fallback = 새 창이 끝내 안 열릴 때 그 화면 안에서 보일 함수(없어도 됨)
   const show = fallback => { const k=keyNow(); if(!k || seen(k) || armed) return;
     if(openWin()){ mark(k); return; }
+    help();   // 창이 막힌 브라우저: 팝업 허용 방법 안내 (하루 한 번)
     armed=true; const docs=[document]; try{ if(window.top!==window && window.top.document) docs.push(window.top.document); }catch(_){}   // 첫 화면의 보이지 않는 과업 계산 창: 바깥 화면을 누를 때
     const go = e => { docs.forEach(d=>{ try{ d.removeEventListener('click', go, true); }catch(_){} }); armed=false;
       try{ const k2=keyNow(); if(!k2 || seen(k2)) return;   // 그사이 다른 탭이 띄웠으면 또 띄우지 않음
@@ -294,5 +327,5 @@ const SY_ALERT = (function(){
   const openWin = from => { let w=null; try{ w=(from||window).open(new URL('group.html?alert=1', location.href).href, 'sy_alert', 'width=760,height=560,resizable=yes,scrollbars=yes'); }catch(_){} if(w){ try{ w.focus(); }catch(_){} } return !!w; };
   // 내가 맡은 고객 견적 요청 (나의 할일 메인의 「고객 견적 요청」과 같은 기준 · 단체 화면이 받아 이 브라우저에 적어 둔 것 sy_my_quotereq)
   const quoteReqs = me => { try{ const q=JSON.parse(localStorage.getItem('sy_my_quotereq')||'null')||{}; return me && (!(q.owners||[]).length || q.owners.includes(me)) ? (q.items||[]) : []; }catch(_){ return []; } };
-  return Object.freeze({ DEF, times, set, hm, say, label, slot, openWin, show, keyNow, seen, mark, quoteReqs });
+  return Object.freeze({ DEF, times, set, hm, say, label, slot, openWin, show, keyNow, seen, mark, quoteReqs, help, test });
 })();

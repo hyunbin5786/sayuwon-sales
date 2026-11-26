@@ -4768,7 +4768,14 @@ function alertSetHTML(){ const L=SY_ALERT.times(), n=L.length;
     + `<p class="hint al-say">마감이 오늘이거나 지난 내 할 일을, 정한 시각이 지나고 화면을 처음 볼 때 따로 뜨는 창으로 알려 줍니다. (창이 바로 안 뜨는 브라우저에서는 화면을 한 번 누를 때 뜹니다)</p>`
     + `<div class="al-count"><span>하루에 몇 번 알릴까요?</span><span class="al-step"><button type="button" class="btn primary" data-alminus${n?'':' disabled'} title="한 번 줄이기 (맨 뒤 시각을 뺌)" aria-label="알림 횟수 줄이기">−</button><b>${n ? n+'번' : '끔'}</b><button type="button" class="btn primary" data-aladd${n>=AL_MAX?' disabled':''} title="한 번 늘리기" aria-label="알림 횟수 늘리기">＋</button></span></div>`
     + (n ? `<ul class="al-list">${L.map(row).join('')}</ul><p class="hint al-say">시각을 바꾸면 바로 저장됩니다 · 이른 시각부터 차례로 놓입니다.</p>` : `<p class="hint al-say">알림을 끈 상태입니다. <b>＋</b> 를 누르면 다시 켜집니다.</p>`)
+    + `<div class="al-test"><button type="button" class="btn primary" data-altest>알림 창이 저절로 뜨는지 시험</button><span class="hint al-say" data-altestmsg>누르고 6초 기다리면 알림 창을 열어 봅니다. 안 뜨면 허용하는 방법을 알려 줍니다.</span></div>`
     + `</div>`; }
+// 「알림 창이 저절로 뜨는지 시험」 (2026-11-26): 브라우저는 사람이 누른 직후(약 5초)에는 창을 막지 않아서, 6초 기다린 뒤 열어 봄 = 알림 시각에 저절로 뜰 때와 같은 조건
+document.addEventListener('click', e=>{ const b=e.target.closest?.('[data-altest]'); if(!b || b.disabled) return; e.preventDefault(); b.disabled=true;
+  const msg = t => { const m=document.querySelector('[data-altestmsg]'); if(m) m.textContent=t; }; let s=6; msg(`${s}초 뒤에 열어 봅니다 · 화면을 누르지 말고 기다려 주세요…`);
+  const iv=setInterval(()=>{ s--; if(s>0){ msg(`${s}초 뒤에 열어 봅니다 · 화면을 누르지 말고 기다려 주세요…`); return; } clearInterval(iv);
+    const ok=SY_ALERT.test(), b2=document.querySelector('[data-altest]'); if(b2) b2.disabled=false;
+    msg(ok ? '알림 창이 저절로 떴습니다. 이 브라우저는 설정이 되어 있습니다.' : '브라우저가 창을 막았습니다. 화면 오른쪽 아래 안내대로 한 번만 허용해 주세요. (허용한 뒤 다시 시험해 보세요)'); }, 1000); });
 const alRepaint = () => { if(typeof paintMySet==='function') paintMySet(); };
 document.addEventListener('change', async e=>{ const d=e.target.dataset||{}, i = d.alp ?? d.alh ?? d.alm; if(i==null) return; const li=e.target.closest('li'); if(!li) return;
   const pm=li.querySelector('[data-alp]').value==='1', h12=+li.querySelector('[data-alh]').value, m=+li.querySelector('[data-alm]').value, t=((h12%12)+(pm?12:0))*60+m;
