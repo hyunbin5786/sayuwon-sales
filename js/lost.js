@@ -32,8 +32,8 @@ const OPS_PAGE =
     //  습득이면 습득자 · 연락처 = 로그인한 사람 (멤버관리에 적은 연락처 · 두 칸이 비어 있을 때만 · 2026-11-24 · opsboard.js 의 opsMe)
     onField:(k, d)=>{ if(k!=='kind') return; d.status = LOST_ST[lostKind(d)][0];
       if(!window.opsMe) return;
-      if(lostKind(d)==='습득' && !d.person && !d.phone){ d.person = opsMe.name || ''; d.phone = opsMe.phone || ''; }
-      else if(lostKind(d)==='분실 신고' && d.person===opsMe.name && (d.phone||'')===(opsMe.phone||'')){ d.person=''; d.phone=''; } },   // 신고로 바꾸면 자동으로 넣은 내 이름은 뺌
+      // 2026-11-26: 신고도 습득과 같이 — 신고자 · 연락처 = 로그인한 사람 (예전에는 신고로 바꾸면 자동으로 넣은 내 이름을 뺐음). 로그인하지 않았으면 빈칸 그대로 · 넣은 뒤 고칠 수 있음
+      if(!d.person && !d.phone && opsMe.name){ d.person = opsMe.name; d.phone = opsMe.phone || ''; } },
     normalize:d=>{ d.status = lostStatus(d); },
     // 두 대시보드 (opsboard.js renderLost)
     boards:[
