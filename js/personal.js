@@ -43,6 +43,7 @@ async function pull(inFlush){
     items=(j.items||[]).filter(r=>r.callType===CALL_TYPE); writeJSON(CACHE_LS, items.slice(-500));
     { const pc=(j.items||[]).find(r=>r.id==='pcats'); if(pc && !pending.some(p=>p.action==='put' && p.item.id==='pcats')){ pcatRec=pc; writeJSON(PCATS_LS, pc); } paintChips(); if(!memberNames.length) loadMembers(); }   // 모두가 추가한 구분 · 멤버 이름
     groupMine=(j.items||[]).filter(r=>r.callType!==CALL_TYPE && ['단체예약','예약상담','가예약','예약확정','예약접수','상담','공식예약'].includes(r.callType||'단체예약') && (r.owner||r.takenBy)===(user.name||''));   // 마감 알림용: 내가 영업 담당인 단체 예약
+    etcRowsP=(j.items||[]).filter(r=>r.callType==='개인업무');
     setTimeout(checkDue, 300); setTimeout(paintMyCount, 0);
     $('#keyMsg').textContent=''; paintSync(); renderLists(); tryOpen();
     if(j.admin){ writeJSON('sayuwon_intake_admin', j.admin); }   // 사담 · 마방 현황 (단체 화면이 씀)
@@ -422,39 +423,43 @@ $('#allBody').addEventListener('click', e=>{ const del=e.target.closest('[data-p
 
 // ===================== 마감이 된 추후 과업 알림: 오전 8시 · 11시 · 오후 1시 · 5시 =====================
 // 그 시각이 지나고 처음 화면을 볼 때 (시각마다 한 번, 단체 화면과 같은 기록이라 두 화면에서 두 번 뜨지 않음). 내 개인고객 과업 + 내가 영업 담당인 단체 과업
-const TASK_SLOT_LS='sayuwon_task_slot', QUIET_MS=30*60e3;   // 알림 시각 = 나의 할일 설정(SY_ALERT · js/common.js · 2026-11-25) · 알림은 새 창(group.html?alert=1) · 막히면 이 화면 팝업
-let groupMine=[];
+const TASK_SLOT_LS='sayuwon_task_slot', QUIET_MS=30*60e3;   // 알림 시각 = 나의 할일 설정(SY_ALERT · js/common.js · 2026-11-25) · 알림은 따로 뜨는 창(group.html?alert=1) · 끝내 안 열리면 이 화면 팝업
+let groupMine=[], etcRowsP=[];   // etcRowsP = 직접 넣은 업무(통화 구분 「개인업무」) 줄 — 알림을 띄울지 셀 때만 씀 (2026-11-26)
 // 나의 할일 버튼 옆 빨간 표시: 마감이 오늘이거나 지난 내 과업 수 (개인 + 내가 영업 담당인 단체, 단체 화면과 같은 모양)
 function paintMyCount(){ const today=todayYmd(), me=user.name||''; let n=0;
   shown().filter(r=>(r.owner||r.takenBy)===me).forEach(r=>tasksOfItem(r).forEach(t=>{ if(!t.done && (t.due||today)<=today) n++; }));
   groupMine.forEach(r=>tasksOfItem(r).forEach(t=>{ if(!t.done && t.due && t.due<=today) n++; }));
   const b=$('#myCount'); b.hidden=!n; b.textContent = n ? `과업 ${n}` : ''; }
-function checkDue(){
-  if(document.querySelector('.modal:not([hidden])')) return;
-  const nowD=new Date(), today=todayYmd(), slotH=SY_ALERT.slot(nowD); if(slotH==null) return;
-  let slots=''; try{ slots=localStorage.getItem(TASK_SLOT_LS)||''; }catch(_){} const key=`${today}|${slotH}`; if(slots.split(',').includes(key)) return;
-  const me=user.name||'', fresh = t => +nowD - (+new Date(t.dueSetAt||t.at||0)||0) < QUIET_MS;
-  const due=[];
+// 2026-11-26: 알림 = 캘린더처럼 따로 뜨는 창(group.html?alert=1 · SY_ALERT.show — 브라우저가 막으면 화면을 처음 누를 때 엶) · 나의 할일에 있는 것 모두
+//  (개인고객 · 단체 과업 + 직접 넣은 업무 + 내가 맡은 고객 견적 요청) · 「완료」 버튼은 없앰. 아래 이 화면 팝업은 그 창이 끝내 안 열릴 때만
+function dueNow(){
+  const nowD=new Date(), today=todayYmd(), me=user.name||'', fresh = t => +nowD - (+new Date(t.dueSetAt||t.at||0)||0) < QUIET_MS, due=[];
   shown().filter(r=>(r.owner||r.takenBy)===me).forEach(r=>tasksOfItem(r).forEach(t=>{ const d=t.due||today; if(!t.done && d<=today && !fresh(t)) due.push({r, t:{...t, due:d}, personal:true}); }));
   groupMine.forEach(r=>tasksOfItem(r).forEach(t=>{ const d=t.due||String(r.saved||'').slice(0,10)||today; if(!t.done && d<=today && !fresh(t)) due.push({r, t:{...t, due:d}}); }));
-  if(!due.length) return;
-  try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), key].join(',')); }catch(_){}
-  if(SY_ALERT.openWin()) return;   // 새 창 (단체 + 개인 함께)
-  due.sort((a,b)=>a.t.due.localeCompare(b.t.due));
+  return due.sort((a,b)=>a.t.due.localeCompare(b.t.due));
+}
+// 직접 넣은 업무 가운데 오늘 할 것 · 안 한 지난 것의 수 + 내가 맡은 고객 견적 요청 수 (규칙은 js/common.js SY_TASK · SY_ALERT.quoteReqs — 나의 할일과 같음)
+function dueExtra(){ const me=user.name||'', now=Date.now(), old = s => now - (+new Date(s||0)||0) >= QUIET_MS; let n=0;
+  etcRowsP.forEach(r=>{ let d=null; try{ const j=JSON.parse(r.history||'{}'); d=j && j.kind ? (j.d||{}) : null; }catch(_){} if(d && (d.owner||r.takenBy||'')===me && old(r.saved) && SY_TASK.pending(d).length) n++; });
+  return n + SY_ALERT.quoteReqs(me).filter(q=>old(q.at)).length; }
+function checkDue(){
+  const k=SY_ALERT.keyNow(); if(!k || SY_ALERT.seen(k)) return;
+  if(document.querySelector('.modal:not([hidden])')) return;
+  if(!dueNow().length && !dueExtra()) return;
+  SY_ALERT.show(paintDue, dueNow().length + dueExtra());
+}
+function paintDue(){ const due=dueNow(), extra=dueExtra(), today=todayYmd(); if(!due.length && !extra) return;
   $('#dueList').innerHTML = due.map(({r,t,personal})=>{ const late=t.due<today;
     return `<li class="${late?'late':'today'}"><span class="who"><span class="tag">${personal?'개인':'단체'}</span> <b>${esc(personal ? (r.contact||'(이름 없음)') : (r.org||r.contact||'(업체 미정)'))}</b>${personal&&r.phone?` · ${esc(r.phone)}`:''}${!personal&&r.date?` · 방문 ${esc(dLabel(r.date))}`:''}<br><b class="t">${esc(t.title)}</b> <small class="hint" style="display:inline">마감 ${esc(dLabel(t.due))} ${late?'(지남)':'(오늘)'}</small></span>`
-      + (personal ? `<button class="btn primary" data-ddone="${esc(r.id)}|${esc(t.id)}">완료</button><button class="btn" data-dopen="${esc(r.id)}">열기</button>` : `<button class="btn" data-gopen="${esc(r.id)}">열기</button>`) + `</li>`; }).join('');
-  $('#dueTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b> · 단체 + 개인 · 알림은 ${esc(SY_ALERT.label())}</small>`;
+      + (personal ? `<button class="btn primary" data-dopen="${esc(r.id)}">열기</button>` : `<button class="btn primary" data-gopen="${esc(r.id)}">열기</button>`) + `</li>`; }).join('')
+    + (extra ? `<li class="today"><span class="who"><span class="tag">업무</span> <b>직접 넣은 업무 · 견적 요청 ${extra}개</b><br><small class="hint" style="display:inline">맨 위 「나의 할일」에서 볼 수 있습니다</small></span></li>` : '');
+  $('#dueTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b> · 나의 할일 전체 · 알림은 ${esc(SY_ALERT.label())}</small>`;
   $('#dueModal').hidden=false;
 }
 $('#dueClose').onclick=()=>{ $('#dueModal').hidden=true; };
 $('#dueList').addEventListener('click', e=>{ const d=e.target.dataset;
   if(d.dopen){ $('#dueModal').hidden=true; openItem(d.dopen); return; }
   if(d.gopen){ $('#dueModal').hidden=true; location.href='group.html?open='+encodeURIComponent(d.gopen); return; }
-  if(d.ddone){ const [rid,tid]=d.ddone.split('|'), r=shown().find(x=>x.id===rid); if(!r) return; const f=fromItem(r), t=f.tasks.find(x=>x.id===tid); if(!t) return;
-    t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=user.name||''; (t.xsubs||[]).forEach(x=>x.done=true); const item=toItem(f, r); put(item);
-    if(cur && cur.id===rid){ cur=item; form=fromItem(item); saved=JSON.stringify(form); paintForm(true); }
-    e.target.closest('li').remove(); if(!$('#dueList').children.length) $('#dueModal').hidden=true; toast('과업을 완료로 표시했습니다.'); }
 });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ if(!$('#pdelModal').hidden){ closePdel(); } else if(!$('#allModal').hidden){ $('#allModal').hidden=true; } else if(!$('#dueModal').hidden){ $('#dueModal').hidden=true; } } });
 setInterval(checkDue, 60000);   // 1분마다 알림 시각인지 확인

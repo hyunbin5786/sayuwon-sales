@@ -320,7 +320,7 @@ $('#consultApplyBtn').onclick=()=>{
   toast(`${n}개 항목을 채웠습니다${extra.length?` · ${extra.length}줄은 통화 메모에`:''}`);
 };
 
-// ===================== 단체예약 현황 엑셀로 내려받기 (목록 창에서 고른 구분 그대로, 방문일 순) =====================
+// ===================== 단체예약 목록 엑셀로 내려받기 (2026-11-26 되살림 · 목록 창 머리줄의 버튼): 표에 보이는 예약 그대로 · 같은 순서 =====================
 let listView = null;
 function loadExcelJS(){
   if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
@@ -331,7 +331,7 @@ async function downloadXlsx(){
   const btn=$('#xlsxBtn'); btn.disabled=true; btn.textContent='만드는 중…';
   try{
     const ExcelJS = await loadExcelJS();
-    const rows = listView.shown.slice().sort(listOrder);   // 목록과 같은 정렬
+    const rows = listView.shown.slice();   // 표에 보이는 것 그대로 (같은 순서 · renderList 가 정렬해 둠)
     const COLS = [['방문일',12],['단계',9],['전산',8],['업체',22],['영업 담당',9],['결제',16],['차량',10],['입장',7],['입장문',8],['퇴장',7],['관람',8],
       ['사담 1부',8],['사담 2부',8],['사담 디너',9],['마방 시간',12],['마방 인원',9],['마방 메뉴',22],['마방 단가',10],['마방 결제',9],['마방 비고',16],...PROG_KEYS().map(k=>[LABEL[k]+(UNIT(k)==='시간'?' (시간)':''),11]),['기타 프로그램',14],
       ['견적서',10],['거래명세서',10],['담당자',14],['연락처',16],['이메일',24],['인원 변경',9],['현장 재결제',10],['미정 항목',16],['특별 할인',16],['통화 메모',40],['접수',16]];
@@ -349,7 +349,7 @@ async function downloadXlsx(){
     ws.eachRow((row,i)=>{ if(i>1) row.alignment={ vertical:'top', wrapText:true }; row.eachCell(c=>{ c.border={ bottom:{ style:'thin', color:{argb:'FFDDDDDD'} } }; }); });
     ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:COLS.length} };
     const buf = await wb.xlsx.writeBuffer();
-    const tag = $('#listSearch')?.value.trim() ? '_검색' : '';   // 목록 = 보이는 단계 (가예약 · 예약확정 + 켠 단계)
+    const pf=$('#pastFrom').value, pt=$('#pastTo').value, tag = $('#listSearch')?.value.trim() ? '_검색' : (pf||pt) ? `_${(pf||'처음').replace(/-/g,'')}-${(pt||'끝').replace(/-/g,'')}` : '';   // 검색 · 고른 기간을 파일 이름에
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
     a.download=`사유원_단체예약현황${tag}_${ymd(new Date()).replace(/-/g,'')}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
     toast(`${rows.length}건을 엑셀로 내려받았습니다.`);

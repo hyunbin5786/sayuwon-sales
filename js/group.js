@@ -2467,7 +2467,7 @@ function syncAutoTasks(){
     if(['erp','erpcheck','progstaff','mbmenu'].includes(t.id)) return;
     const st=[...(ds ? ds.map(([k])=>!!t.subs[k]) : []), ...(t.xsubs||[]).map(x=>!!x.done)]; if(!st.length) return;
     const all=st.every(Boolean); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); } if(!all && t.done && !t.manualDone){ t.done=false; t.doneAt=''; } });   // 위 체크로 끝낸 과업(manualDone)은 하위 과업이 남아도 완료 그대로
-  tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)) || (t.xsubs||[]).length);   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌
+  tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)) || (t.xsubs||[]).some(x=>x.done || !/^c:/.test(String(x.id))));   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌 · 추후과업 메시지 관리의 세부 과업(c:)만 있고 하나도 체크 안 한 것도 손대지 않은 것 (2026-11-26 · 예전엔 세부 과업을 정해 둔 과업은 조건이 사라져도 남았음)
   const ps=tasks.find(t=>t.id==='progstaff' && !t.removed); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
   const ec=tasks.find(t=>t.id==='erpcheck'); if(ec){ const c=erpCheck(); const was=ec.done; ec.done=c.ok; ec.check=c; if(c.ok && !was) ec.doneAt=new Date().toISOString(); if(!c.ok) ec.doneAt=''; }   // 전산 내역 대조: 맞으면 자동 완료, 다르면 다시 열림
@@ -2739,29 +2739,34 @@ async function renderList(){
   // 단계: 시트 '통화 구분' 칸 (예전 이름은 normStage). 예전 '단체예약'은 결제 · 전산으로 판단. 관리자 사이트에서 온 예약은 예약확정
   const stageOf = r => /^adm/.test(r.id) && !STAGES.includes(normStage(r.callType)) ? '예약확정' : STAGES.includes(normStage(r.callType)) ? normStage(r.callType) : stageAuto({...r, ...unpackExtra(r)});
   const erpOf = r => /^adm/.test(r.id) || !!unpackExtra(r).erp;
-  // 목록 = 전체 (지난 예약 포함). 기본은 가예약 · 예약확정만, 「예약상담」 · 「예약취소」는 버튼으로 켜고 끔 (2026-11-18)
+  // 목록 = 앞으로 있을 예약 (2026-11-26: 기본 기간이 오늘부터라 방문일이 지난 예약은 빠짐 — 기간의 시작을 앞으로 고르면 함께 · 검색하면 지난 것까지). 기본은 가예약 · 예약확정만, 「예약상담」 · 「예약취소」는 버튼으로 켜고 끔 (2026-11-18)
   const today=todayYmd(), isPast = r => !!r.date && r.date < today;
-  const counts = Object.fromEntries(STAGES.map(s=>[s, all.filter(r=>stageOf(r)===s).length]));
-  $('#callCount').hidden = !nCall; $('#callCount').textContent = `전화 필요 ${nCall}`; $('#listCount').textContent = counts['가예약']+counts['예약확정'];
-  $('#adminHint').textContent = adminData?.updated ? `관리자 사이트 ${fmtAgo(adminData.updated)} 갱신 · ` : '';
-  document.querySelectorAll('#stageFilter button').forEach(b=>{ const s=b.dataset.f; b.classList.toggle('on', !!listShow[s]); b.textContent=`${s} ${counts[s]||0}`; b.title=listShow[s] ? '누르면 숨기기' : '누르면 보이기'; });
+  $('#callCount').hidden = !nCall; $('#callCount').textContent = `전화 필요 ${nCall}`;   // 건수 숫자는 없앰 (2026-11-26 · 머리줄 버튼 · 단계 버튼)
+  $('#adminHint').textContent = adminData?.updated ? `관리자 사이트 ${fmtAgo(adminData.updated)} 갱신` : '';
+  document.querySelectorAll('#stageFilter button').forEach(b=>{ const s=b.dataset.f; b.classList.toggle('on', !!listShow[s]); b.textContent=s; b.title=listShow[s] ? '누르면 숨기기' : '누르면 보이기'; });
   { const ss=$('#stageSum'); if(ss) ss.textContent=''; }   // 「보기」 글자는 없앰 (2026-11-18)
   // 검색어가 있으면 단계 버튼과 상관없이 모두에서 업체명 · 담당자 이름 · 전화번호(숫자만 비교) · 영업 담당으로 찾음
   const q=String($('#listSearch')?.value||'').trim(), qd=q.replace(/\D/g,''), qs=q.replace(/\s/g,'').toLowerCase();
   const hit = r => { const t=[r.org, r.contact, r.owner, r.takenBy, r.email].join(' ').replace(/\s/g,'').toLowerCase(); return (qs && t.includes(qs)) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd)); };
   const stageOn = s => !!listShow[s];
-  const shown = q ? all.filter(hit) : all.filter(r=>stageOn(stageOf(r)));
+  const pool=all, cal=listViewMode==='cal';
+  // 기간 (2026-11-26): 버튼 줄의 「기간」(방문일 순 왼쪽) — 기본은 오늘부터 끝까지(= 앞으로 있을 예약). 방문일이 그 기간인 예약만 (방문일 없는 예약은 끝을 안 정했을 때만 · 검색 · 캘린더에는 적용 안 함). 지난 예약은 시작을 앞으로 고르거나 비우면 (「지난 예약 보기」 체크 칸은 없앰)
+  const pf=$('#pastFrom').value, pt=$('#pastTo').value, inRange = r => r.date ? ((!pf || r.date>=pf) && (!pt || r.date<=pt)) : !pt;
+  // 지난 예약: 표에서는 기간의 시작을 앞으로 고르거나 비웠을 때 · 검색하면 늘 함께 · 캘린더는 달을 넘겨 보므로 늘 함께
+  const shown = q ? pool.filter(hit) : pool.filter(r=>stageOn(stageOf(r)) && (cal || inRange(r)));
   document.querySelectorAll('#stageFilter button').forEach(b=>b.classList.toggle('dim', !!q));   // 검색 중에는 단계 버튼이 적용 안 됨
   document.querySelectorAll('#sortSeg button').forEach(b=>b.classList.toggle('on', b.dataset.o===listSort));
-  listView = { shown, stageOf, erpOf };   // 엑셀로 내려받기에 씀
   const stageTag = r => { const s=stageOf(r), cw=s==="예약취소" ? unpackExtra(r).cancelWhy : ""; return `<span class="tag st-${s}"${cw?` title="취소 사유: ${esc(cw)}"`:""}>${s}</span>`; };   // 예약취소는 마우스를 올리면 사유
-  // 방문일 순: 오늘부터 가까운 날 → 날짜 없음 → 지난 예약(최근 방문부터, 흐리게)
-  const order = listSort==='date' ? (a,b)=>{ const pa=isPast(a), pb=isPast(b); if(pa!==pb) return pa?1:-1; return pa ? String(b.date).localeCompare(String(a.date)) : listOrder(a,b); } : listOrder;
-  $('#listBody').innerHTML=shown.slice().sort(order).map(r=>`<tr class="r${isPast(r)?' past':''}${stageOf(r)==='예약취소'?' cancel':''}" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td class="acts">${del(r.id)}</td></tr>`).join('')
-    || `<tr><td colspan="12" class="hint">${q ? `'${esc(q)}'(으)로 찾은 예약이 없습니다.` : all.length?'보이는 단계에 해당하는 예약이 없습니다.':'저장한 단체예약이 없습니다.'}</td></tr>`;
-  // 캘린더 보기: 같은 단계 버튼 · 검색으로 고른 예약을 달력에
+  // 방문일 순: 가까운 날부터 차례로 (지난 예약을 켜면 옛날 것부터 한 줄로 · 날짜 없음은 맨 아래) · 검색했을 때는 방문일이 늦은 것부터 (내림차순)
+  const order = listSort==='date' && q ? (a,b)=>String(b.date||'').localeCompare(String(a.date||'')) || String(b.saved||'').localeCompare(String(a.saved||'')) : listOrder;
+  const sorted=shown.slice().sort(order); listView = { shown:sorted, stageOf, erpOf };   // 엑셀로 내려받기에 씀 (표에 보이는 그대로)
+  { const pb=$('#pastBar'); pb.classList.toggle('dim', !!q); $('#pastSum').textContent = `${sorted.length}건`; $('#pastSum').title = q ? '검색 결과 (검색 중에는 기간이 적용되지 않습니다)' : ''; $('#pastTo').min = pf || ''; }
+  $('#listBody').innerHTML=sorted.map(r=>`<tr class="r${isPast(r)?' past':''}${stageOf(r)==='예약취소'?' cancel':''}" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td class="acts">${del(r.id)}</td></tr>`).join('')
+    || `<tr><td colspan="12" class="hint">${q ? `'${esc(q)}'(으)로 찾은 예약이 없습니다.` : !pool.length ? '저장한 단체예약이 없습니다.' : '이 기간 · 보이는 단계에 해당하는 예약이 없습니다. 지난 예약은 기간의 시작 날짜를 앞으로 바꾸세요.'}</td></tr>`;
+  // 캘린더 보기: 같은 단계 버튼 · 검색으로 고른 예약을 달력에. 검색어가 바뀌면 찾은 예약이 있는 달로 (앞으로 있을 가장 가까운 예약 · 없으면 가장 최근에 지난 예약 — 그 뒤 ‹ › 로 넘기는 것은 그대로)
+  if(!q) calJumpQ=''; else if(cal && q!==calJumpQ){ calJumpQ=q; const ds=shown.map(r=>r.date).filter(Boolean).sort(), to=ds.find(d=>d>=today) || ds[ds.length-1]; if(to) calMonth=to.slice(0,7); }
   const calList = shown;
-  paintListView(); if(listViewMode==='cal') renderListCal(calList, stageOf, erpOf, needCall);
+  paintListView(); if(cal) renderListCal(calList, stageOf, erpOf, needCall);
   document.querySelectorAll('#listBody tr.r').forEach(tr=>tr.onclick=async e=>{
     if(e.target.dataset.del){ e.stopPropagation(); openDel(e.target.dataset.del); return; }
     if(e.target.dataset.fix){ e.stopPropagation(); openFix(e.target.dataset.fix); return; }
@@ -2773,27 +2778,35 @@ async function renderList(){
 // ---- 단체예약 목록 · 캘린더 보기 (2026-11-18): 표 / 캘린더 버튼, 고른 보기는 이 브라우저에 기억 ----
 let listViewMode = (()=>{ try{ return localStorage.getItem('sayuwon_list_view')==='cal' ? 'cal' : 'table'; }catch(_){ return 'table'; } })();
 let calMonth = todayYmd().slice(0,7);   // 보고 있는 달 YYYY-MM
+let calJumpQ = '';   // 캘린더를 찾은 예약의 달로 옮겨 준 검색어 (같은 검색어로는 다시 옮기지 않음 — 달을 넘겨 볼 수 있게)
+bfSet('pastFrom', todayYmd());   // 기간의 기본 = 오늘부터 끝까지 (화면을 새로 열면 다시 이 값)
+// 기간 칸 (시작 ~ 끝): 시작이 끝보다 뒤면 끝을 맞춤 · 「오늘부터」 = 기본으로 (오늘 ~ 끝까지)
+document.addEventListener('change', e=>{ const id=e.target.id; if(id!=='pastFrom' && id!=='pastTo') return; const f=$('#pastFrom').value, t=$('#pastTo').value; if(f && t && t<f) bfSet(id==='pastFrom'?'pastTo':'pastFrom', id==='pastFrom'?f:t); renderList(); });
+document.addEventListener('click', e=>{ if(e.target.id!=='pastClear') return; bfSet('pastFrom', todayYmd()); bfSet('pastTo',''); renderList(); });
 function paintListView(){
   document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on', b.dataset.v===listViewMode));
   $('#listModal .tw').hidden = listViewMode==='cal'; $('#listCal').hidden = listViewMode!=='cal';
   $('#sortSeg').style.visibility = listViewMode==='cal' ? 'hidden' : '';   // 캘린더는 날짜 순이라 정렬이 필요 없음
+  $('#pastBar').style.visibility = listViewMode==='cal' ? 'hidden' : '';   // 캘린더는 달을 넘겨 보므로 기간이 필요 없음
 }
 document.addEventListener('click', e=>{ const b=e.target.closest('#viewSeg button'); if(!b) return; listViewMode=b.dataset.v; try{ localStorage.setItem('sayuwon_list_view', listViewMode); }catch(_){} renderList(); });
 function renderListCal(list, stageOf, erpOf, needCall){
   const [Y,M]=calMonth.split('-').map(Number), first=new Date(Y,M-1,1), days=new Date(Y,M,0).getDate(), lead=first.getDay(), today=todayYmd();
   const byDay={}; list.forEach(r=>{ if(r.date && r.date.slice(0,7)===calMonth) (byDay[r.date]=byDay[r.date]||[]).push(r); });
-  const nMonth=Object.values(byDay).reduce((a,x)=>a+x.length,0), noDate=list.filter(r=>!r.date).length;
+  const nMonth=Object.values(byDay).reduce((a,x)=>a+x.length,0), noDate=list.filter(r=>!r.date).length, q=String($('#listSearch')?.value||'').trim();
   const ev = r => { const s=stageOf(r), noE = false;   // 전산 미등록 표시는 없앰 (2026-11-18)
     return `<button type="button" class="lc-ev st-${esc(s)}${noE?' noerp':''}" data-cid="${esc(r.id)}" title="${esc([r.org||r.contact, s, noE?'전산 미등록':'', r.people?r.people+'명':'', r.tin?'입장 '+r.tin+(r.tout?'~'+r.tout:''):'', r.owner||r.takenBy].filter(Boolean).join(' · '))}">${r.tin?`<i>${esc(r.tin)}</i>`:''}${needCall(r)?'☎ ':''}${esc(r.org||r.contact||'(업체 미정)')}${r.people?` <em>${esc(r.people)}명</em>`:''}</button>`; };
   let cells=''; for(let i=0;i<lead;i++) cells+='<div class="lc-d lc-off"></div>';
   for(let d=1; d<=days; d++){ const k=`${calMonth}-${String(d).padStart(2,'0')}`, dow=new Date(Y,M-1,d).getDay(), evs=(byDay[k]||[]).sort((a,b)=>String(a.tin||'99').localeCompare(String(b.tin||'99')));
     cells+=`<div class="lc-d${k===today?' lc-today':''}${k<today?' lc-past':''}"><div class="lc-n${dow===0?' sun':dow===6?' sat':''}">${d}${evs.length>1?`<small>${evs.length}건</small>`:''}</div>${evs.map(ev).join('')}</div>`; }
   const tail=(7-(lead+days)%7)%7; for(let i=0;i<tail;i++) cells+='<div class="lc-d lc-off"></div>';
-  $('#listCal').innerHTML = `<div class="lc-bar"><button type="button" class="btn" data-cm="-1" title="이전 달">‹</button><b>${Y}년 ${M}월</b><button type="button" class="btn" data-cm="1" title="다음 달">›</button><button type="button" class="btn" data-cm="0">이번 달</button><small class="hint">이 달 ${nMonth}건${noDate?` · 방문일 없는 예약 ${noDate}건은 표에서`:''} · 연한 초록 = 예약상담 · 중간 초록 = 가예약 · 초록 = 예약확정 · 회색 = 예약취소 · 누르면 예약 열기</small></div>`
+  $('#listCal').innerHTML = `<div class="lc-bar"><button type="button" class="btn" data-cm="-1" title="이전 달">‹</button><b>${Y}년 ${M}월</b><button type="button" class="btn" data-cm="1" title="다음 달">›</button><button type="button" class="btn primary" data-cm="0" title="오늘이 있는 달로 가서 오늘 날짜 칸을 보여 줍니다">오늘</button><small class="hint">${q?`찾은 예약 ${list.length}건 중 `:''}이 달 ${nMonth}건${noDate?` · 방문일 없는 예약 ${noDate}건은 표에서`:''} · 연한 초록 = 예약상담 · 중간 초록 = 가예약 · 초록 = 예약확정 · 회색 = 예약취소 · 누르면 예약 열기</small></div>`
     + `<div class="lc-grid">${[...DOW].map((w,i)=>`<div class="lc-h${i===0?' sun':i===6?' sat':''}">${w}</div>`).join('')}${cells}</div>`;
 }
 $('#listCal').addEventListener('click', e=>{
-  const m=e.target.closest('[data-cm]'); if(m){ const v=+m.dataset.cm; if(!v) calMonth=todayYmd().slice(0,7); else { const [y,mo]=calMonth.split('-').map(Number), d=new Date(y, mo-1+v, 1); calMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; } renderList(); return; }
+  const m=e.target.closest('[data-cm]'); if(m){ const v=+m.dataset.cm; if(!v) calMonth=todayYmd().slice(0,7); else { const [y,mo]=calMonth.split('-').map(Number), d=new Date(y, mo-1+v, 1); calMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+    const p=renderList(); if(!v) p.then(()=>{ const t=$('#listCal .lc-today'); if(t) t.scrollIntoView({block:'center'}); });   // 「오늘」: 오늘 칸이 보이게
+    return; }
   const c=e.target.closest('[data-cid]'); if(c){ const r=cache.find(x=>x.id===c.dataset.cid); if(r) openRecordG(r); }
 });
 // 저장된 예약 하나를 칸에 불러오기
@@ -2820,21 +2833,9 @@ function openRecord(r){
     setTimeout(()=>syncSavedTasks(r.id), 1200);   // 화면에서 저절로 바뀐 과업 상태를 저장된 예약에도 (나의 할일 · 대시보드가 같게)
 }
 
-// 관리자 사이트에서 지금 가져오기 (평소에는 서버가 15분마다 자동으로)
-$('#adminSyncBtn').onclick=async()=>{
-  const b=$('#adminSyncBtn'); b.disabled=true; b.textContent='가져오는 중…';
-  try{
-    const j=await SY.call({action:'syncAdmin'});
-    if(j.admin) { adminData=j.admin; writeJSON(ADMIN_LS,adminData); }
-    toast(`가져왔습니다 · 15명 이상 ${j.result.big}건 중 새로 ${j.result.added}건 등록`);
-    await pull();
-  }catch(e){
-    toast('가져오지 못했습니다: '+e.message);
-  }finally{ b.disabled=false; b.textContent='관리자 사이트에서 지금 가져오기'; }
-};
-
 // ===================== 새 통화·단축키 =====================
 function newCall(withToast=true){
+  if(typeof endStart==='function') endStart();   // 첫 화면(단체명으로 먼저 찾기)을 걷음 (js/group/15-lock-popups.js)
   resetState(); clearInterval(timerInt); tick(); $('#memoBox').value=''; status('');
   hist=[]; baseSnap=null; tasks=[]; erpList=[]; tbdAuto=false; memos=[]; lockOwner=''; if(typeof releaseEdit==='function') releaseEdit(); { const hd=document.getElementById('histDet'); if(hd) hd.open=false; }   // 수정 기록은 예약을 열 때마다 접어 둠
   renderHist(); if(typeof paintLock==='function') paintLock();
@@ -3767,7 +3768,7 @@ $('#consultApplyBtn').onclick=()=>{
   toast(`${n}개 항목을 채웠습니다${extra.length?` · ${extra.length}줄은 통화 메모에`:''}`);
 };
 
-// ===================== 단체예약 현황 엑셀로 내려받기 (목록 창에서 고른 구분 그대로, 방문일 순) =====================
+// ===================== 단체예약 목록 엑셀로 내려받기 (2026-11-26 되살림 · 목록 창 머리줄의 버튼): 표에 보이는 예약 그대로 · 같은 순서 =====================
 let listView = null;
 function loadExcelJS(){
   if(window.ExcelJS) return Promise.resolve(window.ExcelJS);
@@ -3778,7 +3779,7 @@ async function downloadXlsx(){
   const btn=$('#xlsxBtn'); btn.disabled=true; btn.textContent='만드는 중…';
   try{
     const ExcelJS = await loadExcelJS();
-    const rows = listView.shown.slice().sort(listOrder);   // 목록과 같은 정렬
+    const rows = listView.shown.slice();   // 표에 보이는 것 그대로 (같은 순서 · renderList 가 정렬해 둠)
     const COLS = [['방문일',12],['단계',9],['전산',8],['업체',22],['영업 담당',9],['결제',16],['차량',10],['입장',7],['입장문',8],['퇴장',7],['관람',8],
       ['사담 1부',8],['사담 2부',8],['사담 디너',9],['마방 시간',12],['마방 인원',9],['마방 메뉴',22],['마방 단가',10],['마방 결제',9],['마방 비고',16],...PROG_KEYS().map(k=>[LABEL[k]+(UNIT(k)==='시간'?' (시간)':''),11]),['기타 프로그램',14],
       ['견적서',10],['거래명세서',10],['담당자',14],['연락처',16],['이메일',24],['인원 변경',9],['현장 재결제',10],['미정 항목',16],['특별 할인',16],['통화 메모',40],['접수',16]];
@@ -3796,7 +3797,7 @@ async function downloadXlsx(){
     ws.eachRow((row,i)=>{ if(i>1) row.alignment={ vertical:'top', wrapText:true }; row.eachCell(c=>{ c.border={ bottom:{ style:'thin', color:{argb:'FFDDDDDD'} } }; }); });
     ws.autoFilter = { from:{row:1,column:1}, to:{row:1,column:COLS.length} };
     const buf = await wb.xlsx.writeBuffer();
-    const tag = $('#listSearch')?.value.trim() ? '_검색' : '';   // 목록 = 보이는 단계 (가예약 · 예약확정 + 켠 단계)
+    const pf=$('#pastFrom').value, pt=$('#pastTo').value, tag = $('#listSearch')?.value.trim() ? '_검색' : (pf||pt) ? `_${(pf||'처음').replace(/-/g,'')}-${(pt||'끝').replace(/-/g,'')}` : '';   // 검색 · 고른 기간을 파일 이름에
     const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
     a.download=`사유원_단체예약현황${tag}_${ymd(new Date()).replace(/-/g,'')}.xlsx`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),60000);
     toast(`${rows.length}건을 엑셀로 내려받았습니다.`);
@@ -4079,16 +4080,21 @@ document.addEventListener('mousedown', e=>{ if(e.target.id==='mySetModal'){ mySe
 document.addEventListener('click', e=>{ if(e.target.closest?.('#mySetBtn')){ mySetOpen=!mySetOpen; paintMySet(); return; } if(e.target.closest?.('[data-mysetclose]')){ mySetOpen=false; paintMySet(); } });
 // 나의 할일의 개인예약 · 단체예약 과업을 그 자리에서 체크해 완료 (2026-11-19) — 전산 내역을 붙여넣거나 칸을 채워야 끝나는 과업은 체크 대신 「열기」 안내
 // 메인 1열 개인 업무 입력 아래: 오늘 마감인 과업 모두 (단체예약 · 개인예약 · 기타 업무) — 그 자리에서 체크해 완료 (2026-11-19)
-function todayDueHTML(){
+// 오늘 마감이거나 마감이 지난 내 할 일 모두 (단체 과업 · 개인고객 과업 · 직접 넣은 업무) — 나의 할일 「오늘 마감」과 과업 알림(js/group/15-lock-popups.js alertList)이 같이 씀 (2026-11-26)
+//  줄마다 _r(그 기록) · _t(그 과업)를 달아 둠 — 알림이 「방금 넣은 과업은 30분 동안 알리지 않기」 · 「열기」에 씀
+function myDueList(){
   const today=ymd(new Date()), list=[];   // 단체 · 개인 · 직접 넣은 업무 모두 같은 줄 (js/mytask.js, 2026-11-21)
   // 오늘 마감 + 이미 마감이 지난 것 (2026-11-21): 지난 것 = 빨강, 오늘 = 노랑 · 마감이 이른 것부터
-  dueTasks().filter(o=>o.t.due<=today).forEach(({r,t})=>list.push(tkFromG(r, t)));
-  myPersonalOpen().forEach(o=>o.left.filter(t=>t.due<=today).forEach(t=>list.push(tkFromP(o.r, t))));
+  dueTasks().filter(o=>o.t.due<=today).forEach(({r,t})=>list.push({...tkFromG(r, t), _r:r, _t:t}));
+  myPersonalOpen().forEach(o=>o.left.filter(t=>t.due<=today).forEach(t=>list.push({...tkFromP(o.r, t), _r:o.r, _t:t})));
   // 직접 넣은 업무: 업무마다 한 줄 — 오늘 할 날이 있으면 오늘, 없으면 안 한 지난 날 중 가장 이른 날 (반복 업무의 다른 지난 날은 「지난 n일 모두 완료」)
   const byId={}; myEtcOpen().filter(o=>o.day<=today).forEach(o=>{ (byId[o.r.id] ||= []).push(o); });
-  Object.values(byId).forEach(a=>{ const days=a.map(o=>o.day).sort(), day=days.includes(today) ? today : days[0]; list.push(tkFromE(a[0], day, {before:days.filter(d=>d!==day)})); });
+  Object.values(byId).forEach(a=>{ const days=a.map(o=>o.day).sort(), day=days.includes(today) ? today : days[0]; list.push(tkFromE(a[0], day, {before:days.filter(d=>d!==day), _r:a[0].r})); });
+  return list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
+}
+function todayDueHTML(){
+  const today=ymd(new Date()), list=myDueList();
   const nLate=list.filter(T=>T.due && T.due<today).length;
-  list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
   return `<h3 class="my-h sub">오늘 마감 <small>${list.length}개${nLate?` · <b class="late">지난 마감 ${nLate}개</b>`:''}</small></h3>` + (list.length ? tkListHTML(list).replace('pc-list tk-list', 'pc-list tk-list today-due') : '<p class="hint">오늘 마감인 과업이 없습니다.</p>');
 }
 const myCk = (o, t) => !o.personal && SELF_DONE.has(t.id) ? `<label class="my-ck self" title="예약을 열어 처리하면 완료됩니다 (체크하면 그 예약을 엶)"><input type="checkbox" data-myopenck="${esc(t.id)}"></label>` : `<label class="my-ck" title="체크하면 완료"><input type="checkbox" data-myck="${o.personal?'p':'g'}|${esc(o.r.id)}|${esc(t.id)}"></label>`;   // 전산 예약 · 전산 내역 대조 · 담당 입력처럼 예약에서 끝나는 과업도 체크 칸 (체크하면 그 예약을 엶, 2026-11-19)
@@ -4121,8 +4127,7 @@ document.addEventListener('change', async e=>{ const v=e.target.dataset && e.tar
 document.addEventListener('change', async e=>{ const v=e.target.dataset && e.target.dataset.myck; if(!v || !e.target.checked) return; const [kind,id,tid]=v.split('|'); e.target.disabled=true;
   try{
     if(kind==='g') await doneTask(id, tid);
-    else { const r=cache.find(x=>x.id===id); if(!r) return; let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const t=(h.tasks||[]).find(x=>x.id===tid); if(t){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=savedOwner()||''; (t.xsubs||[]).forEach(x=>x.done=true); }
-      const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item; }
+    else await donePersonalTask(id, tid);   // js/group/15-lock-popups.js (알림의 체크 칸과 같이 씀 · 2026-11-26)
     toast('과업을 완료로 표시했습니다.'); paintMyCount(); renderMy();
   }catch(err){ e.target.disabled=false; e.target.checked=false; toast('완료로 표시하지 못했습니다: '+(err.code||err.message)); } });
 function renderMy(){ paintMySet();
@@ -4388,46 +4393,63 @@ setInterval(()=>{ if(window.__tasksReady) checkMemoPopup(); }, 60000);
 // ===================== 마감이 된 추후 과업 팝업 =====================
 // 마감이 오늘이거나 지난, 해결 안 된 과업(영업 담당이 있으면 내 예약만)을 해결될 때까지 계속 띄움: 열 때 · 9시 · '나중에'를 누르면 2시간 뒤 다시
 const TASK_SNOOZE_LS='sayuwon_task_snooze', SNOOZE_MS=2*3600e3, TASK_SLOT_LS='sayuwon_task_slot', QUIET_MS=30*60e3;
-// 알림 시각 (2026-11-25): 예전엔 늘 8 · 11 · 13 · 17시 → 나의 할일 설정에서 사람마다 (SY_ALERT · js/common.js) · 알림은 새 창(group.html?alert=1)으로
-const ALERT_WIN = /[?&]alert=1/.test(location.search);   // 과업 알림 새 창
+// 알림 시각 (2026-11-25): 예전엔 늘 8 · 11 · 13 · 17시 → 나의 할일 설정에서 사람마다 (SY_ALERT · js/common.js) · 알림은 캘린더처럼 따로 뜨는 창(group.html?alert=1)으로
+const ALERT_WIN = /[?&]alert=1/.test(location.search);   // 과업 알림 창 (따로 뜨는 창)
 if(ALERT_WIN) document.documentElement.classList.add('alert-only');
 // 공유 기록(내 개인업무목록 줄)에 저장된 알림 시각을 이 컴퓨터에 맞춤 — 개인고객 화면 · 다른 컴퓨터도 같게
 function alertSync(){ try{ const r=typeof etcCatRec==='function' && etcCatRec(); if(!r) return; const a=(JSON.parse(r.history||'{}')||{}).alertTimes; if(Array.isArray(a) && JSON.stringify(a)!==JSON.stringify(SY_ALERT.times())) SY_ALERT.set(a); }catch(_){} }
 const SELF_DONE = new Set(['erp','erpcheck','erpfix','progstaff','mbmenu']);   // erp · erpfix: 전산 내역을 붙여넣어야 완료 · 칸을 채우면 저절로 완료되는 과업은 '열기'만 (2026-11-23에 비웠다가 같은 날 되돌림)   // erp · erpfix: 전산 내역을 붙여넣어야 완료   // 칸을 채우면 저절로 완료되는 과업은 '열기'만
-let engTried='';
+// 알림에 나올 것 = 나의 할일에 있는 것 모두 (2026-11-26 · 예전엔 단체 + 개인고객 과업만):
+//  ① 단체 과업 ② 개인고객 과업 ③ 직접 넣은 업무(구분 · 반복 무엇이든 · 오늘 할 것과 안 한 지난 것) — 나의 할일 「오늘 마감」과 같은 목록(myDueList · js/group/14-task-sim.js)
+//  ④ 내가 맡은 고객 견적 요청 (나의 할일 메인의 「고객 견적 요청」 · myQuoteReqs)
+//  단, 넣은 지(마감을 바꾼 지) 30분이 안 된 것은 알리지 않음
+function alertList(){
+  const now=Date.now(), old = s => now - (+new Date(s||0)||0) >= QUIET_MS;
+  const list = myDueList().filter(T => T.kind==='e' ? old(T._r.saved) : now - Math.max(+new Date(T._t.dueSetAt||0)||0, +new Date(T._t.at||T._r.saved||0)||0) >= QUIET_MS);
+  myQuoteReqs().filter(q=>old(q.at)).forEach(q=>{ const a=new Date(q.at||''); list.push({kind:'q', q, due: isNaN(a) ? String(q.at||'').slice(0,10) : ymd(a), title:'견적서 · 거래명세서 발급'}); });
+  return list.sort((a,b)=>(a.due||'').localeCompare(b.due||''));
+}
+// 알림 한 줄: [☐] [이름표] 누구 것 / 할 일 · 마감 / 「열기」
+//  2026-11-26: 초록 「완료」 버튼은 없애고, 나의 할일 「오늘 마감」처럼 맨 앞 체크 칸으로 완료 (체크하면 바로 저장 · 그 줄이 사라짐)
+//  예약을 열어 처리해야 끝나는 과업(전산 예약 · 전산 내역 대조 등 SELF_DONE)은 회색 체크 칸 — 누르면 그 예약을 엶 · 견적 요청은 체크 칸 없음(견적서 화면에서 끝냄)
+function alertRowHTML(T, today){
+  const n = T.due ? daysFrom(today, T.due) : 0, late=n<0, when = `${late?`(${-n}일 지남)`:'(오늘)'}`;
+  const ck = T.kind==='q' ? '<span class="my-ck no"></span>'
+    : T.kind==='g' && SELF_DONE.has(T.tid) ? `<label class="my-ck self" title="예약을 열어 처리하면 완료됩니다 (체크하면 그 예약을 엶)"><input type="checkbox" data-ackopen="${esc(T.rid)}"></label>`
+    : `<label class="my-ck" title="체크하면 완료"><input type="checkbox" data-ack="${esc([T.kind, T.rid, T.tid||'', T.day||''].join('|'))}"></label>`;
+  const row = (tag, who, sub, open) => `<li class="${late?'late':'today'}">${ck}<span class="who"><span class="tag">${tag}</span> ${who}<br>`
+    + `<b class="${late?'late':''}">${esc(T.title||'')}</b> <small class="hint" style="margin:0">${sub}</small></span><button class="btn primary" ${open}>열기</button></li>`;
+  if(T.kind==='q'){ const q=T.q; return row('견적', `<b>${esc(q.org||'(업체 미정)')}</b>${q.name?` · ${esc(q.name)}님`:''}${q.date?` · 방문 ${esc(dateLabel(String(q.date).slice(0,10)))}`:''}${q.pax?` · ${esc(q.pax)}명`:''}`, `접수 ${esc(fmt(q.at))} ${when}`, 'data-aopen="quote"'); }
+  if(T.kind==='e') return row('업무', `<b>${esc(catLabel(etcCatOf(T.d))||ETC_NOCAT)}</b>${T.rep && T.rep!=='none' ? ` · ${esc(opsRepeatLabel(T.d))}` : ''}`, `마감 ${esc(mdLabel(T.due))} ${when}${T.before&&T.before.length?` · 안 한 지난 날 ${T.before.length}일 더`:''}`, 'data-aopen="my"');
+  const r=T._r, t=T._t;
+  if(T.kind==='p') return row('개인', `<b>${esc(r.contact||'(이름 없음)')}</b>${r.phone?` · ${esc(r.phone)}`:''}`, `마감 ${esc(mdLabel(t.due))} ${when}`, `data-popen2="${esc(r.id)}"`);
+  return row('단체', `<b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date)||'미정')}${r.owner?` · ${esc(r.owner)}`:''}`, `마감 ${esc(mdLabel(t.due))} ${when}${t.id==='wkcheck'||t.id==='onsitecall'?` · ${esc(firstContact(r)||'담당자 연락처 없음')}`:''}`, `data-tbdopen="${esc(r.id)}"`);
+}
+function paintAlert(due){ const today=ymd(new Date());
+  $('#tbdList').innerHTML = due.map(T=>alertRowHTML(T, today)).join('');
+  $('#tbdTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(T=>T.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(T=>T.due>=today).length}</b> · 나의 할일 전체 · 알림은 ${esc(SY_ALERT.label())}</small>`;
+  $('#tbdLater').title=`다음 알림 시각(${SY_ALERT.label()})에 다시`;
+  $('#tbdModal').hidden=false; }
 function checkTbdPopup(force){
   alertSync(); if(ALERT_WIN) force=true;
   const ENG=/[?&]engine=/.test(location.search);   // 첫 화면의 과업 계산 창: 새 창으로만 알림 (2026-11-25 · 첫 화면만 켜 둬도 알림)
   if(BOOK_ONLY || (MY_EMBED && !ENG)) return;   // 예약 현황 공유 페이지 · 나의 할일 팝업 안에서는 안 함
-  // 마감 지난 과업: 열 때 · 1분마다 (나중에 = 2시간 뒤). 오늘 마감 과업: 오후 1시, 아직 안 끝났으면 오후 5시에 (시간마다 한 번)
-  // 단, 입력(과업이 생기거나 마감을 바꾼 것)한 지 30분이 안 된 과업은 알리지 않음
-  // 2026-11-14부터: 오전 8시 · 11시 · 오후 1시 · 5시에 (그 시각이 지나고 처음 화면을 볼 때, 시각마다 한 번) 마감이 오늘이거나 지난 과업을 단체 + 개인고객 함께
-  // 개인고객 화면과 같은 기록(TASK_SLOT_LS)을 써서, 한 시각에 두 화면에서 두 번 뜨지 않음
-  const nowD=new Date(), now=+nowD, today=ymd(nowD); let slots=''; try{ slots=localStorage.getItem(TASK_SLOT_LS)||''; }catch(_){}
-  if(!force && [...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)
-  const slotH=SY_ALERT.slot(nowD), slotKey=`${today}|${slotH}`;
-  if(!force && (slotH==null || slots.split(',').includes(slotKey))) return;
-  const fresh = ({r,t}) => now - Math.max(+new Date(t.dueSetAt||0)||0, +new Date(t.at||r.saved||0)||0) < QUIET_MS;
-  const pers = myPersonalOpen().flatMap(o=>o.left.filter(t=>t.due<=today).map(t=>({r:o.r, t, personal:true})));
-  const due=[...dueTasks(), ...pers].filter(o=>!fresh(o)).sort((a,b)=>a.t.due.localeCompare(b.t.due));
-  if(!due.length){ if(ALERT_WIN){ $('#tbdList').innerHTML='<li class="hint">지금 알릴 과업이 없습니다.</li>'; $('#tbdTitle').textContent='과업 알림'; $('#tbdModal').hidden=false; } return; }
-  if(ENG){ if(engTried===slotKey) return; engTried=slotKey; }   // 과업 계산 창: 시각마다 한 번만 새 창을 열어 봄 (막혀도 1분마다 다시 시도하지 않음)
-  if(!force && slotH!=null && SY_ALERT.openWin()){ try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), slotKey].join(',')); }catch(_){} return; }   // 새 창으로 (막히면 아래 이 화면 팝업)
-  if(ENG) return;   // 과업 계산 창은 보이지 않으므로 이 화면 팝업은 없음 (팝업이 막히면 다음 시각에 다시)
-  if(slotH!=null && !ALERT_WIN){ try{ localStorage.setItem(TASK_SLOT_LS, [...slots.split(',').filter(s=>s.startsWith(today)), slotKey].join(',')); }catch(_){} }
-  $('#tbdList').innerHTML = due.map(({r,t,personal})=>{ const n=daysFrom(today,t.due);
-    if(personal) return `<li class="${n<0?'late':'today'}"><span class="who"><span class="tag">개인</span> <b>${esc(r.contact||'(이름 없음)')}</b>${r.phone?` · ${esc(r.phone)}`:''}<br>`
-      + `<b class="${n<0?'late':''}">${esc(t.title)}</b> <small class="hint" style="margin:0">마감 ${esc(mdLabel(t.due))} ${n<0?`(${-n}일 지남)`:'(오늘)'}</small></span>`
-      + `<button class="btn primary" data-pdone="${esc(r.id)}|${esc(t.id)}">완료</button><button class="btn primary" data-popen2="${esc(r.id)}">열기</button></li>`;
-    return `<li class="${n<0?'late':'today'}"><span class="who"><b>${esc(r.org||r.contact||'(업체 미정)')}</b> · 방문 ${esc(dateLabel(r.date)||'미정')}${r.owner?` · ${esc(r.owner)}`:''}<br>`
-      + `<b class="${n<0?'late':''}">${esc(t.title)}</b> <small class="hint" style="margin:0">마감 ${esc(mdLabel(t.due))} ${n<0?`(${-n}일 지남)`:'(오늘)'}${t.id==='wkcheck'||t.id==='onsitecall'?` · ${esc(firstContact(r)||'담당자 연락처 없음')}`:''}</small></span>`
-      + (SELF_DONE.has(t.id) ? '' : `<button class="btn primary" data-tdone="${esc(r.id)}|${esc(t.id)}">완료</button>`) + `<button class="btn primary" data-tbdopen="${esc(r.id)}">열기</button></li>`; }).join('');
-  $('#tbdTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b> · 단체 + 개인 · 알림은 ${esc(SY_ALERT.label())}</small>`;
-  $('#tbdLater').title=`다음 알림 시각(${SY_ALERT.label()})에 다시`;
-  $('#tbdModal').hidden=false;
+  // 알림 시각(나의 할일 설정 · 기본 오전 8시 · 11시 · 오후 1시 · 5시)이 지나고 처음 화면을 볼 때, 시각마다 한 번
+  // 개인고객 화면과 같은 기록(SY_ALERT · sayuwon_task_slot)을 써서, 한 시각에 여러 화면 · 여러 탭에서 또 뜨지 않음
+  // 2026-11-26: 따로 뜨는 창으로 (SY_ALERT.show · js/common.js — 브라우저가 막으면 화면을 처음 누를 때 엶 · 끝내 안 열리면 이 화면 팝업)
+  if(ALERT_WIN){ const due=alertList();
+    if(!due.length){ $('#tbdList').innerHTML='<li class="hint">지금 알릴 과업이 없습니다.</li>'; $('#tbdTitle').textContent='과업 알림'; $('#tbdModal').hidden=false; return; }
+    paintAlert(due); return; }
+  const k=SY_ALERT.keyNow(); if(!force && (!k || SY_ALERT.seen(k))) return;
+  if(!force && !ENG && [...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)
+  const due=alertList(); if(!due.length) return;
+  if(force){ paintAlert(due); return; }
+  SY_ALERT.show(ENG ? null : ()=>{ const d=alertList(); if(d.length) paintAlert(d); }, due.length);   // 과업 계산 창은 보이지 않으므로 이 화면 팝업은 없음
 }
-$('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; if(ALERT_WIN) window.close(); };   // 다음 알림 시각에 다시 (알림 새 창이면 창을 닫음)
-const alertWinEmpty = () => { if(!$('#tbdList').children.length){ if(ALERT_WIN) window.close(); else $('#tbdModal').hidden=true; } };
+$('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; if(ALERT_WIN) window.close(); };   // 다음 알림 시각에 다시 (알림 창이면 창을 닫음)
+if(ALERT_WIN){ document.title='과업 알림 · 사유원';
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') window.close(); });
+  setInterval(()=>{ if(window.__tasksReady) checkTbdPopup(true); }, 60000); }   // 열어 둔 알림 창은 1분마다 새로 (다른 화면에서 끝낸 것은 사라짐)
 // 과업 하나 완료 (열어 둔 예약이면 화면의 과업, 아니면 저장된 기록을 고쳐 저장)
 async function doneTask(id, tid){
   const r=cache.find(x=>x.id===id); if(!r) return;
@@ -4441,20 +4463,34 @@ async function doneTask(id, tid){
   const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item);
   const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;   // 공유 기록에서 다시 받기 전에도 바로 반영
 }
-$('#tbdList').addEventListener('click', async e=>{
-  // 개인고객 과업: 열기 = 개인고객 화면에서 그 통화, 완료 = 그 통화 기록에 완료로 저장
-  // 알림 새 창: 열기 = 새 탭에서 그 예약 (알림 창은 그대로)
-  if(ALERT_WIN && (e.target.dataset.popen2 || e.target.dataset.tbdopen)){ const p=e.target.dataset.popen2; window.open((p ? 'personal.html?open=' : 'group.html?open=')+encodeURIComponent(p || e.target.dataset.tbdopen), '_blank'); return; }
-  if(e.target.dataset.popen2){ const id=e.target.dataset.popen2; $('#tbdModal').hidden=true; guardLeave(()=>{ location.href='personal.html?open='+encodeURIComponent(id); }); return; }
-  if(e.target.dataset.pdone){ const [id,tid]=e.target.dataset.pdone.split('|'), r=cache.find(x=>x.id===id); if(!r) return; e.target.disabled=true;
-    let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const t=(h.tasks||[]).find(x=>x.id===tid); if(t){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=savedOwner()||''; (t.xsubs||[]).forEach(x=>x.done=true); }
-    const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
-    e.target.closest('li').remove(); alertWinEmpty(); toast('과업을 완료로 표시했습니다.'); paintMyCount(); if(!$('#myModal').hidden) renderMy(); return; }
-  const dn=e.target.dataset.tdone, open=e.target.dataset.tbdopen;
-  if(open){ const r=cache.find(x=>x.id===open); $('#tbdModal').hidden=true; if(r) openRecordG(r); }
-  if(dn){ const [id,tid]=dn.split('|'); e.target.disabled=true; await doneTask(id, tid);
-    e.target.closest('li').remove(); alertWinEmpty();
-    toast('과업을 완료로 표시했습니다.'); paintMyCount(); if(!$('#myModal').hidden) renderMy(); }
+// 개인고객 과업 하나 완료 (그 통화 기록에 완료로 저장) — 나의 할일의 체크 칸과 알림의 체크 칸이 같이 씀
+async function donePersonalTask(id, tid){
+  const r=cache.find(x=>x.id===id); if(!r) return; let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){}
+  const t=(h.tasks||[]).find(x=>x.id===tid); if(t){ t.done=true; t.doneAt=new Date().toISOString(); t.doneBy=savedOwner()||''; (t.xsubs||[]).forEach(x=>x.done=true); }
+  const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
+}
+// 알림의 체크 칸 (2026-11-26): 체크 = 완료로 저장하고 목록을 다시 그림 (남은 것이 없으면 「지금 알릴 과업이 없습니다」 · 이 화면 팝업이면 닫힘)
+const alertRepaint = () => { const d=alertList(); if(d.length){ paintAlert(d); return; }
+  if(ALERT_WIN){ $('#tbdList').innerHTML='<li class="hint">지금 알릴 과업이 없습니다.</li>'; $('#tbdTitle').textContent='과업 알림'; } else $('#tbdModal').hidden=true; };
+$('#tbdList').addEventListener('change', async e=>{ const d=e.target.dataset||{};
+  if(d.ackopen){ e.target.checked=false; toast('이 과업은 예약을 열어 처리하면 완료됩니다 (전산 내역 붙여넣기 · 칸 채우기).', 3200); e.target.closest('li')?.querySelector('[data-tbdopen]')?.click(); return; }
+  if(!d.ack || !e.target.checked) return; const [kind, rid, tid, day]=d.ack.split('|'); e.target.disabled=true;
+  try{
+    if(kind==='g') await doneTask(rid, tid);
+    else if(kind==='p') await donePersonalTask(rid, tid);
+    else { const o=etcMine().find(x=>x.r.id===rid); if(!o) return; const dd=day||opsToday();
+      await etcPut(o.r, {...o.d, done:{...(o.d.done||{}), [dd]:{at:new Date().toISOString(), by:savedOwner()||''}}}, `${dd} 완료 (과업 알림)`); }
+    toast('과업을 완료로 표시했습니다.'); paintMyCount(); if(!$('#myModal').hidden) renderMy(); alertRepaint();
+  }catch(err){ e.target.disabled=false; e.target.checked=false; toast('완료로 표시하지 못했습니다: '+(err.code||err.message)); } });
+$('#tbdList').addEventListener('click', e=>{
+  // 「열기」만 있음 (2026-11-26: 「완료」 버튼은 없앰). 단체 = 그 예약 · 개인 = 개인고객 화면의 그 통화 · 업무 = 나의 할일 · 견적 = 견적서 화면
+  const d=e.target.dataset, kind = d.tbdopen ? 'g' : d.popen2 ? 'p' : d.aopen; if(!kind) return;
+  const url = kind==='g' ? 'group.html?open='+encodeURIComponent(d.tbdopen) : kind==='p' ? 'personal.html?open='+encodeURIComponent(d.popen2) : kind==='quote' ? 'document/index.html' : './#mypop';
+  if(ALERT_WIN){ window.open(url, '_blank'); return; }   // 알림 창: 새 탭에서 엶 (알림 창은 그대로)
+  $('#tbdModal').hidden=true;
+  if(kind==='g'){ const r=cache.find(x=>x.id===d.tbdopen); if(r) openRecordG(r); return; }
+  if(kind==='my'){ openMy(); return; }
+  guardLeave(()=>{ location.href=url; });
 });
 setInterval(()=>{ if(window.__tasksReady && !ALERT_WIN) checkTbdPopup(); }, 60000);   // 1분마다 확인 (나중에 = 2시간 뒤 다시)
 
@@ -4500,10 +4536,12 @@ document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveView
 async function restoreView(){
   if(BOOK_ONLY || MY_ONLY) return;   // 예약 현황 공유 페이지 · 나의 할일(단독 · 팝업)에서는 안 함 — 팝업 안에서 지난번 단체 화면(열어 둔 예약 · 단체예약 목록)이 되살아나지 않게 (2026-11-18)
   let v=null; try{ v=JSON.parse(localStorage.getItem(VIEW_LS)||'null'); }catch(_){}
-  if(!v) return;
+  if(!v){ showStart(); return; }
   // 메뉴 · 링크로 들어오면 늘 새 통화 (2026-11-21) — 지난 화면(열어 둔 예약 · 목록)은 새로고침 · 뒤로 가기일 때만. 저장 안 한 입력이 있으면 그것만은 되살림
+  //  2026-11-26: 그때 첫 화면은 「단체명으로 먼저 찾기」(showStart) — 되살릴 예약 · 입력 · 목록이 없을 때도
   const navType = (performance.getEntriesByType && (performance.getEntriesByType('navigation')[0]||{}).type) || 'navigate';
-  if(navType==='navigate' && !v.dirty) return;
+  if(navType==='navigate' && !v.dirty){ showStart(); return; }
+  if(!v.id && !v.dirty && v.modal!=='list') showStart();
   restoring=true;
   try{
     await store.list();
@@ -4523,7 +4561,7 @@ async function restoreView(){
 }
 emptySnap=snap(); window.__autoReady=true; paintDirty();   // 자동 저장 시작 (빈 화면 기준)
 restoreView();   // 새로고침 전에 보던 화면
-window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs(); checkTbdPopup(); checkMemoPopup();   // 추후 과업 · 결제 확인 알림 · 미정 항목 알림
+window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs(); setTimeout(checkTbdPopup, 0) /* 알림 목록이 뒤 조각(16 · 직접 넣은 업무 · 견적 요청)의 것을 써서 파일을 다 읽은 뒤에 (2026-11-26) */; checkMemoPopup();   // 추후 과업 · 결제 확인 알림 · 미정 항목 알림
 // 불러오는 중 화면 걷기 (2026-11-21): 예약 정보(사본 또는 서버)가 준비되고, 열 예약(?open= · 새로고침 전 화면)을 다 연 뒤에. 서버 오류 · 로그인 필요 · 20초가 지나면 그냥 걷음
 (function gLoadingWatch(){ const H=document.documentElement; if(!H.classList.contains('g-loading')) return; const t0=Date.now();
   const top=()=>{ const h=document.querySelector('body > header'); if(h) H.style.setProperty('--gl-top', Math.round(h.getBoundingClientRect().bottom)+'px'); }; top();
@@ -4538,6 +4576,47 @@ window.__tasksReady=true; renderTasks(); checkPayPopup(); takeDocs(); checkTbdPo
   tick(); })();
 window.addEventListener('focus', ()=>{ if(priceLoaded && Date.now()-priceLoaded>10*60000) loadQuotePrices(); });
 $('#memoBox').focus();
+
+// ===== 첫 화면: 단체명으로 먼저 찾기 (2026-11-26) =====
+// 메뉴 · 링크로 단체 화면에 들어오면 입력 칸 하나만 보임 — 단체명을 치면 이미 있는 예약이 아래에 나오고(누르면 그 예약으로), 없으면 새 통화에 업체명이 들어감
+//  - 건너뛰는 때: 새로고침 전에 보던 예약 · 저장 안 한 입력 · 목록을 되살릴 때(restoreView) · ?open= 으로 예약을 열 때 · 예약 현황 공유 · 나의 할일 · 알림 창
+//  - 걷히는 때: 예약을 열거나 새 통화를 시작하면(newCall 이 endStart 를 부름) · 단체상담 입력을 적용하면
+function showStart(){
+  if(BOOK_ONLY || MY_ONLY || ALERT_WIN || openGId || /[?&]engine=/.test(location.search)) return;
+  document.documentElement.classList.add('g-start'); paintStart();
+  { const h=document.querySelector('body > header'); if(h) document.documentElement.style.setProperty('--start-top', Math.round(h.getBoundingClientRect().bottom)+'px'); }   // 머리줄 아래 남은 높이의 가운데에 (css #startBox) setTimeout(()=>{ const q=$('#startQ'); if(q) q.focus(); }, 0);
+}
+function endStart(){ document.documentElement.classList.remove('g-start'); }
+// 찾기: 업체명 · 담당자 이름(띄어쓰기 무시) · 전화번호(숫자 4자리부터). 앞으로 있을 예약(가까운 날부터) → 지난 예약(최근 것부터)
+function startHits(q){
+  const qs=String(q||'').replace(/\s/g,'').toLowerCase(), qd=String(q||'').replace(/\D/g,''), t=todayYmd(); if(!qs) return [];
+  const L=(cache||[]).filter(r=>isGroupRec(r) && ([r.org, r.contact].join(' ').replace(/\s/g,'').toLowerCase().includes(qs) || (qd.length>=4 && String(r.phone||'').replace(/\D/g,'').includes(qd))));
+  return [...L.filter(r=>!r.date || r.date>=t).sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')), ...L.filter(r=>r.date && r.date<t).sort((a,b)=>b.date.localeCompare(a.date))];
+}
+function paintStart(){
+  const q=String($('#startQ').value||'').trim(), L=startHits(q), t=todayYmd();
+  $('#startList').innerHTML = L.slice(0,30).map(r=>{ const s=stageOfRec(r);
+    return `<li><button type="button" class="start-it" data-sid="${esc(r.id)}"><span class="num">${esc(dateLabel(r.date)||'방문일 미정')}</span><span class="tag st-${esc(s)}">${esc(s)}</span><b>${esc(r.org||r.contact||'(업체 미정)')}</b><small>${[r.people?`${esc(r.people)}명`:'', esc(firstContact(r)), ownerOf(r)?`담당 ${esc(ownerOf(r))}`:'', r.date && r.date<t?'지난 예약':''].filter(Boolean).join(' · ')}</small></button></li>`; }).join('');
+  $('#startHint').textContent = !q ? '단체명을 입력하면 이미 있는 예약을 찾아 줍니다. 없으면 새 통화에 업체명이 들어갑니다.'
+    : L.length ? `이미 있는 예약 ${L.length}건${L.length>30?' (가까운 30건만 보임 · 더 적어 보세요)':''} — 누르면 그 예약으로 갑니다. 새로 받는 예약이면 아래 버튼을 누르세요.`
+    : `「${q}」(으)로 저장된 예약이 없습니다. Enter 를 누르면 새 통화에 업체명이 들어갑니다.`;
+  $('#startNew').textContent = q ? `「${q}」 새 통화로 시작` : '단체명 없이 새 통화';
+}
+function startOpen(id){ const r=(cache||[]).find(x=>x.id===id); if(r) openRecord(r); }   // openRecord → newCall → endStart
+function startNew(org){
+  endStart(); $('#startQ').value='';
+  if(org){ rec.org=org; touched.add('org'); startTimer(); renderForm(); toast(`새 통화를 시작합니다 · 업체명 「${org}」`); }
+  setTimeout(()=>{ const m=$('#memoBox'); if(m) m.focus(); }, 0);
+}
+$('#startQ').addEventListener('input', paintStart);
+$('#startQ').addEventListener('keydown', e=>{ if(e.key!=='Enter' || e.isComposing || e.keyCode===229) return; e.preventDefault();
+  const q=$('#startQ').value.trim(), L=startHits(q); if(!q) return;
+  if(!L.length){ startNew(q); return; }   // 없는 단체 → 새 통화에 업체명
+  if(L.length===1){ startOpen(L[0].id); return; }   // 한 건뿐이면 바로 그 예약으로
+  const f=$('#startList .start-it'); if(f) f.focus(); toast(`이미 있는 예약이 ${L.length}건입니다 · 골라 주세요 (새로 받는 예약이면 아래 버튼)`); });
+$('#startList').addEventListener('click', e=>{ const b=e.target.closest('[data-sid]'); if(b) startOpen(b.dataset.sid); });
+$('#startNew').onclick=()=>startNew($('#startQ').value.trim());
+document.addEventListener('click', e=>{ if(e.target.id==='consultApplyBtn') setTimeout(()=>{ if($('#consultModal').hidden) endStart(); }, 0); });   // 단체상담 입력을 적용했으면 입력 화면으로
 
 
 // ===== 예약 내용 「비고 멘트 재출력」: 지금 예약 내용으로 전산 비고 문구를 다시 만들어 팝업으로 (복사 · 직접 고친 과업 문구 바꾸기) =====
@@ -4676,17 +4755,32 @@ async function etcSaveAlert(L){ L=SY_ALERT.set(L); const me=savedOwner()||'', no
   let prev={}; try{ prev=JSON.parse((old||{}).history||'{}')||{}; }catch(_){}
   const item={...(old||{}), id: old ? old.id : 'el'+tdHash(me), callType:'개인업무목록', saved:(old&&old.saved)||now, takenBy:me, owner:me, summary:(old&&old.summary)||'나의 할일 설정', history:JSON.stringify({...prev, lists: prev.lists || etcCats(), order: prev.order || [], alertTimes:L})};
   await store.put(item); const i=cache.findIndex(x=>x.id===item.id); if(i>=0) cache[i]=item; else cache.push(item); }
-function alertSetHTML(){ const L=SY_ALERT.times();
-  return `<div class="al-set"><b>과업 알림</b> <small class="hint" style="margin:0">하루 ${L.length}번 · 그 시각이 지나고 처음 화면을 볼 때 새 창으로 (브라우저에서 팝업 허용)</small>`
-    + (L.length ? `<ul class="al-list">${L.map((t,i)=>`<li><input type="time" step="600" value="${SY_ALERT.hm(t)}" data-alt="${i}" title="알림 시각"><button type="button" class="btn primary" data-aldel="${i}" title="이 시각 빼기">빼기</button></li>`).join('')}</ul>` : `<p class="hint" style="margin:8px 0">알림을 끈 상태입니다.</p>`)
-    + `<div class="al-btns"><button type="button" class="btn primary" data-aladd>＋ 알림 시각 추가</button><button type="button" class="btn primary" data-aldef title="오전 8시 · 11시 · 오후 1시 · 5시">기본으로</button></div></div>`; }
+// 2026-11-26: 「기본으로」 버튼은 없앰 (처음에는 오전 8시 · 11시 · 오후 1시 · 5시 — SY_ALERT.DEF 그대로) · 하루 몇 번(− n번 ＋ · 0번 = 끔 · 많아야 8번)부터 고르고, 시각은 오전/오후 · 시 · 분(10분 단위) 고르기로
+const AL_MAX=8;
+function alertSetHTML(){ const L=SY_ALERT.times(), n=L.length;
+  const row = (t,i) => { const h=Math.floor(t/60), m=t%60, pm=h>=12, h12=h%12||12, m10=Math.floor(m/10)*10;
+    return `<li><span class="al-no">${i+1}번째</span>`
+      + `<select data-alp="${i}" aria-label="${i+1}번째 알림 오전 · 오후"><option value="0"${pm?'':' selected'}>오전</option><option value="1"${pm?' selected':''}>오후</option></select>`
+      + `<select data-alh="${i}" aria-label="${i+1}번째 알림 시">${[12,1,2,3,4,5,6,7,8,9,10,11].map(x=>`<option value="${x}"${x===h12?' selected':''}>${x}시</option>`).join('')}</select>`
+      + `<select data-alm="${i}" aria-label="${i+1}번째 알림 분">${[0,10,20,30,40,50].map(x=>`<option value="${x}"${x===m10?' selected':''}>${x ? x+'분' : '정각'}</option>`).join('')}</select>`
+      + `<button type="button" class="btn primary" data-aldel="${i}" title="이 시각 빼기">빼기</button></li>`; };
+  return `<div class="al-set"><b>과업 알림</b>`
+    + `<p class="hint al-say">마감이 오늘이거나 지난 내 할 일을, 정한 시각이 지나고 화면을 처음 볼 때 따로 뜨는 창으로 알려 줍니다. (창이 바로 안 뜨는 브라우저에서는 화면을 한 번 누를 때 뜹니다)</p>`
+    + `<div class="al-count"><span>하루에 몇 번 알릴까요?</span><span class="al-step"><button type="button" class="btn primary" data-alminus${n?'':' disabled'} title="한 번 줄이기 (맨 뒤 시각을 뺌)" aria-label="알림 횟수 줄이기">−</button><b>${n ? n+'번' : '끔'}</b><button type="button" class="btn primary" data-aladd${n>=AL_MAX?' disabled':''} title="한 번 늘리기" aria-label="알림 횟수 늘리기">＋</button></span></div>`
+    + (n ? `<ul class="al-list">${L.map(row).join('')}</ul><p class="hint al-say">시각을 바꾸면 바로 저장됩니다 · 이른 시각부터 차례로 놓입니다.</p>` : `<p class="hint al-say">알림을 끈 상태입니다. <b>＋</b> 를 누르면 다시 켜집니다.</p>`)
+    + `</div>`; }
 const alRepaint = () => { if(typeof paintMySet==='function') paintMySet(); };
-document.addEventListener('change', async e=>{ const i=e.target.dataset?.alt; if(i==null) return; const v=e.target.value; if(!/^\d\d:\d\d$/.test(v)) return;
-  const L=SY_ALERT.times(); L[+i]=+v.slice(0,2)*60 + +v.slice(3); await etcSaveAlert(L); alRepaint(); toast(`과업 알림: ${SY_ALERT.label()}`); });
-document.addEventListener('click', async e=>{ const b=e.target.closest?.('[data-aldel],[data-aladd],[data-aldef]'); if(!b) return; e.preventDefault(); let L=SY_ALERT.times();
+document.addEventListener('change', async e=>{ const d=e.target.dataset||{}, i = d.alp ?? d.alh ?? d.alm; if(i==null) return; const li=e.target.closest('li'); if(!li) return;
+  const pm=li.querySelector('[data-alp]').value==='1', h12=+li.querySelector('[data-alh]').value, m=+li.querySelector('[data-alm]').value, t=((h12%12)+(pm?12:0))*60+m;
+  const L=SY_ALERT.times(); if(L[+i]===t) return;
+  if(L.includes(t)){ toast(`${SY_ALERT.say(t)} 알림은 이미 있습니다.`); alRepaint(); return; }
+  L[+i]=t; await etcSaveAlert(L); alRepaint(); toast(`과업 알림: ${SY_ALERT.label()}`); });
+document.addEventListener('click', async e=>{ const b=e.target.closest?.('[data-aldel],[data-aladd],[data-alminus]'); if(!b || b.disabled) return; e.preventDefault(); let L=SY_ALERT.times();
   if(b.dataset.aldel!=null) L.splice(+b.dataset.aldel, 1);
-  else if(b.dataset.aladd!=null){ const last=L.length ? L[L.length-1] : 480; let n=Math.min(last+60, 1380); while(L.includes(n) && n<1430) n+=10; L.push(n); }
-  else L=SY_ALERT.DEF.slice();
+  else if(b.dataset.alminus!=null) L.pop();
+  else { if(L.length>=AL_MAX) return;   // 늘리기: 처음 정해 둔 시각(오전 8시 · 11시 · 오후 1시 · 5시) 가운데 빠진 것부터, 다 있으면 맨 뒤 시각의 1시간 뒤
+    let n=SY_ALERT.DEF.find(x=>!L.includes(x)); if(n==null){ n=Math.min((L.length ? L[L.length-1] : 420)+60, 1380); while(L.includes(n) && n<1430) n+=10; if(L.includes(n)){ n=0; while(L.includes(n)) n+=10; } }
+    L.push(n); }
   await etcSaveAlert(L); alRepaint(); toast(`과업 알림: ${SY_ALERT.label()}`); });
 // 나의 할일 구분 (2026-11-19): 개인예약(개인고객 추후 과업) · 단체예약(단체 추후 과업) · 내가 만든 구분(기타 업무) · 구분 없음 — 순서는 사람마다 저장(▲▼로 바꿈)
 const CAT_P='@personal', CAT_G='@group', CAT_N='@none';
@@ -4879,7 +4973,8 @@ async function loadMyQuoteReq(){
     if(m && m.ok && qr && qr.ok){ const up=s=>String(s||'').trim().toUpperCase(), es=((m.roles||{}).quote||[]).map(up);
       myQR={items:(qr.items||[]).filter(r=>(r.status||'접수')==='접수').map(r=>({org:r.org, name:r.name, date:r.date, pax:r.pax, at:r.at})), owners:(m.members||[]).filter(x=>es.includes(up(x.emp))).map(x=>String(x.name||'').trim()).filter(Boolean)};
       try{ localStorage.setItem(MYQR_LS, JSON.stringify(myQR)); }catch(_){}
-      paintMyCount(); if(!$('#myModal').hidden && myTab==='main' && !document.activeElement?.closest?.('#myBody input, #myBody textarea, #myBody select')) renderMy(); }   // 입력 중이면 다시 그리지 않음
+      paintMyCount(); if(typeof ALERT_WIN!=='undefined' && ALERT_WIN && window.__tasksReady) checkTbdPopup(true);   // 과업 알림 창: 견적 요청을 새로 받으면 다시 그림 (2026-11-26)
+      if(!$('#myModal').hidden && myTab==='main' && !document.activeElement?.closest?.('#myBody input, #myBody textarea, #myBody select')) renderMy(); }   // 입력 중이면 다시 그리지 않음
   }catch(_){} finally{ myQRBusy=false; }
 }
 function myQuoteReqHTML(){
