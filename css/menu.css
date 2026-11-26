@@ -129,10 +129,13 @@ header .fz-pop .fz-reset:disabled{opacity:.4;cursor:default}
 /* ===== 휴대폰 메뉴 (너비 700px 아래 · js/menu.js · 2026-11-26 같은 날 다시 정함): PC 와 같은 묶음(예약보조 · 운영보조 …) 그대로.
    달라지는 것은 둘뿐 — 맨 위 「나의 할일」 버튼(로그인한 사람만 · 연한 초록 · .sm-m) · 맨 아래 로그아웃. (처음에는 멘트 · 예약현황 공유 · 분실물 찾기만 따로 보였음)
    휴대폰 헤더에서는 이름 · 나의 할일 · 로그아웃 · 글자 크기 버튼을 숨김 (글자 크기는 휴대폰에서 늘 보통) ===== */
-.smenu .sm-out{display:none}
+/* 로그아웃은 PC 도 메뉴 맨 아래에 (2026-11-26 · 헤더의 로그아웃 버튼은 숨김 — 첫 화면 #logoutBtn 은 메뉴의 로그아웃이 대신 눌러 주므로 지우지 않고 숨기기만) */
+.smenu .sm-out{display:block;flex:none;margin-top:auto;height:42px;border:1px solid #dfdace;border-radius:10px;background:none;color:#77736a;font:600 14px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
+.smenu .sm-out:hover{background:#f3f1ec;color:#262620}
+header:has(> .smenu-btn) #logoutBtn{display:none !important}
 @media (max-width:700px){
   :root{--sy-fz:1 !important}
-  .smenu .sm-out{display:block;flex:none;margin-top:auto;height:46px;border:1px solid #dfdace;border-radius:12px;background:none;color:#77736a;font:600 15px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
+  .smenu .sm-out{height:46px;border-radius:12px;font-size:15px}
   .smenu .sm-in{height:52px;font-size:16px}
   header:has(> .smenu-btn) [data-mypop], header:has(> .smenu-btn) #myOpenBtn, header:has(> .smenu-btn) .smenu-my,
   header:has(> .smenu-btn) .fz-wrap, header:has(> .smenu-btn) .who, header:has(> .smenu-btn) .me, header:has(> .smenu-btn) .sys-me, header:has(> .smenu-btn) #whoName, header:has(> .smenu-btn) #logoutBtn{display:none !important}

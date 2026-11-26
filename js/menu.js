@@ -77,7 +77,7 @@ window.syFont = (function(){
       for(let j=n+1; j<a.length && !a[j].sub; j++) if(vis(a[j], g)) return true; return false; });   // 소제목은 그 아래에 보이는 항목이 있을 때만
     return its.some(isItem) ? `<details class="sm-g" data-acc="${g.k}"${(g.k in st ? st[g.k] : false)?' open':''}><summary>${esc(g.t)}</summary>${its.map(it=>it.sub ? `<div class="sm-sub">${esc(it.sub)}</div>` : itemHTML(it)).join('')}</details>` : ''; };
   // 맨 위 「나의 할일」(로그인한 사람만 · 설정에 따라) = 헤더의 「나의 할일」 버튼과 같은 것을 엶 (같은 자료라 체크는 PC 와 그대로 이어짐 · 휴대폰 헤더에서는 그 버튼을 숨기므로 여기에 둠)
-  //  맨 아래: 로그아웃(휴대폰에서만 보임 · css) / 로그인 안 했으면 「로그인」(누르면 첫 화면 = 로그인 화면 · 첫 화면에서는 넣지 않음)
+  //  맨 아래: 로그아웃(PC · 휴대폰 모두 · 헤더의 로그아웃 버튼은 css 로 숨김 · 2026-11-26) / 로그인 안 했으면 「로그인」(누르면 첫 화면 = 로그인 화면 · 첫 화면에서는 넣지 않음)
   const navHTML = () => `<div class="sm-top"><b class="sm-title">메뉴</b><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
     + (logged && shown('my') ? `<div class="sm-m"><button type="button" class="sm-my" data-smmy>나의 할일</button></div>` : '')
     + G.map(groupHTML).join('')
