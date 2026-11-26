@@ -336,11 +336,8 @@ function paintStart(){
   const q=String($('#startQ').value||'').trim(), L=startHits(q), t=todayYmd();
   $('#startList').innerHTML = L.slice(0,30).map(r=>{ const s=stageOfRec(r);
     return `<li><button type="button" class="start-it" data-sid="${esc(r.id)}"><span class="num">${esc(dateLabel(r.date)||'방문일 미정')}</span><span class="tag st-${esc(s)}">${esc(s)}</span><b>${esc(r.org||r.contact||'(업체 미정)')}</b><small>${[r.people?`${esc(r.people)}명`:'', esc(firstContact(r)), ownerOf(r)?`담당 ${esc(ownerOf(r))}`:'', r.date && r.date<t?'지난 예약':''].filter(Boolean).join(' · ')}</small></button></li>`; }).join('');
-  if(isMobG()){   // 휴대폰: 새 통화(새 예약)는 받지 않음 — 이미 있는 예약을 찾아 통화 메모 · 추후 과업만 (2026-11-27)
-    $('#startHint').textContent = !q ? '단체명을 입력하면 이미 있는 예약을 찾아 줍니다.'
-      : L.length ? `이미 있는 예약 ${L.length}건${L.length>30?' (가까운 30건만 보임 · 더 적어 보세요)':''} — 누르면 그 예약으로 갑니다.`
-      : `「${q}」(으)로 저장된 예약이 없습니다. 새 예약은 PC 에서 받아 주세요.`;
-    return; }
+  $('#startNew').hidden = isMobG() && !q;   // 휴대폰: 단체명을 적어야 새 통화 (업체 · 방문일 칸이 없어 이름 없이는 저장할 수 없으므로 · 2026-11-27)
+  if(isMobG() && !q){ $('#startHint').textContent = '단체명을 입력하면 이미 있는 예약을 찾아 줍니다. 없으면 그 이름으로 새 통화를 시작할 수 있습니다.'; return; }
   $('#startHint').textContent = !q ? '단체명을 입력하면 이미 있는 예약을 찾아 줍니다. 없으면 새 통화에 업체명이 들어갑니다.'
     : L.length ? `이미 있는 예약 ${L.length}건${L.length>30?' (가까운 30건만 보임 · 더 적어 보세요)':''} — 누르면 그 예약으로 갑니다. 새로 받는 예약이면 아래 버튼을 누르세요.`
     : `「${q}」(으)로 저장된 예약이 없습니다. Enter 를 누르면 새 통화에 업체명이 들어갑니다.`;
@@ -355,12 +352,13 @@ function startNew(org){
 $('#startQ').addEventListener('input', paintStart);
 $('#startQ').addEventListener('keydown', e=>{ if(e.key!=='Enter' || e.isComposing || e.keyCode===229) return; e.preventDefault();
   const q=$('#startQ').value.trim(), L=startHits(q); if(!q) return;
-  if(!L.length){ if(isMobG()){ toast('저장된 예약이 없습니다. 새 예약은 PC 에서 받아 주세요.'); return; } startNew(q); return; }   // 없는 단체 → 새 통화에 업체명 (휴대폰에서는 새 통화 없음)
+  if(!L.length){ startNew(q); return; }   // 없는 단체 → 새 통화에 업체명
   if(L.length===1){ startOpen(L[0].id); return; }   // 한 건뿐이면 바로 그 예약으로
   const f=$('#startList .start-it'); if(f) f.focus(); toast(`이미 있는 예약이 ${L.length}건입니다 · 골라 주세요 (새로 받는 예약이면 아래 버튼)`); });
 $('#startList').addEventListener('click', e=>{ const b=e.target.closest('[data-sid]'); if(b) startOpen(b.dataset.sid); });
 $('#startNew').onclick=()=>startNew($('#startQ').value.trim());
 // ===== 휴대폰(너비 700px 아래 · 2026-11-27): 통화 메모 · 추후 과업만 보임 (예약 내용 · 가격표 · 수정 기록 · 머리줄의 편집 버튼은 css/group.css 맨 끝에서 숨김) =====
+//  새 통화: 첫 화면에서 단체명을 적고 시작 (이름 없이는 안 됨) → 통화 메모 「저장」 때 예약상담으로 처음 저장 · 나머지 칸은 PC 에서
 //  맨 위 제목 줄(#mobHead)은 어느 예약인지 읽기만 · 「다른 단체 찾기」 = 첫 화면(단체명으로 찾기)으로. 맨 아래 안내 글(#mobNote)은 group.html
 //  과업 체크는 휴대폰에서 바로 저장 (PC 는 그대로: 과업의 「저장」 · 맨 위 저장 · 30초 자동 저장 — 휴대폰에는 맨 위 저장 버튼이 안 보여서)
 function isMobG(){ return window.matchMedia('(max-width:700px)').matches; }
@@ -370,7 +368,7 @@ function paintMobHead(){
   }catch(_){ /* 화면을 처음 그리는 중 (아직 준비 안 된 값) — 다음에 다시 그림 */ } }
 $('#mobHead').addEventListener('click', e=>{ if(!e.target.closest('#mobFind')) return; guardLeave(()=>{ newCall(false); showStart(true); window.scrollTo(0,0); }); });
 $('#taskList').addEventListener('change', e=>{ if(!isMobG() || e.target.type!=='checkbox') return;
-  setTimeout(()=>{ if(editingId && !editLockBy && isDirty()) save(true); }, 300); });
+  setTimeout(()=>{ if((editingId || canSave()) && !editLockBy && isDirty()) save(true); }, 300); });
 window.matchMedia('(max-width:700px)').addEventListener?.('change', ()=>{ if(document.documentElement.classList.contains('g-start')) paintStart(); });   // 폭이 바뀌면 첫 화면 안내 글도 맞게
 document.addEventListener('click', e=>{ if(e.target.id==='consultApplyBtn') setTimeout(()=>{ if($('#consultModal').hidden) endStart(); }, 0); });   // 단체상담 입력을 적용했으면 입력 화면으로
 
@@ -445,7 +443,7 @@ let memoLockT=0;
 $('#memoBox').addEventListener('input', ()=>{ if(!lockOwner || editLockBy) return; clearTimeout(memoLockT); const ms=$('#memoSt'); if(ms){ ms.textContent='저장 안 함'; ms.className='memo-st'; } memoLockT=setTimeout(()=>saveLockedParts(), 1500); });
 $('#memoBox').addEventListener('blur', ()=>{ if(!lockOwner || editLockBy) return; clearTimeout(memoLockT); saveLockedParts(); });
 $('#memoSave').addEventListener('click', async ()=>{
-  if(!editingId){ toast('업체나 방문일을 먼저 넣고 저장해 주세요.'); return; }
+  if(!editingId && !(isMobG() && canSave() && !lockOwner)){ toast('업체나 방문일을 먼저 넣고 저장해 주세요.'); return; }   // 휴대폰의 새 통화(단체명만 있음)는 여기서 처음 저장 (휴대폰에는 맨 위 저장 버튼이 없어서 · 2026-11-27)
   if(editLockBy){ lockPopup(); return; }
   clearTimeout(memoLockT); const ms=$('#memoSt');
   if(lockOwner){ await saveLockedParts(); if(ms && ms.textContent==='저장 안 함'){ ms.textContent='바뀐 것 없음'; } return; }

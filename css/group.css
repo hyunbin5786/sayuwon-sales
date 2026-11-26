@@ -1415,8 +1415,8 @@ html.g-start #startBox{display:flex;flex-direction:column;justify-content:center
 #tbdList .my-ck input{width:18px;height:18px}
 #tbdList .my-ck.no{width:18px}
 /* ===== 단체고객 응대 · 휴대폰 (2026-11-27 · 너비 700px 아래): 통화 메모 · 추후 과업만 =====
-   숨기는 것: 예약 내용(업체 · 방문일 · 인원 · 품목 · 예약 단계 · 견적서 등 버튼) · 가격표 · 수정 기록 · 머리줄의 새 통화 / 추후과업 메시지 관리 / 단체상담 입력 / 단체예약 목록 / 품목 관리.
-   보이는 것: 맨 위 제목 줄(#mobHead · 읽기만) → 통화 메모 → 추후 과업 → 맨 아래 안내 글(#mobNote). 예약은 첫 화면의 단체명 찾기로 고름 (새 통화는 PC 에서).
+   숨기는 것: 예약 내용(업체 · 방문일 · 인원 · 품목 · 예약 단계 · 견적서 등 버튼) · 가격표 · 수정 기록 · 머리줄의 새 통화 버튼 / 추후과업 메시지 관리 / 단체상담 입력 / 단체예약 목록 / 품목 관리.
+   보이는 것: 맨 위 제목 줄(#mobHead · 읽기만) → 통화 메모 → 추후 과업 → 맨 아래 안내 글(#mobNote). 예약은 첫 화면의 단체명 찾기로 고름 (새 통화는 단체명을 적어야 시작).
    나의 할일(html.my-only) · 예약현황 공유(html.book-only) · 과업 알림 창(html.alert-only)은 .layout 을 통째로 숨기므로 이 규칙과 상관없음. PC 폭에서는 아래 두 줄(숨김)만 걸림 */
 .mob-head,.mob-note{display:none}
 @media (max-width:700px){
@@ -1433,7 +1433,6 @@ html.g-start #startBox{display:flex;flex-direction:column;justify-content:center
   .mob-head .mh-org{display:block;margin-top:8px;font:700 20px/1.35 var(--sans);color:var(--ink);overflow-wrap:anywhere}
   .memo-panel #memoBox{min-height:220px;font-size:16px}   /* 16px 아래면 아이폰이 칸을 누를 때 화면을 확대함 */
   .memo-panel .memo-save{height:38px;padding:0 18px;font-size:15px}
-  html.g-start #startNew{display:none}
   /* 추후 과업 한 줄: 좁은 폭에서 제목이 눌려 안 보이던 것 → 제목을 첫 줄 가득, 마감 · 저장 · × 는 다음 줄 */
   #taskList .task-h{flex-wrap:wrap;row-gap:6px}
   #taskList .task-h > .task-c{flex:1 1 calc(100% - 34px);min-width:0}
