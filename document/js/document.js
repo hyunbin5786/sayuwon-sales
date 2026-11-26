@@ -2649,13 +2649,14 @@
   function otherBox(h){
     var old = h.snapshot || {};
     var oldRows = (old.rows || []).filter(function(r){ return !r.adj; }), newRows = state.rows.filter(function(r){ return !r.adj; });
-    var used = {}, changes = [];
+    var used = {}, changes = [], map = {};
     function unit(r){ return Number(r.price) || 0; }
     function qr(r, withPrice){ return won(Number(r.qty) || 0) + (Number(r.rate) ? " (할인 " + r.rate + "%)" : "") + (withPrice ? " · 단가 " + won(unit(r)) + "원" : ""); }   // 수량 (할인율) · 단가는 다를 때만
     oldRows.forEach(function(o){
-      var n = newRows.filter(function(r){ return !used[r.key] && rowSig(r) === rowSig(o); })[0];
+      var n = newRows.filter(function(r){ return !used[r.key] && rowSig(r) === rowSig(o); })[0]
+        || newRows.filter(function(r){ return !used[r.key] && o.name && r.name === o.name; })[0];   // 품목 번호가 달라도 이름이 같으면 같은 품목 (같은 줄이 「빠짐 · 새로 생김」 두 줄로 나오지 않게)
       if(!n){ changes.push({ name: o.name, was: qr(o), now: "", tag: "빠짐" }); return; }
-      used[n.key] = true;
+      used[n.key] = true; map[o.key] = n;
       var pd = unit(n) !== unit(o);
       if(pd || (Number(n.qty) || 0) !== (Number(o.qty) || 0) || (Number(n.rate) || 0) !== (Number(o.rate) || 0))
         changes.push({ name: o.name, was: qr(o, pd), now: qr(n, pd), tag: "" });
@@ -2667,16 +2668,40 @@
     var wasT = Number(h.total) || 0, nowT = totalOf("sayuwon") + totalOf("shilla");
     if(wasT !== nowT) changes.push({ name: "합계", was: won(wasT) + "원", now: won(nowT) + "원", tag: "" });
     var doc = h.doc, now = state.docBoth ? "견적서 · 거래명세서" : docName();
+    // 그 문서가 내부용 + 외부용이었으면: 외부용에서 어떻게 입력했는지 (바꾼 품목 · 따로 정한 외부용 수량) — 수정발행 알림의 「외부용 바꾼 품목」과 같은 표
+    var oldFake = !!old.docUse && old.docUse !== "real", nowFake = state.docUse !== "real", swapRows = [];
+    function swapTxt(lines){ return (lines || []).map(function(l){ return product(l.pid).name + " " + won(Number(l.qty) || 0); }).join(", "); }
+    if(oldFake){
+      (old.rows || []).forEach(function(o){
+        var n = map[o.key], was = swapTxt((old.swaps || {})[o.key]), nowS = n && nowFake ? swapTxt(state.swaps[n.key]) : "";
+        if(was || nowS) swapRows.push({ name: o.name, was: was, now: nowS || (!n ? "지금은 이 품목이 없음" : !nowFake ? "지금은 내부용만" : "바꾸지 않음") });
+        var fq = (old.fakeQty || {})[o.key], nq = n && nowFake ? state.fakeQty[n.key] : null;
+        if(fq != null && fq !== "") swapRows.push({ name: o.name, tag: "외부용 수량", was: won(Number(fq) || 0) + " (내부용 " + won(Number(o.qty) || 0) + ")", now: nq != null && nq !== "" ? won(Number(nq) || 0) + " (내부용 " + won(Number(n.qty) || 0) + ")" : (!n ? "지금은 이 품목이 없음" : !nowFake ? "지금은 내부용만" : "따로 정하지 않음") });
+      });
+      var hadSwap = {};   // 그 문서에서 바꿨던 줄(지금 줄 열쇠)
+      Object.keys(map).forEach(function(k){ if(swapTxt((old.swaps || {})[k])) hadSwap[map[k].key] = true; });
+      if(nowFake) newRows.forEach(function(n){   // 지금만 바꾼 품목
+        var s = swapTxt(state.swaps[n.key]); if(s && !hadSwap[n.key]) swapRows.push({ name: n.name, was: "", now: s });
+      });
+    }
+    function tbl(head, c1, c2, rows){
+      return '<table class="rv-t"><thead><tr><th>' + esc(head) + '</th><th>' + esc(c1) + '</th><th>' + esc(c2) + '</th></tr></thead><tbody>' + rows.map(function(c){
+        return '<tr><td>' + esc(c.name || "(품명 없음)") + (c.tag ? ' <span class="rv-tag">' + esc(c.tag) + '</span>' : '') + '</td>' +
+          '<td class="rv-was">' + (c.was ? esc(c.was) : '–') + '</td><td class="rv-now">' + (c.now ? esc(c.now) : '–') + '</td></tr>'; }).join("") + '</tbody></table>';
+    }
+    var swapHtml = !oldFake ? "" : '<div class="rv-s">' + esc(doc) + '의 외부용 바꾼 품목' + (swapRows.length ? ' <span class="rv-n">' + swapRows.length + '</span>' : '') + '</div>'
+      + (swapRows.length ? tbl("원래 품목", doc + " (외부용)", "지금", swapRows)
+          + '<div class="rv-note">' + esc(doc) + '를 낼 때 외부용에서 이렇게 바꿔 넣었습니다' + (nowFake ? '' : ' · 지금 문서는 내부용만이라 외부용이 없습니다. 같은 외부용을 내려면 「용도」를 내부용 + 외부용으로 바꾸고 위 품목대로 넣어 주세요') + '</div>'
+        : '<div class="rv-none">' + esc(doc) + '에서 외부용으로 바꾼 품목이 없습니다</div>');
     return '<div class="rv">'
       + '<div class="rv-h">앞서 발급한 ' + esc(doc) + '와 견준 내용</div>'
       + '<dl class="rv-kv"><dt>앞서 발급</dt><dd>' + esc(histLabel(h)) + '</dd>'
         + '<dt>그때 설정</dt><dd><span class="rv-chip">' + esc(payKo(old.payMode)) + '</span><span class="rv-chip">' + useKo(old.docUse) + '</span></dd></dl>'
       + '<div class="rv-s">' + esc(doc) + '에서 달라진 내용' + (changes.length ? ' <span class="rv-n">' + changes.length + '</span>' : '') + '</div>'
       + (changes.length
-        ? '<table class="rv-t"><thead><tr><th>품목 · 수량</th><th>' + esc(doc) + '</th><th>지금 (' + esc(now) + ')</th></tr></thead><tbody>' + changes.map(function(c){
-            return '<tr><td>' + esc(c.name || "(품명 없음)") + (c.tag ? ' <span class="rv-tag">' + esc(c.tag) + '</span>' : '') + '</td>' +
-              '<td class="rv-was">' + (c.was ? esc(c.was) : '–') + '</td><td class="rv-now">' + (c.now ? esc(c.now) : '–') + '</td></tr>'; }).join("") + '</tbody></table>'
+        ? tbl("품목 · 수량", doc, "지금 (" + now + ")", changes)
         : '<div class="rv-none">앞서 발급한 ' + esc(doc) + '와 품목 · 수량 · 합계가 같습니다</div>')
+      + swapHtml
       + '<div class="rv-note">발급 취소하지 않은 가장 최근 ' + esc(doc) + ' 발급과 견줬습니다 · 이 상자는 화면에만 보입니다</div>'
       + '</div>';
   }
