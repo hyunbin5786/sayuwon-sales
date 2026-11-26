@@ -225,13 +225,15 @@ function tcfgDoneHTML(T, c, builtin, id){
   L.push(li('hand','직접', a.hand || ('과업을 체크하면 완료'+(has ? ' (세부 과업도 모두 체크됨)' : ''))));
   if(a.back) L.push(li('back','다시 열림',a.back));
   if(has && !noEnd) L.push(li('back','다시 열림','세부 과업 체크를 하나라도 풀면 다시 열림 (과업을 직접 체크해 끝낸 경우는 그대로)'));
-  const S=[...subs.map((s,i)=>{ const au=tcfgSubAuto(id, builtin, s); return `<li><span class="tcfg-n">${i+1}</span><span><b>${esc(s)}</b> ${au ? `<span class="tag auto">자동</span> ${esc(au[1])} · 직접 체크해도 됨` : '<span class="tag hand">직접</span> 직접 체크'}</span></li>`; }),
-    ...dyn.map(d=>`<li><span class="tcfg-n">＋</span><span><b>${esc(d[0])}</b> <span class="tag hand">직접</span> 직접 체크 · ${esc(d[1])} · ${esc(d[2])}</span></li>`)];
-  return `<div class="tcfg-card tcfg-donecard"><h4>언제 끝난 것으로 체크되나 <small class="hint">자동 체크 조건은 과업마다 정해진 규칙이라 여기서는 보기만 합니다 · 조건이 사라지면 손대지 않은 과업은 목록에서 빠짐</small></h4>
-      <div class="tcfg-dsec"><div class="tcfg-lab">과업</div><ul class="tcfg-dl">${L.join('')}</ul>
-        ${builtin && id==='pplchk' ? `<div class="tcfg-auto"><label class="chk"><input type="checkbox" data-tf="${T}|autoDone"${c.autoDone?' checked':''}> <b>전산 내역이 이미 같으면 저절로 완료</b> <small class="hint">— 가장 최근 전산 내역과 예약 내역의 총 금액 · 할인이 같으면</small></label></div>` : ''}</div>
-      <div class="tcfg-dsec"><div class="tcfg-lab">세부 과업</div>${S.length ? `<ul class="tcfg-dl">${S.join('')}</ul>` : '<span class="hint">세부 과업이 없습니다.</span>'}</div>
+  const S=[...subs.map((s,i)=>{ const au=tcfgSubAuto(id, builtin, s); return `<li><span class="tcfg-n">${i+1}</span><span><b>${esc(s)}</b> ${au ? `<span class="tag auto">자동</span> ${esc(au[1])} · 직접 체크해도 됨` : '<span class="tag hand">직접</span> 사람이 체크'}</span></li>`; }),
+    ...dyn.map(d=>`<li><span class="tcfg-n">＋</span><span><b>${esc(d[0])}</b> <span class="tag hand">직접</span> 사람이 체크 · ${esc(d[1])} · ${esc(d[2])}</span></li>`)];
+  // 2026-11-26: 따로 카드가 아니라 세부 과업 제목 옆 ? 를 누르면 펼쳐지는 도움말 (문구 ? 와 같은 모양)
+  return `<div class="tcfg-helpbox tcfg-donebox">
+      <div class="tcfg-hcol"><div class="tcfg-hh">과업이 끝난 것으로 체크되는 때</div><ul class="tcfg-dl">${L.join('')}</ul></div>
+      <div class="tcfg-hcol"><div class="tcfg-hh">세부 과업이 체크되는 때</div>${S.length ? `<ul class="tcfg-dl">${S.join('')}</ul>` : '<p class="hint">세부 과업이 없습니다.</p>'}</div>
+      <div class="hint" style="grid-column:1/-1">자동 체크 조건은 과업마다 정해진 규칙이라 여기서는 보기만 합니다 · 조건이 사라지면 손대지 않은 과업은 목록에서 빠짐</div>
     </div>`; }
+let tcfgDoneOpen=false;   // 세부 과업 ? (언제 체크되나) 펼침
 // 한눈에 보기 표의 「자동 체크」 칸
 function tcfgAutoCell(it){ const a=tcfgAutoOf(it.id, it.builtin), c=it.c, out=[];
   if(tcfgAutoDone(it.id, c, it.builtin).length) out.push(`<div><span class="tag auto">과업</span> ${esc(a.short || tcfgAutoDone(it.id, c, it.builtin)[0])}</div>`);
@@ -243,8 +245,7 @@ const TCFG_CSS = `#tcfgModal .tag.auto{background:#ece6f7;color:#5b3fa0}#tcfgMod
 #tcfgModal .tcfg-dl li{display:flex;gap:8px;align-items:baseline}
 #tcfgModal .tcfg-dl li>.tag{flex:none;min-width:54px;text-align:center;white-space:nowrap}
 #tcfgModal .tcfg-dl .tcfg-n{align-self:flex-start;margin-top:1px}
-#tcfgModal .tcfg-dsec+.tcfg-dsec{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
-#tcfgModal .tcfg-dsec .tcfg-lab{font-weight:700;color:var(--ink);margin:0 0 6px}
+#tcfgModal .tcfg-donebox .tcfg-hh{margin-bottom:6px}
 #tcfgModal .tcfg-sub .tag{flex:none;white-space:nowrap}
 #tcfgModal .tcfg-table td.au{min-width:210px}#tcfgModal .tcfg-table td.au div+div{margin-top:4px}`;   // 이 화면만의 모양 (css/group.css 의 #tcfgModal 규칙에 더함)
 // 목록에 쓰는 과업들: 원래 과업 → 새 과업
@@ -307,13 +308,14 @@ function tcfgEdHTML(T, c, builtin, id){
         <label class="chk tcfg-onoff"><input type="checkbox" data-tf="${T}|off"${c.off?' checked':''}> ${builtin?'자동으로 만들지 않음 (끄기)':'잠시 끄기'}</label></div>
       <div class="tcfg-meta">${builtin && TCFG_BASE_TITLES[id] && String(c.title||'').trim() && String(c.title).trim()!==TCFG_BASE_TITLES[id] ? `<span class="hint">처음 이름: ${esc(TCFG_BASE_TITLES[id])}</span>` : ''}<span class="sp"></span>${builtin ? `<button type="button" class="btn primary sm" data-tcreset="${T}">원래대로 되돌리기</button>` : `<button type="button" class="btn primary sm" data-tcdel="${T}">이 과업 삭제</button>`}</div>
     </div>
-    <div class="tcfg-card"><h4>세부 과업 <small class="hint">과업 안에 체크 칸으로 들어감 · 모두 체크하면 그 과업 완료</small></h4>
+    <div class="tcfg-card"><h4>세부 과업 <button type="button" class="tcfg-help${tcfgDoneOpen?' on':''}" data-tcdone title="이 과업과 세부 과업이 언제 (자동으로) 체크되는지 보기" aria-expanded="${tcfgDoneOpen}">?</button> <small class="hint">과업 안에 체크 칸으로 들어감 · 모두 체크하면 그 과업 완료</small></h4>
+      ${tcfgDoneOpen ? tcfgDoneHTML(T, c, builtin, id) : ''}
       <div class="tcfg-subs">${subs.map((s,i)=>`<span class="tcfg-sub"><span class="tcfg-n">${i+1}</span><input class="tcfg-in" data-tsub="${T}|${i}" data-ime="ko" value="${esc(s)}">${(au=>au ? `<span class="tag auto" title="${esc(au[1])}">자동 체크 · ${esc(au[0])}</span>` : '<span class="tag hand">직접 체크</span>')(tcfgSubAuto(id, builtin, s))}<button type="button" class="del" data-tsubdel="${T}|${i}" title="이 세부 과업 빼기">×</button></span>`).join('')}<span class="tcfg-sub"><span class="tcfg-n">＋</span><input class="tcfg-in" data-tsubnew="${T}" data-ime="ko" placeholder="세부 과업 더하기 (적고 Enter)"></span></div>
       ${builtin && id==='wkcheck' ? `<div class="tcfg-auto"><div class="tcfg-lab">예약 내용에 따라 저절로 넣는 세부 과업 (체크를 빼면 넣지 않음)</div>
         <label class="chk"><input type="checkbox" data-tf="${T}|onsiteSub"${c.onsiteSub?' checked':''}> <b>${esc(ONSITE_SUB)}</b> <small class="hint">— 결제 방법이 현장 결제일 때 · 최종 인원 확인 · 당일 인원 변경이 어렵다는 안내</small></label>
         <label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> <b>미정 항목에 대한 내용</b> <small class="hint">— 미정 항목 · 아직 안 넣은 칸을 하나씩 (예: 「미정 · 결제 방법」)</small></label></div>` : ''}
+      ${builtin && id==='pplchk' ? `<div class="tcfg-auto"><label class="chk"><input type="checkbox" data-tf="${T}|autoDone"${c.autoDone?' checked':''}> <b>전산 내역이 이미 같으면 저절로 완료</b> <small class="hint">— 가장 최근 전산 내역과 예약 내역의 총 금액 · 할인이 같으면</small></label></div>` : ''}
     </div>
-    ${tcfgDoneHTML(T, c, builtin, id)}
     <div class="tcfg-card"><h4>언제 생기고 · 언제까지 · 누구에게 <small class="hint">조건이 모두 맞을 때 생김 · 조건이 없으면 ${builtin?'모든 예약':'가예약 · 예약확정인 모든 예약'}</small></h4>
       <div class="tcfg-when">
         <div class="tcfg-wl"><div class="tcfg-lab">언제 생길지</div><div class="tcfg-conds">${conds.map(condRow).join('') || `<span class="hint">모든 예약</span>`}</div><button type="button" class="btn primary sm" data-tccadd="${T}">＋ 조건 더하기</button></div>
@@ -426,6 +428,7 @@ document.addEventListener('click', async e=>{
     tcfgVarOpen = tcfgVarOpen===tv.dataset.tvar ? "" : tv.dataset.tvar; tcfgPaint(); return; }   // 바꿔 넣는 말: 눌러서 설명 · 예시 펼치기 / 접기 (2026-11-25 · 글 칸에 넣지 않음)
   if(e.target.closest('[data-tcfgclose]')){ if(tcfgSaved && JSON.stringify(tcfgDraft)!==tcfgSaved && !confirm('저장하지 않은 고친 내용이 있습니다. 저장하지 않고 닫을까요?')) return; tcfgClose(); return; }
   if(e.target.closest('[data-tchelp]')){ tcfgHelp=!tcfgHelp; tcfgPaint(); return; }
+  if(e.target.closest('[data-tcdone]')){ tcfgPendSubs(); tcfgDoneOpen=!tcfgDoneOpen; tcfgPaint(); return; }   // 세부 과업 ? : 언제 체크되나
   const vw=e.target.closest('[data-tcview]'); if(vw){ tcfgPendSubs(); tcfgView=vw.dataset.tcview; tcfgPaint(); return; }
   const o=e.target.closest('[data-tcfgopen]'); if(o){ tcfgPendSubs(); tcfgOpenId=o.dataset.tcfgopen; tcfgView='edit'; tcfgPaint(); return; }
   if(e.target.closest('[data-tcfgadd]')){ tcfgPendSubs(); const id='u'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); d.c.push({id, title:'', conds:[], due:{base:'visit', n:3}, subs:[], note:'', desc:'', who:''}); tcfgView='edit'; tcfgQ=''; if($('#tcfgQ')) $('#tcfgQ').value=''; tcfgOpenId='c:'+(d.c.length-1); tcfgPaint(); setTimeout(()=>{ const t=document.querySelector(`#tcfgModal [data-tf="c:${d.c.length-1}|title"]`); t?.scrollIntoView({block:'center'}); t?.focus(); },0); return; }
