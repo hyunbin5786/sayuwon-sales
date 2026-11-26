@@ -27,6 +27,9 @@ header .smenu-btn:hover,header .smenu-btn.on{background:rgba(255,255,255,.25)}
 .smenu .sm-chip{border:1px solid #dfdace;border-radius:999px;padding:3px 12px;font-size:13px;color:#262620;text-decoration:none;background:#fff}
 .smenu .sm-chip:hover{border-color:#3f5236;color:#3f5236}
 .smenu .sm-note{font-size:12.5px;color:#77736a;margin:0 4px}
+/* 로그인 버튼 (2026-11-26): 로그인하지 않았을 때 메뉴 아래 — 누르면 첫 화면(로그인 화면)으로. 휴대폰에서는 맨 아래(로그아웃 자리) */
+.smenu .sm-in{display:flex;align-items:center;justify-content:center;flex:none;height:44px;border-radius:12px;background:#3f5236;color:#fff;font:700 15px "Noto Sans KR",system-ui,sans-serif;text-decoration:none}
+.smenu .sm-in:hover{background:#34452d}
 html.smenu-open{overflow:hidden}
 @media (max-width:520px){header .smenu-btn span{display:none}}
 .smenu .sm-g,.smenu .sm-top{flex:none}   /* 묶음이 줄어들어 잘리지 않게 (패널이 스크롤) */
@@ -138,6 +141,7 @@ header .fz-pop .fz-reset:disabled{opacity:.4;cursor:default}
   .smenu .sm-mbox .sm-chips{padding:0;gap:8px}
   .smenu .sm-mbox .sm-chip{padding:7px 14px;font-size:15px}
   .smenu .sm-out{display:block;flex:none;margin-top:auto;height:46px;border:1px solid #dfdace;border-radius:12px;background:none;color:#77736a;font:600 15px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
+  .smenu .sm-in{margin-top:auto;height:52px;font-size:16px}
   header:has(> .smenu-btn) [data-mypop], header:has(> .smenu-btn) #myOpenBtn, header:has(> .smenu-btn) .smenu-my,
   header:has(> .smenu-btn) .fz-wrap, header:has(> .smenu-btn) .who, header:has(> .smenu-btn) .me, header:has(> .smenu-btn) .sys-me, header:has(> .smenu-btn) #whoName, header:has(> .smenu-btn) #logoutBtn{display:none !important}
 }

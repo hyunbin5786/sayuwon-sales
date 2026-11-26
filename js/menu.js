@@ -72,7 +72,7 @@ window.syFont = (function(){
       + `<a class="sm-mi${isHere(base+'lost.html')?' on':''}" href="${base}lost.html">분실물 찾기</a></div>`
     + G.filter(g=>g.items.length && (logged || !g.login || g.items.some(i=>i.guest))).map(g=>{ const its = logged || !g.login ? g.items : g.items.filter((i,n,a)=>i.guest || (i.sub && a.slice(n+1).find(x=>x.sub || x.guest)?.guest));   // 로그인 안 했으면 로그인 묶음에서는 guest 항목(과 그 소제목)만
       return `<details class="sm-g" data-acc="${g.k}"${(g.k in st ? st[g.k] : false)?' open':''}><summary>${esc(g.t)}</summary>${its.map(itemHTML).join('')}</details>`; }).join('')
-    + (logged ? `<button type="button" class="sm-out" data-smout>로그아웃</button>` : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>`) + `</nav>`;   // 로그아웃: 휴대폰 메뉴 맨 아래 (휴대폰 헤더에서는 이름 · 로그아웃 · 글자 크기 버튼을 숨김 · 2026-11-26)
+    + (logged ? `<button type="button" class="sm-out" data-smout>로그아웃</button>` : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>` + (isHomePg ? '' : `<a class="sm-in" href="${base}index.html">로그인</a>`)) + `</nav>`;   // 로그아웃: 휴대폰 메뉴 맨 아래 (휴대폰 헤더에서는 이름 · 로그아웃 · 글자 크기 버튼을 숨김 · 2026-11-26) · 로그인(.sm-in): 로그인하지 않았을 때 메뉴 아래 — 누르면 첫 화면(로그인 화면)으로 · PC · 휴대폰 모두 · 첫 화면은 그 자체가 로그인 화면이라 넣지 않음 (2026-11-26)
   document.body.appendChild(wrap);
   const btn=document.createElement('button'); btn.type='button'; btn.className='smenu-btn'; btn.title='메뉴 열기 / 닫기'; btn.setAttribute('aria-label','메뉴'); btn.innerHTML='☰ <span>메뉴</span>';
   hd.insertBefore(btn, hd.firstChild);
