@@ -176,20 +176,26 @@ html.guest [data-mypop]{display:none!important}
   .m-add{display:flex;gap:8px}
   .m-add .btn{flex:1;height:48px;font-size:15px;padding:0 6px;white-space:nowrap}
   .m-tabs{display:flex;gap:4px;background:var(--bg,#f3f1ec);border-radius:10px;padding:4px}
-  .m-tabs button{flex:1;height:40px;border:0;border-radius:8px;background:none;color:var(--muted);font:600 15px var(--sans);cursor:pointer;white-space:nowrap}
+  .m-tabs button{flex:1 1 auto;height:40px;border:0;border-radius:8px;background:none;color:var(--muted);font:600 14.5px var(--sans);cursor:pointer;white-space:nowrap;padding:0 4px}
   .m-tabs button.on{background:#fff;color:var(--pine);box-shadow:0 1px 3px rgba(0,0,0,.12)}
   .m-tabs button small{font-size:12.5px;font-weight:600;opacity:.8}
   .m-home #mQ{width:100%;box-sizing:border-box;height:44px;border:1px solid var(--line);border-radius:10px;padding:0 12px;font:inherit;font-size:16px;background:#fff}
   .m-card{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#fff}
   .m-card img,.m-card .m-noph{flex:0 0 60px;width:60px;height:60px;border-radius:8px;object-fit:cover;background:#f2f1ec;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted)}
   .m-card .m-c{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
-  .m-card .m-t{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .m-card .m-t{display:flex;align-items:center;gap:8px}
+  /* 신고 / 습득 구분 (2026-11-26): 상태 이름표는 없앰 (휴대폰에는 진행 중인 것만) — 신고 = 주황 · 습득 = 파랑 이름표 + 카드 테두리 · 사진 자리 바탕 · 고른 탭 · 묶음 제목을 같은 색으로 */
+  .m-card .m-k{flex:none;font-weight:700;font-size:12.5px;border-radius:6px;padding:2px 9px;line-height:1.5}
+  .m-card.k-rep{border-color:#ecd9ae} .m-card.k-rep .m-k{background:#f6dfa8;color:#6f4700} .m-card.k-rep .m-noph{background:#fbf3df}
+  .m-card.k-fnd{border-color:#c3d4e8} .m-card.k-fnd .m-k{background:#cfe0f3;color:#234a75} .m-card.k-fnd .m-noph{background:#edf3fa}
+  .m-tabs button.on.k-rep{color:#6f4700} .m-tabs button.on.k-fnd{color:#234a75}
+  .m-h{margin:10px 2px 8px;font:700 15px var(--sans);display:flex;align-items:baseline;gap:6px}
+  .m-h:first-child{margin-top:2px}
+  .m-h small{font-size:12.5px;font-weight:600;color:var(--muted)}
+  .m-h.k-rep{color:#6f4700} .m-h.k-fnd{color:#234a75}
   .m-card .m-t b{font-size:15.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .m-card .m-c span{font-size:13.5px}
   .m-card .m-c small{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
-  .m-card .m-t small.st{flex:none;font-weight:700;font-size:12px;border-radius:999px;padding:1px 9px;background:#efece4;color:#5b574c}
-  .m-card .m-t small.st-보관중,.m-card .m-t small.st-찾는\ 중{background:#fbf0d9;color:#8a5a00}
-  .m-card .m-t small.st-반환\ 완료,.m-card .m-t small.st-처리완료{background:#e4eadf;color:var(--pine)}
   .m-home .empty{text-align:center;color:var(--muted);padding:24px 0;margin:0}
   .m-more{text-align:center;margin:4px 0 0}
   /* 접수 창은 화면 가득 */
