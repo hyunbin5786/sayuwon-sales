@@ -234,7 +234,9 @@ const SY_DEV = (function(){
   const st=document.createElement('style');
   st.textContent='html.sy-noscroll{overflow:hidden!important;scrollbar-gutter:stable}html.sy-noscroll body{overflow:hidden!important;overscroll-behavior:none}';
   document.head.appendChild(st);
-  const shown = el => !el.hidden && el.getClientRects().length>0 && getComputedStyle(el).visibility!=='hidden';
+  // 예약 현황 공유(group.html?book=… · html.book-only)의 #bookModal 은 팝업이 아니라 화면 그 자체(position:static)라 뺌 — 이것 때문에 그 화면이 늘 잠겨 휴대폰에서 스크롤이 안 됐음 (2026-11-27)
+  const page = el => el.id==='bookModal' && document.documentElement.classList.contains('book-only');
+  const shown = el => !el.hidden && !page(el) && el.getClientRects().length>0 && getComputedStyle(el).visibility!=='hidden';
   let t0=0;
   const check = () => { t0=0; const on=[...document.querySelectorAll(SEL)].some(shown); document.documentElement.classList.toggle('sy-noscroll', on); };
   const q = () => { if(!t0) t0=setTimeout(check, 0); };   // requestAnimationFrame 은 창이 뒤에 있으면 안 돌아서 setTimeout

@@ -1243,6 +1243,52 @@ html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
   html.book-only .bk-side .bf-date .bf-dt .dbox input.dtxt{width:100%;font-size:12.5px;padding:0 4px}
   html.book-only .bk-side #bfRangeBtn{grid-column:2;justify-self:start}
 }
+/* ===== 예약 현황 공유 휴대폰 다시 (2026-11-27 · 너비 760px 아래 · html.book-only 에만) =====
+   ① 글자를 조금 줄임 (2026-11-21 의 큰 글씨가 너무 커서 — 예약 한 건 카드 18px → 15px · 제목 22px → 19px · 단추 높이도 그만큼)
+   ② PC 의 배치(2026-11-25: 「찾기」 · 「담당 일정 · 출력」 두 상자 + 목록)에 맞춤 — 두 상자에 제목과 흰 카드 모양, 날짜 칸은 한 줄 가득, 「기간 설정」 · 「초기화」는 나란히
+   스크롤이 안 되던 것은 CSS 가 아니라 js/common.js 의 스크롤 잠금에서 이 화면을 뺀 것으로 고침 */
+@media (max-width:760px){
+  html.book-only body{font-size:15px}
+  html.book-only #bookModal{padding:8px 10px 40px}
+  html.book-only #bookModal > section > h2{font-size:19px;gap:8px;padding-bottom:8px;margin-bottom:10px}
+  html.book-only #bookTitle{font-size:19px}
+  html.book-only #bookModal h2 .row-btns > #bookPastL{font-size:14px !important}
+  html.book-only #bookPast{width:20px;height:20px}
+  html.book-only #bookTabs{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+  html.book-only #bookTabs button{min-height:40px;font-size:14px;border-radius:9px;padding:0 2px;letter-spacing:-.02em;white-space:nowrap}
+  html.book-only #bookSum{font-size:13px}
+  html.book-only #bookLogBtn{height:40px;font-size:15px;border-radius:10px}
+  html.book-only #bookModal .hint{font-size:13px;line-height:1.55}
+  /* 찾기 · 담당 일정 상자: PC 처럼 제목 + 흰 카드 */
+  html.book-only .bk-sh{display:block;width:100%;font-size:14px;color:var(--pine);margin:0}
+  html.book-only .bk-side{display:flex;flex-direction:column;gap:10px;margin:0 0 12px}
+  html.book-only .bk-side .book-find, html.book-only .bk-side .book-me{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px;margin:0;padding:12px;background:#fff;border:1px solid var(--line);border-radius:12px;font-size:15px}
+  html.book-only .bk-side .bf-date{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;width:100%}
+  html.book-only .bk-side .bf-date .bf-dt{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center}
+  html.book-only .bk-side .bf-date .dbox{display:flex;min-width:0}
+  html.book-only .bk-side .book-find .dbox input.dtxt{width:100%;min-width:0;height:40px;font-size:15px;padding:0 8px}
+  html.book-only .bk-side #bfRangeBtn{grid-column:2;justify-self:start;height:36px;font-size:14px}
+  html.book-only .bk-side .book-find .bf-q{flex:1 1 0;width:auto;min-width:0;height:40px;font-size:16px}   /* 16px 아래면 아이폰이 칸을 누를 때 화면을 확대함 */
+  html.book-only .bk-side #bfReset{flex:none;height:40px;font-size:14px}
+  html.book-only .bk-side .bf-n{width:100%;font-size:14px;color:var(--pine);font-weight:700;white-space:normal}
+  html.book-only .bk-side .book-me label{font-size:15px}
+  html.book-only .bk-side .book-me .bm-name, html.book-only .bk-side .book-me .bm-range{display:grid;grid-template-columns:3.2em minmax(0,1fr);align-items:center;gap:8px;width:100%}
+  html.book-only .bk-side .book-me .bm-mine{display:flex;align-items:center;gap:8px;width:100%}
+  html.book-only .bk-side .book-me #bookMeName, html.book-only .bk-side .book-me #bookRange{width:100%;min-width:0;height:40px;font-size:16px;border-radius:9px}
+  html.book-only .bk-side .book-me #bookMine{width:20px;height:20px}
+  html.book-only .bk-side .book-me .bm-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin:0}
+  html.book-only .bk-side .book-me .bm-btns .btn, html.book-only .bk-side #bookPrint, html.book-only .bk-side #bookAddBtn2{width:100%;height:44px;font-size:15.5px;border-radius:10px;margin:0}
+  /* 예약 한 건 = 카드 한 장 (글자를 줄임) */
+  html.book-only .mbdb-t tr{padding:10px 12px;margin:0 0 8px;border-radius:12px;border-width:1px}
+  html.book-only .mbdb-t td{font-size:15px;line-height:1.4;gap:8px;padding:3px 0 !important}
+  html.book-only .mbdb-t td[data-l]::before{width:5em;font-size:13px;white-space:nowrap}
+  html.book-only .mbdb-t td:first-child{font-size:16.5px;padding-bottom:6px !important;margin-bottom:3px}
+  html.book-only .mbdb-t td b{font-size:15.5px}
+  html.book-only .mbdb-t td.note{min-width:0}
+  html.book-only .mbdb-t td.empty{font-size:15px;padding:18px 0 !important}
+  html.book-only .mbdb-t td.acts .btn{height:34px;font-size:14px;padding:0 14px}
+  html.book-only .mbdb-t .tag{font-size:11.5px}
+}
 /* 시험용 모드 전용 (2026-11-25): 가짜 예약 채우기 · 비우기 (오른쪽 아래 · 「시험용」 표시 위) */
 #fakeBar{position:fixed;right:8px;bottom:34px;z-index:9999;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border:1px solid #1d4ed8;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.12);font-size:12.5px}
 #fakeBar b{color:#1d4ed8}
