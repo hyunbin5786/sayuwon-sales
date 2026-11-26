@@ -162,9 +162,11 @@ function fieldHTML(f){
   if(f.type==='photos'){ const ps=Array.isArray(form[f.k]) ? form[f.k] : [];   // 사진 (2026-11-23): 휴대폰에서 바로 찍거나 사진첩에서 고름. 값 = [{id, name}] (그림은 서버 files 표 · 아래 「사진 칸」)
     return `<label>${fLabel(f)} <small class="ph-cnt">${ps.length} / ${PH_MAX}장</small></label>`
       + (ps.length ? `<div class="phs">${ps.map((p,i)=>`<span class="ph"><img alt="${esc(p.name||'사진')}" data-phimg="${esc(p.id)}" data-phview="${esc(p.id)}"><button type="button" class="ph-x" data-phdel="${f.k}|${i}" title="이 사진 빼기" aria-label="사진 빼기">×</button></span>`).join('')}</div>` : '')
-      + (ps.length<PH_MAX ? `<div class="ph-btns"><label class="btn primary ph-btn">📷 사진 찍기<input type="file" accept="image/*" capture="environment" data-phadd="${f.k}" hidden></label>`
-          + `<label class="btn primary ph-btn">🖼 사진 고르기<input type="file" accept="image/png,image/jpeg" multiple data-phadd="${f.k}" hidden></label></div>` : '')
-      + `<span class="hint ph-msg" id="phMsg">${phBusy ? '사진을 올리는 중…' : 'PNG · JPEG · 한 번에 여러 장 고를 수 있습니다 · 복사한 사진은 붙여넣기(Ctrl+V)도 됩니다'}</span>`; }
+      // 휴대폰(700px 아래 · css/ops.css)은 버튼 하나 「사진 찍기 · 고르기」 (2026-11-26): accept="image/*" 이면 휴대폰이 갤러리(사진첩)를 열고 거기서 찍기도 됨 — 예전 「사진 고르기」는 png · jpeg 만 받아 안드로이드에서 파일 앱이 열렸음. 어떤 사진이든 올릴 때 JPEG / PNG 로 바꿈 (phShrink)
+      + (ps.length<PH_MAX ? `<div class="ph-btns"><label class="btn primary ph-btn ph-pc">📷 사진 찍기<input type="file" accept="image/*" capture="environment" data-phadd="${f.k}" hidden></label>`
+          + `<label class="btn primary ph-btn ph-pc">🖼 사진 고르기<input type="file" accept="image/png,image/jpeg" multiple data-phadd="${f.k}" hidden></label>`
+          + `<label class="btn primary ph-btn ph-m">📷 사진 찍기 · 고르기<input type="file" accept="image/*" multiple data-phadd="${f.k}" hidden></label></div>` : '')
+      + `<span class="hint ph-msg" id="phMsg">${phBusy ? '사진을 올리는 중…' : '<span class="ph-pc">PNG · JPEG · 한 번에 여러 장 고를 수 있습니다 · 복사한 사진은 붙여넣기(Ctrl+V)도 됩니다</span><span class="ph-m">갤러리에서 고르거나 바로 찍을 수 있습니다 · 한 번에 여러 장</span>'}</span>`; }
   if(f.type==='textarea') return lab+`<textarea id="${id}" data-k="${f.k}" data-ime="ko" rows="3">${esc(v)}</textarea>`;
   if(f.type==='date') return lab+`<span class="dbox"><input class="dtxt" id="${id}" data-dt="${f.k}" readonly value="${esc(dateDisp(v))}" placeholder="누르면 달력"><input type="date" class="dpick" data-dp="${f.k}" value="${esc(v)}" tabindex="-1" aria-hidden="true"></span>`;
   return lab+`<input id="${id}" data-k="${f.k}" value="${esc(v)}"${f.ph?` placeholder="${esc(f.ph)}"`:''}${f.type==='time'?' data-tp="1" readonly':f.type==='num'?' inputmode="numeric" data-ime="num"':f.type==='tel'?' inputmode="tel" data-ime="num"':' data-ime="ko"'}>`;
