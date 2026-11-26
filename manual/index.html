@@ -1,39 +1,158 @@
-<!-- 첫 화면 매뉴얼 (2026-11-23) — 헤더 오른쪽 끝 「매뉴얼」 버튼으로 열림 (js/menu.js). 지금은 자료 백업 · 되살리기만 -->
-<h1>자료 백업 · 되살리기</h1>
-<p class="man-lead">이 시스템의 모든 자료(예약 · 통화 기록 · 멤버 · 견적서 발급 내역 · 품목 관리 내용 · 올린 이미지)는 공유 DB 한 곳에 있습니다.<br>
-DB 에 문제가 생겨도 되찾을 수 있도록 <b>백업 파일</b>을 받아 두고, 필요할 때 그 파일로 <b>되살립니다</b>.</p>
+<!-- 첫 화면 매뉴얼 (2026-11-26 다시 씀) — 헤더 오른쪽 끝 「매뉴얼」 버튼으로 열림 (js/menu.js). 팀 안내: 이 시스템이 어떻게 생겼나 · Claude 로 고치는 법 · 백업. (그 전에는 자료 백업 · 되살리기만 있었음) -->
+<style>
+.man-body .mg-fig{border:1px solid #dfdace;border-radius:10px;background:#fffefb;padding:10px;margin:10px 0 6px;overflow-x:auto}
+.man-body .mg-fig svg{display:block;width:100%;min-width:560px;height:auto}
+.man-body .mg-fig text{font-family:"Noto Sans KR",system-ui,sans-serif;fill:#262620}
+.man-body .mg-fig .tb{font-weight:700;font-size:15px} .man-body .mg-fig .ts{font-size:12.5px;fill:#77736a} .man-body .mg-fig .tm{font-size:13px}
+.man-body .mg-fig .ng{fill:#e4eadf;stroke:#3f5236} .man-body .mg-fig .nb{fill:#dfe9f2;stroke:#2f5f8a} .man-body .mg-fig .na{fill:#f4e7cf;stroke:#8a5a14} .man-body .mg-fig .nr{fill:#f6e1dc;stroke:#a03a2a} .man-body .mg-fig .nc{fill:#fffefb;stroke:#dfdace}
+.man-body .mg-fig .ar{stroke:#77736a;stroke-width:2;fill:none} .man-body .mg-fig .ah{fill:#77736a}
+.man-body .mg-cap{font-size:13px;color:#77736a;margin:0 0 12px}
+.man-body .mg-say{background:#e4eadf;border-radius:10px;padding:10px 14px;margin:10px 0;font-weight:500;word-break:break-all}
+.man-body .mg-t td:first-child{white-space:normal}
+.man-body .mg-t td{word-break:keep-all}
+</style>
+<h1>이 시스템 — 어떻게 생겼고, 어떻게 고치나</h1>
+<p class="man-lead">코드를 몰라도 됩니다. 이 시스템은 <b>Claude 에게 말로 시켜서</b> 고칩니다. 「어떻게 생겼는지」와 「어떻게 시키는지」만 알면 됩니다.</p>
 
-<h2>갖춰진 것</h2>
-<table>
-  <thead><tr><th>무엇</th><th>어디서</th></tr></thead>
+<h2>[1] 이 시스템은 식당처럼 생겼습니다</h2>
+<p>손님은 홀에서 메뉴판을 보고 주문합니다. 주문서가 주방으로 넘어가고, 주방은 창고에서 재료를 꺼내 요리를 내보냅니다. 우리 시스템도 똑같이 네 칸입니다.</p>
+<div class="mg-fig">
+  <svg viewBox="0 0 720 240" role="img" aria-label="식당에 빗댄 구조: 홀(화면) → 주문서(API) → 주방(서버) → 창고(DB)">
+    <rect class="ng" x="10" y="50" width="150" height="110" rx="12"/>
+    <text class="tb" x="85" y="82" text-anchor="middle">홀 · 메뉴판</text><text class="tm" x="85" y="106" text-anchor="middle">화면 (프런트엔드)</text><text class="ts" x="85" y="128" text-anchor="middle">우리가 보는 버튼 · 표</text><text class="ts" x="85" y="146" text-anchor="middle">GitHub 가 띄워 줌</text>
+    <rect class="na" x="205" y="72" width="120" height="66" rx="12"/>
+    <text class="tb" x="265" y="100" text-anchor="middle">주문서</text><text class="tm" x="265" y="122" text-anchor="middle">API</text>
+    <rect class="nb" x="370" y="50" width="150" height="110" rx="12"/>
+    <text class="tb" x="445" y="82" text-anchor="middle">주방</text><text class="tm" x="445" y="106" text-anchor="middle">서버 (백엔드)</text><text class="ts" x="445" y="128" text-anchor="middle">로그인 확인 · 저장 처리</text><text class="ts" x="445" y="146" text-anchor="middle">Cloudflare 에 있음</text>
+    <rect class="nb" x="560" y="50" width="150" height="110" rx="12"/>
+    <text class="tb" x="635" y="82" text-anchor="middle">창고 · 장부</text><text class="tm" x="635" y="106" text-anchor="middle">DB</text><text class="ts" x="635" y="128" text-anchor="middle">예약 · 통화 · 할일 전부</text><text class="ts" x="635" y="146" text-anchor="middle">Cloudflare 에 있음</text>
+    <path class="ar" d="M160 95 H198"/><path class="ah" d="M205 95 l-9 -5 v10z"/>
+    <path class="ar" d="M325 95 H363"/><path class="ah" d="M370 95 l-9 -5 v10z"/>
+    <path class="ar" d="M520 95 H553"/><path class="ah" d="M560 95 l-9 -5 v10z"/>
+    <path class="ar" d="M560 125 H527"/><path class="ah" d="M520 125 l9 -5 v10z"/>
+    <path class="ar" d="M370 125 H332"/><path class="ah" d="M325 125 l9 -5 v10z"/>
+    <path class="ar" d="M205 125 H167"/><path class="ah" d="M160 125 l9 -5 v10z"/>
+    <text class="ts" x="360" y="30" text-anchor="middle">「이 예약 저장해 주세요」 →</text>
+    <text class="ts" x="360" y="192" text-anchor="middle">← 「저장했습니다 · 여기 목록입니다」</text>
+    <path class="ar" d="M10 206 H160"/><text class="ts" x="85" y="226" text-anchor="middle">GitHub</text>
+    <path class="ar" d="M370 206 H710"/><text class="ts" x="540" y="226" text-anchor="middle">Cloudflare</text>
+  </svg>
+</div>
+<p class="mg-cap">위 화살표가 주문, 아래 화살표가 답입니다. 화면은 창고에 직접 들어가지 못하고 꼭 주문서를 거칩니다.</p>
+<table class="mg-t">
+  <thead><tr><th>말</th><th>식당으로 치면</th><th>우리 시스템에서는</th></tr></thead>
   <tbody>
-    <tr><td><b>매주 자동 백업</b></td><td>시스템 개발을 맡은 사람의 컴퓨터 → 그 컴퓨터의 「내 문서 › 사유원-백업」 (매주 수요일 · 최근 8개)</td></tr>
-    <tr><td><b>직접 내려받기</b></td><td><a href="https://hyunbin5786.github.io/sayuwon-sales/tools/export.html" target="_blank" rel="noopener">https://hyunbin5786.github.io/sayuwon-sales/tools/export.html</a></td></tr>
-    <tr><td><b>백업에서 되살리기</b></td><td><a href="https://hyunbin5786.github.io/sayuwon-sales/tools/restore.html" target="_blank" rel="noopener">https://hyunbin5786.github.io/sayuwon-sales/tools/restore.html</a></td></tr>
+    <tr><td><b>프런트엔드</b></td><td>홀과 메뉴판</td><td>브라우저에 보이는 화면. 버튼 · 표 · 달력.</td></tr>
+    <tr><td><b>백엔드</b></td><td>주방</td><td>보이지 않는 곳에서 로그인을 확인하고 저장 · 조회를 처리하는 서버.</td></tr>
+    <tr><td><b>API</b></td><td>주문서</td><td>화면이 서버에 부탁할 때 쓰는 정해진 양식. 「목록 주세요」 「이거 저장해 주세요」.</td></tr>
+    <tr><td><b>DB</b></td><td>창고 · 장부</td><td>예약 · 통화 · 할일 · 멤버가 실제로 적혀 있는 곳. 딱 한 곳뿐입니다.</td></tr>
+    <tr><td><b>GitHub</b></td><td>레시피 책 보관함</td><td>코드를 저장하는 곳. 누가 언제 무엇을 바꿨는지 모두 남아 언제든 되돌릴 수 있습니다. 화면도 여기서 띄워 줍니다.</td></tr>
+    <tr><td><b>Cloudflare</b></td><td>주방과 창고가 있는 건물</td><td>서버와 DB 가 들어 있는 곳. 자료는 전부 여기 있습니다.</td></tr>
   </tbody>
 </table>
-<div class="man-tip">백업 파일에는 <b>고객 연락처와 멤버의 이름 · 사번</b>이 들어 있습니다. 메일 · 메신저로 보내지 말고 정해진 폴더에만 두세요.</div>
 
-<div class="man-tip"><b>매주 자동 백업은 시스템 개발을 맡은 사람의 컴퓨터가 받습니다.</b> 맡은 사람이 바뀌면 새 담당자가 자기 컴퓨터에 <b>가장 먼저</b> 다시 걸어야 합니다 (저장소의 「개발-시작하기」 5절). 걸려 있는지 모르겠으면 아래 「직접 내려받기」로 한 번 받아 두세요.</div>
+<h2>[2] 가게가 두 곳입니다 — 본점과 연습 주방</h2>
+<p>손님이 있는 본점에서 새 요리를 시험하지 않습니다. 똑같이 생긴 연습 주방에서 먼저 만들어 보고, 괜찮으면 본점 메뉴에 올립니다.</p>
+<div class="mg-fig">
+  <svg viewBox="0 0 720 220" role="img" aria-label="테스트와 배포 두 벌: 코드는 테스트에서 배포로, 자료는 배포에서 테스트로">
+    <rect class="nr" x="20" y="24" width="290" height="170" rx="14"/>
+    <text class="tb" x="165" y="52" text-anchor="middle">연습 주방 = 테스트</text><text class="ts" x="165" y="72" text-anchor="middle">빨간 테두리가 있는 사이트</text>
+    <rect class="nc" x="40" y="88" width="120" height="40" rx="8"/><text class="tm" x="100" y="113" text-anchor="middle">테스트 화면</text>
+    <rect class="nc" x="170" y="88" width="120" height="40" rx="8"/><text class="tm" x="230" y="113" text-anchor="middle">테스트 서버</text>
+    <rect class="nc" x="105" y="140" width="120" height="40" rx="8"/><text class="tm" x="165" y="165" text-anchor="middle">테스트 DB (사본)</text>
+    <rect class="ng" x="410" y="24" width="290" height="170" rx="14"/>
+    <text class="tb" x="555" y="52" text-anchor="middle">본점 = 배포 (메인)</text><text class="ts" x="555" y="72" text-anchor="middle">직원들이 실제로 쓰는 사이트</text>
+    <rect class="nc" x="430" y="88" width="120" height="40" rx="8"/><text class="tm" x="490" y="113" text-anchor="middle">배포 화면</text>
+    <rect class="nc" x="560" y="88" width="120" height="40" rx="8"/><text class="tm" x="620" y="113" text-anchor="middle">배포 서버</text>
+    <rect class="nc" x="495" y="140" width="120" height="40" rx="8"/><text class="tm" x="555" y="165" text-anchor="middle">배포 DB (진짜)</text>
+    <path class="ar" d="M310 94 H398"/><path class="ah" d="M405 94 l-9 -5 v10z"/>
+    <text class="tm" x="358" y="84" text-anchor="middle" style="font-weight:700">「푸시」</text><text class="ts" x="358" y="112" text-anchor="middle">고친 코드</text>
+    <path class="ar" d="M410 160 H322"/><path class="ah" d="M315 160 l9 -5 v10z"/>
+    <text class="ts" x="362" y="152" text-anchor="middle">자료 복사</text><text class="ts" x="362" y="178" text-anchor="middle">한 방향만</text>
+  </svg>
+</div>
+<p class="mg-cap">코드는 테스트 → 배포로, 자료는 배포 → 테스트로만 갑니다. 테스트에서 넣은 가짜 예약이 진짜 DB 로 넘어가는 일은 없습니다.</p>
 
-<h2>[1] 직접 내려받기</h2>
+<h2>[3] Claude 에게 말로 시켜서 고칩니다</h2>
+<p><b>처음 한 번 — 내 PC 준비.</b> Claude Code 를 열고 아래 한 문장을 그대로 붙여 넣습니다. 나머지는 Claude 가 한 단계씩 안내합니다.</p>
+<p class="mg-say">https://github.com/hyunbin5786/sayuwon-sales 을 받아서 docs/개발/함께-고치는-사람-세팅-순서.md 대로 내 PC 를 세팅해 줘.</p>
+<p class="mg-cap">다음부터는 Claude Code 에서 <code>sayuwon-sales</code> 폴더를 열고 시작합니다. 그래야 Claude 가 일하는 규칙을 스스로 읽습니다. 로그인 계정 · 비밀번호 · 열쇠는 여기 적지 않습니다 — 담당자에게 따로 받습니다.</p>
+
+<p><b>고칠 때마다 — 네 걸음.</b></p>
+<div class="mg-fig">
+  <svg viewBox="0 0 720 150" role="img" aria-label="고치는 순서: 말로 요청, Claude 가 고치고 확인, 테스트 사이트에서 내가 확인, 푸시">
+    <rect class="ng" x="10" y="26" width="150" height="90" rx="12"/><text class="ts" x="85" y="48" text-anchor="middle">① 나</text><text class="tb" x="85" y="74" text-anchor="middle">말로 요청</text><text class="ts" x="85" y="96" text-anchor="middle">주소 + 원하는 모습</text>
+    <rect class="nc" x="195" y="26" width="150" height="90" rx="12"/><text class="ts" x="270" y="48" text-anchor="middle">② Claude</text><text class="tb" x="270" y="74" text-anchor="middle">고치고 확인</text><text class="ts" x="270" y="96" text-anchor="middle">테스트 사이트에 올림</text>
+    <rect class="nr" x="380" y="26" width="150" height="90" rx="12"/><text class="ts" x="455" y="48" text-anchor="middle">③ 나</text><text class="tb" x="455" y="74" text-anchor="middle">테스트에서 확인</text><text class="ts" x="455" y="96" text-anchor="middle">빨간 테두리 사이트</text>
+    <rect class="ng" x="565" y="26" width="145" height="90" rx="12"/><text class="ts" x="637" y="48" text-anchor="middle">④ 나</text><text class="tb" x="637" y="74" text-anchor="middle">「푸시」</text><text class="ts" x="637" y="96" text-anchor="middle">모두의 사이트에 반영</text>
+    <path class="ar" d="M160 71 H188"/><path class="ah" d="M195 71 l-9 -5 v10z"/>
+    <path class="ar" d="M345 71 H373"/><path class="ah" d="M380 71 l-9 -5 v10z"/>
+    <path class="ar" d="M530 71 H558"/><path class="ah" d="M565 71 l-9 -5 v10z"/>
+    <path class="ar" d="M455 116 V136 H270 V123"/><path class="ah" d="M270 116 l-5 9 h10z"/>
+    <text class="ts" x="362" y="131" text-anchor="middle">마음에 안 들면 다시 요청</text>
+  </svg>
+</div>
+
+<p><b>이렇게 말하면 잘 됩니다.</b></p>
 <ul>
-  <li><span class="n">1</span> 로그인한 브라우저에서 <a href="https://hyunbin5786.github.io/sayuwon-sales/tools/export.html" target="_blank" rel="noopener">https://hyunbin5786.github.io/sayuwon-sales/tools/export.html</a> 을 엽니다.</li>
-  <li><span class="n">2</span> <b>내려받기</b>를 누르면 그 순간의 자료 전체가 파일 하나로 이 컴퓨터에 내려받아집니다. DB 는 읽기만 합니다.</li>
-  <li><span class="n">3</span> 큰 작업(자료 정리 · 되살리기)을 하기 <b>직전에</b> 한 번 받아 두면 좋습니다.</li>
+  <li><b>어느 화면인지 주소를 붙입니다.</b> 테스트 사이트 주소를 그대로 복사해 넣으면 됩니다.</li>
+  <li><b>지금 어떤지, 어떻게 되면 좋겠는지</b>를 평소 말투로 적습니다.</li>
+  <li><b>한 번에 하나씩.</b> 기능 하나에 요청 하나가 가장 빠르고 안전합니다.</li>
+</ul>
+<p class="mg-say">https://hyunbin5786.github.io/sayuwon-sales/test/lost.html<br>분실물 습득을 접수할 때 사진을 꼭 첨부하도록 필수로 만들어 줘. PC 랑 모바일 둘 다.</p>
+
+<p><b>외워 둘 말.</b></p>
+<table class="mg-t">
+  <thead><tr><th>이렇게 말하면</th><th>Claude 가 하는 일</th></tr></thead>
+  <tbody>
+    <tr><td><b>「지금 상태 어때?」</b></td><td>저장 안 된 수정 · 테스트와 배포의 차이 · 백업 상태를 점검해 알려 줍니다.</td></tr>
+    <tr><td><b>「푸시」</b></td><td>테스트에서 확인한 것을 배포 사이트로 올립니다. 이 말을 하기 전에는 배포 사이트가 바뀌지 않습니다.</td></tr>
+    <tr><td><b>「되돌려줘」</b></td><td>방금 고친 것을 예전으로 돌립니다. 기록은 지우지 않고 남깁니다.</td></tr>
+    <tr><td><b>「백업 받아 줘」</b></td><td>자료 전체를 내 PC 로 한 번 받아 둡니다.</td></tr>
+    <tr><td><b>「붙여 넣었어」</b></td><td>서버 코드를 Cloudflare 에 붙여 넣은 뒤 하는 말. Claude 가 올라갔는지 확인합니다.</td></tr>
+  </tbody>
+</table>
+
+<details><summary>가끔 내 손이 필요한 때 — 서버를 고쳤을 때</summary>
+  <p>화면은 올리면 1~2분 안에 저절로 바뀝니다. 서버(주방)만은 사람이 Cloudflare 에 직접 붙여 넣어야 합니다. Claude 가 붙여 넣을 내용을 복사해 두고, 어디를 누르는지 알려 줍니다.</p>
+  <ul>
+    <li><span class="n">1</span> Cloudflare 에 로그인하고, 왼쪽 위 계정을 우리 계정으로 바꿉니다.</li>
+    <li><span class="n">2</span> Workers &amp; Pages → 서버 이름을 누릅니다. 테스트는 <code>sayuwon-api-test</code>, 배포는 <code>sayuwon-api</code>.</li>
+    <li><span class="n">3</span> Edit code → 전체 지우고 붙여넣기 → Deploy.</li>
+    <li><span class="n">4</span> Claude 에게 「붙여 넣었어」.</li>
+  </ul></details>
+
+<p><b>우리끼리의 약속 (헌법).</b></p>
+<ul>
+  <li><b>고치는 곳은 늘 테스트.</b> 배포 사이트는 「푸시」로만 바뀝니다.</li>
+  <li><b>시작할 때</b> Claude 가 남이 올린 것을 받고, 배포 DB 를 테스트 DB 로 다시 가져옵니다. 테스트에 넣어 둔 시험 자료는 이때 사라집니다.</li>
+  <li><b>끝낼 때</b> 무엇을 바꿨는지 README 의 「최근 바뀐 것」에 한 줄 남깁니다. 다음 사람이 그것을 읽고 시작합니다.</li>
+  <li><b>자료는 지우지 않습니다.</b> 삭제는 「지운 표시」만 하고, 잘못 들어간 예약은 화면에서 삭제합니다.</li>
+  <li><b>이름 · 사번 · 고객 정보 · 비밀번호는 코드에 넣지 않습니다.</b> 코드 저장소는 누구나 볼 수 있습니다.</li>
+</ul>
+<div class="man-tip"><b>Claude 가 「확인하지 못했습니다」라고 하면</b> 그 부분은 테스트 사이트에서 직접 눌러 보세요. Claude 는 가짜 자료로만 확인하고, 진짜 자료가 든 화면은 사람이 봅니다.</div>
+
+<h2>[4] 백업 — 자료는 DB 한 곳에만 있습니다</h2>
+<table class="mg-t">
+  <thead><tr><th>무엇</th><th>지금 상태</th></tr></thead>
+  <tbody>
+    <tr><td><b>매주 자동 백업</b></td><td>매주 수요일 9시, 개발 담당 PC 가 자료 전체를 받아 사내 공유 폴더에 저장합니다 (2026-11-26 부터 · 최근 8개). 서버 쪽에는 자동 백업이 없습니다.</td></tr>
+    <tr><td><b>지금 한 번 받기</b></td><td>Claude 에게 「백업 받아 줘」. 또는 로그인한 브라우저에서 <a href="https://hyunbin5786.github.io/sayuwon-sales/tools/export.html" target="_blank" rel="noopener">직접 내려받기</a> 를 열어 「내려받기」.</td></tr>
+    <tr><td><b>되살리기</b></td><td><a href="https://hyunbin5786.github.io/sayuwon-sales/tools/restore.html" target="_blank" rel="noopener">백업에서 되살리기</a> 에서 백업 파일을 고릅니다. 모두가 쓰는 자료를 바꾸는 일이라 담당자와 함께 합니다 (열쇠가 필요합니다).</td></tr>
+  </tbody>
+</table>
+<ul>
+  <li><b>큰 일을 하기 전에는 먼저 한 번 받습니다</b> — 서버의 저장 방식을 바꿀 때 · 자료를 한꺼번에 고칠 때 · 되살리기 전.</li>
+  <li><b>담당 PC 가 바뀌면</b> 새 담당자가 자기 PC 에 가장 먼저 다시 겁니다. Claude 에게 「백업 걸어 줘」.</li>
+  <li>백업 파일에는 <b>고객 연락처와 멤버의 이름 · 사번</b>이 들어 있습니다. 메일 · 메신저로 보내지 말고 정해진 폴더에만 둡니다.</li>
 </ul>
 
-<h2>[2] 백업에서 되살리기</h2>
-<ul>
-  <li><span class="n">1</span> 로그인한 브라우저에서 <a href="https://hyunbin5786.github.io/sayuwon-sales/tools/restore.html" target="_blank" rel="noopener">https://hyunbin5786.github.io/sayuwon-sales/tools/restore.html</a> 을 엽니다.</li>
-  <li><span class="n">2</span> <b>백업 파일</b>을 고릅니다. 백업 시각과 들어 있는 줄 수가 보입니다.</li>
-  <li><span class="n">3</span> <b>방식</b>을 고릅니다.
-    <ul><li><b>빠진 것만 채우기</b> — 지금 DB 에 없는 것만 넣습니다. 있는 것은 건드리지 않습니다. (실수로 사라진 것을 되찾을 때)</li>
-        <li><b>백업 때 모습으로 덮어쓰기</b> — 같은 기록을 백업 내용으로 바꿉니다. <b>백업 뒤에 고친 내용은 사라집니다.</b> (내용이 잘못 바뀌었을 때)</li></ul></li>
-  <li><span class="n">4</span> <b>MIGRATE_KEY</b> 를 넣고 <b>되살리기 시작</b>을 누릅니다. 끝나면 백업과 대조한 결과가 나옵니다.</li>
-</ul>
-<div class="man-tip">되살리기는 <b>모두가 쓰는 자료를 바꾸는 일</b>입니다. 시작하기 전에 [2] 직접 내려받기로 지금 상태를 먼저 받아 두세요.</div>
-<details><summary><code>MIGRATE_KEY 가 무엇인가요</code> : 되살리기를 아무나 못 하게 막는 열쇠</summary>
-  <p>서버(Cloudflare)에 넣어 두는 비밀 값입니다. 평소에는 서버에서 지워 두고, 되살릴 때만 Cloudflare → <code>sayuwon-api</code> → Settings → Variables and Secrets 에 넣었다가 끝나면 다시 지웁니다. 값은 시스템 관리자가 정합니다.</p></details>
-<details><summary><code>어느 방식이든 바뀌지 않는 것</code> : 백업 뒤에 새로 생긴 것 · 멤버</summary>
-  <p>백업 뒤에 새로 만든 기록은 지우지 않습니다. 멤버는 백업에 있는데 지금 없는 사람만 더하고, 지금 멤버를 빼지는 않습니다.</p></details>
+<h2>[5] 주소 모음</h2>
+<table class="mg-t">
+  <tbody>
+    <tr><td><b>배포</b> (직원들이 쓰는 사이트)</td><td><a href="https://hyunbin5786.github.io/sayuwon-sales/" target="_blank" rel="noopener">https://hyunbin5786.github.io/sayuwon-sales/</a></td></tr>
+    <tr><td><b>테스트</b> (고쳐 보는 사이트)</td><td><a href="https://hyunbin5786.github.io/sayuwon-sales/test/" target="_blank" rel="noopener">https://hyunbin5786.github.io/sayuwon-sales/test/</a></td></tr>
+    <tr><td><b>GitHub</b> (코드가 저장된 곳)</td><td><a href="https://github.com/hyunbin5786/sayuwon-sales" target="_blank" rel="noopener">https://github.com/hyunbin5786/sayuwon-sales</a></td></tr>
+    <tr><td><b>Cloudflare</b> (자료가 저장된 곳)</td><td><a href="https://dash.cloudflare.com/" target="_blank" rel="noopener">https://dash.cloudflare.com/</a> → Workers &amp; Pages</td></tr>
+  </tbody>
+</table>
