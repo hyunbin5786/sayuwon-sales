@@ -126,20 +126,14 @@ header .fz-pop .fz-reset:disabled{opacity:.4;cursor:default}
 /* 늘 원래 크기로: 견적서 종이 · 사진으로 저장하는 표(다음날 준비 · 예약 현황 공유) · 인쇄 */
 .sheet,#shot,#stShot,#stPrev{--sy-fz:1}
 @media print{ :root{--sy-fz:1 !important} }
-/* ===== 휴대폰 메뉴 (2026-11-26 · 너비 700px 아래 · js/menu.js .sm-m): 운영팀이 정한 것만 — 나의 할일(로그인한 사람만 · 연한 초록) · 전화응대 멘트 · 예약현황 공유 · 분실물 찾기 · 맨 아래 로그아웃.
-   PC 의 묶음(.sm-g)과 「test에만 보임」 이름표는 휴대폰에서 숨김. 휴대폰 헤더에서는 이름 · 나의 할일 · 로그아웃 · 글자 크기 버튼을 숨김 (글자 크기는 휴대폰에서 늘 보통) ===== */
+/* ===== 휴대폰 메뉴 (너비 700px 아래 · js/menu.js · 2026-11-26 같은 날 다시 정함): PC 와 같은 묶음(예약보조 · 운영보조 …) 그대로.
+   달라지는 것은 둘뿐 — 맨 위 「나의 할일」 버튼(로그인한 사람만 · 연한 초록 · .sm-m) · 맨 아래 로그아웃. (처음에는 멘트 · 예약현황 공유 · 분실물 찾기만 따로 보였음)
+   휴대폰 헤더에서는 이름 · 나의 할일 · 로그아웃 · 글자 크기 버튼을 숨김 (글자 크기는 휴대폰에서 늘 보통) ===== */
 .smenu .sm-m,.smenu .sm-out{display:none}
 @media (max-width:700px){
   :root{--sy-fz:1 !important}
-  .smenu .sm-g,.smenu .sm-note,.smenu .sm-dev{display:none !important}
   .smenu .sm-m{display:flex;flex-direction:column;gap:10px;flex:none}
   .smenu .sm-my{display:flex;align-items:center;justify-content:center;height:52px;border:1px solid #c5d3be;border-radius:12px;background:#e4eadf;color:#3f5236;font:700 16px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
-  .smenu .sm-mi{display:flex;align-items:center;min-height:52px;padding:0 16px;background:#fffefb;border:1px solid #dfdace;border-radius:12px;font:600 16px "Noto Sans KR",system-ui,sans-serif;color:#262620;text-decoration:none}
-  .smenu .sm-mi.on{background:#e4eadf;border-color:#c5d3be}
-  .smenu .sm-mbox{background:#fffefb;border:1px solid #dfdace;border-radius:12px;padding:14px 12px 12px}
-  .smenu .sm-mbox > b{display:block;padding:0 4px 8px;font:600 16px "Noto Sans KR",system-ui,sans-serif;color:#262620}
-  .smenu .sm-mbox .sm-chips{padding:0;gap:8px}
-  .smenu .sm-mbox .sm-chip{padding:7px 14px;font-size:15px}
   .smenu .sm-out{display:block;flex:none;margin-top:auto;height:46px;border:1px solid #dfdace;border-radius:12px;background:none;color:#77736a;font:600 15px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
   .smenu .sm-in{height:52px;font-size:16px}
   header:has(> .smenu-btn) [data-mypop], header:has(> .smenu-btn) #myOpenBtn, header:has(> .smenu-btn) .smenu-my,
