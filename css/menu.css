@@ -123,3 +123,9 @@ header .fz-pop .fz-reset:disabled{opacity:.4;cursor:default}
 /* 늘 원래 크기로: 견적서 종이 · 사진으로 저장하는 표(다음날 준비 · 예약 현황 공유) · 인쇄 */
 .sheet,#shot,#stShot,#stPrev{--sy-fz:1}
 @media print{ :root{--sy-fz:1 !important} }
+/* ===== 휴대폰 메뉴 맨 위 「나의 할일」 (2026-11-26 · 너비 700px 아래 · 로그인한 사람만 · js/menu.js data-smmy) — 헤더의 「나의 할일」 버튼은 휴대폰에서 숨김 (메뉴에 있으므로) ===== */
+.smenu .sm-my{display:none}
+@media (max-width:700px){
+  .smenu .sm-my{display:flex;align-items:center;justify-content:center;flex:none;height:48px;border:0;border-radius:12px;background:#3f5236;color:#fff;font:700 16px "Noto Sans KR",system-ui,sans-serif;cursor:pointer}
+  header:has(> .smenu-btn) [data-mypop], header:has(> .smenu-btn) #myOpenBtn, header:has(> .smenu-btn) .smenu-my{display:none !important}
+}

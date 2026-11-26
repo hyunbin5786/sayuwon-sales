@@ -3,3 +3,5 @@
 .mypop[hidden]{display:none}
 .mypop .box{width:min(1680px,100%);height:calc(100vh - 48px);background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .mypop iframe{width:100%;height:100%;border:0;display:block}
+/* 휴대폰 (2026-11-26 · 너비 700px 아래): 팝업을 화면 가득 */
+@media (max-width:700px){ .mypop{padding:0} .mypop .box{width:100%;height:100vh;height:100dvh;border-radius:0} }

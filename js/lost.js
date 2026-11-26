@@ -20,7 +20,7 @@ const OPS_PAGE =
     fields:[ {k:'kind', l:'구분', type:'select', opts:['습득','분실 신고'], def:()=>'습득'}, {k:'date', l:'접수일', type:'date', def:()=>opsToday()},
       {k:'item', l:'물품', type:'text', req:1}, {k:'feature', l:'설명', type:'text', ph:'색 · 브랜드 · 안에 든 것', show:d=>lostKind(d)!=='습득'},   // 설명은 분실물 신고만 (습득은 사진으로 · 2026-11-24)
       {k:'photos', l:d=>lostKind(d)==='습득' ? '습득물 사진' : '분실물 사진 (고객이 보내 준 사진 · 없어도 됨)', type:'photos', w:2, req:d=>lostKind(d)==='습득',   // 습득이면 사진 꼭 (찍기 · 고르기 · 붙여넣기 · png / jpeg) — js/opsboard.js 의 photos 칸
-        show:d=>lostKind(d)==='습득' || !(typeof GUEST!=='undefined' && GUEST)},   // 신고에도 사진 (2026-11-26 · 꼭은 아님). 로그인 없이 넣는 신고는 서버 lostAdd 가 사진을 받지 않아 칸을 보이지 않음
+        show:d=>lostKind(d)==='습득' || !(typeof GUEST!=='undefined' && GUEST) || !!window.LOST_GUEST_PH},   // 신고에도 사진 (2026-11-26 · 꼭은 아님). 로그인 없이 넣는 신고는 서버가 api 11 부터 사진을 받음 — 예전 서버면 칸을 보이지 않음 (opsboard.js LOST_GUEST_PH)
       {k:'place', l:d=>lostKind(d)==='습득' ? '발견 장소' : '분실 추정 장소', type:'text'}, {k:'storage', l:'보관 위치', type:'text', show:d=>lostKind(d)==='습득'},
       // 2026-11-24: 구분에 따라 이름이 바뀜 (분실물 신고 = 신고자 · 분실물 습득 = 습득자)
       {k:'person', l:d=>lostWho(d), type:'text', req:1}, {k:'phone', l:d=>lostWho(d)+' 연락처', type:'tel', req:d=>lostKind(d)==='분실 신고'},   // 이름은 꼭 · 신고는 연락처도 꼭 (연락드려야 하니까)

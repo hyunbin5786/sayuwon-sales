@@ -30,6 +30,7 @@ async function pull(){
   if(GUEST){ setSync('불러오는 중…');
     const j=await SY.callRaw({action:'lostList'}).catch(()=>null);
     if(!j || !j.ok){ setSync(j && /^bad_(action|key)$/.test(j.error||'') ? OLD_SRV : '연결 안 됨 · 잠시 뒤 다시'); return; }
+    window.LOST_GUEST_PH = (+j.api||0) >= 11;   // 서버가 api 11 부터 로그인 없이 넣는 분실 신고의 사진도 받음 (그 전 서버면 신고의 사진 칸을 보이지 않음 · js/lost.js)
     rows=(j.items||[]).map(x=>({r:{id:x.id, saved:x.saved, updated:x.updated}, d:x.d||{}, log:[]})); setSync(''); render(); return; }
   if(!opsKey()){ $('#keyBox').hidden=false; return; }
   setSync('불러오는 중…');

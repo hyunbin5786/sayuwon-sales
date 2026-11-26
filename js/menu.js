@@ -64,6 +64,7 @@ window.syFont = (function(){
     : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}${typeof SY_DEV!=="undefined" && SY_DEV.tag && SY_DEV.tag(it.href)?`<small class="sm-dev">test에만 보임</small>`:""}</b></a>`;   /* 개발 중 기능: 배포 사이트엔 이름표 없음 · 테스트 사이트에만 「test에만 보임」 (2026-11-25 · js/common.js SY_DEV.tag) */   // 메뉴 아래 회색 설명은 없앰 (2026-11-18)
   const wrap=document.createElement('div'); wrap.className='smenu'; wrap.id='smenu'; wrap.hidden=true;
   wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"><div class="sm-top"><b class="sm-title">메뉴</b><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
+    + (logged ? `<button type="button" class="sm-my" data-smmy>나의 할일</button>` : '')   // 휴대폰(700px 아래)에서만 보임 · 로그인한 사람만 (2026-11-26 · css/menu.css) — 헤더의 「나의 할일」 버튼과 같은 것을 엶 (같은 자료라 체크는 PC 와 그대로 이어짐)
     + G.filter(g=>g.items.length && (logged || !g.login || g.items.some(i=>i.guest))).map(g=>{ const its = logged || !g.login ? g.items : g.items.filter((i,n,a)=>i.guest || (i.sub && a.slice(n+1).find(x=>x.sub || x.guest)?.guest));   // 로그인 안 했으면 로그인 묶음에서는 guest 항목(과 그 소제목)만
       return `<details class="sm-g" data-acc="${g.k}"${(g.k in st ? st[g.k] : false)?' open':''}><summary>${esc(g.t)}</summary>${its.map(itemHTML).join('')}</details>`; }).join('')
     + (logged ? '' : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>`) + `</nav>`;
@@ -140,8 +141,9 @@ window.syFont = (function(){
     mb.addEventListener('click', ()=>window.openMyPop());
   }
   btn.addEventListener('click', ()=>open(wrap.hidden));
-  if(isHomePg && logged) open(true);
-  wrap.addEventListener('click', e=>{ if(e.target.closest('[data-smclose]')) open(false); else if(e.target.closest('a') && !dock) setTimeout(()=>open(false), 0); });
+  if(isHomePg && logged && !matchMedia('(max-width:700px)').matches) open(true);   // 휴대폰에서는 펼쳐 두지 않음 — 첫 화면에 캘린더만 (2026-11-26)
+  wrap.addEventListener('click', e=>{ if(e.target.closest('[data-smmy]')){ open(false); const b=hd.querySelector('[data-mypop], #myOpenBtn, .smenu-my'); if(b) b.click(); else if(typeof window.openMyPop==='function') window.openMyPop(); return; }
+    if(e.target.closest('[data-smclose]')) open(false); else if(e.target.closest('a') && !dock) setTimeout(()=>open(false), 0); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !wrap.hidden){ e.preventDefault(); e.stopImmediatePropagation(); open(false); } }, true);
   wrap.querySelectorAll('details[data-acc]').forEach(d=>d.addEventListener('toggle', ()=>{ st[d.dataset.acc]=d.open; try{ localStorage.setItem('sy_menu_acc2', JSON.stringify(st)); }catch(_){} }));
 })();

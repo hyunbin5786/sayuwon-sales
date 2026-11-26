@@ -400,3 +400,25 @@ html.cal-only .cal-r ul{max-height:none!important}
 @media (max-width:620px){ html.cal-only .cal-body{grid-template-columns:1fr!important} html.cal-only .cal-r{contain:none!important} }
 /* 캘린더 그날 일정(행사 · 교육 · 휴관 · 기타) 제목도 단체명처럼 진하게 · 구분 색 (2026-11-25) */
 .cal-day li.ce-i b.ce-t{font-weight:600}
+/* ===== 휴대폰 첫 화면 (2026-11-26 · 너비 700px 아래 · 로그인한 뒤): 캘린더만 — 마감 기간 버튼 · 검색 · 다른 상자(오늘 마감 · 공지 · 전화 · 업무)는 숨김. 할일은 메뉴 맨 위 「나의 할일」에서 (js/menu.js) ===== */
+@media (max-width:700px){
+  html:not(.cal-only) #menuView .hello, html:not(.cal-only) #menuNote, html:not(.cal-only) #dash .dash-h, html:not(.cal-only) .cal-pop{display:none!important}
+  html:not(.cal-only) body > main{padding:10px 10px 28px!important}
+  html:not(.cal-only) .dcols.d2{display:block!important}
+  html:not(.cal-only) .dcols.d2 > :not(.dcal-col){display:none!important}
+  html:not(.cal-only) .dcols.d2 > .dcal-col{contain:none!important;height:auto!important;max-height:none!important;overflow:visible!important}
+  html:not(.cal-only) .cal-body{display:block!important}
+  html:not(.cal-only) .cal-r{contain:none!important;overflow:visible!important;padding-top:12px!important}
+  html:not(.cal-only) .cal-r ul, html:not(.cal-only) .cal-day ul{max-height:none!important;overflow:visible!important}
+}
+@media (max-width:700px){   /* 휴대폰 캘린더: 손가락으로 누르기 좋게 칸 · 글자를 키움 */
+  html:not(.cal-only) .cal-g{gap:3px;font-size:14px}
+  html:not(.cal-only) .cal-g .cw{font-size:13px;padding:4px 0}
+  html:not(.cal-only) .cal-g .cd{height:52px;padding:4px 4px;border-radius:8px}
+  html:not(.cal-only) .cal-g b.cv, html:not(.cal-only) .cal-g b.ce, html:not(.cal-only) .cal-g b.ck, html:not(.cal-only) .cal-lg b{min-width:16px;height:16px;line-height:16px;font-size:11px;border-radius:8px}
+  html:not(.cal-only) .cal-lg{font-size:13px}
+  html:not(.cal-only) .cal-dh{font-size:16px}
+  html:not(.cal-only) .cal-day li{padding:8px 10px;border-radius:8px;font-size:15px}
+  html:not(.cal-only) .cv-items{font-size:14px}
+  html:not(.cal-only) .cal-day ul{gap:6px}
+}
