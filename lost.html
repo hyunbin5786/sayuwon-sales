@@ -6,9 +6,9 @@
 <title>분실물 찾기 · 사유원 운영 보조 시스템</title>
 <script>/* 2026-11-24: 로그인 없이도 씀 (접수 · 찾기만 · 이름 · 연락처 일부 가림). 로그인했으면 예전처럼 모두 — js/opsboard.js GUEST */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) document.documentElement.classList.add("guest"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/ops.css?v=20261126s">
-<link rel="stylesheet" href="css/mypop.css?v=20261126s">
-<link rel="stylesheet" href="css/menu.css?v=20261126s">
+<link rel="stylesheet" href="css/ops.css?v=20261126ze">
+<link rel="stylesheet" href="css/mypop.css?v=20261126ze">
+<link rel="stylesheet" href="css/menu.css?v=20261126ze">
 </head>
 <body>
 <!-- 분실물 찾기 (2026-11-21 운영보조에서 따로 나눈 페이지 · 칸은 js/lost.js · 동작은 js/opsboard.js) -->
@@ -23,13 +23,12 @@
     <p>로그인 정보를 확인할 수 없습니다. <a href="./">첫 화면</a>에서 다시 로그인해 주세요 (팀 비밀번호는 없앰 · 2026-11-21).</p>
     <p class="err" id="keyErr"></p>
   </div>
-  <!-- 휴대폰 (2026-11-24 · js/lostm.js): 처음에 분실물 신고 / 습득 중 하나를 골라 접수 · 검색 버튼 하나 -->
+  <!-- 휴대폰 (2026-11-24 · js/lostm.js · 2026-11-26 다시 만듦): 위 = 접수 버튼 둘 (신고 · 습득) / 아래 = 신고 · 습득 내역 (구분 고르기 · 찾기 · 목록이 늘 보임) -->
   <section class="panel m-home" id="mHome">
-    <p class="m-q">무엇을 접수할까요?</p>
-    <button type="button" class="m-big" data-ladd="분실 신고"><b>분실물 신고</b><small>잃어버린 물건을 찾아요</small></button>
-    <button type="button" class="m-big" data-ladd="습득"><b>분실물 습득</b><small>주운 물건을 맡겨요 (사진 꼭)</small></button>
-    <button type="button" class="btn m-sbtn" id="mSearchBtn">🔍 검색</button>
-    <div class="m-search" id="mSearch" hidden><div class="m-srow"><select id="mKind" title="구분"><option value="">전체</option><option value="분실 신고">신고</option><option value="습득">습득</option></select><input id="mQ" type="search" placeholder="물품 · 설명 · 장소 · 이름으로 찾기" data-ime="ko" autocomplete="off"></div><div id="mResults"></div></div>
+    <div class="m-add"><button type="button" class="btn primary" data-ladd="분실 신고">＋ 분실물 신고</button><button type="button" class="btn primary" data-ladd="습득">＋ 분실물 습득</button></div>
+    <div class="m-tabs" id="mTabs" role="tablist" aria-label="구분"></div>
+    <input id="mQ" type="search" placeholder="물품 · 설명 · 장소 · 이름으로 찾기" data-ime="ko" autocomplete="off">
+    <div id="mResults"></div>
   </section>
   <section class="panel" id="board">
     <div class="b-head"><h2 id="bTitle"></h2><span class="hint" id="bSum"></span><span class="sync" id="sync"></span>
@@ -58,16 +57,16 @@
 </div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/common.js?v=20261126s"></script>
-<script src="js/opslib.js?v=20261126s"></script>
-<script src="js/lost.js?v=20261126s"></script>
-<script src="js/opsboard.js?v=20261126s"></script>
-<script src="js/lostm.js?v=20261126s"></script>
+<script src="js/common.js?v=20261126ze"></script>
+<script src="js/opslib.js?v=20261126ze"></script>
+<script src="js/lost.js?v=20261126ze"></script>
+<script src="js/opsboard.js?v=20261126ze"></script>
+<script src="js/lostm.js?v=20261126ze"></script>
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
-<script src="js/mypop.js?v=20261126s"></script>
-<script src="js/ime.js?v=20261126s"></script>
-<script src="js/keepsize.js?v=20261126s"></script>
-<script src="js/menu.js?v=20261126s"></script>
-<script src="js/timepick.js?v=20261126s"></script>
+<script src="js/mypop.js?v=20261126ze"></script>
+<script src="js/ime.js?v=20261126ze"></script>
+<script src="js/keepsize.js?v=20261126ze"></script>
+<script src="js/menu.js?v=20261126ze"></script>
+<script src="js/timepick.js?v=20261126ze"></script>
 </body>
 </html>

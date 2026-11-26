@@ -44,7 +44,7 @@ window.syFont = (function(){
     {k:'book', t:'예약보조', login:1, items:[ {sub:'고객 응대 접수'}, I('personal.html','개인고객 응대'), I('group.html','단체고객 응대'),
       {sub:'고객 응대 보조'}, I('status.html','예약 현황 공유'), I('naver.html','네이버 예약 → 사유원 전산 이관'), {...I('ment.html','전화응대 멘트'), guest:1}, I('document/','견적서 / 거래명세서 발급'), I('prep.html','다음날 고객 응대 준비'), I('clergy.html','대구대교구 무료입장 명부'), I('cancel.html','예약 취소 요청'), I('rent.html','대관 규정 및 상품'), I('agency.html','협업 여행사 할인 현황') ]},   // guest: 로그인하지 않아도 보이는 항목 (2026-11-18) · sep: 가로줄 = 아침 · 일과 중 · 하루 마무리에 하는 일 구분 (2026-11-19)
     {k:'ops', t:'운영보조', items:[ {sub:'예약현황 공유'}, {chips:[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']]},
-      {sub:'운영 참고 자료', login:1}, {...I('lost.html','분실물 찾기'), login:1}, {...I('accident.html','사고현황 접수'), login:1}, {...I('stock.html','재고관리'), login:1}, {...I('promo.html','기업 프로모션 할인'), login:1} ]},   // 스마트스토어 발송 보고는 메뉴에서 뺌 (2026-11-24 · 스마트스토어 판매는 재고관리에서 기록)
+      {sub:'운영 참고 자료'}, I('lost.html','분실물 찾기'),{...I('accident.html','사고현황 접수'), login:1}, {...I('stock.html','재고관리'), login:1}, {...I('promo.html','기업 프로모션 할인'), login:1} ]},   // 스마트스토어 발송 보고는 메뉴에서 뺌 (2026-11-24 · 스마트스토어 판매는 재고관리에서 기록)
     {k:'pr', t:'홍보 보조', login:1, items:[ I('press.html','홍보 기자 리스트') ]},   // 2026-11-24 · 기능은 나중에 (지금은 준비 중 페이지)
     {k:'manual', t:'매뉴얼', login:1, items:[ I('manual.html','고객 응대 매뉴얼') ]},   // 2026-11-24 홍보 보조 아래 · 보기 · 찾기 · 안내문 올리기 · 반영은 한 화면(manual.html)에서
     {k:'set', t:'기타 설정', login:1, items:[ I('./#catalog','품목관리','', 'catalog'), I('./#members','멤버관리','', 'members') ]},
@@ -64,9 +64,15 @@ window.syFont = (function(){
     : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}${typeof SY_DEV!=="undefined" && SY_DEV.tag && SY_DEV.tag(it.href)?`<small class="sm-dev">test에만 보임</small>`:""}</b></a>`;   /* 개발 중 기능: 배포 사이트엔 이름표 없음 · 테스트 사이트에만 「test에만 보임」 (2026-11-25 · js/common.js SY_DEV.tag) */   // 메뉴 아래 회색 설명은 없앰 (2026-11-18)
   const wrap=document.createElement('div'); wrap.className='smenu'; wrap.id='smenu'; wrap.hidden=true;
   wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"><div class="sm-top"><b class="sm-title">메뉴</b><button type="button" class="sm-x" data-smclose title="닫기 (Esc)" aria-label="메뉴 닫기">×</button></div>`
+    // 휴대폰 메뉴 (2026-11-26 · 700px 아래에서만 보임 · css/menu.css): 운영팀이 정한 것만 — 나의 할일(로그인한 사람만) · 전화응대 멘트 · 예약현황 공유 · 분실물 찾기 · 맨 아래 로그아웃. PC 의 묶음(.sm-g)은 휴대폰에서 숨김
+    //  나의 할일 = 헤더의 「나의 할일」 버튼과 같은 것을 엶 (같은 자료라 체크는 PC 와 그대로 이어짐). 여기에 항목을 더하려면 이 줄에만 더한다
+    + `<div class="sm-m">` + (logged ? `<button type="button" class="sm-my" data-smmy>나의 할일</button>` : '')
+      + `<a class="sm-mi${isHere(base+'ment.html')?' on':''}" href="${base}ment.html">전화응대 멘트</a>`
+      + `<div class="sm-mbox"><b>예약현황 공유</b><div class="sm-chips">${[['mb','몽몽마방'],['rent','대관'],['docent','도슨트'],['prog','프로그램'],['coupon','음료쿠폰']].map(([k,l])=>`<a class="sm-chip" href="${base}group.html?book=${k}">${esc(l)}</a>`).join('')}</div></div>`
+      + `<a class="sm-mi${isHere(base+'lost.html')?' on':''}" href="${base}lost.html">분실물 찾기</a></div>`
     + G.filter(g=>g.items.length && (logged || !g.login || g.items.some(i=>i.guest))).map(g=>{ const its = logged || !g.login ? g.items : g.items.filter((i,n,a)=>i.guest || (i.sub && a.slice(n+1).find(x=>x.sub || x.guest)?.guest));   // 로그인 안 했으면 로그인 묶음에서는 guest 항목(과 그 소제목)만
       return `<details class="sm-g" data-acc="${g.k}"${(g.k in st ? st[g.k] : false)?' open':''}><summary>${esc(g.t)}</summary>${its.map(itemHTML).join('')}</details>`; }).join('')
-    + (logged ? '' : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>`) + `</nav>`;
+    + (logged ? `<button type="button" class="sm-out" data-smout>로그아웃</button>` : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>`) + `</nav>`;   // 로그아웃: 휴대폰 메뉴 맨 아래 (휴대폰 헤더에서는 이름 · 로그아웃 · 글자 크기 버튼을 숨김 · 2026-11-26)
   document.body.appendChild(wrap);
   const btn=document.createElement('button'); btn.type='button'; btn.className='smenu-btn'; btn.title='메뉴 열기 / 닫기'; btn.setAttribute('aria-label','메뉴'); btn.innerHTML='☰ <span>메뉴</span>';
   hd.insertBefore(btn, hd.firstChild);
@@ -140,8 +146,13 @@ window.syFont = (function(){
     mb.addEventListener('click', ()=>window.openMyPop());
   }
   btn.addEventListener('click', ()=>open(wrap.hidden));
-  if(isHomePg && logged) open(true);
-  wrap.addEventListener('click', e=>{ if(e.target.closest('[data-smclose]')) open(false); else if(e.target.closest('a') && !dock) setTimeout(()=>open(false), 0); });
+  if(isHomePg && logged && !matchMedia('(max-width:700px)').matches) open(true);   // 휴대폰에서는 펼쳐 두지 않음 — 첫 화면에 캘린더만 (2026-11-26)
+  wrap.addEventListener('click', e=>{ if(e.target.closest('[data-smmy]')){ open(false); const b=hd.querySelector('[data-mypop], #myOpenBtn, .smenu-my'); if(b) b.click(); else if(typeof window.openMyPop==='function') window.openMyPop(); return; }
+    if(e.target.closest('[data-smout]')){   // 로그아웃 (첫 화면 js/portal.js 의 로그아웃과 같은 일 · 첫 화면이면 그 버튼을 그대로 누름)
+      const lb=document.getElementById('logoutBtn'); if(lb){ lb.click(); return; }
+      if(!confirm('로그아웃할까요? 다음 사람이 이름과 사번으로 다시 로그인합니다.')) return;
+      ['sy_user','sayuwon_owner','sy_sender','sy_dash_cache'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(_){} }); location.href=base+'index.html'; return; }
+    if(e.target.closest('[data-smclose]')) open(false); else if(e.target.closest('a') && !dock) setTimeout(()=>open(false), 0); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !wrap.hidden){ e.preventDefault(); e.stopImmediatePropagation(); open(false); } }, true);
   wrap.querySelectorAll('details[data-acc]').forEach(d=>d.addEventListener('toggle', ()=>{ st[d.dataset.acc]=d.open; try{ localStorage.setItem('sy_menu_acc2', JSON.stringify(st)); }catch(_){} }));
 })();

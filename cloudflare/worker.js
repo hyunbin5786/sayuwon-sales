@@ -238,7 +238,9 @@ async function lostAdd(env, req) {
   const s = req.d || {}, t = (k, n) => String(s[k] == null ? '' : s[k]).replace(/\r\n?/g, '\n').trim().slice(0, n || 200);
   const kind = s.kind === '분실 신고' ? '분실 신고' : '습득';
   const d = { kind, date: /^\d{4}-\d{2}-\d{2}$/.test(s.date || '') ? s.date : kstYmd(), item: t('item', 100), feature: t('feature'), place: t('place'), person: t('person', 30), phone: t('phone', 20), memo: t('memo', 1000), status: LOST_FIRST[kind] };
-  if (kind === '습득') { d.storage = t('storage'); d.photos = (Array.isArray(s.photos) ? s.photos : []).slice(0, 5).filter(p => p && /^m[0-9a-f]{32}$/.test(String(p.id || ''))).map(p => ({ id: String(p.id), name: cleanName(p.name || '사진') })); }
+  // 사진: 습득은 꼭 · 신고는 있으면 (2026-11-26 · api 11 — 고객이 보내 준 사진을 로그인 없이 넣는 신고에도. 예전에는 습득만 받고 신고의 사진은 버렸음)
+  const photos = (Array.isArray(s.photos) ? s.photos : []).slice(0, 5).filter(p => p && /^m[0-9a-f]{32}$/.test(String(p.id || ''))).map(p => ({ id: String(p.id), name: cleanName(p.name || '사진') }));
+  if (kind === '습득') { d.storage = t('storage'); d.photos = photos; } else if (photos.length) d.photos = photos;
   if (!d.item) throw fail('no_item');
   if (kind === '습득' && !d.photos.length) throw fail('no_photo');
   const by = clT(req.by || d.person, 20) || '(로그인 없이)', now = iso();
@@ -645,7 +647,7 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'mentList') { try { const o = await getItem(env, 'mentdb'); return { ok: true, ment: o && !o.deleted ? { history: o.history, saved: o.saved } : null }; } catch (e) { return err('mentlist: ', e); } }   // 전화응대 멘트 읽기
   if (a === 'mentImgGet') { try { return { ok: true, file: await mentImgGet(env, String(req.id || '')) }; } catch (e) { return err('mentimg: ', e); } }   // 멘트 이미지 한 장
   if (a === 'bookList') { try { return { ok: true, items: await bookList(env), api: 6 }; } catch (e) { return err('booklist: ', e); } }   // 예약 현황 공유 목록 (연락처 칸은 빼고 줌)
-  if (a === 'lostList') { try { return { ok: true, items: await lostList(env), api: 9 }; } catch (e) { return err('lostlist: ', e); } }   // 분실물 목록 (로그인 없이 보는 화면용)
+  if (a === 'lostList') { try { return { ok: true, items: await lostList(env), api: 11 }; } catch (e) { return err('lostlist: ', e); } }   // 분실물 목록 (로그인 없이 보는 화면용)
   if (a === 'lostAdd') { try { const id = await lostAdd(env, req); await bumpRev(env); return { ok: true, id, api: 9 }; } catch (e) { return err('', e); } }   // 분실물 접수
   if (a === 'lostImgPut') { try { return { ok: true, file: await lostImgPut(env, req), api: 9 }; } catch (e) { return err('', e); } }   // 습득물 사진 올리기
   if (a === 'bookAdd') { try { return { ok: true, item: await bookAdd(env, req), api: 6 }; } catch (e) { return err('bookadd: ', e); } }   // 예약 현황에 직접 추가
@@ -711,7 +713,7 @@ export default {
     if (request.method === 'GET') {
       // 2026-11-23: /file/<id>/<보이는 이름> 도 받음 — 브라우저는 탭 제목 · 저장 이름을 주소 끝에서 가져가므로 화면에 보이는 이름을 주소 끝에 붙임 (뒤 이름은 무시하고 id 로 찾음)
       const m = url.pathname.match(/^\/file\/([a-zA-Z0-9_-]{8,80})(?:\/[^/]*)?$/);
-      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 10, db: 'd1', ...(env.TEST_SYNC_KEY ? { testSync: true } : {}) });   // api 8 = /file/<id>/<이름> 받음 · api 9 = mirror · api 10 = import 가 press · manual 도 받음 (testSync 는 테스트 서버에서만 보임)
+      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 11, db: 'd1', ...(env.TEST_SYNC_KEY ? { testSync: true } : {}) });   // api 8 = /file/<id>/<이름> 받음 · api 9 = mirror · api 10 = import 가 press · manual 도 받음 · api 11 = lostAdd 가 분실 신고의 사진도 받음 (lostList 도 api 11 을 돌려줌) (testSync 는 테스트 서버에서만 보임)
       const f = await readFile(env, m[1]);
       if (!f || f.kind !== 'doc') return new Response('파일이 없습니다', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       const bin = atob(f.data), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);

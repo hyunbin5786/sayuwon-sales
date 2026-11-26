@@ -30,6 +30,7 @@ async function pull(){
   if(GUEST){ setSync('불러오는 중…');
     const j=await SY.callRaw({action:'lostList'}).catch(()=>null);
     if(!j || !j.ok){ setSync(j && /^bad_(action|key)$/.test(j.error||'') ? OLD_SRV : '연결 안 됨 · 잠시 뒤 다시'); return; }
+    window.LOST_GUEST_PH = (+j.api||0) >= 11;   // 서버가 api 11 부터 로그인 없이 넣는 분실 신고의 사진도 받음 (그 전 서버면 신고의 사진 칸을 보이지 않음 · js/lost.js)
     rows=(j.items||[]).map(x=>({r:{id:x.id, saved:x.saved, updated:x.updated}, d:x.d||{}, log:[]})); setSync(''); render(); return; }
   if(!opsKey()){ $('#keyBox').hidden=false; return; }
   setSync('불러오는 중…');
@@ -105,7 +106,7 @@ function renderLost(hit){
     const chips=[['open','진행 중'],['all','전체'], ...LOST_ST[b.kind].map(s=>[s,s])].map(([v,l])=>`<button type="button" class="chip${f===v?' on':''}" data-lf="${bi}|${esc(v)}">${esc(l)} <small>${cnt(v)}</small></button>`).join('');
     const tr=x=>{ const s=stOf(x), ps=Array.isArray(x.d.photos) ? x.d.photos : [];
       return `<tr class="${b.open.includes(s)?'':'closed'}">`
-        + (b.photo ? `<td class="lost-ph">${ps.length ? `<img data-phimg="${esc(ps[0].id)}" data-phview="${esc(ps[0].id)}" alt="${esc(x.d.item||'습득물')}" title="누르면 크게">${ps.length>1?`<small>+${ps.length-1}</small>`:''}` : '<span class="hint">사진 없음</span>'}</td>` : '')
+        + (b.photo ? `<td class="lost-ph">${ps.length ? `<img data-phimg="${esc(ps[0].id)}" data-phview="${esc(ps[0].id)}" alt="${esc(x.d.item||'사진')}" title="누르면 크게">${ps.length>1?`<small>+${ps.length-1}</small>`:''}` : `<span class="hint">${esc(b.noPhoto ?? '사진 없음')}</span>`}</td>` : '')
         + b.cols.map(([k,,fn])=>{ const v=fn?fn(x.d[k], x.d):x.d[k]||''; return `<td>${v && typeof v==='object' ? v.html : esc(v)}</td>`; }).join('')   // {html} 이면 그대로 (물품 아래 줄에 설명)
         + (GUEST ? `<td class="st st-${esc(s)}">${esc(s)}</td><td></td></tr>`   // 로그인 없이: 상태는 보기만 · 열기 없음
           : `<td class="st st-${esc(s)}"><select class="lost-st" data-lst="${esc(x.r.id)}" title="상태 바꾸기">${LOST_ST[b.kind].map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select></td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">수정</button></td></tr>`); };
@@ -142,6 +143,7 @@ window.opsMe = { name:user.name||'', phone:'' };
 if(B.boards && !GUEST) SY.call({action:'members'}).then(j=>{ const e=String(user.emp||'').replace(/\s/g,'').toUpperCase(), m=(j.members||[]).find(x=>String(x.emp||'').replace(/\s/g,'').toUpperCase()===e); if(m){ opsMe.name=m.name||opsMe.name; opsMe.phone=m.phone||''; } }).catch(()=>{});
 function openEdit(row, preset){   // preset: 새로 넣을 때 먼저 채울 값 (분실물 대시보드의 구분 등)
   editRow=row||null; form = row ? {...row.d} : Object.fromEntries(B.fields.filter(f=>f.def).map(f=>[f.k, f.def()]));
+  B.fields.forEach(f=>{ if(f.type==='photos' && Array.isArray(form[f.k])) form[f.k]=form[f.k].slice(); });   // 사진 목록은 사본으로 — 사진을 빼고 「취소」하면 목록의 기록은 그대로 (2026-11-26)
   if(preset) Object.entries(preset).forEach(([k, v])=>{ form[k]=v; if(B.onField) B.onField(k, form); });
   if(B.normalize) B.normalize(form);   // 예전 기록 값을 지금 규칙으로 (분실물 상태)
   $('#eTitle').textContent = row ? `${B.title} · 고치기` : B.add;
@@ -158,20 +160,23 @@ function fieldHTML(f){
   if(f.type==='dom') return lab+`<select id="${id}" data-k="dom">${Array.from({length:30},(_,i)=>i+1).map(i=>`<option value="${i}"${+v===i?' selected':''}>${i}일</option>`).join('')}<option value="31"${+v>=31?' selected':''}>말일</option></select>`;
   if(f.type==='subs') return lab+`<ul class="esubs">${(form.subs||[]).map(s=>`<li><span>${esc(s.title)}</span><button type="button" class="x" data-subdel="${esc(s.id)}" title="빼기">×</button></li>`).join('')}</ul><div class="esub-add"><input id="e_subAdd" data-ime="ko" placeholder="세부 과업 (적고 Enter)"><button type="button" class="btn sm" id="e_subAddBtn">추가</button></div>`;
   if(f.type==='photos'){ const ps=Array.isArray(form[f.k]) ? form[f.k] : [];   // 사진 (2026-11-23): 휴대폰에서 바로 찍거나 사진첩에서 고름. 값 = [{id, name}] (그림은 서버 files 표 · 아래 「사진 칸」)
-    return `<label>${fLabel(f)} <small class="ph-cnt">${ps.length} / ${PH_MAX}장</small></label>`
+    return `<label>${fLabel(f)}${fReq(f)?' <i>*</i>':''} <small class="ph-cnt">${ps.length} / ${PH_MAX}장</small>${fReq(f) && !ps.length ? ' <small class="ph-need">사진을 꼭 넣어야 저장됩니다</small>' : ''}</label>`   // 꼭 넣는 사진(분실물 습득)은 다른 칸처럼 * 표시 + 안내 (2026-11-26 · 예전에도 저장은 막았지만 표시가 없었음)
       + (ps.length ? `<div class="phs">${ps.map((p,i)=>`<span class="ph"><img alt="${esc(p.name||'사진')}" data-phimg="${esc(p.id)}" data-phview="${esc(p.id)}"><button type="button" class="ph-x" data-phdel="${f.k}|${i}" title="이 사진 빼기" aria-label="사진 빼기">×</button></span>`).join('')}</div>` : '')
-      + (ps.length<PH_MAX ? `<div class="ph-btns"><label class="btn primary ph-btn">📷 사진 찍기<input type="file" accept="image/*" capture="environment" data-phadd="${f.k}" hidden></label>`
-          + `<label class="btn primary ph-btn">🖼 사진 고르기<input type="file" accept="image/png,image/jpeg" multiple data-phadd="${f.k}" hidden></label></div>` : '')
-      + `<span class="hint ph-msg" id="phMsg">${phBusy ? '사진을 올리는 중…' : 'PNG · JPEG · 한 번에 여러 장 고를 수 있습니다'}</span>`; }
+      // 사진 버튼은 하나 (2026-11-26 · PC 도 휴대폰도): PC = 「사진 고르기」 (PC 는 찍을 수 없으므로 · 여러 장) / 휴대폰 = 「사진 찍기 · 고르기」.
+      //  휴대폰에서 무엇이 열리는지는 휴대폰이 정하고 accept · multiple 값에 따라 달라짐: png · jpeg 만 적거나 multiple 을 붙이면 안드로이드에서 파일 앱 쪽이 열려, 휴대폰은 accept="image/*" 만 (한 장씩 · 5장까지 되풀이).
+      //  이 방식으로 두기로 함 (2026-11-26 운영팀 결정). 어떤 사진이든 올릴 때 JPEG / PNG 로 바꿈 (phShrink)
+      + (ps.length<PH_MAX ? `<div class="ph-btns"><label class="btn primary ph-btn">${PH_MOB ? '📷 사진 찍기 · 고르기' : '🖼 사진 고르기'}<input type="file" accept="image/*"${PH_MOB ? '' : ' multiple'} data-phadd="${f.k}" hidden></label></div>` : '')
+      + `<span class="hint ph-msg" id="phMsg">${phBusy ? '사진을 올리는 중…' : PH_MOB ? `갤러리에서 고르거나 바로 찍을 수 있습니다 · ${PH_MAX}장까지 한 장씩` : '한 번에 여러 장 고를 수 있습니다 · 복사한 사진은 붙여넣기(Ctrl+V)도 됩니다'}</span>`; }
   if(f.type==='textarea') return lab+`<textarea id="${id}" data-k="${f.k}" data-ime="ko" rows="3">${esc(v)}</textarea>`;
   if(f.type==='date') return lab+`<span class="dbox"><input class="dtxt" id="${id}" data-dt="${f.k}" readonly value="${esc(dateDisp(v))}" placeholder="누르면 달력"><input type="date" class="dpick" data-dp="${f.k}" value="${esc(v)}" tabindex="-1" aria-hidden="true"></span>`;
   return lab+`<input id="${id}" data-k="${f.k}" value="${esc(v)}"${f.ph?` placeholder="${esc(f.ph)}"`:''}${f.type==='time'?' data-tp="1" readonly':f.type==='num'?' inputmode="numeric" data-ime="num"':f.type==='tel'?' inputmode="tel" data-ime="num"':' data-ime="ko"'}>`;
 }
 function paintForm(){ $('#eFields').innerHTML = B.fields.filter(f=>!f.show || f.show(form)).map(f=>`<div class="ef${f.w===2?' w2':''}">${fieldHTML(f)}</div>`).join(''); phPaint(); }
-// ---------- 사진 칸 (type:'photos' · 2026-11-23 · 분실물 습득 사진) ----------
+// ---------- 사진 칸 (type:'photos' · 2026-11-23 · 분실물 습득 사진 · 2026-11-26 분실물 신고에도) ----------
 //  올리기: 화면에서 긴 변 1600px 로 줄여(PNG 는 PNG 그대로, 너무 크면 JPEG) 서버의 그림 저장(mentImgPut — 멘트 이미지와 같은 저장소 · files 표 · 5MB 까지)에 올리고, 기록에는 [{id, name}] 만 둠
 //  보기: mentImgGet 으로 받아 그림으로 (로그인한 사람만 · 한 번 받은 것은 이 화면에 기억). 서버를 바꾸지 않으려고 멘트 이미지 동작을 같이 씀
 const PH_MAX=5, phCache={}, phWait={}; let phBusy=0;
+const PH_MOB = matchMedia("(max-width:700px), (hover:none) and (pointer:coarse)").matches;   // 휴대폰 (좁은 화면 · 터치 화면) — 사진 버튼의 이름 · 받는 방식이 다름 (fieldHTML 의 photos)
 const phLoad = id => phCache[id] ? Promise.resolve(phCache[id]) : (phWait[id] ||= SY.call({action:'mentImgGet', id}).then(j=>(phCache[id]=`data:${j.file.mime};base64,${j.file.data}`)).catch(e=>{ delete phWait[id]; throw e; }));
 function phPaint(){ document.querySelectorAll('#eFields img[data-phimg]').forEach(im=>{ phLoad(im.dataset.phimg).then(u=>{ im.src=u; }).catch(()=>{ im.alt='사진을 불러오지 못했습니다'; im.classList.add('bad'); }); }); }
 function phShrink(file){ return new Promise((ok, no)=>{ const url=URL.createObjectURL(file), im=new Image();
@@ -182,7 +187,13 @@ function phShrink(file){ return new Promise((ok, no)=>{ const url=URL.createObje
       if(mime==='image/png' && u.length>2.5e6){ g.globalCompositeOperation='destination-over'; g.fillStyle='#fff'; g.fillRect(0,0,w,h); mime='image/jpeg'; u=c.toDataURL(mime, 0.82); }   // 큰 PNG(사진)는 JPEG 로
       URL.revokeObjectURL(url); ok({mime, data:u.split(',')[1], url:u}); }catch(e){ URL.revokeObjectURL(url); no(e); } };
   im.onerror=()=>{ URL.revokeObjectURL(url); no(new Error('이 파일은 사진으로 열 수 없습니다 (PNG · JPEG 만)')); }; im.src=url; }); }
-$('#eFields').addEventListener('change', async e=>{ const inp=e.target.closest('input[data-phadd]'); if(!inp) return; const k=inp.dataset.phadd, files=[...(inp.files||[])]; inp.value=''; if(!files.length) return;
+$('#eFields').addEventListener('change', e=>{ const inp=e.target.closest('input[data-phadd]'); if(!inp) return; const k=inp.dataset.phadd, files=[...(inp.files||[])]; inp.value=''; if(files.length) phAdd(k, files); });
+// 붙여넣기 (2026-11-26): 접수 · 고치기 창이 열려 있고 사진 칸이 보일 때, 복사해 둔 사진(메신저 · 화면 캡처)을 Ctrl+V 로 — 글자 붙여넣기는 그대로
+document.addEventListener('paste', e=>{ if($('#editModal').hidden) return;
+  const f=B.fields.find(x=>x.type==='photos' && (!x.show || x.show(form))); if(!f) return;
+  const files=[...(e.clipboardData?.files||[])].filter(x=>/^image\//.test(x.type)); if(!files.length) return;
+  e.preventDefault(); phAdd(f.k, files); });
+async function phAdd(k, files){
   const cur=()=>Array.isArray(form[k]) ? form[k] : (form[k]=[]); let left=PH_MAX-cur().length, fail='';
   if(files.length>left){ toast(`사진은 ${PH_MAX}장까지입니다. 앞의 ${Math.max(0,left)}장만 올립니다.`); }
   phBusy++; paintForm();
@@ -192,7 +203,7 @@ $('#eFields').addEventListener('change', async e=>{ const inp=e.target.closest('
       phCache[j.file.id]=s.url; cur().push({id:j.file.id, name:j.file.name}); paintForm();
     }catch(err){ fail=String(err.code||err.message||err); }
   }
-  phBusy--; paintForm(); if(fail) $('#eErr').textContent='사진을 올리지 못했습니다: '+(GUEST && /bad_(key|action)/.test(fail) ? OLD_SRV : fail); });
+  phBusy--; paintForm(); if(fail) $('#eErr').textContent='사진을 올리지 못했습니다: '+(GUEST && /bad_(key|action)/.test(fail) ? OLD_SRV : fail); }
 $('#eFields').addEventListener('click', e=>{
   const x=e.target.closest('[data-phdel]'); if(x){ const [k,i]=x.dataset.phdel.split('|'); if(Array.isArray(form[k])){ form[k].splice(+i,1); paintForm(); } return; }
   const v=e.target.closest('img[data-phview]'); if(v && v.src) phOpen(v.src); });
@@ -217,7 +228,7 @@ $('#eForm').addEventListener('submit', async e=>{ e.preventDefault();
   document.activeElement?.blur?.();
   if($('#e_subAdd')?.value.trim()) addSub();   // 세부 과업 칸에 적어 두고 추가를 안 누른 것도
   if(phBusy){ $('#eErr').textContent='사진을 올리는 중입니다. 끝난 뒤 저장해 주세요.'; return; }
-  const miss=B.fields.filter(f=>fReq(f) && (!f.show || f.show(form)) && !String(form[f.k]||'').trim()); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>fLabel(f)).join(' · ')}을(를) 넣어 주세요.`; return; }
+  const miss=B.fields.filter(f=>fReq(f) && (!f.show || f.show(form)) && (f.type==='photos' ? !(Array.isArray(form[f.k]) && form[f.k].length) : !String(form[f.k]||'').trim())); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>fLabel(f)).join(' · ')}을(를) 넣어 주세요.`; return; }   // 사진 칸은 한 장도 없으면 빠진 것 (2026-11-26)
   const d={...form}; B.fields.forEach(f=>{ if(f.show && !f.show(form) && f.k in d && f.type!=='dows' && f.type!=='dom') delete d[f.k]; });
   const ok=await putRow({...(editRow||{}), d}, editRow?'고침':'추가'); if(ok!==false){ $('#editModal').hidden=true; toast(editRow?'고쳤습니다.':'추가했습니다.'); }
 });
