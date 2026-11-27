@@ -205,5 +205,23 @@ table.pt th{color:var(--muted);font-weight:500;font-size:11.5px}
 .all-flt label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
 .all-flt .btn.on{background:var(--pine);border-color:var(--pine);color:#fff}
 .all-flt .hint{margin:0 0 0 auto}
+/* 통화 기록 전체 두 열 (2026-11-27): 왼쪽 내가 받은 통화 · 오른쪽 다른 사람이 받은 통화 — 열마다 따로 스크롤 · 휴대폰(700px 아래)은 위아래로 쌓고 함께 스크롤 */
+#allModal .panel.wide{width:min(1640px,100%)}
+#allModal{padding-left:10px;padding-right:10px}
+.all-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:12px;min-height:0;flex:1;margin-top:4px}
+.all-cols[hidden],.all-tw[hidden]{display:none}
+.all-col{display:flex;flex-direction:column;min-width:0;min-height:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
+.all-col h3{margin:0;padding:7px 10px;font:700 13.5px var(--sans);display:flex;align-items:center;gap:6px;background:var(--pine-soft);color:var(--pine)}
+.all-col.others h3{background:#ece9e2;color:#55524a}
+.all-col h3 .tag{margin:0;background:#fff;color:inherit;font-weight:700;font-size:12px}
+.all-col .all-tw{margin-top:0}
+.all-col .all-t td.note{min-width:150px}
+.all-col .all-t th{white-space:nowrap}
+.all-col.mine .owner{display:none}   /* 내 통화 열은 받은 사람이 모두 나 */
+@media (max-width:700px){
+  .all-cols{display:block;overflow:auto}
+  .all-col{display:block;overflow:visible;margin-bottom:12px}
+  .all-col .all-tw{overflow-x:auto;overflow-y:visible}
+}
 /* 첫 화면 「오늘 마감」에서 팝업으로 띄울 때 (personal.html?embed=1&open=…, 2026-11-25): 머리줄 없이 · 닫기는 바깥 화면이 */
 html.my-embed header{display:none!important}
