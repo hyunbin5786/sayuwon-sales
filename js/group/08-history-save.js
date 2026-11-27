@@ -1,4 +1,59 @@
 // ▣ js/group/08-history-save.js — 수정 기록(무엇이 바뀌었나 · 되돌리기) · 저장(save) · 30초 자동 저장 · 저장 안 한 표시 · 나갈 때 확인
+// ===================== 통화 메모 = 쌓이는 기록 (2026-11-27) =====================
+// 예약 기록의 수정 기록 칸(history JSON · 서버는 정해진 칸만 받으므로 과업 · 메모 알림처럼 여기에)의 notes:[{id, t(적은 시각), by(적은 사람), text, ed:{t,by}(고침), del:{t,by}(지움 — 줄은 남김)}] 가 기록 목록이고,
+//  note(글 한 덩어리 · 예전부터 있던 값)에는 지우지 않은 기록을 「[2026-11-27 14:20 이름] 내용」 줄로 이어 함께 넣는다 — 보고 글자 · 엑셀 · 다음날 준비 · 예전 화면이 note 를 읽으므로.
+//  - 예전 예약(notes 없음 · note 만): 그 글을 「예전 메모」 기록 하나로 보임 (저장된 자료를 한꺼번에 바꾸지 않음 — 열어서 저장할 때 notes 가 더해짐)
+//  - 예전 화면이 저장하면 notes 는 빠지고 note 만 남는다 → 열 때 notes 를 이은 글과 note 가 다르면 note(글)를 기준으로 기록을 다시 읽어 낸다 (noteFromText · 내용이 사라지지 않게)
+//  - 적는 자리(#memoBox)의 글 = 아직 확정 안 한 기록 하나(noteDraftId). 자동 저장은 그 기록을 같은 id 로 저장만 하고, 「저장」 · Ctrl+S 가 기록으로 쌓는다(확정)
+//  - 저장할 때: 그사이 남이 더한 기록은 살리고(noteMerge), 내가 이번에 손댄 기록(noteOwn)만 내 것으로 덮는다
+const NOTE_HDR = /^\[(?:(\d{4}-\d\d-\d\d) (\d\d:\d\d)(?: ([^\]]*))?|덧붙인 글)\] ?/;
+const noteStamp = t => { const d=new Date(t); if(!t || isNaN(d)) return ''; const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const noteKey = n => n.t ? noteStamp(n.t)+' '+(n.by||'') : '';
+const noteHash = s => { let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return (h>>>0).toString(36); };
+const noteNewId = () => 'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const noteSort = L => (L||[]).map((n,i)=>({n,i})).sort((a,b)=>String(a.n.t||'').localeCompare(String(b.n.t||'')) || a.i-b.i).map(x=>x.n);   // 적은 시각 순 (시각 모르는 예전 메모가 맨 위)
+function noteJoin(L){ return noteSort(L).filter(n=>n && !n.del && String(n.text||'').trim()).map((n,i)=> n.t ? `[${noteStamp(n.t)}${n.by?' '+n.by:''}] ${n.text}` : i ? `[덧붙인 글] ${n.text}` : n.text).join('\n'); }
+function noteSplit(text){   // 글 → [{t, by, text}] (머리표 「[날짜 시각 이름]」 로 시작하는 줄마다 기록 하나 · 머리표 앞의 글은 예전 메모)
+  const out=[]; let cur=null;
+  String(text||'').replace(/\r/g,'').split('\n').forEach(line=>{ const m=line.match(NOTE_HDR);
+    if(m){ const d=m[1] ? new Date(m[1]+'T'+m[2]+':00') : null; cur={t: d && !isNaN(d) ? d.toISOString() : '', by:(m[3]||'').trim(), text:line.slice(m[0].length)}; out.push(cur); }
+    else if(cur) cur.text+='\n'+line; else { cur={t:'', by:'', text:line}; out.push(cur); } });
+  out.forEach(n=>{ n.text=n.text.replace(/\s+$/,''); }); return out.filter(n=>n.text.trim());
+}
+function noteFromText(text, L, who){   // 글이 기준: 글에 있는 기록은 살리고(같은 기록이면 id · 고침 표시 그대로), 글에 없는 기록은 지움 표시로 남김
+  L=L||[]; const used=new Set(), ids=new Set(L.map(n=>n.id));
+  const out=noteSplit(text).map(p=>{ const k=noteKey(p), free=n=>!n.del && !used.has(n.id) && noteKey(n)===k;
+    const hit = L.find(n=>free(n) && String(n.text||'').trim()===p.text.trim()) || (k ? L.find(free) : null);
+    if(hit){ used.add(hit.id); return {...hit, text:p.text}; }
+    let id='p'+noteHash(k+'|'+p.text.trim()); while(ids.has(id)) id+='x'; ids.add(id); return {id, t:p.t, by:p.by, text:p.text}; });
+  L.forEach(n=>{ if(!used.has(n.id)) out.push(n.del ? n : {...n, del:who||{t:'', by:''}}); });
+  return out;
+}
+function notesOf(r){ r=r||{}; const hn=parseHist(r).notes, L=Array.isArray(hn) ? hn.filter(n=>n && n.id).map(n=>({...n})) : [], note=String(r.note||'');
+  return noteJoin(L).trim()===note.trim() ? L : noteFromText(note, L); }
+function noteDraft(){ const text=String($('#memoBox').value||'').trim(); if(!text) return null;
+  if(!noteDraftId){ noteDraftId=noteNewId(); noteDraftT=new Date().toISOString(); noteOwn.add(noteDraftId); }
+  return {id:noteDraftId, t:noteDraftT, by:savedOwner()||rec.owner||'', text}; }
+const noteLive = () => { const d=noteDraft(); return d ? [...notes.filter(n=>n.id!==d.id), d] : notes.slice(); };
+const noteFull = () => noteJoin(noteLive());
+function noteMerge(theirs, mine){   // theirs = 지금 저장돼 있는 기록 · mine = 이 화면의 기록
+  const T=(theirs||[]).filter(n=>n && n.id), tm=new Map(T.map(n=>[n.id,n])), ids=new Set(mine.map(n=>n.id)), same=new Set(mine.map(n=>noteKey(n)+'|'+String(n.text||'').trim()));
+  return noteSort([...mine.map(n=>noteOwn.has(n.id) ? n : (tm.get(n.id)||n)), ...T.filter(n=>!ids.has(n.id) && !noteOwn.has(n.id) && !same.has(noteKey(n)+'|'+String(n.text||'').trim()))]); }
+function noteLoad(r){ notes = r ? noteSort(notesOf(r)) : []; noteDraftId=''; noteDraftT=''; noteOwn=new Set(); noteEditId=''; noteShown=new Set(); $('#memoBox').value=''; renderNotes(true); }
+function noteCommit(){   // 적는 자리의 글을 기록으로 쌓음 (저장이 끝난 뒤에 부름)
+  const d=noteDraft(); if(d) notes=noteSort([...notes.filter(n=>n.id!==d.id), d]);
+  $('#memoBox').value=''; noteDraftId=''; noteDraftT=''; noteOwn=new Set(); renderNotes(true); }
+const noteCan = n => !editLockBy && (!lockOwner || (!!n.by && n.by===savedOwner()));   // 고치기 · 지우기: 영업 담당은 모두 · 담당이 아니면 내가 적은 기록만
+function renderNotes(toEnd){
+  const box=$('#noteList'); if(!box) return; const did=noteDraftId && String($('#memoBox').value||'').trim() ? noteDraftId : '';
+  const L=noteSort(notes).filter(n=>n.id!==did && String(n.text||'').trim()), y=box.scrollTop;
+  box.hidden=!L.length;
+  box.innerHTML=L.map(n=>{ const can=noteCan(n), id=esc(n.id), when = n.t ? `<b class="note-when num">${esc(dtLabel(n.t))}</b>${n.by?`<span class="note-by">${esc(n.by)}</span>`:''}` : '<b class="note-when">예전 메모</b>';
+    if(n.del) return `<li class="note-it del" data-nid="${id}"><div class="note-h">${when}<span class="note-ed">지운 기록${n.del.by?` · ${esc(n.del.by)}`:''}${n.del.t?` ${esc(dtLabel(n.del.t))}`:''}</span><span class="note-acts"><button type="button" class="note-btn" data-nshow="${id}">${noteShown.has(n.id)?'내용 접기':'내용 보기'}</button>${can?`<button type="button" class="note-btn" data-nback="${id}">되살리기</button>`:''}</span></div>${noteShown.has(n.id)?`<div class="note-tx">${esc(n.text)}</div>`:''}</li>`;
+    if(noteEditId===n.id) return `<li class="note-it editing" data-nid="${id}"><div class="note-h">${when}</div><textarea class="note-edit" data-ime="ko" lang="ko" spellcheck="false">${esc(n.text)}</textarea><div class="note-edit-btns"><button type="button" class="btn primary" data-nok="${id}">고친 내용 넣기</button><button type="button" class="btn" data-ncancel="${id}">취소</button></div></li>`;
+    return `<li class="note-it" data-nid="${id}"><div class="note-h">${when}${n.ed?`<span class="note-ed">고침${n.ed.by?` · ${esc(n.ed.by)}`:''}${n.ed.t?` ${esc(dtLabel(n.ed.t))}`:''}</span>`:''}${can?`<span class="note-acts"><button type="button" class="note-btn" data-nedit="${id}">고치기</button><button type="button" class="note-btn" data-ndel="${id}">지우기</button></span>`:''}</div><div class="note-tx">${esc(n.text)}</div></li>`; }).join('');
+  box.scrollTop = toEnd ? box.scrollHeight : y;
+}
 // ===================== 수정 기록 =====================
 // 저장할 때마다 바뀐 항목을 시각·영업 담당과 함께 남긴다 (시트 '수정 기록' 칸에 JSON)
 const mealSum = r => [r.sadam1&&`사담1부 ${r.sadam1}`, r.sadam2&&`사담2부 ${r.sadam2}`, r.sadamD&&`사담디너 ${r.sadamD}`, r.mabangL&&`마방 ${r.mabangTime?r.mabangTime+' ':''}${r.mabangL}`, r.mabangD&&`마방디너 ${r.mabangD}`].filter(Boolean).join(" · ") || r.meal || "";
@@ -6,7 +61,7 @@ Object.assign(LABEL, { etcDisc:'기타 할인', etcDiscTo:'기타 할인 대상'
 function snap(){
   const o={}; allKeys().forEach(k=>{ if(k!=='owner') o[k]=rec[k]||''; });
   o.tbd=rec.tbd||''; o.tbdLate=rec.tbdLate||''; if(typeof SPECIAL!=='undefined') SPECIAL.forEach(s=>o[s.k]=rec[s.k]||'');
-  o.stage=effStage(rec); o.erp=rec.erp||''; o.note=$('#memoBox').value.trim();
+  o.stage=effStage(rec); o.erp=rec.erp||''; o.note=noteFull().trim();
   { const es=etcSplit(rec); if(es.tx) o.etcDiscTx=String(es.tx); if(es.tf) o.etcDiscTf=String(es.tf); } ['etcDiscWhy','readDone'].forEach(k=>{ if(rec[k]) o[k]=rec[k]; }); if(erpList.length) o.erpList=erpList.map(x=>`${x.product} ${x.people}명 ${x.amount}`).join(', ');   // 기타 할인 · 전산 내역도 변경으로
   tasks.forEach(t=>{ o['task:'+t.id]=t.done?'완료':''; o['tmemo:'+t.id]=t.memo||''; o['tfile:'+t.id]=(t.files||[]).map(f=>f.name).join(', '); if(t.custom) o['tadd:'+t.id]=t.title; });
   tasks.forEach(t=>{ if(t.dueSet) o['tdue:'+t.id]=t.due||''; if(t.titleSet && !t.custom) o['tttl:'+t.id]=t.title; });   // 직접 바꾼 마감일 · 제목도 변경으로 (자동 저장이 놓치지 않게)
@@ -19,7 +74,7 @@ function diffSnap(a,b){
   const out=[];
   new Set([...Object.keys(a),...Object.keys(b)]).forEach(k=>{
     const x=a[k]||'', y=b[k]||''; if(x===y) return;
-    if(k==='note'){ out.push('통화 메모 수정'); return; }
+    if(k==='note'){ out.push(y.length>x.length && y.startsWith(x) ? '통화 메모 기록 더함' : '통화 메모 수정'); return; }
     if(k==='taskOrder'){ out.push('과업 순서 바꿈'); return; }
     if(k==='readDone'){ out.push(y ? '고객님께 확인 멘트 말씀드림' : '고객님께 확인 멘트 말씀드림 취소'); return; }
     const tm=k.match(/^(task|tmemo|tadd|tfile|tsub|tnote|tdue|tttl):(.+)$/);
@@ -31,12 +86,12 @@ function diffSnap(a,b){
   return out;
 }
 // 시트 '수정 기록' 칸: {h:[수정 기록], tasks:[추후 과업]} (예전 기록은 배열만)
-function parseHist(r){ try{ const j=JSON.parse(r.history||'[]'); return Array.isArray(j) ? {h:j, tasks:[], erp:[], memos:[]} : {h:j.h||[], tasks:j.tasks||[], erp:j.erp||[], memos:j.memos||[]}; }catch(_){ return {h:[], tasks:[], erp:[], memos:[]}; } }   // memos: 담당이 아닌 사람이 남긴 메모 [{id,t,by,text,seen,seenAt}]
+function parseHist(r){ try{ const j=JSON.parse(r.history||'[]'); return Array.isArray(j) ? {h:j, tasks:[], erp:[], memos:[]} : {h:j.h||[], tasks:j.tasks||[], erp:j.erp||[], memos:j.memos||[], notes:Array.isArray(j.notes)?j.notes:undefined}; }catch(_){ return {h:[], tasks:[], erp:[], memos:[]}; } }   // memos: 담당이 아닌 사람이 남긴 메모 [{id,t,by,text,seen,seenAt}]
 // ---- 바뀐 값의 흐름 (ch): {칸: [처음 값, 다음 값, …]} → "관람 인원 20 → 22 → 25". 자동 저장이 여러 번이어도 한 줄에 모든 변경이 남고, 되돌리기에도 씀
 const fmtTime_ = t => dtLabel(t);
 function chText(k, c){
   const x=c[0]||'', y=c[c.length-1]||'';
-  if(k==='note') return '통화 메모 수정';
+  if(k==='note') return y.length>x.length && y.startsWith(x) ? '통화 메모 기록 더함' : '통화 메모 수정';
   if(k==='taskOrder') return '과업 순서 바꿈';
   if(k==='erpList') return '전산 내역 붙여넣음';
   if(k==='readDone') return y ? '고객님께 확인 멘트 말씀드림' : '고객님께 확인 멘트 말씀드림 취소';
@@ -91,7 +146,7 @@ async function save(opt){
   if(saving){ if(auto){ clearTimeout(autoT); autoT=setTimeout(()=>save(opt), 3000); return; }   // 자동 저장 중이면: 자동은 잠시 뒤, 저장 버튼은 끝나기를 기다렸다가
     await new Promise(ok=>{ const iv=setInterval(()=>{ if(!saving){ clearInterval(iv); ok(); } }, 50); }); return save(opt); }
   if(editLockBy){ if(!auto) toast(`${editLockBy}님이 다른 PC(창)에서 이 예약을 고치는 중이라 저장할 수 없습니다.`); return; }   // 같은 예약을 두 곳에서 고치지 않게
-  if(lockOwner) return saveLockedParts();   // 남이 담당인 예약: 예약 전체는 저장 안 함 — 통화 메모 · 내가 담당자인 과업만 (2026-11-24 · 15-lock-popups.js)
+  if(lockOwner) return auto ? saveLockedParts() : saveLockedCommit();   // 남이 담당인 예약: 예약 전체는 저장 안 함 — 통화 메모 · 내가 담당자인 과업만 (2026-11-24 · 15-lock-popups.js)
   if(!canSave()){ if(!auto) toast('업체나 방문일을 먼저 입력하세요.'); return; }
   if(typeof tbdIsLate==='function' && tbdIsLate(rec) && !rec.tbdLate){ if(!auto) openLate(()=>save(opt)); return; }   // 입력 기한을 전주 목요일보다 늦게 잡았으면 사유부터 (자동 저장은 기다림)
   if(auto && !isDirty()) return;
@@ -108,14 +163,18 @@ async function save(opt){
   const changes = row && row.ch ? Object.keys(row.ch) : row ? ['처음 저장'] : [];
   let newHist = row ? [...(open ? hist.slice(0,-1) : hist), row].slice(-200) : hist;
   const j=joinContacts(rec);
-  const item={...rec, ...j, ...packExtra(rec), callType:effStage(rec), summary:autoSummary(), note:$('#memoBox').value, takenBy:rec.owner,
-    callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:now, history:JSON.stringify({h:newHist, tasks, erp:erpList, memos:mergeMemos(memos, parseHist(cache.find(x=>x.id===editingId)||{}).memos)})};   // 메모: 그사이 남이 남긴 것까지 합침
+  const typed0=$('#memoBox').value, nl=noteMerge(editingId ? notesOf(cache.find(x=>x.id===editingId)||{}) : [], noteLive());   // 통화 메모 기록: 그사이 남이 더한 것까지 합침 (2026-11-27)
+  const item={...rec, ...j, ...packExtra(rec), callType:effStage(rec), summary:autoSummary(), note:noteJoin(nl), takenBy:rec.owner,
+    callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:now, history:JSON.stringify({h:newHist, tasks, erp:erpList, memos:mergeMemos(memos, parseHist(cache.find(x=>x.id===editingId)||{}).memos), notes:nl})};   // 메모: 그사이 남이 남긴 것까지 합침
   // 구글 시트 칸 하나에는 5만 자까지만 들어감 → 수정 기록이 너무 길면 처음 저장 줄은 두고 오래된 기록부터 덜어 냄 (넘으면 저장이 계속 실패함)
   { const h2=fitHist(item); if(h2) newHist=h2; }
   Object.keys(item).forEach(k=>{ if(isCKey(k)) delete item[k]; });
   delete item.tbd; delete item.stage; delete item.erp; delete item.tbdDate; delete item.tbdLate; delete item.payContact;
   saving=true;
   try{ await store.put(item); editingId=item.id; openedRaw=rawPick(item); openedObj=liveVals(item); hist=newHist; baseSnap=cur;
+    { const did=noteDraftId, same=$('#memoBox').value===typed0;   // 통화 메모: 저장 버튼 · Ctrl+S = 적은 글을 기록으로 쌓고 적는 자리를 비움 · 자동 저장 = 적는 자리는 그대로 (저장하는 사이 더 적었으면 그대로 둠)
+      if(!auto && same){ notes=nl; $('#memoBox').value=''; noteDraftId=''; noteDraftT=''; noteOwn=new Set(); } else notes=nl.filter(n=>n.id!==did || !String($('#memoBox').value||'').trim());
+      renderNotes(!auto && same); if(same) baseSnap.note=noteFull().trim(); }
     if(auto) lastAuto=now; renderHist(); paintDirty(); await renderList();
     if(!auto) toast(quiet ? `저장했습니다.` : `${item.callType}으로 저장했습니다.${changes.length?' 수정 기록에 반영했습니다.':' (바뀐 내용 없음)'}${needsErp(rec)&&!rec.erp?' 전산 등록을 잊지 마세요.':''}`);
     if(!auto) SID=Math.random().toString(36).slice(2);   // 저장 버튼 = 이 줄 확정, 다음 변경은 새 줄
@@ -166,7 +225,8 @@ $('#revOk').onclick=async()=>{
   if(!revTarget) return; const {target, label}=revTarget; closeRev();
   const lr=hist[hist.length-1]; if(isDirty() || (lr && lr.o && lr.s===SID)) await save();   // 지금까지 고친 것은 먼저 한 줄로 확정
   Object.entries(target).forEach(([k,v])=>{ if(REVERT_SKIP.test(k) || k==='stage') return;
-    if(k==='note'){ $('#memoBox').value=v; return; } rec[k]=v; if(v) touched.add(k); });
+    if(k==='note'){ notes=noteSort(noteFromText(v, notes, {t:new Date().toISOString(), by:savedOwner()||''})); $('#memoBox').value=''; noteDraftId=''; noteDraftT=''; notes.forEach(n=>noteOwn.add(n.id)); renderNotes(true); return; }   // 통화 메모: 그 버전의 글에 있던 기록만 남기고 뒤에 더한 기록은 지움 표시로 (2026-11-27)
+    rec[k]=v; if(v) touched.add(k); });
   rec.stage = target.stage && target.stage!==stageAuto(rec) ? target.stage : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 단계
   nContacts=Math.max(1,nContactsOf(rec)); renderContacts(); renderForm();
   await save({revert:label});

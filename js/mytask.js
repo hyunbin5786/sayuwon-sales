@@ -70,7 +70,7 @@ async function tkMut(K, fnTask, fnEtc, what){
       if(editingId===K.rid){ let t=tasks.find(x=>x.id===K.tid); if(!t){ const b=tasksOf(r).find(x=>x.id===K.tid); if(!b) return; t={...b}; tasks.push(t); } if(fnTask(t, now)===false) return; renderTasks(); await save({auto:true}); }
       else { const ph=parseHist(r); let t=ph.tasks.find(x=>x.id===K.tid); if(!t){ const b=tasksOf(r).find(x=>x.id===K.tid); if(!b) return; t={...b, memo:b.memo||'', at:now}; ph.tasks.push(t); }
         if(fnTask(t, now)===false) return; ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} ${what}`});
-        const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item); const i=cache.findIndex(x=>x.id===r.id); if(i>=0) cache[i]=item; }
+        const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now}; await store.put(item); const i=cache.findIndex(x=>x.id===r.id); if(i>=0) cache[i]=item; }
     } else {
       let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const t=(h.tasks||[]).find(x=>x.id===K.tid); if(!t) return; if(fnTask(t, now)===false) return;
       const item={...r, history:JSON.stringify(h)}; await store.put(item); const i=cache.findIndex(x=>x.id===r.id); if(i>=0) cache[i]=item;

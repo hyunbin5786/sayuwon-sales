@@ -655,7 +655,7 @@ async function takeDocs(){
       const r=(cache||[]).find(x=>x.id===d.recId);
       if(!r){ if(Date.now()-new Date(d.at)<7*864e5) left.push(d); continue; }   // 목록을 아직 못 받았으면 다음에
       const ph=parseHist(r); attach(ph.tasks); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${title} 출력`});
-      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now});
+      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now});
     }
     try{ left.length ? localStorage.setItem(DOCS_LS, JSON.stringify(left)) : localStorage.removeItem(DOCS_LS); }catch(_){}
     if(list.length>left.length){ await store.list(); toast('견적서 사이트에서 출력해 과업 「생성」을 체크했습니다.'); }
@@ -691,7 +691,7 @@ $('#payList').addEventListener('click', async e=>{
     else {
       const ph=parseHist(r), now=new Date().toISOString(), t=ph.tasks.find(x=>x.id==='paycheck'); if(t){ t.done=true; t.doneAt=now; }
       ph.h.push({t:now, by:savedOwner()||'', what:'[과업] 결제 확인 완료'});
-      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now});
+      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now});
     }
     await store.list(); toast('결제 확인으로 표시했습니다.'); checkPayPopup(true);
   }
@@ -805,7 +805,7 @@ function openRecord(r){
     if(/^adm/.test(r.id) && !rec.erp) rec.erp='관리자 예약';   // 관리자 사이트에서 온 예약은 이미 전산에 있음
     rec.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(rec) ? normStage(r.callType) : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
-    nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; openedRaw=rawPick(r); openedObj=liveVals(r); $('#memoBox').value=r.note||''; memoOpened=r.note||'';
+    nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; openedRaw=rawPick(r); openedObj=liveVals(r); noteLoad(r); memoOpened=r.note||'';
     const ph=parseHist(r); hist=ph.h; tasks=ph.tasks; erpList=ph.erp||[]; memos=ph.memos||[];
     { const o=(r.owner||r.takenBy||'').trim(), me=savedOwner(); lockOwner = o && me && o!==me ? o : ''; } paintLock(); acquireEdit(r.id);   // 남이 담당인 예약: 잠금 (메모만)
     renderContacts(); renderForm(); resetWarn(true); baseSnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
@@ -815,7 +815,7 @@ function openRecord(r){
 // ===================== 새 통화·단축키 =====================
 function newCall(withToast=true){
   if(typeof endStart==='function') endStart();   // 첫 화면(단체명으로 먼저 찾기)을 걷음 (js/group/15-lock-popups.js)
-  resetState(); clearInterval(timerInt); tick(); $('#memoBox').value=''; status('');
+  resetState(); clearInterval(timerInt); tick(); noteLoad(null); status('');
   hist=[]; baseSnap=null; tasks=[]; erpList=[]; tbdAuto=false; memos=[]; lockOwner=''; if(typeof releaseEdit==='function') releaseEdit(); { const hd=document.getElementById('histDet'); if(hd) hd.open=false; }   // 수정 기록은 예약을 열 때마다 접어 둠
   renderHist(); if(typeof paintLock==='function') paintLock();
   renderContacts(); renderForm(); resetWarn(false); emptySnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty();
@@ -836,6 +836,7 @@ const MEMOCHECK_RULES = `■ 무엇
   통화 메모에 원래 글이 있었든 비어 있었든 상관없이, 영업 담당이 아닌 사람이 내용을 바꿔 저장하면 바로 생김
   예약 단계와 상관없음 — 예약상담 · 예약취소 예약에서도 생김 (예전엔 가예약 · 예약확정에서만 떴음)
   영업 담당 본인이 고친 것은 생기지 않음
+  2026-11-27: 통화 메모가 「쌓이는 기록」이 됨 — 영업 담당이 아닌 사람이 기록을 더하거나 · 자기 기록을 고치거나 지워 저장하면 생김 (과업 안에는 방금 더한 기록의 글이 보임)
   이미 안 끝난 과업이 있으면 새로 만들지 않고 그 과업 안에 메모가 더해짐 (같은 사람이 여러 번 고치면 한 줄로)
   영업 담당이 이 과업을 지웠어도, 그 뒤에 누가 또 고치면 다시 생김
   방문일이 30일 넘게 지난 예약은 나의 할일에 나오지 않음 (다른 과업과 같음)

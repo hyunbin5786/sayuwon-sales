@@ -3,6 +3,7 @@
 let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
 const PPL_TITLE='전날 확인 변경 → 예약내역&전산 확인';   // 「관람 인원이 바뀌면」 과업 이름 (2026-11-21 · 예전 「예약 내역&전산 내역 확인」 · 직접 고친 이름은 그대로)
+let notes=[], noteDraftId='', noteDraftT='', noteOwn=new Set(), noteEditId='', noteShown=new Set();   // 통화 메모 기록 목록 · 적는 중인 기록의 id · 시각 · 이번에 내가 손댄 기록 · 고치는 중인 기록 · 내용을 펼친 지운 기록 (2026-11-27 · js/group/08-history-save.js 맨 위)
 let memoOpened='';   // 예약을 열 때의 통화 메모 (다른 곳에서 바뀌어 다시 열 때 적던 글을 지키는 데 씀 · 2026-11-24)
 let hist=[], baseSnap=null, tasks=[], erpList=[], openDone=new Set(), memos=[], lockOwner='';   // memos: 이 예약에 남긴 메모 · lockOwner: 남이 담당인 예약을 열었을 때 그 담당 이름 (잠금)
 const FRESH_KEYS = ['org','people','date','tin','phone','vehicle','pay','sadam1','sadam2','sadamD','mabangL','memo','contact'];   // 견적서 · 거래명세서 · 사전답사 전에 공유 기록이 다른 곳에서 바뀌었는지 (freshRec)

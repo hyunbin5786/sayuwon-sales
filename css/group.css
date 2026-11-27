@@ -1167,6 +1167,32 @@ html.g-loading body{overflow:hidden}
 .memo-panel .memo-st{font:400 12px var(--sans);color:var(--muted)}
 .memo-panel .memo-st.ok{color:var(--pine)}
 .memo-lock-hint{margin:-2px 0 6px;color:#9a968a;font-size:12.5px}
+/* 통화 메모 = 쌓이는 기록 (2026-11-27): 칸 크기는 예전 글 상자(300px)와 같고, 지난 기록이 많아지면 칸 안에서만 스크롤 — 아래 내용을 밀어내지 않음.
+   위 = 지난 기록(.note-list · 적는 자리 96px 은 늘 남김) · 아래 = 새 메모 적는 자리(#memoBox · 기록이 없으면 칸 전체). 기록 구분은 옅은 선 · 배경색으로 (왼쪽 색 띠 없음) */
+.memo-stack{display:flex;flex-direction:column;height:300px;min-height:200px;resize:vertical;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff}
+.memo-stack:focus-within{border-color:var(--pine)}
+.memo-stack #memoBox{flex:1 1 96px;width:100%;min-height:96px;resize:none;border:0;border-radius:0;outline:none;background:transparent;padding:10px 12px}
+.note-list{flex:0 1 auto;min-height:0;max-height:calc(100% - 96px);overflow:auto;scrollbar-gutter:stable;list-style:none;margin:0;padding:2px 2px 2px 12px;background:#faf8f3;border-bottom:1px solid var(--line)}
+.note-list::-webkit-scrollbar{width:10px;height:10px}
+.note-list::-webkit-scrollbar-track, .note-list::-webkit-scrollbar-corner{background:transparent}
+.note-list::-webkit-scrollbar-thumb{background-color:#c9c6be;border:2px solid transparent;background-clip:padding-box;border-radius:5px}
+.note-list::-webkit-scrollbar-thumb:hover, .note-list::-webkit-scrollbar-thumb:active{background-color:var(--muted)}
+@supports not selector(::-webkit-scrollbar){ .note-list{scrollbar-width:thin;scrollbar-color:#c9c6be transparent} }
+.note-it{padding:8px 0}
+.note-it + .note-it{border-top:1px solid var(--line)}
+.note-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:22px;font:400 12px var(--sans);color:var(--muted)}
+.note-when{font-weight:600;color:#6b665c}
+.note-by{padding:1px 7px;border-radius:999px;background:var(--pine-soft);color:var(--pine);font-weight:600}
+.note-ed{color:#9a968a}
+.note-acts{margin-left:auto;display:flex;gap:2px}
+.note-btn{border:0;background:transparent;padding:2px 6px;border-radius:6px;font:400 12px var(--sans);color:var(--muted);cursor:pointer}
+.note-btn:hover, .note-btn:focus-visible{background:#ece9e2;color:var(--ink)}
+.note-tx{margin-top:3px;font:15px/1.6 var(--sans);color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.note-it.del .note-when, .note-it.del .note-by{opacity:.6}
+.note-it.del .note-tx{color:var(--muted);text-decoration:line-through}
+.note-edit{display:block;width:100%;min-height:60px;max-height:200px;margin-top:4px;resize:vertical;border:1px solid var(--pine);border-radius:6px;padding:6px 8px;font:15px/1.6 var(--sans);color:var(--ink);background:#fff}
+.note-edit-btns{display:flex;gap:6px;margin-top:6px}
+.note-edit-btns .btn{height:28px;padding:0 12px;font-size:12.5px}
 /* 과업 알림 새 창 (group.html?alert=1 · 2026-11-25): 알림 목록만 창 가득 */
 html.alert-only body > header,html.alert-only body > .layout,html.alert-only .smenu,html.alert-only .modal:not(#tbdModal){display:none!important}
 html.alert-only .g-loading-box{top:0}
@@ -1505,7 +1531,11 @@ html.g-start #startBox{display:flex;flex-direction:column;justify-content:center
   .mob-head .mh-sub{flex:1;min-width:0;font:500 15px var(--sans);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .mob-head #mobFind{flex:none;height:36px;padding:0 12px;font-size:13.5px}
   .mob-head .mh-org{display:block;margin-top:8px;font:700 20px/1.35 var(--sans);color:var(--ink);overflow-wrap:anywhere}
-  .memo-panel #memoBox{min-height:220px;font-size:16px}   /* 16px 아래면 아이폰이 칸을 누를 때 화면을 확대함 */
+  .memo-panel .memo-stack{height:220px;min-height:180px}   /* 예전 글 상자 높이(220px) 그대로 · 2026-11-27 쌓이는 기록 */
+  .memo-panel #memoBox{min-height:84px;flex-basis:84px;font-size:16px}   /* 16px 아래면 아이폰이 칸을 누를 때 화면을 확대함 */
+  .memo-panel .note-list{max-height:calc(100% - 84px)}
+  .memo-panel .note-edit{font-size:16px}
+  .memo-panel .note-btn{padding:6px 8px;font-size:13px}
   .memo-panel .memo-save{height:38px;padding:0 18px;font-size:15px}
   /* 추후 과업 한 줄: 좁은 폭에서 제목이 눌려 안 보이던 것 → 제목을 첫 줄 가득, 마감 · 저장 · × 는 다음 줄 */
   #taskList .task-h{flex-wrap:wrap;row-gap:6px}

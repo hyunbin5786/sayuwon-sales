@@ -205,7 +205,7 @@ function recNote(r){
   PROG_COLS.forEach(([k,l])=>{ if(r[k]) parts.push(`${l} ${r[k]}`); });
   const xp=memo.match(/추가 프로그램\s+([^/]+)/); if(xp) parts.push(xp[1].trim());
   if(/현장/.test(r.pay||'')) parts.push('현장결제');
-  const note=String(r.note||'').split(/\n/)[0].trim(); if(note) parts.push(note.slice(0,40));
+  const note=String(r.note||'').split(/\n/)[0].replace(/^\[(?:\d{4}-\d\d-\d\d \d\d:\d\d[^\]]*|덧붙인 글)\] ?/,'').trim(); if(note) parts.push(note.slice(0,40));   // 통화 메모 첫 기록의 첫 줄 — 기록 앞의 「[날짜 시각 이름]」 은 뗌 (2026-11-27 단체 화면 통화 메모가 쌓이는 기록으로) if(note) parts.push(note.slice(0,40));
   return parts.join(' / ');
 }
 let rows=[];   // 결과 줄

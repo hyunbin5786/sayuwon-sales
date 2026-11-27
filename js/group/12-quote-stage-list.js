@@ -436,7 +436,7 @@ $('#fixOk').onclick=async ()=>{
     t.done = cur[id]==='발행'; t.doneAt = t.done ? now : ''; t.subs=Object.fromEntries(DOC_SUBS[id].map(([k])=>[k, t.done])); ex[wk]='있음'; });
   ph.h.push({t:now, by:savedOwner()||'', what:`[목록 수정] ${diff.join(', ')} · 사유: ${why}`});
   const pk=packExtra(ex);
-  const item={...r, ...(cur.owner!==fixBase.owner ? {owner:cur.owner} : {}), pay:pk.pay, memo:pk.memo, callType:cur.stage, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now};
+  const item={...r, ...(cur.owner!==fixBase.owner ? {owner:cur.owner} : {}), pay:pk.pay, memo:pk.memo, callType:cur.stage, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now};
   await store.put(item); closeFix(); await renderList();
   if(editingId===r.id){ openRecord(cache.find(x=>x.id===r.id)||item); $('#listModal').hidden=false; }   // 열어 둔 예약이면 고친 상태로 다시 불러옴
   toast('목록 상태를 고쳤습니다. 사유는 수정 기록에 남았습니다.');
@@ -461,7 +461,7 @@ $('#delOk').onclick=async ()=>{
   const now=new Date().toISOString(), ph=parseHist(r), why = /^기타/.test(reason) ? note : reason + (note ? ` · ${note}` : '');
   ph.h.push({t:now, by:savedOwner()||'', what:`[삭제] ${why}`});
   // 사유를 수정 기록에 남긴 뒤 삭제 (시트에서는 줄을 지우지 않고 '삭제' 칸에 일시를 적으므로 사유도 남음)
-  await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now});
+  await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now});
   await store.del(r.id, true);
   if(editingId===r.id) newCall(false);
   closeDel(); renderList(); toast(`삭제했습니다 · ${why}`);

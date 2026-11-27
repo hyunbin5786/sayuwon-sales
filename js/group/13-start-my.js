@@ -23,7 +23,7 @@ function syncSavedTasks(id){
   const ph=parseHist(r), clean=ts=>JSON.stringify((ts||[]).map(t=>({id:t.id, done:!!t.done, removed:!!t.removed})));
   if(clean(ph.tasks)===clean(tasks)) return;
   let old={}; try{ old=JSON.parse(r.history||'{}')||{}; }catch(_){}
-  const item={...r, history:JSON.stringify({...old, h:ph.h, tasks, erp:ph.erp, memos:ph.memos})};
+  const item={...r, history:JSON.stringify({...old, h:ph.h, tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes})};
   store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
 }
 // 저장된 과업을 추후 과업 칸(화면)과 같은 기준으로 맞춤 (2026-11-18): 화면에서 저절로 완료된 과업이 저장 전이라 나의 할일 · 알림에 「오늘 마감」으로 남던 것

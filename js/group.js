@@ -167,6 +167,7 @@ const isCKey = k => /^c\d+_(name|phone|email|memo)$/.test(k);   // 담당자 칸
 let rec, touched, startedAt, editingId, nContacts;
 let cache=[];
 const PPL_TITLE='전날 확인 변경 → 예약내역&전산 확인';   // 「관람 인원이 바뀌면」 과업 이름 (2026-11-21 · 예전 「예약 내역&전산 내역 확인」 · 직접 고친 이름은 그대로)
+let notes=[], noteDraftId='', noteDraftT='', noteOwn=new Set(), noteEditId='', noteShown=new Set();   // 통화 메모 기록 목록 · 적는 중인 기록의 id · 시각 · 이번에 내가 손댄 기록 · 고치는 중인 기록 · 내용을 펼친 지운 기록 (2026-11-27 · js/group/08-history-save.js 맨 위)
 let memoOpened='';   // 예약을 열 때의 통화 메모 (다른 곳에서 바뀌어 다시 열 때 적던 글을 지키는 데 씀 · 2026-11-24)
 let hist=[], baseSnap=null, tasks=[], erpList=[], openDone=new Set(), memos=[], lockOwner='';   // memos: 이 예약에 남긴 메모 · lockOwner: 남이 담당인 예약을 열었을 때 그 담당 이름 (잠금)
 const FRESH_KEYS = ['org','people','date','tin','phone','vehicle','pay','sadam1','sadam2','sadamD','mabangL','memo','contact'];   // 견적서 · 거래명세서 · 사전답사 전에 공유 기록이 다른 곳에서 바뀌었는지 (freshRec)
@@ -1900,7 +1901,7 @@ function reportText(r){
   const sp = typeof SPECIAL!=='undefined' ? specialCounts(r) : [];
   add('특별 할인', sp.map(s=>`${s.short} ${s.n}명(${s.rate===1?'무료':Math.round(s.rate*100)+'%'})`).join(', '));
   add('서류 요청', [r.wantQuote&&'견적서', r.wantStmt&&'거래명세서'].filter(Boolean).join(', '));
-  const ml = memoLines(); if(ml.length){ L.push('- 통화 메모:'); ml.forEach(x=>L.push(`  · ${x}`)); }
+  const ml = noteFull().split('\n').map(s=>s.trim()).filter(Boolean); if(ml.length){ L.push('- 통화 메모:'); ml.forEach(x=>L.push(`  · ${x}`)); }   // 통화 메모 기록들 (기록마다 날짜 · 이름이 앞에 붙음 · 2026-11-27)
   return L.join('\n');
 }
 $('#copyTextBtn').onclick=()=>{
@@ -1963,7 +1964,9 @@ SY.live.on(m=>{ const id = m.t==='del' ? m.id : m.item.id; cache=merged(); clear
   liveT=setTimeout(()=>{ if(!window.__tasksReady) return;
     try{
       // 그 예약을 이 화면에서도 열어 두었고 고치던 것이 없으면: 새 내용으로 다시 엶 (화면의 과업이 옛 상태로 남았다가 저장되어 되돌아가지 않게)
-      if(m.t==='put' && editingId===id && !saving && (lockOwner ? (typeof lockSaving==='undefined' || !lockSaving) : !isDirty()) && $('#listModal').hidden && !document.activeElement?.closest?.('#taskList, #form')){ const r=cache.find(x=>x.id===id); if(r){ const y=window.scrollY, lk=!!lockOwner, typed=$('#memoBox').value, foc=document.activeElement===$('#memoBox'), was=String(typeof memoOpened!=='undefined' ? memoOpened : ''); openRecord(r); window.scrollTo(0,y); if(lk && typed.trim()!==String(r.note||'').trim() && typed.trim()!==was.trim()){ $('#memoBox').value=typed; } if(lk && foc) $('#memoBox').focus(); } }   // 남이 담당인 예약도 새 내용으로 (2026-11-24 · 적던 통화 메모는 그대로 둠)
+      if(m.t==='put' && editingId===id && !saving && (lockOwner ? (typeof lockSaving==='undefined' || !lockSaving) : !isDirty()) && $('#listModal').hidden && !document.activeElement?.closest?.('#taskList, #form, #noteList')){ const r=cache.find(x=>x.id===id); if(r){ const y=window.scrollY, typed=$('#memoBox').value, foc=document.activeElement===$('#memoBox'), dId=noteDraftId, dT=noteDraftT; openRecord(r); window.scrollTo(0,y);
+        if(typed.trim()){ notes=notes.filter(n=>n.id!==dId); noteDraftId=dId; noteDraftT=dT; if(dId) noteOwn.add(dId); $('#memoBox').value=typed; renderNotes(true); }   // 적던 통화 메모(적는 자리의 글)는 그대로 둠 — 이미 저장된 것이면 같은 기록으로 이어 적음 (2026-11-27 쌓이는 기록)
+        if(foc) $('#memoBox').focus(); } }   // 남이 담당인 예약도 새 내용으로 (2026-11-24)
       paintMyCount(); if(!$('#listModal').hidden) renderList();
       if(!$('#myModal').hidden && !(typeof etcEdit!=='undefined' && etcEdit && document.activeElement?.closest?.('.etc-edit')) && !document.activeElement?.matches?.('.tk-memoin, .tk-subin, .tk-in')) renderMy();
     }catch(e){ console.warn('live', e); } }, 30); });
@@ -2062,6 +2065,61 @@ const store={
 window.addEventListener('focus', ()=>{ if(pending.length) flush(); else pull(); });   // 다른 창에서 돌아오면 최신 목록
 setInterval(()=>{ if(!document.hidden){ if(pending.length) flush(); else pull(); } }, 30000);   // 30초마다 (2026-11-18 · 예전 1분)
 // ▣ js/group/08-history-save.js — 수정 기록(무엇이 바뀌었나 · 되돌리기) · 저장(save) · 30초 자동 저장 · 저장 안 한 표시 · 나갈 때 확인
+// ===================== 통화 메모 = 쌓이는 기록 (2026-11-27) =====================
+// 예약 기록의 수정 기록 칸(history JSON · 서버는 정해진 칸만 받으므로 과업 · 메모 알림처럼 여기에)의 notes:[{id, t(적은 시각), by(적은 사람), text, ed:{t,by}(고침), del:{t,by}(지움 — 줄은 남김)}] 가 기록 목록이고,
+//  note(글 한 덩어리 · 예전부터 있던 값)에는 지우지 않은 기록을 「[2026-11-27 14:20 이름] 내용」 줄로 이어 함께 넣는다 — 보고 글자 · 엑셀 · 다음날 준비 · 예전 화면이 note 를 읽으므로.
+//  - 예전 예약(notes 없음 · note 만): 그 글을 「예전 메모」 기록 하나로 보임 (저장된 자료를 한꺼번에 바꾸지 않음 — 열어서 저장할 때 notes 가 더해짐)
+//  - 예전 화면이 저장하면 notes 는 빠지고 note 만 남는다 → 열 때 notes 를 이은 글과 note 가 다르면 note(글)를 기준으로 기록을 다시 읽어 낸다 (noteFromText · 내용이 사라지지 않게)
+//  - 적는 자리(#memoBox)의 글 = 아직 확정 안 한 기록 하나(noteDraftId). 자동 저장은 그 기록을 같은 id 로 저장만 하고, 「저장」 · Ctrl+S 가 기록으로 쌓는다(확정)
+//  - 저장할 때: 그사이 남이 더한 기록은 살리고(noteMerge), 내가 이번에 손댄 기록(noteOwn)만 내 것으로 덮는다
+const NOTE_HDR = /^\[(?:(\d{4}-\d\d-\d\d) (\d\d:\d\d)(?: ([^\]]*))?|덧붙인 글)\] ?/;
+const noteStamp = t => { const d=new Date(t); if(!t || isNaN(d)) return ''; const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const noteKey = n => n.t ? noteStamp(n.t)+' '+(n.by||'') : '';
+const noteHash = s => { let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0; return (h>>>0).toString(36); };
+const noteNewId = () => 'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const noteSort = L => (L||[]).map((n,i)=>({n,i})).sort((a,b)=>String(a.n.t||'').localeCompare(String(b.n.t||'')) || a.i-b.i).map(x=>x.n);   // 적은 시각 순 (시각 모르는 예전 메모가 맨 위)
+function noteJoin(L){ return noteSort(L).filter(n=>n && !n.del && String(n.text||'').trim()).map((n,i)=> n.t ? `[${noteStamp(n.t)}${n.by?' '+n.by:''}] ${n.text}` : i ? `[덧붙인 글] ${n.text}` : n.text).join('\n'); }
+function noteSplit(text){   // 글 → [{t, by, text}] (머리표 「[날짜 시각 이름]」 로 시작하는 줄마다 기록 하나 · 머리표 앞의 글은 예전 메모)
+  const out=[]; let cur=null;
+  String(text||'').replace(/\r/g,'').split('\n').forEach(line=>{ const m=line.match(NOTE_HDR);
+    if(m){ const d=m[1] ? new Date(m[1]+'T'+m[2]+':00') : null; cur={t: d && !isNaN(d) ? d.toISOString() : '', by:(m[3]||'').trim(), text:line.slice(m[0].length)}; out.push(cur); }
+    else if(cur) cur.text+='\n'+line; else { cur={t:'', by:'', text:line}; out.push(cur); } });
+  out.forEach(n=>{ n.text=n.text.replace(/\s+$/,''); }); return out.filter(n=>n.text.trim());
+}
+function noteFromText(text, L, who){   // 글이 기준: 글에 있는 기록은 살리고(같은 기록이면 id · 고침 표시 그대로), 글에 없는 기록은 지움 표시로 남김
+  L=L||[]; const used=new Set(), ids=new Set(L.map(n=>n.id));
+  const out=noteSplit(text).map(p=>{ const k=noteKey(p), free=n=>!n.del && !used.has(n.id) && noteKey(n)===k;
+    const hit = L.find(n=>free(n) && String(n.text||'').trim()===p.text.trim()) || (k ? L.find(free) : null);
+    if(hit){ used.add(hit.id); return {...hit, text:p.text}; }
+    let id='p'+noteHash(k+'|'+p.text.trim()); while(ids.has(id)) id+='x'; ids.add(id); return {id, t:p.t, by:p.by, text:p.text}; });
+  L.forEach(n=>{ if(!used.has(n.id)) out.push(n.del ? n : {...n, del:who||{t:'', by:''}}); });
+  return out;
+}
+function notesOf(r){ r=r||{}; const hn=parseHist(r).notes, L=Array.isArray(hn) ? hn.filter(n=>n && n.id).map(n=>({...n})) : [], note=String(r.note||'');
+  return noteJoin(L).trim()===note.trim() ? L : noteFromText(note, L); }
+function noteDraft(){ const text=String($('#memoBox').value||'').trim(); if(!text) return null;
+  if(!noteDraftId){ noteDraftId=noteNewId(); noteDraftT=new Date().toISOString(); noteOwn.add(noteDraftId); }
+  return {id:noteDraftId, t:noteDraftT, by:savedOwner()||rec.owner||'', text}; }
+const noteLive = () => { const d=noteDraft(); return d ? [...notes.filter(n=>n.id!==d.id), d] : notes.slice(); };
+const noteFull = () => noteJoin(noteLive());
+function noteMerge(theirs, mine){   // theirs = 지금 저장돼 있는 기록 · mine = 이 화면의 기록
+  const T=(theirs||[]).filter(n=>n && n.id), tm=new Map(T.map(n=>[n.id,n])), ids=new Set(mine.map(n=>n.id)), same=new Set(mine.map(n=>noteKey(n)+'|'+String(n.text||'').trim()));
+  return noteSort([...mine.map(n=>noteOwn.has(n.id) ? n : (tm.get(n.id)||n)), ...T.filter(n=>!ids.has(n.id) && !noteOwn.has(n.id) && !same.has(noteKey(n)+'|'+String(n.text||'').trim()))]); }
+function noteLoad(r){ notes = r ? noteSort(notesOf(r)) : []; noteDraftId=''; noteDraftT=''; noteOwn=new Set(); noteEditId=''; noteShown=new Set(); $('#memoBox').value=''; renderNotes(true); }
+function noteCommit(){   // 적는 자리의 글을 기록으로 쌓음 (저장이 끝난 뒤에 부름)
+  const d=noteDraft(); if(d) notes=noteSort([...notes.filter(n=>n.id!==d.id), d]);
+  $('#memoBox').value=''; noteDraftId=''; noteDraftT=''; noteOwn=new Set(); renderNotes(true); }
+const noteCan = n => !editLockBy && (!lockOwner || (!!n.by && n.by===savedOwner()));   // 고치기 · 지우기: 영업 담당은 모두 · 담당이 아니면 내가 적은 기록만
+function renderNotes(toEnd){
+  const box=$('#noteList'); if(!box) return; const did=noteDraftId && String($('#memoBox').value||'').trim() ? noteDraftId : '';
+  const L=noteSort(notes).filter(n=>n.id!==did && String(n.text||'').trim()), y=box.scrollTop;
+  box.hidden=!L.length;
+  box.innerHTML=L.map(n=>{ const can=noteCan(n), id=esc(n.id), when = n.t ? `<b class="note-when num">${esc(dtLabel(n.t))}</b>${n.by?`<span class="note-by">${esc(n.by)}</span>`:''}` : '<b class="note-when">예전 메모</b>';
+    if(n.del) return `<li class="note-it del" data-nid="${id}"><div class="note-h">${when}<span class="note-ed">지운 기록${n.del.by?` · ${esc(n.del.by)}`:''}${n.del.t?` ${esc(dtLabel(n.del.t))}`:''}</span><span class="note-acts"><button type="button" class="note-btn" data-nshow="${id}">${noteShown.has(n.id)?'내용 접기':'내용 보기'}</button>${can?`<button type="button" class="note-btn" data-nback="${id}">되살리기</button>`:''}</span></div>${noteShown.has(n.id)?`<div class="note-tx">${esc(n.text)}</div>`:''}</li>`;
+    if(noteEditId===n.id) return `<li class="note-it editing" data-nid="${id}"><div class="note-h">${when}</div><textarea class="note-edit" data-ime="ko" lang="ko" spellcheck="false">${esc(n.text)}</textarea><div class="note-edit-btns"><button type="button" class="btn primary" data-nok="${id}">고친 내용 넣기</button><button type="button" class="btn" data-ncancel="${id}">취소</button></div></li>`;
+    return `<li class="note-it" data-nid="${id}"><div class="note-h">${when}${n.ed?`<span class="note-ed">고침${n.ed.by?` · ${esc(n.ed.by)}`:''}${n.ed.t?` ${esc(dtLabel(n.ed.t))}`:''}</span>`:''}${can?`<span class="note-acts"><button type="button" class="note-btn" data-nedit="${id}">고치기</button><button type="button" class="note-btn" data-ndel="${id}">지우기</button></span>`:''}</div><div class="note-tx">${esc(n.text)}</div></li>`; }).join('');
+  box.scrollTop = toEnd ? box.scrollHeight : y;
+}
 // ===================== 수정 기록 =====================
 // 저장할 때마다 바뀐 항목을 시각·영업 담당과 함께 남긴다 (시트 '수정 기록' 칸에 JSON)
 const mealSum = r => [r.sadam1&&`사담1부 ${r.sadam1}`, r.sadam2&&`사담2부 ${r.sadam2}`, r.sadamD&&`사담디너 ${r.sadamD}`, r.mabangL&&`마방 ${r.mabangTime?r.mabangTime+' ':''}${r.mabangL}`, r.mabangD&&`마방디너 ${r.mabangD}`].filter(Boolean).join(" · ") || r.meal || "";
@@ -2069,7 +2127,7 @@ Object.assign(LABEL, { etcDisc:'기타 할인', etcDiscTo:'기타 할인 대상'
 function snap(){
   const o={}; allKeys().forEach(k=>{ if(k!=='owner') o[k]=rec[k]||''; });
   o.tbd=rec.tbd||''; o.tbdLate=rec.tbdLate||''; if(typeof SPECIAL!=='undefined') SPECIAL.forEach(s=>o[s.k]=rec[s.k]||'');
-  o.stage=effStage(rec); o.erp=rec.erp||''; o.note=$('#memoBox').value.trim();
+  o.stage=effStage(rec); o.erp=rec.erp||''; o.note=noteFull().trim();
   { const es=etcSplit(rec); if(es.tx) o.etcDiscTx=String(es.tx); if(es.tf) o.etcDiscTf=String(es.tf); } ['etcDiscWhy','readDone'].forEach(k=>{ if(rec[k]) o[k]=rec[k]; }); if(erpList.length) o.erpList=erpList.map(x=>`${x.product} ${x.people}명 ${x.amount}`).join(', ');   // 기타 할인 · 전산 내역도 변경으로
   tasks.forEach(t=>{ o['task:'+t.id]=t.done?'완료':''; o['tmemo:'+t.id]=t.memo||''; o['tfile:'+t.id]=(t.files||[]).map(f=>f.name).join(', '); if(t.custom) o['tadd:'+t.id]=t.title; });
   tasks.forEach(t=>{ if(t.dueSet) o['tdue:'+t.id]=t.due||''; if(t.titleSet && !t.custom) o['tttl:'+t.id]=t.title; });   // 직접 바꾼 마감일 · 제목도 변경으로 (자동 저장이 놓치지 않게)
@@ -2082,7 +2140,7 @@ function diffSnap(a,b){
   const out=[];
   new Set([...Object.keys(a),...Object.keys(b)]).forEach(k=>{
     const x=a[k]||'', y=b[k]||''; if(x===y) return;
-    if(k==='note'){ out.push('통화 메모 수정'); return; }
+    if(k==='note'){ out.push(y.length>x.length && y.startsWith(x) ? '통화 메모 기록 더함' : '통화 메모 수정'); return; }
     if(k==='taskOrder'){ out.push('과업 순서 바꿈'); return; }
     if(k==='readDone'){ out.push(y ? '고객님께 확인 멘트 말씀드림' : '고객님께 확인 멘트 말씀드림 취소'); return; }
     const tm=k.match(/^(task|tmemo|tadd|tfile|tsub|tnote|tdue|tttl):(.+)$/);
@@ -2094,12 +2152,12 @@ function diffSnap(a,b){
   return out;
 }
 // 시트 '수정 기록' 칸: {h:[수정 기록], tasks:[추후 과업]} (예전 기록은 배열만)
-function parseHist(r){ try{ const j=JSON.parse(r.history||'[]'); return Array.isArray(j) ? {h:j, tasks:[], erp:[], memos:[]} : {h:j.h||[], tasks:j.tasks||[], erp:j.erp||[], memos:j.memos||[]}; }catch(_){ return {h:[], tasks:[], erp:[], memos:[]}; } }   // memos: 담당이 아닌 사람이 남긴 메모 [{id,t,by,text,seen,seenAt}]
+function parseHist(r){ try{ const j=JSON.parse(r.history||'[]'); return Array.isArray(j) ? {h:j, tasks:[], erp:[], memos:[]} : {h:j.h||[], tasks:j.tasks||[], erp:j.erp||[], memos:j.memos||[], notes:Array.isArray(j.notes)?j.notes:undefined}; }catch(_){ return {h:[], tasks:[], erp:[], memos:[]}; } }   // memos: 담당이 아닌 사람이 남긴 메모 [{id,t,by,text,seen,seenAt}]
 // ---- 바뀐 값의 흐름 (ch): {칸: [처음 값, 다음 값, …]} → "관람 인원 20 → 22 → 25". 자동 저장이 여러 번이어도 한 줄에 모든 변경이 남고, 되돌리기에도 씀
 const fmtTime_ = t => dtLabel(t);
 function chText(k, c){
   const x=c[0]||'', y=c[c.length-1]||'';
-  if(k==='note') return '통화 메모 수정';
+  if(k==='note') return y.length>x.length && y.startsWith(x) ? '통화 메모 기록 더함' : '통화 메모 수정';
   if(k==='taskOrder') return '과업 순서 바꿈';
   if(k==='erpList') return '전산 내역 붙여넣음';
   if(k==='readDone') return y ? '고객님께 확인 멘트 말씀드림' : '고객님께 확인 멘트 말씀드림 취소';
@@ -2154,7 +2212,7 @@ async function save(opt){
   if(saving){ if(auto){ clearTimeout(autoT); autoT=setTimeout(()=>save(opt), 3000); return; }   // 자동 저장 중이면: 자동은 잠시 뒤, 저장 버튼은 끝나기를 기다렸다가
     await new Promise(ok=>{ const iv=setInterval(()=>{ if(!saving){ clearInterval(iv); ok(); } }, 50); }); return save(opt); }
   if(editLockBy){ if(!auto) toast(`${editLockBy}님이 다른 PC(창)에서 이 예약을 고치는 중이라 저장할 수 없습니다.`); return; }   // 같은 예약을 두 곳에서 고치지 않게
-  if(lockOwner) return saveLockedParts();   // 남이 담당인 예약: 예약 전체는 저장 안 함 — 통화 메모 · 내가 담당자인 과업만 (2026-11-24 · 15-lock-popups.js)
+  if(lockOwner) return auto ? saveLockedParts() : saveLockedCommit();   // 남이 담당인 예약: 예약 전체는 저장 안 함 — 통화 메모 · 내가 담당자인 과업만 (2026-11-24 · 15-lock-popups.js)
   if(!canSave()){ if(!auto) toast('업체나 방문일을 먼저 입력하세요.'); return; }
   if(typeof tbdIsLate==='function' && tbdIsLate(rec) && !rec.tbdLate){ if(!auto) openLate(()=>save(opt)); return; }   // 입력 기한을 전주 목요일보다 늦게 잡았으면 사유부터 (자동 저장은 기다림)
   if(auto && !isDirty()) return;
@@ -2171,14 +2229,18 @@ async function save(opt){
   const changes = row && row.ch ? Object.keys(row.ch) : row ? ['처음 저장'] : [];
   let newHist = row ? [...(open ? hist.slice(0,-1) : hist), row].slice(-200) : hist;
   const j=joinContacts(rec);
-  const item={...rec, ...j, ...packExtra(rec), callType:effStage(rec), summary:autoSummary(), note:$('#memoBox').value, takenBy:rec.owner,
-    callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:now, history:JSON.stringify({h:newHist, tasks, erp:erpList, memos:mergeMemos(memos, parseHist(cache.find(x=>x.id===editingId)||{}).memos)})};   // 메모: 그사이 남이 남긴 것까지 합침
+  const typed0=$('#memoBox').value, nl=noteMerge(editingId ? notesOf(cache.find(x=>x.id===editingId)||{}) : [], noteLive());   // 통화 메모 기록: 그사이 남이 더한 것까지 합침 (2026-11-27)
+  const item={...rec, ...j, ...packExtra(rec), callType:effStage(rec), summary:autoSummary(), note:noteJoin(nl), takenBy:rec.owner,
+    callStart:startedAt?startedAt.toISOString():'', id:editingId||(Date.now().toString(36)+Math.random().toString(36).slice(2,5)), saved:now, history:JSON.stringify({h:newHist, tasks, erp:erpList, memos:mergeMemos(memos, parseHist(cache.find(x=>x.id===editingId)||{}).memos), notes:nl})};   // 메모: 그사이 남이 남긴 것까지 합침
   // 구글 시트 칸 하나에는 5만 자까지만 들어감 → 수정 기록이 너무 길면 처음 저장 줄은 두고 오래된 기록부터 덜어 냄 (넘으면 저장이 계속 실패함)
   { const h2=fitHist(item); if(h2) newHist=h2; }
   Object.keys(item).forEach(k=>{ if(isCKey(k)) delete item[k]; });
   delete item.tbd; delete item.stage; delete item.erp; delete item.tbdDate; delete item.tbdLate; delete item.payContact;
   saving=true;
   try{ await store.put(item); editingId=item.id; openedRaw=rawPick(item); openedObj=liveVals(item); hist=newHist; baseSnap=cur;
+    { const did=noteDraftId, same=$('#memoBox').value===typed0;   // 통화 메모: 저장 버튼 · Ctrl+S = 적은 글을 기록으로 쌓고 적는 자리를 비움 · 자동 저장 = 적는 자리는 그대로 (저장하는 사이 더 적었으면 그대로 둠)
+      if(!auto && same){ notes=nl; $('#memoBox').value=''; noteDraftId=''; noteDraftT=''; noteOwn=new Set(); } else notes=nl.filter(n=>n.id!==did || !String($('#memoBox').value||'').trim());
+      renderNotes(!auto && same); if(same) baseSnap.note=noteFull().trim(); }
     if(auto) lastAuto=now; renderHist(); paintDirty(); await renderList();
     if(!auto) toast(quiet ? `저장했습니다.` : `${item.callType}으로 저장했습니다.${changes.length?' 수정 기록에 반영했습니다.':' (바뀐 내용 없음)'}${needsErp(rec)&&!rec.erp?' 전산 등록을 잊지 마세요.':''}`);
     if(!auto) SID=Math.random().toString(36).slice(2);   // 저장 버튼 = 이 줄 확정, 다음 변경은 새 줄
@@ -2229,7 +2291,8 @@ $('#revOk').onclick=async()=>{
   if(!revTarget) return; const {target, label}=revTarget; closeRev();
   const lr=hist[hist.length-1]; if(isDirty() || (lr && lr.o && lr.s===SID)) await save();   // 지금까지 고친 것은 먼저 한 줄로 확정
   Object.entries(target).forEach(([k,v])=>{ if(REVERT_SKIP.test(k) || k==='stage') return;
-    if(k==='note'){ $('#memoBox').value=v; return; } rec[k]=v; if(v) touched.add(k); });
+    if(k==='note'){ notes=noteSort(noteFromText(v, notes, {t:new Date().toISOString(), by:savedOwner()||''})); $('#memoBox').value=''; noteDraftId=''; noteDraftT=''; notes.forEach(n=>noteOwn.add(n.id)); renderNotes(true); return; }   // 통화 메모: 그 버전의 글에 있던 기록만 남기고 뒤에 더한 기록은 지움 표시로 (2026-11-27)
+    rec[k]=v; if(v) touched.add(k); });
   rec.stage = target.stage && target.stage!==stageAuto(rec) ? target.stage : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 단계
   nContacts=Math.max(1,nContactsOf(rec)); renderContacts(); renderForm();
   await save({revert:label});
@@ -2900,7 +2963,7 @@ async function takeDocs(){
       const r=(cache||[]).find(x=>x.id===d.recId);
       if(!r){ if(Date.now()-new Date(d.at)<7*864e5) left.push(d); continue; }   // 목록을 아직 못 받았으면 다음에
       const ph=parseHist(r); attach(ph.tasks); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${title} 출력`});
-      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now});
+      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now});
     }
     try{ left.length ? localStorage.setItem(DOCS_LS, JSON.stringify(left)) : localStorage.removeItem(DOCS_LS); }catch(_){}
     if(list.length>left.length){ await store.list(); toast('견적서 사이트에서 출력해 과업 「생성」을 체크했습니다.'); }
@@ -2936,7 +2999,7 @@ $('#payList').addEventListener('click', async e=>{
     else {
       const ph=parseHist(r), now=new Date().toISOString(), t=ph.tasks.find(x=>x.id==='paycheck'); if(t){ t.done=true; t.doneAt=now; }
       ph.h.push({t:now, by:savedOwner()||'', what:'[과업] 결제 확인 완료'});
-      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now});
+      await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now});
     }
     await store.list(); toast('결제 확인으로 표시했습니다.'); checkPayPopup(true);
   }
@@ -3050,7 +3113,7 @@ function openRecord(r){
     if(/^adm/.test(r.id) && !rec.erp) rec.erp='관리자 예약';   // 관리자 사이트에서 온 예약은 이미 전산에 있음
     rec.stage = STAGES.includes(normStage(r.callType)) && normStage(r.callType)!==stageAuto(rec) ? normStage(r.callType) : '';   // 결제로 정해지는 단계와 다를 때만 직접 고른 것으로
     const cs=splitContacts(r); Object.assign(rec,cs); Object.keys(cs).forEach(k=>{ if(cs[k]) touched.add(k); });
-    nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; openedRaw=rawPick(r); openedObj=liveVals(r); $('#memoBox').value=r.note||''; memoOpened=r.note||'';
+    nContacts=Math.max(1,nContactsOf(rec)); editingId=r.id; openedRaw=rawPick(r); openedObj=liveVals(r); noteLoad(r); memoOpened=r.note||'';
     const ph=parseHist(r); hist=ph.h; tasks=ph.tasks; erpList=ph.erp||[]; memos=ph.memos||[];
     { const o=(r.owner||r.takenBy||'').trim(), me=savedOwner(); lockOwner = o && me && o!==me ? o : ''; } paintLock(); acquireEdit(r.id);   // 남이 담당인 예약: 잠금 (메모만)
     renderContacts(); renderForm(); resetWarn(true); baseSnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty(); closeList(); window.scrollTo({top:0,behavior:"smooth"});
@@ -3060,7 +3123,7 @@ function openRecord(r){
 // ===================== 새 통화·단축키 =====================
 function newCall(withToast=true){
   if(typeof endStart==='function') endStart();   // 첫 화면(단체명으로 먼저 찾기)을 걷음 (js/group/15-lock-popups.js)
-  resetState(); clearInterval(timerInt); tick(); $('#memoBox').value=''; status('');
+  resetState(); clearInterval(timerInt); tick(); noteLoad(null); status('');
   hist=[]; baseSnap=null; tasks=[]; erpList=[]; tbdAuto=false; memos=[]; lockOwner=''; if(typeof releaseEdit==='function') releaseEdit(); { const hd=document.getElementById('histDet'); if(hd) hd.open=false; }   // 수정 기록은 예약을 열 때마다 접어 둠
   renderHist(); if(typeof paintLock==='function') paintLock();
   renderContacts(); renderForm(); resetWarn(false); emptySnap=snap(); SID=Math.random().toString(36).slice(2); lastAuto=null; clearTimeout(autoT); renderHist(); paintDirty();
@@ -3081,6 +3144,7 @@ const MEMOCHECK_RULES = `■ 무엇
   통화 메모에 원래 글이 있었든 비어 있었든 상관없이, 영업 담당이 아닌 사람이 내용을 바꿔 저장하면 바로 생김
   예약 단계와 상관없음 — 예약상담 · 예약취소 예약에서도 생김 (예전엔 가예약 · 예약확정에서만 떴음)
   영업 담당 본인이 고친 것은 생기지 않음
+  2026-11-27: 통화 메모가 「쌓이는 기록」이 됨 — 영업 담당이 아닌 사람이 기록을 더하거나 · 자기 기록을 고치거나 지워 저장하면 생김 (과업 안에는 방금 더한 기록의 글이 보임)
   이미 안 끝난 과업이 있으면 새로 만들지 않고 그 과업 안에 메모가 더해짐 (같은 사람이 여러 번 고치면 한 줄로)
   영업 담당이 이 과업을 지웠어도, 그 뒤에 누가 또 고치면 다시 생김
   방문일이 30일 넘게 지난 예약은 나의 할일에 나오지 않음 (다른 과업과 같음)
@@ -4116,7 +4180,7 @@ $('#fixOk').onclick=async ()=>{
     t.done = cur[id]==='발행'; t.doneAt = t.done ? now : ''; t.subs=Object.fromEntries(DOC_SUBS[id].map(([k])=>[k, t.done])); ex[wk]='있음'; });
   ph.h.push({t:now, by:savedOwner()||'', what:`[목록 수정] ${diff.join(', ')} · 사유: ${why}`});
   const pk=packExtra(ex);
-  const item={...r, ...(cur.owner!==fixBase.owner ? {owner:cur.owner} : {}), pay:pk.pay, memo:pk.memo, callType:cur.stage, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now};
+  const item={...r, ...(cur.owner!==fixBase.owner ? {owner:cur.owner} : {}), pay:pk.pay, memo:pk.memo, callType:cur.stage, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now};
   await store.put(item); closeFix(); await renderList();
   if(editingId===r.id){ openRecord(cache.find(x=>x.id===r.id)||item); $('#listModal').hidden=false; }   // 열어 둔 예약이면 고친 상태로 다시 불러옴
   toast('목록 상태를 고쳤습니다. 사유는 수정 기록에 남았습니다.');
@@ -4141,7 +4205,7 @@ $('#delOk').onclick=async ()=>{
   const now=new Date().toISOString(), ph=parseHist(r), why = /^기타/.test(reason) ? note : reason + (note ? ` · ${note}` : '');
   ph.h.push({t:now, by:savedOwner()||'', what:`[삭제] ${why}`});
   // 사유를 수정 기록에 남긴 뒤 삭제 (시트에서는 줄을 지우지 않고 '삭제' 칸에 일시를 적으므로 사유도 남음)
-  await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now});
+  await store.put({...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now});
   await store.del(r.id, true);
   if(editingId===r.id) newCall(false);
   closeDel(); renderList(); toast(`삭제했습니다 · ${why}`);
@@ -4185,7 +4249,7 @@ function syncSavedTasks(id){
   const ph=parseHist(r), clean=ts=>JSON.stringify((ts||[]).map(t=>({id:t.id, done:!!t.done, removed:!!t.removed})));
   if(clean(ph.tasks)===clean(tasks)) return;
   let old={}; try{ old=JSON.parse(r.history||'{}')||{}; }catch(_){}
-  const item={...r, history:JSON.stringify({...old, h:ph.h, tasks, erp:ph.erp, memos:ph.memos})};
+  const item={...r, history:JSON.stringify({...old, h:ph.h, tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes})};
   store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
 }
 // 저장된 과업을 추후 과업 칸(화면)과 같은 기준으로 맞춤 (2026-11-18): 화면에서 저절로 완료된 과업이 저장 전이라 나의 할일 · 알림에 「오늘 마감」으로 남던 것
@@ -4355,7 +4419,7 @@ document.addEventListener('change', async e=>{ const v=e.target.dataset && e.tar
     if(kind==='g'){
       if(editingId===id){ const t=tasks.find(x=>x.id===tid); if(t){ reopen(t); renderTasks(); renderSide(); await save({auto:true}); } }
       else { const r=cache.find(x=>x.id===id); if(!r) return; const ph=parseHist(r), t=ph.tasks.find(x=>x.id===tid); if(!t) return; reopen(t); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료 취소`});
-        const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item; }
+        const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item; }
     } else { const r=cache.find(x=>x.id===id); if(!r) return; let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const t=(h.tasks||[]).find(x=>x.id===tid); if(!t) return; reopen(t);
       const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item; }
     toast('다시 열었습니다 (마감 = 오늘).'); paintMyCount(); renderMy();
@@ -4550,7 +4614,8 @@ function paintLock(){
   document.body.classList.toggle('locked', !!(lockOwner || editLockBy));
   { const h=$('#memoLockHint'), mb=$('#memoBox');   // 영업 담당이 아니면 통화 메모 위에 흐린 안내 · 빈 칸 안내 글 (2026-11-24)
     if(h){ h.hidden=!lockOwner; h.textContent = lockOwner ? `수정 사안이 있다면 통화 메모에 남겨 두세요. 저장하면 ${lockOwner}님께 「통화 메모 확인」 과업이 갑니다.` : ''; }
-    if(mb) mb.placeholder = lockOwner ? '수정 사안이 있다면 통화 메모에 남겨 두세요.' : ''; }
+    if(mb) mb.placeholder = lockOwner ? '수정 사안이 있다면 통화 메모에 남겨 두세요.' : '새 메모를 적고 「저장」을 누르면 기록으로 쌓입니다.';
+    if(typeof renderNotes==='function') renderNotes(); }   // 고치기 · 지우기 버튼은 담당 · 「고치는 중」에 따라 달라짐
   const box=$('#ownerMemo'); if(!box) return;
   const me=savedOwner(), list=[...memos].reverse();
   if(editLockBy){   // 다른 PC(창)에서 이 예약을 고치는 중: 읽기 전용, 풀리면 최신 내용으로 다시 불러옴
@@ -4565,7 +4630,7 @@ function paintLock(){
 async function saveMemos(id, fn){   // 공유 기록의 최신 예약에 메모를 바꿔 저장 (다른 칸은 건드리지 않음)
   const r=cache.find(x=>x.id===id); if(!r) return null;
   const ph=parseHist(r); ph.memos=fn(ph.memos||[]);
-  const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos})};
+  const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes})};
   await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
   if(editingId===id) memos=ph.memos;
   return item;
@@ -4584,7 +4649,7 @@ document.addEventListener('click', async e=>{
 const LOCK_EDIT_SEL = 'input, select, textarea, button, label, [contenteditable="true"], [data-idel], [data-tmv], .tdrag';
 const myLockTask = el => { const li=el.closest && el.closest('#taskList .task'); if(!li) return false; const t=tasks.find(x=>x.id===li.dataset.id); return !!(t && t.who && t.who===savedOwner()); };
 const lockAllowed = el => !!el.closest('.lock-ok, [data-mbdb], [data-book], #copyTextBtn, #copyReadBtn, #noteRegenBtn, #noteModal, summary, [data-texp], [data-tcopy], #lockPop, #memoSave')
-  || (!editLockBy && (el.closest('#memoBox') || myLockTask(el)));
+  || (!editLockBy && (el.closest('#memoBox, #noteList') || myLockTask(el)));   // #noteList = 통화 메모 기록 (내가 적은 기록에만 고치기 · 지우기 버튼이 있음 · 2026-11-27)
 const lockBlocked = t => !!(lockOwner || editLockBy) && t && t.closest && !!t.closest('.layout') && !!t.closest(LOCK_EDIT_SEL) && !lockAllowed(t);
 let lockNudgeT=0;
 function lockPopup(){ if(Date.now()-lockNudgeT<800) return; lockNudgeT=Date.now();
@@ -4606,23 +4671,32 @@ let lockSaving=false;
 async function saveLockedParts(){
   if(!lockOwner || editLockBy || lockSaving || !editingId) return;
   const me=savedOwner(), id=editingId, r0=cache.find(x=>x.id===id); if(!r0 || !me) return;
-  const note=$('#memoBox').value, mine=tasks.filter(t=>t.who && t.who===me), ph0=parseHist(r0);
-  const noteChanged = note.trim()!==String(r0.note||'').trim(), taskChanged = mine.some(t=>JSON.stringify(ph0.tasks.find(x=>x.id===t.id)||null)!==JSON.stringify(t));
-  if(!noteChanged && !taskChanged) return;
+  const typed0=$('#memoBox').value, live=noteLive(), draft=noteDraft(), mine=tasks.filter(t=>t.who && t.who===me), ph0=parseHist(r0);
+  const noteChanged = noteJoin(noteMerge(notesOf(r0), live)).trim()!==noteJoin(notesOf(r0)).trim(), taskChanged = mine.some(t=>JSON.stringify(ph0.tasks.find(x=>x.id===t.id)||null)!==JSON.stringify(t));
+  if(!noteChanged && !taskChanged) return true;
   lockSaving=true;
   try{ await pull(true); const r=cache.find(x=>x.id===id); if(!r) return; const ph=parseHist(r), now=new Date().toISOString();
+    const nl=noteMerge(notesOf(r), live), note=noteJoin(nl);   // 통화 메모 기록: 방금 받은 최신 기록 위에 내 것만 더함 (2026-11-27)
     mine.forEach(t=>{ const i=ph.tasks.findIndex(x=>x.id===t.id); if(i>=0) ph.tasks[i]={...t}; else ph.tasks.push({...t}); });
     if(noteChanged){   // 영업 담당에게 알림: 아직 안 읽은 내 「통화 메모를 고쳤습니다」가 있으면 그 줄을 새로 (여러 번 고쳐도 알림 한 줄)
-      const txt=`통화 메모를 고쳤습니다 —\n${note.trim().slice(-400)}`, i=(ph.memos||[]).findIndex(m=>m.by===me && !m.seen && m.kind==='note');
+      const txt = draft ? `통화 메모를 남겼습니다 —\n${draft.text.slice(-400)}` : `통화 메모 기록을 고쳤습니다 —\n${note.trim().slice(-400)}`, i=(ph.memos||[]).findIndex(m=>m.by===me && !m.seen && m.kind==='note');
       if(i>=0) ph.memos[i]={...ph.memos[i], t:now, text:txt}; else ph.memos=[...(ph.memos||[]), {id:'m'+Date.now().toString(36), t:now, by:me, kind:'note', text:txt, seen:false}]; }
-    ph.h.push({t:now, by:me, what: [noteChanged?'[통화 메모] 고침 (담당 아님)':'', ...mine.filter(t=>JSON.stringify(ph0.tasks.find(x=>x.id===t.id)||null)!==JSON.stringify(t)).map(t=>`[과업] ${t.title} ${t.done?'완료':'고침'}`)].filter(Boolean).join(' · ')});
-    const item={...r, ...(noteChanged ? {note} : {}), history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos})};
+    ph.h.push({t:now, by:me, what: [noteChanged ? (draft ? '[통화 메모] 기록 더함 (담당 아님)' : '[통화 메모] 기록 고침 (담당 아님)') + live.filter(n=>n.del && noteOwn.has(n.id) && n.del.t>(r0.updated||r0.saved||'')).map(n=>` · 지운 기록: ${String(n.text||'').slice(0,80)}`).join('') : '', ...mine.filter(t=>JSON.stringify(ph0.tasks.find(x=>x.id===t.id)||null)!==JSON.stringify(t)).map(t=>`[과업] ${t.title} ${t.done?'완료':'고침'}`)].filter(Boolean).join(' · ')});
+    if(noteChanged) ph.notes=nl;
+    const item={...r, ...(noteChanged ? {note} : {}), history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes})};
     await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;
+    if(noteChanged && editingId===id){ const did=noteDraftId; notes=nl.filter(n=>n.id!==did || !String($('#memoBox').value||'').trim()); if(!noteEditId) renderNotes(); }   // 적는 자리의 글은 그대로 (「저장」을 눌러야 기록으로 쌓임 — saveLockedCommit)
     memos=ph.memos; paintLock(); status(`저장됨 ${new Date().toTimeString().slice(0,5)} · ${noteChanged?'통화 메모':'과업'}`);
     if(noteChanged){ const ms=$('#memoSt'); if(ms){ ms.textContent=`저장됨 ${new Date().toTimeString().slice(0,5)}`; ms.className='memo-st ok'; } }
     try{ baseSnap=snap(); paintDirty(); }catch(_){}   // 저장한 뒤에는 「저장 안 함」으로 보지 않게 (창을 닫을 때 경고 없음)
+    return $('#memoBox').value===typed0;   // 저장하는 사이 더 적었으면 아직 기록으로 쌓지 않음
   }catch(err){ toast('저장하지 못했습니다: '+(err.code||err.message)); }
   finally{ lockSaving=false; } }
+// 남이 담당인 예약에서 「저장」 · Ctrl+S (2026-11-27): 저장한 뒤 적는 자리의 글을 기록으로 쌓음 (자동 저장은 saveLockedParts 만 — 적는 자리 그대로)
+async function saveLockedCommit(){
+  for(let i=0; lockSaving && i<200; i++) await new Promise(ok=>setTimeout(ok, 50));
+  const ok = await saveLockedParts(); if(ok===true) noteCommit(); try{ baseSnap=snap(); paintDirty(); }catch(_){}
+  return ok; }
 // 내 예약에 새 메모가 있으면: '메모를 확인하세요' 팝업 (확인할 때까지, 이 화면에서는 새 메모가 생길 때마다)
 let memoShown=new Set();
 function myNewMemos(){ const me=savedOwner(); if(!me) return []; const out=[]; (cache||[]).filter(r=>isGroupRec(r) && ownerOf(r)===me).forEach(r=>parseHist(r).memos.forEach(m=>{ if(!m.seen && m.by!==me) out.push({r, m}); })); return out.sort((a,b)=>String(b.m.t).localeCompare(String(a.m.t))); }
@@ -4721,7 +4795,7 @@ async function doneTask(id, tid){
   const ph=parseHist(r); let t=ph.tasks.find(x=>x.id===tid); if(!t){ t={...base, memo:'', at:now}; ph.tasks.push(t); }
   if(tid==='memocheck'){ const me=savedOwner()||''; ph.memos=(ph.memos||[]).map(m=>!m.seen && m.by!==me ? {...m, seen:true, seenAt:now} : m); }   // 나의 할일에서 통화 메모 확인을 체크 = 안 읽은 메모를 읽음으로 (2026-11-24)
   mark(t); if(DOC_SUBS[t.id]) t.subs=Object.fromEntries(DOC_SUBS[t.id].map(([k])=>[k,true])); (t.xsubs||[]).forEach(x=>x.done=true); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료`});
-  const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item);
+  const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now}; await store.put(item);
   const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item;   // 공유 기록에서 다시 받기 전에도 바로 반영
 }
 // 개인고객 과업 하나 완료 (그 통화 기록에 완료로 저장) — 나의 할일의 체크 칸과 알림의 체크 칸이 같이 씀
@@ -4785,7 +4859,7 @@ function saveView(){
     const dirty=isDirty();
     const v={ id:editingId||'', dirty, opt:[...optOpen], y:Math.round(window.scrollY),
       modal: !$('#listModal').hidden ? 'list' : '', at:Date.now() };   // 나의 할일 팝업은 기억하지 않음 (단체 화면은 늘 입력 화면부터)
-    if(dirty){ v.rec=rec; v.memo=$('#memoBox').value; v.tasks=tasks; v.nc=nContacts; v.tbdAuto=tbdAuto; }   // 저장 안 한 입력은 통째로
+    if(dirty){ v.rec=rec; v.memo=$('#memoBox').value; v.notes=notes; v.nd=[noteDraftId, noteDraftT]; v.nown=[...noteOwn]; v.tasks=tasks; v.nc=nContacts; v.tbdAuto=tbdAuto; }   // 저장 안 한 입력은 통째로
     localStorage.setItem(VIEW_LS, JSON.stringify(v));
   }catch(_){}
 }
@@ -4810,7 +4884,9 @@ async function restoreView(){
     if(r) openRecord(r);
     if(v.dirty && v.rec && (r || !v.id)){   // 저장 안 한 입력 되살리기 (저장된 예약이면 그 위에)
       Object.assign(rec, v.rec); Object.keys(v.rec).forEach(k=>{ if(v.rec[k]) touched.add(k); });
-      $('#memoBox').value = v.memo||''; if(Array.isArray(v.tasks)) tasks=v.tasks; tbdAuto=!!v.tbdAuto;
+      if(Array.isArray(v.nd)){ if(Array.isArray(v.notes)){ notes=v.notes; noteOwn=new Set(v.nown||[]); } noteDraftId=v.nd[0]||''; noteDraftT=v.nd[1]||''; notes=notes.filter(n=>n.id!==noteDraftId); $('#memoBox').value = v.memo||''; renderNotes(true); }   // 통화 메모: 적던 글 · 손댄 기록 (2026-11-27)
+      else if(!r) $('#memoBox').value = v.memo||'';   // 예전 모양으로 기억해 둔 것: 저장된 예약이면 메모 전체가 들어 있어 넣지 않음(기록이 겹쳐 쌓이지 않게)
+      if(Array.isArray(v.tasks)) tasks=v.tasks; tbdAuto=!!v.tbdAuto;
       nContacts=Math.max(1, v.nc||nContactsOf(rec)); renderContacts(); renderForm(); renderTasks();
       if(isDirty()) toast('저장하지 않았던 입력을 되살렸습니다.');
     }
@@ -4964,11 +5040,30 @@ function taskSubsDone(t){ const ds=DOC_SUBS[t.id]; return (!ds || !t.subs || ds.
 let memoLockT=0;
 $('#memoBox').addEventListener('input', ()=>{ if(!lockOwner || editLockBy) return; clearTimeout(memoLockT); const ms=$('#memoSt'); if(ms){ ms.textContent='저장 안 함'; ms.className='memo-st'; } memoLockT=setTimeout(()=>saveLockedParts(), 1500); });
 $('#memoBox').addEventListener('blur', ()=>{ if(!lockOwner || editLockBy) return; clearTimeout(memoLockT); saveLockedParts(); });
+// 통화 메모 기록 고치기 · 지우기 · 되살리기 (2026-11-27): 줄을 없애지 않고 표시만 남김 (ed = 고침 · del = 지움) · 영업 담당은 모두, 담당이 아니면 내가 적은 기록만 (noteCan)
+function noteTouched(){ renderNotes();
+  if(lockOwner){ clearTimeout(memoLockT); const ms=$('#memoSt'); if(ms){ ms.textContent='저장 안 함'; ms.className='memo-st'; } memoLockT=setTimeout(()=>saveLockedParts(), 1500); }
+  else { renderTasks(); if(window.__autoReady){ scheduleAuto(); saveViewSoon(); } } }
+$('#noteList').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return; const id=b.dataset.nedit||b.dataset.ndel||b.dataset.nback||b.dataset.nshow||b.dataset.nok||b.dataset.ncancel, n=notes.find(x=>x.id===id); if(!n) return;
+  const me=savedOwner()||'', now=new Date().toISOString(), set=o=>{ notes=notes.map(x=>x.id===id ? o : x); noteOwn.add(id); };
+  if(b.dataset.nshow){ noteShown.has(id) ? noteShown.delete(id) : noteShown.add(id); renderNotes(); return; }
+  if(b.dataset.ncancel){ noteEditId=''; renderNotes(); return; }
+  if(!noteCan(n)) return;
+  if(b.dataset.nedit){ noteEditId=id; renderNotes(); const ta=$('#noteList .note-edit'); if(ta){ ta.style.height=Math.min(200, ta.scrollHeight+4)+'px'; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); ta.closest('li').scrollIntoView({block:'nearest'}); } return; }
+  if(b.dataset.nok){ const ta=b.closest('li').querySelector('.note-edit'), v=String(ta.value||'').trim();
+    if(!v){ toast('빈 글로는 고칠 수 없습니다. 없애려면 「지우기」를 눌러 주세요.'); return; }
+    noteEditId=''; if(v!==String(n.text||'').trim()){ set({...n, text:v, ed:{t:now, by:me}}); noteTouched(); } else renderNotes(); return; }
+  if(b.dataset.ndel){ askDelete('이 통화 메모 기록을 지울까요? 지운 기록은 「지운 기록」으로 남아 내용을 다시 볼 수 있고, 되살릴 수 있습니다.', ()=>{ const x=notes.find(q=>q.id===id); if(!x) return; set({...x, del:{t:now, by:me}}); noteTouched(); }); return; }
+  if(b.dataset.nback){ const o={...n}; delete o.del; set(o); noteTouched(); }
+});
+$('#noteList').addEventListener('keydown', e=>{ if(!e.target.closest('.note-edit')) return; if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); noteEditId=''; renderNotes(); } else if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); const ok=e.target.closest('li').querySelector('[data-nok]'); if(ok) ok.click(); } });
+$('#memoBox').addEventListener('keydown', e=>{ if(e.key==='Enter' && (e.ctrlKey||e.metaKey) && !e.isComposing){ e.preventDefault(); $('#memoSave').click(); } });   // Ctrl+Enter = 저장(기록으로 쌓기)
 $('#memoSave').addEventListener('click', async ()=>{
   if(!editingId && !(isMobG() && canSave() && !lockOwner)){ toast('업체나 방문일을 먼저 넣고 저장해 주세요.'); return; }   // 휴대폰의 새 통화(단체명만 있음)는 여기서 처음 저장 (휴대폰에는 맨 위 저장 버튼이 없어서 · 2026-11-27)
   if(editLockBy){ lockPopup(); return; }
   clearTimeout(memoLockT); const ms=$('#memoSt');
-  if(lockOwner){ await saveLockedParts(); if(ms && ms.textContent==='저장 안 함'){ ms.textContent='바뀐 것 없음'; } return; }
+  if(lockOwner){ await saveLockedCommit(); if(ms && ms.textContent==='저장 안 함'){ ms.textContent='바뀐 것 없음'; } return; }
   await save(); if(ms){ ms.textContent=`저장됨 ${new Date().toTimeString().slice(0,5)}`; ms.className='memo-st ok'; } });
 // ▣ js/group/16-etc-tasks.js — 나의 할일의 기타 개인 업무(직접 넣는 업무 · 반복) · 개인 업무 구분 · 과업 알림 시각 설정
 // ===== 나의 할일 · 기타 개인 업무 (통화 구분 '개인업무', 2026-11-18 전부 여기로 · 예전 ops.html?p=task 화면은 없앰) =====

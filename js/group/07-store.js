@@ -33,7 +33,7 @@ function reportText(r){
   const sp = typeof SPECIAL!=='undefined' ? specialCounts(r) : [];
   add('특별 할인', sp.map(s=>`${s.short} ${s.n}명(${s.rate===1?'무료':Math.round(s.rate*100)+'%'})`).join(', '));
   add('서류 요청', [r.wantQuote&&'견적서', r.wantStmt&&'거래명세서'].filter(Boolean).join(', '));
-  const ml = memoLines(); if(ml.length){ L.push('- 통화 메모:'); ml.forEach(x=>L.push(`  · ${x}`)); }
+  const ml = noteFull().split('\n').map(s=>s.trim()).filter(Boolean); if(ml.length){ L.push('- 통화 메모:'); ml.forEach(x=>L.push(`  · ${x}`)); }   // 통화 메모 기록들 (기록마다 날짜 · 이름이 앞에 붙음 · 2026-11-27)
   return L.join('\n');
 }
 $('#copyTextBtn').onclick=()=>{
@@ -96,7 +96,9 @@ SY.live.on(m=>{ const id = m.t==='del' ? m.id : m.item.id; cache=merged(); clear
   liveT=setTimeout(()=>{ if(!window.__tasksReady) return;
     try{
       // 그 예약을 이 화면에서도 열어 두었고 고치던 것이 없으면: 새 내용으로 다시 엶 (화면의 과업이 옛 상태로 남았다가 저장되어 되돌아가지 않게)
-      if(m.t==='put' && editingId===id && !saving && (lockOwner ? (typeof lockSaving==='undefined' || !lockSaving) : !isDirty()) && $('#listModal').hidden && !document.activeElement?.closest?.('#taskList, #form')){ const r=cache.find(x=>x.id===id); if(r){ const y=window.scrollY, lk=!!lockOwner, typed=$('#memoBox').value, foc=document.activeElement===$('#memoBox'), was=String(typeof memoOpened!=='undefined' ? memoOpened : ''); openRecord(r); window.scrollTo(0,y); if(lk && typed.trim()!==String(r.note||'').trim() && typed.trim()!==was.trim()){ $('#memoBox').value=typed; } if(lk && foc) $('#memoBox').focus(); } }   // 남이 담당인 예약도 새 내용으로 (2026-11-24 · 적던 통화 메모는 그대로 둠)
+      if(m.t==='put' && editingId===id && !saving && (lockOwner ? (typeof lockSaving==='undefined' || !lockSaving) : !isDirty()) && $('#listModal').hidden && !document.activeElement?.closest?.('#taskList, #form, #noteList')){ const r=cache.find(x=>x.id===id); if(r){ const y=window.scrollY, typed=$('#memoBox').value, foc=document.activeElement===$('#memoBox'), dId=noteDraftId, dT=noteDraftT; openRecord(r); window.scrollTo(0,y);
+        if(typed.trim()){ notes=notes.filter(n=>n.id!==dId); noteDraftId=dId; noteDraftT=dT; if(dId) noteOwn.add(dId); $('#memoBox').value=typed; renderNotes(true); }   // 적던 통화 메모(적는 자리의 글)는 그대로 둠 — 이미 저장된 것이면 같은 기록으로 이어 적음 (2026-11-27 쌓이는 기록)
+        if(foc) $('#memoBox').focus(); } }   // 남이 담당인 예약도 새 내용으로 (2026-11-24)
       paintMyCount(); if(!$('#listModal').hidden) renderList();
       if(!$('#myModal').hidden && !(typeof etcEdit!=='undefined' && etcEdit && document.activeElement?.closest?.('.etc-edit')) && !document.activeElement?.matches?.('.tk-memoin, .tk-subin, .tk-in')) renderMy();
     }catch(e){ console.warn('live', e); } }, 30); });

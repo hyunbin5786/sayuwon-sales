@@ -150,7 +150,7 @@ document.addEventListener('change', async e=>{ const v=e.target.dataset && e.tar
     if(kind==='g'){
       if(editingId===id){ const t=tasks.find(x=>x.id===tid); if(t){ reopen(t); renderTasks(); renderSide(); await save({auto:true}); } }
       else { const r=cache.find(x=>x.id===id); if(!r) return; const ph=parseHist(r), t=ph.tasks.find(x=>x.id===tid); if(!t) return; reopen(t); ph.h.push({t:now, by:savedOwner()||'', what:`[과업] ${t.title} 완료 취소`});
-        const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos}), saved:now}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item; }
+        const item={...r, history:JSON.stringify({h:ph.h, tasks:ph.tasks, erp:ph.erp, memos:ph.memos, notes:ph.notes}), saved:now}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item; }
     } else { const r=cache.find(x=>x.id===id); if(!r) return; let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const t=(h.tasks||[]).find(x=>x.id===tid); if(!t) return; reopen(t);
       const item={...r, history:JSON.stringify(h)}; await store.put(item); const ci=cache.findIndex(x=>x.id===id); if(ci>=0) cache[ci]=item; }
     toast('다시 열었습니다 (마감 = 오늘).'); paintMyCount(); renderMy();
