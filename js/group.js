@@ -2113,13 +2113,18 @@ const noteCan = n => !editLockBy && (!lockOwner || (!!n.by && n.by===savedOwner(
 function renderNotes(toEnd){
   const box=$('#noteList'); if(!box) return; const did=noteDraftId && String($('#memoBox').value||'').trim() ? noteDraftId : '';
   const L=noteSort(notes).filter(n=>n.id!==did && String(n.text||'').trim()), y=box.scrollTop;
-  box.hidden=!L.length;
-  box.innerHTML=L.map(n=>{ const can=noteCan(n), id=esc(n.id), when = n.t ? `<b class="note-when num">${esc(dtLabel(n.t))}</b>${n.by?`<span class="note-by">${esc(n.by)}</span>`:''}` : '<b class="note-when">예전 메모</b>';
+  box.hidden=false;   // 채팅처럼: 기록 자리는 늘 보이고 위에서부터 쌓임 · 적는 자리는 맨 아래 (같은 날 다시 · 운영팀 요청)
+  box.innerHTML=!L.length ? '<li class="note-empty">저장한 메모가 여기에 위에서부터 차례로 쌓입니다.</li>' : L.map(n=>{ const can=noteCan(n), id=esc(n.id), when = n.t ? `<b class="note-when num">${esc(dtLabel(n.t))}</b>${n.by?`<span class="note-by">${esc(n.by)}</span>`:''}` : '<b class="note-when">예전 메모</b>';
     if(n.del) return `<li class="note-it del" data-nid="${id}"><div class="note-h">${when}<span class="note-ed">지운 기록${n.del.by?` · ${esc(n.del.by)}`:''}${n.del.t?` ${esc(dtLabel(n.del.t))}`:''}</span><span class="note-acts"><button type="button" class="note-btn" data-nshow="${id}">${noteShown.has(n.id)?'내용 접기':'내용 보기'}</button>${can?`<button type="button" class="note-btn" data-nback="${id}">되살리기</button>`:''}</span></div>${noteShown.has(n.id)?`<div class="note-tx">${esc(n.text)}</div>`:''}</li>`;
     if(noteEditId===n.id) return `<li class="note-it editing" data-nid="${id}"><div class="note-h">${when}</div><textarea class="note-edit" data-ime="ko" lang="ko" spellcheck="false">${esc(n.text)}</textarea><div class="note-edit-btns"><button type="button" class="btn primary" data-nok="${id}">고친 내용 넣기</button><button type="button" class="btn" data-ncancel="${id}">취소</button></div></li>`;
     return `<li class="note-it" data-nid="${id}"><div class="note-h">${when}${n.ed?`<span class="note-ed">고침${n.ed.by?` · ${esc(n.ed.by)}`:''}${n.ed.t?` ${esc(dtLabel(n.ed.t))}`:''}</span>`:''}${can?`<span class="note-acts"><button type="button" class="note-btn" data-nedit="${id}">고치기</button><button type="button" class="note-btn" data-ndel="${id}">지우기</button></span>`:''}</div><div class="note-tx">${esc(n.text)}</div></li>`; }).join('');
-  box.scrollTop = toEnd ? box.scrollHeight : y;
+  noteGrow(); box.scrollTop = toEnd ? box.scrollHeight : y;
 }
+// 적는 자리 높이: 평소 한두 줄(css) · 길게 적으면 칸의 55% 까지 늘어남 · 비우면 도로 (채팅 입력창처럼)
+function noteGrow(){ const mb=$('#memoBox'), st=$('#memoStack'), box=$('#noteList'); if(!mb || !st) return; const end = box && box.scrollTop+box.clientHeight >= box.scrollHeight-4;
+  mb.style.height=''; if(mb.value && mb.scrollHeight>mb.clientHeight+2) mb.style.height=Math.min(mb.scrollHeight+2, Math.round(st.clientHeight*0.55))+'px';
+  if(end && box) box.scrollTop=box.scrollHeight; }
+$('#memoBox').addEventListener('input', noteGrow);
 // ===================== 수정 기록 =====================
 // 저장할 때마다 바뀐 항목을 시각·영업 담당과 함께 남긴다 (시트 '수정 기록' 칸에 JSON)
 const mealSum = r => [r.sadam1&&`사담1부 ${r.sadam1}`, r.sadam2&&`사담2부 ${r.sadam2}`, r.sadamD&&`사담디너 ${r.sadamD}`, r.mabangL&&`마방 ${r.mabangTime?r.mabangTime+' ':''}${r.mabangL}`, r.mabangD&&`마방디너 ${r.mabangD}`].filter(Boolean).join(" · ") || r.meal || "";

@@ -1171,8 +1171,9 @@ html.g-loading body{overflow:hidden}
    위 = 지난 기록(.note-list · 적는 자리 96px 은 늘 남김) · 아래 = 새 메모 적는 자리(#memoBox · 기록이 없으면 칸 전체). 기록 구분은 옅은 선 · 배경색으로 (왼쪽 색 띠 없음) */
 .memo-stack{display:flex;flex-direction:column;height:300px;min-height:200px;resize:vertical;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff}
 .memo-stack:focus-within{border-color:var(--pine)}
-.memo-stack #memoBox{flex:1 1 96px;width:100%;min-height:96px;resize:none;border:0;border-radius:0;outline:none;background:transparent;padding:10px 12px}
-.note-list{flex:0 1 auto;min-height:0;max-height:calc(100% - 96px);overflow:auto;scrollbar-gutter:stable;list-style:none;margin:0;padding:2px 2px 2px 12px;background:#faf8f3;border-bottom:1px solid var(--line)}
+.memo-stack #memoBox{flex:0 0 auto;width:100%;height:72px;min-height:72px;max-height:55%;resize:none;border:0;border-top:1px solid var(--line);border-radius:0;outline:none;background:transparent;padding:10px 12px}
+.note-list{flex:1 1 0;min-height:0;overflow:auto;scrollbar-gutter:stable;list-style:none;margin:0;padding:2px 2px 2px 12px;background:#faf8f3}   /* 같은 날 다시(채팅처럼): 기록 자리가 칸의 위쪽 전부 — 위에서부터 쌓이고, 적는 자리는 늘 맨 아래 한 줄 높이(적으면 조금 늘어남 · js noteGrow) */
+.note-empty{padding:10px 0;color:#9a968a;font:400 13px/1.5 var(--sans)}
 .note-list::-webkit-scrollbar{width:10px;height:10px}
 .note-list::-webkit-scrollbar-track, .note-list::-webkit-scrollbar-corner{background:transparent}
 .note-list::-webkit-scrollbar-thumb{background-color:#c9c6be;border:2px solid transparent;background-clip:padding-box;border-radius:5px}
@@ -1532,8 +1533,7 @@ html.g-start #startBox{display:flex;flex-direction:column;justify-content:center
   .mob-head #mobFind{flex:none;height:36px;padding:0 12px;font-size:13.5px}
   .mob-head .mh-org{display:block;margin-top:8px;font:700 20px/1.35 var(--sans);color:var(--ink);overflow-wrap:anywhere}
   .memo-panel .memo-stack{height:220px;min-height:180px}   /* 예전 글 상자 높이(220px) 그대로 · 2026-11-27 쌓이는 기록 */
-  .memo-panel #memoBox{min-height:84px;flex-basis:84px;font-size:16px}   /* 16px 아래면 아이폰이 칸을 누를 때 화면을 확대함 */
-  .memo-panel .note-list{max-height:calc(100% - 84px)}
+  .memo-panel #memoBox{height:64px;min-height:64px;font-size:16px}   /* 16px 아래면 아이폰이 칸을 누를 때 화면을 확대함 */
   .memo-panel .note-edit{font-size:16px}
   .memo-panel .note-btn{padding:6px 8px;font-size:13px}
   .memo-panel .memo-save{height:38px;padding:0 18px;font-size:15px}
