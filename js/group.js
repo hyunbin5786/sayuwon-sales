@@ -1405,7 +1405,10 @@ function manualRows(){ try{ return bkDb().rows.map(x=>({...x, manual:true, ppl:+
 // ===== 예약 목록 찾기 (2026-11-25 · 2026-11-27 「기간 설정」 단추 없앰): 날짜 칸 두 개를 바로 누름 (비어 있으면 전체 · 하나만 고르면 그날 하루 · 둘이 다르면 기간 · 끝은 시작보다 앞설 수 없음 · 「초기화」 = 전체로) + 검색어(프로그램 · 업체명 · 담당자 이름 · 띄어 쓰면 모두 맞는 것) =====
 function bkFind(){ const v=id=>(document.getElementById(id)||{}).value||'', q=v('bfQ').trim().toLowerCase();
   const from=v('bfFrom'), to=v('bfTo');
-  return { q, words:q.split(/\s+/).filter(Boolean), day:'', from, to, dated:!!(from||to), on:!!(q||from||to) }; }
+  return { q, words:q.split(/\s+/).filter(Boolean), field:v('bfField'), day:'', from, to, dated:!!(from||to), on:!!(q||from||to) }; }
+// 찾기 구분 (2026-11-27 · #bfField): 전체(기본 = 예전과 같음) · 업체명 · 담당자 · 프로그램(내용 칸 = 프로그램 · 종류 · 장소 · 메뉴) · 비고 — 고르면 그 칸에서만 찾음
+//  p = { org, staff, what, note, rest } (rest = 시간 · 목록 이름처럼 「전체」일 때만 찾는 것)
+const bkHay = (F, p) => (F.field && F.field in p ? [p[F.field]] : [p.org, p.what, p.staff, p.rest, p.note]).flat().join(' ');
 const bkFindOk = (F, d, hay) => (!F.day || d===F.day) && (!F.from || d>=F.from) && (!F.to || d<=F.to) && F.words.every(w=>String(hay).toLowerCase().includes(w));
 const bfSet = (id, val) => { const p=document.getElementById(id); if(!p) return; p.value=val; const t=p.parentElement.querySelector('.dtxt'); if(t) t.value = val ? dateDisp(val) : ''; };
 function bfPaintDate(){ const w=document.getElementById('bfRangeW'); if(!w) return;
@@ -1413,8 +1416,7 @@ function bfPaintDate(){ const w=document.getElementById('bfRangeW'); if(!w) retu
   const f=$('#bfFrom'); if(f) $('#bfTo').min = f.value || '';   // 달력에서 시작보다 앞선 날은 못 고름
   const b=document.getElementById('bfRangeBtn'); if(b) b.hidden=true; }   // 예전 화면(HTML)이 남아 있을 때
 function bkFindPaint(n, by){ const F=bkFind(), el=document.getElementById('bfN');   // by: 모든 목록에서 찾았을 때 목록마다 몇 건인지 (예: 「대관 2 · 도슨트 3」)
-  if(el) el.textContent = F.on ? `찾은 예약 ${n}건${by ? ` (${by})` : ''}${F.from ? ` · ${F.from===F.to ? mdLabel(F.from)+' 하루' : mdLabel(F.from)+' ~ '+mdLabel(F.to)}` : ''}` : '';
-  if(el) el.style.whiteSpace = by ? 'normal' : '';   // 목록별 건수는 길어서 줄을 바꿈 (좁은 왼쪽 칸 · 휴대폰에서 잘리지 않게)
+  if(el){ el.textContent=''; el.hidden=true; }   // 「찾은 예약 n건 (대관 1 · …)」 글은 없앰 (2026-11-27 운영팀 요청 · 건수는 목록별 상자 제목에)
   bfPaintDate(); }
 document.addEventListener('change', e=>{ const id=e.target.id; if(id!=='bfFrom' && id!=='bfTo') return;
   const f=$('#bfFrom').value, t=$('#bfTo').value;
@@ -1424,22 +1426,24 @@ document.addEventListener('change', e=>{ const id=e.target.id; if(id!=='bfFrom' 
   if(!e.target.value){ bfSet('bfFrom',''); bfSet('bfTo',''); }   // 한쪽을 지우면 전체로
   paintBook(); });
 document.addEventListener('input', e=>{ if(e.target.id==='bfQ') paintBook(); });
-document.addEventListener('click', e=>{ if(e.target.id!=='bfReset') return; bfSet('bfFrom',''); bfSet('bfTo',''); const q=$('#bfQ'); if(q) q.value=''; paintBook(); });
+document.addEventListener('change', e=>{ if(e.target.id==='bfField') paintBook(); });
+document.addEventListener('click', e=>{ if(e.target.id!=='bfReset') return; bfSet('bfFrom',''); bfSet('bfTo',''); const q=$('#bfQ'); if(q) q.value=''; const fd=$('#bfField'); if(fd) fd.value=''; paintBook(); });
 function paintBook(){
   document.querySelectorAll('#bookTabs [data-bt]').forEach(b=>b.classList.toggle('on', b.dataset.bt===bookCatNow));
   const isMb = bookCatNow==='mb'; $('#bookMb').hidden=!isMb; $('#bookGen').hidden=isMb; $('#bookAll').hidden=true;
   if($('#bookAddBtn')) $('#bookAddBtn').hidden=false;   // 직접 추가 = 팝업 (로그인 없이도 이름을 적고 추가, 2026-11-21)
   if($('#bookLogBtn')) $('#bookLogBtn').hidden=BOOK_GUEST;   // 수정 기록 = 로그인한 사람
   if($('#bookMineL')) $('#bookMineL').hidden=isMb;   // 몽몽마방 목록에는 담당 칸이 없음
+  if($('#bookMe')) $('#bookMe').classList.toggle('nomine', isMb && !bkFind().q);   // 휴대폰(출력 단추 없음): 몽몽마방 목록에서는 담당 상자를 통째로 숨김 (css)
   if(bookAddClosed()) paintBookAdd();   // 팝업에 적는 중이면 (새 기록을 받아 다시 그려도) 적던 칸은 그대로
-  { const q=$('#bfQ'); if(q && !q.dataset.all){ q.dataset.all='1'; q.placeholder='업체명 · 담당자 · 프로그램 (모든 목록에서 찾음)'; q.title='글자를 넣으면 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 모든 목록에서 찾습니다. 지우면 고른 목록으로 돌아갑니다.'; } }
+  { const q=$('#bfQ'); if(q && !q.dataset.all){ q.dataset.all='1'; q.placeholder='검색어 (모든 목록에서 찾음)'; q.title='글자를 넣으면 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 모든 목록에서 찾습니다. 지우면 고른 목록으로 돌아갑니다.'; } }
   const F=bkFind();   // 찾기 (날짜를 고르면 지난 예약도)
   if(F.q){ paintBookAll(F); return; }   // 검색어가 있으면 다섯 목록 모두에서 (2026-11-27)
   if(isMb){ paintMbDb(); $('#bookTitle').textContent='몽몽마방 예약 목록'; { const bs=$('#bookSum'); if(bs){ bs.textContent = $('#mbdbSum').textContent; bs.hidden=false; } } return; }
   const c=bookCatNow, today=todayYmd(), past=$('#bookPast').checked;
   bkFillNames();   // 담당 이름 목록 (새 예약 · 담당이 생기면)
   const me=bkMe(), mine=$('#bookMine').checked && !!me;   // 내 담당만 보기 (2026-11-21)
-  const all=[...bookRows(true), ...manualRows()].filter(x=>x.cat===c).sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99'))), list=all.filter(x=>(past || F.dated || x.d>=today) && (!mine || isMine(x, me)) && bkFindOk(F, x.d, [x.org,x.item,x.kind,x.place,x.staff,x.tm,x.note].join(' ')));
+  const all=[...bookRows(true), ...manualRows()].filter(x=>x.cat===c).sort((a,b)=>(a.d+(a.tm||'99')).localeCompare(b.d+(b.tm||'99'))), list=all.filter(x=>(past || F.dated || x.d>=today) && (!mine || isMine(x, me)) && bkFindOk(F, x.d, bkHay(F, {org:x.org, staff:x.staff, what:[x.item,x.kind,x.place], note:x.note, rest:x.tm})));
   bkFindPaint(list.length);
   $('#bookTitle').textContent = `${BOOK_CATS[c]} 예약 목록`; { const bs=$('#bookSum'); if(bs){ bs.textContent=''; bs.hidden=true; } }   // 건수 · 「단체 예약에서 자동 + 직접 추가」 문구는 없앰 (2026-11-21)
   $('#bookHead').innerHTML = bkHeadHTML(c);
@@ -1464,9 +1468,9 @@ function paintBookAll(F){
   $('#bookMb').hidden=true; $('#bookGen').hidden=true; $('#bookAll').hidden=false; if($('#bookMineL')) $('#bookMineL').hidden=false;
   bkFillNames();
   const me=bkMe(), mine=$('#bookMine').checked && !!me;
-  const rows=[...mbAllRows().map(x=>({k:'mb', d:x.d, t:String(x.t||''), staff:x.staff||'', hay:[x.n,x.m,x.t,x.note,x.staff], x})),
-    ...[...bookRows(true), ...manualRows()].filter(x=>BOOK_CATS[x.cat]).map(x=>({k:x.cat, d:x.d, t:x.tm||'99', staff:x.staff||'', hay:[x.org,x.item,x.kind,x.place,x.staff,x.tm,x.note], x}))];
-  const list=rows.filter(v=>(past || F.dated || v.d>=today) && (!mine || isMine(v, me)) && bkFindOk(F, v.d, [...v.hay, BK_ALL_NAME[v.k]].join(' ')))
+  const rows=[...mbAllRows().map(x=>({k:'mb', d:x.d, t:String(x.t||''), staff:x.staff||'', hay:{org:x.n, staff:x.staff, what:x.m, note:x.note, rest:[x.t, '몽몽마방']}, x})),
+    ...[...bookRows(true), ...manualRows()].filter(x=>BOOK_CATS[x.cat]).map(x=>({k:x.cat, d:x.d, t:x.tm||'99', staff:x.staff||'', hay:{org:x.org, staff:x.staff, what:[x.item,x.kind,x.place], note:x.note, rest:[x.tm, BOOK_CATS[x.cat]]}, x}))];
+  const list=rows.filter(v=>(past || F.dated || v.d>=today) && (!mine || isMine(v, me)) && bkFindOk(F, v.d, bkHay(F, v.hay)))
     .sort((a,b)=>(a.d+a.t).localeCompare(b.d+b.t) || keys.indexOf(a.k)-keys.indexOf(b.k));
   bkFindPaint(list.length, keys.map(k=>{ const n=list.filter(v=>v.k===k).length; return n ? `${BK_ALL_NAME[k]} ${n}` : ''; }).filter(Boolean).join(' · '));
   $('#bookTitle').textContent='모든 예약 목록에서 찾기'; { const bs=$('#bookSum'); if(bs){ bs.textContent=''; bs.hidden=true; } }
@@ -1735,7 +1739,7 @@ function mbRow(x, today, tag){ return bkRowHTML({d:x.d, tm:x.t, org:x.n, n:x.p?x
 function paintMbDb(){
   const db=mbDb(), today=todayYmd(), past=$('#bookPast').checked;   // 지난 예약도 보기 (예약 목록 창 공통)
   const all=mbAllRows();
-  const F=bkFind(), list=all.filter(x=>(past || F.dated || x.d>=today) && bkFindOk(F, x.d, [x.n,x.m,x.t,x.note,x.staff].join(' '))).sort((a,b)=>(a.d+String(a.t)).localeCompare(b.d+String(b.t)));
+  const F=bkFind(), list=all.filter(x=>(past || F.dated || x.d>=today) && bkFindOk(F, x.d, bkHay(F, {org:x.n, staff:x.staff, what:x.m, note:x.note, rest:x.t}))).sort((a,b)=>(a.d+String(a.t)).localeCompare(b.d+String(b.t)));
   bkFindPaint(list.length);
   $('#mbdbSum').textContent = all.length ? `${all.length}건 · 단체 예약(가예약 · 예약확정)에서 자동으로 들어옴` : '아직 없음';   // 「＋ 직접 추가」를 없애며 「직접 추가 마지막 저장」 글도 뺌 (2026-11-27)
   $('#mbdbHead').innerHTML = bkHeadHTML('mb');

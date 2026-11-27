@@ -7,8 +7,8 @@
 <script>/* 불러오는 중 화면 (2026-11-21): 단체 화면을 열면 예약 정보가 준비될 때까지 빈 새 통화 화면 대신 「불러오는 중」 (예약 현황 공유 · 나의 할일 · 과업 계산 창은 빼고) */ (function(){ if(!/[?&](book|my|engine)=/.test(location.search)) document.documentElement.classList.add('g-loading'); })();</script>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sayuwon_owner"), u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search) && !/[?&]embed=1/.test(location.search)){ location.replace("./#mypop"); return; }   /* 2026-11-24: 나의 할일 한 페이지는 없앰 — 첫 화면의 팝업으로 (팝업 안 · 과업 계산 창은 embed=1 이라 그대로) */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261127f">
-<link rel="stylesheet" href="css/menu.css?v=20261127f">
+<link rel="stylesheet" href="css/group.css?v=20261127g">
+<link rel="stylesheet" href="css/menu.css?v=20261127g">
 </head>
 <body>
 <header>
@@ -103,9 +103,9 @@
       <span class="row-btns"><button type="button" class="btn primary" id="bookLogBtn" title="직접 추가한 예약의 추가 · 수정 · 빼기(사유) 기록">수정 기록</button><label class="hint" id="bookPastL" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bookPast"> 지난 예약도 보기</label><button type="button" class="btn list-x" id="bookClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <!-- 2026-11-25 배치: 넓은 화면은 왼쪽 = 찾기 · 담당 일정 (세로로) / 오른쪽 = 날짜별로 묶은 목록 · 좁은 화면 · 단체 화면 팝업은 예전처럼 위아래 -->
     <div class="bk-wrap"><aside class="bk-side">
-    <div class="book-find" id="bookFind"><b class="bk-sh">찾기</b><div class="bf-date"><span class="bf-l">날짜</span><span class="bf-dt" id="bfRangeW"><span class="dbox"><input class="dtxt" readonly placeholder="전체" title="누르면 달력 · 하나만 고르면 그날 하루, 둘을 다르게 고르면 기간"><input type="date" class="dpick" id="bfFrom" tabindex="-1" aria-hidden="true"></span><span class="bf-til">~</span><span class="dbox"><input class="dtxt" readonly placeholder="전체" title="누르면 달력 · 하나만 고르면 그날 하루, 둘을 다르게 고르면 기간"><input type="date" class="dpick" id="bfTo" tabindex="-1" aria-hidden="true"></span></span></div><input id="bfQ" class="bf-q" type="search" placeholder="프로그램 · 업체명 · 담당자 이름 검색" data-ime="ko" autocomplete="off"><button type="button" class="btn primary" id="bfReset" title="날짜 · 검색어 지우기 (전체로)">초기화</button><small class="hint bf-n" id="bfN"></small></div>
+    <div class="book-find" id="bookFind"><b class="bk-sh">찾기</b><div class="bf-date"><span class="bf-l">날짜</span><span class="bf-dt" id="bfRangeW"><span class="dbox"><input class="dtxt" readonly placeholder="전체" title="누르면 달력 · 하나만 고르면 그날 하루, 둘을 다르게 고르면 기간"><input type="date" class="dpick" id="bfFrom" tabindex="-1" aria-hidden="true"></span><span class="bf-til">~</span><span class="dbox"><input class="dtxt" readonly placeholder="전체" title="누르면 달력 · 하나만 고르면 그날 하루, 둘을 다르게 고르면 기간"><input type="date" class="dpick" id="bfTo" tabindex="-1" aria-hidden="true"></span></span></div><select id="bfField" class="bf-field" title="어느 칸에서 찾을지 (전체 = 모든 칸)" aria-label="찾기 구분"><option value="">전체</option><option value="org">업체명</option><option value="staff">담당자</option><option value="what">프로그램 · 내용</option><option value="note">비고</option></select><input id="bfQ" class="bf-q" type="search" placeholder="검색어 (모든 목록에서 찾음)" data-ime="ko" autocomplete="off"><button type="button" class="btn primary" id="bfReset" title="날짜 · 검색어 지우기 (전체로)">초기화</button><small class="hint bf-n" id="bfN"></small></div>
     <!-- 담당 일정 (2026-11-21 · 2026-11-23): 이름 = 담당 칸에 있는 이름 중에서 고름 · 출력하기 = 그 사람 일정 표 이미지 · 모든 담당 출력 = 담당마다 한 장씩 -->
-    <div class="book-me" id="bookMe"><b class="bk-sh">담당 일정 · 출력</b><label class="bm-name">이름 <select id="bookMeName" title="대관 · 도슨트 · 프로그램 · 음료쿠폰의 담당 칸에 있는 이름"><option value="">담당자 고르기</option></select></label><label class="bm-mine" id="bookMineL"><input type="checkbox" id="bookMine"> 이 담당만 보기</label>
+    <div class="book-me" id="bookMe"><b class="bk-sh">담당 일정<span class="bk-sh-p"> · 출력</span></b><label class="bm-name">이름 <select id="bookMeName" title="대관 · 도슨트 · 프로그램 · 음료쿠폰의 담당 칸에 있는 이름"><option value="">담당자 고르기</option></select></label><label class="bm-mine" id="bookMineL"><input type="checkbox" id="bookMine"> 이 담당만 보기</label>
       <label class="bm-range">기간 <select id="bookRange"><option value="7">오늘부터 1주</option><option value="14">오늘부터 2주</option><option value="30">오늘부터 한 달</option></select></label>
       <span class="bm-btns"><button type="button" class="btn primary" id="bookPrint" title="고른 담당의 일정(대관 · 도슨트 · 프로그램 · 음료쿠폰)을 표 이미지로 저장">출력하기</button><button type="button" class="btn primary" id="bookPrintAll" title="이 기간에 일정이 있는 담당마다 한 장씩 표 이미지로 저장 (나눠 주기용)">모든 담당 출력</button></span></div>
     </aside><div class="bk-main">
@@ -422,14 +422,14 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/common.js?v=20261127f"></script>
-<script src="js/opslib.js?v=20261127f"></script>
-<script src="js/group.js?v=20261127f"></script>
-<script src="js/taskcfg.js?v=20261127f"></script>
-<script src="js/mytask.js?v=20261127f"></script>
-<script src="js/ime.js?v=20261127f"></script>
-<script src="js/keepsize.js?v=20261127f"></script>
-<script src="js/menu.js?v=20261127f"></script>
-<script src="js/timepick.js?v=20261127f"></script>
+<script src="js/common.js?v=20261127g"></script>
+<script src="js/opslib.js?v=20261127g"></script>
+<script src="js/group.js?v=20261127g"></script>
+<script src="js/taskcfg.js?v=20261127g"></script>
+<script src="js/mytask.js?v=20261127g"></script>
+<script src="js/ime.js?v=20261127g"></script>
+<script src="js/keepsize.js?v=20261127g"></script>
+<script src="js/menu.js?v=20261127g"></script>
+<script src="js/timepick.js?v=20261127g"></script>
 </body>
 </html>
