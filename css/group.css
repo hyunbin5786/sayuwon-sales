@@ -1172,15 +1172,16 @@ html.g-loading body{overflow:hidden}
 .memo-stack{display:flex;flex-direction:column;height:300px;min-height:200px;resize:vertical;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff}
 .memo-stack:focus-within{border-color:var(--pine)}
 .memo-stack #memoBox{flex:0 0 auto;width:100%;height:72px;min-height:72px;max-height:55%;resize:none;border:0;border-top:1px solid var(--line);border-radius:0;outline:none;background:transparent;padding:10px 12px}
-.note-list{flex:1 1 0;min-height:0;overflow:auto;scrollbar-gutter:stable;list-style:none;margin:0;padding:2px 2px 2px 12px;background:#faf8f3}   /* 같은 날 다시(채팅처럼): 기록 자리가 칸의 위쪽 전부 — 위에서부터 쌓이고, 적는 자리는 늘 맨 아래 한 줄 높이(적으면 조금 늘어남 · js noteGrow) */
-.note-empty{padding:10px 0;color:#9a968a;font:400 13px/1.5 var(--sans)}
+.note-list{flex:1 1 0;min-height:0;overflow:auto;scrollbar-gutter:stable;list-style:none;margin:0;padding:8px 2px 8px 10px;display:flex;flex-direction:column;gap:8px}   /* 같은 날 다시(채팅처럼): 기록 자리가 칸의 위쪽 전부 — 위에서부터 쌓이고, 적는 자리는 늘 맨 아래 한 줄 높이(적으면 조금 늘어남 · js noteGrow) */
+/* 같은 날 세 번째(운영팀: 처음부터 갈색으로 차 있어 답답함): 기록 자리는 바탕색 없이 비워 두고, 메모 하나하나가 모서리 둥근 상자로 쌓임 */
 .note-list::-webkit-scrollbar{width:10px;height:10px}
 .note-list::-webkit-scrollbar-track, .note-list::-webkit-scrollbar-corner{background:transparent}
 .note-list::-webkit-scrollbar-thumb{background-color:#c9c6be;border:2px solid transparent;background-clip:padding-box;border-radius:5px}
 .note-list::-webkit-scrollbar-thumb:hover, .note-list::-webkit-scrollbar-thumb:active{background-color:var(--muted)}
 @supports not selector(::-webkit-scrollbar){ .note-list{scrollbar-width:thin;scrollbar-color:#c9c6be transparent} }
-.note-it{padding:8px 0}
-.note-it + .note-it{border-top:1px solid var(--line)}
+.note-it{flex:none;padding:8px 12px;border-radius:12px;background:#f5f2ea;border:1px solid #ebe6da}
+.note-it.del{background:transparent;border-style:dashed}
+.note-it.editing{background:#fff;border-color:var(--pine)}
 .note-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:22px;font:400 12px var(--sans);color:var(--muted)}
 .note-when{font-weight:600;color:#6b665c}
 .note-by{padding:1px 7px;border-radius:999px;background:var(--pine-soft);color:var(--pine);font-weight:600}
