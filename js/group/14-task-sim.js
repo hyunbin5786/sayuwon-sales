@@ -177,7 +177,10 @@ function renderMy(){ paintMySet();
   const dueTxt = d => { const n=daysFrom(today,d); return n<0 ? `<b class="late">${-n}일 지남</b>` : n===0 ? '<b class="late">오늘</b>' : `${n}일 남음`; };
   // 단체 탭 2열: ① 단체 추후 과업 ② 방문 예정 (2026-11-24 순서 바꿈)
   const none = t => `<p class="hint">${t}</p>`;
-  let c1 = `<h3 class="my-h">${past?'전체 담당 예약':'방문 예정'} <small>${shown.length}건 · 방문일 순</small></h3>` + (shown.length
+  // 칸의 틀 (2026-11-27 · 모든 탭이 같은 틀): 위(제목 — 「<!--fx-->」 표시가 있으면 거기까지)는 고정, 그 아래 목록만 스크롤 · 스크롤 막대는 칸 안쪽 (css/group.css .my-col.fx)
+  const splitHead = h => { let i=h.indexOf('<!--fx-->'); if(i>=0) return [h.slice(0,i), h.slice(i+9)]; i=h.indexOf('</h3>'); return i<0 ? ['', h] : [h.slice(0,i+5), h.slice(i+5)]; };
+  const fxCol = h => { const [a,b]=splitHead(h); return `<div class="my-col fx"><div class="my-fix">${a}</div><div class="my-scroll">${b}</div></div>`; };
+  let c1 =`<h3 class="my-h">${past?'전체 담당 예약':'방문 예정'} <small>${shown.length}건 · 방문일 순</small></h3>` + (shown.length
     ? `<ul class="pc-list">${shown.map(o=>{ const st=stageOfRec(o.r), left=o.tasks.filter(t=>!t.done).length, dq=docTag(o.r,'quote'), ds=docTag(o.r,'stmt');
         return `<li class="r" data-myopen="${esc(o.r.id)}"><span class="who"><b>${esc(dateLabel(o.r.date)||'방문일 미정')}</b> <span class="tag st-${st}">${st}</span> <b>${org(o.r)}</b>${o.r.people?` · ${esc(o.r.people)}명`:''}<br>`
           + `<small class="hint" style="margin:0">${contactCell(o.r)||'담당자 미입력'}</small>`
@@ -227,13 +230,13 @@ function renderMy(){ paintMySet();
     const p1 = `<h3 class="my-h">추후 과업 (개인) <small>${nPc}개${latePc?` · <b class="late">기한 지남 ${latePc}개</b>`:''}</small></h3>` + catTasks(persAll.map(o=>({...o, personal:true})), CAT_P, '해결 안 된 개인고객 과업이 없습니다.');
     const p2 = `<h3 class="my-h">내가 받은 개인고객 통화 <small>최근 ${calls.length}건</small></h3>` + (calls.length ? `<ul class="pc-list">${calls.map(r=>{ let ts=[]; try{ ts=JSON.parse(r.history||'{}').tasks||[]; }catch(_){} const left=ts.filter(t=>!t.done).length;
         return `<li class="r" data-popen="${esc(r.id)}"><span class="who"><b>${esc(r.contact||'(이름 없음)')}</b>${r.phone?` · ${esc(r.phone)}`:''}${r.date?` · ${esc(dateLabel(String(r.date).slice(0,10)))}`:''}<br><small class="hint" style="margin:0">${esc(fmt(r.saved))}${r.note?` · ${esc(String(r.note).split(/\n/)[0].slice(0,50))}`:''}${left?` · 남은 과업 ${left}개`:''}</small></span></li>`; }).join('')}</ul>` : none('내가 받은 개인고객 통화가 없습니다.'));
-    $('#myBody').innerHTML = `<div class="my-cols two"><div class="my-col">${p1}</div><div class="my-col">${p2}</div></div>`; return;
+    $('#myBody').innerHTML = `<div class="my-cols two">${fxCol(p1)}${fxCol(p2)}</div>`; return;
   }
-  if(/^cat:/.test(myTab)){ const c=myTab.slice(4), n=myEtcOpen().filter(o=>etcCatOf(o.d)===c).length; $('#mySum').textContent = `${c||ETC_NOCAT} 남은 것 ${n}개`; $('#myBody').innerHTML = `<div class="my-cols one"><div class="my-col">${etcCatAllHTML(c)}</div></div>`; return; }   // 내가 만든 구분 · 구분 없음 (기타 개인 업무)
+  if(/^cat:/.test(myTab)){ const c=myTab.slice(4), n=myEtcOpen().filter(o=>etcCatOf(o.d)===c).length; $('#mySum').textContent = `${c||ETC_NOCAT} 남은 것 ${n}개`; $('#myBody').innerHTML = `<div class="my-cols one">${fxCol(etcCatAllHTML(c))}</div>`; return; }   // 내가 만든 구분 · 구분 없음 (기타 개인 업무)
   if(myTab==='group'){
     $('#mySum').textContent = `담당 단체 예약 ${mine.length}건 · 방문 예정(가예약 · 예약확정) ${ahead.filter(booked).length}건 · 미정 ${tbdAll.length}건 · 남은 과업 ${nG}개`;
     const g2 = groupTasksHTML();
-    $('#myBody').innerHTML = `<div class="my-cols two"><div class="my-col">${g2}</div><div class="my-col">${c1}</div></div>`; return;
+    $('#myBody').innerHTML = `<div class="my-cols two">${fxCol(g2)}${fxCol(c1)}</div>`; return;
   }
   // 메인 (2026-11-19 · 예전 「전체」): ① 개인 업무 입력 + 구분 순서 · 추가 ② ③ 고른 구분의 할 일 (고른 것은 이 브라우저에 기억)
   const pTasks = () => `<h3 class="my-h">개인예약 <small>${nPc}개${latePc?` · <b class="late">기한 지남 ${latePc}개</b>`:''}</small></h3>` + catTasks(persAll.map(o=>({...o, personal:true})), CAT_P, '해결 안 된 개인고객 과업이 없습니다.');
@@ -243,7 +246,6 @@ function renderMy(){ paintMySet();
   const v2=pick(2), v3=pick(3);
   $('#mySum').textContent = '';   // 메인: 「개인예약 n · 단체예약 n · 기타 개인 업무 n개」 글은 없앰 (2026-11-24)
   // 2026-11-24: 칸마다 위(입력 · 오늘 마감 제목 / 구분 고르기 · 개인예약 · 단체예약 제목)는 고정, 그 아래 목록만 스크롤 (다시 그려도 스크롤 자리 그대로)
-  const splitHead = h => { const i=h.indexOf('</h3>'); return i<0 ? ['', h] : [h.slice(0,i+5), h.slice(i+5)]; };
   const [tdH, tdL]=splitHead(todayDueHTML()), [h2, l2]=splitHead(secOf(v2)), [h3, l3]=splitHead(secOf(v3));
   const keep=[...document.querySelectorAll('#myBody .my-scroll')].map(x=>x.scrollTop);
   $('#myBody').innerHTML = `<div class="my-cols three"><div class="my-col fx"><div class="my-fix"><h3 class="my-h">개인 업무 입력</h3>${etcAddHTML()}${myQuoteReqHTML()}${tdH}</div><div class="my-scroll">${tdL}${doneTodayHTML()}</div></div>`
