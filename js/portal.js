@@ -33,6 +33,9 @@ const esc = SY.esc;   // 공통 도구 (js/common.js)
 const getKey = SY.getKey;
 
 // ===================== 로그인: 멤버 목록(이름 + 사번)과 맞아야 =====================
+// 휴대폰: 처음에는 「로그인」 버튼 하나만 → 누르면 이름 · 사번 칸이 펼쳐짐 / 로그인 전 바로가기 상자(예약보조 · 운영보조)는 접힌 채로 시작 (PC 는 펼친 채로 · 2026-11-27)
+$('#loginOpen').addEventListener('click', ()=>{ $('#loginForm').classList.add('open'); $('#inName').focus(); });
+if(matchMedia('(max-width:700px)').matches) document.querySelectorAll('.gshare details').forEach(d=>{ d.open=false; });
 $('#loginForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const name=$('#inName').value.trim(), emp=$('#inEmp').value.trim(), err=$('#loginErr'), btn=e.submitter||$('#loginForm button');
