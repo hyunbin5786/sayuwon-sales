@@ -2112,12 +2112,12 @@ function noteCommit(){   // 적는 자리의 글을 기록으로 쌓음 (저장�
 const noteCan = n => !editLockBy && (!lockOwner || (!!n.by && n.by===savedOwner()));   // 고치기 · 지우기: 영업 담당은 모두 · 담당이 아니면 내가 적은 기록만
 function renderNotes(toEnd){
   const box=$('#noteList'); if(!box) return; const did=noteDraftId && String($('#memoBox').value||'').trim() ? noteDraftId : '';
-  const L=noteSort(notes).filter(n=>n.id!==did && String(n.text||'').trim()), y=box.scrollTop;
+  const L=noteSort(notes).filter(n=>n.id!==did && !n.del && String(n.text||'').trim()), y=box.scrollTop;
   box.hidden=false;   // 채팅처럼: 기록 자리는 늘 보이고 위에서부터 쌓임 · 적는 자리는 맨 아래 (같은 날 다시 · 운영팀 요청)
   box.innerHTML=L.map(n=>{ const can=noteCan(n), id=esc(n.id), when = n.t ? `<b class="note-when num">${esc(dtLabel(n.t))}</b>${n.by?`<span class="note-by">${esc(n.by)}</span>`:''}` : '<b class="note-when">예전 메모</b>';
     if(n.del) return `<li class="note-it del" data-nid="${id}"><div class="note-h">${when}<span class="note-ed">지운 기록${n.del.by?` · ${esc(n.del.by)}`:''}${n.del.t?` ${esc(dtLabel(n.del.t))}`:''}</span><span class="note-acts"><button type="button" class="note-btn" data-nshow="${id}">${noteShown.has(n.id)?'내용 접기':'내용 보기'}</button>${can?`<button type="button" class="note-btn" data-nback="${id}">되살리기</button>`:''}</span></div>${noteShown.has(n.id)?`<div class="note-tx">${esc(n.text)}</div>`:''}</li>`;
     if(noteEditId===n.id) return `<li class="note-it editing" data-nid="${id}"><div class="note-h">${when}</div><textarea class="note-edit" data-ime="ko" lang="ko" spellcheck="false">${esc(n.text)}</textarea><div class="note-edit-btns"><button type="button" class="btn primary" data-nok="${id}">고친 내용 넣기</button><button type="button" class="btn" data-ncancel="${id}">취소</button></div></li>`;
-    return `<li class="note-it" data-nid="${id}"><div class="note-h">${when}${n.ed?`<span class="note-ed">고침${n.ed.by?` · ${esc(n.ed.by)}`:''}${n.ed.t?` ${esc(dtLabel(n.ed.t))}`:''}</span>`:''}${can?`<span class="note-acts"><button type="button" class="note-btn" data-nedit="${id}">고치기</button><button type="button" class="note-btn" data-ndel="${id}">지우기</button></span>`:''}</div><div class="note-tx">${esc(n.text)}</div></li>`; }).join('');
+    return `<li class="note-it" data-nid="${id}"><div class="note-h">${when}${n.ed?`<span class="note-ed" title="${esc([n.ed.by, n.ed.t?dtLabel(n.ed.t):''].filter(Boolean).join(' · '))} 고침 — 고치기 전 글은 「수정 기록」에서">고침</span>`:''}${can?`<span class="note-acts"><button type="button" class="note-btn" data-nedit="${id}">고치기</button><button type="button" class="note-btn" data-ndel="${id}">지우기</button></span>`:''}</div><div class="note-tx">${esc(n.text)}</div></li>`; }).join('');
   noteGrow(); box.scrollTop = toEnd ? box.scrollHeight : y;
 }
 // 적는 자리 높이: 평소 한두 줄(css) · 길게 적으면 칸의 27% 까지 늘어남(처음 55% 의 절반 · 넘으면 그 안에서 스크롤) · 비우면 도로 (채팅 입력창처럼)
@@ -5068,11 +5068,32 @@ $('#noteList').addEventListener('click', e=>{
   if(b.dataset.nedit){ noteEditId=id; renderNotes(); const ta=$('#noteList .note-edit'); if(ta){ ta.style.height=Math.min(200, ta.scrollHeight+4)+'px'; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); ta.closest('li').scrollIntoView({block:'nearest'}); } return; }
   if(b.dataset.nok){ const ta=b.closest('li').querySelector('.note-edit'), v=String(ta.value||'').trim();
     if(!v){ toast('빈 글로는 고칠 수 없습니다. 없애려면 「지우기」를 눌러 주세요.'); return; }
-    noteEditId=''; if(v!==String(n.text||'').trim()){ set({...n, text:v, ed:{t:now, by:me}}); noteTouched(); } else renderNotes(); return; }
-  if(b.dataset.ndel){ askDelete('이 통화 메모 기록을 지울까요? 지운 기록은 「지운 기록」으로 남아 내용을 다시 볼 수 있고, 되살릴 수 있습니다.', ()=>{ const x=notes.find(q=>q.id===id); if(!x) return; set({...x, del:{t:now, by:me}}); noteTouched(); }); return; }
+    noteEditId=''; if(v!==String(n.text||'').trim()){ set({...n, text:v, ed:{t:now, by:me}, eds:[...(n.eds||[]), {t:now, by:me, from:String(n.text||'')}].slice(-20)}); noteTouched(); } else renderNotes(); return; }   // eds = 고치기 전 글(수정 기록 창에서 봄)
+  if(b.dataset.ndel){ askDelete('이 통화 메모를 지울까요? 통화 메모 칸에서는 사라지고, 「수정 기록」 버튼에서 내용을 다시 보거나 되살릴 수 있습니다.', ()=>{ const x=notes.find(q=>q.id===id); if(!x) return; set({...x, del:{t:now, by:me}}); noteTouched(); }); return; }
   if(b.dataset.nback){ const o={...n}; delete o.del; set(o); noteTouched(); }
 });
 $('#noteList').addEventListener('keydown', e=>{ if(!e.target.closest('.note-edit')) return; if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); noteEditId=''; renderNotes(); } else if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); const ok=e.target.closest('li').querySelector('[data-nok]'); if(ok) ok.click(); } });
+// 통화 메모 수정 기록 창 (같은 날 다섯 번째 · 운영팀: 통화 메모 칸에는 지금 유효한 메모만 · 고친 것 · 지운 것은 「수정 기록」 버튼에서)
+//  지운 메모(del) = 내용 · 누가 언제 지웠는지 · 되살리기 / 고친 메모(eds · 예전 것은 ed 만) = 고치기 전 글과 고친 뒤 글. 최근 것부터.
+function noteHistRender(){
+  const m=document.getElementById('noteHistModal'); if(!m) return; const ev=[], who=n=>`${n.t?esc(dtLabel(n.t)):'예전 메모'}${n.by?` · ${esc(n.by)}`:''}`;
+  notes.forEach(n=>{ const E=n.eds||[];
+    E.forEach((e,i)=>ev.push({t:e.t, html:`<div class="nh-h"><b>고침</b><span>${esc(dtLabel(e.t))}${e.by?` · ${esc(e.by)}`:''}</span><span>(적은 것 ${who(n)})</span></div><div class="nh-tx old"><small>고치기 전</small>${esc(e.from)}</div><div class="nh-tx"><small>고친 뒤</small>${esc(i<E.length-1 ? E[i+1].from : n.text)}</div>`}));
+    if(n.ed && !E.length) ev.push({t:n.ed.t, html:`<div class="nh-h"><b>고침</b><span>${esc(dtLabel(n.ed.t))}${n.ed.by?` · ${esc(n.ed.by)}`:''}</span><span>(적은 것 ${who(n)})</span></div><div class="nh-tx"><small>고친 뒤 (고치기 전 글은 남아 있지 않습니다)</small>${esc(n.text)}</div>`});
+    if(n.del) ev.push({t:n.del.t||'~', html:`<div class="nh-h"><b>지움</b><span>${n.del.t?esc(dtLabel(n.del.t)):''}${n.del.by?` · ${esc(n.del.by)}`:''}</span><span>(적은 것 ${who(n)})</span>${noteCan(n)?`<button type="button" class="btn primary" data-nhback="${esc(n.id)}">되살리기</button>`:''}</div><div class="nh-tx">${esc(n.text)}</div>`}); });
+  ev.sort((a,b)=>String(b.t).localeCompare(String(a.t)));
+  m.querySelector('#noteHistBody').innerHTML = ev.length ? `<ul class="nh-list">${ev.map(e=>`<li>${e.html}</li>`).join('')}</ul>` : '<p class="nh-none">고치거나 지운 통화 메모가 없습니다.</p>'; }
+function noteHistOpen(){
+  let m=document.getElementById('noteHistModal');
+  if(!m){ m=document.createElement('div'); m.id='noteHistModal'; m.className='modal'; m.hidden=true;
+    m.innerHTML='<section class="panel note-hist" role="dialog" aria-modal="true" aria-labelledby="noteHistT" tabindex="-1"><h2 id="noteHistT">통화 메모 수정 기록 <small>고친 것 · 지운 것</small></h2><button type="button" class="win-x" id="noteHistX" title="닫기 (Esc)" aria-label="닫기">×</button><div id="noteHistBody" style="display:flex;flex-direction:column;min-height:0"></div></section>';
+    document.body.appendChild(m);
+    m.addEventListener('mousedown', e=>{ if(e.target===m) m.hidden=true; }); m.querySelector('#noteHistX').onclick=()=>{ m.hidden=true; };
+    m.addEventListener('click', e=>{ const b=e.target.closest('[data-nhback]'); if(!b) return; const id=b.dataset.nhback, n=notes.find(x=>x.id===id); if(!n || !noteCan(n)) return;
+      const o={...n, eds:[...(n.eds||[])]}; delete o.del; notes=notes.map(x=>x.id===id ? o : x); noteOwn.add(id); noteTouched(); renderNotes(true); noteHistRender(); toast('메모를 되살렸습니다.'); });
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !m.hidden){ e.preventDefault(); e.stopPropagation(); m.hidden=true; } }, true); }
+  noteHistRender(); m.hidden=false; setTimeout(()=>m.querySelector('.note-hist').focus(), 0); }
+$('#memoHistBtn').addEventListener('click', noteHistOpen);
 // 적는 자리의 Enter (같은 날 네 번째 · 채팅 입력창처럼): Enter = 저장(기록으로 쌓기) · Shift+Enter = 줄바꿈 · Ctrl+Enter 도 저장 · 한글을 조합하는 중의 Enter 는 그대로 둠
 $('#memoBox').addEventListener('keydown', e=>{ if(e.key!=='Enter' || e.shiftKey || e.altKey || e.isComposing || e.keyCode===229) return; e.preventDefault(); if(String($('#memoBox').value||'').trim()) $('#memoSave').click(); });
 // 아직 저장한 적 없는 새 통화(PC): 예약을 저장할 수 없으니 적은 글을 화면의 기록으로만 쌓아 둠 — 맨 위 「저장」 · 자동 저장 때 함께 저장됨
