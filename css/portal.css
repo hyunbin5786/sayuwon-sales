@@ -79,6 +79,8 @@ main{max-width:1400px}
 .guest .guest-only{display:block}
 .guest .dash{display:none}
 .gshare{max-width:380px;margin:0 auto}
+.gshare[hidden], .gshare .gs-b[hidden]{display:none}   /* 메뉴 설정에서 「로그인 없이」를 끈 묶음 (js/menu.js guestSync · 2026-11-27) */
+.gshare .gs-b:not([hidden]) ~ .gs-b{margin-top:12px}   /* 보이는 묶음 다음 묶음만 위를 띄움 */
 .gshare h3{margin:0 0 6px;font:600 16px var(--serif);color:var(--pine)}
 .gshare h3 small{font:400 12px var(--sans);color:var(--muted);margin-left:6px}
 /* 대시보드 4열 (2026-11-18): 개인고객 전화 · 단체고객 전화 · 기타 개인 할일 · 개인 할일 보기 */

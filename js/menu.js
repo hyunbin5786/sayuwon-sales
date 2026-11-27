@@ -59,22 +59,30 @@ window.syFont = (function(){
     return [...new URLSearchParams(q)].every(([k,v])=>hereQ.get(k)===v); };
   const isHomePg = herePath==='index.html';   // 첫 화면: 메뉴를 고르러 오는 곳 → 로그인했으면 메뉴를 펼친 채로 (묶음도 모두 펼침)
   // ===== 메뉴 설정 (2026-11-26): 메뉴 항목마다 PC · 모바일(700px 아래)에 보일지 — 「기타 설정 › 메뉴 설정」에서 체크로 정함. 모두가 같이 쓰는 설정 =====
-  //  저장: 공유 기록(calls) 한 줄 id menudb · 통화 구분 「메뉴설정」 · 수정 기록 칸 {cfg:{항목 열쇠:{pc, m}}}. 읽기: 서버 동작 menuGet (로그인 없이 · api 12 부터 — 예전 서버면 기본값)
+  //  저장: 공유 기록(calls) 한 줄 id menudb · 통화 구분 「메뉴설정」 · 수정 기록 칸 {cfg:{항목 열쇠:{pc, m, g}}}. 읽기: 서버 동작 menuGet (로그인 없이 · api 12 부터 — 예전 서버면 기본값)
   //  항목 열쇠 = 그 항목의 주소(personal.html · document/ · ./#catalog …) · 예약현황 공유 묶음 = book · 나의 할일 = my · 메뉴 설정 = menucfg
   //  기본값(설정에 없는 항목 · 새로 생긴 항목): PC · 모바일 모두 보임 / 나의 할일 = 모바일만 (PC 는 헤더에 버튼이 있음) / 메뉴 설정 = PC 만. 메뉴 설정은 PC 에서 늘 보임 (못 끄게 — 끄면 다시 켤 길이 없음)
   //  받아 온 설정은 이 브라우저에 기억(sy_menu_cfg)해 두고 화면을 열 때 바로 씀 → 뒤에서 새로 받아 달라졌으면 메뉴를 다시 그림. 로그인해야 보이는 항목은 설정과 상관없이 로그인해야 보임
+  //  로그인 없이 (2026-11-27): 설정 값의 셋째 g = 로그인하지 않은 사람에게도 보일지. 기본값 = 위 G 의 login · guest 표시 그대로 (전화응대 멘트 · 예약현황 공유 · 분실물 찾기 = 보임 · 나머지 = 안 보임 · 저장된 설정에 g 가 없으면 이 기본값).
+  //   G 의 login · guest 표시는 이제 「그 화면이 로그인 없이 실제로 열리는가」를 뜻함 (GK) — 열리지 않는 화면은 설정 창에서 칸이 잠겨 있고 설정에 g:true 가 들어 있어도 보이지 않음 (눌러도 첫 화면으로 튕기기만 하므로).
+  //   화면을 새로 로그인 없이 열게 하려면: 그 화면 HTML 머리의 로그인 확인과 서버 동작부터 따로 정한 뒤 G 에 guest 표시. 로그인 안 한 사람에게는 g 와 PC · 모바일 체크를 둘 다 만족해야 보임
+  //   첫 화면의 로그인 전 바로가기(index.html .gshare 의 data-gmenu="열쇠")도 g 를 따름 (guestSync · PC · 모바일 체크와는 상관없이)
   const MQ = matchMedia('(max-width:700px)');
-  const DEF = k => k==='my' ? {pc:false, m:true} : k==='menucfg' ? {pc:true, m:false} : {pc:true, m:true};
+  const GK = {}; G.forEach(g=>g.items.forEach(it=>{ if(it.key && !it.login && (!g.login || it.guest)) GK[it.key]=1; }));   // 로그인 없이 열리는 화면의 열쇠 (예전 vis 의 판단 그대로: 로그인 묶음에서는 guest 항목만 · 다른 묶음에서는 login 이 아닌 항목만)
+  const DEF = k => ({...(k==='my' ? {pc:false, m:true} : k==='menucfg' ? {pc:true, m:false} : {pc:true, m:true}), g:!!GK[k]});
   let cfg={}; try{ cfg=JSON.parse(localStorage.getItem('sy_menu_cfg')||'{}')||{}; }catch(_){}
   const cfgOf = (k, f) => { const c=cfg[k]; return c && typeof c[f]==='boolean' ? c[f] : DEF(k)[f]; };
   const shown = k => (k==='menucfg' && !MQ.matches) ? true : cfgOf(k, MQ.matches ? 'm' : 'pc');
   const isItem = it => !!(it.href || it.chips || it.cfgBtn);
-  const vis = (it, g) => isItem(it) && shown(it.key) && (logged || (!it.login && (!g.login || it.guest)));   // 로그인 안 했으면: 로그인 묶음에서는 guest 항목만 · 다른 묶음에서는 login 이 아닌 항목만
+  const guestOk = k => !!GK[k] && cfgOf(k, 'g');   // 로그인하지 않은 사람에게 보일지: 로그인 없이 열리는 화면이고 「로그인 없이」가 체크돼 있을 때만
+  const vis = it => isItem(it) && shown(it.key) && (logged || guestOk(it.key));
+  const guestSync = () => { const box=document.querySelector('.gshare'); if(!box) return; let any=false;   // 첫 화면의 로그인 전 바로가기: 「로그인 없이」를 끈 것은 숨김 · 다 숨으면 상자도
+    box.querySelectorAll('[data-gmenu]').forEach(el=>{ const on=guestOk(el.dataset.gmenu); el.hidden=!on; if(on) any=true; }); box.hidden=!any; };
   const itemHTML = it => it.chips ? `<div class="sm-chips">${it.chips.map(([k,l])=>`<a class="sm-chip" href="${base}group.html?book=${k}">${esc(l)}</a>`).join('')}</div>`
     : it.cfgBtn ? `<a class="sm-i" href="#" data-smcfg><b>${esc(it.b)}</b></a>`
     : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}${typeof SY_DEV!=="undefined" && SY_DEV.tag && SY_DEV.tag(it.href)?`<small class="sm-dev">test에만 보임</small>`:""}</b></a>`;   /* 개발 중 기능: 배포 사이트엔 이름표 없음 · 테스트 사이트에만 「test에만 보임」 (2026-11-25 · js/common.js SY_DEV.tag) */
-  const groupHTML = g => { const its=g.items.filter((it, n, a)=>{ if(!it.sub) return vis(it, g);
-      for(let j=n+1; j<a.length && !a[j].sub; j++) if(vis(a[j], g)) return true; return false; });   // 소제목은 그 아래에 보이는 항목이 있을 때만
+  const groupHTML = g => { const its=g.items.filter((it, n, a)=>{ if(!it.sub) return vis(it);
+      for(let j=n+1; j<a.length && !a[j].sub; j++) if(vis(a[j])) return true; return false; });   // 소제목은 그 아래에 보이는 항목이 있을 때만
     return its.some(isItem) ? `<details class="sm-g" data-acc="${g.k}"${(g.k in st ? st[g.k] : false)?' open':''}><summary>${esc(g.t)}</summary>${its.map(it=>it.sub ? `<div class="sm-sub">${esc(it.sub)}</div>` : itemHTML(it)).join('')}</details>` : ''; };
   // 맨 위 「나의 할일」(로그인한 사람만 · 설정에 따라) = 헤더의 「나의 할일」 버튼과 같은 것을 엶 (같은 자료라 체크는 PC 와 그대로 이어짐 · 휴대폰 헤더에서는 그 버튼을 숨기므로 여기에 둠)
   //  맨 아래: 로그아웃(PC · 휴대폰 모두 · 헤더의 로그아웃 버튼은 css 로 숨김 · 2026-11-26) / 로그인 안 했으면 「로그인」(누르면 첫 화면 = 로그인 화면 · 첫 화면에서는 넣지 않음)
@@ -84,7 +92,7 @@ window.syFont = (function(){
     + (logged ? `<button type="button" class="sm-out" data-smout>로그아웃</button>` : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>` + (isHomePg ? '' : `<a class="sm-in" href="${base}index.html">로그인</a>`));
   const wrap=document.createElement('div'); wrap.className='smenu'; wrap.id='smenu'; wrap.hidden=true;
   wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"></nav>`;
-  const draw = () => { const nav=wrap.querySelector('.sm-panel'), y=nav.scrollTop; nav.innerHTML=navHTML(); nav.scrollTop=y;
+  const draw = () => { const nav=wrap.querySelector('.sm-panel'), y=nav.scrollTop; nav.innerHTML=navHTML(); nav.scrollTop=y; guestSync();
     nav.querySelectorAll('details[data-acc]').forEach(d=>d.addEventListener('toggle', ()=>{ st[d.dataset.acc]=d.open; try{ localStorage.setItem('sy_menu_acc2', JSON.stringify(st)); }catch(_){} })); };
   draw();
   try{ MQ.addEventListener('change', draw); }catch(_){}   // 창 너비가 PC ↔ 모바일로 바뀌면 다시
@@ -92,24 +100,26 @@ window.syFont = (function(){
   const cfgPull = () => (typeof SY==='undefined' ? Promise.resolve(null) : SY.callRaw({action:'menuGet'})).then(j=>{ if(!j || !j.ok) return false;
       const c=cfgParse(j), s=JSON.stringify(c); if(s!==JSON.stringify(cfg)){ cfg=c; try{ localStorage.setItem('sy_menu_cfg', s); }catch(_){} draw(); } return true; }).catch(()=>false);
   cfgPull();
-  // 메뉴 설정 창: 묶음마다 항목 · PC ☐ · 모바일 ☐ (체크 = 보임). 「저장」을 눌러야 모두에게 적용
+  // 메뉴 설정 창: 묶음마다 항목 · PC ☐ · 모바일 ☐ · 로그인 없이 ☐ (체크 = 보임). 「저장」을 눌러야 모두에게 적용. 로그인해야 열리는 화면의 「로그인 없이」 칸은 잠김 (저장하지도 않음 — data-smck 없음)
   let mc=null;
   const mcRows = () => [{t:'맨 위', items:[{key:'my', b:'나의 할일'}]}].concat(G.map(g=>({t:g.t, items:g.items.filter(isItem).map(it=>({key:it.key, b:it.b}))})).filter(g=>g.items.length));
   async function mcOpen(){
     if(!mc){ mc=document.createElement('div'); mc.className='smc-wrap'; mc.hidden=true; document.body.appendChild(mc);
       mc.addEventListener('click', e=>{ if(e.target===mc || e.target.closest('[data-smcx]')){ mc.hidden=true; return; } if(e.target.closest('[data-smcsave]')) mcSave(); }); }
     const fresh=await cfgPull();   // 다른 사람이 방금 바꾼 것 위에 덮어쓰지 않게 최신부터
-    mc.innerHTML = `<section class="smc-panel" role="dialog" aria-modal="true" aria-label="메뉴 설정"><h2>메뉴 설정</h2><p class="smc-hint">체크한 곳에서 그 메뉴가 보입니다. 「저장」을 누르면 모든 사람의 메뉴에 적용됩니다. 로그인해야 보이는 메뉴는 로그인한 사람에게만 보입니다.</p>`
-      + `<div class="smc-body"><table class="smc-t"><thead><tr><th>메뉴</th><th>PC</th><th>모바일</th></tr></thead><tbody>`
-      + mcRows().map(g=>`<tr class="smc-g"><td colspan="3">${esc(g.t)}</td></tr>` + g.items.map(it=>`<tr><td>${esc(it.b)}</td>`
-          + ['pc','m'].map(f=>{ const lock=it.key==='menucfg' && f==='pc'; return `<td><input type="checkbox" data-smck="${esc(it.key)}|${f}" aria-label="${esc(it.b)} ${f==='pc'?'PC':'모바일'}"${lock || cfgOf(it.key, f) ? ' checked' : ''}${lock ? ' disabled title="메뉴 설정은 PC 에서 늘 보입니다"' : ''}></td>`; }).join('') + `</tr>`).join('')).join('')
+    mc.innerHTML = `<section class="smc-panel" role="dialog" aria-modal="true" aria-label="메뉴 설정"><h2>메뉴 설정</h2><p class="smc-hint">체크한 곳에서 그 메뉴가 보입니다. 「저장」을 누르면 모든 사람의 메뉴에 적용됩니다.<br>「로그인 없이」를 체크한 메뉴는 로그인하지 않은 사람의 메뉴와 첫 화면에도 보입니다. 이 칸이 잠겨 있는 메뉴는 로그인해야 열리는 화면이라(고객 자료 보호) 체크할 수 없습니다.</p>`
+      + `<div class="smc-body"><table class="smc-t"><thead><tr><th>메뉴</th><th>PC</th><th>모바일</th><th>로그인 없이</th></tr></thead><tbody>`
+      + mcRows().map(g=>`<tr class="smc-g"><td colspan="4">${esc(g.t)}</td></tr>` + g.items.map(it=>`<tr><td>${esc(it.b)}</td>`
+          + ['pc','m'].map(f=>{ const lock=it.key==='menucfg' && f==='pc'; return `<td><input type="checkbox" data-smck="${esc(it.key)}|${f}" aria-label="${esc(it.b)} ${f==='pc'?'PC':'모바일'}"${lock || cfgOf(it.key, f) ? ' checked' : ''}${lock ? ' disabled title="메뉴 설정은 PC 에서 늘 보입니다"' : ''}></td>`; }).join('')
+          + (GK[it.key] ? `<td><input type="checkbox" data-smck="${esc(it.key)}|g" aria-label="${esc(it.b)} 로그인 없이"${cfgOf(it.key, 'g') ? ' checked' : ''}></td>`
+            : `<td><input type="checkbox" disabled aria-label="${esc(it.b)} 로그인 없이 (로그인해야 열리는 화면)" title="로그인해야 열리는 화면입니다"></td>`) + `</tr>`).join('')).join('')
       + `</tbody></table></div><p class="smc-err" id="smcErr">${fresh ? '' : '서버(Cloudflare)가 아직 예전 코드라 설정을 불러오지 못했습니다 — 저장해도 로그인하지 않은 화면에는 적용되지 않을 수 있습니다.'}</p><div class="smc-btns"><button type="button" class="smc-b" data-smcx>취소</button><button type="button" class="smc-b" data-smcsave>저장</button></div></section>`;
     mc.hidden=false; }
   async function mcSave(){
     const next={...cfg}; mc.querySelectorAll('[data-smck]').forEach(c=>{ const [k,f]=c.dataset.smck.split('|'); (next[k] = {...(next[k]||{})})[f]=c.checked; });   // 이 화면에 없는 항목(다른 사이트에만 있는 것)의 설정은 그대로 둠
     const errEl=mc.querySelector('#smcErr'), sv=mc.querySelector('[data-smcsave]'); errEl.textContent=''; sv.disabled=true;
     try{ const now=new Date().toISOString(), me=((typeof SY!=='undefined' && SY.user && SY.user()) || {}).name || '';
-      await SY.call({action:'put', item:{id:'menudb', callType:'메뉴설정', saved:now, takenBy:me, owner:'', summary:'메뉴 설정 (PC · 모바일에 보일 메뉴)', history:JSON.stringify({cfg:next, at:now, by:me})}});
+      await SY.call({action:'put', item:{id:'menudb', callType:'메뉴설정', saved:now, takenBy:me, owner:'', summary:'메뉴 설정 (PC · 모바일 · 로그인 없이 보일 메뉴)', history:JSON.stringify({cfg:next, at:now, by:me})}});
       cfg=next; try{ localStorage.setItem('sy_menu_cfg', JSON.stringify(cfg)); }catch(_){} draw(); mc.hidden=true; }
     catch(e){ errEl.textContent='저장하지 못했습니다: '+(e.code==='bad_key' ? '로그인을 다시 해 주세요' : (e.code || e.message || e)); }
     sv.disabled=false; }
