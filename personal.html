@@ -6,9 +6,9 @@
 <title>개인고객 응대 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 첫 화면 「오늘 마감」 팝업 (2026-11-25) */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/personal.css?v=20261127zb">
-<link rel="stylesheet" href="css/mypop.css?v=20261127zb">
-<link rel="stylesheet" href="css/menu.css?v=20261127zb">
+<link rel="stylesheet" href="css/personal.css?v=20261127zc">
+<link rel="stylesheet" href="css/mypop.css?v=20261127zc">
+<link rel="stylesheet" href="css/menu.css?v=20261127zc">
 </head>
 <body data-my-tab="personal">
 <header>
@@ -122,21 +122,20 @@
 <!-- 과업 알림 (마감이 오늘이거나 지난 추후 과업) (오전 8시 · 11시 · 오후 1시 · 5시, 단체 화면과 같은 기록이라 한 시각에 한 번) -->
 <div class="modal" id="dueModal" hidden>
   <section class="panel wide" role="dialog" aria-modal="true" aria-labelledby="dueTitle">
-    <h2 id="dueTitle">과업 알림</h2>
+    <h2 id="dueTitle">과업 알림</h2><button type="button" class="win-x" id="dueClose" title="닫기 (다음 알림 시각에 다시)" aria-label="닫기">×</button>
     <ul class="due-list" id="dueList"></ul>
-    <div class="btns" style="justify-content:flex-end"><button class="btn primary" id="dueClose" title="다음 알림 시각에 다시">닫기</button></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="js/common.js?v=20261127zb"></script>
-<script src="js/personal.js?v=20261127zb"></script>
+<script src="js/common.js?v=20261127zc"></script>
+<script src="js/personal.js?v=20261127zc"></script>
 <!-- 나의 할일 팝업 (메뉴 8번 페이지 group.html?my=1 을 그대로 띄움) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
-<script src="js/mypop.js?v=20261127zb"></script>
+<script src="js/mypop.js?v=20261127zc"></script>
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/ime.js?v=20261127zb"></script>
-<script src="js/keepsize.js?v=20261127zb"></script>
-<script src="js/menu.js?v=20261127zb"></script>
+<script src="js/ime.js?v=20261127zc"></script>
+<script src="js/keepsize.js?v=20261127zc"></script>
+<script src="js/menu.js?v=20261127zc"></script>
 </body>
 </html>
