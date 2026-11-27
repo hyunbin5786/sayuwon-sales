@@ -220,7 +220,9 @@ $('#eFields').addEventListener('click', e=>{
 function phOpen(src){   // 사진 크게 보기 (고치기 팝업 · 분실물 습득 목록)
   let o=$('#phView'); if(!o){ o=document.createElement('div'); o.id='phView'; o.className='ph-view'; o.innerHTML='<img alt="사진 크게 보기"><button type="button" class="win-x" title="닫기" aria-label="닫기">×</button>'; o.addEventListener('click', ()=>{ o.hidden=true; }); document.body.appendChild(o); }
   o.querySelector('img').src=src; o.hidden=false; }
-$('#eFields').addEventListener('input', e=>{ const k=e.target.dataset.k; if(!k) return; let v=e.target.value; if(B.fields.find(f=>f.k===k)?.type==='num'){ v=v.replace(/[^\d.]/g,''); e.target.value=v; } form[k]=v; });
+$('#eFields').addEventListener('input', e=>{ const k=e.target.dataset.k; if(!k) return; let v=e.target.value; const fd=B.fields.find(f=>f.k===k); if(fd?.type==='num'){ v=v.replace(/[^\d.]/g,''); e.target.value=v; }
+  if(fd?.fmt==='phone'){ v=SY.phoneTyping(e.target, e.inputType); e.target.value=v; }   // 전화번호 칸 (칸 정의의 fmt:'phone' · 2026-11-27 분실물 신고자 전화번호): 치는 동안 - 를 저절로
+  form[k]=v; });
 $('#eFields').addEventListener('change', e=>{ const k=e.target.dataset.k; if(!k) return; form[k]=e.target.value; if(B.onField) B.onField(k, form); if(k==='status'){ if(form.status==='반환 완료' && !form.returnDate) form.returnDate=opsToday(); paintForm(); } else if(e.target.tagName==='SELECT' && B.fields.some(f=>f.show)) paintForm();   /* 구분을 바꾸면 그에 따라 보이는 칸(습득물 사진 등)도 바로 */ });   // 반환 완료면 반환일 = 오늘
 $('#eFields').addEventListener('click', e=>{
   const r=e.target.closest('[data-rep]'); if(r){ form.repeat=r.dataset.rep; if(form.repeat==='weekly' && !(form.dows||[]).length) form.dows=[new Date().getDay()]; if(form.repeat==='monthly' && !form.dom) form.dom=String(new Date().getDate()); if(form.repeat!=='none' && !form.start) form.start=opsToday(); paintForm(); return; }
@@ -239,6 +241,8 @@ $('#eForm').addEventListener('submit', async e=>{ e.preventDefault();
   if($('#e_subAdd')?.value.trim()) addSub();   // 세부 과업 칸에 적어 두고 추가를 안 누른 것도
   if(phBusy){ $('#eErr').textContent='사진을 올리는 중입니다. 끝난 뒤 저장해 주세요.'; return; }
   const miss=B.fields.filter(f=>fReq(f) && (!f.show || f.show(form)) && (f.type==='photos' ? !(Array.isArray(form[f.k]) && form[f.k].length) : !String(form[f.k]||'').trim())); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>fLabel(f)).join(' · ')}을(를) 넣어 주세요.`; return; }   // 사진 칸은 한 장도 없으면 빠진 것 (2026-11-26)
+  B.fields.forEach(f=>{ if(f.fmt==='phone' && (!f.show || f.show(form)) && form[f.k]) form[f.k]=SY.fmtPhone(form[f.k]) || String(form[f.k]).trim(); });   // 붙여 넣은 번호도 - 를 맞춘 뒤
+  const bad=B.fields.filter(f=>f.bad && (!f.show || f.show(form))).map(f=>f.bad(String(form[f.k]||'').trim())).filter(Boolean); if(bad.length){ paintForm(); $('#eErr').textContent=bad.join(' · '); return; }   // 칸마다의 모양 확인 (칸 정의의 bad · 2026-11-27)
   const d={...form}; B.fields.forEach(f=>{ if(f.show && !f.show(form) && f.k in d && f.type!=='dows' && f.type!=='dom') delete d[f.k]; });
   const ok=await putRow({...(editRow||{}), d}, editRow?'고침':'추가'); if(ok!==false){ $('#editModal').hidden=true; toast(editRow?'고쳤습니다.':'추가했습니다.'); }
 });
