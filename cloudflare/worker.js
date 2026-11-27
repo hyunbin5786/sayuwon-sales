@@ -231,6 +231,7 @@ async function lostList(env) {
   const rs = await rows(env, "SELECT data FROM calls WHERE deleted='' AND call_type='분실물' ORDER BY rowid");
   return rs.map(r => { const o = JSON.parse(r.data); let h = {}; try { h = JSON.parse(o.history || '{}') || {}; } catch (x) { h = {}; }
     const d = { ...(h.d || {}) }; d.person = maskName(d.person); d.phone = maskPhone(d.phone); d.returnTo = maskName(d.returnTo); delete d.memo;
+    delete d.reporter; delete d.reporterPhone;   // 분실물 신고자(고객) 이름 · 전화번호는 로그인하지 않은 사람에게 아예 보내지 않음 (2026-11-27 · api 13)
     return { id: o.id, saved: o.saved, updated: o.updated, d }; });
 }
 async function lostAdd(env, req) {
@@ -241,6 +242,8 @@ async function lostAdd(env, req) {
   // 사진: 습득은 꼭 · 신고는 있으면 (2026-11-26 · api 11 — 고객이 보내 준 사진을 로그인 없이 넣는 신고에도. 예전에는 습득만 받고 신고의 사진은 버렸음)
   const photos = (Array.isArray(s.photos) ? s.photos : []).slice(0, 5).filter(p => p && /^m[0-9a-f]{32}$/.test(String(p.id || ''))).map(p => ({ id: String(p.id), name: cleanName(p.name || '사진') }));
   if (kind === '습득') { d.storage = t('storage'); d.photos = photos; } else if (photos.length) d.photos = photos;
+  // 분실물 신고자(물건을 잃어버린 고객) 이름 · 전화번호 (2026-11-27 · api 13 · 신고만 · 적었을 때만). person · phone 은 이제 화면에서 「사유원 담당자」 칸 (저장 이름은 그대로)
+  if (kind === '분실 신고') { const rp = t('reporter', 30), rt = t('reporterPhone', 20); if (rp) d.reporter = rp; if (rt) d.reporterPhone = rt; }
   if (!d.item) throw fail('no_item');
   if (kind === '습득' && !d.photos.length) throw fail('no_photo');
   const by = clT(req.by || d.person, 20) || '(로그인 없이)', now = iso();
@@ -648,7 +651,7 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'menuGet') { try { const o = await getItem(env, 'menudb'); return { ok: true, menu: o && !o.deleted ? { history: o.history, updated: o.updated } : null, api: 12 }; } catch (e) { return err('menuget: ', e); } }   // 메뉴 설정 읽기 (PC · 모바일에 보일 메뉴 · 2026-11-26 · api 12 — 로그인하지 않은 화면의 메뉴도 이 설정을 따라야 해서 로그인 없이)
   if (a === 'mentImgGet') { try { return { ok: true, file: await mentImgGet(env, String(req.id || '')) }; } catch (e) { return err('mentimg: ', e); } }   // 멘트 이미지 한 장
   if (a === 'bookList') { try { return { ok: true, items: await bookList(env), api: 6 }; } catch (e) { return err('booklist: ', e); } }   // 예약 현황 공유 목록 (연락처 칸은 빼고 줌)
-  if (a === 'lostList') { try { return { ok: true, items: await lostList(env), api: 11 }; } catch (e) { return err('lostlist: ', e); } }   // 분실물 목록 (로그인 없이 보는 화면용)
+  if (a === 'lostList') { try { return { ok: true, items: await lostList(env), api: 13 }; } catch (e) { return err('lostlist: ', e); } }   // 분실물 목록 (로그인 없이 보는 화면용)
   if (a === 'lostAdd') { try { const id = await lostAdd(env, req); await bumpRev(env); return { ok: true, id, api: 9 }; } catch (e) { return err('', e); } }   // 분실물 접수
   if (a === 'lostImgPut') { try { return { ok: true, file: await lostImgPut(env, req), api: 9 }; } catch (e) { return err('', e); } }   // 습득물 사진 올리기
   if (a === 'bookAdd') { try { return { ok: true, item: await bookAdd(env, req), api: 6 }; } catch (e) { return err('bookadd: ', e); } }   // 예약 현황에 직접 추가
@@ -680,7 +683,7 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'wait') return waitRev(env, String(req.rev || ''));   // 바뀜 기다리기: 다른 화면이 저장하면 그 순간 답함 (다른 컴퓨터에 바로 알리기)
   if (a === 'quoteReqList') return { ok: true, items: await quoteReqList(env), api: 7 };   // 고객 견적 요청 목록
   if (a === 'quoteReqMark') { try { const item = await quoteReqMark(env, req); await bumpRev(env); return { ok: true, item, api: 7 }; } catch (e) { return err('', e); } }   // 고객 견적 요청 처리 표시 (완료 · 삭제)
-  if (a === 'members') return { ok: true, members: await readMembers(env), roles: await readRoles(env) };   // 멤버 목록 · 담당 지정
+  if (a === 'members') return { ok: true, members: await readMembers(env), roles: await readRoles(env), srv: 13 };   // srv = 서버 번호 (맨 아래 api 와 같은 숫자 · 2026-11-27 · 로그인한 분실물 화면이 「분실물 신고자」 칸을 보여도 되는 서버인지 봄)   // 멤버 목록 · 담당 지정
   if (a === 'memberRole') { try { await setRole(env, String(req.role || ''), req.emp, !!req.on); await bumpRev(env); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }   // 담당 지정 (견적서 담당 등)
   if (a === 'memberAdd') { try { return { ok: true, added: await addMembers(env, req.list || [], req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }   // 멤버 추가
   if (a === 'memberPhone') { try { await setMemberPhone(env, req.emp, req.phone); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }   // 멤버 연락처 고치기 (2026-11-24)
@@ -714,7 +717,7 @@ export default {
     if (request.method === 'GET') {
       // 2026-11-23: /file/<id>/<보이는 이름> 도 받음 — 브라우저는 탭 제목 · 저장 이름을 주소 끝에서 가져가므로 화면에 보이는 이름을 주소 끝에 붙임 (뒤 이름은 무시하고 id 로 찾음)
       const m = url.pathname.match(/^\/file\/([a-zA-Z0-9_-]{8,80})(?:\/[^/]*)?$/);
-      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 12, db: 'd1', ...(env.TEST_SYNC_KEY ? { testSync: true } : {}) });   // api 8 = /file/<id>/<이름> 받음 · api 9 = mirror · api 10 = import 가 press · manual 도 받음 · api 11 = lostAdd 가 분실 신고의 사진도 받음 (lostList 도 api 11 을 돌려줌) · api 12 = menuGet (메뉴 설정 읽기) (testSync 는 테스트 서버에서만 보임)
+      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 13, db: 'd1', ...(env.TEST_SYNC_KEY ? { testSync: true } : {}) });   // api 13 = 분실물 신고자(고객) 이름 · 전화번호: lostAdd 가 받고 lostList 는 로그인 없는 사람에게 보내지 않음 · members 가 srv 를 돌려줌 (2026-11-27) · api 8 = /file/<id>/<이름> 받음 · api 9 = mirror · api 10 = import 가 press · manual 도 받음 · api 11 = lostAdd 가 분실 신고의 사진도 받음 (lostList 도 api 11 을 돌려줌) · api 12 = menuGet (메뉴 설정 읽기) (testSync 는 테스트 서버에서만 보임)
       const f = await readFile(env, m[1]);
       if (!f || f.kind !== 'doc') return new Response('파일이 없습니다', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       const bin = atob(f.data), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);

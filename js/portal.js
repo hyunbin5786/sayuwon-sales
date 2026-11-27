@@ -272,6 +272,7 @@ async function loadDash(){
 const histOf = id => { const it=(lastItems||[]).find(x=>x.id===id && !x.deleted); try{ return JSON.parse((it && it.history)||'null'); }catch(_){ return null; } };
 //  2026-11-24: 무엇을 알릴지(켜기 · 이름 · 할 일 · 만료 몇 달 전 · 새 공통 업무)는 「공통 업무」 옆 「관리」 — js/commonmgr.js (cmOn · cmRule · cmRecs)
 const devOff = p => typeof SY_DEV!=='undefined' && SY_DEV.off(p);   // 배포 사이트에서 개발 중인 화면(재고관리 · 기업 프로모션 · 협업 여행사)의 알림은 숨김 (2026-11-24 · js/common.js SY_DEV)
+var LOST_TASK_FROM = '2026-11-27';   // 이 날(저장 시각 기준)부터 접수된 분실물 신고만 공통 업무에 올림 (아래 commonExtra)
 function commonExtra(today){ const out=[];
   if(cmOn('promo') && !devOff('promo.html')){ const R=cmRule('promo');
     opsPromoAlerts(histOf('promodb'), today, cmMonths()).forEach(a=>out.push({kind:'공통', owner:'', name:`${R.title||'기업 프로모션'} ${a.label} · ${a.name}`, q:a.name, href:'promo.html',
@@ -279,8 +280,16 @@ function commonExtra(today){ const out=[];
   const ag=cmOn('agency') && !devOff('agency.html') && opsAggDue(histOf('agencydb'), today), RA=cmRule('agency');
   if(ag) out.push({kind:'공통', owner:'', name:`${RA.title||'협업 여행사 집계기록 넣기'} · ${ag.label}`, q:'협업 여행사 집계 '+(RA.title||''), href:'agency.html',
     tasks:[{title:`${opsDateLabel(ag.from)} ~ ${opsDateLabel(ag.to)} · ${RA.text||'방문기록 엑셀을 넣어 여행사별 집계'}`, due:ag.due}]});
-  return [...out, ...cmRecs(today)]; }
-function stockDue(today){   // 정기 재고조사 날(오늘이거나 지남)이면 그 날짜 · 아니면 '' — 공통 업무에 (2026-11-24)
+  // 분실물 신고 (2026-11-27): 새로 접수돼 아직 「찾는 중」인 신고 하나 = 공통 업무 하나 · 마감 = 접수일 · 누르면 그 신고가 열림 (lost.html?open=) · 분실물 찾기에서 「처리완료」로 바꾸면(또는 삭제하면) 빠짐.
+  //  따로 저장하지 않고 분실물 기록(통화 구분 「분실물」)을 읽어 보임 → 같은 신고가 두 번 생기지 않고, 로그인 없이 접수한 신고도 그대로 나옴. 고객 이름 · 전화번호는 넣지 않음.
+  //  LOST_TASK_FROM 보다 먼저 접수된 예전 신고는 올리지 않음 (이 기능을 넣은 날부터). 켜기 · 이름 · 할 일은 공통 업무 「관리」(js/commonmgr.js CM_SYS 의 lost)
+  if(cmOn('lost')){ const RL=cmRule('lost');
+    (lastItems||[]).forEach(r=>{ if(r.deleted || r.callType!==OPS_TYPES.lost || String(r.saved||'')<LOST_TASK_FROM) return;
+      const j=opsParse(r), d=j && j.d; if(!d || d.kind!=='분실 신고' || /반환|폐기|완료/.test(d.status||'')) return;   // 찾는 중만 (js/lost.js lostStatus 와 같은 기준)
+      const due=/^\d{4}-\d{2}-\d{2}$/.test(d.date||'') ? d.date : opsYmd(r.saved||today);
+      out.push({kind:'공통', owner:'', name:`${RL.title||'분실물 신고'} · ${d.item||'(물품 없음)'}`, q:[RL.title, d.item, d.feature, d.place, '분실물 신고'].join(' '), href:'lost.html?open='+encodeURIComponent(r.id),
+        tasks:[{title:`${d.place ? d.place+' · ' : ''}${RL.text||'찾아보고 신고자에게 안내'}`, due}]}); }); }
+  return [...out, ...cmRecs(today)]; }function stockDue(today){   // 정기 재고조사 날(오늘이거나 지남)이면 그 날짜 · 아니면 '' — 공통 업무에 (2026-11-24)
   const it=(lastItems||[]).find(x=>x.id==='stockcfg' && !x.deleted); if(!it) return '';
   let d=null; try{ d=(JSON.parse(it.history||'{}')||{}).d; }catch(_){} const nx=d && d.next; return nx && nx<=today ? nx : '';
 }

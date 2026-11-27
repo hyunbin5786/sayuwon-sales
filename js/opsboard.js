@@ -25,6 +25,7 @@ const GUEST = !!B.guest && !opsKey();
 const OLD_SRV = '서버(Cloudflare)가 아직 예전 코드라 로그인 없이 저장할 수 없습니다 — 관리자가 worker.js 를 새로 올려야 합니다 (그 전에는 로그인하면 됨)';
 let rows = GUEST ? [] : (()=>{ try{ return JSON.parse(localStorage.getItem(CACHE_LS)||'[]'); }catch(_){ return []; } })();   // [{r(시트 줄), d(내용)}]
 let syncing=false;
+let openOnce = new URLSearchParams(location.search).get('open') || '';   // ?open=기록 id — 목록을 받은 뒤 한 번만 엶 (로그인한 사람만)
 // 처음 받는 중 (2026-11-27): 이 브라우저에 사본이 없을 때(처음 여는 브라우저 · 로그인 없이 보는 분실물)만 true → 목록 자리에 스켈레톤 (js/common.js SY.skel). 받았거나 못 받으면 false — 그 뒤는 예전 그대로 (재고관리는 화면 모양이 여러 가지라 뺌)
 let opsWait = !rows.length && P!=='stock';
 const opsWaitEnd = () => { if(!opsWait) return; opsWait=false; render(); };
@@ -34,6 +35,7 @@ async function pull(){
     const j=await SY.callRaw({action:'lostList'}).catch(()=>null);
     if(!j || !j.ok){ setSync(j && /^bad_(action|key)$/.test(j.error||'') ? OLD_SRV : '연결 안 됨 · 잠시 뒤 다시'); opsWaitEnd(); return; }
     window.LOST_GUEST_PH = (+j.api||0) >= 11;   // 서버가 api 11 부터 로그인 없이 넣는 분실 신고의 사진도 받음 (그 전 서버면 신고의 사진 칸을 보이지 않음 · js/lost.js)
+    window.LOST_RP = (+j.api||0) >= 13;   // 서버가 13 부터 「분실물 신고자」(고객) 이름 · 전화번호를 로그인 없는 접수에서도 받음 (그 전 서버면 그 두 칸을 보이지 않음 · js/lost.js lostRp)
     rows=(j.items||[]).map(x=>({r:{id:x.id, saved:x.saved, updated:x.updated}, d:x.d||{}, log:[]})); setSync(''); opsWait=false; render(); return; }
   if(!opsKey()){ $('#keyBox').hidden=false; opsWaitEnd(); return; }
   setSync('불러오는 중…');
@@ -41,6 +43,7 @@ async function pull(){
     rows = (j.items||[]).filter(r=>r.callType===OPS_TYPES[P]).map(r=>{ const h=opsParse(r); return h ? {r, d:h.d||{}, log:h.log||[]} : null; }).filter(Boolean);
     try{ localStorage.setItem(CACHE_LS, JSON.stringify(rows)); }catch(_){}
     setSync(''); opsWait=false; render();
+    if(openOnce){ const x=rows.find(y=>y.r?.id===openOnce); openOnce=''; if(x && $('#editModal').hidden) openEdit(x); }   // 주소의 ?open=기록 → 그 기록을 바로 엶 (첫 화면 공통 업무의 「분실물 신고」에서 넘어올 때 · 2026-11-27)
   }catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; $('#keyErr').textContent = SY.authFail(); } setSync('연결 안 됨 · 잠시 뒤 다시'); opsWaitEnd(); }
 }
 async function putRow(row, what){
@@ -108,15 +111,16 @@ function renderLost(hit){
     const list=all.filter(x=>hit(x.d) && (f==='all' || (f==='open' ? b.open.includes(stOf(x)) : stOf(x)===f)))
       .sort(lostSort);   // 날짜 내림차순 (같은 날은 나중에 넣은 것 먼저)
     const chips=[['open','진행 중'],['all','전체'], ...LOST_ST[b.kind].map(s=>[s,s])].map(([v,l])=>`<button type="button" class="chip${f===v?' on':''}" data-lf="${bi}|${esc(v)}">${esc(l)} <small>${cnt(v)}</small></button>`).join('');
+    const cols=b.cols.filter(c=>!(GUEST && c[3]==='in'));   // 넷째 값 'in' = 로그인한 사람에게만 보이는 열 (분실물 신고자 = 고객 이름 · 번호 · 2026-11-27 — 서버도 로그인 없는 사람에게는 보내지 않음)
     const tr=x=>{ const s=stOf(x), ps=Array.isArray(x.d.photos) ? x.d.photos : [];
       return `<tr class="${b.open.includes(s)?'':'closed'}">`
         + (b.photo ? `<td class="lost-ph">${ps.length ? `<img data-phimg="${esc(ps[0].id)}" data-phview="${esc(ps[0].id)}" alt="${esc(x.d.item||'사진')}" title="누르면 크게">${ps.length>1?`<small>+${ps.length-1}</small>`:''}` : `<span class="hint">${esc(b.noPhoto ?? '사진 없음')}</span>`}</td>` : '')
-        + b.cols.map(([k,,fn])=>{ const v=fn?fn(x.d[k], x.d):x.d[k]||''; return `<td>${v && typeof v==='object' ? v.html : esc(v)}</td>`; }).join('')   // {html} 이면 그대로 (물품 아래 줄에 설명)
+        + cols.map(([k,,fn])=>{ const v=fn?fn(x.d[k], x.d):x.d[k]||''; return `<td>${v && typeof v==='object' ? v.html : esc(v)}</td>`; }).join('')   // {html} 이면 그대로 (물품 아래 줄에 설명)
         + (GUEST ? `<td class="st st-${esc(s)}">${esc(s)}</td><td></td></tr>`   // 로그인 없이: 상태는 보기만 · 열기 없음
           : `<td class="st st-${esc(s)}"><select class="lost-st" data-lst="${esc(x.r.id)}" title="상태 바꾸기">${LOST_ST[b.kind].map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select></td><td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">수정</button></td></tr>`); };
     return `<section class="lost-board"><div class="lb-head"><h3>${esc(b.title)} <small>${all.length}건</small></h3><button type="button" class="btn primary" data-ladd="${esc(b.kind)}">＋ ${esc(b.add)}</button></div>`
       + `<div class="filters">${chips}</div>`
-      + (list.length ? `<div class="tw"><table class="tbl"><thead><tr>${b.photo?'<th>사진</th>':''}${b.cols.map(c=>`<th>${c[1]}</th>`).join('')}<th>상태</th><th></th></tr></thead><tbody>${list.map(tr).join('')}</tbody></table></div>`
+      + (list.length ? `<div class="tw"><table class="tbl"><thead><tr>${b.photo?'<th>사진</th>':''}${cols.map(c=>`<th>${c[1]}</th>`).join('')}<th>상태</th><th></th></tr></thead><tbody>${list.map(tr).join('')}</tbody></table></div>`
         : `<p class="empty">${all.length ? '조건에 맞는 기록이 없습니다.' : `아직 ${esc(b.title)} 기록이 없습니다. 「＋ ${esc(b.add)}」로 넣어 주세요.`}</p>`)
       + `</section>`; }).join('')}</div>`;
   document.querySelectorAll('#list img[data-phimg]').forEach(im=>{ phLoad(im.dataset.phimg).then(u=>{ im.src=u; }).catch(()=>{ im.alt='사진을 불러오지 못함'; im.classList.add('bad'); }); });
@@ -144,7 +148,9 @@ const fReq = f => typeof f.req==='function' ? f.req(form) : !!f.req;   // 꼭 �
 const fLabel = f => typeof f.l==='function' ? f.l(form) : f.l;   // 칸 이름 (함수면 그때의 칸 값으로 — 분실물: 신고자 / 습득자)
 // 로그인한 사람의 연락처 (멤버관리에 적은 것 · 2026-11-24): 분실물 습득 접수 때 습득자 · 연락처를 자동으로 (js/lost.js onField)
 window.opsMe = { name:user.name||'', phone:'' };
-if(B.boards && !GUEST) SY.call({action:'members'}).then(j=>{ const e=String(user.emp||'').replace(/\s/g,'').toUpperCase(), m=(j.members||[]).find(x=>String(x.emp||'').replace(/\s/g,'').toUpperCase()===e); if(m){ opsMe.name=m.name||opsMe.name; opsMe.phone=m.phone||''; } }).catch(()=>{});
+if(B.boards && !GUEST) SY.call({action:'members'}).then(j=>{ const e=String(user.emp||'').replace(/\s/g,'').toUpperCase(), m=(j.members||[]).find(x=>String(x.emp||'').replace(/\s/g,'').toUpperCase()===e); if(m){ opsMe.name=m.name||opsMe.name; opsMe.phone=m.phone||''; }
+  if((+j.srv||0) >= 13 && !window.LOST_RP){ window.LOST_RP = true; if(!$('#editModal').hidden) paintForm(); }   // 서버 13 부터 「분실물 신고자」 칸 (members 응답의 srv · 2026-11-27 · js/lost.js lostRp)
+}).catch(()=>{});
 function openEdit(row, preset){   // preset: 새로 넣을 때 먼저 채울 값 (분실물 대시보드의 구분 등)
   editRow=row||null; form = row ? {...row.d} : Object.fromEntries(B.fields.filter(f=>f.def).map(f=>[f.k, f.def()]));
   B.fields.forEach(f=>{ if(f.type==='photos' && Array.isArray(form[f.k])) form[f.k]=form[f.k].slice(); });   // 사진 목록은 사본으로 — 사진을 빼고 「취소」하면 목록의 기록은 그대로 (2026-11-26)
@@ -175,7 +181,7 @@ function fieldHTML(f){
   if(f.type==='date') return lab+`<span class="dbox"><input class="dtxt" id="${id}" data-dt="${f.k}" readonly value="${esc(dateDisp(v))}" placeholder="누르면 달력"><input type="date" class="dpick" data-dp="${f.k}" value="${esc(v)}" tabindex="-1" aria-hidden="true"></span>`;
   return lab+`<input id="${id}" data-k="${f.k}" value="${esc(v)}"${f.ph?` placeholder="${esc(f.ph)}"`:''}${f.type==='time'?' data-tp="1" readonly':f.type==='num'?' inputmode="numeric" data-ime="num"':f.type==='tel'?' inputmode="tel" data-ime="num"':' data-ime="ko"'}>`;
 }
-function paintForm(){ $('#eFields').innerHTML = B.fields.filter(f=>!f.show || f.show(form)).map(f=>`<div class="ef${f.w===2?' w2':''}">${fieldHTML(f)}</div>`).join(''); phPaint(); }
+function paintForm(){ $('#eFields').innerHTML = B.fields.filter(f=>!f.show || f.show(form)).map(f=>`<div class="ef${(typeof f.w==='function' ? f.w(form) : f.w)===2?' w2':''}">${fieldHTML(f)}</div>`).join(''); phPaint(); }
 // ---------- 사진 칸 (type:'photos' · 2026-11-23 · 분실물 습득 사진 · 2026-11-26 분실물 신고에도) ----------
 //  올리기: 화면에서 긴 변 1600px 로 줄여(PNG 는 PNG 그대로, 너무 크면 JPEG) 서버의 그림 저장(mentImgPut — 멘트 이미지와 같은 저장소 · files 표 · 5MB 까지)에 올리고, 기록에는 [{id, name}] 만 둠
 //  보기: mentImgGet 으로 받아 그림으로 (로그인한 사람만 · 한 번 받은 것은 이 화면에 기억). 서버를 바꾸지 않으려고 멘트 이미지 동작을 같이 씀
