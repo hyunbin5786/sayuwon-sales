@@ -4589,7 +4589,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#myModal').
 // 영업 담당이 다른 사람인 예약을 열면 아무것도 고칠 수 없음(저장 · 과업 · 수정 · 삭제 모두). 바꿀 내용은 위쪽 메모로 → 담당자 화면에 '메모를 확인하세요' 팝업
 const mergeMemos = (a, b) => { const m=new Map(); [...(b||[]), ...(a||[])].forEach(x=>{ if(!x||!x.id) return; const o=m.get(x.id); m.set(x.id, o ? {...x, ...o, seen: !!(o.seen||x.seen), seenAt:o.seenAt||x.seenAt||''} : x); }); return [...m.values()].sort((x,y)=>String(x.t).localeCompare(String(y.t))); };
 function notMineMsg(r){ const o=ownerOf(r), me=savedOwner(); if(o && me && o!==me){ toast(`${o}님 담당 예약이라 고치거나 지울 수 없습니다. 예약을 열어 메모로 남겨 주세요.`); return true; } return false; }
-const memoLi = (m, own) => `<li class="${own && !m.seen ? 'new' : ''}"><small>${esc(fmt(m.t))} · <b>${esc(m.by||'')}</b>${own ? (m.seen ? ' · 확인함' : ' · <b style="color:var(--red)">새 메모</b>') : ''}</small><br>${esc(m.text).replace(/\n/g,'<br>')}</li>`;
+const memoLi = (m, own) => `<li class="${own && !m.seen ? 'new' : ''}"><small>${esc(fmt(m.t))} · <b>${esc(m.by||'')}</b>${own ? (m.seen ? ' · 확인함' : ' · <b style="color:var(--red)">새 메모</b>') : ''}</small><br>${esc(String(m.text||'').replace(/^통화 메모를 남겼습니다 —\n/,'')).replace(/\n/g,'<br>')}</li>`;   // 「통화 메모를 남겼습니다 —」 멘트는 뺌 (2026-11-27 운영팀 · 새로 남기는 메모에는 안 붙이고, 앞서 저장된 것은 보일 때만 뗌)
 // ===================== 같은 예약을 두 PC(창)에서 동시에 고치지 않기 =====================
 // 예약을 열면 서버에 '고치는 중'(lock)을 잡고 1분마다 연장. 이미 다른 창이 잡고 있으면 읽기 전용(editLockBy)으로 열고 30초마다 다시 확인
 // → 풀리면 최신 기록을 받아 다시 열어 고칠 수 있게. 다른 예약을 열거나 새 통화 · 화면을 닫으면 풀어 줌. 서버가 예전 버전이면 아무것도 막지 않음
@@ -4684,7 +4684,7 @@ async function saveLockedParts(){
     const nl=noteMerge(notesOf(r), live), note=noteJoin(nl);   // 통화 메모 기록: 방금 받은 최신 기록 위에 내 것만 더함 (2026-11-27)
     mine.forEach(t=>{ const i=ph.tasks.findIndex(x=>x.id===t.id); if(i>=0) ph.tasks[i]={...t}; else ph.tasks.push({...t}); });
     if(noteChanged){   // 영업 담당에게 알림: 아직 안 읽은 내 「통화 메모를 고쳤습니다」가 있으면 그 줄을 새로 (여러 번 고쳐도 알림 한 줄)
-      const txt = draft ? `통화 메모를 남겼습니다 —\n${draft.text.slice(-400)}` : `통화 메모 기록을 고쳤습니다 —\n${note.trim().slice(-400)}`, i=(ph.memos||[]).findIndex(m=>m.by===me && !m.seen && m.kind==='note');
+      const txt = draft ? draft.text.slice(-400) :`통화 메모 기록을 고쳤습니다 —\n${note.trim().slice(-400)}`, i=(ph.memos||[]).findIndex(m=>m.by===me && !m.seen && m.kind==='note');
       if(i>=0) ph.memos[i]={...ph.memos[i], t:now, text:txt}; else ph.memos=[...(ph.memos||[]), {id:'m'+Date.now().toString(36), t:now, by:me, kind:'note', text:txt, seen:false}]; }
     ph.h.push({t:now, by:me, what: [noteChanged ? (draft ? '[통화 메모] 기록 더함 (담당 아님)' : '[통화 메모] 기록 고침 (담당 아님)') + live.filter(n=>n.del && noteOwn.has(n.id) && n.del.t>(r0.updated||r0.saved||'')).map(n=>` · 지운 기록: ${String(n.text||'').slice(0,80)}`).join('') : '', ...mine.filter(t=>JSON.stringify(ph0.tasks.find(x=>x.id===t.id)||null)!==JSON.stringify(t)).map(t=>`[과업] ${t.title} ${t.done?'완료':'고침'}`)].filter(Boolean).join(' · ')});
     if(noteChanged) ph.notes=nl;
