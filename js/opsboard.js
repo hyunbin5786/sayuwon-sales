@@ -148,7 +148,9 @@ const fReq = f => typeof f.req==='function' ? f.req(form) : !!f.req;   // 꼭 �
 const fLabel = f => typeof f.l==='function' ? f.l(form) : f.l;   // 칸 이름 (함수면 그때의 칸 값으로 — 분실물: 신고자 / 습득자)
 // 로그인한 사람의 연락처 (멤버관리에 적은 것 · 2026-11-24): 분실물 습득 접수 때 습득자 · 연락처를 자동으로 (js/lost.js onField)
 window.opsMe = { name:user.name||'', phone:'' };
-if(B.boards && !GUEST) SY.call({action:'members'}).then(j=>{ const e=String(user.emp||'').replace(/\s/g,'').toUpperCase(), m=(j.members||[]).find(x=>String(x.emp||'').replace(/\s/g,'').toUpperCase()===e); if(m){ opsMe.name=m.name||opsMe.name; opsMe.phone=m.phone||''; }
+if(B.boards && !GUEST) SY.call({action:'members'}).then(j=>{ const e=String(user.emp||'').replace(/\s/g,'').toUpperCase(), m=(j.members||[]).find(x=>String(x.emp||'').replace(/\s/g,'').toUpperCase()===e); if(m){ opsMe.name=m.name||opsMe.name; opsMe.phone=m.phone||'';
+    // 멤버 연락처를 받기 전에 접수 창을 먼저 연 경우 (2026-11-27): 이름만 들어가 있고 연락처가 비어 있으면 지금 채움 (새 접수 · 이름이 내 이름일 때만)
+    if(!$('#editModal').hidden && !editRow && opsMe.phone && !form.phone && form.person===opsMe.name){ form.phone=opsMe.phone; paintForm(); } }
   if((+j.srv||0) >= 13 && !window.LOST_RP){ window.LOST_RP = true; if(!$('#editModal').hidden) paintForm(); }   // 서버 13 부터 「분실물 신고자」 칸 (members 응답의 srv · 2026-11-27 · js/lost.js lostRp)
 }).catch(()=>{});
 function openEdit(row, preset){   // preset: 새로 넣을 때 먼저 채울 값 (분실물 대시보드의 구분 등)
