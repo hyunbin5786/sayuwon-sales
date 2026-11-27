@@ -104,11 +104,11 @@ let cur=null, startedAt=null;   // cur: 지금 열어 둔 기록 (새 통화면 
 // 채널 (2026-11-23): 문의가 들어온 곳. 새 기록은 검정폰이 기본 · 하나만 고름. 기록의 history.channel + 비고 칸 「채널 …」 (예전 기록은 비어 있음 = 고른 것 없음)
 const CHANNELS = ['검정폰','보라폰','카카오톡','메일','기타'], CHANNEL_DEFAULT = '검정폰';
 const CAT_DEFAULT='문의';   // 새 기록은 이 구분이 골라져 있음 (2026-11-24 · 예전엔 비어 있다가 저장할 때 문의로)
-function blankForm(){ return {cat:CAT_DEFAULT, channel:CHANNEL_DEFAULT, reportTo:'', reserved:'', name:'', phone:'', date:'', people:'', note:'', tasks:[]}; }
+function blankForm(){ return {cat:CAT_DEFAULT, channel:CHANNEL_DEFAULT, reportTo:'', reserved:'', name:'', phone:'', date:'', people:'', product:'', note:'', tasks:[]}; }   // product = 상품 정보 (2026-11-27 · 기록의 history.product + 비고 칸 「상품 …」 · 예전 기록은 비어 있음)
 let form=blankForm(), saved=JSON.stringify(form);
 const todayYmd = () => ymd(new Date());
 const tasksOfItem = r => { try{ const h=JSON.parse(r.history||'{}'); return Array.isArray(h.tasks) ? h.tasks : []; }catch(_){ return []; } };
-const FIELDS=[['fName','name'],['fPhone','phone'],['fDate','date'],['fPeople','people'],['fNote','note']];
+const FIELDS=[['fName','name'],['fPhone','phone'],['fDate','date'],['fPeople','people'],['fProduct','product'],['fNote','note']];
 function paintForm(force){
   FIELDS.forEach(([id,k])=>{ const el=$('#'+id); if((force || document.activeElement!==el) && el.value!==form[k]) el.value=form[k]; });
   paintTasks(); paintChips();
@@ -215,10 +215,10 @@ function toItem(f=form, base=cur){
   return { ...(base||{}), id, saved: base ? base.saved : new Date().toISOString(), callStart: base ? base.callStart : (startedAt||new Date()).toISOString(),
     takenBy: base ? (base.takenBy || user.name || '') : (user.name || ''), owner: user.name || '', callType: CALL_TYPE,
     summary: [first, open ? `추후 과업 ${open}건` : ''].filter(Boolean).join(' · '), date: f.date, people: f.people,
-    contact: f.name, phone: f.phone, note: f.note, memo: [f.cat&&`구분 ${f.cat}`, f.channel&&`채널 ${f.channel}`, f.reportTo&&`보고전달자 ${f.reportTo}`, f.reserved&&`예약 여부 ${f.reserved}`].filter(Boolean).join(' / '),   // 시트 비고 칸에도 보이게
-    history: JSON.stringify({...h, h:h.h||[], tasks:f.tasks, cat:f.cat||'', channel:f.channel||'', reportTo:f.reportTo||'', reserved:f.reserved||''}) };
+    contact: f.name, phone: f.phone, note: f.note, memo: [f.cat&&`구분 ${f.cat}`, f.channel&&`채널 ${f.channel}`, f.product&&`상품 ${f.product}`, f.reportTo&&`보고전달자 ${f.reportTo}`, f.reserved&&`예약 여부 ${f.reserved}`].filter(Boolean).join(' / '),   // 시트 비고 칸에도 보이게
+    history: JSON.stringify({...h, h:h.h||[], tasks:f.tasks, cat:f.cat||'', channel:f.channel||'', product:f.product||'', reportTo:f.reportTo||'', reserved:f.reserved||''}) };
 }
-function fromItem(r){ let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} return { cat:h.cat||'', channel:h.channel||'', reportTo:h.reportTo||'', reserved:h.reserved||'', name:r.contact||'', phone:r.phone||'', date:String(r.date||'').slice(0,10), people:r.people||'', note:r.note||'', tasks:tasksOfItem(r).map(t=>({...t})) }; }
+function fromItem(r){ let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} return { cat:h.cat||'', channel:h.channel||'', reportTo:h.reportTo||'', reserved:h.reserved||'', name:r.contact||'', phone:r.phone||'', date:String(r.date||'').slice(0,10), people:r.people||'', product:h.product||'', note:r.note||'', tasks:tasksOfItem(r).map(t=>({...t})) }; }
 // ===================== 구분 · 예약 여부 (하나 고르기, 다시 누르면 해제) =====================
 // 구분: 처음엔 기본(예약취소 · 결제링크 · 기타문의). ＋로 추가 · 칩의 ×로 삭제(기본도 삭제 가능) → 공유 기록 한 줄(id pcats, 통화 구분 '개인구분')에 전체 목록으로 저장 → 모든 사람 화면에 같게
 //  (예전 저장 모양 {cats:[추가한 것]} 은 기본 + 추가로 읽음, 새 모양은 {cats:[전체], full:true})
@@ -271,7 +271,7 @@ function reportText(){ const f=form, who=(cur && cur.takenBy) || user.name || ''
   return [`[${f.cat||CAT_DEFAULT}]`,   // 첫 줄은 [구분]만 (받은 사람 이름 · 보고전달자는 넣지 않음, 2026-11-18)
     f.channel && `채널 : ${f.channel}`,   // 채널 (2026-11-24)
     f.name && `고객 이름 : ${f.name}`, phone && `연락처 : ${phone}`, f.date && `일시 : ${dLabel(f.date)}`,
-    f.people && `인원 : ${f.people}${/^\d+$/.test(f.people)?'명':''}`, String(f.note||'').trim() && `문의내용 : ${f.note}`].filter(Boolean).join('\n'); }
+    f.people && `인원 : ${f.people}${/^\d+$/.test(f.people)?'명':''}`, String(f.product||'').trim() && `상품 : ${f.product}`, String(f.note||'').trim() && `문의내용 : ${f.note}`].filter(Boolean).join('\n'); }
 async function copyText(s){ try{ await navigator.clipboard.writeText(s); return true; }catch(_){ const t=document.createElement('textarea'); t.value=s; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(__){} t.remove(); return ok; } }
 // 보고 글자 복사 → 미리보기 팝업 (글자를 고칠 수 있음) → 「복사하기」로 복사. 고친 글자는 이 팝업에서만 (통화 기록은 그대로)
 const closeCopy = () => { $('#copyModal').hidden=true; };
@@ -282,7 +282,7 @@ $('#copyModal').addEventListener('click', e=>{ if(e.target.id==='copyModal') clo
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#copyModal').hidden){ e.preventDefault(); closeCopy(); } });
 // ===================== 전산 예약 정보 붙여넣기 (PC 에서만 · 2026-11-27) =====================
 // 사유원 전산(관리자 사이트)의 예약 정보 글(항목 이름 ⇥ 값)을 붙여 넣으면 통화 기록의 칸을 채움. 새 칸 · 새 DB 항목 없음 (화면의 칸 값만 바꿈 → 저장은 평소대로)
-//  방문자정보 이름(전화) → 고객 이름 · 연락처 / 방문일자 → 일시 / 예약인원 → 인원 (이 넷은 비어 있는 칸만) · 나머지 항목(상품 · 금액 · 할인 · 등록)은 어디에도 넣지 않음 — 문의 내용은 건드리지 않음
+//  방문자정보 이름(전화) → 고객 이름 · 연락처 / 방문일자 → 일시 / 예약인원 → 인원 / 상품정보 → 상품 정보 (이 다섯은 비어 있는 칸만) · 나머지 항목(테이블 · 금액 · 할인 · 등록)은 어디에도 넣지 않음 — 문의 내용은 건드리지 않음
 const PASTE_KEYS = {'방문일자':'visit', '상품정보':'product', '방문자정보':'visitor', '예약인원':'people', '테이블정보':'table', '상품금액':'price', '할인금액':'disc', '금액':'total'};
 const PASTE_RE = /^(방문일자|상품정보|방문자정보|예약인원|테이블정보|상품금액|할인금액|금액)\s*(?:\(\s*순번\s*\))?\s*[:：]?\s*(.*)$/;
 function parseAdminText(text){
@@ -297,7 +297,7 @@ function parseAdminText(text){
     if(wait && !/^상품\s*정보$/.test(ln)){ o[wait]=ln; wait=''; }
   });
   if(!found || !(o.discs.length || o.reg || Object.keys(PASTE_KEYS).some(n=>o[PASTE_KEYS[n]]))) return null;   // 항목 이름만 있고 값이 하나도 없으면 못 찾은 것으로
-  const r ={name:'', phone:'', date:'', people:'', order:'', raw:o};
+  const r ={name:'', phone:'', date:'', people:'', product:String(o.product||'').trim(), order:'', raw:o};
   if(o.visitor){ const p=o.visitor.match(/0\d{1,2}[-\s.]?\d{3,4}[-\s.]?\d{4}/);
     r.phone = p ? fmtPhone(p[0].replace(/\D/g,'')) : '';
     r.name = (p ? o.visitor.replace(p[0],'') : o.visitor).replace(/[()（）]/g,' ').replace(/\s+/g,' ').trim(); }
@@ -305,7 +305,7 @@ function parseAdminText(text){
     if(d){ const t=new Date(+d[1], +d[2]-1, +d[3]); if(t.getMonth()===+d[2]-1) r.date=ymd(t); }
     const n=o.visit.match(/\(\s*(\d+)\s*\)\s*$/); if(n) r.order=n[1]; }
   if(o.people){ const n=o.people.match(/\d+/); if(n) r.people=n[0]; }
-  return (r.name || r.phone || r.date || r.people) ? r : null;   // 채울 것(이름 · 연락처 · 일시 · 인원)이 하나도 없으면 못 찾은 것으로
+  return (r.name || r.phone || r.date || r.people || r.product) ? r : null;   // 채울 것(이름 · 연락처 · 일시 · 인원 · 상품 정보)이 하나도 없으면 못 찾은 것으로
 }
 const closePaste = () => { $('#pasteModal').hidden=true; };
 $('#pasteBtn').onclick=()=>{ $('#pasteIn').value=''; $('#pasteMsg').textContent=''; $('#pasteModal').hidden=false; setTimeout(()=>$('#pasteIn').focus(),0); };
@@ -313,7 +313,7 @@ $('#pasteDo').onclick=()=>{
   const r=parseAdminText($('#pasteIn').value);
   if(!r){ $('#pasteMsg').textContent = $('#pasteIn').value.trim() ? '예약 정보를 찾지 못했습니다. 전산의 예약 정보(방문일자 · 방문자정보 · 예약인원 …)를 복사해 붙여 넣어 주세요.' : '전산에서 복사한 예약 정보를 붙여 넣어 주세요.'; return; }
   const kept=[];   // 이미 다른 값이 적혀 있어 그대로 둔 칸
-  [['name','고객 이름'],['phone','연락처'],['date','일시'],['people','인원']].forEach(([k,label])=>{
+  [['name','고객 이름'],['phone','연락처'],['date','일시'],['people','인원'],['product','상품 정보']].forEach(([k,label])=>{
     if(!r[k]) return; const now=String(form[k]||'').trim();
     if(!now || (k==='phone' && /^010-?$/.test(now))) form[k]=r[k]; else if(now!==r[k]) kept.push(label); });
   closePaste(); touch(); paintForm(true);   // 문의 내용은 건드리지 않음 (2026-11-27 운영팀: 상품 · 금액 · 할인 · 등록을 문의 내용에 넣던 것 없앰)
@@ -322,7 +322,7 @@ $('#pasteDo').onclick=()=>{
 $('#pasteClose').onclick=closePaste;
 $('#pasteModal').addEventListener('click', e=>{ if(e.target.id==='pasteModal') closePaste(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#pasteModal').hidden){ e.preventDefault(); closePaste(); } });
-const hasContent = () => !!(form.note.trim() || form.name.trim() || form.phone.trim() || form.tasks.length);
+const hasContent = () => !!(form.note.trim() || String(form.product||'').trim() || form.name.trim() || form.phone.trim() || form.tasks.length);
 function save(auto){
   clearTimeout(autoT);
   if(!hasContent()){ if(!auto) toast('문의 내용이나 고객 정보를 넣어 주세요.'); return; }
