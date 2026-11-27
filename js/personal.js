@@ -407,7 +407,7 @@ function renderTrash(q, qd){
 }
 async function setAllTrash(on){
   allTrash=on; $('#allName').textContent = on ? '삭제된 개인고객 통화' : '개인고객 통화 기록 전체'; $('#allTrash').textContent = on ? '← 통화 기록 전체' : '삭제된 통화';
-  $('#allHead').innerHTML = on ? TRASH_HEAD : ALL_HEAD; $('#allSearch').value=''; $('#allFlt').hidden=on; $('#allCols').hidden=on; $('#allTw').hidden=!on; renderAll();
+  $('#allHead').innerHTML = on ? TRASH_HEAD : ALL_HEAD; $('#allSearch').value=''; $('#allFlt').hidden=on; $('#allPast').hidden=on; $('#allTrash').style.marginLeft = on ? 'auto' : ''; $('#allCols').hidden=on; $('#allTw').hidden=!on; renderAll();
   if(on){ trashItems=null; trashErr=''; renderAll();
     try{ const j=await SY.call({action:'deleted'}); trashItems=j.items||[]; }
     catch(e){ trashErr = '불러오지 못했습니다. 잠시 뒤 다시 열어 주세요.'; }
