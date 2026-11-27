@@ -557,6 +557,7 @@ html.my-embed header{display:none!important}
 html.my-embed body{background:var(--card)}
 html.my-embed #myModal{padding:12px 16px}
 html.my-embed #myCloseBtn{display:inline-flex}
+html.my-only.sy-noscroll{scrollbar-gutter:auto}   /* 나의 할일만 보는 모드는 문서 자체가 스크롤되지 않음(칸 안쪽 · 휴대폰은 #myModal 이 스크롤) — common.js 가 팝업 때 비워 두는 스크롤 막대 자리(15px)가 오른쪽에 빈 띠로 남아 오른쪽 여백만 넓고 창의 둥근 모서리가 어긋나 보였음 (2026-11-27) */
 #myModal > section:focus{outline:none}   /* 나의 할일을 열면 초점이 창 상자로 감 (× 단추가 아니라) — 상자에는 테두리를 그리지 않음 */
 html.my-only.my-embed .my-col{max-height:calc(100vh - 100px)}
 html.my-only .my-col{max-height:calc(100vh - 150px)}
