@@ -47,6 +47,7 @@ const FIELDS = [
   ['굿즈','linkSent','결제링크 전송','','',null],   // 결제링크를 보낸 일시 (예약 내용의 「결제링크 전송」 버튼, 시트 비고 칸)
   ['굿즈','paidAt','입금 확인','','',null],   // 입금을 확인한 일시 (「입금 확인」 버튼)
   ['굿즈','istu','항목 학생','','',null],   // 관람 · 관람+식사 줄마다 학생 인원 "sadam1=5; v:관람(09:00~18:00)=3" (나머지는 성인, 2026-11-20 · 시트 비고 칸 '항목 학생')
+  ['굿즈','islots','항목 시간 더하기','','',null],   // 차방 · 당두봉갈 대관에 더한 시작 · 끝 "chabang=15:00~16:00,17:00~18:00; dangdu=10:00~11:00" (첫 시간대는 예전처럼 tm_키 · 2026-11-27 · 시트 비고 칸 '항목 시간 더하기')
   ['굿즈','erpSame','전산 같은 품목','','',null],   // 전산 품목 이름은 다르지만 같은 것 "seminar>dangdu" (전산 세미나 도슨트 = 예약 당두봉갈 대관, 2026-11-21 · 시트 비고 칸)
   ['굿즈','isp','항목 특별 할인','','',null],   // 줄마다 특별 할인 인원 · 기타 할인 "v:…=dKansong:2|0:10000|재방문 감사" (시트 비고 칸 '항목 특별 할인')
   ['굿즈','idamt','항목 할인액','','',null],   // 할인액을 직접 고친 줄 "sadam1=200000:125000" (과세(신라):비과세(사유원), 시트 비고 칸 '항목 할인액')
@@ -67,6 +68,9 @@ const isDocent = label => /도슨트/.test(label||'');
 const subRows = f => [...(/^seminar2?$/.test(f[1]) ? ['tm','plc'] : isDocent(f[2]) ? ['tm','crs'] : ['tm']), ...(needsStaff(f[1]) ? ['stf'] : [])].map(p=>[f[0], `${p}_${f[1]}`, `${f[2]} ${SUB_NAME[p]}`, '', '', null]);
 
 for(let i=FIELDS.length-1;i>=0;i--){ const f=FIELDS[i]; if(/^프로그램/.test(f[0]) && !isSub(f[1])) FIELDS.splice(i+1,0,...subRows(f)); }
+// 세미나 도슨트 3회차부터 (2026-11-27): 회차마다 시작 · 끝(tm_seminarN) · 장소(plc_seminarN) · 담당(stf_seminarN) 칸만 둠 — 품목 칸(seminarN)은 없음 (수량은 세미나 도슨트 한 칸). 2회차는 예전 「세미나 도슨트(2)」 칸 그대로
+const SEM_MAX = 6;   // 회차 줄은 여기까지 (그보다 많은 횟수는 수량만)
+for(let n=3;n<=SEM_MAX;n++){ const at=FIELDS.findIndex(f=>f[1]==='stf_seminar'+(n-1)); FIELDS.splice(at+1,0,...['tm','plc','stf'].map(p=>['프로그램(시간)', `${p}_seminar${n}`, `세미나 도슨트(${n}) ${SUB_NAME[p]}`, '', '', null])); }
 // 프로그램 품목 ↔ 견적서 품목 (견적서·금액 계산용)
 const PROG_SRC = { yoga:'요가프로그램(단체)', gaga:'음료쿠폰(가가빈빈)', chabang:'대관', dangdu:'대관', donghaeng:'해설사도슨트(수정)', seminar:'세미나', seminar2:'세미나', sound:'사운드워킹', scent:'사유의 향', haeorum:'사유원 새벽 해오름 산책(평일)' };
 const HAEORUM_WE = '사유원 새벽 해오름 산책(주말)';
@@ -74,10 +78,20 @@ const progSrc = (k, r) => k==='haeorum' && r && r.date && isRedDay(r.date) ? HAE
 // 지금 견적서 품목 리스트에 있는 단체 품목 (이것 말고 새로 추가된 것만 프로그램 칸으로 붙임)
 const PROG_KNOWN = ['사유원 새벽 해오름 산책(주말)','대관','세미나','해설사도슨트(수정)','임원도슨트(수정)','사운드워킹','사유의 향','요가프로그램(단체)','음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)','사유의 밥상(단체)','당두봉갈 대관'];
 const PROG_GRP = { geach:'프로그램(개별)', gtime:'프로그램(시간)' };
-const UNIT = k => /^seminar2?$/.test(k) ? '회' : COUPON_IN_GOODS.includes(k) ? '개' : (FIELDS.find(f=>f[1]===k)||[])[0]==='프로그램(시간)' ? '시간' : '명';   // 세미나 도슨트는 회 (2026-11-18)
+const UNIT = k => /^seminar\d?$/.test(k) ? '회' : COUPON_IN_GOODS.includes(k) ? '개' : (FIELDS.find(f=>f[1]===k)||[])[0]==='프로그램(시간)' ? '시간' : '명';   // 세미나 도슨트는 회 (2026-11-18)
 // 세미나 도슨트 수량 2 = 두 번(두 장소): 두 번째의 시작 · 끝 · 장소 · 비고는 예전 「세미나 도슨트(2)」 칸(tm_seminar2 · plc_seminar2 · 비고 seminar2)에 둠 (2026-11-18)
 const sem2On = r => numOf(r.seminar)>=2 || !!r.seminar2;
-const SEM2_IX = ['tm_seminar2','plc_seminar2','stf_seminar2'];   // 두 번째 장소 담당(stf_seminar2)도 (2026-11-21)
+const SEM2_IX = Array.from({length:SEM_MAX-1}, (_,i)=>i+2).flatMap(n=>['tm_seminar'+n,'plc_seminar'+n,'stf_seminar'+n]);   // 2회차부터의 시작 · 끝 · 장소 · 담당 칸 (담당 2026-11-21 · 3회차부터 2026-11-27)
+// 세미나 도슨트 횟수만큼 회차 줄 (2026-11-27): 2회차부터의 칸 이름 ['seminar2','seminar3', …] — 1회차는 세미나 도슨트 줄 자체. 예전 「세미나 도슨트(2)」 줄이 따로 남은 기록은 그 줄이 2회차라 여기서는 빈 목록
+const semXKeys = r => !r || !r.seminar || r.seminar2 ? [] : Array.from({length:Math.max(0, Math.min(SEM_MAX, numOf(r.seminar))-1)}, (_,i)=>'seminar'+(i+2));
+const isSemX = k => /^seminar[2-9]$/.test(String(k));
+const semNo = k => +String(k).replace(/\D/g,'') || 1;   // 'seminar3' → 3 · 'seminar' → 1
+const semXName = (k, r) => isSemX(k) ? `세미나 도슨트 ${semNo(k)}회차` : k==='seminar' && r && semXKeys(r).length ? '세미나 도슨트 1회차' : '';   // 과업 · 안내 글에 쓰는 이름
+// 대관(차방 · 당두봉갈)에 더한 시작 · 끝 (2026-11-27): rec.islots = "chabang=15:00~16:00,17:00~18:00" — 첫 시간대는 예전처럼 tm_키, 여기는 둘째부터. 금액 · 수량(시간)은 건드리지 않음
+const SLOT_KEYS = ['chabang','dangdu'], SLOT_MAX = 5;
+const slotsMap = r => Object.fromEntries(String((r && r.islots)||'').split(/\s*;\s*/).map(s=>{ const i=s.indexOf('='); return i>0 ? [s.slice(0,i).trim(), s.slice(i+1).split(',').map(x=>x.trim())] : null; }).filter(Boolean));
+const itemSlots = (r, k) => r && r[k] && SLOT_KEYS.includes(k) ? (slotsMap(r)[k]||[]) : [];   // 빈 줄('')도 그대로 (화면에 빈 칸으로)
+const itemSlotTimes = (r, k) => itemSlots(r, k).filter(v=>String(v).replace('~','').trim());   // 시각이 들어간 것만 (전산 비고 · 예약 현황 등)
 const COUPON_IN_GOODS = ['gaga'];   // 음료쿠폰: 품목 고르기에서 굿즈 묶음에 · 줄에는 시작 · 끝 없이 비고만 (저장은 예전 칸 gaga 그대로, 2026-11-18)
 const isDrinkSrc = src => /음료쿠폰|\((몽몽차방|가가빈빈)\)/.test(String(src||''));   // 음료쿠폰 굿즈 (굿즈 묶음 맨 위 · 예약 현황 「음료쿠폰」). 예전 기록의 몽몽차방 · 가가빈빈 음료도 음료쿠폰으로 셈 (2026-11-21)
 const goodsKeyOf = src => COUPON_IN_GOODS.find(c=>normSrc(PROG_SRC[c])===normSrc(src)) || '';   // 품목 관리 굿즈 품목 → 예전 전용 칸 (음료쿠폰(가가빈빈) → gaga)
@@ -105,7 +119,7 @@ function syncGoodsStaff(){
   rec.stf_goods=want; touched.add('stf_goods'); return true;
 }
 const missingStaff = r => [...STAFF_BASES().filter(k=>r[k] && needsStaff(k) && !String(r['stf_'+k]||'').trim()),
-  ...(r.seminar && sem2On(r) && !r.seminar2 && !String(r.stf_seminar2||'').trim() ? ['seminar2'] : [])];   // 세미나 도슨트 2회: 두 번째 장소 담당도 필수 (2026-11-21)
+  ...semXKeys(r).filter(k=>!String(r['stf_'+k]||'').trim())];   // 세미나 도슨트 2회 이상: 회차마다 담당 필수 (2회차 2026-11-21 · 3회차부터 2026-11-27)
 const LEGACY_KEYS = ['teaMed','gayageum','cabin'];   // 예전 프로그램 칸 (입력 칸은 없앴지만 저장된 값은 그대로 둠)
 const SHEET_PROG = new Set(['yoga','gaga','chabang','dangdu','donghaeng']);   // 시트에 열이 있는 프로그램
 const isXProg = k => /^(프로그램)/.test(GROUP_OF[k]||'') && !SHEET_PROG.has(k) && !isSub(k);   // 비고 칸에 적는 프로그램
@@ -136,6 +150,7 @@ const OPT = { '사담':{id:'sadam', title:'사담 식사'}, '몽몽마방':{id:'
 let optOpen = new Set();
 const GROUP_OF = Object.fromEntries(FIELDS.map(f=>[f[1], f[0]]));
 const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1], ['사담','몽몽마방'].includes(f[0]) ? `${f[0]} ${f[2]}` : f[2]]));
+for(let n=3;n<=SEM_MAX;n++) LABEL['seminar'+n]=`세미나 도슨트(${n})`;   // 3회차부터는 품목 칸이 없어 이름만 (비고 칸에 「프로그램 시간대 세미나 도슨트(3):14:00~14:30」로 저장 · js/group/02 packExtra)
 CFIELDS.forEach(([f,l])=>{ for(let i=0;i<10;i++) LABEL[`c${i}_${f}`]= i? `${l}(${i+1})` : l; });
 const SPECIAL_LABEL = { dKansong:'간송 할인', dMerit:'국가유공자 할인', dGunwi:'군위 주민 할인', dClergy:'대구대교구', dStaff:'직원 할인', dGuide:'가이드 무료' }; Object.assign(LABEL, SPECIAL_LABEL);
 Object.assign(LABEL, { teaMed:'티하우스 명상', gayageum:'가야금', cabin:'유루 캐빈' });

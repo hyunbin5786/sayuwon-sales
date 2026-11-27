@@ -101,14 +101,15 @@ const ERP_NOTE_RULES = `■ 모양
   · 프로그램 · 대관 · 도슨트 — 「시간 이름(출발지, 장소, ○○○ 담당)」 · 괄호는 항목마다 하나, 안에서 쉼표로 나눔
        이름: 동행 도슨트 = 동행도슨트 · 세미나 도슨트 = PPT세미나 · 새벽 해오름 산책 = 일출 · 차방 대관 = 자체세미나(차방)
              · 당두봉갈 대관 = 자체세미나(당두) · 요가 · 사운드워킹 · 사유의 향 · 그 밖의 프로그램은 품목 이름(띄어쓰기 없이)
-       도슨트 출발지: 「앵당~」 · 「치허문~」 · 세미나 도슨트 장소: (당두봉갈) · 세미나 도슨트 2회면 두 번째도 따로 한 칸
+       도슨트 출발지: 「앵당~」 · 「치허문~」 · 세미나 도슨트 장소: (당두봉갈) · 세미나 도슨트가 2회 이상이면 회차마다 따로 한 칸
+       대관(차방 · 당두봉갈)에 시작 · 끝을 더했으면 시간대마다 따로 한 칸 — 예) 10-11시 자체세미나(당두) / 15-16시 자체세미나(당두)
   · 음료쿠폰 — 「음료쿠폰 40개」
   · 굿즈 — 「굿즈 고추장 2개, 모과청 1개」 (예약 내역의 굿즈 품목 · 수량 그대로)
   · 담당자 — 예약 내역의 「담당」 칸에 고른 사람을 그 항목의 괄호 안에 「김철수 담당」으로 (2026-11-27)
        예) 13:30 동행도슨트(앵당~, 김철수 담당) · 15-16시 자체세미나(당두, 김철수 담당) · 10시 요가(김철수 담당)
            음료쿠폰 40개(김철수 담당) · 굿즈 고추장 2개, 모과청 1개(김철수 담당)
        담당이 영업 담당(끝의 괄호)과 같은 사람이면 안 씀 · 담당 칸이 비어 있어도 안 씀 · 여러 명이면 「김철수·이영희 담당」
-       세미나 도슨트 2회는 장소마다 담당을 따로 · 굿즈 담당은 굿즈 전체에 한 명 · 몽몽마방은 담당 칸이 없음
+       세미나 도슨트 2회 이상은 회차마다 담당을 따로 · 굿즈 담당은 굿즈 전체에 한 명 · 몽몽마방은 담당 칸이 없음
 
 ■ 넣지 않는 것
   사담 런치 · 디너(전산에 상품으로 있음) · 금액 · 출입구 미정 · 인원 변경 · 통화 메모 · 영업 담당과 같은 사람인 항목 담당자
@@ -138,8 +139,10 @@ function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문�
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]] && f[1]!=='gaga').forEach(f=>{   // 음료쿠폰은 위에서 따로
     const k=f[1], sub=p=>String(r[`${p}_${k}`]||'').trim(), name=ERP_PROG_NAME[k] || String(f[2]).replace(/\s+/g,'');
     const paren=[erpCrs(sub('crs')), /\(/.test(name) ? '' : sub('plc'), stfTag(sub('stf'))].filter(Boolean).join(', ');   // 괄호 = 도슨트 출발 위치 · 장소 · 담당자 (담당자는 2026-11-27 부터) · 자체세미나(당두)처럼 이름에 장소가 있으면 장소는 빼고
-    items.push([erpProgT(sub('tm')), /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
-    if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2||stfTag(r.stf_seminar2))){ const p2=[String(r.plc_seminar2||'').trim(), stfTag(r.stf_seminar2)].filter(Boolean).join(', '); items.push([erpProgT(r.tm_seminar2), name+(p2?`(${p2})`:'')].filter(Boolean).join(' ')); }
+    const full = /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'');
+    items.push([erpProgT(sub('tm')), full].filter(Boolean).join(' '));
+    itemSlotTimes(r, k).forEach(v=>items.push([erpProgT(v), full].filter(Boolean).join(' ')));   // 대관에 더한 시작 · 끝: 시간대마다 따로 한 칸 (2026-11-27)
+    if(k==='seminar') semXKeys(r).forEach(sk=>{ if(!(r['tm_'+sk]||r['plc_'+sk]||stfTag(r['stf_'+sk]))) return; const p2=[String(r['plc_'+sk]||'').trim(), stfTag(r['stf_'+sk])].filter(Boolean).join(', '); items.push([erpProgT(r['tm_'+sk]), name+(p2?`(${p2})`:'')].filter(Boolean).join(' ')); });   // 세미나 도슨트 2회 이상: 회차마다 따로 한 칸 (3회차부터 2026-11-27)
   });
   if(r.onsite) items.push('현장 재결제 필요'); else if(r.pay==='현장 결제') items.push('현장 결제 필요');   // 2026-11-25: 「현장 재결제」 체크면 「현장 재결제 필요」 · 2026-11-24: 「현장결제」 → 「현장 결제 필요」 (사전답사 비고의 「n명 현장 결제 필요」와 같은 말투)
   { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy' && s.k!=='dGuide'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인 필요`));   /* 2026-11-24: 끝에 「필요」 */ if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
@@ -171,6 +174,29 @@ const staffHead = r => [r.org&&`<${r.org}>`, r.date&&dateLabel(r.date), r.people
 const prepWho = r => Object.keys(staffBy(r)).filter(w=>w!=='(담당 미정)');
 function prepMsg(r, who){ const L=staffBy(r)[who]||[], c=contactsOf(r)[0]||{};
   return `[단체예약 준비] ${staffHead(r)}\n${L.map(s=>'- '+s).join('\n')}` + (c.name||c.phone ? `\n고객 담당: ${[c.name,c.phone].filter(Boolean).join(' ')}` : '') + `\n영업 담당: ${(r.owner||savedOwner()||'').trim()||'-'}`; }
+// 담당 입력 규칙 (추후과업 메시지 관리 「프로그램 · 굿즈 담당 입력」을 열면 보임 · js/taskcfg.js · 2026-11-27) — 규칙을 바꾸면 이 글도 같이 (missingStaff · syncAutoTasks)
+const PROGSTAFF_RULES = `■ 무엇
+  예약 내역에 넣은 품목 가운데 「담당」 칸이 비어 있는 것(빨간 칸)이 하나라도 있으면, 그 예약의 추후 과업에 이 과업이 생김
+  과업 이름 아래에 어느 품목의 담당이 비었는지 한 줄로 나옴 — 예) 담당이 비어 있는 칸: 요가 · 당두봉갈 대관 · 세미나 도슨트 2회차
+
+■ 담당이 있어야 하는 품목
+  개별 프로그램(요가 · 사운드워킹 · 사유의 향 등) · 시간 프로그램(차방 대관 · 당두봉갈 대관 · 동행 도슨트 · 세미나 도슨트) · 음료쿠폰 · 굿즈
+  세미나 도슨트가 2회 이상이면 회차마다 담당 칸이 따로 있고, 하나라도 비면 「세미나 도슨트 n회차」로 나옴
+  굿즈는 여러 줄이어도 담당이 한 명 (비어 있으면 영업 담당이 저절로 들어감)
+  담당 칸이 없는 품목(관람 · 관람+식사 · 사담 · 몽몽마방)은 과업을 만들지 않음
+
+■ 누구에게 · 언제
+  그 예약의 영업 담당에게 — 나의 할일 · 첫 화면 · 과업 알림에 다른 과업과 똑같이 셈
+  가예약 · 예약확정 단계에서 생김 (예약상담 · 예약취소 단계는 자동 과업이 없어 안 생김 — 가예약으로 바뀌면 그때 생김)
+  마감 = 과업이 생긴 날 (아래 마감 칸에서 바꿀 수 있음)
+
+■ 끝나는 때
+  담당 칸을 모두 채우면 저절로 끝남 (직접 체크할 수 없음 — 나의 할일에서 체크 칸을 누르면 그 예약이 열림)
+    · 메모 · 세부 과제를 적어 둔 과업은 「완료」로 체크되어 남고, 손대지 않은 과업은 목록에서 빠짐 (나의 할일 · 알림에서도 사라짐)
+  끝난 뒤 담당이 빈 칸이 다시 생기면(품목을 더하거나 담당을 지우면) 다시 생기거나 다시 열림
+
+■ 과업 보조 설명
+  기본 「담당이 비어 있는 칸: {빈담당}」 — {빈담당} 자리에 담당이 빈 품목 이름이 들어감 · 다 채워지면 이 줄은 안 보임`;
 // 단체 준비 규칙 (추후과업 메시지 관리 「단체 준비」를 열면 보임 · js/taskcfg.js) — 규칙을 바꾸면 이 글도 같이
 const PREP_RULES = `■ 무엇
   예약 내역에서 프로그램 · 대관 · 도슨트 · 음료쿠폰 · 굿즈의 「담당」으로 고른 사람마다 과업이 하나씩 생김
@@ -201,10 +227,11 @@ const prepTitle = (r, who) => `${String(AUTO_TASKS.prep||'단체 준비').trim()
 function staffBy(r){
   const by={}, add=(who,s)=>{ String(who||'').split(/\s*,\s*/).map(w=>w.trim()).filter(Boolean).concat(String(who||'').trim()?[]:['(담당 미정)']).forEach(w=>{ (by[w] ||= []).push(s); }); };   // 담당이 여러 명이면 「문현빈, 김선영」 → 각자
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]]).forEach(f=>{ const k=f[1], v=String(r[k]), sub=p=>String(r[`${p}_${k}`]||'').trim();
-    const s2who = k==='seminar' && sem2On(r) && !r.seminar2 ? String(r.stf_seminar2||'').trim() : '', split = s2who && s2who!==sub('stf');   // 세미나 도슨트 두 번째 담당이 다르면 그 사람에게 따로
-    const s2note = r===rec && itemNote('seminar2') ? ` (비고:${itemNote('seminar2')})` : '';
-    add(sub('stf'), `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? (split ? '1'+UNIT(k) : v+UNIT(k)) : v}${sub('tm')?' '+sub('tm'):''}${sub('crs')?` (출발지:${sub('crs')})`:''}${sub('plc')?` (장소:${sub('plc')})`:''}${r===rec && itemNote(k)?` (비고:${itemNote(k)})`:''}${k==='seminar' && !split ? sem2Tag(r)+(sem2Tag(r) ? s2note : '') : ''}`);
-    if(split){ const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); add(s2who, `${f[2]} 1${UNIT(k)}${t?' '+t:''}${p?` (장소:${p})`:''}${s2note}`); } });
+    // 세미나 도슨트 2회 이상 (3회차부터 2026-11-27): 회차 담당이 1회차 담당과 다르면 그 사람에게 따로 「세미나 도슨트 1회 …」, 같거나 비었으면 1회차 줄 뒤에 이어 적음
+    const sx = k==='seminar' ? semXKeys(r) : [], sxOf = sk => ({ w:String(r['stf_'+sk]||'').trim(), t:String(r['tm_'+sk]||'').trim(), p:String(r['plc_'+sk]||'').trim(), n: r===rec && itemNote(sk) ? ` (비고:${itemNote(sk)})` : '' });
+    const other = sx.filter(sk=>sxOf(sk).w && sxOf(sk).w!==sub('stf')), mine = sx.filter(sk=>!other.includes(sk));
+    add(sub('stf'), `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? (other.length ? (1+mine.length)+UNIT(k) : v+UNIT(k)) : v}${sub('tm')?' '+sub('tm'):''}${itemSlotTimes(r, k).map(x=>' · '+x).join('')}${sub('crs')?` (출발지:${sub('crs')})`:''}${sub('plc')?` (장소:${sub('plc')})`:''}${r===rec && itemNote(k)?` (비고:${itemNote(k)})`:''}${mine.map(sk=>{ const o=sxOf(sk); return o.t||o.p ? ` ·${o.t?' '+o.t:''}${o.p?` (장소:${o.p})`:''}${o.n}` : ''; }).join('')}`);
+    other.forEach(sk=>{ const o=sxOf(sk); add(o.w, `${f[2]} 1${UNIT(k)}${o.t?' '+o.t:''}${o.p?` (장소:${o.p})`:''}${o.n}`); }); });
   if(r.goods) add(r.stf_goods, '굿즈 '+goodsText(r)+(r===rec ? goodsParse(r.goods).map(g=>itemNote('g:'+g.src)?` (${goodsName(g.src)} 비고:${itemNote('g:'+g.src)})`:'').join('') : ''));
   return by;
 }
@@ -327,7 +354,7 @@ function syncAutoTasks(){
     const st=[...(ds ? ds.map(([k])=>!!t.subs[k]) : []), ...(t.xsubs||[]).map(x=>!!x.done)]; if(!st.length) return;
     const all=st.every(Boolean); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); } if(!all && t.done && !t.manualDone){ t.done=false; t.doneAt=''; } });   // 위 체크로 끝낸 과업(manualDone)은 하위 과업이 남아도 완료 그대로
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)) || (t.xsubs||[]).some(x=>x.done || !/^c:/.test(String(x.id))));   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌 · 추후과업 메시지 관리의 세부 과업(c:)만 있고 하나도 체크 안 한 것도 손대지 않은 것 (2026-11-26 · 예전엔 세부 과업을 정해 둔 과업은 조건이 사라져도 남았음)
-  const ps=tasks.find(t=>t.id==='progstaff' && !t.removed); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
+  const ps=tasks.find(t=>t.id==='progstaff' && !t.removed); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>semXName(k, rec)||LABEL[k]||k); }   // 어느 품목의 담당이 비었는지 (세미나 도슨트 2회 이상은 「세미나 도슨트 2회차」 · 2026-11-27) → 과업 보조 설명 {빈담당}
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
   const ec=tasks.find(t=>t.id==='erpcheck'); if(ec){ const c=erpCheck(); const was=ec.done; ec.done=c.ok; ec.check=c; if(c.ok && !was) ec.doneAt=new Date().toISOString(); if(!c.ok) ec.doneAt=''; }   // 전산 내역 대조: 맞으면 자동 완료, 다르면 다시 열림
   { const ls=tasks.find(t=>t.id==='linksend'); if(ls){ if(!rec.linkSent && ls.done && ls.manualDone){ rec.linkSent=ls.doneAt||new Date().toISOString(); touched.add('linkSent'); }   // 나의 할일 · 알림에서 체크한 것 → 전송 일시로

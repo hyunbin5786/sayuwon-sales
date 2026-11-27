@@ -4,6 +4,7 @@
 function paintTmMissing(){
   document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-q input[data-iq]').forEach(q=>q.closest('.it-q').classList.toggle('missing', !q.value.trim()));
   document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-q2 input[data-iqa]').forEach(q=>q.closest('label').classList.toggle('missing', !numOf(itemQty(q.dataset.iqa))));   // 성인 · 학생: 줄 인원이 비었을 때 성인 칸만 빨갛게 (학생 0명은 그대로, 2026-11-20)
+  document.querySelectorAll('#itemsBox .it-slotadd').forEach(d=>{ const b=d.querySelector('[data-slotadd]'); if(b) d.hidden = !(numOf(itemQty(b.dataset.slotadd))>=1); });   // 대관 「＋ 시작 · 끝 더하기」: 시간 수가 1 이상일 때만 (2026-11-27)
   document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-xl').forEach(l=>{ const x=l.querySelector('.it-x, [data-is]'); l.classList.toggle('missing', !!x && !String(x.value||'').trim()); });   // [data-is] = 세미나 도슨트 2회의 장소마다 담당 칸 (2026-11-27: 이 칸을 못 찾아 비어 있어도 늘 초록이던 것 고침)
 }
 const paintStaffCell = el => el.closest('.it-s, .it-xl')?.classList.toggle('missing', !String(el.value||'').trim());   // 담당 칸 하나: 비면 빨강 · 고르면 바로 초록
@@ -39,7 +40,7 @@ document.addEventListener('change', e=>{
 document.addEventListener('input', e=>{
   const el=e.target; if(!el.closest?.('#itemsBox')) return;
   if(el.dataset.iq!=null){ const k=el.dataset.iq, c=el.value.replace(/[^\d+]/g,''), was=itemQty(k); if(c!==el.value) el.value=c; setItemQty(k, el.value);
-    if(k==='seminar' && (numOf(was)>=2)!==(numOf(el.value)>=2)){ itemChanged(true, !!was); const q=document.querySelector('#itemsBox [data-iq="seminar"]'); if(q){ q.focus(); const n=q.value.length; try{ q.setSelectionRange(n,n); }catch(_){} } if(numOf(el.value)>=2) openSemGuide(); return; }   // 세미나 도슨트 수량 2 ↔ 1: 두 번째 시작 · 끝 · 장소 · 비고 줄을 넣고 빼기
+    if(k==='seminar' && semLines(was)!==semLines(el.value)){ itemChanged(true, !!was); const q=document.querySelector('#itemsBox [data-iq="seminar"]'); if(q){ q.focus(); const n=q.value.length; try{ q.setSelectionRange(n,n); }catch(_){} } if(semLines(el.value)>=2 && semLines(was)<2) openSemGuide(semLines(el.value)); return; }   // 세미나 도슨트 횟수가 바뀌면 회차 줄(시작 · 끝 · 장소 · 담당 · 비고)을 그 수만큼 (2026-11-27 · 줄어든 회차의 값은 화면에 있는 동안은 남고, 저장할 때 빠짐 — 예전 2 → 1 과 같음)
     if(itemKind(k)==='prog' && itemUnit(k)==='시간' && numOf(el.value) && numOf(el.value)!==numOf(was)){ const [s]=tmTimes(k); if(s && fmtTime(s)){ const en=plusH(s, progHours(k)); rec['tm_'+k]=`${s}~${en}`; touched.add('tm_'+k); const b=el.closest('.it-row')?.querySelector(`[data-ix="tmE:${CSS.escape(k)}"]`); if(b) b.value=en; paintTmMissing(); } }   // 시간 프로그램(대관 등): 수량(시간)을 바꾸면 끝 = 시작 + 그 시간 (2026-11-18)
     itemChanged(false, !!was); }   // 담당 기본값은 수량을 처음 넣을 때만
   else if(el.dataset.iqa!=null){ const k=el.dataset.iqa, c=el.value.replace(/\D/g,''), was=itemQty(k); if(c!==el.value) el.value=c;   // 성인 인원 → 그 줄 인원 = 성인 + 학생 (2026-11-20)
@@ -50,7 +51,7 @@ document.addEventListener('input', e=>{
   else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); startTimer(); repaintSoon(); }   // 항목 비고 (치는 동안은 다시 그리지 않음)
   else if(el.dataset.is!=null){ if(el.value==='__new'){ const k=el.dataset.is; el.value=String(rec[itemStfKey(k)]||''); newMemberAsk(k); return; }   // 「＋ 새 멤버 추가…」 (2026-11-24)
     const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); document.querySelectorAll('#itemsBox [data-is]').forEach(o=>{ if(o!==el && itemStfKey(o.dataset.is)===sk) o.value=el.value; paintStaffCell(o); }); repaintSoon(); }   // 담당 (멤버 목록에서 고름) · 색은 그 자리에서 바로 (2026-11-27 · 굿즈는 모든 줄이 같은 담당)
-  else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^tm[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
+  else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^(tm|sl)[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
   else if(el.dataset.ix!=null && el.tagName==='INPUT'){ rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix); itemChanged(false, true); }
 });
 document.addEventListener('change', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.ix==null || el.tagName!=='SELECT') return; rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix);
@@ -69,7 +70,24 @@ document.addEventListener('focusout', e=>{ const el=e.target, ix=el.dataset?.ix|
   if(isS){ if(v===s){ el.value=v; return; } s=v; if(v && fmtTime(v)) en=plusH(v, progHours(k)); } else { if(v===en){ el.value=v; return; } en=v; }
   rec['tm_'+k] = s||en ? `${s}~${en}` : ''; touched.add('tm_'+k);
   const row=el.closest('.it-row'); if(row){ const a=row.querySelector(`[data-ix="tmS:${CSS.escape(k)}"]`), b=row.querySelector(`[data-ix="tmE:${CSS.escape(k)}"]`); if(a) a.value=s; if(b) b.value=en; }
+  if(!isS) tmOrderWarn(s, en);
   itemChanged(false, true); paintTmMissing(); });
+// 끝이 시작보다 이르면(같아도) 글로 알림 (2026-11-27 · 값은 그대로 둠 — 고치는 것은 사람이)
+const semLines = v => Math.max(1, Math.min(SEM_MAX, numOf(v)||1));   // 세미나 도슨트 횟수 → 회차 줄 수
+function tmOrderWarn(s, en){ const a=fmtTime(s), b=fmtTime(en); if(a && b && b<=a) toast(`끝 시각(${b})이 시작 시각(${a})보다 이릅니다. 다시 확인해 주세요.`); }
+// 대관에 더한 시작 · 끝 (2026-11-27 · 프로그램 시작 · 끝과 같은 방식): 시작을 넣으면 끝 = 1시간 뒤 (고칠 수 있음). 저장은 rec.islots
+document.addEventListener('focusout', e=>{ const el=e.target, m=String(el.dataset?.ix||'').match(/^sl([SE]):(.+):(\d+)$/); if(!m || !el.closest?.('#itemsBox')) return;
+  const k=m[2], i=+m[3], isS=m[1]==='S', L=rawSlots(k).slice(); if(i>=L.length) return;
+  const p=String(L[i]||'').split('~'); let s=p[0]||'', en=p[1]||''; const v=el.value.trim() ? (fmtTime(el.value)||el.value.trim()) : '';
+  if(isS){ if(v===s){ el.value=v; return; } s=v; if(v && fmtTime(v)) en=plusH(v, 1); } else { if(v===en){ el.value=v; return; } en=v; }
+  L[i] = s||en ? `${s}~${en}` : ''; setItemSlots(k, L);
+  const row=el.closest('.it-slot'); if(row){ const a=row.querySelector('[data-ix^="slS:"]'), b=row.querySelector('[data-ix^="slE:"]'); if(a) a.value=s; if(b) b.value=en; }
+  if(!isS) tmOrderWarn(s, en);
+  itemChanged(false, true); paintTmMissing(); });
+document.addEventListener('click', e=>{ const ad=e.target.closest?.('#itemsBox [data-slotadd]'), dl=e.target.closest?.('#itemsBox [data-slotdel]'); if(!ad && !dl) return;
+  if(ad){ const k=ad.dataset.slotadd, L=rawSlots(k); if(L.length>=SLOT_MAX) return; setItemSlots(k, [...L, '']); }
+  else { const [k, i]=dl.dataset.slotdel.split(':'), L=rawSlots(k).slice(); L.splice(+i, 1); setItemSlots(k, L); }
+  itemChanged(true, true); });
 document.addEventListener('focusout', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.ix==null || el.tagName!=='INPUT' || !el.value) return;
   if(/^(mabangTime|tm_)/.test(el.dataset.ix)){ const f=fmtRange(el.value); if(f && f!==el.value){ el.value=f; rec[el.dataset.ix]=f; touched.add(el.dataset.ix); itemChanged(false); } } });   // 12001300 → 12:00~13:00
 document.addEventListener('focusin', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.iq==null) return; const k=el.dataset.iq, t=itemKind(k); renderInfo(t==='mb' ? 'mabangL' : ['sadam','prog'].includes(t) ? k : null); });   // 그날 같은 항목 예약 현황
@@ -442,9 +460,9 @@ const PAY_GUIDE = {
 };
 let pgMemo=false, pgStf=false;   // 기타 결제 안내를 닫으면 통화 메모 칸으로 · 세미나 2회 안내를 닫으면 담당 칸으로
 // 세미나 도슨트를 2회로 바꾼 순간 안내 (결제 안내 팝업을 같이 씀, 2026-11-18)
-function openSemGuide(){ pgMemo=false; pgStf=true; $('#pgModal .hint').hidden=true;
-  $('#pgTitle').textContent = '세미나 도슨트 2회';
-  $('#pgBody').innerHTML = ['담당자 이름을 모두 입력해 주세요.', '비고에 각 장소의 담당자 이름도 적어 주세요.'].map(g=>`<li>${esc(g)}</li>`).join('');
+function openSemGuide(n){ pgMemo=false; pgStf=true; $('#pgModal .hint').hidden=true;
+  $('#pgTitle').textContent = `세미나 도슨트 ${n||2}회`;
+  $('#pgBody').innerHTML = ['회차마다 시작 · 끝 · 장소 · 담당을 모두 넣어 주세요.', '회차마다 담당 칸이 따로 있습니다 (담당이 비면 추후 과업으로 알려 줍니다).'].map(g=>`<li>${esc(g)}</li>`).join('');
   $('#pgModal').hidden = false; setTimeout(()=>$('#pgOk').focus(), 0); }
 function openPayGuide(pay, what){ pgMemo = pay==='기타'; pgStf=false; $('#pgModal .hint').hidden=false;
   $('#pgTitle').textContent = pay==='기타' ? `[${what?what+' ':''}기타 결제] 통화 메모에 결제 방법을 남겨 주세요` : `[${pay} 안내] 고객님께 말씀드리세요`;
@@ -460,10 +478,10 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#pgModal').
 const progList = (r, grp, staff) => FIELDS.filter(f=>(grp ? f[0]===grp : /^프로그램/.test(f[0])) && !isSub(f[1]) && r[f[1]]).map(f=>{ const v=String(r[f[1]]), sub=p=>String(r[`${p}_${f[1]}`]||'').trim(), who=sub('stf');   // 담당이 여러 명이면 한 칸에 「문현빈, 김선영」
   // 2026-11-24: 출발지 · 장소 · 담당은 괄호 하나에 쉼표로 "(장소:당두봉갈, 담당:김선영)"
   const ex = !staff ? [] : [sub('crs') && `출발지:${sub('crs')}`, sub('plc') && `장소:${sub('plc')}`, who ? `담당:${who}` : needsStaff(f[1]) ? '담당:미정' : ''].filter(Boolean);
-  const tag = !staff ? '' : (sub('tm') ? ` ${sub('tm')}` : '') + (ex.length ? ` (${ex.join(', ')})` : '') + (f[1]==='seminar' ? sem2Tag(r) : '');
+  const tag = !staff ? '' : (sub('tm') ? ` ${sub('tm')}` : '') + itemSlotTimes(r, f[1]).map(v=>` · ${v}`).join('') + (ex.length ? ` (${ex.join(', ')})` : '') + (f[1]==='seminar' ? sem2Tag(r) : '');
   return `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? v+UNIT(f[1]) : v}${tag}`; });
 // 세미나 도슨트 수량 2일 때 두 번째: " · 두 번째 14:00~14:30 (장소:당두봉갈)"
-const sem2Tag = r => { if(!(numOf(r.seminar)>=2) || r.seminar2) return ''; const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); return t||p ? ` ·${t?' '+t:''}${p?` (장소:${p})`:''}` : ''; };
+const sem2Tag = r => semXKeys(r).map(sk=>{ const t=String(r['tm_'+sk]||'').trim(), p=String(r['plc_'+sk]||'').trim(); return t||p ? ` ·${t?' '+t:''}${p?` (장소:${p})`:''}` : ''; }).join('');   // 2회차부터 모두 (3회차부터 2026-11-27)
 // 조사: 받침에 따라 (으)로 · 은/는 · 이고/고
 const lastJong = s => { const c=String(s).trim().slice(-1).charCodeAt(0)-0xAC00; return c>=0 && c<11172 ? c%28 : (/[0-9]$/.test(s) ? ({0:1,1:8,3:1,6:1,7:8,8:8}[String(s).slice(-1)]||0) : 0); };   // 0 = 받침 없음, 8 = ㄹ
 const ro  = s => { const j=lastJong(s); return !j || j===8 ? '로' : '으로'; };

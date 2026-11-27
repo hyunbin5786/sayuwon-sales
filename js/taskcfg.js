@@ -67,7 +67,7 @@ const tcfgDefDue = id => TCFG_DEF_DUE[id] || {base:'made', n:0};
 const TCFG_DEF_NOTE = { erp:'{전산비고}', erpfix:'{전산비고}', tour:'{답사비고}',
   tax:'[세금계산서] {단체명}\n1. 금액\n- 사유원 : {사유원금액}원\n- 신라 : {신라금액}원\n2. 사업자 등록증 : 파일 첨부\n3. 이메일 : {이메일}\n4. 발행일 : {방문일점}\n5. 실제 방문일 : {방문일점}\n감사합니다~' };
 // 과업 아래 안내 줄의 원래 틀 (과업 제목 아래에 자동으로 붙는 글). 지금 자동으로 붙는 것은 「전날 확인 변경 → 예약내역&전산 확인」의 바뀐 내용 하나
-const TCFG_DEF_DESC = { pplchk:'바뀐 내용: {바뀐내용}' };   // memocheck 안내 줄 「고친 사람: ○○」은 없앰 (2026-11-24 · 과업 안 메모 목록에 이름이 나옴)
+const TCFG_DEF_DESC = { pplchk:'바뀐 내용: {바뀐내용}', progstaff:'담당이 비어 있는 칸: {빈담당}' };   // progstaff: 어느 품목의 담당이 비었는지 (2026-11-27 · 예전엔 과업 이름만 보였음)   // memocheck 안내 줄 「고친 사람: ○○」은 없앰 (2026-11-24 · 과업 안 메모 목록에 이름이 나옴)
 // 세부 과업 이름 → 원래 키 (체크 기록이 그대로 이어지게)
 const tcfgDocKey = (id, l) => { const b=(TCFG_BASE_DOC[id]||[]).find(x=>x[1]===l); if(b) return b[0]; let h=0; for(const ch of String(l)) h=(h*31+ch.charCodeAt(0))|0; return 'u'+(h>>>0).toString(36); };
 
@@ -190,7 +190,7 @@ const TCFG_AUTO = {
     hand:'직접 체크할 수 없음 — 체크 칸을 누르면 전산 내역 붙여넣기 창이 열림', back:'예약을 고치거나 전산 내역을 다시 붙여 넣어 금액이 달라지면 다시 열림' },
   erpfix: { short:'예약 내용이 전산에 올린 때와 같아지면 · 전산 내역을 다시 붙여 넣으면', done:['예약 내용을 되돌려 전산에 올린 때와 다시 같아지면 완료 (세부 과업이 없을 때)', '예약 내역(품목 · 인원 · 할인)이 바뀐 경우: 과업을 체크하면 전산 내역 붙여넣기 창이 열리고, 붙여 넣으면 완료'],
     hand:'예약 내역이 아닌 것(날짜 · 시간 등)만 바뀐 경우는 직접 체크하면 완료', back:'완료한 뒤 예약 내용이 또 바뀌면 다시 열림 (마감 = 그날)' },
-  progstaff: { short:'담당 칸을 모두 채우면', done:['프로그램 · 굿즈 옆 「담당」 칸을 모두 채우면 완료'], hand:'직접 체크할 수 없음 — 담당 칸을 채워야 끝남', back:'담당이 빈 칸이 새로 생기면 다시 열림' },
+  progstaff: { short:'담당 칸을 모두 채우면', done:['예약 내역의 「담당」 칸(프로그램 · 대관 · 도슨트 · 음료쿠폰 · 굿즈 · 세미나 도슨트는 회차마다)을 모두 채우면 완료'], hand:'직접 체크할 수 없음 — 담당 칸을 채워야 끝남', back:'담당이 빈 칸이 새로 생기면 다시 열림' },
   mbmenu: { short:'몽몽마방 메뉴를 고르면', done:['몽몽마방 식사에서 메뉴를 고르면 완료'], hand:'직접 체크할 수 없음 — 메뉴를 골라야 끝남', back:'고른 메뉴를 다시 비우면 다시 열림' },
   linksend: { short:'「결제링크 전송」을 누르면', done:['예약 내용 결제 칸 아래 「결제링크 전송」을 누르면 완료 (누른 일시가 기록됨)'], hand:'과업을 직접 체크해도 같음 (체크한 일시가 전송 일시로 기록됨)', back:'결제링크 전송 기록을 지우면 다시 열림' },
   paycheck: { short:'「입금 확인」을 누르면', done:['예약 내용 결제 칸 아래 「입금 확인」을 누르면 완료 (누른 일시가 기록됨)', '결제링크를 보낸 다음날부터 뜨는 결제 확인 알림에서 「입금 확인함」을 눌러도 완료'],
@@ -298,6 +298,7 @@ function tcfgEdHTML(T, c, builtin, id){
     : `<select class="tcfg-who" data-tf="${T}|who"><option value="">영업 담당 (기본)</option>${names.map(n=>`<option value="${esc(n)}"${n===w?' selected':''}>${esc(n)}</option>`).join('')}${w && !names.includes(w) ? `<option value="${esc(w)}" selected>${esc(w)} (멤버 아님)</option>` : ''}</select>
       <small class="hint">멤버를 고르면 모든 예약의 이 과업이 그 사람의 나의 할일 · 알림으로 갑니다 (이미 끝낸 과업은 그대로).</small>`;
   const rule = builtin && (id==='erp' || id==='erpfix') && typeof ERP_NOTE_RULES!=='undefined' ? ['전산 비고 {전산비고} 가 만들어지는 규칙', ERP_NOTE_RULES]
+    : builtin && id==='progstaff' && typeof PROGSTAFF_RULES!=='undefined' ? ['프로그램 · 굿즈 담당 입력 과업 규칙', PROGSTAFF_RULES]
     : builtin && id==='prep' && typeof PREP_RULES!=='undefined' ? ['단체 준비 과업 규칙', PREP_RULES]
     : builtin && id==='memocheck' && typeof MEMOCHECK_RULES!=='undefined' ? ['통화 메모 확인 과업 규칙', MEMOCHECK_RULES]
     : builtin && id==='pplchk' && typeof PPLCHK_RULES!=='undefined' ? ['예약내역&전산 확인 과업 규칙', PPLCHK_RULES] : null;

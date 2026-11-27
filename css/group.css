@@ -1504,3 +1504,9 @@ html.g-start #startBox{display:flex;flex-direction:column;justify-content:center
   #taskList .task-h > .task-c > .ttl{flex:1;min-width:0;font-size:16px}
   #taskList .task-h > .task-c > input[type=checkbox]{width:22px;height:22px;flex:none}
 }
+/* 예약 내역: 세미나 도슨트 회차 줄 이름표(1회차 · 2회차 …) · 대관에 더한 시작 · 끝 줄 (2026-11-27) */
+.it-extra .it-semn{min-width:38px;font-weight:600}
+.it-extra .it-slot .btn{height:30px;padding:0 12px;font-size:12.5px}
+.it-extra .it-slotdel{height:30px;width:30px;border:1px solid var(--line);background:var(--card);border-radius:6px;cursor:pointer;color:var(--muted);font-size:15px;line-height:1}
+.it-extra .it-slotdel:hover{border-color:var(--red);color:var(--red)}
+.it-extra .it-slot[hidden]{display:none}
