@@ -17,7 +17,7 @@ const TCFG_VARS = [
   ['입장시간', r=>r.tin||''], ['인원', r=>r.people ? r.people+'명' : ''], ['영업담당', r=>r.owner||''], ['결제방식', r=>r.pay||''], ['미정항목', r=>r.tbd||''], ['답변일', r=>r.tbdDate ? mdLabel(r.tbdDate) : ''], ['입장문', r=>r.gate||''],
   ['마감', (r,t)=>t ? mdLabel(taskDue(t)) : ''], ['마감기준', (r,t)=>!r.date ? '방문일 미정' : t && t.dueSet ? '직접 정한 날' : t && t.id==='staffbrief' ? staffFriName(r.date) : tbdLimitName(r.date)],
   ['굿즈', r=>goodsText(r)||'없음'], ['빈담당', (r,t)=>((t&&t.missing)||[]).join(' · ')], ['바뀐내용', (r,t)=>(t && t.id==='pplchk' && typeof pplChanges==='function' ? pplChanges(t) : ((t&&t.changes)||[])).join(' · ')],
-  ['몽몽마방인원', r=>r.mabangL ? r.mabangL+'명' : '인원 미정'], ['몽몽마방시간', r=>r.mabangTime||'(시간 미입력)'], ['몽몽마방메뉴', ()=>mbMenus().map(m=>m.name).join(' · ')], ['몽몽마방결제', r=>r.mabangPay||'미정'], ['마방보고', r=>mbReport(r)],   // 마방보고 = 몽몽마방 관련 과업의 복사 멘트 (2026-11-27)
+  ['몽몽마방인원', r=>r.mabangL ? r.mabangL+'명' : '인원 미정'], ['몽몽마방시간', r=>r.mabangTime||'(시간 미입력)'], ['몽몽마방메뉴', ()=>mbMenus().map(m=>m.name).join(' · ')], ['마방보고', r=>mbReport(r)],   // 마방보고 = 몽몽마방 관련 과업의 복사 멘트 (2026-11-27)
   ['결제링크전송', r=>r.linkSent ? dtLabel(r.linkSent) : '(아직 안 보냄)'],
   ['메모고친사람', (r,t)=>(t && t.memoBy)||''],   // 통화 메모 확인: 통화 메모를 고치거나 메모를 남긴 사람 (2026-11-24)
   ['전산비고', r=>erpNote(r)], ['답사비고', r=>tourNote(r)],
@@ -68,8 +68,7 @@ const tcfgDefDue = id => TCFG_DEF_DUE[id] || {base:'made', n:0};
 const TCFG_DEF_NOTE = { erp:'{전산비고}', erpfix:'{전산비고}', tour:'{답사비고}', mabang:'{마방보고}',
   tax:'[세금계산서] {단체명}\n1. 금액\n- 사유원 : {사유원금액}원\n- 신라 : {신라금액}원\n2. 사업자 등록증 : 파일 첨부\n3. 이메일 : {이메일}\n4. 발행일 : {방문일점}\n5. 실제 방문일 : {방문일점}\n감사합니다~' };
 // 과업 아래 안내 줄의 원래 틀 (과업 제목 아래에 자동으로 붙는 글). 지금 자동으로 붙는 것은 「전날 확인 변경 → 예약내역&전산 확인」의 바뀐 내용 하나
-const TCFG_DEF_DESC = { pplchk:'바뀐 내용: {바뀐내용}', progstaff:'담당이 비어 있는 칸: {빈담당}',
-  mabang:'결제방식 · 메뉴는 예약 내역의 몽몽마방 줄에서 고르면 저절로 체크됩니다 (지금 결제: {몽몽마방결제})\n시간 확인은 식당에 전화해 {몽몽마방시간} 이 되는지 확인하고, 마방측에 보고할 때는 아래 글과 「예약 목록 이미지 복사」(컴퓨터)를 같이 붙여 보내세요' };   // mabang: 몽몽마방 관련 과업 (2026-11-27)   // progstaff: 어느 품목의 담당이 비었는지 (2026-11-27 · 예전엔 과업 이름만 보였음)   // memocheck 안내 줄 「고친 사람: ○○」은 없앰 (2026-11-24 · 과업 안 메모 목록에 이름이 나옴)
+const TCFG_DEF_DESC = { pplchk:'바뀐 내용: {바뀐내용}', progstaff:'담당이 비어 있는 칸: {빈담당}' };   // 몽몽마방 관련 과업(mabang)의 안내 두 줄은 없앰 (2026-11-27 · 쓰는 법은 메시지 관리의 「📋 몽몽마방 관련 과업 규칙」에)   // progstaff: 어느 품목의 담당이 비었는지 (2026-11-27 · 예전엔 과업 이름만 보였음)   // memocheck 안내 줄 「고친 사람: ○○」은 없앰 (2026-11-24 · 과업 안 메모 목록에 이름이 나옴)
 // 세부 과업 이름 → 원래 키 (체크 기록이 그대로 이어지게)
 const tcfgDocKey = (id, l) => { const b=(TCFG_BASE_DOC[id]||[]).find(x=>x[1]===l); if(b) return b[0]; let h=0; for(const ch of String(l)) h=(h*31+ch.charCodeAt(0))|0; return 'u'+(h>>>0).toString(36); };
 
