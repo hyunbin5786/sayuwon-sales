@@ -280,6 +280,62 @@ $('#copyDo').onclick=async()=>{ const ok=await copyText($('#copyOut').value); to
 $('#copyClose').onclick=closeCopy;
 $('#copyModal').addEventListener('click', e=>{ if(e.target.id==='copyModal') closeCopy(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#copyModal').hidden){ e.preventDefault(); closeCopy(); } });
+// ===================== 전산 예약 정보 붙여넣기 (PC 에서만 · 2026-11-27) =====================
+// 사유원 전산(관리자 사이트)의 예약 정보 글(항목 이름 ⇥ 값)을 붙여 넣으면 통화 기록의 칸을 채움. 새 칸 · 새 DB 항목 없음 (화면의 칸 값만 바꿈 → 저장은 평소대로)
+//  방문자정보 이름(전화) → 고객 이름 · 연락처 / 방문일자 → 일시 / 예약인원 → 인원 (이 넷은 비어 있는 칸만) / 나머지 → 문의 내용 아래에 덧붙임
+const PASTE_KEYS = {'방문일자':'visit', '상품정보':'product', '방문자정보':'visitor', '예약인원':'people', '테이블정보':'table', '상품금액':'price', '할인금액':'disc', '금액':'total'};
+const PASTE_RE = /^(방문일자|상품정보|방문자정보|예약인원|테이블정보|상품금액|할인금액|금액)\s*(?:\(\s*순번\s*\))?\s*[:：]?\s*(.*)$/;
+function parseAdminText(text){
+  const lines = String(text||'').replace(/\r/g,'').split('\n').map(s=>s.replace(/[\t ]+/g,' ').trim());
+  const o = {discs:[]}; let found=0, wait='';   // wait: 값이 다음 줄에 있는 항목 (이름만 있는 줄)
+  lines.forEach(ln=>{
+    if(!ln) return;
+    if(/^[*＊※]/.test(ln)){ o.discs.push('* '+ln.replace(/^[*＊※]\s*/,'')); found++; wait=''; return; }
+    let m = ln.match(/^등록(?:일시|일)?\s*[:：]\s*(.+)$/); if(m){ o.reg=m[1].trim(); found++; wait=''; return; }
+    m = ln.match(PASTE_RE);
+    if(m){ const k=PASTE_KEYS[m[1]]; found++; if(m[2]){ o[k]=m[2].trim(); wait=''; } else wait=k; return; }
+    if(wait && !/^상품\s*정보$/.test(ln)){ o[wait]=ln; wait=''; }
+  });
+  if(!found || !(o.discs.length || o.reg || Object.keys(PASTE_KEYS).some(n=>o[PASTE_KEYS[n]]))) return null;   // 항목 이름만 있고 값이 하나도 없으면 못 찾은 것으로
+  const r ={name:'', phone:'', date:'', people:'', order:'', raw:o};
+  if(o.visitor){ const p=o.visitor.match(/0\d{1,2}[-\s.]?\d{3,4}[-\s.]?\d{4}/);
+    r.phone = p ? fmtPhone(p[0].replace(/\D/g,'')) : '';
+    r.name = (p ? o.visitor.replace(p[0],'') : o.visitor).replace(/[()（）]/g,' ').replace(/\s+/g,' ').trim(); }
+  if(o.visit){ const d=o.visit.match(/(\d{4})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/);
+    if(d){ const t=new Date(+d[1], +d[2]-1, +d[3]); if(t.getMonth()===+d[2]-1) r.date=ymd(t); }
+    const n=o.visit.match(/\(\s*(\d+)\s*\)\s*$/); if(n) r.order=n[1]; }
+  if(o.people){ const n=o.people.match(/\d+/); if(n) r.people=n[0]; }
+  return r;
+}
+// 문의 내용에 덧붙일 글 (읽은 것만 · 빈 항목은 줄째 뺌)
+function adminNoteText(r){ const o=r.raw;
+  return [ '[전산 예약 정보]',
+    o.visit && `방문일자(순번) : ${o.visit}`,
+    o.product && `상품 : ${o.product}`,
+    o.people && `예약인원 : ${o.people}`,
+    o.table && `테이블 : ${o.table}`,
+    o.price && `상품금액 : ${o.price}`,
+    o.disc && `할인금액 : ${o.disc}`,
+    ...o.discs,
+    o.total && `금액 : ${o.total}`,
+    o.reg && `등록 : ${o.reg}` ].filter(Boolean).join('\n'); }
+const closePaste = () => { $('#pasteModal').hidden=true; };
+$('#pasteBtn').onclick=()=>{ $('#pasteIn').value=''; $('#pasteMsg').textContent=''; $('#pasteModal').hidden=false; setTimeout(()=>$('#pasteIn').focus(),0); };
+$('#pasteDo').onclick=()=>{
+  const r=parseAdminText($('#pasteIn').value);
+  if(!r){ $('#pasteMsg').textContent = $('#pasteIn').value.trim() ? '예약 정보를 찾지 못했습니다. 전산의 예약 정보(방문일자 · 방문자정보 · 예약인원 …)를 복사해 붙여 넣어 주세요.' : '전산에서 복사한 예약 정보를 붙여 넣어 주세요.'; return; }
+  const kept=[];   // 이미 다른 값이 적혀 있어 그대로 둔 칸
+  [['name','고객 이름'],['phone','연락처'],['date','일시'],['people','인원']].forEach(([k,label])=>{
+    if(!r[k]) return; const now=String(form[k]||'').trim();
+    if(!now || (k==='phone' && /^010-?$/.test(now))) form[k]=r[k]; else if(now!==r[k]) kept.push(label); });
+  const add=adminNoteText(r), note=String(form.note||'');
+  if(add.indexOf('\n')>0 && note.indexOf(add)<0) form.note = note.trim() ? note.replace(/\s+$/,'')+'\n\n'+add : add;   // 있던 글은 지우지 않고 아래에 (같은 글을 두 번 붙이지는 않음)
+  closePaste(); touch(); paintForm(true);
+  toast(kept.length ? `채웠습니다. 이미 적혀 있던 ${kept.join(' · ')} 칸은 그대로 두었습니다.` : '칸을 채웠습니다. 확인한 뒤 저장해 주세요.');
+};
+$('#pasteClose').onclick=closePaste;
+$('#pasteModal').addEventListener('click', e=>{ if(e.target.id==='pasteModal') closePaste(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#pasteModal').hidden){ e.preventDefault(); closePaste(); } });
 const hasContent = () => !!(form.note.trim() || form.name.trim() || form.phone.trim() || form.tasks.length);
 function save(auto){
   clearTimeout(autoT);
