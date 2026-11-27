@@ -5,7 +5,8 @@
 (function(){
   const LS='sy_ta_size';
   let sizes={}; try{ sizes=JSON.parse(localStorage.getItem(LS)||'{}')||{}; }catch(_){}
-  const keyOf = el => el.id && !/^tpre_/.test(el.id) ? '#'+el.id
+  const keyOf = el => el.closest && el.closest('.memo-stack') ? ''   // 단체 화면 통화 메모의 적는 자리(#memoBox)는 빼고 (2026-11-27): 예전 큰 글 상자 때 기억해 둔 높이가 한 줄짜리 입력란에 그대로 입혀져 입력란이 칸을 다 차지했음 — 높이는 js/group 의 noteGrow 가 맡음
+    : el.id && !/^tpre_/.test(el.id) ? '#'+el.id
     : el.dataset.tm ? 'tm:'+el.dataset.tm : el.dataset.tnote ? 'tnote:'+el.dataset.tnote : '';
   const apply = el => { const k=keyOf(el), h=k && sizes[k]; if(h && el.style.height!==h+'px') el.style.height=h+'px'; };
   const applyAll = root => { (root.matches && root.matches('textarea') ? [root] : []).concat([...(root.querySelectorAll ? root.querySelectorAll('textarea') : [])]).forEach(apply); };
