@@ -1578,3 +1578,5 @@ html.alert-only #tbdList li .who{min-width:0;overflow-wrap:anywhere}
 .nh-tx small{display:block;color:var(--muted);font-size:12px}
 .nh-tx.old{color:var(--muted)}
 .nh-none{color:var(--muted);font-size:13.5px;margin:4px 0 0}
+.memo-panel .memo-hist-btn{background:#fff;color:var(--muted);font-weight:400}   /* 「수정 기록」: 눈에 띄지 않게 흰 버튼 (운영팀이 정함 · 2026-11-27 — 「버튼은 모두 초록」의 예외) */
+.memo-panel .memo-hist-btn:hover{color:var(--ink)}
