@@ -471,6 +471,8 @@ let groupMine=[], etcRowsP=[];   // etcRowsP = 직접 넣은 업무(통화 구�
 function paintMyCount(){ const today=todayYmd(), me=user.name||''; let n=0;
   shown().filter(r=>(r.owner||r.takenBy)===me).forEach(r=>tasksOfItem(r).forEach(t=>{ if(!t.done && (t.due||today)<=today) n++; }));
   groupMine.forEach(r=>tasksOfItem(r).forEach(t=>{ if(!t.done && t.due && t.due<=today) n++; }));
+  // 2026-11-27: 직접 넣은 업무도 셈 (업무마다 한 번 — 나의 할일 「오늘 마감」 줄 수 · 단체 화면 헤더 숫자와 같게 · js/group/14-task-sim.js myDueCount)
+  etcRowsP.forEach(r=>{ let d=null; try{ const j=JSON.parse(r.history||'{}'); d=j && j.kind ? (j.d||{}) : null; }catch(_){} if(d && (d.owner||r.takenBy||'')===me && SY_TASK.pending(d).length) n++; });
   const b=$('#myCount'); b.hidden=!n; b.textContent = n ? `과업 ${n}` : ''; }
 // 2026-11-26: 알림 = 캘린더처럼 따로 뜨는 창(group.html?alert=1 · SY_ALERT.show — 브라우저가 막으면 화면을 처음 누를 때 엶) · 나의 할일에 있는 것 모두
 //  (개인고객 · 단체 과업 + 직접 넣은 업무 + 내가 맡은 고객 견적 요청) · 「완료」 버튼은 없앰. 아래 이 화면 팝업은 그 창이 끝내 안 열릴 때만

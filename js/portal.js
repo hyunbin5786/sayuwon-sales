@@ -519,11 +519,14 @@ function renderDash(){ if(!dashData) return; paintRange();
   // ④ 2행 공통 업무: 담당이 없는 과업 (고객 견적 요청 · 담당 없는 예약 과업 등) + 정기 재고조사 날
   // 2026-11-25 · 1열 2행 「오늘 마감」: 내 것(단체 · 개인 · 개인 업무) 중 오늘 마감 + 지난 마감 — 위 마감 기간 버튼과 상관없이 늘 오늘 · 초록 「나의 할일」 = 팝업 열기
   //  2026-11-25 고침: 제목 「오늘 마감 · 내 이름」 · 줄마다 구분 표시 · 과업마다 체크 칸(바로 완료) · 이름 · 과업을 누르면 그 예약을 팝업으로 열어 바로 고침 · 단체 · 개인고객은 「바로가기」(그 화면으로) · 「오늘」 글자는 안 씀 (지난 것만 「지남 날짜」)
-  const todayBox = () => { const L=all.filter(r=>me && r.owner===me).map(r=>({...r, due:r.tasks.filter(t=>t.due<=today).sort((a,b)=>a.due.localeCompare(b.due))})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name));
+  //  2026-11-27: 직접 넣은 업무(개인 업무)는 업무마다 한 줄 · 한 번만 셈 — 반복 업무를 하루 안 했으면 「지난 날 · 오늘」 두 줄로 나와 과업 하나가 2개로 세어졌음.
+  //   나의 할일 「오늘 마감」과 같게: 오늘 할 날이 있으면 오늘, 없으면 안 한 지난 날 중 가장 이른 날 (나머지 지난 날 수는 글자로 · 체크하면 그 줄의 날이 완료되고 다음 것이 나옴)
+  const one = r => { if(r.kind!=='기타' || r.due.length<2) return r; const t=r.due.find(x=>x.due===today) || r.due[0]; return {...r, due:[{...t, more:r.due.length-1}]}; };
+  const todayBox = () => { const L=all.filter(r=>me && r.owner===me).map(r=>one({...r, due:r.tasks.filter(t=>t.due<=today).sort((a,b)=>a.due.localeCompare(b.due))})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name));
     const n=L.reduce((s,r)=>s+r.due.length, 0);
     const ck = (r, t) => `<label class="dtd-ck" title="체크하면 완료"><input type="checkbox" data-dck="${esc([r.kind, r.rid||'', t.id||'', t.day||''].join('|'))}"></label>`;
     const open = r => r.kind==='기타' ? 'data-mypop' : `data-recpop="${esc(r.href.replace('?open=', '?embed=1&open='))}"`;
-    const late = t => t.due<today ? `<small class="late">지남 ${esc(opsDateLabel(t.due))}</small>` : '';
+    const late = t => (t.due<today ? `<small class="late">지남 ${esc(opsDateLabel(t.due))}</small>` : '') + (t.more ? `<small class="late">안 한 지난 날 ${t.more}일 더</small>` : '');
     const li = r => { const k=DTD_KIND[r.kind]||[r.kind,''];
       if(r.kind==='기타') return `<li class="dtd">${r.due.map(t=>`<div class="dtd-t">${ck(r,t)}<span class="dk ${k[1]}">${k[0]}</span><button type="button" class="dtd-x" ${open(r)} title="나의 할일에서 고치기">${esc(r.name)}</button>${late(t)}</div>`).join('')}</li>`;
       return `<li class="dtd"><div class="dtd-h"><span class="dk ${k[1]}">${k[0]}</span><button type="button" class="dtd-x dtd-name" ${open(r)} title="눌러서 바로 고치기 (팝업)">${esc(r.name)}</button>${r.href?`<a class="dtd-go" href="${esc(r.href)}" data-tip="바로가기" aria-label="바로가기 (그 화면으로)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="6.8" cy="6.8" r="4.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.3 10.3l3.9 3.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></a>`:''}</div>`
