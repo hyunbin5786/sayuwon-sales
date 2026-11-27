@@ -122,9 +122,8 @@
 <!-- 과업 알림 (마감이 오늘이거나 지난 추후 과업) (오전 8시 · 11시 · 오후 1시 · 5시, 단체 화면과 같은 기록이라 한 시각에 한 번) -->
 <div class="modal" id="dueModal" hidden>
   <section class="panel wide" role="dialog" aria-modal="true" aria-labelledby="dueTitle">
-    <h2 id="dueTitle">과업 알림</h2>
+    <h2 id="dueTitle">과업 알림</h2><button type="button" class="win-x" id="dueClose" title="닫기 (다음 알림 시각에 다시)" aria-label="닫기">×</button>
     <ul class="due-list" id="dueList"></ul>
-    <div class="btns" style="justify-content:flex-end"><button class="btn primary" id="dueClose" title="다음 알림 시각에 다시">닫기</button></div>
   </section>
 </div>
 <div class="toast" id="toast"></div>

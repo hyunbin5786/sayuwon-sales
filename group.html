@@ -166,12 +166,11 @@
     </div>
   </section>
 </div>
-<!-- 마감이 된 추후 과업: 해결할 때까지 계속 (나중에 = 2시간 뒤) -->
+<!-- 마감이 된 추후 과업: 해결할 때까지 계속 (다음 알림 시각에 다시) · 따로 뜨는 알림 창(?alert=1)에서는 × 를 숨김 — 브라우저 창의 닫기로 닫음 (2026-11-27) -->
 <div class="modal" id="tbdModal" hidden>
   <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="tbdTitle">
-    <h2 id="tbdTitle">과업 알림</h2>
+    <h2 id="tbdTitle">과업 알림</h2><button type="button" class="win-x" id="tbdLater" title="닫기 (다음 알림 시각에 다시)" aria-label="닫기">×</button>
     <ul class="pc-list" id="tbdList"></ul>
-    <div class="row-btns"><button class="btn primary" id="tbdLater" title="다음 알림 시각에 다시">닫기</button></div>
   </section>
 </div>
 <!-- 결제 방식을 고르면 그 방식의 안내 -->
