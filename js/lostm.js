@@ -12,19 +12,21 @@
   const OPEN={}; (OPS_PAGE.boards||[]).forEach(b=>{ OPEN[b.kind]=b.open||[]; });
   const isOpen = x => (OPEN[lostKind(x.d)]||[]).includes(lostStatus(x.d));   // 진행 중 = 신고의 찾는 중 · 습득의 보관중
   let kind='분실 신고';
-  const card = x => { const d=x.d, k=lostKind(d), ps=Array.isArray(d.photos) ? d.photos : [], who=[d.person, d.phone].filter(Boolean).join(' · ');
+  // 2026-11-27: 신고 카드 = 「신고자 (고객 이름 · 전화번호)」 줄 + 「담당 (사유원 담당자 · 연락처)」 줄 · 습득 카드는 예전대로 「습득자」. 고객 이름 · 번호는 로그인한 사람에게만 (서버가 로그인 없는 사람에게는 보내지 않음)
+  const card = x => { const d=x.d, k=lostKind(d), ps=Array.isArray(d.photos) ? d.photos : [], who=[d.person, d.phone].filter(Boolean).join(' · '), rep=GUEST ? '' : [d.reporter, d.reporterPhone].filter(Boolean).join(' · ');
     return `<div class="m-card ${CLS[k]}" data-mid="${esc(x.r.id)}">`
       + (ps.length ? `<img data-phimg="${esc(ps[0].id)}" data-phview="${esc(ps[0].id)}" alt="${esc(d.item||'사진')}">` : `<span class="m-noph">사진 없음</span>`)
       + `<div class="m-c"><div class="m-t"><small class="m-k">${SHORT[k]}</small><b>${esc(d.item||'')}</b></div>`
       + (d.feature && k!=='습득' ? `<span>${esc(d.feature)}</span>` : '')
       + `<small>${esc(opsDateLabel(d.date))}${d.place?` · ${esc(d.place)}`:''}${k==='습득' && d.storage?` · 보관 ${esc(d.storage)}`:''}</small>`
-      + (who ? `<small>${k==='습득'?'습득자':'신고자'} ${esc(who)}</small>` : '') + `</div></div>`; };
+      + (k!=='습득' && rep ? `<small>신고자 ${esc(rep)}</small>` : '')
+      + (who ? `<small>${k==='습득'?'습득자':'담당'} ${esc(who)}</small>` : '') + `</div></div>`; };
   function paint(){
     const live=rows.filter(isOpen), cnt=k=>live.filter(x=>!k || lostKind(x.d)===k).length;
     $('#mTabs').innerHTML = TABS.map(([k,l])=>`<button type="button" role="tab" data-mk="${esc(k)}" class="${k===kind?'on ':''}${CLS[k]||''}" aria-selected="${k===kind}">${esc(l)} <small>${cnt(k)}</small></button>`).join('');
     if(opsWait){ $('#mResults').innerHTML=SY.skel('cards', 4, {h:'5.6em', label:'분실물을 불러오는 중'}); return; }   // 처음 받는 중 (js/opsboard.js opsWait · 2026-11-27)
     const q=$('#mQ').value.trim().toLowerCase().replace(/\s/g,'');
-    const hit=x=>{ const d=x.d; return [d.item, d.feature, d.place, d.storage, d.person, d.phone, d.kind].join(' ').toLowerCase().replace(/\s/g,'').includes(q); };
+    const hit=x=>{ const d=x.d; return [d.item, d.feature, d.place, d.storage, d.person, d.phone, d.reporter, d.reporterPhone, d.kind].join(' ').toLowerCase().replace(/\s/g,'').includes(q); };
     const of=k=>live.filter(x=>lostKind(x.d)===k && (!q || hit(x))).sort(lostSort);
     const none=`<p class="empty">${q ? '찾은 것이 없습니다.' : '진행 중인 것이 없습니다.'}</p>`;
     const sec=(k, head)=>{ const all=of(k), list=all.slice(0, 100);

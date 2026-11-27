@@ -1,5 +1,5 @@
 // ===== 공통 업무 알림 관리 (2026-11-24 · 첫 화면 「공통 업무」 제목 옆 「관리」 버튼) =====
-// 공통 업무(담당이 없는 모두의 일)에 무엇을 알릴지 한곳에서: 이미 있던 알림(기본 5개)도 이름 · 내용 · 설정을 고치고 끄거나 지울 수 있고, 새 공통 업무를 더함
+// 공통 업무(담당이 없는 모두의 일)에 무엇을 알릴지 한곳에서: 이미 있던 알림(기본 6개 · 2026-11-27 분실물 신고 더함)도 이름 · 내용 · 설정을 고치고 끄거나 지울 수 있고, 새 공통 업무를 더함
 // 저장: 공유 기록(calls) 한 줄 id commondb · 통화 구분 「공통업무설정」 · 수정 기록 칸 {rules:[…], done:{규칙 id:{날짜:{at, by}}}, log:[{at, by, what}]}
 //  기본 알림(sys)은 바꾼 값만 rules 에 (id 가 같으면 덮어씀) · removed:true = 지움(아래 「지운 기본 알림」에서 되살리기) · on:false = 잠시 끔
 //  새 공통 업무 {id, title, text, href, repeat:'none'|'daily'|'weekly'|'monthly'|'months'|'yearly', start, dows, dom, n, stop, on}
@@ -12,6 +12,7 @@ const CM_SYS = [
   {id:'stock',   title:'📋 정기 재고조사', text:'붕정 · 차방을 세어 재고관리에 기록', when:'재고관리의 다음 조사일이 되면 (두 곳 모두 세면 다음 주기로)', href:'stock.html'},
   {id:'promo',   title:'기업 프로모션', text:'연장 여부 확인 (확인하면 「확인」)', when:'기업 프로모션 할인 표의 기간 끝(만료) 몇 달 전', months:'2, 1', href:'promo.html'},
   {id:'agency',  title:'협업 여행사 집계기록 넣기', text:'방문기록 엑셀을 넣어 여행사별 집계', when:'집계 기간(반기 · 분기)이 끝났는데 그 기간 기록이 없으면', href:'agency.html'},
+  {id:'lost',    title:'분실물 신고', text:'찾아보고 신고자에게 안내', when:'분실물 신고가 새로 접수되고 「찾는 중」인 동안 (접수일이 마감 · 분실물 찾기에서 「처리완료」로 바꾸면 빠짐)', href:'lost.html'},   // 2026-11-27 · js/portal.js commonExtra
 ];
 const CM_REPEAT = [['none','한 번'],['daily','매일'],['weekly','매주'],['monthly','매달'],['months','몇 달마다'],['yearly','매년']];
 const cmHist = () => (typeof histOf==='function' && histOf(CM_ID)) || {};
