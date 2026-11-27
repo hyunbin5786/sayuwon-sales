@@ -439,7 +439,7 @@ function openPdel(id){ const r=shown().find(x=>x.id===id); if(!r) return; pdelId
   $('#pdelWho').textContent=[r.contact||'(이름 없음)', r.phone, r.saved&&dtLabel(r.saved)].filter(Boolean).join(' · ');
   $('#pdelReason').innerHTML = '<option value="">사유를 고르세요</option>' + PDEL_REASONS.map(x=>`<option>${esc(x)}</option>`).join('');
   $('#pdelWhy').value=''; $('#pdelModal').hidden=false; setTimeout(()=>$('#pdelReason').focus(),0); }
-const PDEL_REASONS = ['같은 통화를 두 번 저장 (중복)','잘못 입력 · 테스트','다른 고객 기록에 잘못 저장','단체 예약으로 옮김 (단체고객 화면에 입력)','고객이 기록 삭제를 요청','기타 (직접 입력)'];   // 단체 화면 삭제처럼 골라서
+const PDEL_REASONS = ['같은 통화를 두 번 저장 (중복)','잘못 입력 · 테스트','다른 고객 기록에 잘못 저장','단체 예약으로 옮김 (단체고객 화면에 입력)','고객이 기록 삭제를 요청','담당자 변경','기타 (직접 입력)'];   // 단체 화면 삭제처럼 골라서
 const closePdel = () => { $('#pdelModal').hidden=true; pdelId=null; };
 $('#pdelCancel').onclick=closePdel;
 $('#pdelModal').addEventListener('mousedown', e=>{ if(e.target.id==='pdelModal') closePdel(); });
