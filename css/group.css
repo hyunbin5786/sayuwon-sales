@@ -1276,7 +1276,7 @@ html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
   html.book-only .bk-side .book-me .bm-mine{display:flex;align-items:center;gap:8px;width:100%}
   html.book-only .bk-side .book-me #bookMeName, html.book-only .bk-side .book-me #bookRange{width:100%;min-width:0;height:40px;font-size:16px;border-radius:9px}
   html.book-only .bk-side .book-me #bookMine{width:20px;height:20px}
-  html.book-only .bk-side .book-me .bm-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin:0}
+  html.book-only .bk-side .book-me .bm-btns{display:grid;grid-template-columns:1fr;gap:8px;width:100%;margin:0}   /* 휴대폰에는 「출력하기」 하나 (직접 추가는 2026-11-27 없앰 · 모든 담당 출력은 PC 만) */
   html.book-only .bk-side .book-me .bm-btns .btn, html.book-only .bk-side #bookPrint, html.book-only .bk-side #bookAddBtn2{width:100%;height:44px;font-size:15.5px;border-radius:10px;margin:0}
   /* 예약 한 건 = 카드 한 장 (글자를 줄임) */
   html.book-only .mbdb-t tr{padding:10px 12px;margin:0 0 8px;border-radius:12px;border-width:1px}

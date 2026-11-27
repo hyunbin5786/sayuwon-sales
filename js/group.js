@@ -1444,7 +1444,7 @@ function paintBook(){
   $('#bookTitle').textContent = `${BOOK_CATS[c]} 예약 목록`; { const bs=$('#bookSum'); if(bs){ bs.textContent=''; bs.hidden=true; } }   // 건수 · 「단체 예약에서 자동 + 직접 추가」 문구는 없앰 (2026-11-21)
   $('#bookHead').innerHTML = bkHeadHTML(c);
   $('#bookBody').innerHTML = list.map(x=>bkGenRow(x, today, '')).join('')
-    || `<tr><td colspan="8" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':mine?`담당 「${esc(me)}」인 ${past?'':'앞으로 있을 '}예약이 없습니다.`:all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다. 위 「＋ 직접 추가」로 넣으세요.'}</td></tr>`;
+    || `<tr><td colspan="8" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':mine?`담당 「${esc(me)}」인 ${past?'':'앞으로 있을 '}예약이 없습니다.`:all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다.'}</td></tr>`;
   labelCells('#bookBody', BK_COLS(c));   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
 }
 // 대관 · 도슨트 · 프로그램 · 음료쿠폰 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표 · 수정 단추의 data-bcat = 그 줄의 목록)
@@ -1559,7 +1559,7 @@ document.addEventListener('input', e=>{ if(e.target.id!=='baImp') return; bookIm
   $('#baImpPrev').innerHTML = !bookImp ? '' : bookImp.rows.length ? `<b>${bookImp.rows.length}건</b><ul>${bookImp.rows.map(x=>`<li>${esc(dateLabel(x.d))} · ${esc(BOOK_CATS[x.cat])}${x.kind?' '+esc(x.kind):''} ${esc(x.tm||'')} · <b>${esc(x.org)}</b> · ${x.ppl}명${x.staff?' · '+esc(x.staff.replace(/\n/g,', ')):''}${x.note?' · '+esc(x.note):''}</li>`).join('')}</ul>${bookImp.skipped.length?`<div class="hint">읽지 못한 줄 ${bookImp.skipped.length}개</div>`:''}` : '<b class="late">읽은 줄이 없습니다.</b>';
   $('#baImpSave').disabled = !(bookImp && bookImp.rows.length); });
 document.addEventListener('click', async e=>{ const t=e.target;
-  if(t.id==='bookAddBtn' || t.id==='bookAddBtn2'){ bookEdit=null; bookAddOpen(); return; }   // bookAddBtn2 = 휴대폰에서 출력하기 아래 (2026-11-24)   // 로그인 없이도 (이름 칸이 나옴)
+  if(t.id==='bookAddBtn' || t.id==='bookAddBtn2'){   /* 2026-11-27: 두 단추를 화면에서 없앰 (단체 예약에 있는 것만 잇기로) — 예전 화면이 남은 브라우저를 위해 줄은 둠 */ bookEdit=null; bookAddOpen(); return; }   // bookAddBtn2 = 휴대폰에서 출력하기 아래 (2026-11-24)   // 로그인 없이도 (이름 칸이 나옴)
   if(t.id==='baSave'){ t.disabled=true; const ok=await bookAddSave(); if(!ok){ t.disabled=false; return; } bookAddClose(); return; }
   if(t.id==='baCancel'){ bookAddClose(); return; }
   if(t.id==='baImpSave' && bookImp){ const key=x=>[x.cat,x.d,x.org,x.tm,x.kind].join('|'), have=new Set(bkDb().rows.map(key)), add=bookImp.rows.filter(x=>!have.has(key(x)));
@@ -1737,10 +1737,10 @@ function paintMbDb(){
   const all=mbAllRows();
   const F=bkFind(), list=all.filter(x=>(past || F.dated || x.d>=today) && bkFindOk(F, x.d, [x.n,x.m,x.t,x.note,x.staff].join(' '))).sort((a,b)=>(a.d+String(a.t)).localeCompare(b.d+String(b.t)));
   bkFindPaint(list.length);
-  $('#mbdbSum').textContent = all.length ? `${all.length}건 · 단체 예약(가예약 · 예약확정)에서 자동 + 직접 추가${db.at?` · 직접 추가 마지막 저장 ${dtLabel(db.at)}${db.by?` (${db.by})`:''}`:''}` : '아직 없음';
+  $('#mbdbSum').textContent = all.length ? `${all.length}건 · 단체 예약(가예약 · 예약확정)에서 자동으로 들어옴` : '아직 없음';   // 「＋ 직접 추가」를 없애며 「직접 추가 마지막 저장」 글도 뺌 (2026-11-27)
   $('#mbdbHead').innerHTML = bkHeadHTML('mb');
   $('#mbdbBody').innerHTML = list.map(x=>mbRow(x, today, '')).join('')
-    || `<tr><td colspan="8" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':all.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'위 「＋ 직접 추가」로 몽몽마방 예약을 넣으세요.'}</td></tr>`;
+    || `<tr><td colspan="8" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':all.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'몽몽마방 예약이 없습니다.'}</td></tr>`;
   labelCells('#mbdbBody', BK_COLS('mb'));   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
 }
 async function mbDbSave(rows, msg){
