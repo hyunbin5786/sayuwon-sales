@@ -4,10 +4,11 @@
 function paintTmMissing(){
   document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-q input[data-iq]').forEach(q=>q.closest('.it-q').classList.toggle('missing', !q.value.trim()));
   document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-q2 input[data-iqa]').forEach(q=>q.closest('label').classList.toggle('missing', !numOf(itemQty(q.dataset.iqa))));   // 성인 · 학생: 줄 인원이 비었을 때 성인 칸만 빨갛게 (학생 0명은 그대로, 2026-11-20)
-  document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-xl').forEach(l=>{ const x=l.querySelector('.it-x'); l.classList.toggle('missing', !!x && !String(x.value||'').trim()); });
+  document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-xl').forEach(l=>{ const x=l.querySelector('.it-x, [data-is]'); l.classList.toggle('missing', !!x && !String(x.value||'').trim()); });   // [data-is] = 세미나 도슨트 2회의 장소마다 담당 칸 (2026-11-27: 이 칸을 못 찾아 비어 있어도 늘 초록이던 것 고침)
 }
+const paintStaffCell = el => el.closest('.it-s, .it-xl')?.classList.toggle('missing', !String(el.value||'').trim());   // 담당 칸 하나: 비면 빨강 · 고르면 바로 초록
 function paintItemState(){   // 담당이 빈 줄은 빨갛게, 그날 현황은 넣은 묶음만
-  document.querySelectorAll('#itemsBox [data-is]').forEach(el=>el.closest('.it-s, .it-xl')?.classList.toggle('missing', !el.value.trim()));   // 세미나 도슨트 2회: 장소마다 담당 칸(.it-xl)도
+  document.querySelectorAll('#itemsBox [data-is]').forEach(paintStaffCell);   // 세미나 도슨트 2회: 장소마다 담당 칸(.it-xl)도
   paintTmMissing();
   const kinds=new Set(itemRows.map(k=>{ const t=itemKind(k); return t==='sadam'?'sadam':t==='mb'?'mabang':t==='prog'?(OPT[GROUP_OF[k]]||{}).id:''; }));
   document.querySelectorAll('#itemsInfo .dayinfo').forEach(el=>{ el.hidden = !kinds.has(el.id.replace('info_','')); });
@@ -48,7 +49,7 @@ document.addEventListener('input', e=>{
     setItemStu(k, n); setItemQty(k, a+n ? String(a+n) : ''); itemChanged(false, true); }
   else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); startTimer(); repaintSoon(); }   // 항목 비고 (치는 동안은 다시 그리지 않음)
   else if(el.dataset.is!=null){ if(el.value==='__new'){ const k=el.dataset.is; el.value=String(rec[itemStfKey(k)]||''); newMemberAsk(k); return; }   // 「＋ 새 멤버 추가…」 (2026-11-24)
-    const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); repaintSoon(); }   // 담당 (멤버 목록에서 고름)
+    const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); document.querySelectorAll('#itemsBox [data-is]').forEach(o=>{ if(o!==el && itemStfKey(o.dataset.is)===sk) o.value=el.value; paintStaffCell(o); }); repaintSoon(); }   // 담당 (멤버 목록에서 고름) · 색은 그 자리에서 바로 (2026-11-27 · 굿즈는 모든 줄이 같은 담당)
   else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^tm[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
   else if(el.dataset.ix!=null && el.tagName==='INPUT'){ rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix); itemChanged(false, true); }
 });
