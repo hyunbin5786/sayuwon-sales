@@ -323,7 +323,7 @@ function etcCatAllHTML(c){
     .sort((a,b)=>a.day.localeCompare(b.day) || String(a.d.title||'').localeCompare(String(b.d.title||''),'ko'));
   const late=list.filter(o=>o.day<today).length, doneToday=mine.filter(o=>(o.d.done||{})[today]);
   return `<h3 class="my-h">${esc(c ? catLabel(c) : ETC_NOCAT)} <small>할 일 ${list.length}개${late?` · <b class="late">밀린 것 ${late}개</b>`:''}</small></h3>`
-    + etcAddHTML(c)
+    + etcAddHTML(c) + '<!--fx-->'   /* 여기까지(제목 · 입력 상자)는 고정, 아래 목록만 스크롤 (2026-11-27 · js/group/14-task-sim.js fxCol) */
     + (list.length ? tkListHTML(list.map(o=>tkFromE(o, o.day, {before:o.before}))) : '<p class="hint">할 업무가 없습니다.</p>')
     + etcLaterHTML(mine.filter(o=>o.d.repeat==='later'))
     + (doneToday.length ? `<details class="etc-more"${etcOpenDone?' open':''} data-etcfold="done"><summary>오늘 완료한 것 ${doneToday.length}개</summary>${tkListHTML(doneToday.map(o=>({...tkFromE(o, today), done:true})))}</details>` : '');

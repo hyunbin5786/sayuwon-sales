@@ -1136,10 +1136,17 @@ html.g-loading body{overflow:hidden}
 .bkv-hint{margin:0;font-size:14px;color:var(--muted);text-align:center}
 /* 나의 할일 › 메인 (2026-11-24): 칸 위(입력 · 오늘 마감 제목 / 구분 · 개인예약 · 단체예약 제목)는 고정, 아래 목록만 스크롤 */
 .my-col.fx{display:flex;flex-direction:column;overflow:hidden}
-.my-col.fx > .my-fix{flex:none;padding-bottom:2px}
-.my-col.fx > .my-scroll{flex:1;min-height:0;overflow:auto;margin:0 -4px;padding:0 4px 4px}
+.my-col.fx > .my-fix{flex:none;padding:0 2px 2px 0}
+/* 2026-11-27: 모든 탭의 칸이 이 틀 — 스크롤 막대는 칸의 오른쪽 안쪽 여백(10px) 안에 들어가고, 막대가 없어도 그 자리를 비워 둬(scrollbar-gutter) 카드 폭이 칸마다 같음. 막대의 길은 투명(칸 바탕 그대로) · 막대는 옅은 회색(올리면 보조 글자색) */
+.my-col.fx > .my-scroll{flex:1;min-height:0;overflow:auto;scrollbar-gutter:stable;margin:0 -10px 0 -4px;padding:0 2px 4px 4px}
+.my-col.fx > .my-scroll::-webkit-scrollbar{width:10px;height:10px}
+.my-col.fx > .my-scroll::-webkit-scrollbar-track, .my-col.fx > .my-scroll::-webkit-scrollbar-corner{background:transparent}
+.my-col.fx > .my-scroll::-webkit-scrollbar-thumb{background-color:#c9c6be;border:2px solid transparent;background-clip:padding-box;border-radius:5px}
+.my-col.fx > .my-scroll::-webkit-scrollbar-thumb:hover, .my-col.fx > .my-scroll::-webkit-scrollbar-thumb:active{background-color:var(--muted)}
+@supports not selector(::-webkit-scrollbar){ .my-col.fx > .my-scroll{scrollbar-width:thin;scrollbar-color:#c9c6be transparent} }
 .my-col.fx > .my-fix .my-h:last-child{margin-bottom:6px}
-@media (max-width:900px){ .my-col.fx{overflow:visible} .my-col.fx > .my-scroll{overflow:visible} }
+/* 휴대폰(700px 아래)은 창 전체가 스크롤(맨 아래 휴대폰 규칙) — 칸 안쪽 스크롤 · 막대 자리를 두지 않음. 701~900px 은 PC 와 같이 칸 안쪽 스크롤 (예전엔 여기서도 풀었는데, 칸 높이가 묶인 채라 카드가 회색 칸 밖으로 삐져나왔음) */
+@media (max-width:700px){ .my-col.fx{overflow:visible} .my-col.fx > .my-fix{padding-right:0} .my-col.fx > .my-scroll{overflow:visible;margin-right:-4px;padding-right:4px} }
 /* 추후과업 메시지 관리 · 전산 비고 규칙 참고 (2026-11-24 · js/group/09-tasks.js ERP_NOTE_RULES) */
 .tcfg-rule{border:1px solid #cfe0cc;background:#f4f8f1;border-radius:8px;padding:6px 10px;margin:4px 0 8px}
 .tcfg-rule summary{cursor:pointer;font-weight:700;font-size:13px;color:var(--pine,#3f5236)}
