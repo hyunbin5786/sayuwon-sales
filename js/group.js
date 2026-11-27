@@ -48,6 +48,7 @@ const FIELDS = [
   ['굿즈','linkSent','결제링크 전송','','',null],   // 결제링크를 보낸 일시 (예약 내용의 「결제링크 전송」 버튼, 시트 비고 칸)
   ['굿즈','paidAt','입금 확인','','',null],   // 입금을 확인한 일시 (「입금 확인」 버튼)
   ['굿즈','istu','항목 학생','','',null],   // 관람 · 관람+식사 줄마다 학생 인원 "sadam1=5; v:관람(09:00~18:00)=3" (나머지는 성인, 2026-11-20 · 시트 비고 칸 '항목 학생')
+  ['굿즈','islots','항목 시간 더하기','','',null],   // 차방 · 당두봉갈 대관에 더한 시작 · 끝 "chabang=15:00~16:00,17:00~18:00; dangdu=10:00~11:00" (첫 시간대는 예전처럼 tm_키 · 2026-11-27 · 시트 비고 칸 '항목 시간 더하기')
   ['굿즈','erpSame','전산 같은 품목','','',null],   // 전산 품목 이름은 다르지만 같은 것 "seminar>dangdu" (전산 세미나 도슨트 = 예약 당두봉갈 대관, 2026-11-21 · 시트 비고 칸)
   ['굿즈','isp','항목 특별 할인','','',null],   // 줄마다 특별 할인 인원 · 기타 할인 "v:…=dKansong:2|0:10000|재방문 감사" (시트 비고 칸 '항목 특별 할인')
   ['굿즈','idamt','항목 할인액','','',null],   // 할인액을 직접 고친 줄 "sadam1=200000:125000" (과세(신라):비과세(사유원), 시트 비고 칸 '항목 할인액')
@@ -68,6 +69,9 @@ const isDocent = label => /도슨트/.test(label||'');
 const subRows = f => [...(/^seminar2?$/.test(f[1]) ? ['tm','plc'] : isDocent(f[2]) ? ['tm','crs'] : ['tm']), ...(needsStaff(f[1]) ? ['stf'] : [])].map(p=>[f[0], `${p}_${f[1]}`, `${f[2]} ${SUB_NAME[p]}`, '', '', null]);
 
 for(let i=FIELDS.length-1;i>=0;i--){ const f=FIELDS[i]; if(/^프로그램/.test(f[0]) && !isSub(f[1])) FIELDS.splice(i+1,0,...subRows(f)); }
+// 세미나 도슨트 3회차부터 (2026-11-27): 회차마다 시작 · 끝(tm_seminarN) · 장소(plc_seminarN) · 담당(stf_seminarN) 칸만 둠 — 품목 칸(seminarN)은 없음 (수량은 세미나 도슨트 한 칸). 2회차는 예전 「세미나 도슨트(2)」 칸 그대로
+const SEM_MAX = 6;   // 회차 줄은 여기까지 (그보다 많은 횟수는 수량만)
+for(let n=3;n<=SEM_MAX;n++){ const at=FIELDS.findIndex(f=>f[1]==='stf_seminar'+(n-1)); FIELDS.splice(at+1,0,...['tm','plc','stf'].map(p=>['프로그램(시간)', `${p}_seminar${n}`, `세미나 도슨트(${n}) ${SUB_NAME[p]}`, '', '', null])); }
 // 프로그램 품목 ↔ 견적서 품목 (견적서·금액 계산용)
 const PROG_SRC = { yoga:'요가프로그램(단체)', gaga:'음료쿠폰(가가빈빈)', chabang:'대관', dangdu:'대관', donghaeng:'해설사도슨트(수정)', seminar:'세미나', seminar2:'세미나', sound:'사운드워킹', scent:'사유의 향', haeorum:'사유원 새벽 해오름 산책(평일)' };
 const HAEORUM_WE = '사유원 새벽 해오름 산책(주말)';
@@ -75,10 +79,20 @@ const progSrc = (k, r) => k==='haeorum' && r && r.date && isRedDay(r.date) ? HAE
 // 지금 견적서 품목 리스트에 있는 단체 품목 (이것 말고 새로 추가된 것만 프로그램 칸으로 붙임)
 const PROG_KNOWN = ['사유원 새벽 해오름 산책(주말)','대관','세미나','해설사도슨트(수정)','임원도슨트(수정)','사운드워킹','사유의 향','요가프로그램(단체)','음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)','사유의 밥상(단체)','당두봉갈 대관'];
 const PROG_GRP = { geach:'프로그램(개별)', gtime:'프로그램(시간)' };
-const UNIT = k => /^seminar2?$/.test(k) ? '회' : COUPON_IN_GOODS.includes(k) ? '개' : (FIELDS.find(f=>f[1]===k)||[])[0]==='프로그램(시간)' ? '시간' : '명';   // 세미나 도슨트는 회 (2026-11-18)
+const UNIT = k => /^seminar\d?$/.test(k) ? '회' : COUPON_IN_GOODS.includes(k) ? '개' : (FIELDS.find(f=>f[1]===k)||[])[0]==='프로그램(시간)' ? '시간' : '명';   // 세미나 도슨트는 회 (2026-11-18)
 // 세미나 도슨트 수량 2 = 두 번(두 장소): 두 번째의 시작 · 끝 · 장소 · 비고는 예전 「세미나 도슨트(2)」 칸(tm_seminar2 · plc_seminar2 · 비고 seminar2)에 둠 (2026-11-18)
 const sem2On = r => numOf(r.seminar)>=2 || !!r.seminar2;
-const SEM2_IX = ['tm_seminar2','plc_seminar2','stf_seminar2'];   // 두 번째 장소 담당(stf_seminar2)도 (2026-11-21)
+const SEM2_IX = Array.from({length:SEM_MAX-1}, (_,i)=>i+2).flatMap(n=>['tm_seminar'+n,'plc_seminar'+n,'stf_seminar'+n]);   // 2회차부터의 시작 · 끝 · 장소 · 담당 칸 (담당 2026-11-21 · 3회차부터 2026-11-27)
+// 세미나 도슨트 횟수만큼 회차 줄 (2026-11-27): 2회차부터의 칸 이름 ['seminar2','seminar3', …] — 1회차는 세미나 도슨트 줄 자체. 예전 「세미나 도슨트(2)」 줄이 따로 남은 기록은 그 줄이 2회차라 여기서는 빈 목록
+const semXKeys = r => !r || !r.seminar || r.seminar2 ? [] : Array.from({length:Math.max(0, Math.min(SEM_MAX, numOf(r.seminar))-1)}, (_,i)=>'seminar'+(i+2));
+const isSemX = k => /^seminar[2-9]$/.test(String(k));
+const semNo = k => +String(k).replace(/\D/g,'') || 1;   // 'seminar3' → 3 · 'seminar' → 1
+const semXName = (k, r) => isSemX(k) ? `세미나 도슨트 ${semNo(k)}회차` : k==='seminar' && r && semXKeys(r).length ? '세미나 도슨트 1회차' : '';   // 과업 · 안내 글에 쓰는 이름
+// 대관(차방 · 당두봉갈)에 더한 시작 · 끝 (2026-11-27): rec.islots = "chabang=15:00~16:00,17:00~18:00" — 첫 시간대는 예전처럼 tm_키, 여기는 둘째부터. 금액 · 수량(시간)은 건드리지 않음
+const SLOT_KEYS = ['chabang','dangdu'], SLOT_MAX = 5;
+const slotsMap = r => Object.fromEntries(String((r && r.islots)||'').split(/\s*;\s*/).map(s=>{ const i=s.indexOf('='); return i>0 ? [s.slice(0,i).trim(), s.slice(i+1).split(',').map(x=>x.trim())] : null; }).filter(Boolean));
+const itemSlots = (r, k) => r && r[k] && SLOT_KEYS.includes(k) ? (slotsMap(r)[k]||[]) : [];   // 빈 줄('')도 그대로 (화면에 빈 칸으로)
+const itemSlotTimes = (r, k) => itemSlots(r, k).filter(v=>String(v).replace('~','').trim());   // 시각이 들어간 것만 (전산 비고 · 예약 현황 등)
 const COUPON_IN_GOODS = ['gaga'];   // 음료쿠폰: 품목 고르기에서 굿즈 묶음에 · 줄에는 시작 · 끝 없이 비고만 (저장은 예전 칸 gaga 그대로, 2026-11-18)
 const isDrinkSrc = src => /음료쿠폰|\((몽몽차방|가가빈빈)\)/.test(String(src||''));   // 음료쿠폰 굿즈 (굿즈 묶음 맨 위 · 예약 현황 「음료쿠폰」). 예전 기록의 몽몽차방 · 가가빈빈 음료도 음료쿠폰으로 셈 (2026-11-21)
 const goodsKeyOf = src => COUPON_IN_GOODS.find(c=>normSrc(PROG_SRC[c])===normSrc(src)) || '';   // 품목 관리 굿즈 품목 → 예전 전용 칸 (음료쿠폰(가가빈빈) → gaga)
@@ -106,7 +120,7 @@ function syncGoodsStaff(){
   rec.stf_goods=want; touched.add('stf_goods'); return true;
 }
 const missingStaff = r => [...STAFF_BASES().filter(k=>r[k] && needsStaff(k) && !String(r['stf_'+k]||'').trim()),
-  ...(r.seminar && sem2On(r) && !r.seminar2 && !String(r.stf_seminar2||'').trim() ? ['seminar2'] : [])];   // 세미나 도슨트 2회: 두 번째 장소 담당도 필수 (2026-11-21)
+  ...semXKeys(r).filter(k=>!String(r['stf_'+k]||'').trim())];   // 세미나 도슨트 2회 이상: 회차마다 담당 필수 (2회차 2026-11-21 · 3회차부터 2026-11-27)
 const LEGACY_KEYS = ['teaMed','gayageum','cabin'];   // 예전 프로그램 칸 (입력 칸은 없앴지만 저장된 값은 그대로 둠)
 const SHEET_PROG = new Set(['yoga','gaga','chabang','dangdu','donghaeng']);   // 시트에 열이 있는 프로그램
 const isXProg = k => /^(프로그램)/.test(GROUP_OF[k]||'') && !SHEET_PROG.has(k) && !isSub(k);   // 비고 칸에 적는 프로그램
@@ -137,6 +151,7 @@ const OPT = { '사담':{id:'sadam', title:'사담 식사'}, '몽몽마방':{id:'
 let optOpen = new Set();
 const GROUP_OF = Object.fromEntries(FIELDS.map(f=>[f[1], f[0]]));
 const LABEL = Object.fromEntries(FIELDS.map(f=>[f[1], ['사담','몽몽마방'].includes(f[0]) ? `${f[0]} ${f[2]}` : f[2]]));
+for(let n=3;n<=SEM_MAX;n++) LABEL['seminar'+n]=`세미나 도슨트(${n})`;   // 3회차부터는 품목 칸이 없어 이름만 (비고 칸에 「프로그램 시간대 세미나 도슨트(3):14:00~14:30」로 저장 · js/group/02 packExtra)
 CFIELDS.forEach(([f,l])=>{ for(let i=0;i<10;i++) LABEL[`c${i}_${f}`]= i? `${l}(${i+1})` : l; });
 const SPECIAL_LABEL = { dKansong:'간송 할인', dMerit:'국가유공자 할인', dGunwi:'군위 주민 할인', dClergy:'대구대교구', dStaff:'직원 할인', dGuide:'가이드 무료' }; Object.assign(LABEL, SPECIAL_LABEL);
 Object.assign(LABEL, { teaMed:'티하우스 명상', gayageum:'가야금', cabin:'유루 캐빈' });
@@ -184,7 +199,7 @@ const DATE_KEYS = new Set(['date','payContact','tbdDate']);
 // 시트에는 열을 늘리지 않고 기존 칸에 함께 적는다: 결제 칸 "미정 (연락 2026-11-20)", 비고 칸 "미정 항목 입력 기한 2026-11-25"
 // 비고 칸에 " / " 로 이어 적는 선택 항목 (시트 열을 늘리지 않음)
 const MEAL_KEYS = ['sadam1','sadam2','sadamD','mabangL'];   // 누르면 방문 인원이 먼저 들어가는 식사 칸
-const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['etcDiscTx','기타할인 과세'],['etcDiscTf','기타할인 비과세'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['idisc','항목 할인'],['idamt','항목 할인액'],['isp','항목 특별 할인'],['linkSent','결제링크 전송'],['paidAt','입금 확인'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원'],['cancelWhy','취소 사유'],['istu','항목 학생'],['erpSame','전산 같은 품목']];   // 항목 학생 · 전산 같은 품목: 빠져 있어 저장 뒤 다시 열면 사라지던 것 (2026-11-21)
+const MEMO_PARTS = [['tbd','미정 체크'],['tbdDate','미정 항목 답변일'],['erp','전산 등록'],['gate','입장문'],['pchg','인원 변경'],['onsite','현장 재결제'],['wantQuote','견적서 요청'],['wantStmt','거래명세서 요청'],['tbdLate','입력 기한 늦춘 사유'],['mabangTime','마방 시간'],['mabangPrice','마방 단가'],['mabangPay','마방 결제'],['mabangNote','마방 비고'],['tour','사전 답사'],['goods','굿즈'],['etcDisc','기타할인 금액'],['etcDiscTo','기타할인 대상'],['etcDiscWhy','기타할인 사유'],['etcDiscTx','기타할인 과세'],['etcDiscTf','기타할인 비과세'],['readDone','확인 멘트 말씀드림'],['inotes','항목 비고'],['idisc','항목 할인'],['idamt','항목 할인액'],['isp','항목 특별 할인'],['linkSent','결제링크 전송'],['paidAt','입금 확인'],['viewSrc','관람 종류'],['views','관람 품목'],['viewN','관람권 인원'],['cancelWhy','취소 사유'],['istu','항목 학생'],['erpSame','전산 같은 품목'],['islots','항목 시간 더하기']];   // 항목 시간 더하기 = 대관에 더한 시작 · 끝 (2026-11-27)   // 항목 학생 · 전산 같은 품목: 빠져 있어 저장 뒤 다시 열면 사라지던 것 (2026-11-21)
 const GATES = ['치허문','곡신문','미정'];
 const CHECKS = { pchg:'가능성 있음', onsite:'재결제 있음', wantQuote:'요청함', wantStmt:'요청함' };   // 칸 이름(인원 변경 · 현장 재결제 · 견적서 · 거래명세서) 아래 체크 글자
 // 아직 안 정해진 항목 체크 (rec.tbd = "업체, 방문일" 처럼 이름으로 저장)
@@ -202,7 +217,7 @@ function packExtra(r){
   if(xp.length) o.memo=[o.memo, '추가 프로그램 '+xp.join(', ')].filter(Boolean).join(' / ');
   // 프로그램 담당 · 시간대 · 코스: "프로그램 담당 동행 도슨트:사공유빈, 요가:김사유 / 프로그램 시간대 동행 도슨트:13:00~15:00 / 프로그램 코스 동행 도슨트:정원 코스"
   Object.entries(SUB_NAME).forEach(([p,nm])=>{
-    const st = Object.keys(r).filter(k=>k.startsWith(p+'_') && r[k] && (r[baseOf(k)] || (baseOf(k)==='seminar2' && sem2On(r)))).map(k=>`${LABEL[baseOf(k)]||baseOf(k).replace(/^px:/,'')}:${String(r[k]).replace(p==='tm'?/[,/]/g:/[,/:]/g,' ').trim()}`);
+    const st = Object.keys(r).filter(k=>k.startsWith(p+'_') && r[k] && (r[baseOf(k)] || (baseOf(k)==='seminar2' && sem2On(r)) || semXKeys(r).includes(baseOf(k)))).map(k=>`${LABEL[baseOf(k)]||baseOf(k).replace(/^px:/,'')}:${String(r[k]).replace(p==='tm'?/[,/]/g:/[,/:]/g,' ').trim()}`);
     if(st.length) o.memo=[o.memo, `프로그램 ${nm} `+st.join(', ')].filter(Boolean).join(' / ');
   });
   return o;
@@ -217,7 +232,7 @@ function unpackExtra(r){ const o={}; let m;
     const f=FIELDS.find(f=>f[2]===x[1] && isXProg(f[1])), k=f ? f[1] : 'px:'+x[1].replace(/\s/g,''); if(!f) LABEL[k]=x[1]; o[k]=x[2]; });
   Object.entries(SUB_NAME).forEach(([p,nm])=>{
     const mst=String(r.memo||'').match(new RegExp(`프로그램 ${nm}\\s+([^/]+)`)); if(mst) mst[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?):(.+)$/); if(!x) return;
-      const f=FIELDS.find(f=>f[2]===x[1].trim() && /^프로그램/.test(f[0]) && !isSub(f[1])), k=f ? f[1] : 'px:'+x[1].replace(/\s/g,''); o[`${p}_${k}`]=x[2].trim(); });
+      const f=FIELDS.find(f=>f[2]===x[1].trim() && /^프로그램/.test(f[0]) && !isSub(f[1])), sx=x[1].trim().match(/^세미나 도슨트\(([3-9])\)$/), k=f ? f[1] : sx ? 'seminar'+sx[1] : 'px:'+x[1].replace(/\s/g,''); o[`${p}_${k}`]=x[2].trim(); });   // 세미나 도슨트(3) … = 3회차부터의 칸 (품목 칸이 없어 이름으로 되찾음 · 2026-11-27)
   });
   const ms=String(r.memo||'').match(/(?:^|\s\/\s)특별 할인\s+([^/]+)/); if(ms) ms[1].split(/\s*,\s*/).forEach(t=>{ const x=t.trim().match(/^(.+?)\s+(\d+)$/); if(!x) return; const nm=x[1].trim(), s=SPECIAL.find(s=>s.short===nm) || SPECIAL.find(s=>(s.olds||[]).includes(nm)); if(s) o[s.k]=x[2]; });
   return o; }
@@ -347,7 +362,7 @@ document.addEventListener('focusout', e=>{ const el=e.target; if(el.id==='spTf' 
 document.addEventListener('keydown', e=>{ if($('#spModal').hidden) return; if(!$('#spEdit').hidden){ if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); closeSpd(); } else if(e.key==='Enter' && !e.isComposing && e.target.tagName==='INPUT'){ e.preventDefault(); } return; } if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); $('#spModal').hidden=true; spKey=null; } else if(e.key==='Enter' && e.target.closest?.('#spModal')){ e.preventDefault(); spApply(); } }, true);
 function setItemNote(k, v){ const m=inotesMap(); v=String(v||'').replace(/[;=]/g,',').trim(); if(v) m[k]=v; else delete m[k]; rec.inotes=Object.entries(m).map(([a,b])=>`${a}=${b}`).join('; '); touched.add('inotes'); }
 const itemName = k => k==='view' ? '관람' : /^v:/.test(k) ? itemLabel(daySrc(k.slice(2), rec)) : k==='mb' ? '몽몽마방 '+(rec.mabangMenu||'') : /^g:/.test(k) ? goodsName(k.slice(2)) : (SADAM_ITEMS.find(x=>x[0]===k)||[])[1] || LABEL[k] || k;
-const itemNotesText = () => Object.entries(inotesMap()).filter(([k])=>itemKeysFromRec().includes(k) || (k==='seminar2' && rec.seminar && sem2On(rec))).map(([k,v])=>`${k==='seminar2' ? '세미나 도슨트' : itemName(k)}: ${v}`);   // 비고가 있는 항목만
+const itemNotesText = () => Object.entries(inotesMap()).filter(([k])=>itemKeysFromRec().includes(k) || (k==='seminar2' && rec.seminar && sem2On(rec)) || semXKeys(rec).includes(k)).map(([k,v])=>`${isSemX(k) ? '세미나 도슨트' : itemName(k)}: ${v}`);   // 비고가 있는 항목만
 const itemUnit = k => itemKind(k)==='goods' ? '개' : itemKind(k)==='prog' ? UNIT(k) : '명';
 const itemHasStaff = k => ['prog','goods'].includes(itemKind(k));
 const itemStfKey = k => itemKind(k)==='goods' ? 'stf_goods' : 'stf_'+k;   // 굿즈 담당은 굿즈 전체 하나
@@ -383,12 +398,13 @@ const mbTimes = () => { const p=String(rec.mabangTime||'').split('~'); return [p
 const plus1h = t => { const f=fmtTime(t); return f ? `${String(Math.min(+f.slice(0,2)+1,23)).padStart(2,'0')}${f.slice(2)}` : ''; };
 const plusH = (t, h) => { const f=fmtTime(t); if(!f) return ''; const m=+f.slice(0,2)*60 + +f.slice(3,5) + Math.round((h||1)*60), e=Math.min(m, 23*60+59); return `${String(Math.floor(e/60)).padStart(2,'0')}:${String(e%60).padStart(2,'0')}`; };   // 시작 + h시간
 const tmTimes = k => { const p=String(rec['tm_'+k]||'').split('~'); return [p[0]||'', p[1]||'']; };   // 프로그램 시간대 "13:00~15:00" → [시작, 끝]
-const progHours = k => /^seminar2?$/.test(k) ? 0.5 : itemUnit(k)==='시간' ? Math.max(1, numOf(itemQty(k))||1) : 1;   // 끝 = 시작 + 1시간 (시간 프로그램은 예약한 시간만큼 · 세미나 도슨트는 30분, 2026-11-18)
+const progHours = k => /^seminar\d?$/.test(k) ? 0.5 : itemUnit(k)==='시간' ? Math.max(1, numOf(itemQty(k))||1) : 1;   // 끝 = 시작 + 1시간 (시간 프로그램은 예약한 시간만큼 · 세미나 도슨트는 30분, 2026-11-18)
 function clearItem(k){ const t=itemKind(k);
   if(ispOf(k)) setItemSp(k, null);   // 그 줄의 특별 할인 · 기타 할인도
   if(itemStu(k)) setItemStu(k, 0);   // 그 줄의 학생 인원도
   if(itemNote(k)) setItemNote(k, '');
-  if(k==='seminar' && itemNote('seminar2')) setItemNote('seminar2', '');   // 두 번째 세미나 비고도
+  if(k==='seminar') Object.keys(inotesMap()).filter(isSemX).forEach(x=>setItemNote(x, ''));   // 2회차부터의 세미나 비고도
+  if(SLOT_KEYS.includes(k) && slotsMap(rec)[k]) setItemSlots(k, []);   // 대관에 더한 시작 · 끝도 (2026-11-27)
   if(t==='view') return;   // 관람 줄은 관람 인원 칸으로만
   if(t==='varea'){ rec.views=goodsJoin(viewsParse(rec.views).filter(x=>x.src!==k.slice(2))); touched.add('views'); itemPend.delete(k); return; }
   if(t==='mb'){ ['mabangL','mabangMenu','mabangTime','mabangPay'].forEach(x=>{ if(rec[x]){ rec[x]=''; touched.add(x); } }); syncPayTbd(rec); touched.add('tbd'); }   // 몽몽마방을 빼면 미정 항목 '몽몽마방 결제'도
@@ -407,7 +423,17 @@ async function loadMemberNames(again){ try{ const j=await SY.callRaw({action:'me
 const staffSelHTML = (k, v, title) => { const cur=String(v||'').trim(), has=MEMBER_NAMES.includes(cur);
   return `<select class="it-stfsel" data-is="${esc(k)}" title="${esc(title||'담당')}"><option value="">담당 고르기 (필수)</option>${MEMBER_NAMES.map(n=>`<option value="${esc(n)}"${n===cur?' selected':''}>${esc(n)}</option>`).join('')}`
     + (cur && !has ? `<option value="${esc(cur)}" selected>${esc(cur)} (멤버 아님)</option>` : '') + `<option value="__new">＋ 새 멤버 추가…</option></select>`; };
-// 세미나 도슨트 2회 이상: 장소마다 담당 칸 (첫 번째 = stf_seminar · 두 번째 = stf_seminar2, 2026-11-21)
+// 대관에 더한 시작 · 끝 (2026-11-27): rec.islots 에 줄마다 "시작~끝" (js/group/01-fields.js slotsMap) — 첫 시간대는 예전처럼 tm_키
+function setItemSlots(k, arr){ const m=slotsMap(rec); if(arr.length) m[k]=arr.map(v=>String(v||'').replace(/[;=,]/g,'').trim()); else delete m[k]; const s=Object.entries(m).map(([a,b])=>`${a}=${b.join(',')}`).join('; '); if(s!==String(rec.islots||'')){ rec.islots=s; touched.add('islots'); } }
+const rawSlots = k => SLOT_KEYS.includes(k) ? (slotsMap(rec)[k]||[]) : [];   // 화면용: 시간 수 칸을 잠깐 비워도 더한 줄은 그대로 (전산 비고 등은 itemSlotTimes — 품목이 있을 때만)
+const slotIxVal = ix => { const m=String(ix).match(/^sl([SE]):(.+):(\d+)$/); if(!m) return ''; const p=String(rawSlots(m[2])[+m[3]]||'').split('~'); return (m[1]==='S' ? p[0] : p[1])||''; };
+const slotsHTML = k => { const L=rawSlots(k);
+  return L.map((v,i)=>{ const p=String(v||'').split('~');
+      return `<div class="it-sem2 it-slot"><span class="it-semn">시간 ${i+2}</span><label class="it-xl">시작 <input class="it-x" data-ix="slS:${esc(k)}:${i}" data-tp="1" readonly title="더한 시작 시각. 넣으면 끝나는 시각이 1시간 뒤로 (고칠 수 있음)" value="${esc(p[0]||'')}"></label>`
+        + `<label class="it-xl">끝 <input class="it-x" data-ix="slE:${esc(k)}:${i}" data-tp="1" readonly title="더한 끝나는 시각" value="${esc(p[1]||'')}"></label>`
+        + `<button type="button" class="it-slotdel" data-slotdel="${esc(k)}:${i}" title="이 시작 · 끝 빼기" aria-label="이 시작 · 끝 빼기">×</button></div>`; }).join('')
+    + (L.length<SLOT_MAX ? `<div class="it-sem2 it-slot it-slotadd"${numOf(rec[k])>=1?'':' hidden'}><button type="button" class="btn primary" data-slotadd="${esc(k)}" title="대관을 여러 번에 나눠 쓸 때 시작 · 끝을 한 줄 더 넣습니다 (금액 · 시간 수는 그대로)">＋ 시작 · 끝 더하기</button></div>` : ''); };
+// 세미나 도슨트 2회 이상: 회차마다 담당 칸 (1회차 = stf_seminar · 2회차 = stf_seminar2 · 3회차 = stf_seminar3 …, 2026-11-21 · 3회차부터 2026-11-27)
 const semStfHTML = (k, tt) => { const v=String(rec['stf_'+k]||''); return `<label class="it-xl it-stf${v.trim()?'':' missing'}">담당 ${staffSelHTML(k, v, tt)}</label>`; };
 // 드롭다운: 묶음(optgroup)별 항목. 다른 줄에서 이미 고른 항목은 못 고름
 function itemSelectHTML(k, rows){
@@ -449,20 +475,21 @@ function itemRowHTML(k, rows){
   const extra = t==='mb' ? `<label class="it-xl">시작 <input class="it-x" data-ix="mbS" data-tp="1" readonly title="몽몽마방 시작 시각 (24시간 · 1200 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 1시간 뒤로" value="${esc(mbt[0])}"></label>`
       + `<label class="it-xl">끝 <input class="it-x" data-ix="mbE" data-tp="1" readonly title="몽몽마방 끝나는 시각 (시작 시각을 넣으면 1시간 뒤로 자동)" value="${esc(mbt[1])}"></label>`
       + `<label class="it-xl${rec.mabangPay==='미정'?' tbd':''}">결제 <select class="it-x" data-ix="mabangPay" title="몽몽마방 결제방식 · 미정이면 미정 항목 '몽몽마방 결제'로 (고객님께 여쭤 보기)">${rec.mabangPay?'':'<option value="" selected>선택</option>'}${MB_PAYS.map(x=>`<option${rec.mabangPay===x?' selected':''}>${x}</option>`).join('')}</select></label>` + note
-    : t==='prog' && !COUPON_IN_GOODS.includes(k) ? (()=>{ const [s,en]=tmTimes(k);   // 개별 · 시간 프로그램: 시작 → 끝(시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤) → 비고 (도슨트는 코스도). 저장은 예전처럼 tm_키 "13:00~14:00"
-        return `<label class="it-xl">시작 <input class="it-x" data-ix="tmS:${esc(k)}" data-tp="1" readonly title="프로그램 시작 시각 (24시간 · 1300 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 자동" value="${esc(s)}"></label>`
+    : t==='prog' && !COUPON_IN_GOODS.includes(k) ? (()=>{ const [s,en]=tmTimes(k), SX = k==='seminar' && sem2On(rec) ? (semXKeys(rec).length ? semXKeys(rec) : ['seminar2']) : [];   // SX = 세미나 도슨트 2회차부터의 줄 (횟수만큼 · 2026-11-27)   // 개별 · 시간 프로그램: 시작 → 끝(시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤) → 비고 (도슨트는 코스도). 저장은 예전처럼 tm_키 "13:00~14:00"
+        return (SX.length ? `<span class="it-semn">1회차</span>` : '') + `<label class="it-xl">시작 <input class="it-x" data-ix="tmS:${esc(k)}" data-tp="1" readonly title="프로그램 시작 시각 (24시간 · 1300 처럼 숫자만 쳐도 됨). 넣으면 끝나는 시각이 자동" value="${esc(s)}"></label>`
           + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:${esc(k)}" data-tp="1" readonly title="프로그램 끝나는 시각 (시작을 넣으면 1시간 · 시간 프로그램은 예약 시간만큼 뒤로 자동)" value="${esc(en)}"></label>`
           + (FIELDS.some(f=>f[1]==='plc_'+k) ? (()=>{ const pv=rec['plc_'+k]||''; return `<label class="it-xl">장소 <select class="it-x" data-ix="plc_${esc(k)}" title="세미나 도슨트 장소">${pv?'':'<option value="" selected>선택</option>'}${[...PLC_OPTS, ...(pv && !PLC_OPTS.includes(pv) ? [pv] : [])].map(x=>`<option${pv===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`; })() : '')   // 세미나 도슨트: 장소 (몽몽차방 · 당두봉갈 · 기타) → 비고
-          + (k==='seminar' && sem2On(rec) ? semStfHTML('seminar', '첫 번째 장소 세미나 도슨트 담당') : '')
+          + (SX.length ? semStfHTML('seminar', '1회차 세미나 도슨트 담당') : '')
           + (FIELDS.some(f=>f[1]==='crs_'+k) ? (()=>{ const cv=crsNorm(rec['crs_'+k]), opts=[...CRS_OPTS, ...(cv && !CRS_OPTS.includes(cv) ? [cv] : [])];   // 도슨트: 출발지 드롭다운 (앵당삼거리 · 치허문 · 곡신문 · 사담, 2026-11-19 · 예전 코스 칸) → 비고 「동행도슨트(앵당~)」
               return `<label class="it-xl it-crs">출발지 <select class="it-x" data-ix="crs_${esc(k)}" title="도슨트 출발지"><option value="">선택</option>${opts.map(o=>`<option${o===cv?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`; })() : '')
           + note
-          + (k==='seminar' && sem2On(rec) ? (()=>{ const [s2,e2]=tmTimes('seminar2'), pv=rec.plc_seminar2||'';   // 세미나 도슨트 수량 2: 두 번째 시작 · 끝 · 장소 · 비고 (2026-11-18)
-              return `<div class="it-sem2"><label class="it-xl">시작 <input class="it-x" data-ix="tmS:seminar2" data-tp="1" readonly title="두 번째 세미나 도슨트 시작 시각. 넣으면 끝나는 시각이 30분 뒤로" value="${esc(s2)}"></label>`
-                + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:seminar2" data-tp="1" readonly title="두 번째 세미나 도슨트 끝나는 시각" value="${esc(e2)}"></label>`
-                + `<label class="it-xl">장소 <select class="it-x" data-ix="plc_seminar2" title="두 번째 세미나 도슨트 장소">${pv?'':'<option value="" selected>선택</option>'}${[...PLC_OPTS, ...(pv && !PLC_OPTS.includes(pv) ? [pv] : [])].map(x=>`<option${pv===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`
-                + semStfHTML('seminar2', '두 번째 장소 세미나 도슨트 담당')
-                + `<input class="it-x it-note" data-inote="seminar2" data-ime="ko" placeholder="비고" value="${esc(itemNote('seminar2'))}"></div>`; })() : ''); })()
+          + SX.map(sk=>{ const [s2,e2]=tmTimes(sk), pv=rec['plc_'+sk]||'', no=semNo(sk);   // 세미나 도슨트 횟수만큼: 2회차부터 회차마다 시작 · 끝 · 장소 · 담당 · 비고 한 줄 (2회차 2026-11-18 · 3회차부터 2026-11-27)
+              return `<div class="it-sem2"><span class="it-semn">${no}회차</span><label class="it-xl">시작 <input class="it-x" data-ix="tmS:${sk}" data-tp="1" readonly title="${no}회차 세미나 도슨트 시작 시각. 넣으면 끝나는 시각이 30분 뒤로" value="${esc(s2)}"></label>`
+                + `<label class="it-xl">끝 <input class="it-x" data-ix="tmE:${sk}" data-tp="1" readonly title="${no}회차 세미나 도슨트 끝나는 시각" value="${esc(e2)}"></label>`
+                + `<label class="it-xl">장소 <select class="it-x" data-ix="plc_${sk}" title="${no}회차 세미나 도슨트 장소">${pv?'':'<option value="" selected>선택</option>'}${[...PLC_OPTS, ...(pv && !PLC_OPTS.includes(pv) ? [pv] : [])].map(x=>`<option${pv===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>`
+                + semStfHTML(sk, `${no}회차 세미나 도슨트 담당`)
+                + `<input class="it-x it-note" data-inote="${sk}" data-ime="ko" placeholder="비고" value="${esc(itemNote(sk))}"></div>`; }).join('')
+          + (SLOT_KEYS.includes(k) ? slotsHTML(k) : ''); })()
     : note;
   // 관람 · 관람+식사 줄: 인원 칸을 성인 · 학생 두 칸으로 (2026-11-20). 기본은 모두 성인, 학생을 넣으면 그만큼 성인에서 빠짐 (합 = 그 줄 인원)
   const qtyHTML = canStu(k) ? (()=>{ const tot=numOf(itemQty(k)), s=Math.min(itemStu(k), tot);
@@ -472,7 +499,7 @@ function itemRowHTML(k, rows){
   return `<div class="it-row${t==='new'?' it-new':''}" data-irow="${esc(k)}">${itemSelectHTML(k, rows)}<span class="it-p" data-iup="${esc(k)}"></span>`
     + qtyHTML
     + (t==='goods' ? `<span class="it-s${sv.trim()?'':' missing'}">${staffSelHTML(k, sv, '굿즈 담당 (기본 = 영업 담당 · 굿즈 모두 같은 담당)')}</span>`
-      : k==='seminar' && sem2On(rec) ? `<span class="it-s none"><input disabled placeholder="장소마다 담당 ↓" title="세미나 도슨트 2회 이상: 아래 장소마다 담당을 넣습니다"></span>`   // 2026-11-21
+      : k==='seminar' && sem2On(rec) ? `<span class="it-s none"><input disabled placeholder="회차마다 담당 ↓" title="세미나 도슨트 2회 이상: 아래 회차마다 담당을 넣습니다"></span>`   // 2026-11-21
       : stf ? `<span class="it-s${sv.trim()?'':' missing'}">${staffSelHTML(k, sv, '프로그램 담당')}</span>` : `<span class="it-s none"><input disabled placeholder="${t==='new'?'항목을 먼저 고르세요':'담당 없음'}"></span>`)
     + `<button type="button" class="it-del" data-idel="${esc(k)}" title="이 항목 빼기">×</button>`
     + (t==='new' ? '' : `<div class="it-money" data-ip="${esc(k)}"></div><div class="it-extra">${extra}<span class="it-amt" data-iamt="${esc(k)}"></span></div>`) + `</div>`;   // 둘째 줄: 할인(할인 대상만) · 셋째 줄: 비고 (할인이 없으면 바로 비고, 금액은 그 줄 끝)
@@ -483,11 +510,11 @@ function renderItems(force){
   itemRows = itemRows.filter(k=>recKeys.includes(k) || itemPend.has(k));
   recKeys.forEach(k=>{ if(!itemRows.includes(k)) itemRows.push(k); });
   if(itemRows.includes('view')) itemRows=['view', ...itemRows.filter(k=>k!=='view')];   // 관람 인원은 항상 첫 줄
-  const sig=itemRows.join('|') + (rec.seminar && sem2On(rec) ? '|sem2' : '');   // 세미나 도슨트 두 번째 줄이 생기고 없어질 때도 다시 그림
+  const sig=itemRows.join('|') + (rec.seminar && sem2On(rec) ? '|sem'+(semXKeys(rec).length||1) : '') + '|sl'+SLOT_KEYS.map(k=>rawSlots(k).length).join(',');   // 세미나 도슨트 두 번째 줄이 생기고 없어질 때도 다시 그림
   if(!force && box.dataset.sig===sig && box.contains(document.activeElement)){   // 쓰는 중: 줄은 그대로 두고 값만 맞춤
     box.querySelectorAll('[data-iq],[data-iqa],[data-istu],[data-is],[data-ix],[data-inote]').forEach(el=>{ if(el===document.activeElement) return;
       const stuT = k => Math.min(itemStu(k), numOf(itemQty(k)));   // 성인 · 학생 칸 (2026-11-20)
-      const v = el.dataset.iqa!=null ? (numOf(itemQty(el.dataset.iqa)) ? String(numOf(itemQty(el.dataset.iqa))-stuT(el.dataset.iqa)) : itemQty(el.dataset.iqa)) : el.dataset.istu!=null ? (stuT(el.dataset.istu) ? String(stuT(el.dataset.istu)) : '') : el.dataset.iq!=null ? itemQty(el.dataset.iq) : el.dataset.is!=null ? String(rec[itemStfKey(el.dataset.is)]||'') : el.dataset.inote!=null ? itemNote(el.dataset.inote) : el.dataset.ix==='mbS' ? mbTimes()[0] : el.dataset.ix==='mbE' ? mbTimes()[1] : /^tm[SE]:/.test(el.dataset.ix) ? tmTimes(el.dataset.ix.slice(4))[el.dataset.ix[2]==='S'?0:1] : /^crs_/.test(el.dataset.ix) ? crsNorm(rec[el.dataset.ix]) : String(rec[el.dataset.ix]||''); if(el.value!==v) el.value=v; });
+      const v = el.dataset.iqa!=null ? (numOf(itemQty(el.dataset.iqa)) ? String(numOf(itemQty(el.dataset.iqa))-stuT(el.dataset.iqa)) : itemQty(el.dataset.iqa)) : el.dataset.istu!=null ? (stuT(el.dataset.istu) ? String(stuT(el.dataset.istu)) : '') : el.dataset.iq!=null ? itemQty(el.dataset.iq) : el.dataset.is!=null ? String(rec[itemStfKey(el.dataset.is)]||'') : el.dataset.inote!=null ? itemNote(el.dataset.inote) : el.dataset.ix==='mbS' ? mbTimes()[0] : el.dataset.ix==='mbE' ? mbTimes()[1] : /^tm[SE]:/.test(el.dataset.ix) ? tmTimes(el.dataset.ix.slice(4))[el.dataset.ix[2]==='S'?0:1] : /^sl[SE]:/.test(el.dataset.ix) ? slotIxVal(el.dataset.ix) : /^crs_/.test(el.dataset.ix) ? crsNorm(rec[el.dataset.ix]) : String(rec[el.dataset.ix]||''); if(el.value!==v) el.value=v; });
     paintItemState(); paintItemPrices(); return;
   }
   box.dataset.sig=sig;
@@ -693,6 +720,7 @@ document.addEventListener('click', async e=>{ const b=e.target.closest('#itemsBo
 function paintTmMissing(){
   document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-q input[data-iq]').forEach(q=>q.closest('.it-q').classList.toggle('missing', !q.value.trim()));
   document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-q2 input[data-iqa]').forEach(q=>q.closest('label').classList.toggle('missing', !numOf(itemQty(q.dataset.iqa))));   // 성인 · 학생: 줄 인원이 비었을 때 성인 칸만 빨갛게 (학생 0명은 그대로, 2026-11-20)
+  document.querySelectorAll('#itemsBox .it-slotadd').forEach(d=>{ const b=d.querySelector('[data-slotadd]'); if(b) d.hidden = !(numOf(itemQty(b.dataset.slotadd))>=1); });   // 대관 「＋ 시작 · 끝 더하기」: 시간 수가 1 이상일 때만 (2026-11-27)
   document.querySelectorAll('#itemsBox .it-row:not(.it-new) .it-xl').forEach(l=>{ const x=l.querySelector('.it-x, [data-is]'); l.classList.toggle('missing', !!x && !String(x.value||'').trim()); });   // [data-is] = 세미나 도슨트 2회의 장소마다 담당 칸 (2026-11-27: 이 칸을 못 찾아 비어 있어도 늘 초록이던 것 고침)
 }
 const paintStaffCell = el => el.closest('.it-s, .it-xl')?.classList.toggle('missing', !String(el.value||'').trim());   // 담당 칸 하나: 비면 빨강 · 고르면 바로 초록
@@ -728,7 +756,7 @@ document.addEventListener('change', e=>{
 document.addEventListener('input', e=>{
   const el=e.target; if(!el.closest?.('#itemsBox')) return;
   if(el.dataset.iq!=null){ const k=el.dataset.iq, c=el.value.replace(/[^\d+]/g,''), was=itemQty(k); if(c!==el.value) el.value=c; setItemQty(k, el.value);
-    if(k==='seminar' && (numOf(was)>=2)!==(numOf(el.value)>=2)){ itemChanged(true, !!was); const q=document.querySelector('#itemsBox [data-iq="seminar"]'); if(q){ q.focus(); const n=q.value.length; try{ q.setSelectionRange(n,n); }catch(_){} } if(numOf(el.value)>=2) openSemGuide(); return; }   // 세미나 도슨트 수량 2 ↔ 1: 두 번째 시작 · 끝 · 장소 · 비고 줄을 넣고 빼기
+    if(k==='seminar' && semLines(was)!==semLines(el.value)){ itemChanged(true, !!was); const q=document.querySelector('#itemsBox [data-iq="seminar"]'); if(q){ q.focus(); const n=q.value.length; try{ q.setSelectionRange(n,n); }catch(_){} } if(semLines(el.value)>=2 && semLines(was)<2) openSemGuide(semLines(el.value)); return; }   // 세미나 도슨트 횟수가 바뀌면 회차 줄(시작 · 끝 · 장소 · 담당 · 비고)을 그 수만큼 (2026-11-27 · 줄어든 회차의 값은 화면에 있는 동안은 남고, 저장할 때 빠짐 — 예전 2 → 1 과 같음)
     if(itemKind(k)==='prog' && itemUnit(k)==='시간' && numOf(el.value) && numOf(el.value)!==numOf(was)){ const [s]=tmTimes(k); if(s && fmtTime(s)){ const en=plusH(s, progHours(k)); rec['tm_'+k]=`${s}~${en}`; touched.add('tm_'+k); const b=el.closest('.it-row')?.querySelector(`[data-ix="tmE:${CSS.escape(k)}"]`); if(b) b.value=en; paintTmMissing(); } }   // 시간 프로그램(대관 등): 수량(시간)을 바꾸면 끝 = 시작 + 그 시간 (2026-11-18)
     itemChanged(false, !!was); }   // 담당 기본값은 수량을 처음 넣을 때만
   else if(el.dataset.iqa!=null){ const k=el.dataset.iqa, c=el.value.replace(/\D/g,''), was=itemQty(k); if(c!==el.value) el.value=c;   // 성인 인원 → 그 줄 인원 = 성인 + 학생 (2026-11-20)
@@ -739,7 +767,7 @@ document.addEventListener('input', e=>{
   else if(el.dataset.inote!=null){ setItemNote(el.dataset.inote, el.value); startTimer(); repaintSoon(); }   // 항목 비고 (치는 동안은 다시 그리지 않음)
   else if(el.dataset.is!=null){ if(el.value==='__new'){ const k=el.dataset.is; el.value=String(rec[itemStfKey(k)]||''); newMemberAsk(k); return; }   // 「＋ 새 멤버 추가…」 (2026-11-24)
     const sk=itemStfKey(el.dataset.is); rec[sk]=el.value; touched.add(sk); startTimer(); document.querySelectorAll('#itemsBox [data-is]').forEach(o=>{ if(o!==el && itemStfKey(o.dataset.is)===sk) o.value=el.value; paintStaffCell(o); }); repaintSoon(); }   // 담당 (멤버 목록에서 고름) · 색은 그 자리에서 바로 (2026-11-27 · 굿즈는 모든 줄이 같은 담당)
-  else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^tm[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
+  else if(el.dataset.ix==='mbS' || el.dataset.ix==='mbE' || /^(tm|sl)[SE]:/.test(el.dataset.ix||'')){ el.value=el.value.replace(/[^\d:]/g,''); }   // 몽몽마방 · 프로그램 시작 · 끝: 칸을 나갈 때 맞춰 저장 (아래)
   else if(el.dataset.ix!=null && el.tagName==='INPUT'){ rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix); itemChanged(false, true); }
 });
 document.addEventListener('change', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.ix==null || el.tagName!=='SELECT') return; rec[el.dataset.ix]=el.value; touched.add(el.dataset.ix);
@@ -758,7 +786,24 @@ document.addEventListener('focusout', e=>{ const el=e.target, ix=el.dataset?.ix|
   if(isS){ if(v===s){ el.value=v; return; } s=v; if(v && fmtTime(v)) en=plusH(v, progHours(k)); } else { if(v===en){ el.value=v; return; } en=v; }
   rec['tm_'+k] = s||en ? `${s}~${en}` : ''; touched.add('tm_'+k);
   const row=el.closest('.it-row'); if(row){ const a=row.querySelector(`[data-ix="tmS:${CSS.escape(k)}"]`), b=row.querySelector(`[data-ix="tmE:${CSS.escape(k)}"]`); if(a) a.value=s; if(b) b.value=en; }
+  if(!isS) tmOrderWarn(s, en);
   itemChanged(false, true); paintTmMissing(); });
+// 끝이 시작보다 이르면(같아도) 글로 알림 (2026-11-27 · 값은 그대로 둠 — 고치는 것은 사람이)
+const semLines = v => Math.max(1, Math.min(SEM_MAX, numOf(v)||1));   // 세미나 도슨트 횟수 → 회차 줄 수
+function tmOrderWarn(s, en){ const a=fmtTime(s), b=fmtTime(en); if(a && b && b<=a) toast(`끝 시각(${b})이 시작 시각(${a})보다 이릅니다. 다시 확인해 주세요.`); }
+// 대관에 더한 시작 · 끝 (2026-11-27 · 프로그램 시작 · 끝과 같은 방식): 시작을 넣으면 끝 = 1시간 뒤 (고칠 수 있음). 저장은 rec.islots
+document.addEventListener('focusout', e=>{ const el=e.target, m=String(el.dataset?.ix||'').match(/^sl([SE]):(.+):(\d+)$/); if(!m || !el.closest?.('#itemsBox')) return;
+  const k=m[2], i=+m[3], isS=m[1]==='S', L=rawSlots(k).slice(); if(i>=L.length) return;
+  const p=String(L[i]||'').split('~'); let s=p[0]||'', en=p[1]||''; const v=el.value.trim() ? (fmtTime(el.value)||el.value.trim()) : '';
+  if(isS){ if(v===s){ el.value=v; return; } s=v; if(v && fmtTime(v)) en=plusH(v, 1); } else { if(v===en){ el.value=v; return; } en=v; }
+  L[i] = s||en ? `${s}~${en}` : ''; setItemSlots(k, L);
+  const row=el.closest('.it-slot'); if(row){ const a=row.querySelector('[data-ix^="slS:"]'), b=row.querySelector('[data-ix^="slE:"]'); if(a) a.value=s; if(b) b.value=en; }
+  if(!isS) tmOrderWarn(s, en);
+  itemChanged(false, true); paintTmMissing(); });
+document.addEventListener('click', e=>{ const ad=e.target.closest?.('#itemsBox [data-slotadd]'), dl=e.target.closest?.('#itemsBox [data-slotdel]'); if(!ad && !dl) return;
+  if(ad){ const k=ad.dataset.slotadd, L=rawSlots(k); if(L.length>=SLOT_MAX) return; setItemSlots(k, [...L, '']); }
+  else { const [k, i]=dl.dataset.slotdel.split(':'), L=rawSlots(k).slice(); L.splice(+i, 1); setItemSlots(k, L); }
+  itemChanged(true, true); });
 document.addEventListener('focusout', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.ix==null || el.tagName!=='INPUT' || !el.value) return;
   if(/^(mabangTime|tm_)/.test(el.dataset.ix)){ const f=fmtRange(el.value); if(f && f!==el.value){ el.value=f; rec[el.dataset.ix]=f; touched.add(el.dataset.ix); itemChanged(false); } } });   // 12001300 → 12:00~13:00
 document.addEventListener('focusin', e=>{ const el=e.target; if(!el.closest?.('#itemsBox') || el.dataset.iq==null) return; const k=el.dataset.iq, t=itemKind(k); renderInfo(t==='mb' ? 'mabangL' : ['sadam','prog'].includes(t) ? k : null); });   // 그날 같은 항목 예약 현황
@@ -1131,9 +1176,9 @@ const PAY_GUIDE = {
 };
 let pgMemo=false, pgStf=false;   // 기타 결제 안내를 닫으면 통화 메모 칸으로 · 세미나 2회 안내를 닫으면 담당 칸으로
 // 세미나 도슨트를 2회로 바꾼 순간 안내 (결제 안내 팝업을 같이 씀, 2026-11-18)
-function openSemGuide(){ pgMemo=false; pgStf=true; $('#pgModal .hint').hidden=true;
-  $('#pgTitle').textContent = '세미나 도슨트 2회';
-  $('#pgBody').innerHTML = ['담당자 이름을 모두 입력해 주세요.', '비고에 각 장소의 담당자 이름도 적어 주세요.'].map(g=>`<li>${esc(g)}</li>`).join('');
+function openSemGuide(n){ pgMemo=false; pgStf=true; $('#pgModal .hint').hidden=true;
+  $('#pgTitle').textContent = `세미나 도슨트 ${n||2}회`;
+  $('#pgBody').innerHTML = ['회차마다 시작 · 끝 · 장소 · 담당을 모두 넣어 주세요.', '회차마다 담당 칸이 따로 있습니다 (담당이 비면 추후 과업으로 알려 줍니다).'].map(g=>`<li>${esc(g)}</li>`).join('');
   $('#pgModal').hidden = false; setTimeout(()=>$('#pgOk').focus(), 0); }
 function openPayGuide(pay, what){ pgMemo = pay==='기타'; pgStf=false; $('#pgModal .hint').hidden=false;
   $('#pgTitle').textContent = pay==='기타' ? `[${what?what+' ':''}기타 결제] 통화 메모에 결제 방법을 남겨 주세요` : `[${pay} 안내] 고객님께 말씀드리세요`;
@@ -1149,10 +1194,10 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#pgModal').
 const progList = (r, grp, staff) => FIELDS.filter(f=>(grp ? f[0]===grp : /^프로그램/.test(f[0])) && !isSub(f[1]) && r[f[1]]).map(f=>{ const v=String(r[f[1]]), sub=p=>String(r[`${p}_${f[1]}`]||'').trim(), who=sub('stf');   // 담당이 여러 명이면 한 칸에 「문현빈, 김선영」
   // 2026-11-24: 출발지 · 장소 · 담당은 괄호 하나에 쉼표로 "(장소:당두봉갈, 담당:김선영)"
   const ex = !staff ? [] : [sub('crs') && `출발지:${sub('crs')}`, sub('plc') && `장소:${sub('plc')}`, who ? `담당:${who}` : needsStaff(f[1]) ? '담당:미정' : ''].filter(Boolean);
-  const tag = !staff ? '' : (sub('tm') ? ` ${sub('tm')}` : '') + (ex.length ? ` (${ex.join(', ')})` : '') + (f[1]==='seminar' ? sem2Tag(r) : '');
+  const tag = !staff ? '' : (sub('tm') ? ` ${sub('tm')}` : '') + itemSlotTimes(r, f[1]).map(v=>` · ${v}`).join('') + (ex.length ? ` (${ex.join(', ')})` : '') + (f[1]==='seminar' ? sem2Tag(r) : '');
   return `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? v+UNIT(f[1]) : v}${tag}`; });
 // 세미나 도슨트 수량 2일 때 두 번째: " · 두 번째 14:00~14:30 (장소:당두봉갈)"
-const sem2Tag = r => { if(!(numOf(r.seminar)>=2) || r.seminar2) return ''; const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); return t||p ? ` ·${t?' '+t:''}${p?` (장소:${p})`:''}` : ''; };
+const sem2Tag = r => semXKeys(r).map(sk=>{ const t=String(r['tm_'+sk]||'').trim(), p=String(r['plc_'+sk]||'').trim(); return t||p ? ` ·${t?' '+t:''}${p?` (장소:${p})`:''}` : ''; }).join('');   // 2회차부터 모두 (3회차부터 2026-11-27)
 // 조사: 받침에 따라 (으)로 · 은/는 · 이고/고
 const lastJong = s => { const c=String(s).trim().slice(-1).charCodeAt(0)-0xAC00; return c>=0 && c<11172 ? c%28 : (/[0-9]$/.test(s) ? ({0:1,1:8,3:1,6:1,7:8,8:8}[String(s).slice(-1)]||0) : 0); };   // 0 = 받침 없음, 8 = ㄹ
 const ro  = s => { const j=lastJong(s); return !j || j===8 ? '로' : '으로'; };
@@ -1274,7 +1319,9 @@ function bookRows0(withMe){
         ppl: (cat==='prog' || cat==='coupon') && unit!=='시간' ? (numOf(v)||numOf(x.people)) : numOf(x.people),
         hrs: unit==='시간' ? (numOf(v)||1) : 0, place:RENT_PLACE[k]||x['plc_'+k]||'', kind:DOCENT_KIND[k]||(cat==='docent'?LABEL[k]:''), item:LABEL[k]||k,
         tm:x['tm_'+k]||'', staff:String(x['stf_'+k]||'').trim()||x.owner||'', note:[notes[k], x['crs_'+k]&&`출발지 ${crsNorm(x['crs_'+k])}`].filter(Boolean).join(' · ') });
-      if(k==='seminar' && numOf(v)>=2 && !x.seminar2){ const o=out[out.length-1]; out.push({...o, place:x.plc_seminar2||'', tm:x.tm_seminar2||'', staff:String(x.stf_seminar2||'').trim()||o.staff, note:[notes.seminar2].filter(Boolean).join(' · ')}); }   // 세미나 도슨트 수량 2: 두 번째도 현황에 한 줄 (2026-11-18)
+      { const o=out[out.length-1];
+        if(k==='seminar') semXKeys(x).forEach(sk=>out.push({...o, place:x['plc_'+sk]||'', tm:x['tm_'+sk]||'', staff:String(x['stf_'+sk]||'').trim()||o.staff, note:[notes[sk]].filter(Boolean).join(' · ')}));   // 세미나 도슨트 2회 이상: 회차마다 현황에 한 줄 (2회차 2026-11-18 · 3회차부터 2026-11-27)
+        itemSlotTimes(x, k).forEach(v=>out.push({...o, tm:v})); }   // 대관에 더한 시작 · 끝: 시간대마다 한 줄 (2026-11-27)
     });
     // 굿즈로 넣은 음료쿠폰(예: 음료쿠폰(몽몽차방)) · 몽몽차방 · 가가빈빈 음료도 예약 현황 「음료쿠폰」에 (2026-11-18 · 음료 2026-11-21)
     goodsParse(x.goods).filter(g=>isDrinkSrc(g.src)).forEach(g=>out.push({ cat:'coupon', id:r.id, me:!!me, d:x.date, org:x.org||x.contact||'(업체 미정)', ppl:g.qty||0, hrs:0, place:'', kind:'', item:goodsName(g.src), tm:'', staff:String(x.stf_goods||'').trim()||x.owner||'', note:notes['g:'+g.src]||'' }));
@@ -2299,14 +2346,15 @@ const ERP_NOTE_RULES = `■ 모양
   · 프로그램 · 대관 · 도슨트 — 「시간 이름(출발지, 장소, ○○○ 담당)」 · 괄호는 항목마다 하나, 안에서 쉼표로 나눔
        이름: 동행 도슨트 = 동행도슨트 · 세미나 도슨트 = PPT세미나 · 새벽 해오름 산책 = 일출 · 차방 대관 = 자체세미나(차방)
              · 당두봉갈 대관 = 자체세미나(당두) · 요가 · 사운드워킹 · 사유의 향 · 그 밖의 프로그램은 품목 이름(띄어쓰기 없이)
-       도슨트 출발지: 「앵당~」 · 「치허문~」 · 세미나 도슨트 장소: (당두봉갈) · 세미나 도슨트 2회면 두 번째도 따로 한 칸
+       도슨트 출발지: 「앵당~」 · 「치허문~」 · 세미나 도슨트 장소: (당두봉갈) · 세미나 도슨트가 2회 이상이면 회차마다 따로 한 칸
+       대관(차방 · 당두봉갈)에 시작 · 끝을 더했으면 시간대마다 따로 한 칸 — 예) 10-11시 자체세미나(당두) / 15-16시 자체세미나(당두)
   · 음료쿠폰 — 「음료쿠폰 40개」
   · 굿즈 — 「굿즈 고추장 2개, 모과청 1개」 (예약 내역의 굿즈 품목 · 수량 그대로)
   · 담당자 — 예약 내역의 「담당」 칸에 고른 사람을 그 항목의 괄호 안에 「김철수 담당」으로 (2026-11-27)
        예) 13:30 동행도슨트(앵당~, 김철수 담당) · 15-16시 자체세미나(당두, 김철수 담당) · 10시 요가(김철수 담당)
            음료쿠폰 40개(김철수 담당) · 굿즈 고추장 2개, 모과청 1개(김철수 담당)
        담당이 영업 담당(끝의 괄호)과 같은 사람이면 안 씀 · 담당 칸이 비어 있어도 안 씀 · 여러 명이면 「김철수·이영희 담당」
-       세미나 도슨트 2회는 장소마다 담당을 따로 · 굿즈 담당은 굿즈 전체에 한 명 · 몽몽마방은 담당 칸이 없음
+       세미나 도슨트 2회 이상은 회차마다 담당을 따로 · 굿즈 담당은 굿즈 전체에 한 명 · 몽몽마방은 담당 칸이 없음
 
 ■ 넣지 않는 것
   사담 런치 · 디너(전산에 상품으로 있음) · 금액 · 출입구 미정 · 인원 변경 · 통화 메모 · 영업 담당과 같은 사람인 항목 담당자
@@ -2336,8 +2384,10 @@ function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문�
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]] && f[1]!=='gaga').forEach(f=>{   // 음료쿠폰은 위에서 따로
     const k=f[1], sub=p=>String(r[`${p}_${k}`]||'').trim(), name=ERP_PROG_NAME[k] || String(f[2]).replace(/\s+/g,'');
     const paren=[erpCrs(sub('crs')), /\(/.test(name) ? '' : sub('plc'), stfTag(sub('stf'))].filter(Boolean).join(', ');   // 괄호 = 도슨트 출발 위치 · 장소 · 담당자 (담당자는 2026-11-27 부터) · 자체세미나(당두)처럼 이름에 장소가 있으면 장소는 빼고
-    items.push([erpProgT(sub('tm')), /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
-    if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2||stfTag(r.stf_seminar2))){ const p2=[String(r.plc_seminar2||'').trim(), stfTag(r.stf_seminar2)].filter(Boolean).join(', '); items.push([erpProgT(r.tm_seminar2), name+(p2?`(${p2})`:'')].filter(Boolean).join(' ')); }
+    const full = /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'');
+    items.push([erpProgT(sub('tm')), full].filter(Boolean).join(' '));
+    itemSlotTimes(r, k).forEach(v=>items.push([erpProgT(v), full].filter(Boolean).join(' ')));   // 대관에 더한 시작 · 끝: 시간대마다 따로 한 칸 (2026-11-27)
+    if(k==='seminar') semXKeys(r).forEach(sk=>{ if(!(r['tm_'+sk]||r['plc_'+sk]||stfTag(r['stf_'+sk]))) return; const p2=[String(r['plc_'+sk]||'').trim(), stfTag(r['stf_'+sk])].filter(Boolean).join(', '); items.push([erpProgT(r['tm_'+sk]), name+(p2?`(${p2})`:'')].filter(Boolean).join(' ')); });   // 세미나 도슨트 2회 이상: 회차마다 따로 한 칸 (3회차부터 2026-11-27)
   });
   if(r.onsite) items.push('현장 재결제 필요'); else if(r.pay==='현장 결제') items.push('현장 결제 필요');   // 2026-11-25: 「현장 재결제」 체크면 「현장 재결제 필요」 · 2026-11-24: 「현장결제」 → 「현장 결제 필요」 (사전답사 비고의 「n명 현장 결제 필요」와 같은 말투)
   { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy' && s.k!=='dGuide'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인 필요`));   /* 2026-11-24: 끝에 「필요」 */ if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
@@ -2369,6 +2419,29 @@ const staffHead = r => [r.org&&`<${r.org}>`, r.date&&dateLabel(r.date), r.people
 const prepWho = r => Object.keys(staffBy(r)).filter(w=>w!=='(담당 미정)');
 function prepMsg(r, who){ const L=staffBy(r)[who]||[], c=contactsOf(r)[0]||{};
   return `[단체예약 준비] ${staffHead(r)}\n${L.map(s=>'- '+s).join('\n')}` + (c.name||c.phone ? `\n고객 담당: ${[c.name,c.phone].filter(Boolean).join(' ')}` : '') + `\n영업 담당: ${(r.owner||savedOwner()||'').trim()||'-'}`; }
+// 담당 입력 규칙 (추후과업 메시지 관리 「프로그램 · 굿즈 담당 입력」을 열면 보임 · js/taskcfg.js · 2026-11-27) — 규칙을 바꾸면 이 글도 같이 (missingStaff · syncAutoTasks)
+const PROGSTAFF_RULES = `■ 무엇
+  예약 내역에 넣은 품목 가운데 「담당」 칸이 비어 있는 것(빨간 칸)이 하나라도 있으면, 그 예약의 추후 과업에 이 과업이 생김
+  과업 이름 아래에 어느 품목의 담당이 비었는지 한 줄로 나옴 — 예) 담당이 비어 있는 칸: 요가 · 당두봉갈 대관 · 세미나 도슨트 2회차
+
+■ 담당이 있어야 하는 품목
+  개별 프로그램(요가 · 사운드워킹 · 사유의 향 등) · 시간 프로그램(차방 대관 · 당두봉갈 대관 · 동행 도슨트 · 세미나 도슨트) · 음료쿠폰 · 굿즈
+  세미나 도슨트가 2회 이상이면 회차마다 담당 칸이 따로 있고, 하나라도 비면 「세미나 도슨트 n회차」로 나옴
+  굿즈는 여러 줄이어도 담당이 한 명 (비어 있으면 영업 담당이 저절로 들어감)
+  담당 칸이 없는 품목(관람 · 관람+식사 · 사담 · 몽몽마방)은 과업을 만들지 않음
+
+■ 누구에게 · 언제
+  그 예약의 영업 담당에게 — 나의 할일 · 첫 화면 · 과업 알림에 다른 과업과 똑같이 셈
+  가예약 · 예약확정 단계에서 생김 (예약상담 · 예약취소 단계는 자동 과업이 없어 안 생김 — 가예약으로 바뀌면 그때 생김)
+  마감 = 과업이 생긴 날 (아래 마감 칸에서 바꿀 수 있음)
+
+■ 끝나는 때
+  담당 칸을 모두 채우면 저절로 끝남 (직접 체크할 수 없음 — 나의 할일에서 체크 칸을 누르면 그 예약이 열림)
+    · 메모 · 세부 과제를 적어 둔 과업은 「완료」로 체크되어 남고, 손대지 않은 과업은 목록에서 빠짐 (나의 할일 · 알림에서도 사라짐)
+  끝난 뒤 담당이 빈 칸이 다시 생기면(품목을 더하거나 담당을 지우면) 다시 생기거나 다시 열림
+
+■ 과업 보조 설명
+  기본 「담당이 비어 있는 칸: {빈담당}」 — {빈담당} 자리에 담당이 빈 품목 이름이 들어감 · 다 채워지면 이 줄은 안 보임`;
 // 단체 준비 규칙 (추후과업 메시지 관리 「단체 준비」를 열면 보임 · js/taskcfg.js) — 규칙을 바꾸면 이 글도 같이
 const PREP_RULES = `■ 무엇
   예약 내역에서 프로그램 · 대관 · 도슨트 · 음료쿠폰 · 굿즈의 「담당」으로 고른 사람마다 과업이 하나씩 생김
@@ -2399,10 +2472,11 @@ const prepTitle = (r, who) => `${String(AUTO_TASKS.prep||'단체 준비').trim()
 function staffBy(r){
   const by={}, add=(who,s)=>{ String(who||'').split(/\s*,\s*/).map(w=>w.trim()).filter(Boolean).concat(String(who||'').trim()?[]:['(담당 미정)']).forEach(w=>{ (by[w] ||= []).push(s); }); };   // 담당이 여러 명이면 「문현빈, 김선영」 → 각자
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]]).forEach(f=>{ const k=f[1], v=String(r[k]), sub=p=>String(r[`${p}_${k}`]||'').trim();
-    const s2who = k==='seminar' && sem2On(r) && !r.seminar2 ? String(r.stf_seminar2||'').trim() : '', split = s2who && s2who!==sub('stf');   // 세미나 도슨트 두 번째 담당이 다르면 그 사람에게 따로
-    const s2note = r===rec && itemNote('seminar2') ? ` (비고:${itemNote('seminar2')})` : '';
-    add(sub('stf'), `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? (split ? '1'+UNIT(k) : v+UNIT(k)) : v}${sub('tm')?' '+sub('tm'):''}${sub('crs')?` (출발지:${sub('crs')})`:''}${sub('plc')?` (장소:${sub('plc')})`:''}${r===rec && itemNote(k)?` (비고:${itemNote(k)})`:''}${k==='seminar' && !split ? sem2Tag(r)+(sem2Tag(r) ? s2note : '') : ''}`);
-    if(split){ const t=String(r.tm_seminar2||'').trim(), p=String(r.plc_seminar2||'').trim(); add(s2who, `${f[2]} 1${UNIT(k)}${t?' '+t:''}${p?` (장소:${p})`:''}${s2note}`); } });
+    // 세미나 도슨트 2회 이상 (3회차부터 2026-11-27): 회차 담당이 1회차 담당과 다르면 그 사람에게 따로 「세미나 도슨트 1회 …」, 같거나 비었으면 1회차 줄 뒤에 이어 적음
+    const sx = k==='seminar' ? semXKeys(r) : [], sxOf = sk => ({ w:String(r['stf_'+sk]||'').trim(), t:String(r['tm_'+sk]||'').trim(), p:String(r['plc_'+sk]||'').trim(), n: r===rec && itemNote(sk) ? ` (비고:${itemNote(sk)})` : '' });
+    const other = sx.filter(sk=>sxOf(sk).w && sxOf(sk).w!==sub('stf')), mine = sx.filter(sk=>!other.includes(sk));
+    add(sub('stf'), `${f[2]} ${/^\d+(\+\d+)*$/.test(v) ? (other.length ? (1+mine.length)+UNIT(k) : v+UNIT(k)) : v}${sub('tm')?' '+sub('tm'):''}${itemSlotTimes(r, k).map(x=>' · '+x).join('')}${sub('crs')?` (출발지:${sub('crs')})`:''}${sub('plc')?` (장소:${sub('plc')})`:''}${r===rec && itemNote(k)?` (비고:${itemNote(k)})`:''}${mine.map(sk=>{ const o=sxOf(sk); return o.t||o.p ? ` ·${o.t?' '+o.t:''}${o.p?` (장소:${o.p})`:''}${o.n}` : ''; }).join('')}`);
+    other.forEach(sk=>{ const o=sxOf(sk); add(o.w, `${f[2]} 1${UNIT(k)}${o.t?' '+o.t:''}${o.p?` (장소:${o.p})`:''}${o.n}`); }); });
   if(r.goods) add(r.stf_goods, '굿즈 '+goodsText(r)+(r===rec ? goodsParse(r.goods).map(g=>itemNote('g:'+g.src)?` (${goodsName(g.src)} 비고:${itemNote('g:'+g.src)})`:'').join('') : ''));
   return by;
 }
@@ -2525,7 +2599,7 @@ function syncAutoTasks(){
     const st=[...(ds ? ds.map(([k])=>!!t.subs[k]) : []), ...(t.xsubs||[]).map(x=>!!x.done)]; if(!st.length) return;
     const all=st.every(Boolean); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); } if(!all && t.done && !t.manualDone){ t.done=false; t.doneAt=''; } });   // 위 체크로 끝낸 과업(manualDone)은 하위 과업이 남아도 완료 그대로
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)) || (t.xsubs||[]).some(x=>x.done || !/^c:/.test(String(x.id))));   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌 · 추후과업 메시지 관리의 세부 과업(c:)만 있고 하나도 체크 안 한 것도 손대지 않은 것 (2026-11-26 · 예전엔 세부 과업을 정해 둔 과업은 조건이 사라져도 남았음)
-  const ps=tasks.find(t=>t.id==='progstaff' && !t.removed); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>LABEL[k]||k); }
+  const ps=tasks.find(t=>t.id==='progstaff' && !t.removed); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>semXName(k, rec)||LABEL[k]||k); }   // 어느 품목의 담당이 비었는지 (세미나 도슨트 2회 이상은 「세미나 도슨트 2회차」 · 2026-11-27) → 과업 보조 설명 {빈담당}
   const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
   const ec=tasks.find(t=>t.id==='erpcheck'); if(ec){ const c=erpCheck(); const was=ec.done; ec.done=c.ok; ec.check=c; if(c.ok && !was) ec.doneAt=new Date().toISOString(); if(!c.ok) ec.doneAt=''; }   // 전산 내역 대조: 맞으면 자동 완료, 다르면 다시 열림
   { const ls=tasks.find(t=>t.id==='linksend'); if(ls){ if(!rec.linkSent && ls.done && ls.manualDone){ rec.linkSent=ls.doneAt||new Date().toISOString(); touched.add('linkSent'); }   // 나의 할일 · 알림에서 체크한 것 → 전송 일시로
@@ -4517,7 +4591,7 @@ function paintAlert(due){ const today=ymd(new Date());
   // 제목의 「지남 · 오늘」은 과업만 셈 = 나의 할일 「오늘 마감」과 같은 줄 (2026-11-27 · 예전엔 고객 견적 요청 줄도 섞어 세어 「오늘 마감」 개수보다 많았음 → 견적 요청은 따로 적음 · 헤더의 「과업 n · 견적 요청 n」과 같은 모양)
   const tk=due.filter(T=>T.kind!=='q'), nQ=due.length-tk.length;
   $('#tbdTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${tk.filter(T=>T.due<today).length}</b> · <b class="cnt-today">오늘 ${tk.filter(T=>T.due>=today).length}</b>${nQ?` · 견적 요청 ${nQ}`:''} · 나의 할일 전체 · 알림은 ${esc(SY_ALERT.label())}</small>`;
-  $('#tbdLater').title=`다음 알림 시각(${SY_ALERT.label()})에 다시`;
+  $('#tbdLater').title=`닫기 (다음 알림 시각 ${SY_ALERT.label()}에 다시)`;
   $('#tbdModal').hidden=false; }
 function checkTbdPopup(force){
   alertSync(); if(ALERT_WIN) force=true;
@@ -4535,8 +4609,10 @@ function checkTbdPopup(force){
   if(force){ paintAlert(due); return; }
   SY_ALERT.show(ENG ? null : ()=>{ const d=alertList(); if(d.length) paintAlert(d); }, due.length);   // 과업 계산 창은 보이지 않으므로 이 화면 팝업은 없음
 }
-$('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; if(ALERT_WIN) window.close(); };   // 다음 알림 시각에 다시 (알림 창이면 창을 닫음)
-if(ALERT_WIN){ document.title='과업 알림 · 사유원';
+// 닫는 단추 (2026-11-27): 따로 뜨는 알림 창에는 없음 — 브라우저 창의 닫기(또는 Esc)로 닫음. 이 화면 안 팝업(창이 끝내 안 열릴 때)에만 오른쪽 위 ×
+//  「이 시각의 알림을 봤다」는 기록은 알림을 띄울 때 이미 적으므로(SY_ALERT.mark · js/common.js) 닫을 때 따로 할 일은 없음 — 어떻게 닫아도 다음 알림 시각까지 다시 뜨지 않음
+$('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; if(ALERT_WIN) window.close(); };   // (예전 화면이 남은 브라우저에서는 알림 창에도 버튼이 보일 수 있어 창 닫기는 그대로 둠)
+if(ALERT_WIN){ document.title='과업 알림 · 사유원'; $('#tbdLater').hidden=true;
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') window.close(); });
   setInterval(()=>{ if(window.__tasksReady) checkTbdPopup(true); }, 60000);   // 열어 둔 알림 창은 1분마다 새로 (다른 화면에서 끝낸 것은 사라짐)
   let aT=0; SY.live.on(()=>{ clearTimeout(aT); aT=setTimeout(()=>{ if(window.__tasksReady && !document.querySelector('#tbdList input:disabled')) checkTbdPopup(true); }, 150); }); }   // 2026-11-27: 다른 화면에서 과업을 끝내거나 다시 열면 1분을 기다리지 않고 바로 (알림 창의 줄 수가 나의 할일과 어긋나 보이지 않게 · 이 창에서 체크해 저장 중이면 그 저장이 끝난 뒤 다시 그림)
