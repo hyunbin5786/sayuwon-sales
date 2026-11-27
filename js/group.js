@@ -4381,7 +4381,8 @@ function paintMyCount(){ const n=myDueCount();   // 마감이 오늘이거나 �
   if(MY_ENGINE && window.__tasksReady){ try{ const sig=myDueList().map(T=>[T.kind, T.rid, T.tid, T.day, T.due, T.title, (T.before||[]).length].join('|')).join('\n');
     if(sig!==myDueSig){ myDueSig=sig; window.parent.postMessage({type:'sy-my', ev:'due', n}, location.origin); } }catch(_){} } }
 function openMy(fromGroup){ myTab='main'; $('#myModal').hidden=false; renderMy(); loadMyQuoteReq();   // 나의 할일 버튼은 어디서든 메인부터 (2026-11-19)
-  if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
+  if(pending.length) flush(); else pull();
+  const p=$('#myModal > section'); if(p){ p.tabIndex=-1; try{ p.focus({preventScroll:true}); }catch(_){ p.focus(); } } }   // 초점은 창 상자에 (2026-11-27 · 예전엔 × 단추에 줘서 열자마자 × 에 까만 초점 테두리가 떴음 — css/group.css #myModal > section:focus)
 // group.html?open=예약ID → 그 예약을 엶 (팝업 나의 할일에서 단체 줄을 누른 경우 · 목록을 받은 뒤)
 let openGId = new URLSearchParams(location.search).get('open'), openGErp = new URLSearchParams(location.search).get('erp')==='1';
 // 나의 할일에서 「전산 내역 대조」를 체크하면: 그 예약을 열고 전산 내역 붙여넣는 칸까지 (2026-11-20)
