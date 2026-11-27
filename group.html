@@ -7,8 +7,8 @@
 <script>/* 불러오는 중 화면 (2026-11-21): 단체 화면을 열면 예약 정보가 준비될 때까지 빈 새 통화 화면 대신 「불러오는 중」 (예약 현황 공유 · 나의 할일 · 과업 계산 창은 빼고) */ (function(){ if(!/[?&](book|my|engine)=/.test(location.search)) document.documentElement.classList.add('g-loading'); })();</script>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sayuwon_owner"), u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search) && !/[?&]embed=1/.test(location.search)){ location.replace("./#mypop"); return; }   /* 2026-11-24: 나의 할일 한 페이지는 없앰 — 첫 화면의 팝업으로 (팝업 안 · 과업 계산 창은 embed=1 이라 그대로) */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261127zzc">
-<link rel="stylesheet" href="css/menu.css?v=20261127zzc">
+<link rel="stylesheet" href="css/group.css?v=20261127zzd">
+<link rel="stylesheet" href="css/menu.css?v=20261127zzd">
 </head>
 <body>
 <header>
@@ -312,12 +312,15 @@
   </section>
   <!-- 통화 메모 (2열 · 통화 중 확인 아래, 따로 된 칸) -->
   <section class="panel memo-panel">
-    <h2>통화 메모<span style="flex:1"></span><span class="memo-st" id="memoSt"></span><button type="button" class="btn primary memo-save" id="memoSave" title="통화 메모 저장 (영업 담당이 아니면 영업 담당에게 「통화 메모 확인」 과업이 갑니다)">저장</button></h2>
+    <h2>통화 메모<span style="flex:1"></span><span class="memo-st" id="memoSt"></span></h2>
     <p class="memo-lock-hint" id="memoLockHint" hidden></p>
     <!-- 2026-11-27: 통화 메모 = 쌓이는 기록. 칸(.memo-stack) 크기는 예전 글 상자와 같고, 위 = 지난 기록(안에서 스크롤 · #noteList) · 아래 = 새 메모 적는 자리(#memoBox). js/group/08-history-save.js 맨 위 -->
     <div class="memo-stack" id="memoStack">
     <ol class="note-list" id="noteList" aria-label="지난 통화 메모 기록" hidden></ol>
-    <textarea id="memoBox" data-ime="ko" lang="ko" spellcheck="false" autocomplete="off" aria-label="새 통화 메모" placeholder="새 메모를 적고 「저장」을 누르면 기록으로 쌓입니다."></textarea>
+    <div class="memo-in"><!-- 적는 줄 (채팅 입력창처럼 · 같은 날 네 번째): 적는 자리 + 「저장」 버튼 · Enter = 저장(기록으로 쌓기) · Shift+Enter = 줄바꿈 -->
+    <textarea id="memoBox" rows="1" data-ime="ko" lang="ko" spellcheck="false" autocomplete="off" aria-label="새 통화 메모" placeholder="메모 입력 (Enter 저장 · Shift+Enter 줄바꿈)"></textarea>
+    <button type="button" class="btn primary memo-save" id="memoSave" title="통화 메모 저장 — 기록으로 쌓입니다 (영업 담당이 아니면 영업 담당에게 「통화 메모 확인」 과업이 갑니다)">저장</button>
+    </div>
     </div><!-- 다른 칸처럼 들어가면 바로 한글 (한/영 키 · Shift+Space · 위쪽 한/A 로 영어) -->
   </section>
 
@@ -424,14 +427,14 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/common.js?v=20261127zzc"></script>
-<script src="js/opslib.js?v=20261127zzc"></script>
-<script src="js/group.js?v=20261127zzc"></script>
-<script src="js/taskcfg.js?v=20261127zzc"></script>
-<script src="js/mytask.js?v=20261127zzc"></script>
-<script src="js/ime.js?v=20261127zzc"></script>
-<script src="js/keepsize.js?v=20261127zzc"></script>
-<script src="js/menu.js?v=20261127zzc"></script>
-<script src="js/timepick.js?v=20261127zzc"></script>
+<script src="js/common.js?v=20261127zzd"></script>
+<script src="js/opslib.js?v=20261127zzd"></script>
+<script src="js/group.js?v=20261127zzd"></script>
+<script src="js/taskcfg.js?v=20261127zzd"></script>
+<script src="js/mytask.js?v=20261127zzd"></script>
+<script src="js/ime.js?v=20261127zzd"></script>
+<script src="js/keepsize.js?v=20261127zzd"></script>
+<script src="js/menu.js?v=20261127zzd"></script>
+<script src="js/timepick.js?v=20261127zzd"></script>
 </body>
 </html>

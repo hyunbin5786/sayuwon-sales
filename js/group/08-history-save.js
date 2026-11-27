@@ -54,9 +54,9 @@ function renderNotes(toEnd){
     return `<li class="note-it" data-nid="${id}"><div class="note-h">${when}${n.ed?`<span class="note-ed">고침${n.ed.by?` · ${esc(n.ed.by)}`:''}${n.ed.t?` ${esc(dtLabel(n.ed.t))}`:''}</span>`:''}${can?`<span class="note-acts"><button type="button" class="note-btn" data-nedit="${id}">고치기</button><button type="button" class="note-btn" data-ndel="${id}">지우기</button></span>`:''}</div><div class="note-tx">${esc(n.text)}</div></li>`; }).join('');
   noteGrow(); box.scrollTop = toEnd ? box.scrollHeight : y;
 }
-// 적는 자리 높이: 평소 한두 줄(css) · 길게 적으면 칸의 55% 까지 늘어남 · 비우면 도로 (채팅 입력창처럼)
+// 적는 자리 높이: 평소 한두 줄(css) · 길게 적으면 칸의 27% 까지 늘어남(처음 55% 의 절반 · 넘으면 그 안에서 스크롤) · 비우면 도로 (채팅 입력창처럼)
 function noteGrow(){ const mb=$('#memoBox'), st=$('#memoStack'), box=$('#noteList'); if(!mb || !st) return; const end = box && box.scrollTop+box.clientHeight >= box.scrollHeight-4;
-  mb.style.height=''; if(mb.value && mb.scrollHeight>mb.clientHeight+2) mb.style.height=Math.min(mb.scrollHeight+2, Math.round(st.clientHeight*0.55))+'px';
+  mb.style.height=''; if(mb.value && mb.scrollHeight>mb.clientHeight+2) mb.style.height=Math.min(mb.scrollHeight+2, Math.round(st.clientHeight*0.275))+'px';
   if(end && box) box.scrollTop=box.scrollHeight; }
 $('#memoBox').addEventListener('input', noteGrow);
 // ===================== 수정 기록 =====================

@@ -1163,7 +1163,7 @@ html.g-loading body{overflow:hidden}
 #taskList .task.tk-mine .tk-whotag{color:#fff;background:var(--pine,#3f5236);border-color:var(--pine,#3f5236)}
 /* 통화 메모 저장 버튼 · 영업 담당이 아닐 때 흐린 안내 (2026-11-24) */
 .memo-panel h2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.memo-panel .memo-save{height:28px;padding:0 12px;font-size:12.5px}
+.memo-panel .memo-save{flex:none;height:34px;padding:0 14px;font-size:13px}
 .memo-panel .memo-st{font:400 12px var(--sans);color:var(--muted)}
 .memo-panel .memo-st.ok{color:var(--pine)}
 .memo-lock-hint{margin:-2px 0 6px;color:#9a968a;font-size:12.5px}
@@ -1171,7 +1171,9 @@ html.g-loading body{overflow:hidden}
    위 = 지난 기록(.note-list · 적는 자리 96px 은 늘 남김) · 아래 = 새 메모 적는 자리(#memoBox · 기록이 없으면 칸 전체). 기록 구분은 옅은 선 · 배경색으로 (왼쪽 색 띠 없음) */
 .memo-stack{display:flex;flex-direction:column;height:300px;min-height:200px;resize:vertical;overflow:hidden;border:1px solid var(--line);border-radius:8px;background:#fff}
 .memo-stack:focus-within{border-color:var(--pine)}
-.memo-stack #memoBox{flex:0 0 auto;width:100%;height:72px;min-height:72px;max-height:55%;resize:none;border:0;border-top:1px solid var(--line);border-radius:0;outline:none;background:transparent;padding:10px 12px}
+/* 같은 날 네 번째(운영팀: 저장 버튼을 입력란에 · 더 채팅 입력창처럼): 맨 아래 적는 줄(.memo-in) = 적는 자리 + 「저장」 버튼. 적는 자리는 한 줄 높이에서 시작해 칸의 27% 까지만 늘어남(js noteGrow · 앞선 55% 의 절반) */
+.memo-in{flex:none;display:flex;align-items:flex-end;gap:8px;padding:8px;border-top:1px solid var(--line)}
+.memo-stack #memoBox{flex:1 1 0;min-width:0;width:auto;height:34px;min-height:34px;resize:none;border:0;border-radius:8px;outline:none;background:var(--bg);padding:5px 10px;line-height:1.6;overflow-y:auto}
 .note-list{flex:1 1 0;min-height:0;overflow:auto;scrollbar-gutter:stable;list-style:none;margin:0;padding:8px 2px 8px 10px;display:flex;flex-direction:column;gap:8px}   /* 같은 날 다시(채팅처럼): 기록 자리가 칸의 위쪽 전부 — 위에서부터 쌓이고, 적는 자리는 늘 맨 아래 한 줄 높이(적으면 조금 늘어남 · js noteGrow) */
 /* 같은 날 세 번째(운영팀: 처음부터 갈색으로 차 있어 답답함): 기록 자리는 바탕색 없이 비워 두고, 메모 하나하나가 모서리 둥근 상자로 쌓임 */
 .note-list::-webkit-scrollbar{width:10px;height:10px}
@@ -1534,10 +1536,10 @@ html.g-start #startBox{display:flex;flex-direction:column;justify-content:center
   .mob-head #mobFind{flex:none;height:36px;padding:0 12px;font-size:13.5px}
   .mob-head .mh-org{display:block;margin-top:8px;font:700 20px/1.35 var(--sans);color:var(--ink);overflow-wrap:anywhere}
   .memo-panel .memo-stack{height:220px;min-height:180px}   /* 예전 글 상자 높이(220px) 그대로 · 2026-11-27 쌓이는 기록 */
-  .memo-panel #memoBox{height:64px;min-height:64px;font-size:16px}   /* 16px 아래면 아이폰이 칸을 누를 때 화면을 확대함 */
+  .memo-panel #memoBox{height:38px;min-height:38px;font-size:16px}   /* 16px 아래면 아이폰이 칸을 누를 때 화면을 확대함 */
   .memo-panel .note-edit{font-size:16px}
   .memo-panel .note-btn{padding:6px 8px;font-size:13px}
-  .memo-panel .memo-save{height:38px;padding:0 18px;font-size:15px}
+  .memo-panel .memo-save{height:38px;padding:0 16px;font-size:15px}
   /* 추후 과업 한 줄: 좁은 폭에서 제목이 눌려 안 보이던 것 → 제목을 첫 줄 가득, 마감 · 저장 · × 는 다음 줄 */
   #taskList .task-h{flex-wrap:wrap;row-gap:6px}
   #taskList .task-h > .task-c{flex:1 1 calc(100% - 34px);min-width:0}

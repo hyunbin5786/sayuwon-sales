@@ -2120,9 +2120,9 @@ function renderNotes(toEnd){
     return `<li class="note-it" data-nid="${id}"><div class="note-h">${when}${n.ed?`<span class="note-ed">고침${n.ed.by?` · ${esc(n.ed.by)}`:''}${n.ed.t?` ${esc(dtLabel(n.ed.t))}`:''}</span>`:''}${can?`<span class="note-acts"><button type="button" class="note-btn" data-nedit="${id}">고치기</button><button type="button" class="note-btn" data-ndel="${id}">지우기</button></span>`:''}</div><div class="note-tx">${esc(n.text)}</div></li>`; }).join('');
   noteGrow(); box.scrollTop = toEnd ? box.scrollHeight : y;
 }
-// 적는 자리 높이: 평소 한두 줄(css) · 길게 적으면 칸의 55% 까지 늘어남 · 비우면 도로 (채팅 입력창처럼)
+// 적는 자리 높이: 평소 한두 줄(css) · 길게 적으면 칸의 27% 까지 늘어남(처음 55% 의 절반 · 넘으면 그 안에서 스크롤) · 비우면 도로 (채팅 입력창처럼)
 function noteGrow(){ const mb=$('#memoBox'), st=$('#memoStack'), box=$('#noteList'); if(!mb || !st) return; const end = box && box.scrollTop+box.clientHeight >= box.scrollHeight-4;
-  mb.style.height=''; if(mb.value && mb.scrollHeight>mb.clientHeight+2) mb.style.height=Math.min(mb.scrollHeight+2, Math.round(st.clientHeight*0.55))+'px';
+  mb.style.height=''; if(mb.value && mb.scrollHeight>mb.clientHeight+2) mb.style.height=Math.min(mb.scrollHeight+2, Math.round(st.clientHeight*0.275))+'px';
   if(end && box) box.scrollTop=box.scrollHeight; }
 $('#memoBox').addEventListener('input', noteGrow);
 // ===================== 수정 기록 =====================
@@ -4619,7 +4619,7 @@ function paintLock(){
   document.body.classList.toggle('locked', !!(lockOwner || editLockBy));
   { const h=$('#memoLockHint'), mb=$('#memoBox');   // 영업 담당이 아니면 통화 메모 위에 흐린 안내 · 빈 칸 안내 글 (2026-11-24)
     if(h){ h.hidden=!lockOwner; h.textContent = lockOwner ? `수정 사안이 있다면 통화 메모에 남겨 두세요. 저장하면 ${lockOwner}님께 「통화 메모 확인」 과업이 갑니다.` : ''; }
-    if(mb) mb.placeholder = lockOwner ? '수정 사안이 있다면 통화 메모에 남겨 두세요.' : '새 메모를 적고 「저장」을 누르면 기록으로 쌓입니다.';
+    if(mb) mb.placeholder = lockOwner ? '수정 사안이 있다면 통화 메모에 남겨 두세요.' : '메모 입력 (Enter 저장 · Shift+Enter 줄바꿈)';
     if(typeof renderNotes==='function') renderNotes(); }   // 고치기 · 지우기 버튼은 담당 · 「고치는 중」에 따라 달라짐
   const box=$('#ownerMemo'); if(!box) return;
   const me=savedOwner(), list=[...memos].reverse();
@@ -5073,9 +5073,12 @@ $('#noteList').addEventListener('click', e=>{
   if(b.dataset.nback){ const o={...n}; delete o.del; set(o); noteTouched(); }
 });
 $('#noteList').addEventListener('keydown', e=>{ if(!e.target.closest('.note-edit')) return; if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); noteEditId=''; renderNotes(); } else if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); const ok=e.target.closest('li').querySelector('[data-nok]'); if(ok) ok.click(); } });
-$('#memoBox').addEventListener('keydown', e=>{ if(e.key==='Enter' && (e.ctrlKey||e.metaKey) && !e.isComposing){ e.preventDefault(); $('#memoSave').click(); } });   // Ctrl+Enter = 저장(기록으로 쌓기)
+// 적는 자리의 Enter (같은 날 네 번째 · 채팅 입력창처럼): Enter = 저장(기록으로 쌓기) · Shift+Enter = 줄바꿈 · Ctrl+Enter 도 저장 · 한글을 조합하는 중의 Enter 는 그대로 둠
+$('#memoBox').addEventListener('keydown', e=>{ if(e.key!=='Enter' || e.shiftKey || e.altKey || e.isComposing || e.keyCode===229) return; e.preventDefault(); if(String($('#memoBox').value||'').trim()) $('#memoSave').click(); });
+// 아직 저장한 적 없는 새 통화(PC): 예약을 저장할 수 없으니 적은 글을 화면의 기록으로만 쌓아 둠 — 맨 위 「저장」 · 자동 저장 때 함께 저장됨
+function noteStackLocal(){ const d=noteDraft(); if(!d) return false; notes=noteSort([...notes.filter(n=>n.id!==d.id), d]); $('#memoBox').value=''; noteDraftId=''; noteDraftT=''; renderNotes(true); renderTasks(); if(window.__autoReady){ scheduleAuto(); saveViewSoon(); } return true; }
 $('#memoSave').addEventListener('click', async ()=>{
-  if(!editingId && !(isMobG() && canSave() && !lockOwner)){ toast('업체나 방문일을 먼저 넣고 저장해 주세요.'); return; }   // 휴대폰의 새 통화(단체명만 있음)는 여기서 처음 저장 (휴대폰에는 맨 위 저장 버튼이 없어서 · 2026-11-27)
+  if(!editingId && !(isMobG() && canSave() && !lockOwner)){ if(noteStackLocal()){ const ms=$('#memoSt'); if(ms){ ms.textContent='저장 안 함'; ms.className='memo-st'; } if(!canSave()) toast('메모를 쌓아 두었습니다. 업체나 방문일을 넣고 맨 위 「저장」을 누르면 함께 저장됩니다.'); } $('#memoBox').focus(); return; }   // 휴대폰의 새 통화(단체명만 있음)는 여기서 처음 저장 (휴대폰에는 맨 위 저장 버튼이 없어서 · 2026-11-27)
   if(editLockBy){ lockPopup(); return; }
   clearTimeout(memoLockT); const ms=$('#memoSt');
   if(lockOwner){ await saveLockedCommit(); if(ms && ms.textContent==='저장 안 함'){ ms.textContent='바뀐 것 없음'; } return; }
