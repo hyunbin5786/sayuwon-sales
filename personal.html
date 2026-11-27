@@ -6,9 +6,9 @@
 <title>개인고객 응대 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 첫 화면 「오늘 마감」 팝업 (2026-11-25) */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/personal.css?v=20261127zo">
-<link rel="stylesheet" href="css/mypop.css?v=20261127zo">
-<link rel="stylesheet" href="css/menu.css?v=20261127zo">
+<link rel="stylesheet" href="css/personal.css?v=20261127zq">
+<link rel="stylesheet" href="css/mypop.css?v=20261127zq">
+<link rel="stylesheet" href="css/menu.css?v=20261127zq">
 </head>
 <body data-my-tab="personal">
 <header>
@@ -128,14 +128,14 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="js/common.js?v=20261127zo"></script>
-<script src="js/personal.js?v=20261127zo"></script>
+<script src="js/common.js?v=20261127zq"></script>
+<script src="js/personal.js?v=20261127zq"></script>
 <!-- 나의 할일 팝업 (메뉴 8번 페이지 group.html?my=1 을 그대로 띄움) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
-<script src="js/mypop.js?v=20261127zo"></script>
+<script src="js/mypop.js?v=20261127zq"></script>
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/ime.js?v=20261127zo"></script>
-<script src="js/keepsize.js?v=20261127zo"></script>
-<script src="js/menu.js?v=20261127zo"></script>
+<script src="js/ime.js?v=20261127zq"></script>
+<script src="js/keepsize.js?v=20261127zq"></script>
+<script src="js/menu.js?v=20261127zq"></script>
 </body>
 </html>
