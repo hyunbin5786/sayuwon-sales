@@ -1519,3 +1519,17 @@ html.g-start #startBox{display:flex;flex-direction:column;justify-content:center
 .it-extra .it-slotdel{height:30px;width:30px;border:1px solid var(--line);background:var(--card);border-radius:6px;cursor:pointer;color:var(--muted);font-size:15px;line-height:1}
 .it-extra .it-slotdel:hover{border-color:var(--red);color:var(--red)}
 .it-extra .it-slot[hidden]{display:none}
+/* 과업 알림 창(group.html?alert=1) 스크롤 (2026-11-27 오후): 과업이 화면보다 많으면 아래가 잘리고 내려가지 않았음
+   — 공통 스크롤 잠금(js/common.js sy-noscroll)이 이 창의 문서 스크롤을 막는데, 알림 상자는 스스로 스크롤하지 않고 길어지기만 했기 때문.
+   → 알림 상자를 화면 높이에 맞추고 목록(#tbdList)이 그 안에서 스크롤. 제목 줄과 닫는 ×(휴대폰에서만 보임 · js/group/15-lock-popups.js)는 목록 밖이라 늘 위에 남음 */
+html.alert-only #tbdModal{height:100vh;height:100dvh;min-height:0;overflow:hidden;padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px))}
+html.alert-only #tbdModal .panel{display:flex;flex-direction:column;max-height:100%;min-height:0;box-sizing:border-box;overflow:hidden}
+html.alert-only #tbdModal .panel > h2{flex:none}
+html.alert-only #tbdList{flex:1 1 auto;min-height:0;margin-bottom:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+html.alert-only #tbdList > li{flex:none}
+html.alert-only #tbdList li .who{min-width:0;overflow-wrap:anywhere}
+@media (max-width:700px){
+  html.alert-only #tbdModal button.win-x{top:4px;right:4px;width:44px;height:44px}   /* 손가락으로 누르기 쉬운 크기 (색 · 굵기는 공통 모양 css/menu.css .win-x) */
+  html.alert-only #tbdModal .panel > h2{padding-right:40px}
+  #tbdList .my-ck{padding:12px 10px;margin:-12px -6px -12px -10px}   /* 체크 칸 둘레까지 눌림 (보이는 크기 · 자리는 그대로에 가깝게) */
+}

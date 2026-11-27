@@ -189,8 +189,18 @@ function checkTbdPopup(force){
 }
 // 닫는 단추 (2026-11-27): 따로 뜨는 알림 창에는 없음 — 브라우저 창의 닫기(또는 Esc)로 닫음. 이 화면 안 팝업(창이 끝내 안 열릴 때)에만 오른쪽 위 ×
 //  「이 시각의 알림을 봤다」는 기록은 알림을 띄울 때 이미 적으므로(SY_ALERT.mark · js/common.js) 닫을 때 따로 할 일은 없음 — 어떻게 닫아도 다음 알림 시각까지 다시 뜨지 않음
-$('#tbdLater').onclick=()=>{ $('#tbdModal').hidden=true; if(ALERT_WIN) window.close(); };   // (예전 화면이 남은 브라우저에서는 알림 창에도 버튼이 보일 수 있어 창 닫기는 그대로 둠)
-if(ALERT_WIN){ document.title='과업 알림 · 사유원'; $('#tbdLater').hidden=true;
+//  휴대폰 (2026-11-27 오후): 휴대폰 브라우저는 알림 창을 작은 창이 아니라 「새 탭」으로 열어 창 자체의 닫는 단추가 없다 → 휴대폰(폭 700px 아래 · 손가락으로 쓰는 기기)에서만 오른쪽 위 × 를 보임. PC 의 작은 알림 창은 그대로(× 없음)
+//  × = ① 이 시각의 알림을 본 것으로 적고(주소로 직접 연 알림도 닫으면 다음 알림 시각까지 다시 안 뜸) ② 탭을 닫음(알림이 연 탭이면 닫히고 보던 탭이 다시 보임) ③ 안 닫히면 뒤로 가기 ④ 돌아갈 곳이 없으면 첫 화면
+function alertWinClose(){
+  try{ const k=SY_ALERT.keyNow(); if(k) SY_ALERT.mark(k); }catch(_){}
+  try{ window.close(); }catch(_){}
+  setTimeout(()=>{ if(window.closed) return;   // 닫혔으면 여기까지 오지 않거나 closed
+    const home=()=>{ location.replace('index.html'); };
+    if(history.length>1){ const t=setTimeout(home, 700); addEventListener('pagehide', ()=>clearTimeout(t), {once:true}); history.back(); } else home(); }, 200);
+}
+$('#tbdLater').onclick=()=>{ if(ALERT_WIN){ alertWinClose(); return; } $('#tbdModal').hidden=true; };
+if(ALERT_WIN){ document.title='과업 알림 · 사유원';
+  { const mq=matchMedia('(max-width:700px),(pointer:coarse)'), px=()=>{ $('#tbdLater').hidden=!mq.matches; }; px(); try{ mq.addEventListener('change', px); }catch(_){} }
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') window.close(); });
   setInterval(()=>{ if(window.__tasksReady) checkTbdPopup(true); }, 60000);   // 열어 둔 알림 창은 1분마다 새로 (다른 화면에서 끝낸 것은 사라짐)
   let aT=0; SY.live.on(()=>{ clearTimeout(aT); aT=setTimeout(()=>{ if(window.__tasksReady && !document.querySelector('#tbdList input:disabled')) checkTbdPopup(true); }, 150); }); }   // 2026-11-27: 다른 화면에서 과업을 끝내거나 다시 열면 1분을 기다리지 않고 바로 (알림 창의 줄 수가 나의 할일과 어긋나 보이지 않게 · 이 창에서 체크해 저장 중이면 그 저장이 끝난 뒤 다시 그림)
