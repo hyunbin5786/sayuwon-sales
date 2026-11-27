@@ -32,7 +32,9 @@ const OPS_PAGE =
         show:d=>lostKind(d)==='습득' || !(typeof GUEST!=='undefined' && GUEST) || !!window.LOST_GUEST_PH},   // 신고에도 사진 (2026-11-26 · 꼭은 아님). 로그인 없이 넣는 신고는 서버가 api 11 부터 사진을 받음 — 예전 서버면 칸을 보이지 않음 (opsboard.js LOST_GUEST_PH)
       {k:'place', l:d=>lostKind(d)==='습득' ? '발견 장소' : '분실 추정 장소', type:'text', w:d=>lostRp(d) ? 2 : 1},   // 신고는 한 줄을 통째로 (아래 신고자 두 칸 · 담당자 두 칸이 나란히 놓이게) {k:'storage', l:'보관 위치', type:'text', show:d=>lostKind(d)==='습득'},
       // 2026-11-27: 분실물 신고자(고객) — 신고만 · 이름은 새로 접수할 때 꼭 (예전 신고를 고칠 때는 비어 있어도 저장됨) · 전화번호는 없어도 됨 (연락처를 남기지 않는 고객도 있어서)
-      {k:'reporter', l:'분실물 신고자', type:'text', ph:'물건을 잃어버린 분', show:lostRp, req:()=>lostNew()}, {k:'reporterPhone', l:'분실물 신고자 전화번호', type:'tel', show:lostRp},
+      {k:'reporter', l:'분실물 신고자', type:'text', ph:'물건을 잃어버린 분', show:lostRp, req:()=>lostNew()}, {k:'reporterPhone', l:'분실물 신고자 전화번호', type:'tel', show:lostRp, ph:'010-0000-0000',
+        // 2026-11-27: 번호 모양을 맞춤 — 치는 동안 - 를 저절로 넣고(fmt · js/common.js SY.phoneTyping), 000-0000-0000 · 000-000-0000 모양이 아니면 저장을 막음(bad · 비워 두는 것은 됨) — js/opsboard.js
+        fmt:'phone', bad:v=>!v || /^\d{3}-\d{3,4}-\d{4}$/.test(v) ? '' : '분실물 신고자 전화번호를 010-0000-0000 처럼 넣어 주세요 (지금: '+v+')'},
       // 2026-11-24: 구분에 따라 이름이 바뀜 (분실물 신고 = 사유원 담당자(2026-11-27 · 예전 이름 신고자) · 분실물 습득 = 습득자)
       //   꼭 넣기: 습득자 이름 · 신고의 사유원 담당자(로그인했을 때 — 저절로 채워짐 · 로그인 없이 접수하면 비워도 됨). 담당자 연락처는 꼭이 아님 (예전 「신고자 연락처 꼭」은 고객에게 연락하려던 것 — 이제 고객 번호는 위 칸)
       {k:'person', l:d=>lostWho(d), type:'text', req:d=>lostKind(d)==='습득' || !lostGuest()}, {k:'phone', l:d=>lostWho(d)+' 연락처', type:'tel'},
