@@ -78,11 +78,17 @@ main{max-width:1400px}
 .guest-only{display:none}
 .guest .guest-only{display:block}
 .guest .dash{display:none}
+/* 로그인 전 첫 화면의 바로가기: 메뉴(☰)와 같은 모양 (2026-11-27 · css/menu.css 의 .sm-g · .sm-sub · .sm-i · .sm-chips 와 같은 값 — 메뉴 모양을 바꾸면 여기도) */
 .gshare{max-width:380px;margin:0 auto}
-.gshare[hidden], .gshare .gs-b[hidden]{display:none}   /* 메뉴 설정에서 「로그인 없이」를 끈 묶음 (js/menu.js guestSync · 2026-11-27) */
-.gshare .gs-b:not([hidden]) ~ .gs-b{margin-top:12px}   /* 보이는 묶음 다음 묶음만 위를 띄움 */
-.gshare h3{margin:0 0 6px;font:600 16px var(--serif);color:var(--pine)}
-.gshare h3 small{font:400 12px var(--sans);color:var(--muted);margin-left:6px}
+.guest .gshare{display:flex;flex-direction:column;gap:10px}
+.guest .gshare[hidden], .gshare .gs-b[hidden], .gshare .gs-g:not(:has(.gs-b:not([hidden]))){display:none}   /* 메뉴 설정에서 「로그인 없이」를 끈 묶음 · 안이 다 숨은 상자 (js/menu.js guestSync) */
+.gshare .gs-g{background:#fffefb;border:1px solid #dfdace;border-radius:12px;overflow:hidden;padding-bottom:8px;font:14px/1.6 "Noto Sans KR",system-ui,sans-serif;color:#262620}
+.gshare .gs-t{padding:11px 14px;border-bottom:1px solid #dfdace;font:600 15px "Noto Serif KR",serif;color:#3f5236}
+.gshare .gs-sub{margin:12px 8px 0;padding:4px 6px;color:#16803c;font-size:13px;font-weight:800;letter-spacing:.02em}
+.gshare .gs-i{display:block;margin:4px 8px 0 16px;padding:8px 10px;border-radius:8px;text-decoration:none;color:#262620}
+.gshare .gs-i:hover{background:#e4eadf}
+.gshare .gs-i b{display:block;font-size:14px}
+.gshare .acc-chips{margin:0 8px;padding-left:20px}
 /* 대시보드 4열 (2026-11-18): 개인고객 전화 · 단체고객 전화 · 기타 개인 할일 · 개인 할일 보기 */
 .dcols{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start}
 .dcol{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px;min-width:0}

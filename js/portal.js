@@ -14,7 +14,6 @@ function paint(){
   $('#loginForm').hidden = !!u; $('#who').hidden = !u;
   $('#menuView').hidden = view!=='menu' && !!u; $('#memberView').hidden = !u || view!=='members';
   $('#menuView').classList.toggle('guest', !u); $('#hello').hidden = !u;   // 로그인 전에는 3열 「예약 현황 공유」만 (보기 전용)
-  $('#shareHint').textContent = u ? '' : '로그인 없이 보기만';
   { const cr=$('#crumb'); if($('#catWrap').hidden){ cr.textContent = u && view==='members' ? '멤버관리' : ''; cr.hidden = !cr.textContent; } }   // 헤더: 시스템 이름 › 지금 화면
   if(u){
     $('#whoName').textContent = `👤 ${u.name}`; $('#whoName').title = `사번 ${u.emp}`;
