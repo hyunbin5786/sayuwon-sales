@@ -157,6 +157,7 @@ function openEdit(row, preset){   // preset: 새로 넣을 때 먼저 채울 값
   editRow=row||null; form = row ? {...row.d} : Object.fromEntries(B.fields.filter(f=>f.def).map(f=>[f.k, f.def()]));
   B.fields.forEach(f=>{ if(f.type==='photos' && Array.isArray(form[f.k])) form[f.k]=form[f.k].slice(); });   // 사진 목록은 사본으로 — 사진을 빼고 「취소」하면 목록의 기록은 그대로 (2026-11-26)
   if(preset) Object.entries(preset).forEach(([k, v])=>{ form[k]=v; if(B.onField) B.onField(k, form); });
+  telTouched.clear();
   if(B.normalize) B.normalize(form);   // 예전 기록 값을 지금 규칙으로 (분실물 상태)
   $('#eTitle').textContent = row ? `${B.title} · 고치기` : B.add;
   $('#eDel').hidden = !row; $('#eErr').textContent=''; paintForm(); $('#editModal').hidden=false;
@@ -223,8 +224,18 @@ function phOpen(src){   // 사진 크게 보기 (고치기 팝업 · 분실물 �
   let o=$('#phView'); if(!o){ o=document.createElement('div'); o.id='phView'; o.className='ph-view'; o.innerHTML='<img alt="사진 크게 보기"><button type="button" class="win-x" title="닫기" aria-label="닫기">×</button>'; o.addEventListener('click', ()=>{ o.hidden=true; }); document.body.appendChild(o); }
   o.querySelector('img').src=src; o.hidden=false; }
 $('#eFields').addEventListener('input', e=>{ const k=e.target.dataset.k; if(!k) return; let v=e.target.value; const fd=B.fields.find(f=>f.k===k); if(fd?.type==='num'){ v=v.replace(/[^\d.]/g,''); e.target.value=v; }
-  if(fd?.fmt==='phone'){ v=SY.phoneTyping(e.target, e.inputType); e.target.value=v; }   // 전화번호 칸 (칸 정의의 fmt:'phone' · 2026-11-27 분실물 신고자 전화번호): 치는 동안 - 를 저절로
+  if(fd?.fmt==='phone'){ if(e.target.dataset.a010){ const dg=v.replace(/\D/g,'');   // 저절로 넣은 010- 뒤에 번호를 통째로 넣은 경우 (053 … · 010 부터 다시 침 · 붙여 넣기): 11자리를 넘으면 앞의 010 을 뗌 — 010-0000-0000 처럼 0 으로 이어지는 휴대폰 번호는 11자리라 그대로
+      if(/^delete/.test(e.inputType||'')) delete e.target.dataset.a010;   // 010- 을 지우기 시작했으면 그 뒤로는 친 대로
+      else if(dg.length>11 && /^0100/.test(dg)){ e.target.value=dg.slice(3); delete e.target.dataset.a010; } }
+    v=SY.phoneTyping(e.target, e.inputType); e.target.value=v; telTouched.add(k); }   // 전화번호 칸 (칸 정의의 fmt:'phone' · 2026-11-27 분실물의 모든 연락처 칸): 치는 동안 - 를 저절로
   form[k]=v; });
+// 전화번호 칸(fmt:'phone')에 들어가면 010- 을 저절로 (2026-11-27): 칸이 비어 있을 때만 · 커서는 그 뒤. 화면의 칸에만 넣고 form 에는 넣지 않음 (지나가기만 해도 값이 생기지 않게)
+//  010- 뒤에 번호를 통째로 넣어(053 … · 010 을 다시 침 · 붙여 넣은 번호) 11자리를 넘으면 앞의 010 을 떼어 겹치지 않게 함 (위 input · data-a010). 아무것도 더 넣지 않고 나가면 도로 비움
+const telTouched = new Set();   // 이번에 연 창에서 사람이 손댄 전화번호 칸 — 저장할 때 이 칸만 모양을 맞추고 확인 (예전 기록의 번호 · 저절로 채운 멤버 연락처는 그대로 둠)
+const telField = el => el?.dataset?.k && B.fields.find(f=>f.k===el.dataset.k && f.fmt==='phone');
+const telBlank = v => /^010-?$/.test(String(v||'').trim());   // 저절로 넣은 010- 만 든 값 = 빈 것
+$('#eFields').addEventListener('focusin', e=>{ const el=e.target; if(!telField(el) || el.value) return; el.value='010-'; el.dataset.a010='1'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} }, 0); });
+$('#eFields').addEventListener('focusout', e=>{ const el=e.target; if(!telField(el)) return; delete el.dataset.a010; if(telBlank(el.value)){ el.value=''; form[el.dataset.k]=''; } });
 $('#eFields').addEventListener('change', e=>{ const k=e.target.dataset.k; if(!k) return; form[k]=e.target.value; if(B.onField) B.onField(k, form); if(k==='status'){ if(form.status==='반환 완료' && !form.returnDate) form.returnDate=opsToday(); paintForm(); } else if(e.target.tagName==='SELECT' && B.fields.some(f=>f.show)) paintForm();   /* 구분을 바꾸면 그에 따라 보이는 칸(습득물 사진 등)도 바로 */ });   // 반환 완료면 반환일 = 오늘
 $('#eFields').addEventListener('click', e=>{
   const r=e.target.closest('[data-rep]'); if(r){ form.repeat=r.dataset.rep; if(form.repeat==='weekly' && !(form.dows||[]).length) form.dows=[new Date().getDay()]; if(form.repeat==='monthly' && !form.dom) form.dom=String(new Date().getDate()); if(form.repeat!=='none' && !form.start) form.start=opsToday(); paintForm(); return; }
@@ -242,9 +253,10 @@ $('#eForm').addEventListener('submit', async e=>{ e.preventDefault();
   document.activeElement?.blur?.();
   if($('#e_subAdd')?.value.trim()) addSub();   // 세부 과업 칸에 적어 두고 추가를 안 누른 것도
   if(phBusy){ $('#eErr').textContent='사진을 올리는 중입니다. 끝난 뒤 저장해 주세요.'; return; }
+  B.fields.forEach(f=>{ if(f.fmt==='phone' && telBlank(form[f.k])) form[f.k]=''; });   // 010- 만 든 전화번호 칸은 빈 것으로 (꼭 넣는 칸이면 아래에서 걸림)
   const miss=B.fields.filter(f=>fReq(f) && (!f.show || f.show(form)) && (f.type==='photos' ? !(Array.isArray(form[f.k]) && form[f.k].length) : !String(form[f.k]||'').trim())); if(miss.length){ $('#eErr').textContent=`${miss.map(f=>fLabel(f)).join(' · ')}을(를) 넣어 주세요.`; return; }   // 사진 칸은 한 장도 없으면 빠진 것 (2026-11-26)
-  B.fields.forEach(f=>{ if(f.fmt==='phone' && (!f.show || f.show(form)) && form[f.k]) form[f.k]=SY.fmtPhone(form[f.k]) || String(form[f.k]).trim(); });   // 붙여 넣은 번호도 - 를 맞춘 뒤
-  const bad=B.fields.filter(f=>f.bad && (!f.show || f.show(form))).map(f=>f.bad(String(form[f.k]||'').trim())).filter(Boolean); if(bad.length){ paintForm(); $('#eErr').textContent=bad.join(' · '); return; }   // 칸마다의 모양 확인 (칸 정의의 bad · 2026-11-27)
+  B.fields.forEach(f=>{ if(f.fmt==='phone' && telTouched.has(f.k) && (!f.show || f.show(form)) && form[f.k]) form[f.k]=SY.fmtPhone(form[f.k]) || String(form[f.k]).trim(); });   // 붙여 넣은 번호도 - 를 맞춘 뒤 (이번에 손댄 칸만 — 예전 기록의 번호는 그대로)
+  const bad=B.fields.filter(f=>f.bad && (!f.show || f.show(form))).map(f=>f.bad(String(form[f.k]||'').trim(), telTouched.has(f.k))).filter(Boolean); if(bad.length){ paintForm(); $('#eErr').textContent=bad.join(' · '); return; }   // 칸마다의 모양 확인 (칸 정의의 bad · 2026-11-27)
   const d={...form}; B.fields.forEach(f=>{ if(f.show && !f.show(form) && f.k in d && f.type!=='dows' && f.type!=='dom') delete d[f.k]; });
   const ok=await putRow({...(editRow||{}), d}, editRow?'고침':'추가'); if(ok!==false){ $('#editModal').hidden=true; toast(editRow?'고쳤습니다.':'추가했습니다.'); }
 });
