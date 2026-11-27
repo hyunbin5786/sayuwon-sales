@@ -570,8 +570,20 @@ function dashCheck(inp){
 }
 document.addEventListener('change', e=>{ if(e.target.matches?.('[data-dck]') && e.target.checked) dashCheck(e.target); });
 // 예약 팝업: 단체 · 개인고객 화면을 머리줄 없이(embed=1) 띄워 그 자리에서 고침 · 닫으면 대시보드를 다시 받음
-function recPopOpen(url){ const P=$('#recPop'), F=$('#recPopFrame'); if(!P) { location.href=url.replace('embed=1&',''); return; } F.src=url; P.hidden=false; }
-function recPopClose(){ const P=$('#recPop'); if(!P || P.hidden) return; P.hidden=true; $('#recPopFrame').src='about:blank'; dashSoon(200); }
+// 창 크기를 안의 내용에 딱 맞춤 (2026-11-27 · 개인고객 통화만): 예전에는 늘 화면 가득(1680px · 높이 전체)이라 내용 옆 · 아래에 빈 자리가 남았음
+//  너비 = 개인고객 화면 main 의 최대 너비 · 높이 = main 의 실제 높이 (최소 480px — 안에서 뜨는 작은 창이 잘리지 않게 · 최대는 예전 크기). 내용이 늘면(과업 추가 등) 따라 늘어남
+//  단체 예약 창은 내용이 길어 예전처럼 화면 가득 · 휴대폰(700px 아래)도 예전처럼 화면 전체
+let recPopRO=null;
+function recPopFit(){ const P=$('#recPop'), F=$('#recPopFrame'); if(!P || P.hidden) return; const B=P.querySelector('.box');
+  const reset=()=>{ B.style.width=''; B.style.height=''; };
+  if(!/^personal\.html/.test(F.getAttribute('src')||'') || matchMedia('(max-width:700px)').matches){ reset(); return; }
+  try{ const d=F.contentDocument, w=d && d.defaultView, m=d && d.querySelector('main'); if(!m){ reset(); return; }
+    const mw=parseFloat(w.getComputedStyle(m).maxWidth); B.style.width = mw>0 ? `min(${Math.ceil(mw)}px, 100%)` : '';
+    const h=Math.max(480, Math.ceil(m.getBoundingClientRect().bottom + w.scrollY)); B.style.height=`min(${h}px, calc(100vh - 48px))`;
+    if(!recPopRO || recPopRO.__m!==m){ if(recPopRO) recPopRO.disconnect(); recPopRO=new w.ResizeObserver(()=>recPopFit()); recPopRO.__m=m; recPopRO.observe(m); }
+  }catch(_){ reset(); } }
+function recPopOpen(url){ const P=$('#recPop'), F=$('#recPopFrame'); if(!P) { location.href=url.replace('embed=1&',''); return; } const B=P.querySelector('.box'); B.style.width=''; B.style.height=''; if(!F.__fit){ F.__fit=1; F.addEventListener('load', recPopFit); window.addEventListener('resize', recPopFit); } F.src=url; P.hidden=false; }
+function recPopClose(){ const P=$('#recPop'); if(!P || P.hidden) return; P.hidden=true; if(recPopRO){ try{ recPopRO.disconnect(); }catch(_){} recPopRO=null; } $('#recPopFrame').src='about:blank'; dashSoon(200); }
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && $('#recPop') && !$('#recPop').hidden){ e.preventDefault(); recPopClose(); } });
 document.addEventListener('click', e=>{
   if(e.target.closest('#calPopBtn')){ const w=window.open('./?cal=1', 'sy_cal', 'width=1000,height=460,resizable=yes,scrollbars=yes'); if(w) w.focus(); else location.href='./?cal=1'; return; }   // 캘린더 새 창 (2026-11-25 · 같은 창이 있으면 그 창을 앞으로)
