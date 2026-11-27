@@ -35,9 +35,11 @@ if(window.parent!==window && location.hash==='#catalog') location.replace('docum
     <h2 class="hello" id="hello"></h2>
     <div class="warnbar" id="setupBar" hidden></div>
     <div class="home">
-      <!-- 메뉴는 헤더의 ☰ (js/menu.js, 모든 화면 공통). 로그인 전에는 예약현황 공유만 여기에 -->
+      <!-- 메뉴는 헤더의 ☰ (js/menu.js, 모든 화면 공통). 로그인 전에는 로그인 없이 쓰는 것만 여기에: 고객 응대 보조(멘트) → 예약현황 공유 → 운영 참고 자료(분실물 찾기 · 2026-11-27 순서 바꾸고 분실물 더함) -->
       <section class="guest-only panel gshare">
-        <h3>예약현황 공유 <small id="shareHint"></small></h3>
+        <h3>고객 응대 보조</h3>
+        <div class="acc-chips"><a class="acc-chip" href="ment.html">전화응대 멘트</a></div>   <!-- 로그인 없이 보고 복사 (2026-11-18) -->
+        <h3 style="margin-top:12px">예약현황 공유 <small id="shareHint"></small></h3>
         <div class="acc-chips">
           <a class="acc-chip" data-go="book" href="group.html?book=mb">몽몽마방</a>
           <a class="acc-chip" data-go="book" href="group.html?book=rent">대관</a>
@@ -45,8 +47,8 @@ if(window.parent!==window && location.hash==='#catalog') location.replace('docum
           <a class="acc-chip" data-go="book" href="group.html?book=prog">프로그램</a>
           <a class="acc-chip" data-go="book" href="group.html?book=coupon">음료쿠폰</a>
         </div>
-        <h3 style="margin-top:12px">고객 응대 보조</h3>
-        <div class="acc-chips"><a class="acc-chip" href="ment.html">전화응대 멘트</a></div>   <!-- 로그인 없이 보고 복사 (2026-11-18) -->
+        <h3 style="margin-top:12px">운영 참고 자료</h3>
+        <div class="acc-chips"><a class="acc-chip" href="lost.html">분실물 찾기</a></div>   <!-- 분실물 신고 · 습득 접수와 찾기는 로그인 없이 됨 (2026-11-27) -->
       </section>
       <section class="dash need-login" id="dash" aria-label="모든 사용자의 나의 할일">
         <div class="dash-h"><div class="drange" id="dashRange"></div><input id="dashQ" type="search" placeholder="검색: 전화번호 · 단체명 · 이름" autocomplete="off" data-ime="ko"><span class="hint" id="dashSum" hidden></span><button type="button" class="btn-sm" id="dashReload" hidden>↻</button></div>
