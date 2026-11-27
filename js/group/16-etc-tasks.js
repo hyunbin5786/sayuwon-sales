@@ -68,8 +68,7 @@ function alertSetHTML(){ const L=SY_ALERT.times(), n=L.length;
       + `<select data-alh="${i}" aria-label="${i+1}번째 알림 시">${[12,1,2,3,4,5,6,7,8,9,10,11].map(x=>`<option value="${x}"${x===h12?' selected':''}>${x}시</option>`).join('')}</select>`
       + `<select data-alm="${i}" aria-label="${i+1}번째 알림 분">${[0,10,20,30,40,50].map(x=>`<option value="${x}"${x===m10?' selected':''}>${x ? x+'분' : '정각'}</option>`).join('')}</select>`
       + `<button type="button" class="btn primary" data-aldel="${i}" title="이 시각 빼기">빼기</button></li>`; };
-  return `<div class="al-set"><b>과업 알림</b>`
-    + `<p class="hint al-say">마감이 오늘이거나 지난 내 할 일을, 정한 시각이 지나고 화면을 처음 볼 때 따로 뜨는 창으로 알려 줍니다. (창이 바로 안 뜨는 브라우저에서는 화면을 한 번 누를 때 뜹니다)</p>`
+  return `<div class="al-set"><b>과업 알림</b>`   // 2026-11-27: 제목 아래 안내 글(「마감이 오늘이거나 지난 내 할 일을 …」)은 없앰
     + `<div class="al-count"><span>하루에 몇 번 알릴까요?</span><span class="al-step"><button type="button" class="btn primary" data-alminus${n?'':' disabled'} title="한 번 줄이기 (맨 뒤 시각을 뺌)" aria-label="알림 횟수 줄이기">−</button><b>${n ? n+'번' : '끔'}</b><button type="button" class="btn primary" data-aladd${n>=AL_MAX?' disabled':''} title="한 번 늘리기" aria-label="알림 횟수 늘리기">＋</button></span></div>`
     + (n ? `<ul class="al-list">${L.map(row).join('')}</ul><p class="hint al-say">시각을 바꾸면 바로 저장됩니다 · 이른 시각부터 차례로 놓입니다.</p>` : `<p class="hint al-say">알림을 끈 상태입니다. <b>＋</b> 를 누르면 다시 켜집니다.</p>`)
     + `</div>`; }
