@@ -208,7 +208,7 @@ $('#eFields').addEventListener('click', e=>{
   const x=e.target.closest('[data-phdel]'); if(x){ const [k,i]=x.dataset.phdel.split('|'); if(Array.isArray(form[k])){ form[k].splice(+i,1); paintForm(); } return; }
   const v=e.target.closest('img[data-phview]'); if(v && v.src) phOpen(v.src); });
 function phOpen(src){   // 사진 크게 보기 (고치기 팝업 · 분실물 습득 목록)
-  let o=$('#phView'); if(!o){ o=document.createElement('div'); o.id='phView'; o.className='ph-view'; o.innerHTML='<img alt="사진 크게 보기"><button type="button" class="btn primary">닫기</button>'; o.addEventListener('click', ()=>{ o.hidden=true; }); document.body.appendChild(o); }
+  let o=$('#phView'); if(!o){ o=document.createElement('div'); o.id='phView'; o.className='ph-view'; o.innerHTML='<img alt="사진 크게 보기"><button type="button" class="win-x" title="닫기" aria-label="닫기">×</button>'; o.addEventListener('click', ()=>{ o.hidden=true; }); document.body.appendChild(o); }
   o.querySelector('img').src=src; o.hidden=false; }
 $('#eFields').addEventListener('input', e=>{ const k=e.target.dataset.k; if(!k) return; let v=e.target.value; if(B.fields.find(f=>f.k===k)?.type==='num'){ v=v.replace(/[^\d.]/g,''); e.target.value=v; } form[k]=v; });
 $('#eFields').addEventListener('change', e=>{ const k=e.target.dataset.k; if(!k) return; form[k]=e.target.value; if(B.onField) B.onField(k, form); if(k==='status'){ if(form.status==='반환 완료' && !form.returnDate) form.returnDate=opsToday(); paintForm(); } else if(e.target.tagName==='SELECT' && B.fields.some(f=>f.show)) paintForm();   /* 구분을 바꾸면 그에 따라 보이는 칸(습득물 사진 등)도 바로 */ });   // 반환 완료면 반환일 = 오늘

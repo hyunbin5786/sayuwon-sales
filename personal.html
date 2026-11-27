@@ -6,9 +6,9 @@
 <title>개인고객 응대 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 첫 화면 「오늘 마감」 팝업 (2026-11-25) */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/personal.css?v=20261127y">
-<link rel="stylesheet" href="css/mypop.css?v=20261127y">
-<link rel="stylesheet" href="css/menu.css?v=20261127y">
+<link rel="stylesheet" href="css/personal.css?v=20261127za">
+<link rel="stylesheet" href="css/mypop.css?v=20261127za">
+<link rel="stylesheet" href="css/menu.css?v=20261127za">
 </head>
 <body data-my-tab="personal">
 <header>
@@ -74,7 +74,7 @@
 <!-- 개인고객 통화 기록 전체 (모든 직원이 받은 통화 · 검색 · 누르면 열기) -->
 <div class="modal" id="allModal" hidden>
   <section class="panel wide" role="dialog" aria-modal="true" aria-labelledby="allTitle">
-    <h2 id="allTitle"><span id="allName">개인고객 통화 기록 전체</span> <small id="allCount"></small><button type="button" class="btn" id="allPast" aria-pressed="false" style="margin-left:auto;padding:4px 12px">지난 통화 보기</button><button type="button" class="btn" id="allTrash" style="padding:4px 12px" title="삭제한 개인고객 통화 (삭제 일시 · 삭제한 사람 · 사유)">삭제된 통화</button><button type="button" class="btn" id="allClose" style="padding:4px 12px" title="닫기" aria-label="닫기">×</button></h2>
+    <h2 id="allTitle"><span id="allName">개인고객 통화 기록 전체</span> <small id="allCount"></small><button type="button" class="btn" id="allPast" aria-pressed="false" style="margin-left:auto;padding:4px 12px">지난 통화 보기</button><button type="button" class="btn" id="allTrash" style="padding:4px 12px" title="삭제한 개인고객 통화 (삭제 일시 · 삭제한 사람 · 사유)">삭제된 통화</button><button type="button" class="win-x in-row" id="allClose" title="닫기 (Esc)" aria-label="닫기">×</button></h2>
     <input class="search" id="allSearch" type="search" lang="ko" placeholder="검색: 이름 · 연락처 · 문의 내용 · 받은 사람 · 과업 (검색하면 모든 통화에서 찾음)">
     <div class="all-flt" id="allFlt"><span class="hint" id="allFltHint"></span></div>
     <div class="all-cols" id="allCols">
@@ -95,18 +95,18 @@
 <!-- 보고 글자 미리보기: 고친 뒤 복사하기 -->
 <div class="modal" id="copyModal" hidden>
   <section class="panel copy-box" role="dialog" aria-modal="true" aria-labelledby="copyTitle">
-    <h2 id="copyTitle">보고 글자 미리보기 <small>고친 뒤 복사하기</small></h2>
+    <h2 id="copyTitle">보고 글자 미리보기 <small>고친 뒤 복사하기</small></h2><button type="button" class="win-x" id="copyClose" title="닫기 (Esc)" aria-label="닫기">×</button>
     <textarea id="copyOut" lang="ko" data-ime="ko" spellcheck="false"></textarea>
-    <div class="row-btns" style="margin-top:12px;justify-content:flex-end;display:flex;gap:6px"><button type="button" class="btn" id="copyClose">닫기</button><button type="button" class="btn primary" id="copyDo">복사하기</button></div>
+    <div class="row-btns" style="margin-top:12px;justify-content:flex-end;display:flex;gap:6px"><button type="button" class="btn primary" id="copyDo">복사하기</button></div>
   </section>
 </div>
 <!-- 전산 예약 정보 붙여넣기 (PC 에서만 · 2026-11-27): 전산의 예약 정보 글 → 통화 기록의 칸 -->
 <div class="modal" id="pasteModal" hidden>
   <section class="panel copy-box" role="dialog" aria-modal="true" aria-labelledby="pasteTitle">
-    <h2 id="pasteTitle">전산 예약 정보 붙여넣기</h2>
+    <h2 id="pasteTitle">전산 예약 정보 붙여넣기</h2><button type="button" class="win-x" id="pasteClose" title="닫기 (Esc)" aria-label="닫기">×</button>
     <textarea id="pasteIn" spellcheck="false"></textarea>
     <p class="hint" id="pasteMsg" style="color:var(--red);min-height:18px"></p>
-    <div class="row-btns" style="margin-top:6px;justify-content:flex-end;display:flex;gap:6px"><button type="button" class="btn" id="pasteClose">닫기</button><button type="button" class="btn primary" id="pasteDo">채우기</button></div>
+    <div class="row-btns" style="margin-top:6px;justify-content:flex-end;display:flex;gap:6px"><button type="button" class="btn primary" id="pasteDo">채우기</button></div>
   </section>
 </div>
 <!-- 통화 기록 삭제 (사유 필수) -->
@@ -129,14 +129,14 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="js/common.js?v=20261127y"></script>
-<script src="js/personal.js?v=20261127y"></script>
+<script src="js/common.js?v=20261127za"></script>
+<script src="js/personal.js?v=20261127za"></script>
 <!-- 나의 할일 팝업 (메뉴 8번 페이지 group.html?my=1 을 그대로 띄움) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
-<script src="js/mypop.js?v=20261127y"></script>
+<script src="js/mypop.js?v=20261127za"></script>
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/ime.js?v=20261127y"></script>
-<script src="js/keepsize.js?v=20261127y"></script>
-<script src="js/menu.js?v=20261127y"></script>
+<script src="js/ime.js?v=20261127za"></script>
+<script src="js/keepsize.js?v=20261127za"></script>
+<script src="js/menu.js?v=20261127za"></script>
 </body>
 </html>

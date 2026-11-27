@@ -355,13 +355,13 @@ function calOpenAdd(row){
   calEditId=row ? row.id : ''; calAddCat=row ? calCat(row)[0] : '행사';   // 새 일정은 늘 「행사」부터
   const d=row ? row.d : opsToday(), isPer=!!(row && row.d2 && row.d2>row.d), d2=isPer ? row.d2 : calPlus1(d), tm0=row && !isPer ? (row.tm||'') : '';
   const dbox=(id,v)=>`<span class="dbox"><input class="dtxt" readonly placeholder="누르면 달력" title="누르면 달력 · 한 번 더 누르면 직접 입력" inputmode="numeric"><input type="date" class="dpick" id="${id}" value="${v}"></span>`;
-  M.innerHTML = `<div class="cm-panel cal-panel" role="dialog" aria-label="${row?'일정 고치기':'일정 추가'}"><h2>${row?'일정 고치기':'일정 추가'}</h2>`
+  M.innerHTML = `<div class="cm-panel cal-panel" role="dialog" aria-label="${row?'일정 고치기':'일정 추가'}"><h2>${row?'일정 고치기':'일정 추가'}</h2><button type="button" class="win-x" data-cclose title="닫기 (Esc)" aria-label="닫기">×</button>`
     + `<div class="cal-f"><span class="cal-fl">구분</span><span class="cal-cats">${CAL_CATS.map(c=>`<button type="button" data-ccat="${c[0]}" style="--c:${c[1]}"${c[0]===calAddCat?' class="on"':''}>${c[0]}</button>`).join('')}</span></div>`
     + `<div class="cal-f"><span class="cal-fl">제목</span><input id="calNTitle" placeholder="예: 정기 점검 · 직원 교육 · 겨울 휴관" data-ime="ko" maxlength="60" autocomplete="off" value="${esc(row?row.title:'')}"></div>`
     + `<div class="cal-f"><span class="cal-fl">일정</span><span class="cal-kind"><button type="button" data-ckind="day"${isPer?'':' class="on"'}>하루 일정</button><button type="button" data-ckind="per"${isPer?' class="on"':''}>기간 일정</button></span></div>`
     + `<div class="cal-f"><span class="cal-fl" id="calDLabel">${isPer?'기간':'날짜'}</span><span class="cal-per">${dbox('calNFrom', d)}<span class="cal-to"${isPer?'':' hidden'}>~</span><span class="cal-to"${isPer?'':' hidden'}>${dbox('calNTo', d2)}</span></span></div>`
     + `<div class="cal-f cal-tmrow"${isPer?' hidden':''}><span class="cal-fl">시간</span><span class="cal-tm"><label><input type="checkbox" id="calNAll"${tm0?'':' checked'}> 하루 종일</label><input id="calNTm" data-tp="range" placeholder="예: 10:00~11:00" maxlength="11" autocomplete="off" value="${esc(tm0)}"${tm0?'':' hidden'}></span></div>`
-    + `<p class="err" id="calErr"></p><div class="cm-btns">${row?'<button type="button" class="btn-sm primary" id="calNDel">삭제</button>':''}<span class="hint"></span><button type="button" class="btn-sm primary" data-cclose>닫기</button><button type="button" class="btn-sm primary" id="calNSave">${row?'저장':'추가'}</button></div></div>`;
+    + `<p class="err" id="calErr"></p><div class="cm-btns">${row?'<button type="button" class="btn-sm primary" id="calNDel">삭제</button>':''}<span class="hint"></span><button type="button" class="btn-sm primary" id="calNSave">${row?'저장':'추가'}</button></div></div>`;
   M.hidden=false; M.querySelectorAll('.dpick').forEach(p=>calDateBox(p)); setTimeout(()=>{ const t=$('#calNTitle'); t.focus(); const n=t.value.length; try{ t.setSelectionRange(n,n); }catch(_){} }, 0);
 }
 function calCloseAdd(){ const M=$('#calModal'); if(M){ M.hidden=true; M.innerHTML=''; } calEditId=''; }
@@ -449,11 +449,11 @@ function ntModal(){ let M=$('#ntModal'); if(!M){ M=document.createElement('div')
 function ntClose(){ const M=$('#ntModal'); if(M){ M.hidden=true; M.innerHTML=''; } ntEditId=''; }
 function ntOpenForm(row){
   const M=ntModal(); ntEditId=row ? row.id : '';
-  M.innerHTML = `<div class="cm-panel nt-panel" role="dialog" aria-label="${row?'게시물 고치기':'게시물 등록'}"><h2>${row?'게시물 고치기':'게시물 등록'}</h2>`
+  M.innerHTML = `<div class="cm-panel nt-panel" role="dialog" aria-label="${row?'게시물 고치기':'게시물 등록'}"><h2>${row?'게시물 고치기':'게시물 등록'}</h2><button type="button" class="win-x" data-ntclose title="닫기 (Esc)" aria-label="닫기">×</button>`
     + `<input id="ntTitle" class="nt-in" placeholder="제목" data-ime="ko" maxlength="80" autocomplete="off" value="${esc(row?row.title:'')}">`
     + `<textarea id="ntBody" class="nt-ta" placeholder="내용" data-ime="ko">${esc(row?row.body||'':'')}</textarea>`
     + ntPerHTML(row)
-    + `<p class="err" id="ntErr"></p><div class="cm-btns"><span class="hint"></span><button type="button" class="btn-sm primary" data-ntclose>닫기</button><button type="button" class="btn-sm primary" id="ntSaveBtn">${row?'저장':'등록'}</button></div></div>`;
+    + `<p class="err" id="ntErr"></p><div class="cm-btns"><span class="hint"></span><button type="button" class="btn-sm primary" id="ntSaveBtn">${row?'저장':'등록'}</button></div></div>`;
   M.hidden=false; M.querySelectorAll('.dpick').forEach(p=>calDateBox(p, 'ntErr')); setTimeout(()=>$('#ntTitle').focus(), 0);
 }
 // 게시 기간 칸: 「기한 없음」 / 「기한 있음」(시작하는 날 기본 오늘 ~ 끝나는 날 기본 일주일 뒤 · 시작을 뒤로 하면 예약 공지)
@@ -467,10 +467,10 @@ function ntPerHTML(row){
 }
 function ntOpenView(r){
   const M=ntModal(); ntEditId=r.id;
-  M.innerHTML = `<div class="cm-panel nt-panel" role="dialog" aria-label="공지사항"><h2>${esc(r.title)}</h2>`
+  M.innerHTML = `<div class="cm-panel nt-panel" role="dialog" aria-label="공지사항"><h2>${esc(r.title)}</h2><button type="button" class="win-x" data-ntclose title="닫기 (Esc)" aria-label="닫기">×</button>`
     + `<p class="nt-meta">${esc(r.by||'')} · ${esc(ntDay(r.at))}${r.editAt?` · 고침 ${esc(r.editBy||'')} ${esc(ntDay(r.editAt))}`:''} · 게시 ${esc(ntPer(r))}${ntState(r,opsToday())==='sched'?' (예약)':ntState(r,opsToday())==='past'?' (지남)':''}</p>`
     + `<div class="nt-body">${esc(r.body||'').replace(/\n/g,'<br>')||'<span class="hint">(내용 없음)</span>'}</div>`
-    + `<p class="err" id="ntErr"></p><div class="cm-btns"><button type="button" class="btn-sm primary" id="ntDelBtn">삭제</button><span class="hint"></span><button type="button" class="btn-sm primary" id="ntEditBtn">고치기</button><button type="button" class="btn-sm primary" data-ntclose>닫기</button></div></div>`;
+    + `<p class="err" id="ntErr"></p><div class="cm-btns"><button type="button" class="btn-sm primary" id="ntDelBtn">삭제</button><span class="hint"></span><button type="button" class="btn-sm primary" id="ntEditBtn">고치기</button></div></div>`;
   M.hidden=false;
 }
 document.addEventListener('keydown', e=>{ const M=$('#ntModal'); if(M && !M.hidden && e.key==='Escape') ntClose(); });

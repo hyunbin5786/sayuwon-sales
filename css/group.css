@@ -538,7 +538,6 @@ body.locked #saveBtn{display:none}
 .tag.st-상담,.tag.st-예약상담{background:#ece9e2;color:var(--muted)}
 .tag.st-가예약{background:var(--amber-soft);color:var(--amber)}
 .tag.st-공식예약,.tag.st-예약접수{background:var(--pine);color:#fff}
-.list-x{width:30px;height:30px;padding:0;font-size:18px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
 .modal .list th.owner,.modal .list td.owner{background:#e3eedc;color:#2f5a22;font-weight:700}   /* 영업 담당 열은 초록 계열로 구분 */
 .modal .list td.contacts-cell{min-width:150px;font-size:12.5px;font-variant-numeric:tabular-nums}
 .my-body{flex:1;min-height:0;display:flex;flex-direction:column}
@@ -910,8 +909,7 @@ html.my-only #myFullBtn{display:none}
 /* 나의 할일 설정 팝업 (2026-11-19) */
 #mySetModal{z-index:26}
 #mySetModal .set-pop{width:min(760px,100%);margin-top:8vh;position:relative}
-#mySetModal .set-x{position:absolute;top:12px;right:12px;width:30px;height:30px;border:0;border-radius:8px;background:var(--pine);color:#fff;font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}   /* 닫기 = 오른쪽 위 X (2026-11-25 · 초록) */
-#mySetModal .set-x:hover{filter:brightness(1.12)}
+/* 나의 할일 설정의 닫기 × = 공통 모양 (css/menu.css .win-x · 2026-11-27) */
 #mySetModal .set-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
 #mySetModal .al-set{margin:0;padding:0;border:0}
 @media (max-width:620px){ #mySetModal .set-cols{grid-template-columns:1fr} #mySetModal .set-col + .set-col{border-top:1px solid var(--line);padding-top:12px} }
@@ -1322,7 +1320,6 @@ html.book-guest #bookAll tr{cursor:default}
 #tcfgModal .tcfg-head h2{margin:0;font-size:20px}
 #tcfgModal .tcfg-head #tcfgMsg{margin:0 0 0 auto}
 #tcfgModal .tcfg-seg button{min-width:96px}
-#tcfgModal .tcfg-x{width:32px;height:32px;border:0;border-radius:8px;background:var(--pine);color:#fff;font-size:20px;line-height:1;cursor:pointer;flex:none}
 #tcfgModal .tcfg-lead{margin:0}
 #tcfgModal .tcfg-main{flex:1;min-height:0;display:grid;grid-template-columns:320px minmax(0,1fr);gap:14px}
 #tcfgModal .tcfg-main.table{grid-template-columns:minmax(0,1fr)}

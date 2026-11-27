@@ -7,8 +7,8 @@
 <script>/* 불러오는 중 화면 (2026-11-21): 단체 화면을 열면 예약 정보가 준비될 때까지 빈 새 통화 화면 대신 「불러오는 중」 (예약 현황 공유 · 나의 할일 · 과업 계산 창은 빼고) */ (function(){ if(!/[?&](book|my|engine)=/.test(location.search)) document.documentElement.classList.add('g-loading'); })();</script>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sayuwon_owner"), u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search) && !/[?&]embed=1/.test(location.search)){ location.replace("./#mypop"); return; }   /* 2026-11-24: 나의 할일 한 페이지는 없앰 — 첫 화면의 팝업으로 (팝업 안 · 과업 계산 창은 embed=1 이라 그대로) */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261127y">
-<link rel="stylesheet" href="css/menu.css?v=20261127y">
+<link rel="stylesheet" href="css/group.css?v=20261127za">
+<link rel="stylesheet" href="css/menu.css?v=20261127za">
 </head>
 <body>
 <header>
@@ -37,11 +37,11 @@
 </div>
 <!-- 나의 할일: 내가 영업 담당인 예약 -->
 <!-- 나의 할일 설정 팝업 (2026-11-19): 구분 순서 ▲▼ · ＋ 구분 추가 -->
-<div class="modal" id="mySetModal" hidden><section class="panel set-pop" role="dialog" aria-modal="true" aria-labelledby="mySetTitle"><h2 id="mySetTitle">나의 할일 설정</h2><button type="button" class="set-x" data-mysetclose title="닫기" aria-label="닫기">×</button><div id="mySet"></div></section></div>
+<div class="modal" id="mySetModal" hidden><section class="panel set-pop" role="dialog" aria-modal="true" aria-labelledby="mySetTitle"><h2 id="mySetTitle">나의 할일 설정</h2><button type="button" class="win-x" data-mysetclose title="닫기" aria-label="닫기">×</button><div id="mySet"></div></section></div>
 <div class="modal" id="myModal" hidden>
   <section class="list panel" role="dialog" aria-modal="true" aria-labelledby="myTitle">
     <h2><span id="myTitle">나의 할일</span> <span class="seg my-tabs" id="myTabs"></span><label class="my-tabsel"><span>구분</span><select id="myTabSel" aria-label="구분"></select></label><small id="mySum"></small>
-      <span class="row-btns"><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="myPast"> 지난 방문도 보기</label><button type="button" class="btn" id="myReloadBtn" title="공유 기록에서 지금 바로 최신 내용을 다시 받아 옴 (평소엔 30초마다 저절로)">↻ 새로고침</button><button type="button" class="btn" id="mySetBtn" title="구분 순서 바꾸기 · 구분 추가">설정</button><button type="button" class="btn list-x" id="myCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+      <span class="row-btns"><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="myPast"> 지난 방문도 보기</label><button type="button" class="btn" id="myReloadBtn" title="공유 기록에서 지금 바로 최신 내용을 다시 받아 옴 (평소엔 30초마다 저절로)">↻ 새로고침</button><button type="button" class="btn" id="mySetBtn" title="구분 순서 바꾸기 · 구분 추가">설정</button><button type="button" class="win-x in-row" id="myCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <div class="my-body" id="myBody"></div>
   </section>
 </div>
@@ -65,7 +65,7 @@
 <!-- 사전답사 정보: 성명 · 연락처(기본 = 담당자) · 일자 · 인원 · 시간 → 추후 과업 「사전답사 전산 예약」 -->
 <div class="modal" id="tourModal" hidden>
   <section class="panel consult tour-box" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
-    <h2 id="tourTitle">사전답사 <small>성명 = 단체명(담당자) · 연락처 = 담당자 연락처가 기본</small></h2>
+    <h2 id="tourTitle">사전답사 <small>성명 = 단체명(담당자) · 연락처 = 담당자 연락처가 기본</small></h2><button type="button" class="win-x" id="tourClose" title="닫기 (Esc)" aria-label="닫기">×</button>
     <div class="tour-grid">
       <div class="f tg-name"><label for="tourName"><span>성명</span></label><input id="tourName" data-ime="ko" placeholder="단체명(성명)" autocomplete="off"></div>
       <div class="f tg-phone"><label for="tourPhone"><span>연락처</span></label><input id="tourPhone" inputmode="tel" data-ime="num" placeholder="010-0000-0000" autocomplete="off"></div>
@@ -74,23 +74,23 @@
       <div class="f"><label for="tourTime"><span>입장시각</span></label><input id="tourTime" data-tp="1" readonly autocomplete="off"></div>
     </div>
     <p class="hint" id="tourHint">답사 1명은 무료 · 2명 이상이면 전산 비고에 「(인원 − 1)명 현장 결제 필요」가 붙습니다.</p>
-    <div class="row-btns"><button class="btn primary" id="tourSave">저장</button><button class="btn" id="tourClear" title="사전답사 정보를 지움 (손대지 않은 과업도 빠짐)">답사 없음</button><button class="btn" id="tourClose">닫기</button></div>
+    <div class="row-btns"><button class="btn primary" id="tourSave">저장</button><button class="btn" id="tourClear" title="사전답사 정보를 지움 (손대지 않은 과업도 빠짐)">답사 없음</button></div>
   </section>
 </div>
 <!-- 비고 멘트 재출력: 지금 예약 내용으로 전산 비고 문구를 다시 만들어 보여 줌 -->
 <div class="modal" id="noteModal" hidden>
   <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="noteTitle">
-    <h2 id="noteTitle">비고멘트 <small>지금 예약 내용으로 다시 만듦</small></h2>
+    <h2 id="noteTitle">비고멘트 <small>지금 예약 내용으로 다시 만듦</small></h2><button type="button" class="win-x" id="noteClose" title="닫기 (Esc)" aria-label="닫기">×</button>
     <textarea id="noteOut" class="note-out" spellcheck="false" lang="ko"></textarea>
     <p class="hint" id="noteHint"></p>
-    <div class="row-btns"><button class="btn primary" id="noteCopy">복사</button><button class="btn" id="noteApply" hidden title="추후 과업 「전산 예약」에 직접 고쳐 둔 비고 문구를 이 멘트로 바꿈">과업 문구도 이걸로 바꾸기</button><button class="btn" id="noteClose">닫기</button></div>
+    <div class="row-btns"><button class="btn primary" id="noteCopy">복사</button><button class="btn" id="noteApply" hidden title="추후 과업 「전산 예약」에 직접 고쳐 둔 비고 문구를 이 멘트로 바꿈">과업 문구도 이걸로 바꾸기</button></div>
   </section>
 </div>
 <!-- 삭제된 단체 예약 (시트에만 남아 있던 것을 보기 전용으로) -->
 <div class="modal" id="trashModal" hidden>
   <section class="list panel mbdb book" role="dialog" aria-modal="true" aria-labelledby="trashTitle">
     <h2><span id="trashTitle">삭제된 단체 예약</span> <small id="trashSum"></small>
-      <span class="row-btns"><button type="button" class="btn list-x" id="trashClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+      <span class="row-btns"><button type="button" class="win-x in-row" id="trashClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <input id="trashSearch" class="list-search" type="search" data-ime="ko" placeholder="검색: 업체명 · 담당자 · 사유 · 삭제한 사람" autocomplete="off" style="margin:0 0 8px">
     <div class="tw"><table class="mbdb-t"><thead><tr><th>삭제 일시</th><th>삭제한 사람</th><th>사유</th><th>방문일</th><th>업체</th><th>담당자</th><th>인원</th><th class="owner">영업 담당</th></tr></thead><tbody id="trashBody"></tbody></table></div>
     <p class="hint" style="margin:8px 0 0">삭제된 예약은 공유 DB에 그대로 남아 있고(‘삭제’ 칸에 일시), 여기서는 보기만 합니다.</p>
@@ -100,7 +100,7 @@
 <div class="modal" id="bookModal" hidden>
   <section class="list panel mbdb book" role="dialog" aria-modal="true" aria-labelledby="bookTitle">
     <h2><span id="bookTitle">예약 목록</span> <span class="seg my-tabs" id="bookTabs"><button type="button" data-bt="mb">몽몽마방</button><button type="button" data-bt="rent">대관</button><button type="button" data-bt="docent">도슨트</button><button type="button" data-bt="prog">프로그램</button><button type="button" data-bt="coupon">음료쿠폰</button></span> <small id="bookSum"></small>
-      <span class="row-btns"><button type="button" class="btn primary" id="bookLogBtn" title="직접 추가한 예약의 추가 · 수정 · 빼기(사유) 기록">수정 기록</button><label class="hint" id="bookPastL" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bookPast"> 지난 예약도 보기</label><button type="button" class="btn list-x" id="bookClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+      <span class="row-btns"><button type="button" class="btn primary" id="bookLogBtn" title="직접 추가한 예약의 추가 · 수정 · 빼기(사유) 기록">수정 기록</button><label class="hint" id="bookPastL" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bookPast"> 지난 예약도 보기</label><button type="button" class="win-x in-row" id="bookClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <!-- 2026-11-25 배치: 넓은 화면은 왼쪽 = 찾기 · 담당 일정 (세로로) / 오른쪽 = 날짜별로 묶은 목록 · 좁은 화면 · 단체 화면 팝업은 예전처럼 위아래 -->
     <div class="bk-wrap"><aside class="bk-side">
     <div class="book-find" id="bookFind"><b class="bk-sh">찾기</b><div class="bf-date"><span class="bf-l">날짜</span><span class="bf-dt" id="bfRangeW"><span class="dbox"><input class="dtxt" readonly placeholder="전체" title="누르면 달력 · 하나만 고르면 그날 하루, 둘을 다르게 고르면 기간"><input type="date" class="dpick" id="bfFrom" tabindex="-1" aria-hidden="true"></span><span class="bf-til">~</span><span class="dbox"><input class="dtxt" readonly placeholder="전체" title="누르면 달력 · 하나만 고르면 그날 하루, 둘을 다르게 고르면 기간"><input type="date" class="dpick" id="bfTo" tabindex="-1" aria-hidden="true"></span></span></div><select id="bfField" class="bf-field" title="어느 칸에서 찾을지 (전체 = 모든 칸)" aria-label="찾기 구분"><option value="">전체</option><option value="org">업체명</option><option value="staff">담당자</option><option value="what">프로그램 · 내용</option><option value="note">비고</option></select><input id="bfQ" class="bf-q" type="search" placeholder="검색어 (모든 목록에서 찾음)" data-ime="ko" autocomplete="off"><button type="button" class="btn primary" id="bfReset" title="날짜 · 검색어 지우기 (전체로)">초기화</button><small class="hint bf-n" id="bfN"></small></div>
@@ -135,7 +135,7 @@
 <div class="modal" id="bkLogModal" hidden>
   <section class="list panel mbdb book bklog" role="dialog" aria-modal="true" aria-labelledby="bkLogTitle">
     <h2><span id="bkLogTitle">수정 기록</span> <small id="bkLogSum"></small>
-      <span class="row-btns"><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bkLogAll"> 모든 구분</label><button type="button" class="btn list-x" id="bkLogClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+      <span class="row-btns"><label class="hint" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bkLogAll"> 모든 구분</label><button type="button" class="win-x in-row" id="bkLogClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <div class="tw"><table class="mbdb-t"><thead><tr><th>일시</th><th>누가</th><th>구분</th><th>예약</th><th>바뀐 것 · 사유</th></tr></thead><tbody id="bkLogBody"></tbody></table></div>
     <p class="hint" style="margin:8px 0 0">직접 추가한 예약을 넣고 · 고치고 · 뺀 기록입니다 (2026-11-21부터). 단체 예약에서 자동으로 들어온 줄은 그 예약의 수정 기록에 있습니다.</p>
   </section>
@@ -194,11 +194,11 @@
 <!-- 사유원 전산의 상품 정보(방문일자(순번) · 상품정보 · 예약인원 · 상품금액 · 할인금액 · 금액)를 붙여넣으면 내역으로 -->
 <div class="modal" id="erpModal" hidden>
   <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="erpTitle">
-    <h2 id="erpTitle">전산 내역 붙여넣기 <small>전산 예약의 상품 정보를 통째로 복사해 붙여넣으세요</small></h2>
+    <h2 id="erpTitle">전산 내역 붙여넣기 <small>전산 예약의 상품 정보를 통째로 복사해 붙여넣으세요</small></h2><button type="button" class="win-x" id="erpCancel" title="닫기 (Esc)" aria-label="닫기">×</button>
     <textarea id="erpIn" style="min-height:220px"></textarea>
     <p class="price-need" id="erpNeed" hidden style="margin:0 0 8px"></p>
     <p class="hint" id="erpMsg" style="margin:6px 0 0"></p>
-    <div class="row-btns" style="margin-top:10px;justify-content:flex-end"><button class="btn" id="erpCancel">닫기</button><button class="btn primary" id="erpOk">읽어 오기</button></div>
+    <div class="row-btns" style="margin-top:10px;justify-content:flex-end"><button class="btn primary" id="erpOk">읽어 오기</button></div>
   </section>
 </div>
 <!-- 전산 내역이 예약 내용과 다를 때: 어느 쪽에 맞출지 -->
@@ -346,12 +346,11 @@
 <!-- 단체상담 입력 (예약 상담 정보를 붙여넣으면 칸이 채워짐) -->
 <div class="modal" id="consultModal" hidden>
   <section class="panel consult" role="dialog" aria-modal="true" aria-labelledby="consultTitle">
-    <h2 id="consultTitle">단체상담 입력</h2>
+    <h2 id="consultTitle">단체상담 입력</h2><button type="button" class="win-x" id="consultCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button>
     <textarea id="consultBox" placeholder="admin > 예약관리 > 예약상담관리에 있는 상담 내역 붙여넣기"></textarea>
     <div class="hint" id="consultMsg"></div>
     <div class="row-btns" style="margin-top:10px">
       <button type="button" class="btn primary" id="consultApplyBtn">칸에 채우기</button>
-      <button type="button" class="btn" id="consultCloseBtn">닫기 (Esc)</button>
       <label class="hint" style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="consultNew" checked> 새 통화로 시작 (지금 입력한 내용 지움)</label>
     </div>
   </section>
@@ -361,7 +360,7 @@
 <div class="modal" id="listModal" hidden>
   <section class="list panel" role="dialog" aria-modal="true" aria-labelledby="listTitle">
     <h2><span id="listTitle">단체예약 목록</span> <small id="storeHint"></small>
-      <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn primary" id="xlsxBtn" style="padding:4px 10px;font-size:12px" title="지금 표에 보이는 예약을 엑셀 파일로 (고른 단계 · 기간 · 검색 그대로)">엑셀로 내려받기</button><button type="button" class="btn list-x" id="listCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+      <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn primary" id="xlsxBtn" style="padding:4px 10px;font-size:12px" title="지금 표에 보이는 예약을 엑셀 파일로 (고른 단계 · 기간 · 검색 그대로)">엑셀로 내려받기</button><button type="button" class="win-x in-row" id="listCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <div class="list-bar"><span class="stage-sum" id="stageSum" title="누른 단계만 보입니다 (기본: 가예약 · 예약확정)"></span><div class="seg" id="stageFilter" style="display:inline-flex;background:var(--bg)" title="누르면 그 단계를 보이기 · 숨기기 (여러 개 고를 수 있음)">
       <button type="button" data-f="예약상담">예약상담</button><button type="button" data-f="가예약">가예약</button><button type="button" data-f="예약확정">예약확정</button><button type="button" data-f="예약취소">예약취소</button>
     </div>
@@ -385,10 +384,10 @@
 <!-- 예약취소 사유 (2026-11-18): 예약취소를 고르면 사유를 꼭 받음 → 시트 비고 칸 '취소 사유' · 수정 기록 -->
 <div class="modal" id="cancelModal" hidden>
   <section class="panel consult del-box" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
-    <h2 id="cancelTitle">예약 취소 사유</h2>
+    <h2 id="cancelTitle">예약 취소 사유</h2><button type="button" class="win-x" id="cancelNo" title="닫기 (Esc)" aria-label="닫기">×</button>
     <div class="chips-row" id="cancelChips"></div>
     <textarea id="cancelWhy" data-ime="ko" rows="3" placeholder="취소 사유를 적어 주세요" style="width:100%;box-sizing:border-box;margin-top:8px"></textarea>
-    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="cancelNo">닫기</button><button class="btn primary" id="cancelOk">예약취소로 바꾸기</button></div>
+    <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" id="cancelOk">예약취소로 바꾸기</button></div>
   </section>
 </div>
 <div class="modal" id="delModal" hidden>
@@ -422,14 +421,14 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/common.js?v=20261127y"></script>
-<script src="js/opslib.js?v=20261127y"></script>
-<script src="js/group.js?v=20261127y"></script>
-<script src="js/taskcfg.js?v=20261127y"></script>
-<script src="js/mytask.js?v=20261127y"></script>
-<script src="js/ime.js?v=20261127y"></script>
-<script src="js/keepsize.js?v=20261127y"></script>
-<script src="js/menu.js?v=20261127y"></script>
-<script src="js/timepick.js?v=20261127y"></script>
+<script src="js/common.js?v=20261127za"></script>
+<script src="js/opslib.js?v=20261127za"></script>
+<script src="js/group.js?v=20261127za"></script>
+<script src="js/taskcfg.js?v=20261127za"></script>
+<script src="js/mytask.js?v=20261127za"></script>
+<script src="js/ime.js?v=20261127za"></script>
+<script src="js/keepsize.js?v=20261127za"></script>
+<script src="js/menu.js?v=20261127za"></script>
+<script src="js/timepick.js?v=20261127za"></script>
 </body>
 </html>

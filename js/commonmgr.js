@@ -92,11 +92,11 @@ function cmPaint(){
       + (dz ? `<button type="button" class="btn-sm primary" data-cmundo="${cmEsc(r.id)}">되돌리기</button>` : `<button type="button" class="cm-x" data-cmdel="${cmEsc(r.id)}" title="${r.sys?'지우기 (아래 「지운 기본 알림」에서 되살릴 수 있음)':'지우기'}">×</button>`)
       + `</div>`; };
   m.innerHTML = `<section class="cm-panel" role="dialog" aria-modal="true" aria-labelledby="cmTitle">`
-    + `<h2 id="cmTitle">공통 업무 알림 관리 <span class="sp"></span><button type="button" class="btn-sm primary" id="cmAdd">＋ 새 공통 업무</button></h2>`
+    + `<h2 id="cmTitle">공통 업무 알림 관리 <span class="sp"></span><button type="button" class="btn-sm primary" id="cmAdd">＋ 새 공통 업무</button><button type="button" class="win-x in-row" id="cmNo" title="닫기 (Esc)" aria-label="닫기">×</button></h2>`
     + `<p class="hint">첫 화면 「공통 업무」(담당이 없는 모두의 일)에 무엇을 알릴지 정합니다. 이름 · 할 일 · 설정을 고치고 「저장」을 누르세요. 새 공통 업무는 공통 업무 칸의 「완료」를 누르면 그날 것이 빠집니다.</p>`
     + `<div class="cm-list">${live.map(row).join('') || '<p class="hint">알림이 없습니다.</p>'}</div>`
     + (gone.length ? `<details class="cm-gone"><summary>지운 기본 알림 ${gone.length}개</summary>${gone.map(r=>`<div class="cm-g1"><b>${cmEsc(r.title)}</b> <span class="hint">${cmEsc(r.when)}</span><button type="button" class="btn-sm primary" data-cmback="${cmEsc(r.id)}">되살리기</button></div>`).join('')}</details>` : '')
-    + `<p class="err" id="cmErr"></p><div class="cm-btns"><span class="hint" id="cmLog">${cmLastLog()}</span><button type="button" class="btn-sm primary" id="cmNo">닫기</button><button type="button" class="btn-sm primary" id="cmOk">저장</button></div></section>`;
+    + `<p class="err" id="cmErr"></p><div class="cm-btns"><span class="hint" id="cmLog">${cmLastLog()}</span><button type="button" class="btn-sm primary" id="cmOk">저장</button></div></section>`;
   m.querySelectorAll('.dpick').forEach(p=>cmDateBox(p));
 }
 function cmLastLog(){ const lg=(cmHist().log||[]).slice(-1)[0]; return lg ? `마지막 수정: ${cmEsc(new Date(lg.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))} · ${cmEsc(lg.by)} · ${cmEsc(lg.what)}` : ''; }

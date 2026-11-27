@@ -258,7 +258,7 @@ function tcfgModal(){ let m=$('#tcfgModal'); if(m) return m;
   m.innerHTML=`<style>${TCFG_CSS}</style><section class="panel tcfg-pop" role="dialog" aria-modal="true" aria-labelledby="tcfgTitle">
     <div class="tcfg-head"><h2 id="tcfgTitle">추후과업 메시지 관리</h2>
       <span class="seg tcfg-seg"><button type="button" data-tcview="table" title="모든 과업을 한 표로 보기 · 다시 누르면 과업 편집으로">한눈에 보기</button></span>
-      <small class="hint" id="tcfgMsg"></small><button type="button" class="tcfg-x" data-tcfgclose title="닫기 (Esc)" aria-label="닫기">×</button></div>
+      <small class="hint" id="tcfgMsg"></small><button type="button" class="win-x in-row" data-tcfgclose title="닫기 (Esc)" aria-label="닫기">×</button></div>
     <div class="tcfg-main" id="tcfgMain">
       <aside class="tcfg-side"><input id="tcfgQ" class="tcfg-q" type="search" placeholder="과업 찾기 (이름 · 조건 · 담당)" data-ime="ko" autocomplete="off"><div id="tcfgList" class="tcfg-items"></div><button type="button" class="btn primary" data-tcfgadd>＋ 새 과업 추가</button></aside>
       <div class="tcfg-pane" id="tcfgBody"></div>

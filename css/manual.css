@@ -93,7 +93,7 @@ mark{background:#fff1a8;color:inherit;border-radius:3px;padding:0 1px}
 .mn-peek[hidden]{display:none}
 .mn-peek .ph{display:flex;align-items:center;gap:8px;margin:0 0 8px}
 .mn-peek .ph h2{margin:0;font:600 19px var(--serif);color:#22301f;flex:1}
-.mn-peek .x{border:0;background:none;font-size:24px;cursor:pointer;color:var(--muted)}
+/* 옆 보기의 닫기 × = 공통 모양 (css/menu.css .win-x) */
 .mn-peek table.kv{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0}
 .mn-peek table.kv th{width:96px;text-align:left;color:var(--muted);font-weight:500;padding:5px 6px;vertical-align:top;border-bottom:1px solid #f0ede4}
 .mn-peek table.kv td{padding:5px 6px;border-bottom:1px solid #f0ede4;white-space:pre-line}

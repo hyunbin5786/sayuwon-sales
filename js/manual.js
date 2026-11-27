@@ -167,7 +167,7 @@
     else if(r.kind==='faq') body=`<div class="md">${md(d.a)}${md(d.body)}</div>`;
     else body=`<div class="md">${md(d.body)}</div>`;
     const H=(d.hist||[]).slice().reverse();
-    P.innerHTML=`<div class="ph"><h2>${esc(r.title||CH_NAME[r.cat]||'')}</h2><button type="button" class="x" data-close title="닫기 (Esc)">×</button></div><div>${r.cat&&r.kind!=='sec'?`<span class="tag ${catCls(r.cat)}">${esc(r.cat)}</span> `:''}${perTag(r)} ${r.kind==='faq'&&d.boss?'<span class="tag boss">상급자 확인 필요</span>':''}</div>${body}`
+    P.innerHTML=`<div class="ph"><h2>${esc(r.title||CH_NAME[r.cat]||'')}</h2><button type="button" class="win-x in-row" data-close title="닫기 (Esc)" aria-label="닫기">×</button></div><div>${r.cat&&r.kind!=='sec'?`<span class="tag ${catCls(r.cat)}">${esc(r.cat)}</span> `:''}${perTag(r)} ${r.kind==='faq'&&d.boss?'<span class="tag boss">상급자 확인 필요</span>':''}</div>${body}`
       + `<div class="acts"><button type="button" class="btn primary sm" data-edit="${esc(r.id)}">고치기</button><button type="button" class="btn primary sm" data-del="${esc(r.id)}">지우기</button><span class="hint" style="margin-left:auto">${r.by?esc(r.by)+' · ':''}${esc(String(r.updated||'').slice(0,16).replace('T',' '))}</span></div>`
       + (H.length?`<details class="hist"><summary>고친 이력 ${H.length}개 (예전 내용 보기 · 되돌리기)</summary><ul>${H.map((h,i)=>`<li>${esc(new Date(h.at).toLocaleString('ko-KR'))} · ${esc(h.by||'')} 고치기 전 <button type="button" class="ed" style="opacity:1" data-hview="${esc(r.id)}" data-hi="${H.length-1-i}">보기</button> <button type="button" class="ed" style="opacity:1" data-hback="${esc(r.id)}" data-hi="${H.length-1-i}">이 내용으로 되돌리기</button></li>`).join('')}</ul></details>`:'');
     P.hidden=false; markIn(P, $('#q').value.trim() ? lastTerms : []);
@@ -196,8 +196,8 @@
       if(t==='big' || (t==='ta' && k==='body')) return `<div class="full rte-wrap"><span class="rte-l">${l}</span>${rteHTML(k, val, t==='big')}</div>`;   // 긴 글 = 보이는 대로 고치는 편집기 (저장은 마크다운 · 2026-11-24)
       if(t==='ta') return `<label class="${w?'full':''}">${l}<textarea data-f="${k}" data-ime="ko">${esc(val)}</textarea></label>`;
       return `<label class="${w?'full':''}">${l}<input data-f="${k}" value="${esc(val)}" ${t==='n'?'inputmode="numeric" data-ime="num"':'data-ime="ko"'}></label>`; };
-    $('#modal').innerHTML=`<div class="mf" role="dialog" aria-modal="true"><h2>${KIND_NAME[kind]} ${id?'고치기':'더하기'}${form.preset&&form.preset._prop?' <small class="hint">(반영 제안으로 저장 — 「반영」을 눌러야 매뉴얼에 들어감)</small>':''}</h2><div class="g">${F[kind].map(fld).join('')}</div>`
-      + `<p class="err" id="fErr"></p><div class="btns"><button type="button" class="btn primary" data-fclose>닫기</button><button type="button" class="btn primary" id="fSave">저장</button></div></div>`;
+    $('#modal').innerHTML=`<div class="mf" role="dialog" aria-modal="true"><h2>${KIND_NAME[kind]} ${id?'고치기':'더하기'}${form.preset&&form.preset._prop?' <small class="hint">(반영 제안으로 저장 — 「반영」을 눌러야 매뉴얼에 들어감)</small>':''}</h2><button type="button" class="win-x" data-fclose title="닫기 (Esc)" aria-label="닫기">×</button><div class="g">${F[kind].map(fld).join('')}</div>`
+      + `<p class="err" id="fErr"></p><div class="btns"><button type="button" class="btn primary" id="fSave">저장</button></div></div>`;
     $('#modal').hidden=false; $('#modal').querySelectorAll('.dpick').forEach(makeDateBox);
     const first=$('#modal [data-f="title"]')||$('#modal .rte-ed')||$('#modal textarea'); if(first) first.focus();
     try{ document.execCommand('defaultParagraphSeparator', false, 'p'); }catch(_){}
@@ -569,7 +569,7 @@
     if(t.dataset.phold){ const p=rows.find(x=>x.id===t.dataset.phold); if(p && await save([{...p, data:{...p.data, status:'보류', doneAt:new Date().toISOString(), doneBy:user.name||''}}], '제안 보류')) paint(); return; }
     if(t.dataset.papply){ applyProp(t.dataset.papply); return; }
     if(t.dataset.hview || t.dataset.hback){ const r=rows.find(x=>x.id===(t.dataset.hview||t.dataset.hback)), h=r && (r.data.hist||[])[+t.dataset.hi]; if(!h) return;
-      if(t.dataset.hview){ const P=$('#peek'); P.innerHTML=`<div class="ph"><h2>${esc(h.title||'')} <small class="hint">${esc(new Date(h.at).toLocaleString('ko-KR'))} 고치기 전</small></h2><button type="button" class="x" data-close>×</button></div><table class="kv">${Object.entries(flat({title:h.title,cat:h.cat,start:h.start,end:h.end,data:h.data})).filter(([k,v])=>v!==''&&v!=null&&FIELD_L[k]).map(([k,v])=>`<tr><th>${FIELD_L[k]}</th><td>${esc(fmtV(k,v))}</td></tr>`).join('')}</table><div class="acts"><button type="button" class="btn primary sm" data-peek="${esc(r.id)}">지금 내용으로 돌아가기</button></div>`; return; }
+      if(t.dataset.hview){ const P=$('#peek'); P.innerHTML=`<div class="ph"><h2>${esc(h.title||'')} <small class="hint">${esc(new Date(h.at).toLocaleString('ko-KR'))} 고치기 전</small></h2><button type="button" class="win-x in-row" data-close title="닫기" aria-label="닫기">×</button></div><table class="kv">${Object.entries(flat({title:h.title,cat:h.cat,start:h.start,end:h.end,data:h.data})).filter(([k,v])=>v!==''&&v!=null&&FIELD_L[k]).map(([k,v])=>`<tr><th>${FIELD_L[k]}</th><td>${esc(fmtV(k,v))}</td></tr>`).join('')}</table><div class="acts"><button type="button" class="btn primary sm" data-peek="${esc(r.id)}">지금 내용으로 돌아가기</button></div>`; return; }
       if(!confirm('이 예전 내용으로 되돌릴까요? (지금 내용은 고친 이력에 남습니다)')) return;
       const next=withHist(r, {...r, title:h.title, cat:h.cat, start:h.start||'', end:h.end||'', data:{...h.data}}); if(await save([next], '되돌림')){ paint(); peek(r.id); } return; }
   });

@@ -461,7 +461,7 @@ const bkDataUrl = blob => new Promise((ok, no)=>{ const r=new FileReader(); r.on
 async function bkShowImg(file, title){
   let o=document.getElementById('bkImgView');
   if(!o){ o=document.createElement('div'); o.id='bkImgView'; o.className='bk-imgview';
-    o.innerHTML='<div class="bkv-top"><b></b><button type="button" class="btn" data-bkv="x">닫기</button></div><div class="bkv-img"><img alt="일정 표 이미지"></div>'
+    o.innerHTML='<div class="bkv-top"><b></b><button type="button" class="win-x in-row" data-bkv="x" title="닫기" aria-label="닫기">×</button></div><div class="bkv-img"><img alt="일정 표 이미지"></div>'
       + '<div class="bkv-btns"><a class="btn primary" data-bkv="save">이미지 저장</a><button type="button" class="btn" data-bkv="share">공유</button></div><p class="bkv-hint">저장이 안 되면 위 이미지를 길게 눌러 「이미지 저장」 · 「사진에 저장」을 고르세요.</p>';
     o.addEventListener('click', async e=>{ const a=e.target.closest('[data-bkv]'); if(!a) return;
       if(a.dataset.bkv==='x'){ o.hidden=true; return; }

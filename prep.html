@@ -6,9 +6,9 @@
 <title>다음날 고객 응대 준비 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261127y">
-<link rel="stylesheet" href="css/mypop.css?v=20261127y">
-<link rel="stylesheet" href="css/menu.css?v=20261127y">
+<link rel="stylesheet" href="css/prep.css?v=20261127za">
+<link rel="stylesheet" href="css/mypop.css?v=20261127za">
+<link rel="stylesheet" href="css/menu.css?v=20261127za">
 </head>
 <body>
 <header>
@@ -57,9 +57,9 @@
 <!-- 엑셀 날짜가 준비할 날짜와 다를 때 (2026-11-18) -->
 <div class="pmodal" id="dateModal" hidden>
   <section class="panel" role="dialog" aria-modal="true" aria-labelledby="dmTitle">
-    <h2 id="dmTitle">엑셀 날짜가 다릅니다</h2>
+    <h2 id="dmTitle">엑셀 날짜가 다릅니다</h2><button type="button" class="win-x" id="dmClose" title="닫기 (Esc)" aria-label="닫기">×</button>
     <p id="dmMsg"></p>
-    <div class="dm-btns"><button class="btn" id="dmClose" type="button">닫기</button><button class="btn primary" id="dmPick" type="button">다른 파일 고르기</button></div>
+    <div class="dm-btns"><button class="btn primary" id="dmPick" type="button">다른 파일 고르기</button></div>
   </section>
 </div>
 <!-- 여행사 등록 (2026-11-19 · 팀 공유) -->
@@ -85,10 +85,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="js/common.js?v=20261127y"></script>
-<script src="js/prep.js?v=20261127y"></script>
-<script src="js/mypop.js?v=20261127y"></script>
-<script src="js/menu.js?v=20261127y"></script>
-<script src="js/timepick.js?v=20261127y"></script>
+<script src="js/common.js?v=20261127za"></script>
+<script src="js/prep.js?v=20261127za"></script>
+<script src="js/mypop.js?v=20261127za"></script>
+<script src="js/menu.js?v=20261127za"></script>
+<script src="js/timepick.js?v=20261127za"></script>
 </body>
 </html>
