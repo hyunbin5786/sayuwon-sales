@@ -282,7 +282,7 @@ $('#copyModal').addEventListener('click', e=>{ if(e.target.id==='copyModal') clo
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !$('#copyModal').hidden){ e.preventDefault(); closeCopy(); } });
 // ===================== 전산 예약 정보 붙여넣기 (PC 에서만 · 2026-11-27) =====================
 // 사유원 전산(관리자 사이트)의 예약 정보 글(항목 이름 ⇥ 값)을 붙여 넣으면 통화 기록의 칸을 채움. 새 칸 · 새 DB 항목 없음 (화면의 칸 값만 바꿈 → 저장은 평소대로)
-//  방문자정보 이름(전화) → 고객 이름 · 연락처 / 방문일자 → 일시 / 예약인원 → 인원 (이 넷은 비어 있는 칸만) / 나머지 → 문의 내용 아래에 덧붙임
+//  방문자정보 이름(전화) → 고객 이름 · 연락처 / 방문일자 → 일시 / 예약인원 → 인원 (이 넷은 비어 있는 칸만) · 나머지 항목(상품 · 금액 · 할인 · 등록)은 어디에도 넣지 않음 — 문의 내용은 건드리지 않음
 const PASTE_KEYS = {'방문일자':'visit', '상품정보':'product', '방문자정보':'visitor', '예약인원':'people', '테이블정보':'table', '상품금액':'price', '할인금액':'disc', '금액':'total'};
 const PASTE_RE = /^(방문일자|상품정보|방문자정보|예약인원|테이블정보|상품금액|할인금액|금액)\s*(?:\(\s*순번\s*\))?\s*[:：]?\s*(.*)$/;
 function parseAdminText(text){
@@ -305,20 +305,8 @@ function parseAdminText(text){
     if(d){ const t=new Date(+d[1], +d[2]-1, +d[3]); if(t.getMonth()===+d[2]-1) r.date=ymd(t); }
     const n=o.visit.match(/\(\s*(\d+)\s*\)\s*$/); if(n) r.order=n[1]; }
   if(o.people){ const n=o.people.match(/\d+/); if(n) r.people=n[0]; }
-  return r;
+  return (r.name || r.phone || r.date || r.people) ? r : null;   // 채울 것(이름 · 연락처 · 일시 · 인원)이 하나도 없으면 못 찾은 것으로
 }
-// 문의 내용에 덧붙일 글 (읽은 것만 · 빈 항목은 줄째 뺌)
-function adminNoteText(r){ const o=r.raw;
-  return [ '[전산 예약 정보]',
-    o.visit && `방문일자(순번) : ${o.visit}`,
-    o.product && `상품 : ${o.product}`,
-    o.people && `예약인원 : ${o.people}`,
-    o.table && `테이블 : ${o.table}`,
-    o.price && `상품금액 : ${o.price}`,
-    o.disc && `할인금액 : ${o.disc}`,
-    ...o.discs,
-    o.total && `금액 : ${o.total}`,
-    o.reg && `등록 : ${o.reg}` ].filter(Boolean).join('\n'); }
 const closePaste = () => { $('#pasteModal').hidden=true; };
 $('#pasteBtn').onclick=()=>{ $('#pasteIn').value=''; $('#pasteMsg').textContent=''; $('#pasteModal').hidden=false; setTimeout(()=>$('#pasteIn').focus(),0); };
 $('#pasteDo').onclick=()=>{
@@ -328,10 +316,8 @@ $('#pasteDo').onclick=()=>{
   [['name','고객 이름'],['phone','연락처'],['date','일시'],['people','인원']].forEach(([k,label])=>{
     if(!r[k]) return; const now=String(form[k]||'').trim();
     if(!now || (k==='phone' && /^010-?$/.test(now))) form[k]=r[k]; else if(now!==r[k]) kept.push(label); });
-  const add=adminNoteText(r), note=String(form.note||'');
-  if(add.indexOf('\n')>0 && note.indexOf(add)<0) form.note = note.trim() ? note.replace(/\s+$/,'')+'\n\n'+add : add;   // 있던 글은 지우지 않고 아래에 (같은 글을 두 번 붙이지는 않음)
-  closePaste(); touch(); paintForm(true);
-  toast(kept.length ? `채웠습니다. 이미 적혀 있던 ${kept.join(' · ')} 칸은 그대로 두었습니다.` : '칸을 채웠습니다. 확인한 뒤 저장해 주세요.');
+  closePaste(); touch(); paintForm(true);   // 문의 내용은 건드리지 않음 (2026-11-27 운영팀: 상품 · 금액 · 할인 · 등록을 문의 내용에 넣던 것 없앰)
+  toast(kept.length ? `이미 적혀 있던 ${kept.join(' · ')} 칸은 그대로 두었습니다 (빈 칸만 채움).` : '칸을 채웠습니다. 확인한 뒤 저장해 주세요.');
 };
 $('#pasteClose').onclick=closePaste;
 $('#pasteModal').addEventListener('click', e=>{ if(e.target.id==='pasteModal') closePaste(); });
