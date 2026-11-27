@@ -30,7 +30,8 @@ const OPS_PAGE =
       {k:'item', l:'물품', type:'text', req:1}, {k:'feature', l:'설명', type:'text', ph:'색 · 브랜드 · 안에 든 것', show:d=>lostKind(d)!=='습득'},   // 설명은 분실물 신고만 (습득은 사진으로 · 2026-11-24)
       {k:'photos', l:d=>lostKind(d)==='습득' ? '습득물 사진' : '분실물 사진 (고객이 보내 준 사진 · 없어도 됨)', type:'photos', w:2, req:d=>lostKind(d)==='습득',   // 습득이면 사진 꼭 (찍기 · 고르기 · 붙여넣기 · png / jpeg) — js/opsboard.js 의 photos 칸
         show:d=>lostKind(d)==='습득' || !(typeof GUEST!=='undefined' && GUEST) || !!window.LOST_GUEST_PH},   // 신고에도 사진 (2026-11-26 · 꼭은 아님). 로그인 없이 넣는 신고는 서버가 api 11 부터 사진을 받음 — 예전 서버면 칸을 보이지 않음 (opsboard.js LOST_GUEST_PH)
-      {k:'place', l:d=>lostKind(d)==='습득' ? '발견 장소' : '분실 추정 장소', type:'text', w:d=>lostRp(d) ? 2 : 1},   // 신고는 한 줄을 통째로 (아래 신고자 두 칸 · 담당자 두 칸이 나란히 놓이게) {k:'storage', l:'보관 위치', type:'text', show:d=>lostKind(d)==='습득'},
+      {k:'place', l:d=>lostKind(d)==='습득' ? '습득 장소' : '분실 추정 장소', type:'text', w:d=>lostRp(d) ? 2 : 1},   // 신고는 한 줄을 통째로 (아래 신고자 두 칸 · 담당자 두 칸이 나란히 놓이게)
+      {k:'storage', l:'보관 장소', type:'text', show:d=>lostKind(d)==='습득'},   // 2026-11-27: 습득의 칸 이름 「발견 장소」 · 「보관 위치」 → 「습득 장소」 · 「보관 장소」 (저장 이름 place · storage 는 그대로)
       // 2026-11-27: 분실물 신고자(고객) — 신고만 · 이름은 새로 접수할 때 꼭 (예전 신고를 고칠 때는 비어 있어도 저장됨) · 전화번호는 없어도 됨 (연락처를 남기지 않는 고객도 있어서)
       {k:'reporter', l:'분실물 신고자', type:'text', ph:'물건을 잃어버린 분', show:lostRp, req:()=>lostNew()}, {k:'reporterPhone', l:'분실물 신고자 전화번호', type:'tel', show:lostRp, ph:'010-0000-0000',
         // 2026-11-27: 번호 모양을 맞춤 — 치는 동안 - 를 저절로 넣고(fmt · js/common.js SY.phoneTyping), 000-0000-0000 · 000-000-0000 모양이 아니면 저장을 막음(bad · 비워 두는 것은 됨) — js/opsboard.js
@@ -56,6 +57,6 @@ const OPS_PAGE =
           ['reporter','분실물 신고자',(v,d)=>lostNameTel(v, d.reporterPhone), 'in'],   // 넷째 값 'in' = 로그인한 사람에게만 보이는 열 (opsboard.js renderLost · 고객 이름 · 번호)
           ['person','사유원 담당자',(v,d)=>lostNameTel(v, d.phone)]] },
       { kind:'습득', title:'분실물 습득', add:'습득물 접수', open:['보관중'], photo:true,
-        cols:[['date','접수일',v=>opsDateLabel(v)],['item','물품'],['place','발견 장소'],['storage','보관 위치'],['person','습득자'],['phone','습득자 연락처']] } ],
+        cols:[['date','접수일',v=>opsDateLabel(v)],['item','물품'],['place','습득 장소'],['storage','보관 장소'],['person','습득자'],['phone','습득자 연락처']] } ],
     cols:[['date','접수일',v=>opsDateLabel(v)],['kind','구분'],['item','물품'],['status','상태']],
     status:'status', open:['보관중','찾는 중'], summary:d=>`${lostKind(d)} ${d.item||''} · ${lostStatus(d)}` };
