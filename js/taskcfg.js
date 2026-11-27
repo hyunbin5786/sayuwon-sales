@@ -17,7 +17,7 @@ const TCFG_VARS = [
   ['입장시간', r=>r.tin||''], ['인원', r=>r.people ? r.people+'명' : ''], ['영업담당', r=>r.owner||''], ['결제방식', r=>r.pay||''], ['미정항목', r=>r.tbd||''], ['답변일', r=>r.tbdDate ? mdLabel(r.tbdDate) : ''], ['입장문', r=>r.gate||''],
   ['마감', (r,t)=>t ? mdLabel(taskDue(t)) : ''], ['마감기준', (r,t)=>!r.date ? '방문일 미정' : t && t.dueSet ? '직접 정한 날' : t && t.id==='staffbrief' ? staffFriName(r.date) : tbdLimitName(r.date)],
   ['굿즈', r=>goodsText(r)||'없음'], ['빈담당', (r,t)=>((t&&t.missing)||[]).join(' · ')], ['바뀐내용', (r,t)=>(t && t.id==='pplchk' && typeof pplChanges==='function' ? pplChanges(t) : ((t&&t.changes)||[])).join(' · ')],
-  ['몽몽마방인원', r=>r.mabangL ? r.mabangL+'명' : '인원 미정'], ['몽몽마방시간', r=>r.mabangTime||'(시간 미입력)'], ['몽몽마방메뉴', ()=>mbMenus().map(m=>m.name).join(' · ')],
+  ['몽몽마방인원', r=>r.mabangL ? r.mabangL+'명' : '인원 미정'], ['몽몽마방시간', r=>r.mabangTime||'(시간 미입력)'], ['몽몽마방메뉴', ()=>mbMenus().map(m=>m.name).join(' · ')], ['몽몽마방결제', r=>r.mabangPay||'미정'], ['마방보고', r=>mbReport(r)],   // 마방보고 = 몽몽마방 관련 과업의 복사 멘트 (2026-11-27)
   ['결제링크전송', r=>r.linkSent ? dtLabel(r.linkSent) : '(아직 안 보냄)'],
   ['메모고친사람', (r,t)=>(t && t.memoBy)||''],   // 통화 메모 확인: 통화 메모를 고치거나 메모를 남긴 사람 (2026-11-24)
   ['전산비고', r=>erpNote(r)], ['답사비고', r=>tourNote(r)],
@@ -57,22 +57,30 @@ const TCFG_DUE = [['made','과업이 생긴 날 ○일 뒤'],['visit','방문일
 const TCFG_N_DUE = new Set(['made','visit']);
 // ----- 원래 과업의 기본값 (코드 규칙과 같음 · 편집 칸에 미리 채워 둠) -----
 const C_ = (k,v) => ({k, v:v||''});
-const TCFG_DEF_WHEN = { tour:[C_('tour')], clergy:[C_('clergy')], tbdcall:[C_('tbdMiss')], onsitecall:[C_('pay','현장 결제'),C_('date')], wkcheck:[C_('date')], mbcall:[C_('mbTime')], mbmenu:[C_('mbNoMenu')],
+const TCFG_DEF_WHEN = { tour:[C_('tour')], clergy:[C_('clergy')], tbdcall:[C_('tbdMiss')], onsitecall:[C_('pay','현장 결제'),C_('date')], wkcheck:[C_('date')], mabang:[C_('mbTime')],   // 몽몽마방 관련 과업 (2026-11-27 · 예전 mbcall · mbmenu 를 하나로)
+
   progstaff:[C_('staffMiss')], staffbrief:[C_('date'),C_('progGoods')], goodsprep:[C_('goods')], erp:[C_('booked')], erpcheck:[C_('booked')], erpfix:[C_('erpChanged')],
   prep:[C_('progGoods')],   // 단체 준비 (담당자마다 · 2026-11-24)
   memocheck:[C_('memoNew')],   // 통화 메모 확인 (2026-11-24)
   quote:[C_('wantQuote')], stmt:[C_('wantStmt')], tax:[C_('pay','세금계산서')], linksend:[C_('pay','결제링크')], paycheck:[C_('pay','결제링크')], pplchk:[C_('pplChanged')], erpkeep:[C_('erpKeep')] };
 const TCFG_DEF_DUE = { tbdcall:{base:'tbdDate'}, onsitecall:{base:'prevThu'}, wkcheck:{base:'prevThu'}, paycheck:{base:'linkNext'}, staffbrief:{base:'prevFri'}, goodsprep:{base:'visit', n:1}, prep:{base:'visit', n:1} };
 const tcfgDefDue = id => TCFG_DEF_DUE[id] || {base:'made', n:0};
-const TCFG_DEF_NOTE = { erp:'{전산비고}', erpfix:'{전산비고}', tour:'{답사비고}',
+const TCFG_DEF_NOTE = { erp:'{전산비고}', erpfix:'{전산비고}', tour:'{답사비고}', mabang:'{마방보고}',
   tax:'[세금계산서] {단체명}\n1. 금액\n- 사유원 : {사유원금액}원\n- 신라 : {신라금액}원\n2. 사업자 등록증 : 파일 첨부\n3. 이메일 : {이메일}\n4. 발행일 : {방문일점}\n5. 실제 방문일 : {방문일점}\n감사합니다~' };
 // 과업 아래 안내 줄의 원래 틀 (과업 제목 아래에 자동으로 붙는 글). 지금 자동으로 붙는 것은 「전날 확인 변경 → 예약내역&전산 확인」의 바뀐 내용 하나
-const TCFG_DEF_DESC = { pplchk:'바뀐 내용: {바뀐내용}', progstaff:'담당이 비어 있는 칸: {빈담당}' };   // progstaff: 어느 품목의 담당이 비었는지 (2026-11-27 · 예전엔 과업 이름만 보였음)   // memocheck 안내 줄 「고친 사람: ○○」은 없앰 (2026-11-24 · 과업 안 메모 목록에 이름이 나옴)
+const TCFG_DEF_DESC = { pplchk:'바뀐 내용: {바뀐내용}', progstaff:'담당이 비어 있는 칸: {빈담당}',
+  mabang:'결제방식 · 메뉴는 예약 내역의 몽몽마방 줄에서 고르면 저절로 체크됩니다 (지금 결제: {몽몽마방결제})\n시간 확인은 식당에 전화해 {몽몽마방시간} 이 되는지 확인하고, 아래 글은 마방측에 보고할 때 복사해 쓰세요' };   // mabang: 몽몽마방 관련 과업 (2026-11-27)   // progstaff: 어느 품목의 담당이 비었는지 (2026-11-27 · 예전엔 과업 이름만 보였음)   // memocheck 안내 줄 「고친 사람: ○○」은 없앰 (2026-11-24 · 과업 안 메모 목록에 이름이 나옴)
 // 세부 과업 이름 → 원래 키 (체크 기록이 그대로 이어지게)
 const tcfgDocKey = (id, l) => { const b=(TCFG_BASE_DOC[id]||[]).find(x=>x[1]===l); if(b) return b[0]; let h=0; for(const ch of String(l)) h=(h*31+ch.charCodeAt(0))|0; return 'u'+(h>>>0).toString(36); };
 
 let tcfg = {b:{}, c:[]}, tcfgSig='';
-function tcfgRead(){ const r=(cache||[]).find(x=>x.id===TCFG_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} return {b:j.b&&typeof j.b==='object'?j.b:{}, c:Array.isArray(j.c)?j.c:[], at:j.at||'', by:j.by||''}; }
+// 예전 몽몽마방 과업 둘의 설정 → 몽몽마방 관련 과업 (2026-11-27 · 새 과업의 설정을 아직 저장한 적이 없을 때만 · 읽을 때만 바꿔 읽고, 다음에 저장하면 그 모양으로 남음)
+//  「식당에 시간 확인」(mbcall)의 끄기 · 조건 · 마감 · 담당 · 직접 넣은 세부 과업은 이어 가고, 이름 · 보조 설명 · 복사 멘트는 새 과업의 것으로 (버림). 「메뉴 선택」(mbmenu)은 꺼 두었으면 세부 과업 「메뉴 선택」을 빼고, 나머지 설정은 버림
+function tcfgMbCarry(b){ if(!b || b.mabang || (!b.mbcall && !b.mbmenu)) return; const o=b.mbcall||{}, n={};
+  ['off','when','conds','due','who','subs','onAt'].forEach(k=>{ if(o[k]!=null && o[k]!=='' && o[k]!==false) n[k]=o[k]; });
+  if((b.mbmenu||{}).off) n.docSubs=(TCFG_BASE_DOC.mabang||[]).filter(x=>x[0]!=='menu').map(x=>x[1]);
+  if(Object.keys(n).length) b.mabang=n; }
+function tcfgRead(){ const r=(cache||[]).find(x=>x.id===TCFG_ID); let j={}; try{ j=JSON.parse((r&&r.history)||'{}')||{}; }catch(_){} if(j.b && typeof j.b==='object') tcfgMbCarry(j.b); return {b:j.b&&typeof j.b==='object'?j.b:{}, c:Array.isArray(j.c)?j.c:[], at:j.at||'', by:j.by||''}; }
 // 받은 설정을 화면에 반영: 과업 이름(AUTO_TASKS) · 마감이 방문일을 따라가는지(FOLLOW_DUE) · 원래 세부 과업(DOC_SUBS)
 function tcfgApply(){ try{ const j=tcfgRead(), sig=JSON.stringify([j.b, j.c]); if(sig===tcfgSig) return false; tcfgSig=sig; tcfg=j; if(typeof simVer!=="undefined") simVer++;
   FOLLOW_DUE.clear(); TCFG_BASE_FOLLOW.forEach(x=>FOLLOW_DUE.add(x));
@@ -191,7 +199,8 @@ const TCFG_AUTO = {
   erpfix: { short:'예약 내용이 전산에 올린 때와 같아지면 · 전산 내역을 다시 붙여 넣으면', done:['예약 내용을 되돌려 전산에 올린 때와 다시 같아지면 완료 (세부 과업이 없을 때)', '예약 내역(품목 · 인원 · 할인)이 바뀐 경우: 과업을 체크하면 전산 내역 붙여넣기 창이 열리고, 붙여 넣으면 완료'],
     hand:'예약 내역이 아닌 것(날짜 · 시간 등)만 바뀐 경우는 직접 체크하면 완료', back:'완료한 뒤 예약 내용이 또 바뀌면 다시 열림 (마감 = 그날)' },
   progstaff: { short:'담당 칸을 모두 채우면', done:['예약 내역의 「담당」 칸(프로그램 · 대관 · 도슨트 · 음료쿠폰 · 굿즈 · 세미나 도슨트는 회차마다)을 모두 채우면 완료'], hand:'직접 체크할 수 없음 — 담당 칸을 채워야 끝남', back:'담당이 빈 칸이 새로 생기면 다시 열림' },
-  mbmenu: { short:'몽몽마방 메뉴를 고르면', done:['몽몽마방 식사에서 메뉴를 고르면 완료'], hand:'직접 체크할 수 없음 — 메뉴를 골라야 끝남', back:'고른 메뉴를 다시 비우면 다시 열림' },
+  mabang: { back:'완료한 뒤 몽몽마방 결제를 다시 미정으로 돌리거나 메뉴를 비우면 그 세부 과업이 풀리고 다시 열림 (과업을 직접 체크해 끝낸 경우는 그대로)',
+    subs:{ pay:['몽몽마방 결제를 고르면', '예약 내역 몽몽마방 줄의 「결제」에서 사무실 · 마방 · 기타를 고르면 체크 (다시 미정으로 돌리면 풀림)'], menu:['몽몽마방 메뉴를 고르면', '예약 내역 몽몽마방 줄에서 메뉴를 고르면 체크 (메뉴를 비우면 풀림)'] } },   // 2026-11-27 · js/group/09-tasks.js syncAutoTasks 의 「몽몽마방 관련 과업」
   linksend: { short:'「결제링크 전송」을 누르면', done:['예약 내용 결제 칸 아래 「결제링크 전송」을 누르면 완료 (누른 일시가 기록됨)'], hand:'과업을 직접 체크해도 같음 (체크한 일시가 전송 일시로 기록됨)', back:'결제링크 전송 기록을 지우면 다시 열림' },
   paycheck: { short:'「입금 확인」을 누르면', done:['예약 내용 결제 칸 아래 「입금 확인」을 누르면 완료 (누른 일시가 기록됨)', '결제링크를 보낸 다음날부터 뜨는 결제 확인 알림에서 「입금 확인함」을 눌러도 완료'],
     hand:'과업을 직접 체크해도 같음 · 결제링크 전송을 먼저 끝내야 체크할 수 있음', back:'결제링크 전송을 풀면 입금 확인도 함께 풀려 다시 열림' },
@@ -202,7 +211,7 @@ const TCFG_AUTO = {
   erpkeep: { back:'완료한 뒤 전산 내역을 다시 붙여 넣고 「예약 내용 그대로」를 또 고르면 다시 열림' },
   quote: { subs:{ make:['견적서를 출력하면', '이 예약에서 「견적서 만들기」로 견적서 화면을 열어 출력하면 체크'] } },
   stmt: { subs:{ make:['거래명세서를 출력하면', '이 예약에서 「거래명세서 만들기」로 견적서 화면을 열어 출력하면 체크'] } } };
-const TCFG_SUB_NOEND = new Set(['erp','erpcheck','progstaff','mbmenu','linksend']);   // 세부 과업을 모두 체크해도 끝나지 않는 과업 (자기 조건으로만 끝남)
+const TCFG_SUB_NOEND = new Set(['erp','erpcheck','progstaff','linksend']);   // 세부 과업을 모두 체크해도 끝나지 않는 과업 (자기 조건으로만 끝남)
 const tcfgAutoOf = (id, builtin) => (builtin && TCFG_AUTO[id]) || {};
 // 과업 자체가 저절로 체크되는 때 (예약내역&전산 확인은 꺼 두었으면 없음)
 const tcfgAutoDone = (id, c, builtin) => id==='pplchk' && c && c.autoDone===false ? [] : (tcfgAutoOf(id, builtin).done||[]);
@@ -292,13 +301,14 @@ function tcfgEdHTML(T, c, builtin, id){
     return `<div class="tcfg-cond"><span class="tcfg-and">${j?'그리고':'만약'}</span><select data-tcc="${T}|${j}|k">${TCFG_CONDS.map(y=>`<option value="${y[0]}"${y[0]===x[0]?' selected':''}>${esc(y[1])}</option>`).join('')}</select>`
       + (x[3]==='num' ? `<input data-tcc="${T}|${j}|v" inputmode="numeric" data-ime="num" value="${esc(q.v||'')}" placeholder="명" style="width:64px">` : Array.isArray(x[3]) ? `<select data-tcc="${T}|${j}|v">${x[3].map(o=>`<option${o===q.v?' selected':''}>${esc(o)}</option>`).join('')}</select>` : '')
       + `<button type="button" class="del" data-tccdel="${T}|${j}" title="이 조건 빼기">×</button></div>`; };
-  const fixedNote = builtin && ['erp','erpfix','tour','tax'].includes(id);
+  const fixedNote = builtin && ['erp','erpfix','tour','tax','mabang'].includes(id);
   const names=(typeof MEMBER_NAMES!=='undefined' ? MEMBER_NAMES : []), w=String(c.who||'').trim();
   const whoHTML = TCFG_WHO_FIXED[id] ? `<div class="tcfg-fixed">${esc(TCFG_WHO_FIXED[id])}</div>`
     : `<select class="tcfg-who" data-tf="${T}|who"><option value="">영업 담당 (기본)</option>${names.map(n=>`<option value="${esc(n)}"${n===w?' selected':''}>${esc(n)}</option>`).join('')}${w && !names.includes(w) ? `<option value="${esc(w)}" selected>${esc(w)} (멤버 아님)</option>` : ''}</select>
       <small class="hint">멤버를 고르면 모든 예약의 이 과업이 그 사람의 나의 할일 · 알림으로 갑니다 (이미 끝낸 과업은 그대로).</small>`;
   const rule = builtin && (id==='erp' || id==='erpfix') && typeof ERP_NOTE_RULES!=='undefined' ? ['전산 비고 {전산비고} 가 만들어지는 규칙', ERP_NOTE_RULES]
     : builtin && id==='progstaff' && typeof PROGSTAFF_RULES!=='undefined' ? ['프로그램 · 굿즈 담당 입력 과업 규칙', PROGSTAFF_RULES]
+    : builtin && id==='mabang' && typeof MABANG_RULES!=='undefined' ? ['몽몽마방 관련 과업 규칙', MABANG_RULES]
     : builtin && id==='prep' && typeof PREP_RULES!=='undefined' ? ['단체 준비 과업 규칙', PREP_RULES]
     : builtin && id==='memocheck' && typeof MEMOCHECK_RULES!=='undefined' ? ['통화 메모 확인 과업 규칙', MEMOCHECK_RULES]
     : builtin && id==='pplchk' && typeof PPLCHK_RULES!=='undefined' ? ['예약내역&전산 확인 과업 규칙', PPLCHK_RULES] : null;
@@ -360,6 +370,7 @@ const TCFG_VAR_SHOW = [
   ['메모고친사람','통화 메모를 고치거나 메모를 남긴 사람 (통화 메모 확인)','김수정'],
   ['전산비고','전산 예약 비고에 넣을 글 — 규칙대로 자동 (📋 전산 비고 규칙)','현장 결제 필요 / 10시 입장 / 12시 몽몽마방(사유의 밥상 20명) (김영업)'],
   ['답사비고','사전답사 전산 예약 비고','중앙교육연수원 사전답사/2명 현장 결제 필요'],
+  ['마방보고','몽몽마방 식당에 보고할 글 — 방문일 · 시간 · 단체명 · 인원 · 메뉴 · 결제 · 비고 중 넣은 것만 (📋 몽몽마방 관련 과업 규칙)','[몽몽마방 예약] 12/5(토) 12:00~13:00 · 중앙교육연수원 · 10명 · 사유의 밥상 · 결제 마방'],
   ['사유원금액','결제 금액 중 ㈜사유원(비과세 · 입장료) 몫','900,000'],
   ['신라금액','결제 금액 중 신라(과세 · 식사 · 프로그램 · 대관) 몫','1,440,000'],
   ['이메일','담당자 이메일 중 맨 위','sample@example.com']];

@@ -13,13 +13,13 @@ function tourWithDefaults(r, s){ const o=tourParse(s), c=contactsOf(r)[0]||{}, o
 const tourPeople = r => numOf(tourParse(r.tour).people);
 const tourNote = r => { const pay=tourPeople(r)-1; return `${String(r.org||'').trim()||'단체명'} 사전답사${pay>=1?`/${pay}명 현장 결제 필요`:''}`; };   // 답사 1명은 무료 → 2명 이상이면 (인원 − 1)명 현장 결제 필요 (2026-11-17)
 const tourMemo = r => String(r.tour||'').split(/\s*,\s*/).filter(Boolean).join('\n');
-const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', onsitecall:'현장 결제 인원 확인 연락', wkcheck:'다음주 예약 점검', mbcall:'몽몽마방 식당에 시간 확인', mbmenu:'몽몽마방 메뉴 선택', progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인', clergy:'대구대교구 정보 기입',
+const AUTO_TASKS = { erpcheck:'전산 내역 대조 (총 금액 · 할인)', tour:'사전답사 전산 예약', onsitecall:'현장 결제 인원 확인 연락', wkcheck:'다음주 예약 점검', mabang:'몽몽마방 관련 과업',progstaff:'프로그램 · 굿즈 담당 입력', staffbrief:'담당자에게 일정 전달', goodsprep:'굿즈 준비', erp:'전산 예약', erpfix:'전산 예약 수정', quote:'견적서 발급', stmt:'거래명세서 발급', tax:'세금계산서 발행', linksend:'결제링크 전송', paycheck:'입금 확인', clergy:'대구대교구 정보 기입',
   pplchk:PPL_TITLE, erpkeep:'전산 예약을 예약 내용대로 수정', prep:'단체 준비', memocheck:'통화 메모 확인' };   // memocheck = 영업 담당이 아닌 사람이 통화 메모를 고치거나 메모를 남기면 영업 담당에게 (2026-11-24)   // prep = 담당자마다 생기는 「단체 준비 : 동행 도슨트」 (실제 id 는 prep:이름 · 추후과업 메시지 관리의 「단체 준비」 하나로 이름 · 끄기 · 조건 · 마감 · 세부 과업을 정함, 2026-11-24)   // 2026-11-23: 조건이 아니라 「일이 생겼을 때」 만들어지는 자동 과업 두 개도 추후과업 메시지 관리 목록에 (이름 · 마감 · 세부 과업 · 문구 · 끄기)
 // ===== 과업이 끝났는지 (2026-11-23 정리) =====
 //  - 보통 과업: 사람이 체크하면 끝 (어느 화면에서든 · t.done + t.manualDone)
 //  - 아래 여섯 가지는 예약 내용으로 확인한 뒤에만 끝남 (2026-11-23에 「체크만으로 완료」로 바꿨다가 같은 날 되돌림 — 요청):
 //    전산 예약 = 전산 내역을 붙여넣어야 · 전산 예약 수정 = 품목 · 인원이 바뀌었으면 붙여넣어야 · 전산 내역 대조 = 총 금액 · 할인이 같아야
-//    · 프로그램 · 굿즈 담당 입력 = 담당 칸이 다 차야 · 몽몽마방 메뉴 선택 = 메뉴를 골라야 · 입금 확인 = 결제링크 전송을 먼저 체크해야
+//    · 프로그램 · 굿즈 담당 입력 = 담당 칸이 다 차야 · 입금 확인 = 결제링크 전송을 먼저 체크해야
 // 금액을 사유원(관람)과 신라(관람 외 전부)로 나눔. 관람+식사 패키지는 관람 가격만큼 사유원
 // noMb: 몽몽마방 식사 금액은 빼고 (몽몽마방 결제가 '마방' = 손님이 식당에서 결제 → 전산 비고 현장결제 금액에 넣지 않음)
 function moneySplit(r, noMb){
@@ -197,6 +197,54 @@ const PROGSTAFF_RULES = `■ 무엇
 
 ■ 과업 보조 설명
   기본 「담당이 비어 있는 칸: {빈담당}」 — {빈담당} 자리에 담당이 빈 품목 이름이 들어감 · 다 채워지면 이 줄은 안 보임`;
+// ===== 몽몽마방 관련 과업 (2026-11-27) =====
+// 몽몽마방 식사가 들어가면 과업 하나(id mabang) + 세부 과업 넷(DOC_SUBS.mabang: time · pay · report · menu). 예전엔 따로 과업 둘: 「몽몽마방 식당에 시간 확인」(mbcall) · 「몽몽마방 메뉴 선택」(mbmenu)
+// 규칙 (추후과업 메시지 관리 「몽몽마방 관련 과업」을 열면 보임 · js/taskcfg.js) — 규칙을 바꾸면 이 글도 같이
+const MABANG_RULES = `■ 무엇
+  예약 내역에 몽몽마방 식사(인원이나 시간)가 들어가면 과업 「몽몽마방 관련 과업」 하나가 생김
+  그 아래 세부 과업 넷 — 모두 체크하면 과업이 끝남
+    1. 시간 확인 — 몽몽마방 식당에 전화해 고객님이 말씀하신 시각이 되는지, 그날 예약할 수 있는 시간이 모두 언제인지 확인 (메모에 적어 두기) · 사람이 체크
+    2. 결제방식 정하기 — 예약 내역 몽몽마방 줄의 「결제」에서 사무실 · 마방 · 기타를 고르면 저절로 체크 · 다시 미정으로 돌리면 풀림
+    3. 마방측에 내용 보고하기 — 과업 안의 글(복사 멘트)을 복사해 식당에 보내고 사람이 체크
+    4. 메뉴 선택 — 몽몽마방 줄에서 메뉴를 고르면 저절로 체크 · 메뉴를 비우면 풀림
+  저절로 체크되는 두 가지는 직접 체크하거나 풀 수도 있음 (그 뒤 칸이 다시 바뀌면 칸에 맞춰짐)
+
+■ 누구에게 · 언제
+  그 예약의 영업 담당에게 (아래 담당 칸에서 바꿀 수 있음) — 나의 할일 · 첫 화면 · 과업 알림에 과업 하나로 셈
+  가예약 · 예약확정 단계에서 생김 · 마감 = 과업이 생긴 날 (아래 마감 칸에서 바꿀 수 있음)
+  몽몽마방 식사를 빼면: 손대지 않은 과업은 목록에서 빠지고, 직접 체크했거나 메모를 적은 과업은 남음
+
+■ 복사 멘트 (마방측에 보고할 글)
+  기본 {마방보고} = [몽몽마방 예약] 방문일 시간 · 단체명 · 인원 · 메뉴 · 결제 ○○ · 비고 — 넣은 것만 · 예약 내용이 바뀌면 글도 바뀜
+  예) [몽몽마방 예약] 12/5(토) 12:00~13:00 · 중앙교육연수원 · 10명 · 사유의 밥상 · 결제 마방
+  과업에서 글을 직접 고칠 수도 있음 (고친 뒤 「다시 만들기」를 누르면 예약 내용으로)
+
+■ 다른 과업과 겹치는 것
+  「다음주 예약 점검」의 세부 과업 「미정 · 몽몽마방 결제」 · 「미입력 · 몽몽마방 시간」은 그대로 있음 (고객님께 여쭤 볼 것을 모으는 줄) — 결제를 고르면 양쪽이 함께 정리됨
+
+■ 예전 과업 (2026-11-27 전에 만들어진 예약)
+  예전 「몽몽마방 식당에 시간 확인」 · 「몽몽마방 메뉴 선택」은 예약을 열 때(나의 할일에서 셀 때도) 이 과업으로 바뀜 — 메모 · 마감 · 순서 · 직접 더한 세부 과제는 그대로
+    · 시간 확인을 이미 끝낸 예약 = 이 과업도 끝난 것으로 (세부 과업 모두 체크) — 끝난 일이 다시 열리지 않음
+    · 아직 안 끝낸 예약 = 「시간 확인」이 안 된 채로 열려 있고, 결제방식 · 메뉴는 칸에 맞춰 체크됨
+    · 예전 과업을 지워 둔 예약 = 이 과업도 안 뜸`;
+// 마방측에 보고할 글 (복사 멘트 {마방보고}): 넣은 것만
+const mbReport = r => '[몽몽마방 예약] ' + [[r.date && dateLabel(r.date), String(r.mabangTime||'').replace(/~$/,'')].filter(Boolean).join(' '), String(r.org||'').trim(), numOf(r.mabangL) ? numOf(r.mabangL)+'명' : '', String(r.mabangMenu||'').trim(), r.mabangPay && r.mabangPay!=='미정' ? '결제 '+r.mabangPay : '', String(r.mabangNote||'').trim()].filter(Boolean).join(' · ');
+// 예전 과업 옮기기: 저장된 예약의 mbcall(시간 확인) · mbmenu(메뉴 선택) → mabang. 예약을 열 때 · 열지 않은 예약을 셀 때(simTasks) 돌고, 저장하면 그 모양으로 남음 (자료를 한꺼번에 고치지 않음)
+//  - 묶음이 아직 없으면 예전 과업을 그 자리에서 묶음으로 바꿈 (메모 · 마감 · 순서 · 파일 · 세부 과제 · 지운 표시 그대로) · 직접 고친 제목은 메모로
+//  - 시간 확인을 끝낸 예약은 묶음도 끝난 것으로 (끝난 과업에 세부 과업이 더해지면 모두 체크 — syncAutoTasks 의 원래 규칙) · 사람이 끝낸 것이라 manualDone
+//  - 묶음이 이미 있으면(예전 화면이 남은 브라우저가 예전 과업을 다시 만든 경우) 체크 · 메모만 합치고 예전 과업은 뺌
+function mbMigrate(){ const oc=tasks.find(t=>t.id==='mbcall'), om=tasks.find(t=>t.id==='mbmenu'); if(!oc && !om) return;
+  let mb=tasks.find(t=>t.id==='mabang');
+  const join=(a,b)=>{ a=String(a||''); b=String(b||'').trim(); return !b || a.includes(b) ? a : [a, b].filter(Boolean).join(' / '); };
+  const merge=o=>{ if(!o || o===mb) return; if(!o.removed){ mb.memo=join(mb.memo, o.titleSet ? [o.title, o.memo].filter(Boolean).join(' — ') : o.memo);
+      (o.xsubs||[]).forEach(x=>{ const xs=mb.xsubs ||= []; if(!xs.some(y=>y.title===x.title)) xs.push(x); }); (o.files||[]).forEach(f=>{ const fs=mb.files ||= []; if(!fs.some(y=>y.url===f.url)) fs.push(f); }); }
+    tasks.splice(tasks.indexOf(o), 1); };
+  if(!mb){ mb = oc || om; const wasDone=!!(oc && oc.done);
+    mb.id='mabang'; if(mb.titleSet){ mb.memo=join(mb.title, mb.memo); delete mb.titleSet; } mb.title=AUTO_TASKS.mabang; delete mb.autoDone;
+    if(wasDone){ mb.done=true; mb.manualDone=1; delete mb.subs; }   // 세부 과업은 syncAutoTasks 가 모두 체크로 채움
+    else { mb.done=false; mb.doneAt=''; delete mb.manualDone; mb.subs={time:false}; }
+  } else if(oc && oc.done && !oc.removed && !mb.removed){ (mb.subs ||= {}).time=true; }
+  merge(oc); merge(om); }
 // 단체 준비 규칙 (추후과업 메시지 관리 「단체 준비」를 열면 보임 · js/taskcfg.js) — 규칙을 바꾸면 이 글도 같이
 const PREP_RULES = `■ 무엇
   예약 내역에서 프로그램 · 대관 · 도슨트 · 음료쿠폰 · 굿즈의 「담당」으로 고른 사람마다 과업이 하나씩 생김
@@ -236,7 +284,7 @@ function staffBy(r){
   return by;
 }
 const taskAuto = t => { const base=taskAutoBase(t); return typeof tcfgNote==='function' ? tcfgNote(t, base) : base; };   // 추후과업 메시지 관리에서 고친 문구 틀이 있으면 그것 (js/taskcfg.js, 2026-11-20)
-const taskAutoBase = t => t.id==='erp' ? erpNote(rec) : t.id==='erpfix' ? erpNote(rec, true) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : '';   // 단체 준비(prep:이름)는 문구 없음 (2026-11-24 · 예전 [단체예약 준비] 문구는 없앰)   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장 결제 필요)   // 자동으로 만든 문구
+const taskAutoBase = t => t.id==='erp' ? erpNote(rec) : t.id==='erpfix' ? erpNote(rec, true) : t.id==='tax' ? taxMsg(rec) : t.id==='tour' ? tourNote(rec) : t.id==='mabang' ? mbReport(rec) : '';   // 몽몽마방 관련 과업: 마방측에 보고할 글 (2026-11-27)   // 단체 준비(prep:이름)는 문구 없음 (2026-11-24 · 예전 [단체예약 준비] 문구는 없앰)   // 사전답사 전산 예약: 전산 비고 <단체명> 사전답사(/n명 현장 결제 필요)   // 자동으로 만든 문구
 const taskText = t => taskAuto(t) ? (t.noteEdit || taskAuto(t)) : '';   // 직접 고쳤으면 그 글 (전산 비고 등)
 // 과업 기한(due): 생기면 그날이 기본, 각자 바꿀 수 있음(dueSet). 미정 항목 연락 = 답변일, 현장 결제 인원 확인 = 전주 목요일(지났으면 전날), 결제 확인 = 다음날
 const todayYmd = () => ymd(new Date());
@@ -251,7 +299,8 @@ function autoDue(id, r){
   return todayYmd();
 }
 const taskDue = t => t.due || (t.at ? ymd(new Date(t.at)) : todayYmd());   // 예전 과업은 생긴 날
-const DOC_SUBS = { quote:[['make','견적서 생성'],['send','견적서 전송'],['nas','견적서 NAS에 업로드']], stmt:[['make','거래명세서 생성'],['send','거래명세서 전송'],['nas','거래명세서 NAS에 업로드']] , clergy:[['ask','예약자에게 정보 요청'],['sheet','대구대교구 시트 기입']] };   // 대구대교구 특별 할인이 들어가면 (2026-11-17)
+const DOC_SUBS = { quote:[['make','견적서 생성'],['send','견적서 전송'],['nas','견적서 NAS에 업로드']], stmt:[['make','거래명세서 생성'],['send','거래명세서 전송'],['nas','거래명세서 NAS에 업로드']] , clergy:[['ask','예약자에게 정보 요청'],['sheet','대구대교구 시트 기입']],
+  mabang:[['time','시간 확인'],['pay','결제방식 정하기'],['report','마방측에 내용 보고하기'],['menu','메뉴 선택']] };   // 몽몽마방 관련 과업 (2026-11-27 · MABANG_RULES)   // 대구대교구 특별 할인이 들어가면 (2026-11-17)
 const ONSITE_SUB = '현장 결제 인원 확인 연락';   // 다음주 예약 점검의 세부 과업 (현장 결제일 때 · 2026-11-23 · 예전엔 따로 과업 onsitecall)
 // 방문 전주 금요일 (방문 주 월요일 − 3일). 이미 지났으면 방문일 전날, 그것도 지났으면 오늘 (전주 목요일 tbdLimit 와 같은 규칙)
 function staffFri(d){ const t=new Date(d+'T00:00'); if(isNaN(t)) return todayYmd(); t.setDate(t.getDate()-((t.getDay()+6)%7)-3); const fri=ymd(t), today=todayYmd(); if(fri>=today) return fri; const p=new Date(d+'T00:00'); p.setDate(p.getDate()-1); const pd=ymd(p); return pd>=today ? pd : today; }
@@ -276,7 +325,7 @@ function syncAutoTasks(){
   if(rec.wantQuote) want.push('quote');
   if(rec.wantStmt) want.push('stmt');
   const ms=missingStaff(rec); if(ms.length) want.push('progstaff');   // 프로그램 담당이 비면 입력하라고
-  const mbNeed=mbNeedsMenu(rec); if(mbNeed) want.push('mbmenu');   // 몽몽마방 예약인데 메뉴를 안 고름
+  const mbNeed=mbNeedsMenu(rec);   // 몽몽마방 예약인데 메뉴를 안 고름 → 「몽몽마방 관련 과업」의 세부 과업 「메뉴 선택」 (2026-11-27 · 예전엔 따로 과업 mbmenu)
   if(rec.goods) want.push('goodsprep');   // 굿즈가 들어가면 방문 전날까지 굿즈 준비 (그날 13시 · 17시 알림)
   if(rec.date && STAFF_BASES().some(k=>rec[k])) want.push('staffbrief');   // 프로그램 · 굿즈가 있으면 담당자에게 일정 전달 (마감 = 방문 전주 금요일, 2026-11-21) (영업 담당이 직접 체크)
   // 담당자 준비 과업 (2026-11-24): 담당으로 고른 사람마다 하나 (예약상담 · 방문일이 지난 예약은 새로 만들지 않음)
@@ -286,7 +335,7 @@ function syncAutoTasks(){
     const t=tasks.find(x=>x.id===id); if(!t) tasks.push({id, who:w, title:prepTitle(rec, w), done:false, memo:'', at:new Date().toISOString(), due:autoDue(id, rec)});
     else { t.who=w; if(!t.titleSet) t.title=prepTitle(rec, w); t.memo=''; delete t.noteEdit; } });
   if(memoNew().length) want.push('memocheck');   // 통화 메모 확인 (2026-11-24 · 아래 memocheck)
-  if(rec.mabangL || rec.mabangTime) want.push('mbcall');   // 몽몽마방이 들어가면 식당에 전화로 시간 확인 (직접 체크)
+  if(rec.mabangL || rec.mabangTime) want.push('mabang');   // 몽몽마방이 들어가면 「몽몽마방 관련 과업」 하나 (세부 과업: 시간 확인 · 결제방식 정하기 · 마방측에 내용 보고하기 · 메뉴 선택 — 2026-11-27 · 예전엔 따로 과업 mbcall · mbmenu)
   if((parseInt(rec.dClergy)||0)>0) want.push('clergy');   // 대구대교구 특별 할인 → 대구대교구 정보 기입 (예약자에게 정보 요청 · 대구대교구 시트 기입)
   // 전산 예약 수정: 전산 등록을 마친 뒤 인원 · 날짜 · 식사 등이 바뀌면 생김
   const e0=tasks.find(t=>t.id==='erp');
@@ -303,6 +352,7 @@ function syncAutoTasks(){
   { ['tbdcall','onsitecall'].forEach(id=>{ const i=want.indexOf(id); if(i>=0) want.splice(i,1); });   // 「미정 항목 확인 연락」 · 「현장 결제 인원 확인 연락」은 따로 만들지 않음 (다음주 예약 점검의 세부 과업)
     if(needAsk && !want.includes('wkcheck') && !(typeof tcfgOf==='function' && (tcfgOf('wkcheck')||{}).off)) want.push('wkcheck'); }   // 방문일이 아직 없어도 물어볼 것이 있으면 점검 과업   // 추후과업 메시지 관리: 끈 과업은 빼고 조건이 맞는 새 과업은 넣음 (2026-11-20)
   if(consult){ const keep=want.filter(id=>id==='tour' || id==='clergy' || id==='memocheck'); want.length=0; want.push(...keep); }   // 예약상담이면 자동 과업은 사전답사 전산 예약 · 통화 메모 확인(2026-11-26)만 (손대지 않은 것은 아래에서 빠짐)
+  mbMigrate();   // 예전 몽몽마방 과업(mbcall · mbmenu) → 몽몽마방 관련 과업 (새로 만들기 전에)
   want.forEach(id=>{ if(!tasks.some(t=>t.id===id)) tasks.push({id, title:AUTO_TASKS[id], done:false, memo: id==='tour' ? tourMemo(rec) : '', ...(id==='tour' ? {memoTour:tourMemo(rec)} : {}), at:new Date().toISOString(), due:autoDue(id, rec), ...(id==='wkcheck' && editingId && rec.date && wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId] ? {done:true, doneAt:wkDone(rec.owner||savedOwner()||'', prevWeekThu(rec.date))[editingId]} : {})}); });   // 사전 답사 과업 메모 = 답사 정보
   if(typeof tcfgSubs==="function") tcfgSubs(tasks);
   if(typeof tcfgWhoApply==="function") tcfgWhoApply(tasks);   // 추후과업 메시지 관리의 담당 (2026-11-25)
@@ -347,20 +397,25 @@ function syncAutoTasks(){
   const fx=tasks.find(t=>t.id==='erpfix');
   if(fx && !fx.removed){ if(fixes.length){ if(fx.done){ fx.done=false; fx.at=new Date().toISOString(); fx.due=todayYmd(); delete fx.dueSet; } fx.changes=fixes; fx.v=4; } else if(!fx.done && e0 && e0.base){ fx.changes=[]; if(!(fx.xsubs||[]).length){ fx.done=true; fx.doneAt=new Date().toISOString(); fx.autoDone=true; } } }   // 예약 내용이 전산에 올린 때와 같아지면 저절로 완료 (2026-11-19)
   // 하위 과업: 견적서 · 거래명세서는 기본 3개(생성 · 전송 · NAS 업로드) + 누구나 직접 추가한 세부 과제(xsubs). 하위 과업이 있으면 모두 체크될 때 완료
-  // (전산 예약 · 프로그램 담당 · 몽몽마방 메뉴처럼 칸을 채우면 끝나는 과업은 하위 과업과 상관없이 그 조건으로)
+  // (전산 예약 · 프로그램 담당처럼 칸을 채우면 끝나는 과업은 하위 과업과 상관없이 그 조건으로)
+  // 몽몽마방 관련 과업 (2026-11-27): 세부 과업 「결제방식 정하기」 · 「메뉴 선택」은 예약 내역의 칸을 채우면 저절로 체크 (칸이 바뀐 때에만 맞춤 — 그 사이 사람이 직접 체크하거나 푼 것은 그대로)
+  { const mb=tasks.find(t=>t.id==='mabang' && !t.removed), ds=DOC_SUBS.mabang||[];
+    if(mb){ if(!mb.subs) mb.subs=Object.fromEntries(ds.map(([k])=>[k, !!mb.done]));
+      const on=want.includes('mabang'), au=mb.au ||= {};
+      [['pay', on && !!rec.mabangPay && rec.mabangPay!=='미정'], ['menu', on && !mbNeed]].forEach(([k,ok])=>{ if(!ds.some(([x])=>x===k)) return;
+        if(ok && !au[k]){ au[k]=1; mb.subs[k]=true; } if(!ok && au[k]){ au[k]=0; mb.subs[k]=false; } }); } }
   tasks.forEach(t=>{ if(t.removed) return; const ds=DOC_SUBS[t.id]; if(ds && !t.subs) t.subs=Object.fromEntries(ds.map(([k])=>[k, !!t.done]));   // 삭제한 과업은 그대로
     if(ds && t.subs && t.done) ds.forEach(([k])=>{ if(!(k in t.subs)) t.subs[k]=true; });   // 추후과업 메시지 관리에서 세부 과업을 더해도 이미 끝난 과업은 다시 열리지 않게 (2026-11-21)
-    if(['erp','erpcheck','progstaff','mbmenu'].includes(t.id)) return;
+    if(['erp','erpcheck','progstaff'].includes(t.id)) return;
     const st=[...(ds ? ds.map(([k])=>!!t.subs[k]) : []), ...(t.xsubs||[]).map(x=>!!x.done)]; if(!st.length) return;
     const all=st.every(Boolean); if(all && !t.done){ t.done=true; t.doneAt=new Date().toISOString(); } if(!all && t.done && !t.manualDone){ t.done=false; t.doneAt=''; } });   // 위 체크로 끝낸 과업(manualDone)은 하위 과업이 남아도 완료 그대로
   tasks = tasks.filter(t=> t.custom || want.includes(t.id) || t.done || t.memo || (t.files||[]).length || (t.subs && Object.values(t.subs).some(Boolean)) || (t.xsubs||[]).some(x=>x.done || !/^c:/.test(String(x.id))));   // 조건이 사라진 자동 과업은 (손대지 않았으면) 뺌 · 추후과업 메시지 관리의 세부 과업(c:)만 있고 하나도 체크 안 한 것도 손대지 않은 것 (2026-11-26 · 예전엔 세부 과업을 정해 둔 과업은 조건이 사라져도 남았음)
   const ps=tasks.find(t=>t.id==='progstaff' && !t.removed); if(ps){ ps.done=!ms.length; ps.missing=ms.map(k=>semXName(k, rec)||LABEL[k]||k); }   // 어느 품목의 담당이 비었는지 (세미나 도슨트 2회 이상은 「세미나 도슨트 2회차」 · 2026-11-27) → 과업 보조 설명 {빈담당}
-  const mt=tasks.find(t=>t.id==='mbmenu'); if(mt) mt.done=!mbNeed;
   const ec=tasks.find(t=>t.id==='erpcheck'); if(ec){ const c=erpCheck(); const was=ec.done; ec.done=c.ok; ec.check=c; if(c.ok && !was) ec.doneAt=new Date().toISOString(); if(!c.ok) ec.doneAt=''; }   // 전산 내역 대조: 맞으면 자동 완료, 다르면 다시 열림
   { const ls=tasks.find(t=>t.id==='linksend'); if(ls){ if(!rec.linkSent && ls.done && ls.manualDone){ rec.linkSent=ls.doneAt||new Date().toISOString(); touched.add('linkSent'); }   // 나의 할일 · 알림에서 체크한 것 → 전송 일시로
       ls.done=!!rec.linkSent; ls.doneAt=rec.linkSent||''; }   // 결제링크 전송 = 버튼을 누른 일시
     const pc=tasks.find(t=>t.id==='paycheck'); if(pc){ if(rec.paidAt){ pc.done=true; pc.doneAt=rec.paidAt; } else if(pc.done){ rec.paidAt=pc.doneAt||new Date().toISOString(); touched.add('paidAt'); } } }   // 입금 확인 (알림 팝업에서 완료한 것도 일시로)
-  const ORDER=['tour','clergy','onsitecall','wkcheck','mbcall','mbmenu','progstaff','staffbrief','goodsprep','erp','erpcheck','erpfix','quote','stmt','tax','linksend','paycheck'];
+  const ORDER=['tour','clergy','onsitecall','wkcheck','mabang','progstaff','staffbrief','goodsprep','erp','erpcheck','erpfix','quote','stmt','tax','linksend','paycheck'];
   // 순서: 마감일이 빠른 순, 마감일이 같으면 최근에 추가된 것이 위. 직접 옮긴 과업(ordSet)은 그 순서 그대로 두고,
   // 옮기지 않은 과업은 그 사이에 마감일에 맞게 끼워 넣음 (같은 마감일이면 직접 옮긴 것보다 위). 끝난 과업은 맨 아래
   const byNew=(a,b)=>taskDue(a).localeCompare(taskDue(b)) || String(b.at||'').localeCompare(String(a.at||''));
@@ -425,8 +480,6 @@ function renderTasks(){
       : t.id==='wkcheck' ? `기한(${esc(mdLabel(taskDue(t)))} · ${t.dueSet || !rec.date ? '직접 정한 날' : tbdLimitName(rec.date)})에 이 예약을 점검하고 체크하세요. 인원 · 입장 시간 · 식사 · 프로그램 · 결제 · 전산 내역이 맞는지, 미정 · 미입력 항목이 남았는지 확인합니다.` + (rec.tbd ? `<br>미정: <b>${esc(rec.tbd)}</b>${rec.tbdDate ? ` · 답변일 ${esc(mdLabel(rec.tbdDate))}` : ''} — 고객님께 연락해 확인하고, 정해진 내용을 칸에 채운 뒤 아래 세부 과업을 하나씩 체크하세요.` : '')
           + ((t.xsubs||[]).some(x=>x.id==='p:onsite') ? `<br>현장 결제 예약: 고객님께 연락해 <b>최종 인원</b>을 확인하고, <b>당일 인원 변경이 어렵다는 점</b>을 다시 한번 안내한 뒤 「${ONSITE_SUB}」를 체크하세요.` : '')
       : t.id==='onsitecall' ? `현장 결제 예약입니다. 기한(${esc(mdLabel(taskDue(t)))} · ${t.dueSet || !rec.date ? '직접 정한 날' : tbdLimitName(rec.date)})에 고객님께 연락해 <b>최종 인원</b>을 확인하고, <b>당일 인원 변경이 어렵다는 점</b>을 다시 한번 안내하세요.`
-      : t.id==='mbcall' ? `몽몽마방 식당에 전화해서 확인하고 체크하세요. (${esc([rec.date&&dateLabel(rec.date), rec.mabangL&&rec.mabangL+'명'].filter(Boolean).join(' · ')||'방문일 · 인원 미정')})<br>① 고객님이 말씀하신 시각 <b>${esc(rec.mabangTime||'(시간 미입력)')}</b> 가능한지<br>② 그날 예약 가능한 시간이 모두 언제인지 → 아래 메모에 적어 두기`
-      : t.id==='mbmenu' ? (t.done ? '몽몽마방 메뉴를 골랐습니다.' : `몽몽마방 식사에서 메뉴(${esc(mbMenus().map(m=>m.name).join(' · '))}) 중 하나를 고르세요. 고르면 자동으로 완료됩니다.`)
       : t.id==='goodsprep' ? `굿즈: <b>${esc(goodsText(rec)||'없음')}</b>${goodsParse(rec.goods).map(g=>itemNote('g:'+g.src)?` · ${esc(goodsName(g.src))} 비고: ${esc(itemNote('g:'+g.src))}`:'').join('')}<br>방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 그날 13시 · 17시에 알림이 뜹니다.`
       : /^prep:/.test(t.id) ? `<b>${esc(t.who||t.id.slice(5))}</b> 님 담당 — 맡은 것을 방문 전날(${esc(rec.date?mdLabel(taskDue(t)):'방문일 미정')})까지 준비하고 체크하세요. 이 과업은 ${esc(t.who||t.id.slice(5))} 님의 나의 할일 · 첫 화면 「단체고객 전화」에 단체예약으로 나옵니다.`
       : t.id==='memocheck' ? `<b>${esc(t.memoBy||'다른 직원')}</b>님이 통화 메모를 고쳤거나 메모를 남겼습니다${t.memoAt?` (${esc(dtLabel(t.memoAt))})`:''}. 통화 메모를 확인하고 체크하세요 — 체크하면 아래 새 메모가 모두 「확인함」으로 바뀝니다.`
