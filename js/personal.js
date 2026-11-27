@@ -44,7 +44,7 @@ async function pull(inFlush){
     { const pc=(j.items||[]).find(r=>r.id==='pcats'); if(pc && !pending.some(p=>p.action==='put' && p.item.id==='pcats')){ pcatRec=pc; writeJSON(PCATS_LS, pc); } paintChips(); if(!memberNames.length) loadMembers(); }   // 모두가 추가한 구분 · 멤버 이름
     groupMine=(j.items||[]).filter(r=>r.callType!==CALL_TYPE && ['단체예약','예약상담','가예약','예약확정','예약접수','상담','공식예약'].includes(r.callType||'단체예약') && (r.owner||r.takenBy)===(user.name||''));   // 마감 알림용: 내가 영업 담당인 단체 예약
     etcRowsP=(j.items||[]).filter(r=>r.callType==='개인업무');
-    setTimeout(checkDue, 300); setTimeout(paintMyCount, 0);
+    setTimeout(checkDue, 300); setTimeout(paintMyCount, 0); setTimeout(startMyEngine, 1200);   // 과업 계산 창은 화면을 다 그린 뒤에 (한 번만)
     $('#keyMsg').textContent=''; paintSync(); renderLists(); tryOpen();
     if(j.admin){ writeJSON('sayuwon_intake_admin', j.admin); }   // 사담 · 마방 현황 (단체 화면이 씀)
   }catch(e){ if(inFlush) throw e; handleErr(e); }
@@ -470,23 +470,40 @@ $('#allCols').addEventListener('click', e=>{ const del=e.target.closest('[data-p
 const TASK_SLOT_LS='sayuwon_task_slot', QUIET_MS=30*60e3;   // 알림 시각 = 나의 할일 설정(SY_ALERT · js/common.js · 2026-11-25) · 알림은 따로 뜨는 창(group.html?alert=1) · 끝내 안 열리면 이 화면 팝업
 let groupMine=[], etcRowsP=[];   // etcRowsP = 직접 넣은 업무(통화 구분 「개인업무」) 줄 — 알림을 띄울지 셀 때만 씀 (2026-11-26)
 // 나의 할일 버튼 옆 빨간 표시: 마감이 오늘이거나 지난 내 과업 수 (개인 + 내가 영업 담당인 단체, 단체 화면과 같은 모양)
-function paintMyCount(){ const today=todayYmd(), me=user.name||''; let n=0;
+// 2026-11-27 다시 고침 — 이 숫자 = 나의 할일 「오늘 마감」 줄 수 그대로: 보이지 않는 과업 계산 창(group.html?my=1&embed=1&engine=1 · 첫 화면의 #dashEngine 과 같은 것)을 띄워
+//  나의 할일의 목록(js/group/14-task-sim.js myDueList)을 읽어 그 길이를 씀. 단체 과업은 단체 화면의 규칙으로 계산해야 맞아서(저장 안 된 과업 · 예약 내용으로 이미 끝난 과업 · 단계별로 안 보이는 과업) 이 화면에서 따로 셀 수 없음.
+//  예전엔 여기서 저장된 과업을 그대로 세어, 삭제한 과업 · 다른 담당자의 준비 과업 · 상담 단계라 나의 할일에 안 보이는 과업까지 세었음 (「오늘 마감」은 2개인데 헤더는 3).
+//  계산 창이 준비되기 전 몇 초(또는 끝내 안 뜰 때)만 아래 myDueRough — 저장된 과업으로 어림 (삭제한 것 · 남이 맡은 것은 뺌)
+let myEng=null;
+function myEngine(){ try{ const w=myEng && myEng.contentWindow; return w && typeof w.myDueList==='function' && w.__tasksReady && w.eval('typeof quoteCat!=="undefined" && !!quoteCat') && (w.savedOwner()||'')===(user.name||'') ? w : null; }catch(_){ return null; } }
+function startMyEngine(){ if(myEng || (/[?&]embed=1/.test(location.search) && window.parent!==window) || !user.name) return;   // 첫 화면이 창으로 띄운 개인고객 화면(embed)에서는 안 띄움 (헤더가 없음)
+  myEng=document.createElement('iframe'); myEng.hidden=true; myEng.style.display='none'; myEng.title='과업 계산'; myEng.setAttribute('aria-hidden','true'); myEng.tabIndex=-1;
+  myEng.src='group.html?my=1&embed=1&engine=1&t='+Date.now(); document.body.appendChild(myEng);
+  let n=0; const t=setInterval(()=>{ n++; if(myEngine()){ clearInterval(t); paintMyCount(); } else if(n>80) clearInterval(t); }, 500); }
+window.addEventListener('message', e=>{ if(myEng && e.source===myEng.contentWindow && e.data && e.data.type==='sy-my' && e.data.ev==='due') paintMyCount(); });   // 목록이 바뀌면 계산 창이 알림
+const myGroupTask = (t, me) => !t.done && !t.removed && (!t.who || t.who===me);
+function myDueRough(){ const today=todayYmd(), me=user.name||''; let n=0;
   shown().filter(r=>(r.owner||r.takenBy)===me).forEach(r=>tasksOfItem(r).forEach(t=>{ if(!t.done && (t.due||today)<=today) n++; }));
-  groupMine.forEach(r=>tasksOfItem(r).forEach(t=>{ if(!t.done && t.due && t.due<=today) n++; }));
-  // 2026-11-27: 직접 넣은 업무도 셈 (업무마다 한 번 — 나의 할일 「오늘 마감」 줄 수 · 단체 화면 헤더 숫자와 같게 · js/group/14-task-sim.js myDueCount)
-  etcRowsP.forEach(r=>{ let d=null; try{ const j=JSON.parse(r.history||'{}'); d=j && j.kind ? (j.d||{}) : null; }catch(_){} if(d && (d.owner||r.takenBy||'')===me && SY_TASK.pending(d).length) n++; });
+  groupMine.forEach(r=>tasksOfItem(r).forEach(t=>{ if(myGroupTask(t, me) && t.due && t.due<=today) n++; }));
+  etcRowsP.forEach(r=>{ let d=null; try{ const j=JSON.parse(r.history||'{}'); d=j && j.kind ? (j.d||{}) : null; }catch(_){} if(d && (d.owner||r.takenBy||'')===me && SY_TASK.pending(d).length) n++; });   // 직접 넣은 업무는 업무마다 한 번
+  return n; }
+function paintMyCount(){ let n; try{ const E=myEngine(); n = E ? E.myDueList().length : myDueRough(); }catch(_){ n=myDueRough(); }
   const b=$('#myCount'); b.hidden=!n; b.textContent = n ? `과업 ${n}` : ''; }
 // 2026-11-26: 알림 = 캘린더처럼 따로 뜨는 창(group.html?alert=1 · SY_ALERT.show — 브라우저가 막으면 화면을 처음 누를 때 엶) · 나의 할일에 있는 것 모두
 //  (개인고객 · 단체 과업 + 직접 넣은 업무 + 내가 맡은 고객 견적 요청) · 「완료」 버튼은 없앰. 아래 이 화면 팝업은 그 창이 끝내 안 열릴 때만
+//  2026-11-27: 과업 계산 창이 준비돼 있으면 단체 화면의 알림 목록(alertList = 나의 할일 「오늘 마감」에서 넣은 지 30분 안 된 것만 뺀 것)을 그대로 씀 — 헤더 숫자와 같은 기준
+const engAlert = () => { try{ const E=myEngine(); return E ? E.alertList().filter(T=>T.kind!=='q') : null; }catch(_){ return null; } };   // 견적 요청은 아래 dueExtra 가 따로 셈
 function dueNow(){
+  const A=engAlert(); if(A) return A.filter(T=>T.kind!=='e').map(T=>({r:T._r, t:{...T._t, title:T.title, due:T.due}, personal:T.kind==='p'}));
   const nowD=new Date(), today=todayYmd(), me=user.name||'', fresh = t => +nowD - (+new Date(t.dueSetAt||t.at||0)||0) < QUIET_MS, due=[];
   shown().filter(r=>(r.owner||r.takenBy)===me).forEach(r=>tasksOfItem(r).forEach(t=>{ const d=t.due||today; if(!t.done && d<=today && !fresh(t)) due.push({r, t:{...t, due:d}, personal:true}); }));
-  groupMine.forEach(r=>tasksOfItem(r).forEach(t=>{ const d=t.due||String(r.saved||'').slice(0,10)||today; if(!t.done && d<=today && !fresh(t)) due.push({r, t:{...t, due:d}}); }));
+  groupMine.forEach(r=>tasksOfItem(r).forEach(t=>{ const d=t.due||String(r.saved||'').slice(0,10)||today; if(myGroupTask(t, me) && d<=today && !fresh(t)) due.push({r, t:{...t, due:d}}); }));
   return due.sort((a,b)=>a.t.due.localeCompare(b.t.due));
 }
 // 직접 넣은 업무 가운데 오늘 할 것 · 안 한 지난 것의 수 + 내가 맡은 고객 견적 요청 수 (규칙은 js/common.js SY_TASK · SY_ALERT.quoteReqs — 나의 할일과 같음)
-function dueExtra(){ const me=user.name||'', now=Date.now(), old = s => now - (+new Date(s||0)||0) >= QUIET_MS; let n=0;
-  etcRowsP.forEach(r=>{ let d=null; try{ const j=JSON.parse(r.history||'{}'); d=j && j.kind ? (j.d||{}) : null; }catch(_){} if(d && (d.owner||r.takenBy||'')===me && old(r.saved) && SY_TASK.pending(d).length) n++; });
+function dueExtra(){ const me=user.name||'', now=Date.now(), old = s => now - (+new Date(s||0)||0) >= QUIET_MS, A=engAlert(); let n=0;
+  if(A) n=A.filter(T=>T.kind==='e').length;
+  else etcRowsP.forEach(r=>{ let d=null; try{ const j=JSON.parse(r.history||'{}'); d=j && j.kind ? (j.d||{}) : null; }catch(_){} if(d && (d.owner||r.takenBy||'')===me && old(r.saved) && SY_TASK.pending(d).length) n++; });
   return n + SY_ALERT.quoteReqs(me).filter(q=>old(q.at)).length; }
 function checkDue(){
   const k=SY_ALERT.keyNow(); if(!k || SY_ALERT.seen(k)) return;

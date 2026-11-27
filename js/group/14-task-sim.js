@@ -252,12 +252,20 @@ function renderMy(){ paintMySet();
 document.addEventListener('change', e=>{ const n=e.target.dataset && e.target.dataset.mycol; if(!n) return; try{ localStorage.setItem('sy_my_col'+n, e.target.value); }catch(_){} renderMy(); });
 // 「오늘 마감」 줄 수와 같은 숫자 (2026-11-27): 단체 과업 + 개인고객 과업 + 직접 넣은 업무(업무마다 한 번 — 반복 업무의 안 한 지난 날은 따로 세지 않음 · myDueList 와 같은 기준)
 //  예전엔 헤더 숫자가 직접 넣은 업무를 빼고 세어, 나의 할일 「오늘 마감 n개」와 달랐음
-function myDueCount(){ if(!savedOwner()) return 0; const today=ymd(new Date()); let etc=0;
-  try{ etc=new Set(myEtcOpen().filter(o=>o.day<=today).map(o=>o.r.id)).size; }catch(_){}   // 화면을 막 여는 중(업무 목록 준비 전)이면 0
-  return dueTasks().length + personalDueCount() + etc; }
+//  2026-11-27 다시 고침 — 「오늘 마감」 숫자는 어디서든 이 목록(myDueList) 하나의 길이다. 따로 세는 식을 두지 않는다:
+//   · 단체 화면 헤더 「과업 n」 · 나의 할일 「오늘 마감 n개」 · 과업 알림 = 이 파일
+//   · 첫 화면 「오늘 마감」 칸(js/portal.js todayBox) · 개인고객 화면 헤더 「과업 n」(js/personal.js paintMyCount) = 보이지 않는 과업 계산 창(group.html?…&engine=1)의 이 myDueList 를 그대로 읽음
+//  예전엔 그 두 화면이 저장된 과업을 저마다의 규칙으로 세어, 삭제한 과업 · 다른 담당자의 준비 과업 · 상담 단계라 안 보이는 과업까지 세었음 (2개인데 3개)
+function myDueCount(){ if(!savedOwner()) return 0;
+  try{ return myDueList().length; }catch(_){ return dueTasks().length + personalDueCount(); } }   // 화면을 막 여는 중(업무 목록 준비 전)이면 단체 · 개인고객 과업만
+const MY_ENGINE = /[?&]engine=/.test(location.search) && window.parent!==window;   // 다른 화면(첫 화면 · 개인고객)이 숫자를 읽으려고 띄운 보이지 않는 과업 계산 창
+let myDueSig=null;
 function paintMyCount(){ const n=myDueCount();   // 마감이 오늘이거나 지난 과업 수 = 나의 할일 「오늘 마감」 줄 수
   const mm=myNewMemos().length, nq=savedOwner() ? myQuoteReqs().length : 0, t=[n&&`과업 ${n}`, nq&&`견적 요청 ${nq}`, mm&&`메모 ${mm}`].filter(Boolean).join(' · ');   // 수정 표시는 없앰 · 내 예약에 확인 안 한 메모 수
-  $('#myCount').hidden=!t; $('#myCount').textContent=t; }
+  $('#myCount').hidden=!t; $('#myCount').textContent=t;
+  // 과업 계산 창이면: 목록이 바뀔 때마다 띄운 화면에 알림 → 그 화면이 숫자 · 「오늘 마감」 칸을 다시 그림 (같은 내용이면 안 보냄)
+  if(MY_ENGINE && window.__tasksReady){ try{ const sig=myDueList().map(T=>[T.kind, T.rid, T.tid, T.day, T.due, T.title, (T.before||[]).length].join('|')).join('\n');
+    if(sig!==myDueSig){ myDueSig=sig; window.parent.postMessage({type:'sy-my', ev:'due', n}, location.origin); } }catch(_){} } }
 function openMy(fromGroup){ myTab='main'; $('#myModal').hidden=false; renderMy(); loadMyQuoteReq();   // 나의 할일 버튼은 어디서든 메인부터 (2026-11-19)
   if(pending.length) flush(); else pull(); $('#myCloseBtn').focus(); }
 // group.html?open=예약ID → 그 예약을 엶 (팝업 나의 할일에서 단체 줄을 누른 경우 · 목록을 받은 뒤)

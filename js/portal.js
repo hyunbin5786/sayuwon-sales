@@ -526,7 +526,18 @@ function renderDash(){ if(!dashData) return; paintRange();
   //  2026-11-27: 직접 넣은 업무(개인 업무)는 업무마다 한 줄 · 한 번만 셈 — 반복 업무를 하루 안 했으면 「지난 날 · 오늘」 두 줄로 나와 과업 하나가 2개로 세어졌음.
   //   나의 할일 「오늘 마감」과 같게: 오늘 할 날이 있으면 오늘, 없으면 안 한 지난 날 중 가장 이른 날 (나머지 지난 날 수는 글자로 · 체크하면 그 줄의 날이 완료되고 다음 것이 나옴)
   const one = r => { if(r.kind!=='기타' || r.due.length<2) return r; const t=r.due.find(x=>x.due===today) || r.due[0]; return {...r, due:[{...t, more:r.due.length-1}]}; };
-  const todayBox = () => { const L=all.filter(r=>me && r.owner===me).map(r=>one({...r, due:r.tasks.filter(t=>t.due<=today).sort((a,b)=>a.due.localeCompare(b.due))})).filter(r=>r.due.length).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name));
+  //  2026-11-27 다시 고침: 이 칸의 줄 · 숫자 = 나의 할일 「오늘 마감」 목록 그대로 — 과업 계산 창(#dashEngine)의 myDueList (js/group/14-task-sim.js)를 읽어 예약 · 통화별로 묶기만 함.
+//   예전엔 여기서 따로 골라(dashRecs), 나의 할일에는 없는 과업(영업 담당이 아닌 예약에 내 이름으로 남은 준비 과업 등)이 하나 더 세어지기도 했음. 계산 창이 준비되기 전 몇 초만 아래 예전 방식
+  const dueFromMy = () => { const E=engine(); if(!E || !me) return null;
+    try{ if((E.savedOwner()||'')!==me) return null; const by=new Map();
+      E.myDueList().forEach(T=>{ const r=T._r||{}, P=T.kind==='p';
+        if(T.kind==='e'){ by.set('e|'+T.rid, {kind:'기타', rid:T.rid, name:T.title||'(업무)', q:T.title||'', href:'#mypop', due:[{day:T.day, due:T.day, more:(T.before||[]).length}]}); return; }
+        const k=T.kind+'|'+T.rid;
+        if(!by.has(k)) by.set(k, {kind:P?'개인':'단체', rid:T.rid, name:P ? (r.contact||r.phone||'(이름 없음)') : (r.org||r.contact||r.phone||'(업체 미정)'), q:(P ? [r.contact,r.phone] : [r.org,r.contact,r.phone]).join(' '), href:(P?'personal.html':'group.html')+'?open='+encodeURIComponent(T.rid), due:[]});
+        by.get(k).due.push({id:T.tid, title:T.title, due:T.due}); });
+      return [...by.values()].filter(hit);
+    }catch(_){ return null; } };
+  const todayBox = () => { const L=(dueFromMy() || all.filter(r=>me && r.owner===me).map(r=>one({...r, due:r.tasks.filter(t=>t.due<=today).sort((a,b)=>a.due.localeCompare(b.due))})).filter(r=>r.due.length)).sort((a,b)=>first(a).localeCompare(first(b)) || a.name.localeCompare(b.name));
     const n=L.reduce((s,r)=>s+r.due.length, 0);
     const ck = (r, t) => `<label class="dtd-ck" title="체크하면 완료"><input type="checkbox" data-dck="${esc([r.kind, r.rid||'', t.id||'', t.day||''].join('|'))}"></label>`;
     const open = r => r.kind==='기타' ? 'data-mypop' : `data-recpop="${esc(r.href.replace('?open=', '?embed=1&open='))}"`;
@@ -596,6 +607,9 @@ if($('#dashQ')) $('#dashQ').addEventListener('input', ()=>renderDash());
 const openMyHash = () => { if(location.hash!=='#mypop') return; history.replaceState(null,'',location.pathname+location.search); if(getUser() && window.openMyPop) window.openMyPop(); };
 document.addEventListener('click', e=>{ const a=e.target.closest?.('a[href="#mypop"]'); if(!a) return; e.preventDefault(); if(window.openMyPop) window.openMyPop(); });
 window.addEventListener('hashchange', openMyHash); setTimeout(openMyHash, 0);
+// 과업 계산 창이 「오늘 마감 목록이 바뀌었다」고 알리면 그 칸을 바로 다시 그림 (2026-11-27 · js/group/14-task-sim.js paintMyCount)
+window.addEventListener('message', e=>{ const d=e.data, f=$('#dashEngine'); if(!d || d.type!=='sy-my' || d.ev!=='due' || !f || e.source!==f.contentWindow) return;
+  if(dashData && !$('#menuView').hidden && !document.activeElement?.closest?.('#dashBody input:not([type=checkbox]), #dashBody textarea, #dashBody select')) renderDash(); });
 let dashAgain=false;
 SY.live.onRev(()=>{ if(dashLoading){ dashAgain=true; return; } dashSoon(0); });   // 다른 컴퓨터에서 바뀜 → 대시보드를 바로 다시 받음 (2026-11-23)
 // 바로 알리기 (2026-11-23 · js/common.js SY.live): 단체 · 개인고객 화면 · 나의 할일 팝업에서 과업을 끝내면(기록을 저장하면) 그 순간 대시보드에서도 빠짐 — 20초마다 다시 받기를 기다리지 않음
