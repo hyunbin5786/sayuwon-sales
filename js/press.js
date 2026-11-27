@@ -20,6 +20,7 @@
 
   // ---------- 받기 · 저장 ----------
   async function load(quiet){ if(!quiet) st('불러오는 중…','wait');
+    if(!loaded) $('#body').innerHTML=SY.skel('table', 8, {cols:10, label:'명단을 불러오는 중'});   // 받는 동안 표 자리에 스켈레톤 (2026-11-27)
     try{ const j=await SY.call({action:'pressList'}); rows=j.items||[]; loaded=true; st('',''); render(); }
     catch(e){ st(e.code==='bad_key' ? SY.authFail() : e.code==='bad_action' ? '서버(Cloudflare)를 새 코드로 올려야 쓸 수 있습니다' : '불러오지 못함 — 잠시 뒤 다시', 'bad'); loaded=true; render(); } }
   async function save(list, what){ st('저장 중…','wait');

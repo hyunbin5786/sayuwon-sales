@@ -33,6 +33,7 @@
     return it && h && Array.isArray(h.rows) ? {rows:h.rows, log:Array.isArray(h.log)?h.log:[], item:it} : {rows:DEFAULT.map(r=>({...r})), log:[], item:null}; }
   async function fetchNow(){ const j=await SY.list(); return fromItems(j.items); }
   async function load(){ st('불러오는 중…','wait');
+    if(!loaded) $('#body').innerHTML=SY.skel('table', 7, {cols:5, label:'대관 규정을 불러오는 중'});   // 받는 동안 표 자리에 스켈레톤 (2026-11-27)
     try{ const r=await fetchNow(); rows=r.rows; log=r.log; saved=!!r.item; loaded=true; st('',''); render(); }
     catch(e){ st(e.code==='bad_key' ? SY.authFail() : '불러오지 못함 — 잠시 뒤 다시 열어 주세요', 'bad'); loaded=true; render(); } }
   // 최신을 받아 fn(rows) 로 바꾼 뒤 저장

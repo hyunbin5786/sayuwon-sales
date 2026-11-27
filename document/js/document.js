@@ -2451,8 +2451,8 @@
       .then(function(res){
         if(res && Array.isArray(res.history)){ histServer = true; histList = res.history; writeArr(HIST_CACHE, histList.slice(0, 300)); }
         else histServer = false;
-        if(!elHist.hidden) renderHistory();
-      }).catch(function(){});
+        histFailed = false; if(!elHist.hidden) renderHistory();
+      }).catch(function(){ histFailed = true; if(!elHist.hidden) renderHistory(); });   // 못 받았으면 「불러오는 중」 · 스켈레톤이 남지 않게 (2026-11-27)
   }
   function allHistory(){
     var have = {}; histList.forEach(function(h){ have[h.id] = true; });
@@ -2462,6 +2462,7 @@
   var KIND_NAME = { "new":"신규", reissue:"재발행", revise:"수정발행" };
   // 한 줄 = 한 문서. 여러 번 발급(수정발행 · 재발행)했으면 발급 일시 칸에서 버전을 골라 그때 내용으로 재발행 · 수정발행
   var selVer = {};   // 원본 id → 고른 버전 id
+  var histFailed = false;   // 발급 내역을 서버에서 못 받음 (2026-11-27)
   function renderHistory(){
     var all = effHistory(allHistory()), q = document.getElementById("hist-search").value.trim().toLowerCase();
     var byId = {}; all.forEach(function(h){ byId[h.id] = h; });
@@ -2471,7 +2472,7 @@
     if(q) groups = groups.filter(function(g){ return g.versions.some(function(h){ return [h.client, h.sender, h.doc, fmtAt(h.at)].join(" ").toLowerCase().indexOf(q) >= 0; }); });
     document.getElementById("hist-count").textContent = "· 단체별 " + nCases + "건 (발급 " + all.length + "번)";
     var st = histServer === false ? "⚠ 서버에 저장하지 못했습니다 (로그인이 확인되지 않았거나 연결이 끊김). 지금은 이 브라우저에 보관 중입니다."
-      : histServer ? "공유 내역입니다. 누가 발급해도 모두에게 보입니다." : "불러오는 중…";
+      : histServer ? "공유 내역입니다. 누가 발급해도 모두에게 보입니다." : histFailed ? "⚠ 발급 내역을 불러오지 못했습니다. 잠시 뒤 「새로고침」을 눌러 주세요." : "불러오는 중…";
     if(cancelServer === false && histCancel.length) st += " ⚠ 발급 취소를 서버에 저장하지 못했습니다 (지금은 이 브라우저에만 표시).";
     document.getElementById("hist-status").textContent = st;
     // 표 모양 (2026-11-26): 단체 한 건 = 수신 · 이용일 칸 하나(여러 줄에 걸침) + 그 아래 문서 종류마다 한 줄(견적서 줄 · 거래명세서 줄). 줄마다 그 문서의 판 고르기 · 버튼
@@ -2482,7 +2483,8 @@
       names.sort(function(a, b){ return (DOC_ORDER[a] == null ? 9 : DOC_ORDER[a]) - (DOC_ORDER[b] == null ? 9 : DOC_ORDER[b]); });
       var top = g.versions[0];   // 수신 · 이용일은 가장 최근 발급의 것
       return names.map(function(d, di){ return histRow(g, d, subs[d], di === 0 ? { rows: names.length, top: top, n: g.versions.length } : null, byId); }).join("");
-    }).join("") : '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--muted)">' + (histFocus ? (histServer ? "이 예약의 발급 내역을 찾지 못했습니다. 「전체 보기」로 찾아 주세요." : "발급 내역을 불러오는 중…") : q ? "찾는 내역이 없습니다." : "아직 발급 내역이 없습니다. 출력하면 여기에 남습니다.") + '</td></tr>';
+    }).join("") : histServer === null && !histFailed && !q ? SY.skel("table", 5, { cols: 8, label: "발급 내역을 불러오는 중" })   /* 보여 줄 사본이 없고 아직 받는 중 = 스켈레톤 (2026-11-27 · js/common.js SY.skel) */
+      : '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--muted)">' + (histFocus ? (histServer ? "이 예약의 발급 내역을 찾지 못했습니다. 「전체 보기」로 찾아 주세요." : "발급 내역을 불러오는 중…") : q ? "찾는 내역이 없습니다." : "아직 발급 내역이 없습니다. 출력하면 여기에 남습니다.") + '</td></tr>';
   }
   function histRow(g, d, vs, head, byId){
     {
@@ -2971,7 +2973,7 @@
   }
   function loadReqs(){
     var box = document.getElementById("req-list");
-    if(reqItems === null) box.innerHTML = '<div class="reqempty">불러오는 중…</div>';
+    if(reqItems === null) box.innerHTML = SY.skel("list", 4, { label: "고객 견적 요청을 불러오는 중" });   // 받는 동안 스켈레톤 (2026-11-27)
     return SY.call({ action:"quoteReqList" }).then(function(j){ reqItems = j.items || []; renderReqList(); })
       .catch(function(e){ box.innerHTML = '<div class="reqempty">' + esc(reqErrText(e)) + '</div>'; });
   }

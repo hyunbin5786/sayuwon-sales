@@ -91,7 +91,7 @@ let trashItems=null, trashErr='';
 const delInfo = r => { const h=parseHist(r).h, e=[...h].reverse().find(x=>/^\[삭제\]/.test(x.what||'')); return { by:e?e.by:'', why:e?String(e.what).replace(/^\[삭제\]\s*/,''):'(사유 기록 없음)' }; };
 function paintTrash(){
   const q=$('#trashSearch').value.trim().replace(/\s/g,'').toLowerCase(), qd=q.replace(/\D/g,'');
-  if(trashItems==null){ $('#trashBody').innerHTML=`<tr><td colspan="8" class="empty">${trashErr ? esc(trashErr) : '불러오는 중…'}</td></tr>`; $('#trashSum').textContent=''; return; }
+  if(trashItems==null){ $('#trashBody').innerHTML = trashErr ? `<tr><td colspan="8" class="empty">${esc(trashErr)}</td></tr>` : SY.skel('table', 6, {cols:8, label:'삭제된 예약을 불러오는 중'}); $('#trashSum').textContent=''; return; }   // 받는 동안 스켈레톤 (2026-11-27)
   const all=trashItems.filter(r=>isGroupRec(r) && r.id!==MBDB_ID).map(r=>({r, ...delInfo(r)})).sort((a,b)=>String(b.r.deleted).localeCompare(String(a.r.deleted)));
   const list=all.filter(o=>!q || [o.r.org, contactCell(o.r).replace(/<[^>]+>/g,''), o.why, o.by, ownerOf(o.r)].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && JSON.stringify(o.r).replace(/\D/g,'').includes(qd)));
   $('#trashSum').textContent = `${all.length}건${q?` · 찾은 ${list.length}건`:''}`;
@@ -232,6 +232,7 @@ function paintBook(){
   $('#bookBody').innerHTML = list.map(x=>bkGenRow(x, today, '')).join('')
     || `<tr><td colspan="8" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':mine?`담당 「${esc(me)}」인 ${past?'':'앞으로 있을 '}예약이 없습니다.`:all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다.'}</td></tr>`;
   labelCells('#bookBody', BK_COLS(c));   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
+  if(!list.length && gWaiting()) $('#bookBody').innerHTML=SY.skel('table', 6, {cols:8, label:'예약 목록을 불러오는 중'});   // 사본이 없고 처음 받는 중 (2026-11-27 · 로그인 없이 볼 때 등)
 }
 // 대관 · 도슨트 · 프로그램 · 음료쿠폰 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표 · 수정 단추의 data-bcat = 그 줄의 목록)
 const bkWhat = x => x.cat==='rent' ? (x.place||'(장소 미정)') : x.cat==='docent' ? [x.kind, x.place].filter(Boolean).join(' · ') : (x.item||'');   // 내용 칸
@@ -528,6 +529,7 @@ function paintMbDb(){
   $('#mbdbBody').innerHTML = list.map(x=>mbRow(x, today, '')).join('')
     || `<tr><td colspan="8" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':all.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'몽몽마방 예약이 없습니다.'}</td></tr>`;
   labelCells('#mbdbBody', BK_COLS('mb'));   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
+  if(!list.length && gWaiting()) $('#mbdbBody').innerHTML=SY.skel('table', 6, {cols:8, label:'예약 목록을 불러오는 중'});   // 사본이 없고 처음 받는 중 (2026-11-27)
 }
 async function mbDbSave(rows, msg){
   if(BOOK_GUEST){ toast('로그인한 사람만 고칠 수 있습니다.'); return; }

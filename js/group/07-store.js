@@ -102,7 +102,13 @@ SY.live.on(m=>{ const id = m.t==='del' ? m.id : m.item.id; cache=merged(); clear
     }catch(e){ console.warn('live', e); } }, 30); });
 window.addEventListener('storage', e=>{ if(!/^sayuwon_personal_(pending|cache)$/.test(e.key||'')) return; cache=merged();
   if(window.__tasksReady){ paintMyCount(); if(!$('#myModal').hidden) renderMy(); } });   // 다른 창(개인고객)에서 과업을 체크하면 나의 할일에 바로
+// 처음 받는 중 (2026-11-27): 이 브라우저에 사본이 하나도 없고 아직 서버 답이 없을 때만 true → 예약 목록 · 나의 할일 · 예약 현황 공유 · 과업 알림 창이 「없습니다」 대신 스켈레톤 (js/common.js SY.skel)
+//  사본이 있으면 그것을 먼저 보이므로 false · 서버에서 받았거나 못 받으면(연결 끊김 · 로그인 확인 안 됨) false → 예전 글 그대로
+let gSkelOn=false;
+const gWaiting = () => { const w = !pulledOnce && syncState==='loading' && !cache.length && !serverItems.length; if(w) gSkelOn=true; return w; };
 function paintSync(){
+  if(gSkelOn && syncState!=='loading'){ gSkelOn=false;   // 못 받았을 때도 스켈레톤이 남지 않게 한 번 다시 그림 (받았을 때는 받은 쪽이 다시 그림)
+    setTimeout(()=>{ try{ renderList(); if(!$('#myModal').hidden) renderMy(); if(!$('#bookModal').hidden) paintBook(); if(typeof ALERT_WIN!=='undefined' && ALERT_WIN) checkTbdPopup(true); }catch(_){} }, 0); }
   const chip=$('#syncChip'), n=pending.length;
   // 연결돼 있으면 아무것도 안 보임. 문제가 있을 때만 헤더에 표시 (비밀번호 문제는 팝업)
   const txt={ loading:'', ok: n?`올리는 중 ${n}건`:'', error: n?`연결 끊김 · ${n}건 대기 · 다시 시도 중`:'연결 끊김 · 다시 시도 중', needkey:'' }[syncState];

@@ -25,7 +25,11 @@ function paintSync(state){
   c.textContent=txt; c.hidden=!txt;
   $('#keyModal').hidden = state!=='needkey';   // 로그인 확인 안내 (팀 비밀번호 칸 없음, 2026-11-21)
 }
-function handleErr(e){ if(e.code==='bad_key'){ $('#keyMsg').textContent=SY.authFail(); paintSync('needkey'); } else { paintSync('error'); clearTimeout(retryT); retryT=setTimeout(flush, 15000); } }
+// 처음 받는 중 (2026-11-27): 이 브라우저에 통화 사본이 없고 아직 서버 답이 없을 때만 true → 「통화 기록 전체」가 「없습니다」 대신 스켈레톤 (js/common.js SY.skel). 받았거나 못 받으면 false
+let pPulled=false, pFailed=false;
+const pWaiting = () => !pPulled && !pFailed && !items.length && !!getKey();
+const pWaitEnd = ok => { const was=pWaiting(); if(ok) pPulled=true; else pFailed=true; if(was && !$('#allModal').hidden) renderAll(); };
+function handleErr(e){ pWaitEnd(false); if(e.code==='bad_key'){ $('#keyMsg').textContent=SY.authFail(); paintSync('needkey'); } else { paintSync('error'); clearTimeout(retryT); retryT=setTimeout(flush, 15000); } }
 async function flush(){
   if(flushing) return; if(!getKey()){ paintSync('needkey'); return; }
   flushing=true;
@@ -40,7 +44,7 @@ async function pull(inFlush){
   try{
     const j=await SY.list();   // 같이 쓰는 사본 + 바뀐 것만 (2026-11-21)
     j.items=SY.live.apply(j.items||[]);   // 방금 다른 화면이 고친 기록이 옛 목록으로 되돌아가지 않게
-    items=(j.items||[]).filter(r=>r.callType===CALL_TYPE); writeJSON(CACHE_LS, items.slice(-500));
+    { const was=pWaiting(); items=(j.items||[]).filter(r=>r.callType===CALL_TYPE); writeJSON(CACHE_LS, items.slice(-500)); pPulled=true; if(was && !$('#allModal').hidden) setTimeout(renderAll, 0); }   // 스켈레톤을 보이던 중이면 받은 것으로 다시 그림 (2026-11-27)
     { const pc=(j.items||[]).find(r=>r.id==='pcats'); if(pc && !pending.some(p=>p.action==='put' && p.item.id==='pcats')){ pcatRec=pc; writeJSON(PCATS_LS, pc); } paintChips(); if(!memberNames.length) loadMembers(); }   // 모두가 추가한 구분 · 멤버 이름
     groupMine=(j.items||[]).filter(r=>r.callType!==CALL_TYPE && ['단체예약','예약상담','가예약','예약확정','예약접수','상담','공식예약'].includes(r.callType||'단체예약') && (r.owner||r.takenBy)===(user.name||''));   // 마감 알림용: 내가 영업 담당인 단체 예약
     etcRowsP=(j.items||[]).filter(r=>r.callType==='개인업무');
@@ -396,7 +400,7 @@ const ALL_HEAD = '<tr><th>저장</th><th>고객</th><th>연락처</th><th>일시
 const TRASH_HEAD = '<tr><th>삭제 일시</th><th>삭제한 사람</th><th>사유</th><th>고객</th><th>연락처</th><th>일시</th><th>문의 내용</th><th class="owner">받은 사람</th></tr>';
 let allTrash=false, trashItems=null, trashErr='', allPast=false;   // 통화 기록 전체: 두 열(왼쪽 내가 받은 통화 · 오른쪽 다른 사람이 받은 통화, 2026-11-27) · 기본 = 오늘 통화 · 「지난 통화 보기」
 function renderTrash(q, qd){
-  if(trashItems==null){ $('#allCount').textContent=''; $('#allBody').innerHTML=`<tr><td colspan="8" class="empty">${trashErr?esc(trashErr):'불러오는 중…'}</td></tr>`; return; }
+  if(trashItems==null){ $('#allCount').textContent=''; $('#allBody').innerHTML = trashErr ? `<tr><td colspan="8" class="empty">${esc(trashErr)}</td></tr>` : SY.skel('table', 6, {cols:8, label:'삭제된 통화를 불러오는 중'}); return; }   // 받는 동안 스켈레톤 (2026-11-27)
   const info = r => { let h={}; try{ h=JSON.parse(r.history||'{}')||{}; }catch(_){} const e=[...(Array.isArray(h.h)?h.h:[])].reverse().find(x=>/^\[삭제\]/.test(x.what||'')); return { by:e?e.by:'', why:e?String(e.what).replace(/^\[삭제\]\s*/,''):'(사유 기록 없음)' }; };
   const all=trashItems.filter(r=>r.callType===CALL_TYPE).map(r=>({r, ...info(r)})).sort((a,b)=>String(b.r.deleted).localeCompare(String(a.r.deleted)));
   const list=all.filter(o=>!q || [o.r.contact, o.r.note, o.r.takenBy, o.why, o.by].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && String(o.r.phone||'').replace(/\D/g,'').includes(qd)));
@@ -432,6 +436,7 @@ function renderAll(){
   $('#allMineN').textContent=mine.length; $('#allOtherN').textContent=others.length;
   $('#allMine').innerHTML = mine.map(row).join('') || none('내가 받은');
   $('#allOther').innerHTML = others.map(row).join('') || none('다른 사람이 받은');
+  if(!all.length && !q && pWaiting()){ $('#allMine').innerHTML=SY.skel('table', 5, {cols:8, label:'통화 기록을 불러오는 중'}); $('#allOther').innerHTML=SY.skel('table', 5, {cols:9, label:' '}); }   // 사본이 없고 처음 받는 중 (2026-11-27)
 }
 // 통화 기록 삭제: 사유를 꼭 적어야 함. 사유는 그 기록의 수정 기록에 남긴 뒤 삭제 (시트에서는 줄을 지우지 않고 '삭제' 칸에 일시)
 let pdelId=null;

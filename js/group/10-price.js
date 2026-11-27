@@ -239,7 +239,7 @@ function renderPrice(){
       : n && !rec.date ? '<p class="price-need"><b>방문일</b>을 입력해 주세요. 평일 · 주말 가격이 달라 방문일이 있어야 금액이 나옵니다.</p>'
       : '<p class="hint" style="margin:0">방문일과 관람 인원을 넣으면, 예약 칸에서 고른 관람 · 식사 · 프로그램의 금액이 여기에 나옵니다.</p>';
   } else if(!quoteCat){
-    box.innerHTML = '<p class="hint" style="margin:0">견적서 사이트에서 가격을 불러오는 중입니다.</p>';
+    box.innerHTML = priceLoaded===null ? SY.skel('list', 3, {lines:1, label:'가격을 불러오는 중'}) : '<p class="hint" style="margin:0">견적서 사이트에서 가격을 불러오는 중입니다.</p>';   // 처음 받는 중 = 스켈레톤 (2026-11-27) · 못 받은 뒤에는 예전 글
   } else {
     const {blocks, skipped} = quoteBlocks(rec);
     let total=0; const missing=[]; priceInfo={};

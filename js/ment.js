@@ -129,7 +129,7 @@
 
   function render(){
     // 이 기기에서 아직 멘트를 못 받았으면 예전 기본 멘트 대신 「불러오는 중」 · 「불러오지 못함」 (팀 비밀번호는 필요 없음, 2026-11-18)
-    if(!loaded && !edit){ $('#sum').textContent=''; $('#list').innerHTML = failed ? '<p class="need-key">멘트를 불러오지 못했습니다. 인터넷 연결을 확인하고 잠시 뒤 다시 열어 주세요.</p>' : '<p class="need-key">멘트를 불러오는 중…</p>'; return; }
+    if(!loaded && !edit){ $('#sum').textContent=''; $('#list').innerHTML = failed ? '<p class="need-key">멘트를 불러오지 못했습니다. 인터넷 연결을 확인하고 잠시 뒤 다시 열어 주세요.</p>' : SY.skel('list', 6, {label:'멘트를 불러오는 중'}); return; }   // 받는 동안 스켈레톤 (2026-11-27)
     const q=$('#q').value.trim().replace(/\s/g,'').toLowerCase();
     const list=items.filter(m=>!q || (m.title+m.body).replace(/\s/g,'').toLowerCase().includes(q))
       .map((m,i)=>({m,i})).sort((a,b)=>(isFav(b.m)-isFav(a.m)) || a.i-b.i).map(o=>o.m);   // 즐겨찾기한 멘트가 위로 (그 안에서는 원래 순서)

@@ -69,6 +69,24 @@ const SY = Object.freeze({
   // 브라우저 저장소 (막혀 있으면 기본값 · 조용히 넘어감)
   readJSON: (k, d) => { try{ const v=JSON.parse(localStorage.getItem(k)); return v==null ? d : v; }catch(_){ return d; } },
   writeJSON: (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(_){} },
+  // ===== 스켈레톤 (2026-11-27): 서버에서 불러오는 동안, 곧 나올 내용의 자리를 회색 덩어리로 미리 그려 둠 =====
+  //  SY.skel(kind, n, opt) → HTML 글자. 받을 자리에 innerHTML 로 넣고, 받은 뒤에는 화면이 평소대로 다시 그리면 사라짐 (실패 · 빈 결과 때도 그 화면의 글이 덮어씀)
+  //   kind: 'list' 목록 줄(opt.lines 1|2) · 'table' 표의 줄 <tr>…(opt.cols 칸 수 — <tbody> 안에 넣음) · 'cards' 카드(opt.h 높이) · 'cal' 달력(7칸 × n줄 · opt.h) · 'text' 글 줄
+  //   opt.label: 읽는 프로그램에 들려줄 말 (기본 「불러오는 중」)
+  //  ★ 보여 줄 것이 아직 없을 때만 쓴다 — 브라우저 사본으로 내용이 이미 보이는 중에는 덮지 않는다 (보이던 것이 깜빡이면 더 나쁨)
+  //  모양(CSS)은 이 파일 아래쪽에서 직접 넣음 (.sy-skel · 메뉴가 없는 화면 · 로그인 없이 보는 화면도 같이 쓰도록). 0.18초 안에 끝나는 요청에서는 보이지 않음 · 인쇄에는 안 나옴
+  skel: (kind, n, opt) => { opt=opt||{}; n=Math.max(1, +n||3);
+    const W=[62,48,74,40,56,68,44,80], w=i=>W[i%W.length], sr=`<span class="sy-skel-sr">${SY.esc(opt.label||'불러오는 중')}</span>`, bar=(pct, cls)=>`<span class="sy-skel-b${cls?' '+cls:''}" style="width:${pct}%"></span>`;
+    const h = opt.h ? ` style="height:${SY.esc(opt.h)}"` : '';
+    if(kind==='table'){ const cols=Math.max(1, +opt.cols||4); let s='';
+      for(let r=0;r<n;r++){ s+=`<tr class="sy-skel-tr" aria-busy="true">`; for(let c=0;c<cols;c++) s+=`<td>${!r && !c ? sr : ''}${bar(w(r*3+c*5))}</td>`; s+='</tr>'; }
+      return s; }
+    let s='';
+    if(kind==='cards') for(let i=0;i<n;i++) s+=`<div class="sy-skel-card"${h}>${bar(w(i)*.6, 'lg')}${bar(w(i+3))}${bar(w(i+5)*.7)}</div>`;
+    else if(kind==='cal'){ for(let i=0;i<n*7;i++) s+=`<div class="sy-skel-cell"${h}>${bar(28)}${i%3===1 ? bar(w(i)) : ''}</div>`; }
+    else if(kind==='text') for(let i=0;i<n;i++) s+=bar(i%4===0 ? 38 : 60+w(i)*.5, i%4===0 ? 'lg' : '');
+    else for(let i=0;i<n;i++) s+=`<div class="sy-skel-row"${h}>${bar(w(i))}${opt.lines===1 ? '' : bar(w(i+2)*.6, 'sm')}</div>`;
+    return `<div class="sy-skel sy-skel-${kind==='cards'||kind==='cal'||kind==='text' ? kind : 'list'}" role="status" aria-busy="true">${sr}${s}</div>`; },
   // 서버를 쓸 수 있는 상태인지 (= 로그인했는지). 이름은 예전 팀 비밀번호 때의 것 — 로그인했으면 'login', 아니면 ''
   getKey: () => SY.user() ? 'login' : '',
   // 서버가 「확인 안 됨」(bad_key)이면: 팀 비밀번호를 묻지 않고, 로그인을 다시 하도록 안내
@@ -225,6 +243,26 @@ const SY_DEV = (function(){
     if(document.body) t(); else document.addEventListener('DOMContentLoaded', t);
   }
   return Object.freeze({isProd, isTest, isLocal, off, tag, DEV_PAGES});
+})();
+
+// ===== 스켈레톤 모양 (2026-11-27 · SY.skel 이 만드는 것) — 모든 화면이 이 파일을 읽으므로 여기서 직접 넣음 =====
+//  색은 화면 바탕(#f6f4ee) · 선(#dfdace) 사이의 회색 · 크기는 em (글자 크기 조절을 따라감) · 0.18초 뒤에야 보임(금방 끝나는 요청에서 번쩍이지 않게) · 움직임 줄이기 설정이면 반짝임을 멈춤 · 인쇄 · 이미지 저장 자리에는 안 나옴
+(function(){
+  const st=document.createElement('style'); st.id='sySkelCss';
+  st.textContent='@keyframes sySkelIn{from{opacity:0}to{opacity:1}}@keyframes sySkelMove{from{background-position:100% 0}to{background-position:0 0}}'
+    +'.sy-skel{display:block;grid-column:1/-1;opacity:0;animation:sySkelIn .2s ease .18s forwards;pointer-events:none;user-select:none;text-align:left}'
+    +'.sy-skel-sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}'
+    +'.sy-skel-b{display:block;height:.85em;max-width:100%;border-radius:.4em;background:#e9e5da linear-gradient(90deg,#e9e5da 0,#e9e5da 40%,#f5f2ea 50%,#e9e5da 60%,#e9e5da 100%) 0 0/300% 100% no-repeat;animation:sySkelMove 1.6s linear infinite}'
+    +'.sy-skel-b.lg{height:1.1em}.sy-skel-b.sm{height:.7em}'
+    +'.sy-skel-row{display:flex;flex-direction:column;justify-content:center;gap:.5em;padding:.75em .2em;border-bottom:1px solid #eeeae0;box-sizing:border-box}.sy-skel-row:last-child{border-bottom:0}'
+    +'.sy-skel-cards{display:grid;gap:.7em}.sy-skel-card{display:flex;flex-direction:column;justify-content:center;gap:.6em;padding:1em;border:1px solid #e6e1d5;border-radius:10px;background:#fff;box-sizing:border-box}'
+    +'.sy-skel-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.sy-skel-cell{display:flex;flex-direction:column;gap:.4em;min-height:4.2em;padding:.4em;border:1px solid #eeeae0;border-radius:6px;background:#fff;box-sizing:border-box}'
+    +'.sy-skel-text{display:flex;flex-direction:column;gap:.75em;padding:.4em 0}'
+    +'tr.sy-skel-tr{pointer-events:none}tr.sy-skel-tr td{padding-top:.8em;padding-bottom:.8em}tr.sy-skel-tr .sy-skel-b{opacity:0;animation:sySkelIn .2s ease .18s forwards,sySkelMove 1.6s linear infinite}'
+    +'@media (prefers-reduced-motion:reduce){.sy-skel-b{animation:none}.sy-skel{animation:none;opacity:1}tr.sy-skel-tr .sy-skel-b{animation:none;opacity:1}}'
+    +'@media print{.sy-skel,tr.sy-skel-tr{display:none!important}}'
+    +'.sheet .sy-skel,.sheet tr.sy-skel-tr,#shot .sy-skel,#shot tr.sy-skel-tr,#stShot .sy-skel,#stShot tr.sy-skel-tr,#stPrev .sy-skel,#stPrev tr.sy-skel-tr{display:none!important}';
+  document.head.appendChild(st);
 })();
 
 // 팝업이 떠 있으면 뒤 화면은 스크롤 안 됨 (2026-11-24 · 모든 화면) — 팝업 안은 그대로 스크롤

@@ -179,7 +179,7 @@ function checkTbdPopup(force){
   // 개인고객 화면과 같은 기록(SY_ALERT · sayuwon_task_slot)을 써서, 한 시각에 여러 화면 · 여러 탭에서 또 뜨지 않음
   // 2026-11-26: 따로 뜨는 창으로 (SY_ALERT.show · js/common.js — 브라우저가 막으면 화면을 처음 누를 때 엶 · 끝내 안 열리면 이 화면 팝업)
   if(ALERT_WIN){ const due=alertList();
-    if(!due.length){ $('#tbdList').innerHTML='<li class="hint">지금 알릴 과업이 없습니다.</li>'; $('#tbdTitle').textContent='과업 알림'; $('#tbdModal').hidden=false; return; }
+    if(!due.length){ $('#tbdList').innerHTML = gWaiting() ? `<li class="hint">${SY.skel('list', 3, {label:'과업을 불러오는 중'})}</li>` : '<li class="hint">지금 알릴 과업이 없습니다.</li>';   /* 사본이 없고 처음 받는 중이면 스켈레톤 (2026-11-27) */ $('#tbdTitle').textContent='과업 알림'; $('#tbdModal').hidden=false; return; }
     paintAlert(due); return; }
   const k=SY_ALERT.keyNow(); if(!force && (!k || SY_ALERT.seen(k))) return;
   if(!force && !ENG && [...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)

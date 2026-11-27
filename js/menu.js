@@ -106,7 +106,11 @@ window.syFont = (function(){
   async function mcOpen(){
     if(!mc){ mc=document.createElement('div'); mc.className='smc-wrap'; mc.hidden=true; document.body.appendChild(mc);
       mc.addEventListener('click', e=>{ if(e.target===mc || e.target.closest('[data-smcx]')){ mc.hidden=true; return; } if(e.target.closest('[data-smcsave]')) mcSave(); }); }
+    // 받는 동안: 창을 먼저 띄우고 표 자리에 스켈레톤 (2026-11-27 · 예전에는 받을 때까지 아무것도 안 떴음) — 그사이 닫았으면 다시 띄우지 않음
+    mc.innerHTML = `<section class="smc-panel" role="dialog" aria-modal="true" aria-label="메뉴 설정"><h2>메뉴 설정</h2><div class="smc-body"><table class="smc-t"><thead><tr><th>메뉴</th><th>PC</th><th>모바일</th><th>로그인 없이</th></tr></thead><tbody>${SY.skel('table', 8, {cols:4, label:'메뉴 설정을 불러오는 중'})}</tbody></table></div><div class="smc-btns"><button type="button" class="smc-b" data-smcx>취소</button></div></section>`;
+    mc.hidden=false;
     const fresh=await cfgPull();   // 다른 사람이 방금 바꾼 것 위에 덮어쓰지 않게 최신부터
+    if(mc.hidden) return;
     mc.innerHTML = `<section class="smc-panel" role="dialog" aria-modal="true" aria-label="메뉴 설정"><h2>메뉴 설정</h2><p class="smc-hint">체크한 곳에서 그 메뉴가 보입니다. 「저장」을 누르면 모든 사람의 메뉴에 적용됩니다.<br>「로그인 없이」를 체크한 메뉴는 로그인하지 않은 사람의 메뉴와 첫 화면에도 보입니다. 이 칸이 잠겨 있는 메뉴는 로그인해야 열리는 화면이라(고객 자료 보호) 체크할 수 없습니다.</p>`
       + `<div class="smc-body"><table class="smc-t"><thead><tr><th>메뉴</th><th>PC</th><th>모바일</th><th>로그인 없이</th></tr></thead><tbody>`
       + mcRows().map(g=>`<tr class="smc-g"><td colspan="4">${esc(g.t)}</td></tr>` + g.items.map(it=>`<tr><td>${esc(it.b)}</td>`
@@ -162,7 +166,7 @@ window.syFont = (function(){
   requestAnimationFrame(manPlace); window.addEventListener('load', manPlace);
   try{ new ResizeObserver(()=>requestAnimationFrame(manPlace)).observe(hd); new MutationObserver(ms=>{ if(ms.some(m=>m.target!==mbk && !mbk.contains(m.target) && m.target!==fw && !fw.contains(m.target))) requestAnimationFrame(manPlace); }).observe(hd, {subtree:true, attributes:true, attributeFilter:['hidden','style','class'], childList:true}); }catch(_){}
   const man=document.createElement('div'); man.className='man-wrap'; man.hidden=true;
-  man.innerHTML=`<div class="man-bg" data-manclose></div><section class="man-panel" role="dialog" aria-modal="true" aria-label="매뉴얼"><div class="man-top"><b>📖 ${esc(MAN_NAME)} 매뉴얼</b><button type="button" class="man-x" data-manclose title="닫기 (Esc)" aria-label="매뉴얼 닫기">×</button></div><div class="man-body" id="manBody"><p class="man-wait">불러오는 중…</p></div></section>`;
+  man.innerHTML=`<div class="man-bg" data-manclose></div><section class="man-panel" role="dialog" aria-modal="true" aria-label="매뉴얼"><div class="man-top"><b>📖 ${esc(MAN_NAME)} 매뉴얼</b><button type="button" class="man-x" data-manclose title="닫기 (Esc)" aria-label="매뉴얼 닫기">×</button></div><div class="man-body" id="manBody">${SY.skel('text', 9, {label:'매뉴얼을 불러오는 중'})}</div></section>`;   // 받는 동안 글 자리 스켈레톤 (2026-11-27 · js/common.js SY.skel)
   document.body.appendChild(man);
   let manLoaded=false;
   async function openMan(){ man.hidden=false; document.documentElement.classList.add('man-open'); if(manLoaded) return;

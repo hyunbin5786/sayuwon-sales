@@ -25,20 +25,23 @@ const GUEST = !!B.guest && !opsKey();
 const OLD_SRV = '서버(Cloudflare)가 아직 예전 코드라 로그인 없이 저장할 수 없습니다 — 관리자가 worker.js 를 새로 올려야 합니다 (그 전에는 로그인하면 됨)';
 let rows = GUEST ? [] : (()=>{ try{ return JSON.parse(localStorage.getItem(CACHE_LS)||'[]'); }catch(_){ return []; } })();   // [{r(시트 줄), d(내용)}]
 let syncing=false;
+// 처음 받는 중 (2026-11-27): 이 브라우저에 사본이 없을 때(처음 여는 브라우저 · 로그인 없이 보는 분실물)만 true → 목록 자리에 스켈레톤 (js/common.js SY.skel). 받았거나 못 받으면 false — 그 뒤는 예전 그대로 (재고관리는 화면 모양이 여러 가지라 뺌)
+let opsWait = !rows.length && P!=='stock';
+const opsWaitEnd = () => { if(!opsWait) return; opsWait=false; render(); };
 const setSync = t => { $('#sync').textContent = t; };
 async function pull(){
   if(GUEST){ setSync('불러오는 중…');
     const j=await SY.callRaw({action:'lostList'}).catch(()=>null);
-    if(!j || !j.ok){ setSync(j && /^bad_(action|key)$/.test(j.error||'') ? OLD_SRV : '연결 안 됨 · 잠시 뒤 다시'); return; }
+    if(!j || !j.ok){ setSync(j && /^bad_(action|key)$/.test(j.error||'') ? OLD_SRV : '연결 안 됨 · 잠시 뒤 다시'); opsWaitEnd(); return; }
     window.LOST_GUEST_PH = (+j.api||0) >= 11;   // 서버가 api 11 부터 로그인 없이 넣는 분실 신고의 사진도 받음 (그 전 서버면 신고의 사진 칸을 보이지 않음 · js/lost.js)
-    rows=(j.items||[]).map(x=>({r:{id:x.id, saved:x.saved, updated:x.updated}, d:x.d||{}, log:[]})); setSync(''); render(); return; }
-  if(!opsKey()){ $('#keyBox').hidden=false; return; }
+    rows=(j.items||[]).map(x=>({r:{id:x.id, saved:x.saved, updated:x.updated}, d:x.d||{}, log:[]})); setSync(''); opsWait=false; render(); return; }
+  if(!opsKey()){ $('#keyBox').hidden=false; opsWaitEnd(); return; }
   setSync('불러오는 중…');
   try{ const j=await SY.list(); $('#keyBox').hidden=true;
     rows = (j.items||[]).filter(r=>r.callType===OPS_TYPES[P]).map(r=>{ const h=opsParse(r); return h ? {r, d:h.d||{}, log:h.log||[]} : null; }).filter(Boolean);
     try{ localStorage.setItem(CACHE_LS, JSON.stringify(rows)); }catch(_){}
-    setSync(''); render();
-  }catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; $('#keyErr').textContent = SY.authFail(); } setSync('연결 안 됨 · 잠시 뒤 다시'); }
+    setSync(''); opsWait=false; render();
+  }catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; $('#keyErr').textContent = SY.authFail(); } setSync('연결 안 됨 · 잠시 뒤 다시'); opsWaitEnd(); }
 }
 async function putRow(row, what){
   if(GUEST){   // 로그인 없이: 새로 접수만 (고치기는 로그인한 사람만)
@@ -66,6 +69,7 @@ async function delRow(row){
 // ---------- 목록 ----------
 let filter = B.open ? 'open' : 'all', mineOnly = true;
 function render(){
+  if(opsWait){ $('#list').innerHTML=SY.skel('list', 6, {label:'목록을 불러오는 중'}); return; }   // 처음 받는 중 (사본 없음)
   const q=$('#q').value.trim().toLowerCase(), hit = d => !q || JSON.stringify(d).toLowerCase().includes(q);
   if(P==='stock') return renderStock(hit);
   if(P==='ship') return renderShip(hit);

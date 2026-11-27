@@ -14,6 +14,7 @@ window.syTable = function(cfg){
     return it && h && Array.isArray(h.rows) ? {data:h, item:it} : {data:{rows:(cfg.seed||[]).map(r=>({...r})), log:[]}, item:null}; };
   async function fetchNow(){ const j=await SY.list(); return fromItems(j.items); }
   async function load(quiet){ if(!quiet) st('불러오는 중…','wait');
+    { const tb=$(E.table); if(tb && !tb.rows.length) tb.innerHTML=`<tbody>${SY.skel('table', 6, {cols:cfg.cols.length+1})}</tbody>`; }   // 처음 받는 동안 표 자리에 스켈레톤 (2026-11-27 · 받으면 render 가 덮어씀 · 못 받아도 render 가 처음 내용을 그림)
     try{ const r=await fetchNow(); data=r.data; saved=!!r.item; st('',''); render(); if(cfg.onData) cfg.onData(data); }
     catch(e){ st(e.code==='bad_key' ? SY.authFail() : '불러오지 못함 — 잠시 뒤 다시','bad'); render(); } }
   async function change(fn, what){

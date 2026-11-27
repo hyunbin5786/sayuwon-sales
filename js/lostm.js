@@ -22,6 +22,7 @@
   function paint(){
     const live=rows.filter(isOpen), cnt=k=>live.filter(x=>!k || lostKind(x.d)===k).length;
     $('#mTabs').innerHTML = TABS.map(([k,l])=>`<button type="button" role="tab" data-mk="${esc(k)}" class="${k===kind?'on ':''}${CLS[k]||''}" aria-selected="${k===kind}">${esc(l)} <small>${cnt(k)}</small></button>`).join('');
+    if(opsWait){ $('#mResults').innerHTML=SY.skel('cards', 4, {h:'5.6em', label:'분실물을 불러오는 중'}); return; }   // 처음 받는 중 (js/opsboard.js opsWait · 2026-11-27)
     const q=$('#mQ').value.trim().toLowerCase().replace(/\s/g,'');
     const hit=x=>{ const d=x.d; return [d.item, d.feature, d.place, d.storage, d.person, d.phone, d.kind].join(' ').toLowerCase().replace(/\s/g,'').includes(q); };
     const of=k=>live.filter(x=>lostKind(x.d)===k && (!q || hit(x))).sort(lostSort);

@@ -82,6 +82,7 @@ function paintMembers(){
 async function memberCall(body){
   $('#memberErr').textContent='';
   let j=null; try{ j=await SY.callRaw(body); }catch(_){}
+  { const sk=$('#memberSkel'); if(sk) sk.remove(); }   // 받는 동안 보이던 스켈레톤 걷기 (받았든 못 받았든)
   if(!j){ $('#memberErr').textContent='연결하지 못했습니다. 잠시 뒤 다시 해 주세요.'; return null; }
   if(j.error==='bad_key'){ $('#memberBody').hidden=true; $('#memberKey').hidden=false; $('#memberKeyErr').textContent = ''; return null; }
   if(j.error==='bad_action' || (j.ok && !j.members)){ $('#memberErr').textContent='멤버 목록을 받지 못했습니다: '+(j.error||''); $('#memberBody').hidden=false; $('#memberKey').hidden=true; return null; }
@@ -89,7 +90,9 @@ async function memberCall(body){
   $('#memberKey').hidden=true; $('#memberBody').hidden=false;
   members=j.members||[]; if(j.roles) roles=j.roles; paintMembers(); return j;
 }
-const loadMembers = () => { if(!getKey()){ $('#memberKey').hidden=false; $('#memberBody').hidden=true; return; } memberCall({action:'members'}); };
+const loadMembers = () => { if(!getKey()){ $('#memberKey').hidden=false; $('#memberBody').hidden=true; return; }
+  if(!members.length && $('#memberBody').hidden && !$('#memberSkel')) $('#memberBody').insertAdjacentHTML('beforebegin', `<div id="memberSkel">${SY.skel('list', 5, {lines:1, label:'멤버 목록을 불러오는 중'})}</div>`);   // 처음 받는 동안 (2026-11-27)
+  memberCall({action:'members'}); };
 // (멤버관리 팀 비밀번호 칸은 없앰 · 2026-11-21 — 로그인으로 확인)
 // "이름 사번" 줄들 → [{name, emp}]
 //  끝에 연락처를 붙여도 됨 "이름 사번 010-1234-5678" (2026-11-24)
@@ -242,11 +245,13 @@ function dashRecs(items){
     tasks:[{title:((typeof cmRule==='function' && cmRule('quote').text)||'견적서 · 거래명세서 발급')+(r.date?` (방문 ${opsDateLabel(r.date)})`:''), due:String(r.at||'').slice(0,10)||opsToday()}], href:QUOTE})); });   // 이름 · 할 일은 공통 업무 관리(js/commonmgr.js)에서 고침
   return recs;
 }
+// 받는 동안의 대시보드 자리 (2026-11-27 · js/common.js SY.skel): 진짜와 같은 칸 배치(캘린더 · 오늘 마감 · 공지 · 전화 · 업무)에 회색 줄
+const dashSkel = () => `<div class="dcols d2" aria-busy="true">${[['dcal-col','cal',4],['dpc','list',4],['dgc','list',4],['dtoday','list',3],['dnotice','list',3],['dmine','list',3],['dcommon','list',3]].map(([c,k,n],i)=>`<div class="dcol ${c}">${SY.skel(k, n, {label: i ? ' ' : '할일을 불러오는 중'})}</div>`).join('')}</div>`;
 async function loadDash(){
   if(!getUser()) return;
   if(!getKey()){ $('#dashKey').hidden=false; $('#dashBody').innerHTML=''; return; }
   $('#dashKey').hidden=true;
-  if(dashData) renderDash(); else $('#dashBody').innerHTML='<p class="hint">불러오는 중…</p>';
+  if(dashData) renderDash(); else if(!$('#dashBody').firstElementChild) $('#dashBody').innerHTML=dashSkel();   // 사본이 없을 때만: 대시보드 칸 자리에 스켈레톤 (2026-11-27 · 사본이 있으면 그것을 먼저 보이므로 덮지 않음 · 못 받았다는 글이 떠 있으면 그대로 둠)
   if(dashLoading) return; dashLoading=true;
   try{
     const [j, m, qr] = await Promise.all([SY.list(), SY.callRaw({action:'members'}).catch(()=>null), SY.callRaw({action:'quoteReqList'}).catch(()=>null)]);   // 목록 · 멤버 · 고객 견적 요청을 함께 받음

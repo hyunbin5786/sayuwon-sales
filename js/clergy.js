@@ -35,11 +35,13 @@
   async function load(){
     if(!SY.getKey()){ $('#keyBox').hidden=false; $('#body').innerHTML='<tr><td colspan="9" class="hint">로그인하면 명부가 보입니다.</td></tr>'; return; }
     st('불러오는 중…', 'wait');
+    if(!loaded) $('#body').innerHTML=SY.skel('table', 8, {cols:9, label:'명부를 불러오는 중'});   // 받는 동안 표 자리에 스켈레톤 (2026-11-27 · js/common.js SY.skel)
     try{
       let j=await SY.call({action:'clergyList'});
       if(!j.moved){ const n=await moveOld(); if(n){ toast(`예전 명부 ${n}명을 DB 로 옮겼습니다.`); j=await SY.call({action:'clergyList'}); } }
       rows=j.items||[]; loaded=true; setRO(false); $('#keyBox').hidden=true; st('', ''); render();
     }catch(e){
+      if(!loaded) $('#body').innerHTML='';   // 못 받았으면 스켈레톤을 걷음 (위쪽 글이 알림)
       if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast(SY.authFail()); st('불러오지 못함', 'bad'); return; }
       if(e.code==='bad_action'){   // 서버(cloudflare/worker.js)를 아직 새로 올리지 않음 → 예전 명부를 보기만
         try{ rows=fromItems((await SY.list()).items).rows; loaded=true; setRO(true); render(); st('서버를 새로 올려야 추가 · 엑셀 불러오기가 됩니다 (지금은 보기만)', 'bad'); return; }catch(_){}

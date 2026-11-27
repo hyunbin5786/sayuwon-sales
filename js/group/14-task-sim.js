@@ -165,6 +165,7 @@ function renderMy(){ paintMySet();
   const me=savedOwner(), today=ymd(new Date()), past=$('#myPast').checked;
   $('#myTitle').textContent = me ? `나의 할일 · ${me}` : '나의 할일';
   if(!me){ $('#mySum').textContent=''; $('#myBody').innerHTML='<p class="hint">맨 위 초록 헤더의 <b>영업 담당</b>에 이름을 넣으면, 그 이름이 영업 담당인 예약을 모아 보여 줍니다.</p>'; return; }
+  if(gWaiting()){ $('#mySum').textContent=''; $('#myBody').innerHTML=`<div class="my-cols three">${[0,1,2].map(i=>`<div class="my-col">${SY.skel('list', 4, {label: i ? ' ' : '나의 할일을 불러오는 중'})}</div>`).join('')}</div>`; return; }   // 사본이 없고 처음 받는 중 (2026-11-27 · js/group/07-store.js gWaiting)
   const mine = myRecords().map(r=>({r, x:xOf(r), tasks:openTasksOf(r).filter(t=>taskForMe(r, t, me))}));   // 다른 담당자의 준비 과업은 빼고 (2026-11-24)
   const ahead = mine.filter(o=>!o.r.date || o.r.date>=today);
   const tbdAll = ahead.filter(o=>o.x.tbd);

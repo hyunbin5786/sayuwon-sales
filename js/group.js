@@ -1310,7 +1310,7 @@ let trashItems=null, trashErr='';
 const delInfo = r => { const h=parseHist(r).h, e=[...h].reverse().find(x=>/^\[삭제\]/.test(x.what||'')); return { by:e?e.by:'', why:e?String(e.what).replace(/^\[삭제\]\s*/,''):'(사유 기록 없음)' }; };
 function paintTrash(){
   const q=$('#trashSearch').value.trim().replace(/\s/g,'').toLowerCase(), qd=q.replace(/\D/g,'');
-  if(trashItems==null){ $('#trashBody').innerHTML=`<tr><td colspan="8" class="empty">${trashErr ? esc(trashErr) : '불러오는 중…'}</td></tr>`; $('#trashSum').textContent=''; return; }
+  if(trashItems==null){ $('#trashBody').innerHTML = trashErr ? `<tr><td colspan="8" class="empty">${esc(trashErr)}</td></tr>` : SY.skel('table', 6, {cols:8, label:'삭제된 예약을 불러오는 중'}); $('#trashSum').textContent=''; return; }   // 받는 동안 스켈레톤 (2026-11-27)
   const all=trashItems.filter(r=>isGroupRec(r) && r.id!==MBDB_ID).map(r=>({r, ...delInfo(r)})).sort((a,b)=>String(b.r.deleted).localeCompare(String(a.r.deleted)));
   const list=all.filter(o=>!q || [o.r.org, contactCell(o.r).replace(/<[^>]+>/g,''), o.why, o.by, ownerOf(o.r)].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && JSON.stringify(o.r).replace(/\D/g,'').includes(qd)));
   $('#trashSum').textContent = `${all.length}건${q?` · 찾은 ${list.length}건`:''}`;
@@ -1451,6 +1451,7 @@ function paintBook(){
   $('#bookBody').innerHTML = list.map(x=>bkGenRow(x, today, '')).join('')
     || `<tr><td colspan="8" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':mine?`담당 「${esc(me)}」인 ${past?'':'앞으로 있을 '}예약이 없습니다.`:all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다.'}</td></tr>`;
   labelCells('#bookBody', BK_COLS(c));   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
+  if(!list.length && gWaiting()) $('#bookBody').innerHTML=SY.skel('table', 6, {cols:8, label:'예약 목록을 불러오는 중'});   // 사본이 없고 처음 받는 중 (2026-11-27 · 로그인 없이 볼 때 등)
 }
 // 대관 · 도슨트 · 프로그램 · 음료쿠폰 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표 · 수정 단추의 data-bcat = 그 줄의 목록)
 const bkWhat = x => x.cat==='rent' ? (x.place||'(장소 미정)') : x.cat==='docent' ? [x.kind, x.place].filter(Boolean).join(' · ') : (x.item||'');   // 내용 칸
@@ -1747,6 +1748,7 @@ function paintMbDb(){
   $('#mbdbBody').innerHTML = list.map(x=>mbRow(x, today, '')).join('')
     || `<tr><td colspan="8" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':all.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'몽몽마방 예약이 없습니다.'}</td></tr>`;
   labelCells('#mbdbBody', BK_COLS('mb'));   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
+  if(!list.length && gWaiting()) $('#mbdbBody').innerHTML=SY.skel('table', 6, {cols:8, label:'예약 목록을 불러오는 중'});   // 사본이 없고 처음 받는 중 (2026-11-27)
 }
 async function mbDbSave(rows, msg){
   if(BOOK_GUEST){ toast('로그인한 사람만 고칠 수 있습니다.'); return; }
@@ -1920,7 +1922,13 @@ SY.live.on(m=>{ const id = m.t==='del' ? m.id : m.item.id; cache=merged(); clear
     }catch(e){ console.warn('live', e); } }, 30); });
 window.addEventListener('storage', e=>{ if(!/^sayuwon_personal_(pending|cache)$/.test(e.key||'')) return; cache=merged();
   if(window.__tasksReady){ paintMyCount(); if(!$('#myModal').hidden) renderMy(); } });   // 다른 창(개인고객)에서 과업을 체크하면 나의 할일에 바로
+// 처음 받는 중 (2026-11-27): 이 브라우저에 사본이 하나도 없고 아직 서버 답이 없을 때만 true → 예약 목록 · 나의 할일 · 예약 현황 공유 · 과업 알림 창이 「없습니다」 대신 스켈레톤 (js/common.js SY.skel)
+//  사본이 있으면 그것을 먼저 보이므로 false · 서버에서 받았거나 못 받으면(연결 끊김 · 로그인 확인 안 됨) false → 예전 글 그대로
+let gSkelOn=false;
+const gWaiting = () => { const w = !pulledOnce && syncState==='loading' && !cache.length && !serverItems.length; if(w) gSkelOn=true; return w; };
 function paintSync(){
+  if(gSkelOn && syncState!=='loading'){ gSkelOn=false;   // 못 받았을 때도 스켈레톤이 남지 않게 한 번 다시 그림 (받았을 때는 받은 쪽이 다시 그림)
+    setTimeout(()=>{ try{ renderList(); if(!$('#myModal').hidden) renderMy(); if(!$('#bookModal').hidden) paintBook(); if(typeof ALERT_WIN!=='undefined' && ALERT_WIN) checkTbdPopup(true); }catch(_){} }, 0); }
   const chip=$('#syncChip'), n=pending.length;
   // 연결돼 있으면 아무것도 안 보임. 문제가 있을 때만 헤더에 표시 (비밀번호 문제는 팝업)
   const txt={ loading:'', ok: n?`올리는 중 ${n}건`:'', error: n?`연결 끊김 · ${n}건 대기 · 다시 시도 중`:'연결 끊김 · 다시 시도 중', needkey:'' }[syncState];
@@ -2812,6 +2820,7 @@ async function renderList(){
   { const pb=$('#pastBar'); pb.classList.toggle('dim', !!q); $('#pastSum').textContent = `${sorted.length}건`; $('#pastSum').title = q ? '검색 결과 (검색 중에는 기간이 적용되지 않습니다)' : ''; $('#pastTo').min = pf || ''; }
   $('#listBody').innerHTML=sorted.map(r=>`<tr class="r${isPast(r)?' past':''}${stageOf(r)==='예약취소'?' cancel':''}" data-id="${r.id}"><td class="num">${dateLabel(r.date)}</td><td>${stageTag(r)}</td><td>${needCall(r)?'<span class="tag call">전화 필요</span> ':''}${esc(r.org||(needCall(r)?`예약자 ${r.contact||''}`:''))}${needCall(r)?`<br><small class="hint">${esc((r.summary||'').replace(/^자동 등록 · 전화 필요 · /,''))}</small>`:''}</td><td class="contacts-cell">${contactCell(r)}</td><td class="num">${esc(r.people)}</td><td class="num">${esc((r.tin||'')+(r.tout?'~'+r.tout:''))}</td><td>${esc(mealSum(r))}</td><td>${docTag(r,"quote")}</td><td>${docTag(r,"stmt")}</td><td class="owner">${esc(r.owner||r.takenBy)}</td><td class="num">${fmt(r.saved)}</td><td class="acts">${del(r.id)}</td></tr>`).join('')
     || `<tr><td colspan="12" class="hint">${q ? `'${esc(q)}'(으)로 찾은 예약이 없습니다.` : !pool.length ? '저장한 단체예약이 없습니다.' : '이 기간 · 보이는 단계에 해당하는 예약이 없습니다. 지난 예약은 기간의 시작 날짜를 앞으로 바꾸세요.'}</td></tr>`;
+  if(!sorted.length && !q && gWaiting()) $('#listBody').innerHTML=SY.skel('table', 8, {cols:12, label:'예약 목록을 불러오는 중'});   // 사본이 없고 처음 받는 중이면 「저장한 단체예약이 없습니다」 대신 스켈레톤 (2026-11-27 · js/group/07-store.js gWaiting)
   // 캘린더 보기: 같은 단계 버튼 · 검색으로 고른 예약을 달력에. 검색어가 바뀌면 찾은 예약이 있는 달로 (앞으로 있을 가장 가까운 예약 · 없으면 가장 최근에 지난 예약 — 그 뒤 ‹ › 로 넘기는 것은 그대로)
   if(!q) calJumpQ=''; else if(cal && q!==calJumpQ){ calJumpQ=q; const ds=shown.map(r=>r.date).filter(Boolean).sort(), to=ds.find(d=>d>=today) || ds[ds.length-1]; if(to) calMonth=to.slice(0,7); }
   const calList = shown;
@@ -3184,7 +3193,7 @@ function renderPrice(){
       : n && !rec.date ? '<p class="price-need"><b>방문일</b>을 입력해 주세요. 평일 · 주말 가격이 달라 방문일이 있어야 금액이 나옵니다.</p>'
       : '<p class="hint" style="margin:0">방문일과 관람 인원을 넣으면, 예약 칸에서 고른 관람 · 식사 · 프로그램의 금액이 여기에 나옵니다.</p>';
   } else if(!quoteCat){
-    box.innerHTML = '<p class="hint" style="margin:0">견적서 사이트에서 가격을 불러오는 중입니다.</p>';
+    box.innerHTML = priceLoaded===null ? SY.skel('list', 3, {lines:1, label:'가격을 불러오는 중'}) : '<p class="hint" style="margin:0">견적서 사이트에서 가격을 불러오는 중입니다.</p>';   // 처음 받는 중 = 스켈레톤 (2026-11-27) · 못 받은 뒤에는 예전 글
   } else {
     const {blocks, skipped} = quoteBlocks(rec);
     let total=0; const missing=[]; priceInfo={};
@@ -4195,6 +4204,7 @@ function renderMy(){ paintMySet();
   const me=savedOwner(), today=ymd(new Date()), past=$('#myPast').checked;
   $('#myTitle').textContent = me ? `나의 할일 · ${me}` : '나의 할일';
   if(!me){ $('#mySum').textContent=''; $('#myBody').innerHTML='<p class="hint">맨 위 초록 헤더의 <b>영업 담당</b>에 이름을 넣으면, 그 이름이 영업 담당인 예약을 모아 보여 줍니다.</p>'; return; }
+  if(gWaiting()){ $('#mySum').textContent=''; $('#myBody').innerHTML=`<div class="my-cols three">${[0,1,2].map(i=>`<div class="my-col">${SY.skel('list', 4, {label: i ? ' ' : '나의 할일을 불러오는 중'})}</div>`).join('')}</div>`; return; }   // 사본이 없고 처음 받는 중 (2026-11-27 · js/group/07-store.js gWaiting)
   const mine = myRecords().map(r=>({r, x:xOf(r), tasks:openTasksOf(r).filter(t=>taskForMe(r, t, me))}));   // 다른 담당자의 준비 과업은 빼고 (2026-11-24)
   const ahead = mine.filter(o=>!o.r.date || o.r.date>=today);
   const tbdAll = ahead.filter(o=>o.x.tbd);
@@ -4517,7 +4527,7 @@ function checkTbdPopup(force){
   // 개인고객 화면과 같은 기록(SY_ALERT · sayuwon_task_slot)을 써서, 한 시각에 여러 화면 · 여러 탭에서 또 뜨지 않음
   // 2026-11-26: 따로 뜨는 창으로 (SY_ALERT.show · js/common.js — 브라우저가 막으면 화면을 처음 누를 때 엶 · 끝내 안 열리면 이 화면 팝업)
   if(ALERT_WIN){ const due=alertList();
-    if(!due.length){ $('#tbdList').innerHTML='<li class="hint">지금 알릴 과업이 없습니다.</li>'; $('#tbdTitle').textContent='과업 알림'; $('#tbdModal').hidden=false; return; }
+    if(!due.length){ $('#tbdList').innerHTML = gWaiting() ? `<li class="hint">${SY.skel('list', 3, {label:'과업을 불러오는 중'})}</li>` : '<li class="hint">지금 알릴 과업이 없습니다.</li>';   /* 사본이 없고 처음 받는 중이면 스켈레톤 (2026-11-27) */ $('#tbdTitle').textContent='과업 알림'; $('#tbdModal').hidden=false; return; }
     paintAlert(due); return; }
   const k=SY_ALERT.keyNow(); if(!force && (!k || SY_ALERT.seen(k))) return;
   if(!force && !ENG && [...document.querySelectorAll('.modal')].some(m=>!m.hidden)) return;   // 다른 팝업이 떠 있으면 나중에 (1분마다 다시 봄)

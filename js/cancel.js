@@ -44,7 +44,7 @@
   async function load(){
     if(!SY.getKey()){ $('#keyBox').hidden=false; return; }
     try{ reqs=(await fetchAll()).rows; loaded=true; $('#keyBox').hidden=true; render(); }
-    catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast(SY.authFail()); } else st('불러오지 못함 — 잠시 뒤 다시 열어 주세요', 'bad'); }
+    catch(e){ if(e.code==='bad_key'){ $('#keyBox').hidden=false; toast(SY.authFail()); } else st('불러오지 못함 — 잠시 뒤 다시 열어 주세요', 'bad'); loadFailed=true; render(); }
   }
 
   // ---------- 빠진 정보 (2026-11-23): 요청 목록에 「⚠ 빠진 정보」로 표시 · 「정보 덜 된 것만」으로 모아 보기 ----------
@@ -238,10 +238,12 @@
   };
 
   // ---------- ② 목록 · 처리 ----------
+  let loadFailed=false;
   function render(){
     const nOpen=reqs.filter(r=>!r.done).length, nMiss=reqs.filter(r=>!r.done && missOf(r).length).length;
     $('#openN').textContent = nOpen ? nOpen : ''; $('#missN').textContent = nMiss ? nMiss : '';
-    if(!loaded){ $('#list').innerHTML='<p class="hint">로그인하면 요청 목록이 보입니다.</p>'; return; }
+    // 받는 동안은 스켈레톤 (2026-11-27 · 예전에는 로그인했는데도 「로그인하면 …」이 잠깐 보였음) · 로그인 안 함 · 못 받음 = 예전 글 그대로
+    if(!loaded){ $('#list').innerHTML = SY.getKey() && !loadFailed ? SY.skel('list', 5, {label:'요청 목록을 불러오는 중'}) : '<p class="hint">로그인하면 요청 목록이 보입니다.</p>'; return; }
     const onlyMiss=$('#fltMiss').checked;
     const q=$('#q').value.trim().replace(/\s/g,'').toLowerCase(), qd=digits(q);
     const list=reqs.filter(r=>(flt==='all' || (flt==='open' ? !r.done : !!r.done)) && (!onlyMiss || (!r.done && missOf(r).length))

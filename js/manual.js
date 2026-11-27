@@ -42,6 +42,7 @@
   // ---------- 서버 ----------
   async function load(quiet){
     if(!quiet) st('불러오는 중…','');
+    if(!loaded) $('#main').innerHTML=SY.skel('text', 14, {label:'매뉴얼을 불러오는 중'});   // 받는 동안 글 자리에 스켈레톤 (2026-11-27 · js/common.js SY.skel)
     try{ const j=await SY.call({action:'manualList'}); rows=(j.items||[]).map(r=>({...r, data: typeof r.data==='string' ? (()=>{ try{ return JSON.parse(r.data||'{}'); }catch(_){ return {}; } })() : (r.data||{})})); loaded=true; st('',''); buildIndex(); paint(); }
     catch(e){ st(e.code==='bad_action' ? '서버(Cloudflare)를 새 코드로 올려야 합니다' : e.code==='bad_key' ? SY.authFail() : '불러오지 못함','bad');
       if(!loaded) $('#main').innerHTML = `<div class="mn-empty"><p><b>매뉴얼을 불러오지 못했습니다.</b></p><p class="hint">${e.code==='bad_action' ? '서버(Cloudflare Worker)에 cloudflare/worker.js 새 코드를 붙여 넣어 주세요 (manual 표).' : esc(e.code||e.message)}</p></div>`; }
