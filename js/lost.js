@@ -40,7 +40,10 @@ const OPS_PAGE =
       //   꼭 넣기: 습득자 이름 · 신고의 사유원 담당자(로그인했을 때 — 저절로 채워짐 · 로그인 없이 접수하면 비워도 됨). 담당자 연락처는 꼭이 아님 (예전 「신고자 연락처 꼭」은 고객에게 연락하려던 것 — 이제 고객 번호는 위 칸)
       {k:'person', l:d=>lostWho(d), type:'text', req:d=>lostKind(d)==='습득' || !lostGuest()}, 
       // 2026-11-27: 습득자 연락처는 새로 접수할 때 꼭 (예전 습득 기록을 고칠 때는 비어 있어도 저장됨) — 로그인했으면 멤버관리의 연락처가 저절로 들어감 (아래 onField · opsboard.js 의 opsMe)
-      {k:'phone', l:d=>lostWho(d)+' 연락처', type:'tel', req:d=>lostKind(d)==='습득' && lostNew()},
+      // 2026-11-27: 이 칸도 전화번호 입력 틀(fmt:'phone' · js/opsboard.js) — 빈 칸에 들어가면 010- · 치는 동안 - 를 저절로 · 010- 만 든 채로는 빈 것.
+      //   모양 확인(bad)은 이번에 손댄 번호만 (둘째 값 touched) — 예전 기록의 번호 · 저절로 채운 멤버 연락처는 그대로 저장됨. 지역 번호(02 · 053 …) · 대표번호(1588-0000)도 받음
+      {k:'phone', l:d=>lostWho(d)+' 연락처', type:'tel', ph:'010-0000-0000', req:d=>lostKind(d)==='습득' && lostNew(), fmt:'phone',
+        bad:(v, touched)=>!v || !touched || /^(\d{2,4}-\d{3,4}-\d{4}|1\d{3}-\d{4})$/.test(v) ? '' : '연락처를 010-0000-0000 처럼 넣어 주세요 (지금: '+v+')'},
       // 상태 칸은 접수 · 수정 창에 없음 (2026-11-24): 처음은 신고 = 찾는 중 · 습득 = 보관중 (onField) · 바꾸기는 표의 드롭다운에서만
       {k:'returnDate', l:'반환일', type:'date', show:d=>d.status==='반환 완료'},
       {k:'returnTo', l:'반환 받은 분', type:'text', show:d=>d.status==='반환 완료'},
