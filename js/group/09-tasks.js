@@ -215,8 +215,10 @@ const MABANG_RULES = `■ 무엇
   몽몽마방 식사를 빼면: 손대지 않은 과업은 목록에서 빠지고, 직접 체크했거나 메모를 적은 과업은 남음
 
 ■ 복사 멘트 (마방측에 보고할 글)
-  기본 {마방보고} = [몽몽마방 예약] 방문일 시간 · 단체명 · 인원 · 메뉴 · 결제 ○○ · 비고 — 넣은 것만 · 예약 내용이 바뀌면 글도 바뀜
-  예) [몽몽마방 예약] 12/5(토) 12:00~13:00 · 중앙교육연수원 · 10명 · 사유의 밥상 · 결제 마방
+  기본 {마방보고} = 방문일 시작 시각 단체명 인원 메뉴 + 「있습니다」 — 넣은 것만 · 예약 내용이 바뀌면 글도 바뀜
+  예) 12/5(토) 12:00 중앙교육연수원 10명 사유의 밥상 있습니다
+  「예약 목록 이미지 복사」 (컴퓨터에서만 보임): 오늘부터 앞으로 있는 몽몽마방 예약을 모두 표 이미지로 복사 → 메신저에 Ctrl+V 로 붙여 글과 같이 보냄
+    · 이번에 보고하는 예약(지금 열어 둔 예약)은 줄 색이 다르고 「새 예약」 이름표가 붙음 · 복사가 안 되는 브라우저에서는 파일로 내려받음
   과업에서 글을 직접 고칠 수도 있음 (고친 뒤 「다시 만들기」를 누르면 예약 내용으로)
 
 ■ 다른 과업과 겹치는 것
@@ -228,7 +230,44 @@ const MABANG_RULES = `■ 무엇
     · 아직 안 끝낸 예약 = 「시간 확인」이 안 된 채로 열려 있고, 결제방식 · 메뉴는 칸에 맞춰 체크됨
     · 예전 과업을 지워 둔 예약 = 이 과업도 안 뜸`;
 // 마방측에 보고할 글 (복사 멘트 {마방보고}): 넣은 것만
-const mbReport = r => '[몽몽마방 예약] ' + [[r.date && dateLabel(r.date), String(r.mabangTime||'').replace(/~$/,'')].filter(Boolean).join(' '), String(r.org||'').trim(), numOf(r.mabangL) ? numOf(r.mabangL)+'명' : '', String(r.mabangMenu||'').trim(), r.mabangPay && r.mabangPay!=='미정' ? '결제 '+r.mabangPay : '', String(r.mabangNote||'').trim()].filter(Boolean).join(' · ');
+//  2026-11-27 (같은 날 다시 · 운영팀이 정한 모양): 「12/3(목) 11:00 의성군가족센터 23명 사유의 밥상 있습니다」 — 방문일 · 시작 시각 · 단체명 · 인원 · 메뉴 + 「있습니다」 (결제 · 비고 · 끝 시각은 넣지 않음)
+const mbReport = r => [r.date && dateLabel(r.date), String(r.mabangTime||'').split('~')[0].trim(), String(r.org||'').trim(), numOf(r.mabangL) ? numOf(r.mabangL)+'명' : '', String(r.mabangMenu||'').trim(), '있습니다'].filter(Boolean).join(' ');
+// 몽몽마방 예약 목록 이미지 (2026-11-27): 보고하는 날(오늘)부터 앞으로 있는 몽몽마방 예약 모두를 표 한 장으로 → 클립보드에 복사 (메신저에 Ctrl+V 로 붙여 넣어 보고 글과 같이 보냄 · 컴퓨터에서만 — 버튼은 renderTasks)
+//  자료 = 예약 현황의 몽몽마방 목록과 같음 (mbAllRows — 단체 예약의 몽몽마방 식사 + 직접 넣은 것) · 지금 열어 둔 예약(이번에 보고하는 것)은 줄 바탕색을 다르게 + 「새 예약」 이름표
+async function mbListImg(){
+  const today=todayYmd(), rows=mbAllRows().filter(x=>x.d && x.d>=today).sort((a,b)=>(a.d+String(a.t)).localeCompare(b.d+String(b.t)));
+  const W=920, PAD=36, FONT=getComputedStyle(document.body).fontFamily || 'sans-serif', f=(px,b)=>`${b?'700 ':''}${px}px ${FONT}`;
+  const COLS=[['일자',130,'c'],['시간',170,'c'],['단체',0,'l'],['인원',90,'c'],['메뉴',220,'l']], TW=W-PAD*2; COLS[2][1]=TW-COLS.reduce((s,c)=>s+c[1],0);
+  const probe=document.createElement('canvas').getContext('2d');
+  const cut=(text,w,px,b)=>{ probe.font=f(px,b); let s=String(text||''); if(probe.measureText(s).width<=w) return s; while(s && probe.measureText(s+'…').width>w) s=s.slice(0,-1); return s+'…'; };
+  const RH=56, HEAD=118, TH=52, FOOT=24, body=(rows.length||1)*RH, H=HEAD+TH+body+FOOT;
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d'); ctx.textBaseline='middle';
+  ctx.fillStyle='#f5f3ee'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#2b2a26'; ctx.font=f(32,1); ctx.fillText('몽몽마방 예약 목록', PAD, 44);
+  ctx.fillStyle='#7a766b'; ctx.font=f(18); ctx.fillText(`${dateLabel(today)} 기준 · 앞으로 있을 예약 ${rows.length}건`, PAD, 86);
+  if(rows.some(x=>x.cur)){ const lx=W-PAD-250; ctx.fillStyle='#ffe9b0'; ctx.fillRect(lx, 74, 26, 24); ctx.fillStyle='#8a5a00'; ctx.font=f(18,1); ctx.fillText('이번에 추가된 예약', lx+36, 86); }
+  const tx=PAD, ty=HEAD;
+  ctx.fillStyle='#3f5440'; ctx.fillRect(tx,ty,TW,TH);
+  { let cx=tx; ctx.font=f(19,1); ctx.fillStyle='#fff'; COLS.forEach(([n,w,al])=>{ ctx.textAlign=al==='c'?'center':'left'; ctx.fillText(n, al==='c'?cx+w/2:cx+14, ty+TH/2); cx+=w; }); ctx.textAlign='left'; }
+  let y=ty+TH;
+  rows.forEach((x,i)=>{ const cur=!!x.cur; ctx.fillStyle = cur ? '#ffe9b0' : i%2 ? '#faf8f3' : '#fff'; ctx.fillRect(tx,y,TW,RH); if(i){ ctx.fillStyle='#ebe7dd'; ctx.fillRect(tx,y,TW,1); }
+    let cx=tx; const mid=y+RH/2, ink=cur?'#5a3b00':'#2b2a26';
+    ctx.textAlign='center'; ctx.font=f(20,cur); ctx.fillStyle = !cur && isRedDay(x.d) ? '#b3412e' : ink; ctx.fillText(dateLabel(x.d), cx+COLS[0][1]/2, mid); cx+=COLS[0][1];
+    ctx.fillStyle = x.t ? ink : '#b3412e'; ctx.fillText(x.t||'미정', cx+COLS[1][1]/2, mid); cx+=COLS[1][1];
+    ctx.textAlign='left'; ctx.fillStyle=ink; ctx.font=f(21,1);
+    { let ox=cx+14; if(cur){ ctx.font=f(15,1); const tw=ctx.measureText('새 예약').width+16; ctx.fillStyle='#8a5a00'; ctx.fillRect(ox, mid-13, tw, 26); ctx.fillStyle='#fff'; ctx.fillText('새 예약', ox+8, mid+1); ox+=tw+8; ctx.fillStyle=ink; ctx.font=f(21,1); }
+      ctx.fillText(cut(x.n, cx+COLS[2][1]-ox-8, 21, 1), ox, mid); } cx+=COLS[2][1];
+    ctx.textAlign='center'; ctx.font=f(20,cur); ctx.fillText(x.p ? x.p+'명' : '-', cx+COLS[3][1]/2, mid); cx+=COLS[3][1];
+    ctx.textAlign='left'; ctx.fillText(cut(x.m||'', COLS[4][1]-22, 20, cur), cx+14, mid); y+=RH; });
+  if(!rows.length){ ctx.fillStyle='#fff'; ctx.fillRect(tx,y,TW,RH); ctx.textAlign='center'; ctx.font=f(19); ctx.fillStyle='#7a766b'; ctx.fillText('앞으로 있을 몽몽마방 예약이 없습니다', tx+TW/2, y+RH/2); ctx.textAlign='left'; }
+  window.__mbImgCanvas=cv;   // 마지막으로 만든 이미지 (확인용)
+  return { blob: await new Promise(r=>cv.toBlob(r, 'image/png')), n:rows.length, cur:rows.filter(x=>x.cur).length }; }
+async function mbListImgCopy(btn){ const txt=btn.textContent; btn.disabled=true; btn.textContent='만드는 중…';
+  try{ const r=await mbListImg(); if(!r.blob){ toast('이미지를 만들지 못했습니다.'); return; }
+    try{ await navigator.clipboard.write([new ClipboardItem({'image/png': r.blob})]); toast(`몽몽마방 예약 ${r.n}건을 이미지로 복사했습니다. 보낼 곳에 붙여넣으세요 (Ctrl+V).`, 3600); }
+    catch(_){ bkDownload(r.blob, `몽몽마방-예약목록-${todayYmd()}.png`); toast('이미지를 복사하지 못해 파일로 내려받았습니다. 내려받은 파일을 붙여 보내 주세요.', 4200); } }
+  finally{ btn.disabled=false; btn.textContent=txt; } }
+document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('#taskList [data-mbimg]'); if(b) mbListImgCopy(b); });
 // 예전 과업 옮기기: 저장된 예약의 mbcall(시간 확인) · mbmenu(메뉴 선택) → mabang. 예약을 열 때 · 열지 않은 예약을 셀 때(simTasks) 돌고, 저장하면 그 모양으로 남음 (자료를 한꺼번에 고치지 않음)
 //  - 묶음이 아직 없으면 예전 과업을 그 자리에서 묶음으로 바꿈 (메모 · 마감 · 순서 · 파일 · 세부 과제 · 지운 표시 그대로) · 직접 고친 제목은 메모로
 //  - 시간 확인을 끝낸 예약은 묶음도 끝난 것으로 (끝난 과업에 세부 과업이 더해지면 모두 체크 — syncAutoTasks 의 원래 규칙) · 사람이 끝낸 것이라 manualDone
@@ -498,7 +537,7 @@ function renderTasks(){
       <div class="task-h">${t.done?'':`<span class="tdrag" title="끌어서 순서 바꾸기">⠿</span>`}<span class="task-c"><input type="checkbox" data-tk="${esc(t.id)}"${t.done?' checked':''} title="체크하면 완료"><input class="ttl" data-tttl="${esc(t.id)}" value="${esc(t.title)}" data-ime="ko" spellcheck="false" autocomplete="off" title="눌러서 제목 고치기 (Enter로 확정)"></span>${t.who && t.who!==String(rec.owner||"").trim() ? `<span class="tk-whotag" title="이 과업을 할 사람 (영업 담당이 아님 · 그 사람의 나의 할일에 나옴)">👤 ${esc(t.who)}</span>` : ""}${t.done && subsDone?`<button type="button" class="texp" data-texp="${esc(t.id)}">${fold?'자세히 ▾':'접기 ▴'}</button>`:''}
         <label class="tdue" title="마감일 · 바꿀 수 있음">${late?'기한 지남 ':due==='9999-12-31'?'마감 없음 ':'마감 '}${dboxHTML(`data-tdue="${esc(t.id)}"`, due==="9999-12-31" ? "" : due)}</label><button type="button" class="tsave" data-tsave="${esc(t.id)}" title="이 과업의 고친 내용(체크 · 제목 · 마감일 · 메모 · 세부 과제)을 지금 저장">저장</button><button type="button" class="del" data-tdel="${esc(t.id)}" title="이 과업 삭제 (확인 뒤)" aria-label="과업 삭제">×</button></div>
       ${typeof tcfgDescHTML==='function' ? tcfgDescHTML(t) : (t.id==='pplchk' && pplChanges(t).length ? `<div class="tk-chg tchg-line">바뀐 내용: ${pplChanges(t).map(esc).join(' · ')}</div>` : '')}${t.id==='memocheck'?memoTaskList():''}${subsHTML(t)}${docBtn}${files}
-      ${txt?`<textarea class="tnote${t.noteEdit?' edited':''}" id="tpre_${esc(t.id)}" data-tnote="${esc(t.id)}" spellcheck="false" title="자동으로 만든 문구 · 직접 고칠 수 있음">${esc(txt)}</textarea><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')||t.id==='tour'?'비고 문구 복사':'문구 복사'}</button>${t.noteEdit?`<button type="button" class="btn" data-tregen="${esc(t.id)}" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><span class="hint" style="margin:0">직접 고친 문구</span>`:''}<span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
+      ${txt?`<textarea class="tnote${t.noteEdit?' edited':''}" id="tpre_${esc(t.id)}" data-tnote="${esc(t.id)}" spellcheck="false" title="자동으로 만든 문구 · 직접 고칠 수 있음">${esc(txt)}</textarea><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')||t.id==='tour'?'비고 문구 복사':'문구 복사'}</button>${t.id==='mabang' && innerWidth>=700 && !matchMedia('(pointer:coarse)').matches ? `<button type="button" class="btn" data-mbimg="1" title="오늘부터 앞으로 있는 몽몽마방 예약을 모두 표 이미지로 복사합니다 (이 예약은 다른 색) · 메신저에 Ctrl+V 로 붙여넣기">예약 목록 이미지 복사</button>` : ''}${t.noteEdit?`<button type="button" class="btn" data-tregen="${esc(t.id)}" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><span class="hint" style="margin:0">직접 고친 문구</span>`:''}<span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
         <label class="btn up${upBusy?' busy':''}">${upBusy?'올리는 중…':(t.files||[]).length?'사업자등록증 추가로 올리기':'사업자등록증 올리기'}<input type="file" data-tup="${esc(t.id)}" accept="image/*,application/pdf" hidden${upBusy?' disabled':''}></label>
         <span class="hint" style="margin:0">사진 · PDF, 10MB 이하 · 구글 드라이브 '사유원 단체예약 서류' 폴더에 저장</span></div>` : ''}
