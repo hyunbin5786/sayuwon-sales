@@ -80,7 +80,7 @@ const ERP_PROG_NAME = { donghaeng:'동행도슨트', seminar:'PPT세미나', sem
 // 전산 비고 규칙 (2026-11-24 정리) — 추후과업 메시지 관리의 「전산 예약」 · 「전산 예약 수정」을 열면 이 글이 그대로 보임 (js/taskcfg.js). 규칙을 바꾸면 이 글도 같이 고쳐 주세요
 const ERP_NOTE_RULES = `■ 모양
   항목 / 항목 / 항목 … (영업 담당 이름)
-  예) 현장 결제 필요 / 10시 입장 / 12시 몽몽마방(사유의 밥상 10명) / 13시 PPT세미나(당두봉갈) / 음료쿠폰 40개 / 굿즈 고추장 2개 (문현빈)
+  예) 현장 결제 필요 / 10시 입장 / 12시 몽몽마방(사유의 밥상 10명) / 13시 PPT세미나(당두봉갈, 김철수 담당) / 음료쿠폰 40개 / 굿즈 고추장 2개 (홍길동)
 
 ■ 순서
   ① 맨 앞 — 시간이 없는 확인 사항: 현장 결제 필요(또는 현장 재결제 필요) → 특별 할인 증빙 → 대구대교구 시트기입 → 학생 확인
@@ -98,15 +98,20 @@ const ERP_NOTE_RULES = `■ 모양
   · 도착 — 입장 시각 + 입장문: 「9시 치허문」 · 「10:30 곡신문」 (입장문을 아직 안 정했으면 「9시 입장」)
   · 시각 쓰는 법 — 정시는 「9시」, 그 밖은 「10:30」 · 일정이 정시~정시면 「15-16시」, 아니면 시작 시각만
   · 몽몽마방 식사 — 「12시 몽몽마방(사유의 밥상 10명)」: 마방 시간 · 메뉴 · 인원 중 넣은 것만
-  · 프로그램 · 대관 · 도슨트 — 「시간 이름(출발지, 장소)」
+  · 프로그램 · 대관 · 도슨트 — 「시간 이름(출발지, 장소, ○○○ 담당)」 · 괄호는 항목마다 하나, 안에서 쉼표로 나눔
        이름: 동행 도슨트 = 동행도슨트 · 세미나 도슨트 = PPT세미나 · 새벽 해오름 산책 = 일출 · 차방 대관 = 자체세미나(차방)
              · 당두봉갈 대관 = 자체세미나(당두) · 요가 · 사운드워킹 · 사유의 향 · 그 밖의 프로그램은 품목 이름(띄어쓰기 없이)
        도슨트 출발지: 「앵당~」 · 「치허문~」 · 세미나 도슨트 장소: (당두봉갈) · 세미나 도슨트 2회면 두 번째도 따로 한 칸
   · 음료쿠폰 — 「음료쿠폰 40개」
   · 굿즈 — 「굿즈 고추장 2개, 모과청 1개」 (예약 내역의 굿즈 품목 · 수량 그대로)
+  · 담당자 — 예약 내역의 「담당」 칸에 고른 사람을 그 항목의 괄호 안에 「김철수 담당」으로 (2026-11-27)
+       예) 13:30 동행도슨트(앵당~, 김철수 담당) · 15-16시 자체세미나(당두, 김철수 담당) · 10시 요가(김철수 담당)
+           음료쿠폰 40개(김철수 담당) · 굿즈 고추장 2개, 모과청 1개(김철수 담당)
+       담당이 영업 담당(끝의 괄호)과 같은 사람이면 안 씀 · 담당 칸이 비어 있어도 안 씀 · 여러 명이면 「김철수·이영희 담당」
+       세미나 도슨트 2회는 장소마다 담당을 따로 · 굿즈 담당은 굿즈 전체에 한 명 · 몽몽마방은 담당 칸이 없음
 
 ■ 넣지 않는 것
-  사담 런치 · 디너(전산에 상품으로 있음) · 금액 · 출입구 미정 · 인원 변경 · 통화 메모 · 프로그램 · 굿즈 담당자 이름
+  사담 런치 · 디너(전산에 상품으로 있음) · 금액 · 출입구 미정 · 인원 변경 · 통화 메모 · 영업 담당과 같은 사람인 항목 담당자
 
 ■ 비고가 비는 때
   입장 시각이 아직 미정이면 비고를 만들지 않음 (입장 시각을 넣으면 생김)
@@ -119,18 +124,22 @@ const ERP_NOTE_RULES = `■ 모양
   · 규칙(순서 · 이름 · 쓰는 말) 자체를 바꾸려면: js/group/09-tasks.js 의 erpNote (코드) — 이 글(ERP_NOTE_RULES)도 같이 고치기`;
 function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문구는 런치 · 디너를 뺌 (2026-11-19)
   const items=[];
+  const who=(r.owner||savedOwner()||'').trim();   // 끝에 항상 (영업 담당 이름)
+  // 2026-11-27: 항목 담당자도 괄호 안에 「김철수 담당」 — 괄호는 항목마다 하나(쉼표로 나눔) · 영업 담당과 같은 사람이거나 비어 있으면 안 씀 · 여러 명이면 「김철수·이영희 담당」
+  const stfTag = v => { const L=String(v||'').split(/\s*,\s*/).map(w=>w.trim()).filter(Boolean); return !L.length || (L.length===1 && L[0]===who) ? '' : `${L.join('·')} 담당`; };
+  const withStf = (s, v) => s + (stfTag(v) ? `(${stfTag(v)})` : '');
   // 런치 · 디너는 비고에 안 씀 (2026-11-19 · 상품으로 전산에 있음). noMeal 은 예전 호출 그대로 둠
   // 2026-11-24: 몽몽마방 식사 · 음료쿠폰도 비고에 (대관 · 도슨트 · 프로그램은 예전부터) — 「12시 몽몽마방(사유의 밥상 10명)」 · 「음료쿠폰 40개」
   if(numOf(r.mabangL) || r.mabangTime){ const inner=[String(r.mabangMenu||'').trim(), numOf(r.mabangL)?`${numOf(r.mabangL)}명`:''].filter(Boolean).join(' '); items.push([erpProgT(r.mabangTime), '몽몽마방'+(inner?`(${inner})`:'')].filter(Boolean).join(' ')); }
   // 맨 뒤에 붙는 것 (2026-11-24 순서): 음료쿠폰 → 굿즈 — 시간 순 일정 뒤 · (영업 담당) 앞
   const tail=[];
-  if(String(r.gaga||'').trim() && String(r.gaga).trim()!=='0') tail.push(`음료쿠폰 ${/^\d+$/.test(String(r.gaga).trim())?String(r.gaga).trim()+'개':String(r.gaga).trim()}`);
-  if(String(r.goods||'').trim() && goodsText(r)) tail.push(`굿즈 ${goodsText(r)}`);
+  if(String(r.gaga||'').trim() && String(r.gaga).trim()!=='0') tail.push(withStf(`음료쿠폰 ${/^\d+$/.test(String(r.gaga).trim())?String(r.gaga).trim()+'개':String(r.gaga).trim()}`, r.stf_gaga));
+  if(String(r.goods||'').trim() && goodsText(r)) tail.push(withStf(`굿즈 ${goodsText(r)}`, r.stf_goods));
   FIELDS.filter(f=>/^프로그램/.test(f[0]) && !isSub(f[1]) && r[f[1]] && f[1]!=='gaga').forEach(f=>{   // 음료쿠폰은 위에서 따로
     const k=f[1], sub=p=>String(r[`${p}_${k}`]||'').trim(), name=ERP_PROG_NAME[k] || String(f[2]).replace(/\s+/g,'');
-    const paren=[erpCrs(sub('crs')), /\(/.test(name) ? '' : sub('plc')].filter(Boolean).join(', ');   // 괄호 = 도슨트 출발 위치 · 장소만 (담당자는 안 씀, 2026-11-19) · 자체세미나(당두)처럼 이름에 장소가 있으면 장소는 빼고
+    const paren=[erpCrs(sub('crs')), /\(/.test(name) ? '' : sub('plc'), stfTag(sub('stf'))].filter(Boolean).join(', ');   // 괄호 = 도슨트 출발 위치 · 장소 · 담당자 (담당자는 2026-11-27 부터) · 자체세미나(당두)처럼 이름에 장소가 있으면 장소는 빼고
     items.push([erpProgT(sub('tm')), /\(/.test(name) && paren ? name.replace(/\)$/, `, ${paren})`) : name+(paren?`(${paren})`:'')].filter(Boolean).join(' '));
-    if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2)) items.push([erpProgT(r.tm_seminar2), name+(r.plc_seminar2?`(${String(r.plc_seminar2).trim()})`:'')].filter(Boolean).join(' '));
+    if(k==='seminar' && numOf(r.seminar)>=2 && !r.seminar2 && (r.tm_seminar2||r.plc_seminar2||stfTag(r.stf_seminar2))){ const p2=[String(r.plc_seminar2||'').trim(), stfTag(r.stf_seminar2)].filter(Boolean).join(', '); items.push([erpProgT(r.tm_seminar2), name+(p2?`(${p2})`:'')].filter(Boolean).join(' ')); }
   });
   if(r.onsite) items.push('현장 재결제 필요'); else if(r.pay==='현장 결제') items.push('현장 결제 필요');   // 2026-11-25: 「현장 재결제」 체크면 「현장 재결제 필요」 · 2026-11-24: 「현장결제」 → 「현장 결제 필요」 (사전답사 비고의 「n명 현장 결제 필요」와 같은 말투)
   { const all=specialCounts(r), cl=all.find(s=>s.k==='dClergy'), sp=all.filter(s=>s.k!=='dClergy' && s.k!=='dGuide'); sp.forEach(s=>items.push(`${s.short} ${s.n}명 증빙서류 확인 필요`));   /* 2026-11-24: 끝에 「필요」 */ if(cl) items.push(`${cl.short} ${cl.n}명 시트기입`); }   // 입장 때 확인할 것
@@ -141,7 +150,6 @@ function erpNote(r, noMeal){   // noMeal: 「전산 예약 수정」 과업 문�
   const startMin = s => { const m=String(s).match(/^(\d{1,2})(?::(\d\d))?(?=시|\s|-|~)/); return m ? +m[1]*60+(+m[2]||0) : null; };
   const timed=items.filter(s=>startMin(s)!=null), rest=items.filter(s=>startMin(s)==null);
   const parts = [...(timed.length && r.tin ? [...rest, ...[arrive, ...timed].sort((a,b)=>(startMin(a)??-1)-(startMin(b)??-1))] : [...items, arrive].filter(Boolean)), ...tail];
-  const who=(r.owner||savedOwner()||'').trim();   // 끝에 항상 (영업 담당 이름)
   if(!r.tin) return '';   // 입장 시간이 미정이면 전산 비고에 남길 것이 없음 (2026-11-19)
   return parts.join(' / ') + (who ? ` (${who})` : '');
 }
