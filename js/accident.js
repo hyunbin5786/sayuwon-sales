@@ -185,18 +185,19 @@ const OPS_PAGE =
     fields:[
       // 묶음 제목의 col = 창의 몇째 열 (2026-11-28 · 단체 화면처럼 3열 · opsboard.js paintForm) — 새로 접수: 개요 | 대상자 | 내용 · 고칠 때: 사고 내용(세 묶음) | 뒤처리 · 보험 | 진행(단계 · 추후과업 · 메모 = #accSide)
       {type:'head', l:'① 접수 · 사고 개요', col:1},
+      {w:2, html:()=>`<button type="button" class="btn sm" id="accErpBtn">예약 내역 넣기</button>`},   // 전산의 상품 정보를 붙여 넣는 창 (#accErpModal) → 넣을 수 있는 칸을 채움 (아래 「예약 내역 넣기」)
       {k:'date', l:'사고 일자', type:'date', def:()=>opsToday(), req:()=>!accEd()}, {k:'time', l:'사고 시각', type:'time'},
       {k:'type', l:'구분', type:'select', opts:['부상','시설 파손','분실 · 도난','민원','기타'], def:()=>'부상'},
       {k:'visitType', l:'방문 유형', type:'select', opts:['','단체','개인','도슨트 투어','몽몽마방 식사','기타'], def:()=>''},
       {k:'place', l:'사고 장소 (사유원 안)', type:'text', ph:'고르거나 직접 적기 · 예: 소요헌 안 계단', list:ACC_PLACES, req:()=>!accEd()}, {k:'group', l:'방문 단체', type:'text', ph:'단체 이름 (개인이면 비움)'},
       {k:'owner', def:()=>accMe(), html:()=>'<i class="ef-none"></i>'},   // 담당자: 칸은 제목 줄 오른쪽(#accOwnerSel · 아래 「제목 줄의 담당자」) — 여기는 처음 값(접수한 사람)만
 
-      {type:'head', l:'사고 대상자 · 대표 예약자', col:1},
+      {type:'head', l:'대표 예약자 · 사고 대상자', col:1},
+      {k:'booker', l:'대표 예약자 이름', type:'text'}, {k:'bookerPhone', l:'대표 예약자 연락처', ...accTel('대표 예약자 연락처')},
+      {k:'bookerSame', w:2, html:d=>`<label class="acc-same"><input type="checkbox" id="accSame"${d.bookerSame?' checked':''}> 사고 대상자가 대표 예약자와 같음</label>`},   // 체크하면 사고 대상자 이름 · 연락처 = 대표 예약자의 것 (적는 대로 따라감 · 아래 「사고 대상자 = 대표 예약자」)
       {k:'person', l:'사고 대상자 이름', type:'text'}, {k:'phone', l:'사고 대상자 연락처', ...accTel('사고 대상자 연락처')},
       {k:'personNote', l:'대상자 비고 (성별 · 연령대 등)', type:'text', w:2},
-      {k:'bookerSame', w:2, html:d=>`<label class="acc-same"><input type="checkbox" id="accSame"${d.bookerSame?' checked':''}> 대표 예약자가 사고 대상자와 같음</label>`},   // 체크하면 대표 예약자 이름 · 연락처 = 사고 대상자의 것 (적는 대로 따라감 · 아래 「대표 예약자 = 사고 대상자」)
-      {k:'booker', l:'대표 예약자 이름', type:'text'}, {k:'bookerPhone', l:'대표 예약자 연락처', ...accTel('대표 예약자 연락처')},
-      {k:'erp', l:'상품 정보', type:'textarea', w:2, ph:'전산의 상품 정보를 복사해 붙여 넣기'},   // 전산의 예약 상품 내역 (방문일자 · 상품 · 인원 · 금액) — 붙여 넣으면 방문자 이름 · 연락처를 비어 있는 대표 예약자 칸에 넣음
+      {k:'erp', l:'예약 내역 (상품 정보)', type:'textarea', w:2, show:d=>!!String(d.erp||'').trim()},   // 「예약 내역 넣기」로 넣은 글 그대로 (넣은 뒤에만 보임 · 고칠 수 있음)
 
       {type:'head', l:'사고 내용', col:1},
       {k:'what', l:'사고 내용', type:'textarea', w:2},
@@ -269,18 +270,32 @@ document.addEventListener('click', e=>{ const t=e.target; if(!t.closest) return;
  });
 document.addEventListener('mousedown', e=>{ if(e.target.id==='accListModal') accListOpen(false); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !accListEl().hidden && $('#askModal').hidden) accListOpen(false); }, true);
-// ---------- 대표 예약자 = 사고 대상자 (체크) · 상품 정보 붙여넣기 (2026-11-28) ----------
-//  체크(d.bookerSame)해 두면 대표 예약자 이름 · 연락처 칸은 잠기고 사고 대상자 칸을 따라간다. 체크를 풀면 값은 남고 다시 고칠 수 있다.
-function accSameCopy(){ if(!form.bookerSame) return; form.booker=form.person||''; form.bookerPhone=form.phone||'';
-  const a=document.getElementById('e_booker'), b=document.getElementById('e_bookerPhone'); if(a) a.value=form.booker; if(b) b.value=form.bookerPhone; }
-function accSameLock(){ if(!form.bookerSame) return; ['e_booker','e_bookerPhone'].forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=true; }); }
+// ---------- 사고 대상자 = 대표 예약자 (체크) (2026-11-28 · 같은 날 방향을 바꿈: 대표 예약자를 먼저 적고 「같음」을 누르면 사고 대상자가 채워짐) ----------
+//  체크(d.bookerSame)해 두면 사고 대상자 이름 · 연락처 칸은 잠기고 대표 예약자 칸을 따라간다. 체크를 풀면 값은 남고 다시 고칠 수 있다.
+function accSameCopy(){ if(!form.bookerSame) return; form.person=form.booker||''; form.phone=form.bookerPhone||'';
+  const a=document.getElementById('e_person'), b=document.getElementById('e_phone'); if(a) a.value=form.person; if(b) b.value=form.phone; }
+function accSameLock(){ if(!form.bookerSame) return; ['e_person','e_phone'].forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=true; }); }
 document.addEventListener('change', e=>{ const t=e.target; if(t.id==='accSame'){ form.bookerSame=t.checked; accSameCopy(); paintForm(); return; }
-  if(t.dataset && (t.dataset.k==='person' || t.dataset.k==='phone')){ accSameCopy(); return; }
-  // 상품 정보를 붙여 넣으면: 「방문자정보 이름(연락처)」 줄에서 대표 예약자를 채움 (비어 있을 때만 · 「같음」을 체크했으면 건드리지 않음)
-  if(t.dataset && t.dataset.k==='erp' && !form.bookerSame && !form.booker && !form.bookerPhone){ const m=/방문자\s*정보\s*([^\s(（]+)\s*[(（]\s*([\d\- ]{8,})\s*[)）]/.exec(form.erp||'');
-    if(m){ form.booker=m[1]; form.bookerPhone=(SY.fmtPhone && SY.fmtPhone(m[2])) || m[2].trim(); paintForm(); } } });
-document.addEventListener('input', e=>{ const k=e.target.dataset && e.target.dataset.k; if(k==='person' || k==='phone') accSameCopy(); });
-document.addEventListener('focusout', e=>{ if(e.target.dataset && e.target.dataset.k==='phone') setTimeout(accSameCopy, 0); });
+  if(t.dataset && (t.dataset.k==='booker' || t.dataset.k==='bookerPhone')) accSameCopy(); });
+document.addEventListener('input', e=>{ const k=e.target.dataset && e.target.dataset.k; if(k==='booker' || k==='bookerPhone') accSameCopy(); });
+document.addEventListener('focusout', e=>{ if(e.target.dataset && e.target.dataset.k==='bookerPhone') setTimeout(accSameCopy, 0); });
+
+// ---------- 예약 내역 넣기 (2026-11-28 · 사고 개요의 단추 → 창에 전산의 상품 정보를 붙여 넣음 → 넣을 수 있는 칸을 채움) ----------
+//  채우는 것: 방문일자 → 사고 일자 · 방문자정보 이름(연락처) → 대표 예약자 이름 · 연락처(「같음」이면 사고 대상자도) · 붙여 넣은 글 전체 → 「예약 내역」 칸(erp). 「저장」을 눌러야 저장된다
+function accErpOpen(on){ const m=document.getElementById('accErpModal'); if(!m) return; m.hidden=!on; if(on){ const t=document.getElementById('accErpIn'); t.value=''; setTimeout(()=>t.focus(), 0); } }
+function accErpApply(){ const text=(document.getElementById('accErpIn').value||'').trim(); if(!text) return; const got=[];
+  form.erp=text;
+  const dm=/방문\s*일자[^\d\n]*(\d{4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})/.exec(text);
+  if(dm){ form.date=`${dm[1]}-${String(dm[2]).padStart(2,'0')}-${String(dm[3]).padStart(2,'0')}`; got.push('사고 일자'); }
+  const vm=/방문자\s*정보\s*([^\s(（]+)\s*[(（]\s*([\d\- ]{8,})\s*[)）]/.exec(text);
+  if(vm){ form.booker=vm[1]; form.bookerPhone=(SY.fmtPhone && SY.fmtPhone(vm[2])) || vm[2].trim(); if(form.bookerSame){ form.person=form.booker; form.phone=form.bookerPhone; } got.push('대표 예약자'); }
+  accErpOpen(false); paintForm(); toast(got.length ? `${got.join(' · ')}을(를) 채웠습니다.` : '예약 내역을 넣었습니다.'); }
+document.addEventListener('click', e=>{ const t=e.target; if(!t.closest) return;
+  if(t.id==='accErpBtn'){ accErpOpen(true); return; }
+  if(t.id==='accErpX'){ accErpOpen(false); return; }
+  if(t.id==='accErpGo'){ accErpApply(); return; } });
+document.addEventListener('mousedown', e=>{ if(e.target.id==='accErpModal') accErpOpen(false); });
+document.addEventListener('keydown', e=>{ const m=document.getElementById('accErpModal'); if(e.key==='Escape' && m && !m.hidden){ e.stopPropagation(); accErpOpen(false); } }, true);
 
 // ---------- 제목 줄의 담당자 (2026-11-28 · 사고 개요에서 꺼내 제목 줄 오른쪽 「삭제」 · 「저장」 옆으로) ----------
 //  고르면 form.owner 만 바뀌고 「저장」을 눌러야 저장된다 (남은 추후과업을 새 담당자에게 넘기는 것은 OPS_PAGE.afterSave). 담당자가 아닌 사람에게는 잠겨 보인다.

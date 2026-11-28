@@ -260,3 +260,10 @@ header #accNewBtn:hover{background:#f3f7ef}
 /* 2026-11-28 진행 단계의 「이전 단계로」 · 왼쪽 열 맨 위 묶음(① 접수 · 사고 개요)은 열을 내려도 위에 고정 */
 .acc-step-back{display:flex;justify-content:flex-end;margin-top:8px}
 @media (min-width:1181px){ .ef-col[data-col="1"] > .ef-sec:first-child{position:sticky;top:0;z-index:2;box-shadow:0 6px 8px -6px rgba(0,0,0,.14)} }
+
+/* 2026-11-28 예약 내역 넣기 창 */
+#accErpModal .acc-erp{width:min(560px,100%)}
+#accErpIn{display:block;width:100%;min-height:240px;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:14px/1.5 var(--sans);background:#fff;color:var(--ink);resize:vertical;box-sizing:border-box}
+#accErpIn:focus{outline:none;border-color:var(--pine)}
+@media (max-width:700px){ body.pg-acc #accErpModal{padding:0} body.pg-acc #accErpModal .acc-erp{width:100%;min-height:100%;border-radius:0;box-sizing:border-box} #accErpIn{font-size:16px} }
+.ef > #accErpBtn{align-self:flex-start}
