@@ -1561,6 +1561,15 @@ html.alert-only #tbdList li .who{min-width:0;overflow-wrap:anywhere}
   html.alert-only #tbdModal .panel > h2{padding-right:40px}
   #tbdList .my-ck{padding:12px 10px;margin:-12px -6px -12px -10px}   /* 체크 칸 둘레까지 눌림 (보이는 크기 · 자리는 그대로에 가깝게) */
 }
+/* 과업 알림 창(group.html?alert=1)을 창에 꽉 차게 (2026-11-28): 창 ↔ 흰 상자 12px + 테두리 + 상자 안 16px 로 과업 줄 양옆이 29px 씩 비고, 상자 아래로 회색 바탕이 남았음
+   → 흰 상자가 창 전체를 채움(바깥 여백 · 테두리 · 둥근 모서리 없음) · 옆 여백은 한 겹 10px. 화면 안에 대신 뜨는 알림(html.alert-only 가 아님)은 그대로 */
+html.alert-only #tbdModal{padding:0;background:var(--card,#fffefb)}
+html.alert-only #tbdModal .panel{height:100%;border:0;border-radius:0;box-shadow:none;
+  padding:calc(12px + env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px))}
+html.alert-only #tbdModal button.win-x{top:calc(4px + env(safe-area-inset-top,0px));right:max(4px,env(safe-area-inset-right,0px))}
+@media (max-width:700px){
+  html.alert-only #tbdModal .panel{padding-top:calc(16px + env(safe-area-inset-top,0px))}   /* 제목 줄을 44px × 의 가운데 높이에 */
+}
 /* 통화 메모 수정 기록 창 (2026-11-27 · 같은 날 다섯 번째): 통화 메모 칸에는 지금 유효한 메모만 보이고, 고친 것 · 지운 것은 제목 줄의 「수정 기록」 버튼으로 여는 이 창에서 봄 (js/group/15-lock-popups.js noteHistOpen) */
 .modal .note-hist{position:relative;margin:0;width:min(560px,100%);max-height:calc(100vh - 80px);display:flex;flex-direction:column}
 .note-hist h2{flex:none;padding-right:36px}
