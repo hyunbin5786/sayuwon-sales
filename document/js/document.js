@@ -158,7 +158,7 @@
   function catDirty(){ return syncQ.length > 0; }
   function setSync(s){
     syncState = s;
-    var el = document.getElementById("cat-sync"); if(el) el.textContent = syncText();
+    var el = document.getElementById("cat-sync"); if(el){ el.textContent = syncText(); el.parentNode.hidden = !el.textContent; }   // 보일 글이 없으면 줄째 숨김
     var b = document.getElementById("cat-save");
     if(b){ b.hidden = false; b.disabled = syncBusy || !catDirty(); b.textContent = syncBusy ? "저장 중…" : "저장"; }
   }
@@ -167,7 +167,7 @@
     if(syncState === "error") return "저장하지 못했습니다. 인터넷 연결을 확인하고 「저장」을 다시 눌러 주세요.";
     if(syncState === "saved") return "저장했습니다. 모두에게 반영됩니다.";
     if(catDirty()) return "고친 내용을 곧 자동으로 저장합니다 (2초 뒤) · 바로 저장하려면 「저장」";
-    return "공유 목록입니다. 고치면 자동으로 저장되어 모두에게 반영됩니다.";
+    return "";
   }
   var autoSaveT = null;
   function queueOp(op){
@@ -1917,7 +1917,7 @@
   // 학생 행 (2026-11-20): 성인 품목 바로 아래 「└ 학생」 — 학생 가격 · 과세 · 비과세를 따로. 「학생 빼기」면 학생 가격 없음 (인원을 한꺼번에)
   function stuRowHTML(it){
     var mi = function(f, ph){ return '<input class="num money" type="text" inputmode="numeric" autocomplete="off" data-f="' + f + '" value="' + moneyIn(it[f]) + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '>'; };
-    return '<tr class="stu-row" data-id="' + esc(it.id) + '" data-stu="1"><td></td><td class="src stu-lab">└ 학생</td><td colspan="3"><span class="sub">학생 1인 가격 · 과세 · 비과세 (성인과 같으면 「학생 빼기」)</span></td>' +
+    return '<tr class="stu-row" data-id="' + esc(it.id) + '" data-stu="1"><td></td><td class="src stu-lab">└ 학생</td><td colspan="3"></td>' +
       '<td>' + mi("sprice") + '</td><td>' + mi("staxable") + '</td><td>' + mi("staxfree") + taxSplitNote(it, true) + '</td><td></td>' +
       '<td><button class="btn small" type="button" data-act="delstu">학생 빼기</button></td></tr>';
   }

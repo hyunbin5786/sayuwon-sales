@@ -212,7 +212,7 @@ function renderItems(force){
   box.dataset.sig=sig;
   box.innerHTML = (itemRows.length ? `<div class="it-head"><span>품목</span><span>가격 (1인 · 회당)</span><span>인원 · 수량</span><span>담당</span><span></span></div>` : '')
     + itemRows.map(k=>itemRowHTML(k, itemRows)).join('') + `<div id="erpExtra"></div>`
-    + `<div class="it-foot"><button type="button" class="btn it-add" data-iadd>＋ 항목 추가</button><span class="hint" style="margin:0">${itemRows.length?'':'사담 식사 · 몽몽마방 · 개별 프로그램 · 시간 프로그램 · 굿즈 중에서 고르세요'}</span></div>`;
+    + `<div class="it-foot"><button type="button" class="btn it-add" data-iadd>＋ 항목 추가</button></div>`;
   paintItemState(); paintItemPrices();
 }
 // 가격표를 예약 내역 아래로 합치고(할인 · 합계 · 전산 내역), 두 번째 열의 가격표 자리는 '그날 예약 현황'으로

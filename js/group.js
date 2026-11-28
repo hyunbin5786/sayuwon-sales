@@ -521,7 +521,7 @@ function renderItems(force){
   box.dataset.sig=sig;
   box.innerHTML = (itemRows.length ? `<div class="it-head"><span>품목</span><span>가격 (1인 · 회당)</span><span>인원 · 수량</span><span>담당</span><span></span></div>` : '')
     + itemRows.map(k=>itemRowHTML(k, itemRows)).join('') + `<div id="erpExtra"></div>`
-    + `<div class="it-foot"><button type="button" class="btn it-add" data-iadd>＋ 항목 추가</button><span class="hint" style="margin:0">${itemRows.length?'':'사담 식사 · 몽몽마방 · 개별 프로그램 · 시간 프로그램 · 굿즈 중에서 고르세요'}</span></div>`;
+    + `<div class="it-foot"><button type="button" class="btn it-add" data-iadd>＋ 항목 추가</button></div>`;
   paintItemState(); paintItemPrices();
 }
 // 가격표를 예약 내역 아래로 합치고(할인 · 합계 · 전산 내역), 두 번째 열의 가격표 자리는 '그날 예약 현황'으로
@@ -2846,7 +2846,7 @@ function renderTasks(){
   const consultOnly = quietStage(effStage(rec));   // 예약상담: 자동 과업은 없고(사전답사 전산 예약만) 직접 추가한 과업은 그대로
   $('#taskAdd').hidden = false;
   const shownTasks = (consultOnly ? tasks.filter(consultTask) : tasks).filter(t=>!t.removed);   // 삭제한 자동 과업(removed)은 숨김 (다시 생기지 않게 기록만 남김)
-  if(consultOnly && !shownTasks.length){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 자동으로 생기는 과업이 없습니다. 필요한 일은 위 칸에 직접 추가해 주세요.</li>'; return; }
+  if(consultOnly && !shownTasks.length){ paintDocBtns(); $('#taskList').innerHTML=''; return; }
   paintDocBtns();
   const box=$('#taskList'), ae=document.activeElement, focus=box.contains(ae) && (ae.tagName==='TEXTAREA' || (ae.tagName==='INPUT' && ae.type!=='checkbox' && !ae.readOnly && !ae.classList.contains('dpick')));   // 메모 · 글자 칸에 쓰는 중일 때만 다시 그리지 않음
   const changeTag = t => { const txt=taskText(t); return !t.copied ? '' : t.copied===txt ? '<span class="hint" style="margin:0">붙여넣은 내용과 같음</span>' : '<span class="chg">예약 내용이 바뀜 · 다시 복사해서 붙여넣기</span>'; };
@@ -3442,9 +3442,7 @@ function renderPrice(){
   let day=null; if(rec.date){ const d=new Date(rec.date+'T00:00'); if(!isNaN(d)) day = isRedDay(rec.date) ? 'we' : 'wd'; }
   const n = numOf(rec.people), g = groupRate(n), sp = specialCounts(rec);
   $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?(HOLIDAYS.has(rec.date)?'공휴일(주말)':'주말'):'평일'} 가격` : '';
-  $('#discGroup').innerHTML = n
-    ? ''   // 특별 할인 요약은 없앰 (품목 줄의 「특별할인」 버튼에 바로 보임)
-    : '<span class="hint" style="margin:0">관람 인원을 넣으면 할인(19명까지 사전예약 5% · 20명부터 단체예약 10%)이 계산됩니다</span>';
+  $('#discGroup').innerHTML = '';   // 특별 할인 요약 · 인원 안내 글은 없앰 (품목 줄의 「특별할인」 버튼에 바로 보임)
   SPECIAL.forEach(s=>{ const el=$('#'+s.k); if(el && document.activeElement!==el) el.value = rec[s.k]||''; el?.classList.toggle('has', !!rec[s.k]); });
   { const es=etcSplit(rec); [['etcDiscTx',es.tx],['etcDiscTf',es.tf],['etcDiscWhy',null]].forEach(([k,v])=>{ const el=$('#'+k); if(el && document.activeElement!==el) el.value = v==null ? (rec[k]||'') : (v?String(v):''); }); }   // 기타 할인 칸
   // 전산 내역을 붙여넣었으면 예약 칸으로 계산한 예상 금액 · 할인 칸은 숨기고 전산 내역이 가격표
@@ -3458,7 +3456,7 @@ function renderPrice(){
   else if(!rec.date || !n){   // 방문일 · 관람 인원이 둘 다 있어야 계산. 하나만 있으면 나머지를 넣어 달라고
     box.innerHTML = rec.date && !n ? '<p class="price-need"><b>관람 인원</b>을 입력해 주세요. 방문일과 관람 인원이 있어야 금액이 나옵니다.</p>'
       : n && !rec.date ? '<p class="price-need"><b>방문일</b>을 입력해 주세요. 평일 · 주말 가격이 달라 방문일이 있어야 금액이 나옵니다.</p>'
-      : '<p class="hint" style="margin:0">방문일과 관람 인원을 넣으면, 예약 칸에서 고른 관람 · 식사 · 프로그램의 금액이 여기에 나옵니다.</p>';
+      : '';
   } else if(!quoteCat){
     box.innerHTML = priceLoaded===null ? SY.skel('list', 3, {lines:1, label:'가격을 불러오는 중'}) : '<p class="hint" style="margin:0">견적서 사이트에서 가격을 불러오는 중입니다.</p>';   // 처음 받는 중 = 스켈레톤 (2026-11-27) · 못 받은 뒤에는 예전 글
   } else {

@@ -221,9 +221,7 @@ function renderPrice(){
   let day=null; if(rec.date){ const d=new Date(rec.date+'T00:00'); if(!isNaN(d)) day = isRedDay(rec.date) ? 'we' : 'wd'; }
   const n = numOf(rec.people), g = groupRate(n), sp = specialCounts(rec);
   $('#priceHint').textContent = day ? `${dateLabel(rec.date)} → ${day==='we'?(HOLIDAYS.has(rec.date)?'공휴일(주말)':'주말'):'평일'} 가격` : '';
-  $('#discGroup').innerHTML = n
-    ? ''   // 특별 할인 요약은 없앰 (품목 줄의 「특별할인」 버튼에 바로 보임)
-    : '<span class="hint" style="margin:0">관람 인원을 넣으면 할인(19명까지 사전예약 5% · 20명부터 단체예약 10%)이 계산됩니다</span>';
+  $('#discGroup').innerHTML = '';   // 특별 할인 요약 · 인원 안내 글은 없앰 (품목 줄의 「특별할인」 버튼에 바로 보임)
   SPECIAL.forEach(s=>{ const el=$('#'+s.k); if(el && document.activeElement!==el) el.value = rec[s.k]||''; el?.classList.toggle('has', !!rec[s.k]); });
   { const es=etcSplit(rec); [['etcDiscTx',es.tx],['etcDiscTf',es.tf],['etcDiscWhy',null]].forEach(([k,v])=>{ const el=$('#'+k); if(el && document.activeElement!==el) el.value = v==null ? (rec[k]||'') : (v?String(v):''); }); }   // 기타 할인 칸
   // 전산 내역을 붙여넣었으면 예약 칸으로 계산한 예상 금액 · 할인 칸은 숨기고 전산 내역이 가격표
@@ -237,7 +235,7 @@ function renderPrice(){
   else if(!rec.date || !n){   // 방문일 · 관람 인원이 둘 다 있어야 계산. 하나만 있으면 나머지를 넣어 달라고
     box.innerHTML = rec.date && !n ? '<p class="price-need"><b>관람 인원</b>을 입력해 주세요. 방문일과 관람 인원이 있어야 금액이 나옵니다.</p>'
       : n && !rec.date ? '<p class="price-need"><b>방문일</b>을 입력해 주세요. 평일 · 주말 가격이 달라 방문일이 있어야 금액이 나옵니다.</p>'
-      : '<p class="hint" style="margin:0">방문일과 관람 인원을 넣으면, 예약 칸에서 고른 관람 · 식사 · 프로그램의 금액이 여기에 나옵니다.</p>';
+      : '';
   } else if(!quoteCat){
     box.innerHTML = priceLoaded===null ? SY.skel('list', 3, {lines:1, label:'가격을 불러오는 중'}) : '<p class="hint" style="margin:0">견적서 사이트에서 가격을 불러오는 중입니다.</p>';   // 처음 받는 중 = 스켈레톤 (2026-11-27) · 못 받은 뒤에는 예전 글
   } else {

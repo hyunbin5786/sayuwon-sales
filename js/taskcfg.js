@@ -385,7 +385,7 @@ function tcfgPaintList(){ const box=$('#tcfgList'); if(!box || !tcfgDraft) retur
     if(q && !(name+' '+sub).toLowerCase().includes(q)) return '';
     const n=tcfgSubsClean(it.c.subs).length;
     const tags=(it.c.off?'<span class="tag off">끔</span>':'')+(tcfgChanged(it)?'<span class="tag chg">고침</span>':'')+(n?`<span class="tag">세부 ${n}</span>`:'')+(tcfgHasAuto(it)?'<span class="tag auto">자동 체크</span>':'')+(String(it.c.who||'').trim()?`<span class="tag who">${esc(it.c.who)}</span>`:'');
-    return `<button type="button" class="tcfg-item${it.T===tcfgOpenId?' on':''}${it.c.off?' off':''}" data-tcfgopen="${esc(it.T)}"><span class="nm">${esc(name)}</span>${tags?`<span class="tg">${tags}</span>`:''}<span class="sm">${esc(sub)}</span></button>`; };
+    return `<button type="button" class="tcfg-item${it.T===tcfgOpenId?' on':''}${it.c.off?' off':''}" data-tcfgopen="${esc(it.T)}"><span class="nm">${esc(name)}</span>${tags?`<span class="tg">${tags}</span>`:''}</button>`; };
   const items=tcfgItems(), R=items.map(row).join('');   // 2026-11-26: 「원래 있는 과업 / 새 과업」 구분 없이 한 목록으로
   box.innerHTML = `<div class="tcfg-sec">과업 <small>${items.length}</small></div>${R || '<p class="hint">찾는 과업이 없습니다.</p>'}`;
   box.scrollTop=st;
@@ -398,7 +398,7 @@ function tcfgTableHTML(){
       <td class="nm"><b>${esc(tcfgName(it))}</b>${tcfgChanged(it)?' <span class="tag chg">고침</span>':''}</td>
       <td>${c.off?'<span class="tag off">끔</span>':'<span class="tag on">켜짐</span>'}</td>
       <td>${esc(tcfgWhenTxt(it))}</td><td>${esc(tcfgDueTxt(c.due||{base:'visit',n:3}))}</td><td>${esc(tcfgWhoTxt(it.id, c))}</td>
-      <td>${subs.length ? `<ol>${subs.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>` : ''}${tcfgDynSubs(it.id, c, it.builtin).map(d=>`<div class="hint">＋ ${esc(d[0])}</div>`).join('')}</td>
+      <td>${subs.length ? `<ol>${subs.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>` : ''}</td>
       <td class="au">${tcfgAutoCell(it)}</td>
       <td class="tx">${esc(cut(c.desc, 60))}</td><td class="tx">${esc(cut(c.note, 80))}</td></tr>`; }).join('');
   return `<div class="tcfg-tablewrap"><table class="tcfg-table"><thead><tr><th>과업</th><th>상태</th><th>언제 생길지</th><th>마감</th><th>담당</th><th>세부 과업</th><th>자동 체크</th><th>과업 보조 설명</th><th>복사 멘트</th></tr></thead><tbody>${rows}</tbody></table></div>`; }

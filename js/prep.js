@@ -94,7 +94,7 @@ const tomorrowYmd = () => { const d=new Date(); d.setDate(d.getDate()+1); return
 let prepDate = tomorrowYmd(), dateAuto = true;   // 준비할 날짜 = 늘 내일 (직접 다른 날을 고르기 전까지, 자정이 지나면 저절로 다음 날, 2026-11-19)
 function paintPrepDate(){ $('#prepDateTxt').value = SY.dateDisp(prepDate); $('#prepDate').value = prepDate;
   const h=$('#prepDateHint'), mis = state && state.date && state.date!==prepDate;
-  h.className = mis ? 'bad' : ''; h.textContent = mis ? `읽어 둔 엑셀은 ${dLab(state.date)} 것입니다 — 파일을 바꿔 주세요` : prepDate===tomorrowYmd() ? '내일 · 이 날짜의 방문자내역 엑셀을 넣으세요' : '이 날짜의 방문자내역 엑셀을 넣으세요'; }
+  h.className = mis ? 'bad' : ''; h.textContent = mis ? `읽어 둔 엑셀은 ${dLab(state.date)} 것입니다 — 파일을 바꿔 주세요` : ''; }
 function showDateModal(html){ $('#dmMsg').innerHTML=html; $('#dateModal').hidden=false; setTimeout(()=>$('#dmPick').focus(), 0); }
 $('#dmClose').onclick=()=>{ $('#dateModal').hidden=true; };
 $('#dmPick').onclick=()=>{ $('#dateModal').hidden=true; $('#file').click(); };
@@ -171,7 +171,7 @@ async function switchDate(v){ if(!v) return false;
   if(await pullShared(true)) return true;
   let bak=null; try{ bak=JSON.parse(localStorage.getItem(BAK_LS(v))||'null'); }catch(_){}
   if(bak && bak.date===v && Array.isArray(bak.rows)){ state=bak; try{ localStorage.setItem(STATE_LS, JSON.stringify(state)); }catch(_){} build(false); paintPrepDate(); return true; }   // 팀에 없으면 이 PC 사본
-  state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); shareSt('이 날짜는 저장된 기록이 없습니다', ''); return false; }
+  state=null; rows=[]; try{ localStorage.removeItem(STATE_LS); }catch(_){} render(); shareSt('', ''); return false; }
 $('#histSel')?.addEventListener('change', async e=>{ const v=e.target.value; if(!v || v===prepDate && state && state.date===v) return; const ok=await switchDate(v); toast(ok ? `${dLab(v)} 기록을 불러왔습니다.` : '그날 기록을 불러오지 못했습니다.'); });
 const keepTomorrow = () => { if(dateAuto && prepDate!==tomorrowYmd()) switchDate(tomorrowYmd()); };   // 켜 둔 채 날짜가 바뀌면 내일로
 window.addEventListener('focus', ()=>{ keepTomorrow(); pullShared(); });

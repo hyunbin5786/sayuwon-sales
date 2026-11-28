@@ -113,7 +113,7 @@ window.syFont = (function(){
     mc.hidden=false;
     const fresh=await cfgPull();   // 다른 사람이 방금 바꾼 것 위에 덮어쓰지 않게 최신부터
     if(mc.hidden) return;
-    mc.innerHTML = `<section class="smc-panel" role="dialog" aria-modal="true" aria-label="메뉴 설정"><h2>메뉴 설정</h2><p class="smc-hint">「로그인 없이」 칸이 잠겨 있는 메뉴는 로그인해야 열리는 화면이라(고객 자료 보호) 체크할 수 없습니다.</p>`
+    mc.innerHTML = `<section class="smc-panel" role="dialog" aria-modal="true" aria-label="메뉴 설정"><h2>메뉴 설정</h2>`
       + `<div class="smc-body"><table class="smc-t"><thead><tr><th>메뉴</th><th>PC</th><th>모바일</th><th>로그인 없이</th></tr></thead><tbody>`
       + mcRows().map(g=>`<tr class="smc-g"><td colspan="4">${esc(g.t)}</td></tr>` + g.items.map(it=>`<tr><td>${esc(it.b)}</td>`
           + ['pc','m'].map(f=>{ const lock=it.key==='menucfg' && f==='pc'; return `<td><input type="checkbox" data-smck="${esc(it.key)}|${f}" aria-label="${esc(it.b)} ${f==='pc'?'PC':'모바일'}"${lock || cfgOf(it.key, f) ? ' checked' : ''}${lock ? ' disabled title="메뉴 설정은 PC 에서 늘 보입니다"' : ''}></td>`; }).join('')
