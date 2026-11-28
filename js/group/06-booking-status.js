@@ -300,6 +300,9 @@ function bookAddOpen(){ if(BOOK_GUEST){ toast('로그인한 사람만 직접 추
   paintBookAdd(); $('#bookAddModal').hidden=false; bookAddSnap=bookAddVals(); bookAddEscAt=0; setTimeout(()=>($('#baOrg')||$('#bookAdd input'))?.focus(), 0); }   // 초점은 첫 입력 칸에 (× 에 주지 않음)
 function bookAddClose(){ $('#bookAddModal').hidden=true; bookEdit=null; bookImp=null; bookAddEscAt=0; paintBookAdd(); }
 const PLACE_OPTS=['몽몽차방','당두봉갈'], KIND_OPTS=['동행','PPT'], COUPON_OPTS=['음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)'];
+// 프로그램 예약 직접 추가의 「프로그램 항목」 = 고르는 칸 (2026-11-28 · 운영팀 요청): 품목관리의 단체(개별) 품목 — 단체 화면 예약 내역의 「프로그램(개별)」 줄과 같은 목록 · 같은 이름
+//  (FIELDS 의 기본 항목 + 품목관리에 새로 넣은 단체(개별) 품목 = addCatalogProgs · 음료쿠폰처럼 다른 목록으로 가는 것은 뺌 · 예전에 손으로 적어 둔 이름은 고칠 때 그대로 남음)
+function bookProgOpts(){ try{ return [...new Set(FIELDS.filter(f=>f[0]==='프로그램(개별)' && !isSub(f[1]) && bookCat(f[1])==='prog').map(f=>LABEL[f[1]]||f[2]).filter(Boolean))]; }catch(_){ return []; } }
 function paintBookAdd(){
   const c=bookCatNow, box=$('#bookAdd'); if(!box) return;
   if(BOOK_GUEST) bookEdit=null;   // 로그인 없이는 추가만 (고치기 · 빼기는 로그인한 사람, 2026-11-21)
@@ -312,7 +315,7 @@ function paintBookAdd(){
   const f = c==='mb'
     ? [`<label>시간 ${inp('baTm','',x.tm,'t')}</label>`, `<label><span>예약자${req}</span> ${inp('baOrg','',x.org)}</label>`, `<label><span>인원${req}</span> ${inp('baPpl','명',x.ppl,'n')}</label>`, `<label>메뉴 ${sel('baItem', mbMenus().map(m=>m.name), x.item||'')}</label>`]
     : [`<label><span>업체${req}</span> ${inp('baOrg','',x.org)}</label>`, `<label>${c==='coupon'?'매수':'인원'} ${inp('baPpl',c==='coupon'?'장':'명',x.ppl,'n')}</label>`, `<label>시간 ${inp('baTm','',x.tm,'t')}</label>`,
-       c==='rent' ? `<label>장소 ${sel('baPlace', PLACE_OPTS, x.place||'')}</label>` : c==='docent' ? `<label>종류 ${sel('baKind', KIND_OPTS, x.kind||'')}</label>` : c==='coupon' ? `<label>쿠폰 종류 ${sel('baItem', COUPON_OPTS, x.item||'')}</label>` : `<label>프로그램 항목 ${inp('baItem','',x.item)}</label>`,
+       c==='rent' ? `<label>장소 ${sel('baPlace', PLACE_OPTS, x.place||'')}</label>` : c==='docent' ? `<label>종류 ${sel('baKind', KIND_OPTS, x.kind||'')}</label>` : c==='coupon' ? `<label>쿠폰 종류 ${sel('baItem', COUPON_OPTS, x.item||'')}</label>` : `<label>프로그램 항목 ${sel('baItem', ['', ...bookProgOpts()], x.item||'')}</label>`,
        `<label>담당자 이름 ${inp('baStaff','',x.staff)}</label>`, `<label class="wide">비고사항 ${inp('baNote','',x.note)}</label>`];
   box.innerHTML = `<div class="ba-h"><b>${c==='mb'?'몽몽마방':BOOK_CATS[c]} ${bookEdit?'예약 고치기':'예약 직접 추가'}</b> <span class="hint" style="margin:0">예약 한 건 · <i class="ba-req">*</i> 표시는 꼭 넣는 칸입니다</span></div>`
     + (BOOK_GUEST ? `<div class="ba-row ba-who"><label class="wide">추가하는 사람 이름 <input id="baBy" data-ime="ko" placeholder="이름" autocomplete="off" value="${esc((()=>{ try{ return localStorage.getItem('sy_guest_name')||''; }catch(_){ return ''; } })())}"></label><span class="hint">로그인 없이 추가합니다 · 고치기 · 빼기는 로그인한 사람이</span></div>` : '')   // 로그인 없이: 이름을 적고 추가 (2026-11-21)

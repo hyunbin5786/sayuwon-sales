@@ -52,7 +52,7 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
 .panel h2{font:600 15px var(--serif);margin:0 0 10px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .panel h2 small{font:400 12px var(--sans);color:var(--muted)}
-.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:8px 13px;font:500 13px var(--sans);cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);font:500 13px var(--sans);cursor:pointer}
 .btn:hover{border-color:var(--pine)}
 .btn.primary{background:var(--pine);border-color:var(--pine);color:#fff}
 .btn kbd{font:11px ui-monospace,Consolas,monospace;opacity:.7;margin-left:4px}
@@ -121,7 +121,7 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 .tsub-del:hover{color:var(--red)}
 .tsub-add{display:flex;gap:4px;margin-top:2px}
 .tsub-add input{flex:1;height:28px;border:1px dashed var(--line);border-radius:5px;padding:0 8px;font:12.5px var(--sans);background:#fff}
-.tsub-add .btn{padding:2px 8px;font-size:12px}
+.tsub-add .btn{min-height:var(--btn-sm-h,28px);padding:2px var(--btn-sm-px,10px);font-size:12px}
 .act-bar .btn.issued{position:relative;background:var(--pine-soft);border-color:var(--pine);color:var(--pine)}   /* 발급한 서류: 초록 + 모서리 ✓ */
 .act-bar .btn.issued::after{content:"✓";position:absolute;top:-6px;right:-5px;width:14px;height:14px;border-radius:50%;background:var(--pine);color:#fff;font-size:9px;line-height:14px;text-align:center}
 @media (max-width:560px){.act-bar{margin-left:0;flex-wrap:wrap}}
@@ -223,7 +223,7 @@ header .db-time{white-space:nowrap;font-variant-numeric:tabular-nums;color:#e7ef
 .it-extra{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
 .it-extra .it-x{height:30px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:12.5px var(--sans);background:#fff;color:var(--ink);min-width:150px}
 .it-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.it-add{padding:6px 14px;font-weight:600}
+.it-add{font-weight:600}
 .it-foot .mb-cat{margin-left:auto}
 #itemsInfo .dayinfo{margin-top:6px}
 .items-box{container-type:inline-size}
@@ -309,7 +309,7 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .task textarea.tnote:focus{border-color:var(--pine);background:#fff;outline:none}
 .task textarea.tnote.edited{border-color:var(--amber)}
 .task .tbtn{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
-.task .tbtn .btn{padding:4px 10px;font-size:12px}
+.task .tbtn .btn{min-height:var(--btn-sm-h,28px);padding:2px var(--btn-sm-px,10px);font-size:12px}
 .task .chg{font-size:12px;font-weight:700;color:var(--amber)}
 .task textarea{width:100%;margin-top:8px;min-height:38px;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:13px/1.5 var(--sans)}
 .tfiles{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-top:8px}
@@ -356,7 +356,7 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .crow .x:hover{border-color:var(--red);color:var(--red)}
 .crow .up{flex:none;width:32px;border:1px solid var(--line);background:var(--card);border-radius:6px;height:36px;cursor:pointer;color:var(--muted);font-size:11px}
 .crow .up:hover{border-color:var(--pine);color:var(--pine)}
-.addc{align-self:flex-start;margin-top:4px;padding:4px 10px;font-size:12px}
+.addc{align-self:flex-start;margin-top:4px;min-height:var(--btn-sm-h,28px);padding:2px var(--btn-sm-px,10px);font-size:12px}
 .grp-t{display:flex;justify-content:space-between;align-items:center}
 /* 그날 예약 현황 */
 .dayinfo{margin-top:8px;background:var(--pine-soft);border-radius:8px;padding:8px 10px;font-size:12.5px;min-height:36px}
@@ -471,7 +471,7 @@ body.locked #saveBtn{display:none}
 .modal .list .tw{overflow:auto;flex:1;min-height:0}
 .modal .list th.acts,.modal .list td.acts{position:sticky;right:0;background:var(--card);box-shadow:-6px 0 6px -6px rgba(0,0,0,.25);text-align:center;z-index:1}   /* 수정 · 삭제는 오른쪽 끝에 늘 보이게 */
 .modal .list tr.r:hover td.acts{background:#faf8f2}
-.row-acts .btn{padding:5px 14px;font-size:13px;font-weight:700}
+.row-acts .btn{font-weight:700}
 .row-acts .act-fix{border-color:#2f5a22;color:#2f5a22;background:#eef5e9}
 .row-acts .act-fix:hover{background:#e3eedc}
 .row-acts .act-del{border-color:var(--red);color:var(--red);background:var(--red-soft)}
@@ -714,7 +714,7 @@ html.book-guest #bookBody tr{cursor:default}
 .lcal[hidden]{display:none}
 .lc-bar{display:flex;align-items:center;gap:8px;margin:2px 0 8px;flex-wrap:wrap}
 .lc-bar b{font:600 17px var(--serif,"Noto Serif KR",serif);min-width:110px;text-align:center}
-.lc-bar .btn{height:30px;padding:0 12px}
+.lc-bar .btn{min-height:var(--btn-sm-h,28px);padding:2px var(--btn-sm-px,10px);font-size:12px}
 .lc-bar .hint{margin:0 0 0 6px}
 .lc-grid{display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line);min-width:780px}
 .lc-h{padding:5px 8px;font-size:12px;color:var(--muted);font-weight:700;background:#faf8f3;border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-align:center}
@@ -791,7 +791,7 @@ html.book-guest #bookBody tr{cursor:default}
 .etc-subs .etc-in{flex:1 1 160px;width:auto}
 .etc-ebtns{display:flex;gap:6px;align-items:center}
 .etc-ebtns .sp{flex:1}
-.etc-ebtns .btn{height:30px;padding:0 12px;font-size:12.5px}
+.etc-ebtns .btn{min-height:var(--btn-sm-h,28px);padding:2px var(--btn-sm-px,10px);font-size:12px}
 .etc-more{margin:4px 0 10px}
 .etc-more > summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--pine);padding:4px 0}
 .etc-done li .who s{color:var(--muted)}
@@ -1004,7 +1004,7 @@ li.tk.done .tk-title s{color:var(--muted);font-weight:400}
 .book-add-pop .book-add{border:0;margin:0;padding:0}
 .book-add-pop .ba-h{font-size:14px;margin-bottom:10px}
 .book-add-pop .ba-btns{display:flex;justify-content:flex-end;gap:6px;margin:14px 0 0}
-#bookAddBtn{height:30px;padding:0 12px}
+#bookAddBtn{flex:none}
 .erp-acts{display:inline-flex;gap:6px;margin-left:auto;flex:none;align-items:center}.it-erpdrop{color:var(--muted);border-color:var(--line);font-weight:600}   /* 전산에만 있는 상품: 추가 · 빼기 (2026-11-21) */
 .modal .consult.erpdiff-pop{width:min(820px,100%)}.erpdiff-pop .row-btns .btn{white-space:nowrap}   /* 전산 · 예약 다름 팝업: 버튼 한 줄 (2026-11-21) */
 @media (max-width:760px){ .erpdiff-pop .row-btns{flex-wrap:wrap !important} }
@@ -1193,7 +1193,7 @@ html.g-loading body{overflow:hidden}
 .note-it.del .note-tx{color:var(--muted);text-decoration:line-through}
 .note-edit{display:block;width:100%;min-height:60px;max-height:200px;margin-top:4px;resize:vertical;border:1px solid var(--pine);border-radius:6px;padding:6px 8px;font:15px/1.6 var(--sans);color:var(--ink);background:#fff}
 .note-edit-btns{display:flex;gap:6px;margin-top:6px}
-.note-edit-btns .btn{height:28px;padding:0 12px;font-size:12.5px}
+.note-edit-btns .btn{min-height:var(--btn-sm-h,28px);padding:2px var(--btn-sm-px,10px);font-size:12px}
 /* 과업 알림 새 창 (group.html?alert=1 · 2026-11-25): 알림 목록만 창 가득 */
 html.alert-only body > header,html.alert-only body > .layout,html.alert-only .smenu,html.alert-only .modal:not(#tbdModal){display:none!important}
 html.alert-only .g-loading-box{top:0}
@@ -1213,7 +1213,7 @@ html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
 .al-list li{display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:var(--paper,#fff);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
 .al-list .al-no{min-width:52px;font:600 13px var(--sans);color:var(--muted,#6b6b63)}
 .al-list select{height:34px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:14px var(--sans);background:#fff}
-.al-list .btn{margin-left:auto;padding:5px 10px;font-size:12.5px}
+.al-list .btn{margin-left:auto;min-height:var(--btn-sm-h,28px);padding:2px var(--btn-sm-px,10px);font-size:12px}
 /* 예약 목록 찾기 (2026-11-25): 날짜(전체 · 특정일 · 기간) + 검색어 */
 .book-find{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13px}
 .book-find label{display:flex;align-items:center;gap:6px;margin:0}
@@ -1350,7 +1350,7 @@ html.book-guest #bookAll tr{cursor:default}
 /* 시험용 모드 전용 (2026-11-25): 가짜 예약 채우기 · 비우기 (오른쪽 아래 · 「시험용」 표시 위) */
 #fakeBar{position:fixed;right:8px;bottom:34px;z-index:9999;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border:1px solid #1d4ed8;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.12);font-size:12.5px}
 #fakeBar b{color:#1d4ed8}
-#fakeBar .btn{padding:4px 10px;font-size:12.5px}
+#fakeBar .btn{min-height:var(--btn-sm-h,28px);padding:2px var(--btn-sm-px,10px);font-size:12px}
 /* ===== 추후과업 메시지 관리 (2026-11-25 다시): 넓은 창 · 왼쪽 과업 목록 · 오른쪽 그 과업의 칸들(카드) · 「한눈에 보기」 표 ===== */
 #tcfgModal{padding:16px !important;align-items:center}
 #tcfgModal .tcfg-pop{width:min(1320px,100%);height:calc(100vh - 32px);max-height:none;margin:0 auto;display:flex;flex-direction:column;gap:8px;padding:14px 16px}
@@ -1547,7 +1547,7 @@ html.g-start #startBox{display:flex;flex-direction:column;justify-content:center
 }
 /* 예약 내역: 세미나 도슨트 회차 줄 이름표(1회차 · 2회차 …) · 대관에 더한 시작 · 끝 줄 (2026-11-27) */
 .it-extra .it-semn{min-width:38px;font-weight:600}
-.it-extra .it-slot .btn{height:30px;padding:0 12px;font-size:12.5px}
+.it-extra .it-slot .btn{min-height:var(--btn-sm-h,28px);padding:2px var(--btn-sm-px,10px);font-size:12px}
 .it-extra .it-slotdel{height:30px;width:30px;border:1px solid var(--line);background:var(--card);border-radius:6px;cursor:pointer;color:var(--muted);font-size:15px;line-height:1}
 .it-extra .it-slotdel:hover{border-color:var(--red);color:var(--red)}
 .it-extra .it-slot[hidden]{display:none}
@@ -1572,7 +1572,7 @@ html.alert-only #tbdList li .who{min-width:0;overflow-wrap:anywhere}
 .nh-list li{flex:none;padding:10px 12px;border:1px solid #ebe6da;border-radius:12px;background:#faf8f3}
 .nh-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font:400 12.5px var(--sans);color:var(--muted)}
 .nh-h b{color:var(--ink)}
-.nh-h .btn{margin-left:auto;height:28px;padding:0 12px;font-size:12.5px}
+.nh-h .btn{margin-left:auto;min-height:var(--btn-sm-h,28px);padding:2px var(--btn-sm-px,10px);font-size:12px}
 .nh-tx{margin-top:6px;font:14.5px/1.6 var(--sans);color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
 .nh-tx small{display:block;color:var(--muted);font-size:12px}
 .nh-tx.old{color:var(--muted)}
