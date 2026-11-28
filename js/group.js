@@ -1492,7 +1492,7 @@ function paintBook(){
   { const q=$('#bfQ'); if(q && !q.dataset.all){ q.dataset.all='1'; q.placeholder='검색어 (모든 목록에서 찾음)'; q.title='글자를 넣으면 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 모든 목록에서 찾습니다. 지우면 고른 목록으로 돌아갑니다.'; } }
   const F=bkFind();   // 찾기 (날짜를 고르면 지난 예약도)
   if(F.q){ paintBookAll(F); return; }   // 검색어가 있으면 다섯 목록 모두에서 (2026-11-27)
-  if(isMb){ paintMbDb(); $('#bookTitle').textContent='몽몽마방 예약 목록'; { const bs=$('#bookSum'); if(bs){ bs.textContent = $('#mbdbSum').textContent; bs.hidden=false; } } return; }
+  if(isMb){ paintMbDb(); $('#bookTitle').textContent='몽몽마방 예약 목록'; { const bs=$('#bookSum'); if(bs){ bs.textContent=''; bs.hidden=true; }   /* 2026-11-28: 「n건 · 단체 예약에서 자동으로 들어옴 + 직접 추가」 글을 없앰 (운영팀 요청 · 휴대폰에서 목록 단추와 직접 추가 사이에 끼어 보임 · 다른 네 목록처럼) */ } return; }
   const c=bookCatNow, today=todayYmd(), past=$('#bookPast').checked;
   bkFillNames();   // 담당 이름 목록 (새 예약 · 담당이 생기면)
   const me=bkMe(), mine=$('#bookMine').checked && !!me;   // 내 담당만 보기 (2026-11-21)
