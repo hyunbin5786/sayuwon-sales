@@ -18,6 +18,7 @@ const accTel = l => ({type:'tel', ph:'010-0000-0000', fmt:'phone', bad:(v, touch
 function accStageDate(d){ const s=accStatus(d), t=opsToday();
   if(s==='보험 접수' && !d.rcptDate) d.rcptDate=t;
   if(s==='손해사정사 현장 방문' && !d.visitDate) d.visitDate=t;
+  if(s==='손해사정중' && !d.adjDate) d.adjDate=t;
   if(s==='처리 완료' && !d.procDate) d.procDate=t; }
 const accDays = d => { const s=d.rcptDate||d.date; if(!s) return null; const t=new Date(s+'T00:00'); return isNaN(t) ? null : Math.max(0, Math.floor((new Date(opsToday()+'T00:00')-t)/864e5)); };
 const accWhen = d => `${opsDateLabel(d.date)}${d.time?' '+d.time:''}`;
@@ -44,38 +45,68 @@ async function accTaskCheck(t, on){ const d={...t.d, done:{...(t.d.done||{})}}, 
 async function accTasksClose(id){ for(const t of accTasks(id).filter(t=>!accTaskDone(t.d))){ try{ await accTaskCheck(t, true); }catch(_){} } }
 const accFail = e => toast('저장하지 못했습니다: '+((e && (e.code||e.message))||e));
 
-function accTasksHTML(){ if(!accEd()) return ''; const id=editRow.r.id, me=accMe(), mine=accMine(editRow), L=accTasks(id);
-  return `<label>추후과업</label>`
-    + (L.length ? `<ul class="acc-tasks lock-ok">${L.map(t=>{ const dn=accTaskDone(t.d), can=mine || t.d.owner===me;
-        return `<li class="${dn?'done':''}"><label><input type="checkbox" data-acctk="${esc(t.r.id)}"${dn?' checked':''}${can?'':' disabled'}><span>${esc(accTaskName(t.d))}</span></label><small>${esc(t.d.owner||'')} · ${dn?'완료':'마감 '+esc(opsDateLabel(accTaskDay(t.d)))}</small></li>`; }).join('')}</ul>` : `<p class="acc-none">아직 추후과업이 없습니다.</p>`)
-    + `<div class="acc-add"><input id="accTkIn" data-ime="ko" placeholder="할 일 (적고 Enter)" autocomplete="off" value="${esc(accDraft.tk)}"><select id="accTkWho" title="맡을 사람">${[...new Set([accOwner(form, editRow.r), me, ...(window.opsMembers||[])].filter(Boolean))].map(n=>`<option${n===(accDraft.who||accOwner(form, editRow.r))?' selected':''}>${esc(n)}</option>`).join('')}</select><button type="button" class="btn primary" id="accTkAdd">추가</button></div>`; }
-
-// ---------- 처리 이력 · 메모 (d.notes = [{id, t, by, text, del:{t,by}}] · 누구나 남김 · 지우는 것은 자기 것만 — 줄을 없애지 않고 표시) ----------
-const accDraft = {tk:'', who:'', note:''};
+// ---------- 창의 오른쪽 「진행」 (2026-11-28 다시 짬 · 단체예약 창처럼: 왼쪽 = 사고 내용(칸) · 오른쪽 = 진행 단계 · 추후과업 · 처리 이력 · 메모) ----------
+//  오른쪽의 것은 누르는 대로 바로 저장된다 (서버의 지금 내용을 다시 받아 그것만 고침 · accPatch). 왼쪽 칸은 「저장」을 눌러야 저장된다.
+const ACC_SHORT = ['접수','보험 접수','현장 방문','손해사정중','처리 완료'];
+const accDraft = {tk:'', who:'', note:'', ph:[], edit:'', edTx:'', up:0};   // 적던 것 (다시 그려도 남게) · ph = 메모에 붙일 사진 · edit = 고치는 메모 id
+const accStageDates = d => [d.date, d.rcptDate, d.visitDate, d.adjDate, d.procDate];
+function accStepsHTML(d, can){ const cur=ACC_ST.indexOf(accStatus(d)), dt=accStageDates(d);
+  return `<ol class="acc-steps">${ACC_ST.map((s,i)=>{ const skip=i>0 && i<cur && !dt[i];   // 날짜 없이 지나간 단계 (보험 없이 끝낸 사고)
+    return `<li class="${i<cur ? (skip?'skip':'done') : i===cur ? 'cur' : ''}"><button type="button" data-accstep="${i}"${can?'':' disabled'} title="${esc(s)}"><i>${(i<cur && !skip) || (i===cur && cur===4) ? '✓' : i+1}</i><b>${ACC_SHORT[i]}</b><small>${i<=cur && dt[i] ? esc(opsDateLabel(dt[i])) : ''}</small></button></li>`; }).join('')}</ol>`; }
+const accMini = d => { const cur=ACC_ST.indexOf(accStatus(d)); return `<span class="acc-mini" aria-hidden="true">${ACC_ST.map((_,i)=>`<i class="${i<=cur?'on':''}"></i>`).join('')}</span>`; };
+function accTasksHTML(mine){ const id=editRow.r.id, me=accMe(), L=accTasks(id), own=accOwner(form, editRow.r);
+  return (L.length ? `<ul class="acc-tasks">${L.map(t=>{ const dn=accTaskDone(t.d), can=mine || t.d.owner===me;
+        return `<li class="${dn?'done':''}"><label><input type="checkbox" data-acctk="${esc(t.r.id)}"${dn?' checked':''}${can?'':' disabled'}><span>${esc(accTaskName(t.d))}</span></label><small>${esc(t.d.owner||'')} · ${dn?'완료':'마감 '+esc(opsDateLabel(accTaskDay(t.d)))}</small></li>`; }).join('')}</ul>` : `<p class="acc-none">없음</p>`)
+    + (mine ? `<div class="acc-add"><input id="accTkIn" data-ime="ko" placeholder="할 일 (적고 Enter)" autocomplete="off" value="${esc(accDraft.tk)}"><select id="accTkWho" title="맡을 사람">${[...new Set([own, me, ...(window.opsMembers||[])].filter(Boolean))].map(n=>`<option${n===(accDraft.who||own)?' selected':''}>${esc(n)}</option>`).join('')}</select><button type="button" class="btn primary" id="accTkAdd">추가</button></div>` : ''); }
 const accNoteWhen = t => { const x=new Date(t); return isNaN(x) ? '' : `${opsDateLabel(opsYmd(x))} ${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`; };
-function accNotesHTML(){ if(!accEd()) return ''; const me=accMe(), L=Array.isArray(form.notes) ? form.notes : [];
-  return `<label>처리 이력 · 메모</label>`
-    + (L.length ? `<ol class="acc-notes lock-ok">${L.map(n=>`<li class="acc-note${n.del?' del':''}"><div class="an-h"><b>${esc(n.by||'')}</b><span>${esc(accNoteWhen(n.t))}</span>${n.del ? '<span>지움</span>' : n.by===me ? `<button type="button" class="an-x" data-accndel="${esc(n.id)}">지우기</button>` : ''}</div><div class="an-t">${esc(n.text||'')}</div></li>`).join('')}</ol>` : `<p class="acc-none">아직 남긴 메모가 없습니다.</p>`)
-    + `<div class="acc-add lock-ok"><textarea id="accNoteIn" data-ime="ko" rows="2" placeholder="메모 (적고 Enter)">${esc(accDraft.note)}</textarea><button type="button" class="btn primary" id="accNoteAdd">메모 남기기</button></div>`; }
-// 메모는 바로 저장: 서버의 지금 내용을 다시 받아 그 위에 메모만 더함 (창에서 고치던 다른 칸은 「저장」을 눌러야 저장됨)
+const accPhs = (L, del) => (L||[]).length ? `<div class="an-phs">${L.map((p,i)=>`<span class="an-ph"><img alt="${esc(p.name||'사진')}" data-phimg="${esc(p.id)}" data-accview="1">${del?`<button type="button" class="ph-x" data-accphdel="${i}" title="이 사진 빼기" aria-label="사진 빼기">×</button>`:''}</span>`).join('')}</div>` : '';
+function accNotesHTML(){ const me=accMe(), L=(Array.isArray(form.notes) ? form.notes : []).slice().reverse();   // 새 것이 위
+  return `<div class="acc-note-in"><textarea id="accNoteIn" data-ime="ko" rows="2" placeholder="메모 (적고 Enter)">${esc(accDraft.note)}</textarea>${accPhs(accDraft.ph, true)}`
+      + `<div class="an-btns"><label class="btn">${accDraft.up ? '올리는 중…' : '사진 붙이기'}<input type="file" accept="image/*" multiple id="accNotePh" hidden></label><span class="sp"></span><button type="button" class="btn primary" id="accNoteAdd">메모 남기기</button></div></div>`
+    + (L.length ? `<ol class="acc-notes">${L.map(n=>{ const ed=accDraft.edit===n.id;
+        return `<li class="acc-note${n.del?' del':''}"><div class="an-h"><b>${esc(n.by||'')}</b><span>${esc(accNoteWhen(n.t))}${n.ed && !n.del ? ' · 고침' : ''}</span>${n.del ? '<span>지움</span>' : n.by===me && !ed ? `<span class="an-acts"><button type="button" class="an-x" data-accnedit="${esc(n.id)}">고치기</button><button type="button" class="an-x" data-accndel="${esc(n.id)}">지우기</button></span>` : ''}</div>`
+          + (ed ? `<textarea id="accNoteEd" data-ime="ko" rows="3">${esc(accDraft.edTx)}</textarea><div class="an-btns"><span class="sp"></span><button type="button" class="btn" id="accNoteEdNo">그만</button><button type="button" class="btn primary" id="accNoteEdOk">고침 저장</button></div>`
+               : `<div class="an-t">${esc(n.text||'')}</div>${n.del ? '' : accPhs(n.photos)}`) + `</li>`; }).join('')}</ol>` : ''); }
+let accTab='side', accTabId='';
+function accSidePaint(row, ro){ const side=document.getElementById('accSide'), box=document.querySelector('#editModal .edit-box'), tabs=document.getElementById('accTabs'); if(!side) return;
+  const on=!!row; box.classList.toggle('acc-wide', on); side.hidden=!on; if(tabs) tabs.hidden=!on;
+  if(!on){ side.innerHTML=''; $('#eForm').removeAttribute('data-tab'); return; }
+  if(accTabId!==row.r.id){ accTabId=row.r.id; accTab='side'; accDraft.tk=accDraft.note=accDraft.edit=accDraft.edTx=accDraft.who=''; accDraft.ph=[]; }
+  $('#eForm').dataset.tab=accTab; if(tabs) tabs.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.acctab===accTab));
+  const mine=!ro;
+  side.innerHTML=`<section class="acc-box"><h3>진행 단계</h3>${accStepsHTML(form, mine)}</section>`
+    + `<section class="acc-box"><h3>추후과업</h3>${accTasksHTML(mine)}</section>`
+    + `<section class="acc-box"><h3>처리 이력 · 메모</h3>${accNotesHTML()}</section>`
+    + `<div class="acc-copy"><button type="button" class="btn" id="accCopy">보고 글 복사</button></div>`;
+  side.querySelectorAll('img[data-phimg]').forEach(im=>{ phLoad(im.dataset.phimg).then(u=>{ im.src=u; }).catch(()=>{ im.alt='사진을 불러오지 못함'; im.classList.add('bad'); }); }); }
+const accSide = () => accSidePaint(editRow, roBy);
+// 바로 저장: 서버의 지금 내용을 다시 받아 그 위에 mut 만 (창에서 고치던 다른 칸은 「저장」을 눌러야 저장됨)
 let accBusy=false;
-async function accNoteSave(fn, what){ if(!accEd() || accBusy) return false; accBusy=true;
+async function accPatch(mut, what){ if(!accEd() || accBusy) return false; accBusy=true;
   try{ const id=editRow.r.id; await pull();
     const x=rows.find(y=>y.r.id===id); if(!x){ toast('이 사고 기록을 찾지 못했습니다 (지워졌을 수 있습니다).'); return false; }
-    const notes=fn(Array.isArray(x.d.notes) ? x.d.notes.slice() : []);
-    const ok=await putRow({...x, d:{...x.d, notes}}, what); if(ok===false) return false;
-    editRow=putRow.last; form.notes=notes; return true;
+    const d2=mut({...x.d}); const ok=await putRow({...x, d:d2}, what); if(ok===false) return false;
+    editRow=putRow.last; return d2;
   } finally { accBusy=false; } }
-async function accNoteAdd(){ const text=accDraft.note.trim(); if(!text) return; const me=accMe(), n={id:'n'+Date.now().toString(36), t:new Date().toISOString(), by:me, text};
-  if(!await accNoteSave(L=>[...L, n].slice(-200), '메모 남김')) return;
-  accDraft.note=''; paintForm(); toast('메모를 남겼습니다.');
+async function accNotePatch(fn, what){ const d2=await accPatch(d=>({...d, notes:fn(Array.isArray(d.notes) ? d.notes.slice() : [])}), what); if(!d2) return false; form.notes=d2.notes; return true; }
+async function accNoteAdd(){ const text=accDraft.note.trim(), ph=accDraft.ph.slice(); if((!text && !ph.length) || accDraft.up) return; const me=accMe(), n={id:'n'+Date.now().toString(36), t:new Date().toISOString(), by:me, text}; if(ph.length) n.photos=ph;
+  if(!await accNotePatch(L=>[...L, n].slice(-300), '메모 남김')) return;
+  accDraft.note=''; accDraft.ph=[]; accSide(); toast('메모를 남겼습니다.');
   const o=accOwner(editRow.d, editRow.r);   // 담당자가 아닌 사람이 남겼으면 담당자의 나의 할일에 「메모 확인」 (아직 안 끝낸 것이 있으면 또 만들지 않음)
-  if(o && o!==me && !accTasks(editRow.r.id).some(t=>t.d.accTag==='memo' && !accTaskDone(t.d))){ try{ await accTaskNew(editRow, '새 메모 확인', o, 'memo'); paintForm(); }catch(_){} } }
+  if(o && o!==me && !accTasks(editRow.r.id).some(t=>t.d.accTag==='memo' && !accTaskDone(t.d))){ try{ await accTaskNew(editRow, '새 메모 확인', o, 'memo'); accSide(); }catch(_){} } }
+// 메모에 붙일 사진: 분실물 사진과 같은 저장 (줄여서 올림 · opsboard.js phShrink · 5장까지)
+async function accNotePhAdd(files){ const left=5-accDraft.ph.length; if(left<=0){ toast('사진은 메모 하나에 5장까지입니다.'); return; } accDraft.up++; accSide(); let fail='';
+  for(const f of files.slice(0, left)){ try{ const s=await phShrink(f), j=await SY.call({action:'mentImgPut', name:'사고현황 메모 사진'+(s.mime==='image/png'?'.png':'.jpg'), mime:s.mime, data:s.data}); phCache[j.file.id]=s.url; accDraft.ph.push({id:j.file.id, name:j.file.name}); }catch(e){ fail=String(e.code||e.message||e); } }
+  accDraft.up--; accSide(); if(fail) toast('사진을 올리지 못했습니다: '+fail); }
+async function accStep(i){ if(!accEd() || !accMine(editRow)) return; const to=ACC_ST[i], from=accStatus(form); if(to===from) return;
+  const d2=await accPatch(d=>{ d.status=to; accStageDate(d); return d; }, `단계 ${from} → ${to}`); if(!d2) return;
+  form.status=to; ['rcptDate','visitDate','adjDate','procDate'].forEach(k=>{ if(!form[k] && d2[k]) form[k]=d2[k]; });
+  paintForm(); toast(`단계를 「${to}」(으)로 바꿨습니다.`); if(to==='처리 완료') accTasksClose(editRow.r.id).then(accSide); }
 
 // ---------- 보고 글 (보험사 전달용 「사고 경위 보고」 · 적어 둔 칸으로 만들어 복사) ----------
 function accReport(d){ const L=['사고 경위 보고',''], line=(k,v)=>L.push(k+' : '+(v||'')), para=(t,v)=>{ if(v) L.push('', t, '', v); };
   let when=''; if(d.date){ const [y,m,dd]=d.date.split('-').map(Number); when=`${y}년 ${m}월 ${dd}일`; if(d.time){ const [h,mi]=d.time.split(':').map(Number); when+=` ${h<12?'오전':'오후'} ${(h%12)||12}시${mi?' '+mi+'분':''}경`; } }
-  line('사고 일시', when); line('사고 장소', [d.place, d.addr].filter(Boolean).join(' / ')); line('방문 단체', [d.group, d.visitType].filter(Boolean).join(' · '));
+  line('사고 일시', when); line('사고 장소', [d.place, d.addr].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' / ')); line('방문 단체', [d.group, d.visitType].filter(Boolean).join(' · '));
   line('사고 대상자 성명', [d.person, d.personNote ? '('+d.personNote+')' : ''].filter(Boolean).join(' ')); line('사고 대상자 연락처', d.phone);
   line('대표 예약자', [d.booker, d.bookerPhone].filter(Boolean).join(' '));
   if(d.injury) line('부상 부위', d.injury); if(d.accNo) line('사고번호', d.accNo); if(d.policyNo) line('증권번호', d.policyNo);
@@ -85,49 +116,66 @@ function accReport(d){ const L=['사고 경위 보고',''], line=(k,v)=>L.push(k
   return L.join('\n'); }
 
 // ---------- 창 안의 단추들 ----------
-document.addEventListener('input', e=>{ const t=e.target; if(t.id==='accTkIn') accDraft.tk=t.value; else if(t.id==='accNoteIn') accDraft.note=t.value; });
+document.addEventListener('input', e=>{ const t=e.target; if(t.id==='accTkIn') accDraft.tk=t.value; else if(t.id==='accNoteIn') accDraft.note=t.value; else if(t.id==='accNoteEd') accDraft.edTx=t.value; });
 document.addEventListener('change', async e=>{ const t=e.target;
   if(t.id==='accTkWho'){ accDraft.who=t.value; return; }
-  if(t.dataset && t.dataset.acctk && accEd()){ const k=accTasks(editRow.r.id).find(x=>x.r.id===t.dataset.acctk); if(!k) return; try{ await accTaskCheck(k, t.checked); }catch(err){ accFail(err); } paintForm(); return; }
+  if(t.id==='accShowDone'){ accShowDone=t.checked; if(!accShowDone && filter==='처리 완료') filter='all'; render(); return; }
+  if(t.id==='accNotePh'){ const files=[...(t.files||[])]; t.value=''; if(files.length) accNotePhAdd(files); return; }
+  if(t.dataset && t.dataset.acctk && accEd()){ const k=accTasks(editRow.r.id).find(x=>x.r.id===t.dataset.acctk); if(!k) return; try{ await accTaskCheck(k, t.checked); }catch(err){ accFail(err); } accSide(); return; }
   const sel=t.closest && t.closest('select[data-accst]'); if(!sel) return;   // 목록에서 바로 단계 바꾸기 (담당자만 고르기가 보임)
   const x=rows.find(y=>y.r.id===sel.dataset.accst); if(!x) return; const from=accStatus(x.d), to=sel.value; if(from===to) return;
   const d={...x.d, status:to}; accStageDate(d);
   const ok=await putRow({...x, d}, `단계 ${from} → ${to}`); if(ok!==false){ toast(`단계를 「${to}」(으)로 바꿨습니다.`); if(to==='처리 완료') accTasksClose(x.r.id); } });
 async function accTkAdd(){ const title=accDraft.tk.trim(); if(!title || !accEd() || !accMine(editRow)) return; const who=accDraft.who || accOwner(form, editRow.r) || accMe();
-  try{ await accTaskNew({r:editRow.r, d:form}, title, who, ''); accDraft.tk=''; paintForm(); toast(`「${who}」님의 나의 할일에 올렸습니다.`); document.getElementById('accTkIn')?.focus(); }catch(err){ accFail(err); } }
+  try{ await accTaskNew({r:editRow.r, d:form}, title, who, ''); accDraft.tk=''; accSide(); toast(`「${who}」님의 나의 할일에 올렸습니다.`); document.getElementById('accTkIn')?.focus(); }catch(err){ accFail(err); } }
 document.addEventListener('keydown', e=>{ if(e.key!=='Enter' || e.isComposing) return;
   if(e.target.id==='accTkIn'){ e.preventDefault(); accTkAdd(); }
   else if(e.target.id==='accNoteIn' && !e.shiftKey){ e.preventDefault(); accNoteAdd(); } });
-document.addEventListener('click', async e=>{ const t=e.target;
+// 메모 칸에 사진을 붙여 넣으면(Ctrl+V) 그 메모에 붙임 — 공통 엔진의 붙여넣기(현장 사진 칸)보다 먼저 받음
+document.addEventListener('paste', e=>{ if(!e.target || e.target.id!=='accNoteIn') return; const files=[...(e.clipboardData?.files||[])].filter(x=>/^image\//.test(x.type)); if(!files.length) return;
+  e.preventDefault(); e.stopImmediatePropagation(); accNotePhAdd(files); }, true);
+document.addEventListener('click', async e=>{ const t=e.target, me=accMe(); if(!t.closest) return;
+  const tb=t.closest('[data-acctab]'); if(tb){ accTab=tb.dataset.acctab; accSide(); return; }
+  const sp=t.closest('[data-accstep]'); if(sp){ accStep(+sp.dataset.accstep); return; }
   if(t.id==='accTkAdd'){ accTkAdd(); return; }
   if(t.id==='accNoteAdd'){ accNoteAdd(); return; }
-  if(t.dataset && t.dataset.accndel){ const id=t.dataset.accndel, me=accMe(); if(await accNoteSave(L=>L.map(n=>n.id===id && n.by===me ? {...n, del:{t:new Date().toISOString(), by:me}} : n), '메모 지움')) paintForm(); return; }
-  if(t.id==='accCopy'){ try{ await navigator.clipboard.writeText(accReport(form)); toast('보고 글을 복사했습니다. 메일이나 메신저에 붙여 넣으세요.'); }catch(_){ toast('복사하지 못했습니다.'); } return; } });
+  if(t.dataset.accphdel){ accDraft.ph.splice(+t.dataset.accphdel, 1); accSide(); return; }
+  if(t.dataset.accview && t.src){ phOpen(t.src); return; }
+  if(t.dataset.accnedit){ const n=(form.notes||[]).find(x=>x.id===t.dataset.accnedit); if(n){ accDraft.edit=n.id; accDraft.edTx=n.text||''; accSide(); document.getElementById('accNoteEd')?.focus(); } return; }
+  if(t.id==='accNoteEdNo'){ accDraft.edit=''; accSide(); return; }
+  if(t.id==='accNoteEdOk'){ const id=accDraft.edit, text=accDraft.edTx.trim(); if(!text) return; if(await accNotePatch(L=>L.map(n=>n.id===id && n.by===me ? {...n, text, ed:{t:new Date().toISOString(), by:me}} : n), '메모 고침')){ accDraft.edit=''; accSide(); } return; }
+  if(t.dataset.accndel){ const id=t.dataset.accndel; if(await accNotePatch(L=>L.map(n=>n.id===id && n.by===me ? {...n, del:{t:new Date().toISOString(), by:me}} : n), '메모 지움')) accSide(); return; }
+  if(t.id==='accCopy'){ try{ await navigator.clipboard.writeText(accReport(form)); toast('보고 글을 복사했습니다.'); }catch(_){ toast('복사하지 못했습니다.'); } return; } });
 
 // ---------- 목록 (opsboard.js 의 render 가 부름) — PC = 표 · 휴대폰(700px 아래) = 카드 ----------
-let accYear='';
+//  위: 「전체」(처리 완료가 아닌 것만 · 「완료된 것도 보기」를 켜면 모두) + 단계가 이어지는 흐름(접수 › 보험 접수 › … › 처리 완료 · 누르면 그 단계만)
+let accYear='', accShowDone=false;
 const ACC_MQ = matchMedia('(max-width:700px)');
 ACC_MQ.addEventListener('change', ()=>{ if(typeof render==='function') render(); });
 document.body.classList.add('pg-acc');
 const accTag = s => `<span class="acc-tag s${ACC_ST.indexOf(s)}">${esc(s)}</span>`;
 function accRender(hit){
+  if(filter==='open') filter='all';
   if(!document.getElementById('accYear')){ $('#q').insertAdjacentHTML('beforebegin', '<select id="accYear" class="q-kind" title="사고가 난 해"></select>'); $('#accYear').addEventListener('change', e=>{ accYear=e.target.value; render(); }); }
   const years=[...new Set(rows.map(x=>String(x.d.date||'').slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort().reverse(); if(accYear && !years.includes(accYear)) accYear='';
   $('#accYear').innerHTML=`<option value="">전체 연도</option>${years.map(y=>`<option${y===accYear?' selected':''}>${y}</option>`).join('')}`;
-  const base=rows.filter(x=>!accYear || String(x.d.date||'').startsWith(accYear)), cnt=v=>v==='all' ? base.length : v==='open' ? base.filter(x=>accStatus(x.d)!=='처리 완료').length : base.filter(x=>accStatus(x.d)===v).length;
-  $('#filters').innerHTML=[['open','진행 중'],['all','전체'], ...ACC_ST.map(s=>[s,s])].map(([v,l])=>`<button type="button" class="chip${filter===v?' on':''}" data-f="${esc(v)}">${esc(l)} <small>${cnt(v)}</small></button>`).join('');
+  const base=rows.filter(x=>!accYear || String(x.d.date||'').startsWith(accYear)), shown=x=>{ const s=accStatus(x.d); return filter==='all' ? (accShowDone || s!=='처리 완료') : s===filter; };
+  const chip=(v,l,n)=>`<button type="button" class="chip${filter===v?' on':''}" data-f="${esc(v)}">${esc(l)} <small>${n}</small></button>`;
+  $('#filters').innerHTML=chip('all','전체', base.filter(x=>accShowDone || accStatus(x.d)!=='처리 완료').length)
+    + `<span class="acc-flow">${ACC_ST.map((s,i)=>chip(s, ACC_SHORT[i], base.filter(x=>accStatus(x.d)===s).length)).join('<i aria-hidden="true">›</i>')}</span>`
+    + `<label class="acc-done"><input type="checkbox" id="accShowDone"${accShowDone?' checked':''}> 완료된 것도 보기</label>`;
   $('#bSum').textContent=OPS_PAGE.hint;
-  const list=base.filter(x=>{ const s=accStatus(x.d); return hit(x.d) && (filter==='all' || (filter==='open' ? s!=='처리 완료' : s===filter)); })
+  const list=base.filter(x=>hit(x.d) && shown(x))
     .sort((a,b)=>String(b.d.date||'').localeCompare(String(a.d.date||'')) || String(b.d.time||'').localeCompare(String(a.d.time||'')) || String(b.r.saved).localeCompare(String(a.r.saved)));
-  if(!list.length){ $('#list').innerHTML=`<p class="empty">${rows.length ? '조건에 맞는 사고가 없습니다.' : '아직 접수된 사고가 없습니다. 「＋ 사고 접수」로 넣어 주세요.'}</p>`; return; }
+  if(!list.length){ $('#list').innerHTML=`<p class="empty">${rows.length ? '조건에 맞는 사고가 없습니다.' : '아직 접수된 사고가 없습니다.'}</p>`; return; }
   const days=x=>{ if(accStatus(x.d)==='처리 완료') return ''; const n=accDays(x.d); return n==null ? '' : `<small class="acc-age${n>60?' warn':''}">지난 ${n}일</small>`; };
   const what=d=>String(d.what||'').split('\n')[0].slice(0,40);
   if(ACC_MQ.matches){ $('#list').innerHTML=`<div class="acc-cards">${list.map(x=>{ const d=x.d, s=accStatus(d);
-      return `<div class="acc-card${s==='처리 완료'?' closed':''}" data-edit="${esc(x.r.id)}" role="button" tabindex="0"><div class="ac-t">${accTag(s)}<b>${esc(accWhen(d))}</b>${days(x)}</div><div class="ac-p">${esc([d.place, d.type].filter(Boolean).join(' · '))}</div>${what(d)?`<div class="ac-w">${esc(what(d))}</div>`:''}<div class="ac-o">담당 ${esc(accOwner(d, x.r))}${accMine(x)?'':' · 보기 · 메모만'}</div></div>`; }).join('')}</div>`; return; }
+      return `<div class="acc-card${s==='처리 완료'?' closed':''}" data-edit="${esc(x.r.id)}" role="button" tabindex="0"><div class="ac-t">${accTag(s)}<b>${esc(accWhen(d))}</b>${days(x)}</div>${accMini(d)}<div class="ac-p">${esc([d.place, d.type].filter(Boolean).join(' · '))}</div>${what(d)?`<div class="ac-w">${esc(what(d))}</div>`:''}<div class="ac-o">담당 ${esc(accOwner(d, x.r))}${accMine(x)?'':' · 보기 · 메모만'}</div></div>`; }).join('')}</div>`; return; }
   $('#list').innerHTML=`<div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th>사고 일시</th><th>장소</th><th>구분</th><th>사고 대상자</th><th>사고 내용</th><th>담당자</th><th>단계</th><th></th></tr></thead><tbody>${list.map(x=>{ const d=x.d, s=accStatus(d), mine=accMine(x);
     return `<tr class="${s==='처리 완료'?'closed':''}"><td class="nw">${esc(accWhen(d))}</td><td>${esc(d.place||'')}</td><td class="nw">${esc(d.type||'')}</td><td>${esc(d.person||'')}</td><td>${esc(what(d))}</td><td class="nw">${esc(accOwner(d, x.r))}</td>`
-      + `<td class="nw">${mine ? `<select class="lost-st acc-st s${ACC_ST.indexOf(s)}" data-accst="${esc(x.r.id)}" title="단계 바꾸기">${ACC_ST.map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select>` : accTag(s)}${days(x)}</td>`
-      + `<td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">${mine?'수정':'보기'}</button></td></tr>`; }).join('')}</tbody></table></div>`;
+      + `<td class="nw">${mine ? `<select class="lost-st acc-st s${ACC_ST.indexOf(s)}" data-accst="${esc(x.r.id)}" title="단계 바꾸기">${ACC_ST.map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select>` : accTag(s)}${accMini(d)}${days(x)}</td>`
+      + `<td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">${mine?'열기':'보기'}</button></td></tr>`; }).join('')}</tbody></table></div>`;
 }
 
 const ACC_PLACES = ['소대','쉼자리길','가가빈빈','현암','소요헌','남명','별유동천','소백세심대','몽몽마방','몽몽차방','곡신문','주차장','매표소'];
@@ -162,9 +210,9 @@ const OPS_PAGE =
       {k:'cause', l:'사고 사유', type:'textarea', w:2, show:accEd},
       {k:'prevent', l:'재발 방지 대책', type:'textarea', w:2, show:accEd},
 
-      {type:'head', l:'처리 단계 · 보험', show:accEd},
-      {k:'status', l:'단계', type:'select', opts:ACC_ST, def:()=>'접수', show:accEd}, {k:'rcptDate', l:'보험 접수일', type:'date', show:accEd},
-      {k:'visitDate', l:'손해사정사 현장 방문일', type:'date', show:accEd}, {k:'visitNote', l:'현장 방문 메모', type:'text', ph:'담당 손해사정사 · 방문 시간', show:accEd},
+      {type:'head', l:'보험 처리', show:accEd},   // 단계는 창 오른쪽의 「진행 단계」에서 바꿈 (2026-11-28 · 칸에는 날짜만)
+      {k:'rcptDate', l:'보험 접수일', type:'date', show:accEd}, {k:'visitDate', l:'손해사정사 현장 방문일', type:'date', show:accEd},
+      {k:'visitNote', l:'현장 방문 메모', type:'text', ph:'담당 손해사정사 · 방문 시간', show:accEd}, {k:'adjDate', l:'손해사정 시작일', type:'date', show:accEd},
       {k:'procDate', l:'처리 완료일', type:'date', show:accEd}, {k:'insStatus', l:'보험사 진행상태', type:'text', list:['사고조사','보상종결','면책종결'], show:accEd},
       {k:'accNo', l:'사고번호', type:'text', show:accEd}, {k:'policyNo', l:'증권번호', type:'text', show:accEd},
       {k:'insCause', l:'사고원인 (보험사 기준)', type:'text', list:['치료비','파손','품질불량','주차장사고'], show:accEd}, {k:'insType', l:'사고유형 (보험사 기준)', type:'text', list:['배상책임','생산물(PL)'], show:accEd},
@@ -173,11 +221,7 @@ const OPS_PAGE =
       {k:'addr', l:'사고 장소 (주소 · 보험사에 낸 것)', type:'text', w:2, show:accEd},
       {k:'payout', l:'보험금 (원)', type:'num', show:accEd}, {k:'diagnosis', l:'진단명', type:'text', show:accEd},
 
-      {type:'head', l:'추후과업 · 메모', show:accEd},
-      {k:'_tasks', w:2, show:accEd, html:accTasksHTML},
-      {k:'_notes', w:2, show:accEd, html:accNotesHTML},
-      {k:'memo', l:'내부 메모', type:'textarea', w:2},
-      {k:'_copy', w:2, show:accEd, html:()=>`<div class="acc-copy lock-ok"><button type="button" class="btn primary" id="accCopy">보고 글 복사</button></div>`} ],
+      {k:'memo', l:'내부 메모', type:'textarea', w:2} ],
     cols:[['date','사고 일시'],['place','장소'],['type','구분'],['status','단계']],
     status:'status', open:ACC_OPEN, summary:d=>`${d.type||''} ${d.place||''} · ${accStatus(d)}`.trim(),
     render:accRender,
@@ -185,7 +229,7 @@ const OPS_PAGE =
     lockBy:row=>accMine(row) ? '' : accOwner(row.d, row.r),
     normalize:d=>{ d.status=accStatus(d); if(accEd() && !d.owner) d.owner=accOwner(d, editRow.r); delete d._tasks; delete d._notes; delete d._copy; },
     onField:(k, d)=>{ if(k==='status') accStageDate(d); },
-    afterPaint:(f, row, ro)=>{ const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자는 ${ro} 님입니다. 담당자가 아니어서 내용은 볼 수만 있고, 아래 「처리 이력 · 메모」에 메모를 남길 수 있습니다.` : ''; } },
+    afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
     // 저장한 뒤: 새 사고 = 담당자의 나의 할일에 한 건 · 담당자를 바꿨으면 남은 과업을 새 담당자에게 · 처리 완료면 남은 과업을 끝냄
     afterSave:async (nr, was)=>{ try{ const o=accOwner(nr.d, nr.r), id=nr.r.id;
         if(!was){ await accTaskNew(nr, '접수 확인 · 보험 접수 여부 정하기', o, 'new'); return; }

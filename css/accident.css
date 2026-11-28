@@ -68,3 +68,74 @@ body.pg-acc .ef-h:first-child{margin-top:0}
   body.pg-acc .row-btns .btn{flex:1}
   body.pg-acc .row-btns .sp{display:none}
 }
+
+/* ===== 2026-11-28 다시 짬: 목록 위의 단계 흐름 · 창을 두 칸으로 (왼쪽 사고 내용 · 오른쪽 진행) ===== */
+/* 목록 위: 전체 + 단계 흐름(이어지는 순서) + 완료된 것도 보기 */
+body.pg-acc .filters{align-items:center}
+.acc-flow{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;padding:3px 6px;border-radius:999px;background:var(--bg)}
+.acc-flow > i{font-style:normal;color:var(--muted);font-size:15px;line-height:1}
+.acc-done{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-size:13px;color:var(--ink);cursor:pointer;white-space:nowrap}
+.acc-done input{width:16px;height:16px;accent-color:var(--pine)}
+.acc-mini{display:flex;gap:3px;width:96px;margin-top:5px}
+.acc-mini i{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.acc-mini i.on{background:var(--pine)}
+/* 창: 고칠 때는 넓게 · 두 칸 */
+body.pg-acc .edit-box.acc-wide{width:min(1180px,100%)}
+.acc-wide .acc-cols{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:22px;align-items:start}
+.acc-side{display:flex;flex-direction:column;gap:12px;position:sticky;top:0;max-height:calc(100vh - 150px);overflow:auto;padding:2px}
+.acc-side[hidden]{display:none}
+.acc-box{border:1px solid var(--line);border-radius:10px;background:#fff;padding:12px 14px}
+.acc-box h3{margin:0 0 8px;font:600 15px var(--serif);color:var(--pine)}
+.acc-side input:not([type=checkbox]),.acc-side select,.acc-side textarea{height:36px;border:1px solid var(--line);border-radius:6px;padding:6px 9px;font:14px var(--sans);background:#fff;color:var(--ink)}
+.acc-side textarea{width:100%;height:auto;min-height:58px;resize:vertical;line-height:1.5;display:block}
+.acc-side input:focus,.acc-side select:focus,.acc-side textarea:focus{outline:none;border-color:var(--pine)}
+.acc-side .acc-tasks li input{width:16px;height:16px;flex:none;accent-color:var(--pine)}
+.acc-side .acc-add select{flex:0 0 auto;max-width:110px}
+/* 진행 단계: 이어지는 다섯 마디 (선으로 이음) */
+.acc-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.acc-steps li{position:relative;min-width:0}
+.acc-steps li::before{content:"";position:absolute;top:14px;left:calc(-50% + 15px);right:calc(50% + 15px);height:2px;background:var(--line)}
+.acc-steps li:first-child::before{display:none}
+.acc-steps li.done::before,.acc-steps li.cur::before,.acc-steps li.skip::before{background:var(--pine)}
+.acc-steps button{all:unset;box-sizing:border-box;width:100%;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;cursor:pointer;padding:0 2px}
+.acc-steps button:disabled{cursor:default}
+.acc-steps button:focus-visible i{outline:2px solid var(--muted);outline-offset:2px}
+.acc-steps i{position:relative;width:30px;height:30px;border-radius:50%;border:2px solid var(--line);background:#fff;display:grid;place-items:center;font:600 13px var(--sans);font-style:normal;color:var(--muted)}
+.acc-steps li.done i{background:var(--pine);border-color:var(--pine);color:#fff}
+.acc-steps li.skip i{border-color:var(--pine);border-style:dashed;color:var(--muted)}
+.acc-steps li.cur i{background:var(--pine);border-color:var(--pine);color:#fff;box-shadow:0 0 0 4px var(--pine-soft)}
+.acc-steps b{font:500 12.5px/1.3 var(--sans);color:var(--muted);word-break:keep-all}
+.acc-steps li.done b{color:var(--ink)}
+.acc-steps li.cur b{color:var(--pine);font-weight:700}
+.acc-steps small{font-size:11.5px;color:var(--muted);min-height:16px}
+.acc-steps button:not(:disabled):hover i{border-color:var(--pine)}
+/* 메모 적는 칸 · 메모에 붙인 사진 */
+.acc-note-in{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.an-btns{display:flex;align-items:center;gap:6px}
+.an-btns .sp{flex:1}
+.an-btns label.btn{cursor:pointer}
+.an-phs{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.an-ph{position:relative;display:inline-block}
+.an-ph img{display:block;width:64px;height:64px;object-fit:cover;border-radius:7px;border:1px solid var(--line);background:#f2f1ec;cursor:zoom-in}
+.an-ph .ph-x{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:14px;line-height:1;cursor:pointer;padding:0}
+.an-acts{margin-left:auto;display:inline-flex;gap:8px}
+.an-acts .an-x{margin-left:0}
+.acc-side .acc-notes{max-height:none}
+.acc-tabs{display:none}
+@media (max-width:1000px){
+  .acc-wide .acc-cols{grid-template-columns:minmax(0,1fr)}
+  .acc-side{position:static;max-height:none;overflow:visible;order:-1}
+  .acc-wide .acc-cols{display:flex;flex-direction:column}
+  .acc-wide .acc-main{width:100%}
+}
+@media (max-width:700px){
+  .acc-done{margin-left:0}
+  .acc-tabs:not([hidden]){display:flex;gap:4px;background:var(--bg);border-radius:10px;padding:4px;margin:0 0 12px}
+  .acc-tabs button{flex:1;height:40px;border:0;border-radius:8px;background:none;color:var(--muted);font:600 14.5px var(--sans);cursor:pointer}
+  .acc-tabs button.on{background:#fff;color:var(--pine)}
+  #eForm[data-tab=side] .acc-main{display:none}
+  #eForm[data-tab=info] .acc-side{display:none}
+  .acc-side input:not([type=checkbox]),.acc-side select,.acc-side textarea{font-size:16px;height:42px}
+  .acc-side textarea{height:auto}
+  .acc-steps b{font-size:11.5px}
+}
