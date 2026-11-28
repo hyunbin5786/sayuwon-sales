@@ -19,11 +19,10 @@ main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
 .hint{font-size:12.5px;color:var(--muted)}
 .err{color:var(--red);font-size:12.5px;min-height:18px;margin:6px 0 0}
-.btn{height:34px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:0 14px;font:700 13px var(--sans);cursor:pointer;color:var(--ink);white-space:nowrap}
+.btn{border:1px solid var(--line);background:#fff;font:500 13px var(--sans);cursor:pointer;color:var(--ink);white-space:nowrap}
 .btn:hover{border-color:var(--pine);color:var(--pine)}
 .btn.primary{background:var(--pine);border-color:var(--pine);color:#fff}
 .btn.primary:hover{filter:brightness(1.08);color:#fff}
-.btn.sm{height:28px;padding:0 10px;font-size:12px;font-weight:500}
 .inline{display:flex;gap:8px;flex-wrap:wrap}
 .inline input{height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font:14px var(--sans);flex:1 1 180px}
 .keybox{margin-bottom:14px}

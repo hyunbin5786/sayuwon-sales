@@ -332,7 +332,7 @@
     </div>
     <div class="psec-t" id="selTitle">선택한 항목</div>
     <div id="priceBox"></div>
-    <div class="row-btns" style="margin-top:10px"><button type="button" class="btn" id="erpPasteBtn" style="padding:5px 12px;font-size:12.5px" title="사유원 전산의 상품 정보를 복사해 붙여넣으면 내역 · 금액을 보여 줍니다">전산 내역 붙여넣기</button></div>
+    <div class="row-btns" style="margin-top:10px"><button type="button" class="btn" id="erpPasteBtn" title="사유원 전산의 상품 정보를 복사해 붙여넣으면 내역 · 금액을 보여 줍니다">전산 내역 붙여넣기</button></div>
     <div id="erpBox" hidden></div>
     <div id="priceAll" hidden></div>
     <p class="hint" id="priceSrc">견적서&amp;거래명세서 사이트 품목 기준 · 부가세 포함 · 공휴일은 주말 가격</p>
@@ -366,12 +366,12 @@
 <div class="modal" id="listModal" hidden>
   <section class="list panel" role="dialog" aria-modal="true" aria-labelledby="listTitle">
     <h2><span id="listTitle">단체예약 목록</span> <small id="storeHint"></small>
-      <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn primary" id="xlsxBtn" style="padding:4px 10px;font-size:12px" title="지금 표에 보이는 예약을 엑셀 파일로 (고른 단계 · 기간 · 검색 그대로)">엑셀로 내려받기</button><button type="button" class="win-x in-row" id="listCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+      <span class="row-btns"><small id="adminHint"></small><button type="button" class="btn primary sm" id="xlsxBtn" title="지금 표에 보이는 예약을 엑셀 파일로 (고른 단계 · 기간 · 검색 그대로)">엑셀로 내려받기</button><button type="button" class="win-x in-row" id="listCloseBtn" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <div class="list-bar"><span class="stage-sum" id="stageSum" title="누른 단계만 보입니다 (기본: 가예약 · 예약확정)"></span><div class="seg" id="stageFilter" style="display:inline-flex;background:var(--bg)" title="누르면 그 단계를 보이기 · 숨기기 (여러 개 고를 수 있음)">
       <button type="button" data-f="예약상담">예약상담</button><button type="button" data-f="가예약">가예약</button><button type="button" data-f="예약확정">예약확정</button><button type="button" data-f="예약취소">예약취소</button>
     </div>
     <input id="listSearch" class="list-search" type="search" data-ime="ko" placeholder="검색: 업체명 · 담당자 · 전화번호 (지난 예약까지 전체에서)" autocomplete="off">
-    <span class="past-bar" id="pastBar" title="방문일이 이 기간인 예약만 보입니다 (기본: 오늘부터 끝까지 · 지난 예약을 보려면 시작 날짜를 앞으로 고르거나 지우세요)"><b>기간</b><span class="dbox"><input class="dtxt" readonly placeholder="처음부터"><input type="date" class="dpick" id="pastFrom" tabindex="-1" aria-hidden="true"></span><span class="pb-til">~</span><span class="dbox"><input class="dtxt" readonly placeholder="끝까지"><input type="date" class="dpick" id="pastTo" tabindex="-1" aria-hidden="true"></span><button type="button" class="btn primary" id="pastClear" style="padding:4px 10px;font-size:12px" title="기본으로: 오늘부터 끝까지">오늘부터</button><small class="hint" id="pastSum" style="margin:0"></small></span><div class="seg" id="sortSeg" style="display:inline-flex;background:var(--bg)" title="목록 정렬">
+    <span class="past-bar" id="pastBar" title="방문일이 이 기간인 예약만 보입니다 (기본: 오늘부터 끝까지 · 지난 예약을 보려면 시작 날짜를 앞으로 고르거나 지우세요)"><b>기간</b><span class="dbox"><input class="dtxt" readonly placeholder="처음부터"><input type="date" class="dpick" id="pastFrom" tabindex="-1" aria-hidden="true"></span><span class="pb-til">~</span><span class="dbox"><input class="dtxt" readonly placeholder="끝까지"><input type="date" class="dpick" id="pastTo" tabindex="-1" aria-hidden="true"></span><button type="button" class="btn primary sm" id="pastClear" title="기본으로: 오늘부터 끝까지">오늘부터</button><small class="hint" id="pastSum" style="margin:0"></small></span><div class="seg" id="sortSeg" style="display:inline-flex;background:var(--bg)" title="목록 정렬">
       <button type="button" data-o="date">방문일 순</button><button type="button" data-o="saved" title="최근에 접수(저장)한 예약부터">접수 순</button>
     </div><div class="seg" id="viewSeg" style="display:inline-flex;background:var(--bg)" title="표 · 캘린더로 보기">
       <button type="button" data-v="table">표</button><button type="button" data-v="cal">캘린더</button>

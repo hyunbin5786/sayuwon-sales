@@ -19,7 +19,7 @@ main.rent-main{display:block;max-width:1600px}
 .rent-t td.c-place{min-width:200px}
 .rent-t td.c-note{min-width:280px;color:#3d3b35}
 .rent-t td.acts{white-space:nowrap;text-align:right}
-.rent-t td.acts .btn{padding:4px 9px;margin-left:4px}
+.rent-t td.acts .btn{margin-left:4px}
 .rent-t td.empty{text-align:center;color:var(--muted);padding:24px}
 .rent-log{margin-top:10px}
 .rent-edit{max-width:640px !important}
