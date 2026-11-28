@@ -41,7 +41,7 @@ section.on{display:block}
 textarea{width:100%;min-height:180px;border:1px solid var(--line);border-radius:8px;padding:10px;font:13px/1.5 ui-monospace,Consolas,monospace;background:var(--bg);color:var(--ink);resize:vertical}
 textarea.out{min-height:120px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
-.btn{border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;font:inherit}
+.btn{border:1px solid var(--accent);background:var(--accent);color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit;font-size:14px}
 .btn.ghost{background:transparent;color:var(--accent)}
 .btn:disabled{opacity:.5;cursor:default}
 select,input[type=text],input[type=number]{border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--card);color:var(--ink);font:inherit;font-size:14px}
@@ -107,7 +107,7 @@ body{font:14px/1.6 "Noto Sans KR",system-ui,sans-serif}
 .hint{font-size:12.5px}
 #nav button{padding:6px 14px;font-size:13.5px;background:#fff}
 #nav button.on{font-weight:700}
-.btn{font:700 13px "Noto Sans KR",sans-serif}
+.btn{height:34px;padding:0 14px;border-radius:8px;font:700 13px "Noto Sans KR",sans-serif}
 .btn.ghost{background:#fff;border-color:var(--line);color:var(--ink)}
 .btn.ghost:not(:disabled):hover{border-color:var(--accent);color:var(--accent);background:#fff}
 .btn:not(:disabled):hover{box-shadow:none;transform:none}

@@ -374,7 +374,7 @@ function renderLists(){ if(!$('#cbList')) return;   // 오른쪽 목록은 없�
   $('#cbList').innerHTML = open.map(({r,t})=>{ const late=t.due && t.due<today, td=t.due===today, f=fromItem(r);
     return `<li data-id="${esc(r.id)}"><div><b>${esc(t.title)}</b> <span class="meta">${esc(f.name||'(이름 없음)')}${f.phone?` · ${esc(f.phone)}`:''}</span></div>`
       + `<div class="r"><span class="tag ${late?'late':td?'cb':''}">${late?'기한 지남 ':td?'오늘 ':''}${esc(dLabel(t.due))}</span></div>`
-      + `<div class="txt" style="text-align:right"><button type="button" class="btn sm" data-tfin="${esc(r.id)}|${esc(t.id)}">완료</button></div></li>`; }).join('')
+      + `<div class="txt" style="text-align:right"><button type="button" class="btn" data-tfin="${esc(r.id)}|${esc(t.id)}" style="padding:2px 10px;font-size:12px">완료</button></div></li>`; }).join('')
     || '<li class="empty" style="cursor:default">안 끝난 추후 과업이 없습니다.</li>';
   const q=$('#search').value.trim().replace(/\s/g,'').toLowerCase(), qd=q.replace(/\D/g,'');
   const hit = r => !q || [r.contact, r.note, r.summary, r.takenBy, r.history].join(' ').replace(/\s/g,'').toLowerCase().includes(q) || (qd.length>=3 && String(r.phone||'').replace(/\D/g,'').includes(qd));
