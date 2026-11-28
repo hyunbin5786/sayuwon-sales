@@ -293,11 +293,19 @@ async function bkWhoSave(key, n, t){
   const item={...(old||{}), id:BKWHO_ID, callType:BKWHO_TYPE, saved:(old&&old.saved)||now, takenBy:savedOwner()||'', summary:`예약 현황 추가한 사람 ${Object.keys(who).length}건`, history:JSON.stringify({who, at:now})};
   await store.put(item); const ci=cache.findIndex(x=>x.id===BKWHO_ID); if(ci>=0) cache[ci]=item; else cache.push(item);
 }
+// 로그인한 사람의 연락처 (2026-11-28 · 운영팀 요청): 새로 추가할 때 「추가한 사람 이름 · 연락처」에 로그인한 사람의 이름과 멤버 관리에 적힌 연락처를 미리 넣음 (다른 사람이면 고쳐 적음)
+//  멤버 목록(서버 동작 members)에서 내 사번의 연락처를 한 번 받아 둠 · 멤버 관리에 연락처가 없으면 같은 이름으로 마지막에 넣은 연락처(bkWhoLast)
+let bkMePhone=null;   // null = 아직 안 받음 · '' = 멤버 관리에 연락처 없음
+async function bkMeLoad(){ if(bkMePhone!==null || BOOK_GUEST) return;
+  try{ const j=await SY.callRaw({action:'members'}); if(!j || !j.ok) return; const up=v=>String(v||'').replace(/\s/g,'').toUpperCase(), u=(SY.user && SY.user())||{};
+    const m=(j.members||[]).find(x=>u.emp && up(x.emp)===up(u.emp)); bkMePhone = m && m.phone ? (SY.fmtPhone(m.phone)||String(m.phone)) : ''; }catch(_){} }
 let bookAddSnap='', bookAddEscAt=0;
 const bookAddVals = () => [...document.querySelectorAll('#bookAdd input:not(.dtxt), #bookAdd select, #bookAdd textarea')].map(el=>el.id==='baWhoTel' && SY.telBlank && SY.telBlank(el.value) ? '' : el.value).join('\u0001');   // 저절로 들어간 010- 만 있는 것은 「적은 것」으로 치지 않음
 const bookAddDirty = () => !bookAddClosed() && bookAddVals()!==bookAddSnap;
 function bookAddOpen(){ if(BOOK_GUEST){ toast('로그인한 사람만 직접 추가할 수 있습니다.'); return; }
-  paintBookAdd(); $('#bookAddModal').hidden=false; bookAddSnap=bookAddVals(); bookAddEscAt=0; setTimeout(()=>($('#baOrg')||$('#bookAdd input'))?.focus(), 0); }   // 초점은 첫 입력 칸에 (× 에 주지 않음)
+  paintBookAdd(); $('#bookAddModal').hidden=false; bookAddSnap=bookAddVals(); bookAddEscAt=0; setTimeout(()=>($('#baOrg')||$('#bookAdd input'))?.focus(), 0);
+  if(!bookEdit && bkMePhone===null){ const t0=($('#baWhoTel')||{}).value||'';   // 연락처를 아직 못 받았으면 받아서 넣음 (그 사이 사람이 칸을 고쳤으면 그대로 둠)
+    bkMeLoad().then(()=>{ const t=$('#baWhoTel'); if(!bkMePhone || !t || bookAddClosed() || bookEdit || t.value!==t0) return; const clean=!bookAddDirty(); t.value=bkMePhone; if(clean) bookAddSnap=bookAddVals(); }); } }   // 초점은 첫 입력 칸에 (× 에 주지 않음)
 function bookAddClose(){ $('#bookAddModal').hidden=true; bookEdit=null; bookImp=null; bookAddEscAt=0; paintBookAdd(); }
 const PLACE_OPTS=['몽몽차방','당두봉갈'], KIND_OPTS=['동행','PPT'], COUPON_OPTS=['음료쿠폰(가가빈빈)','음료쿠폰(몽몽차방)'];
 // 프로그램 예약 직접 추가의 「프로그램 항목」 = 고르는 칸 (2026-11-28 · 운영팀 요청): 품목관리의 단체(개별) 품목 — 단체 화면 예약 내역의 「프로그램(개별)」 줄과 같은 목록 · 같은 이름
@@ -320,8 +328,8 @@ function paintBookAdd(){
   box.innerHTML = `<div class="ba-h"><b>${c==='mb'?'몽몽마방':BOOK_CATS[c]} ${bookEdit?'예약 고치기':'예약 직접 추가'}</b> <span class="hint" style="margin:0">예약 한 건 · <i class="ba-req">*</i> 표시는 꼭 넣는 칸입니다</span></div>`
     + (BOOK_GUEST ? `<div class="ba-row ba-who"><label class="wide">추가하는 사람 이름 <input id="baBy" data-ime="ko" placeholder="이름" autocomplete="off" value="${esc((()=>{ try{ return localStorage.getItem('sy_guest_name')||''; }catch(_){ return ''; } })())}"></label><span class="hint">로그인 없이 추가합니다 · 고치기 · 빼기는 로그인한 사람이</span></div>` : '')   // 로그인 없이: 이름을 적고 추가 (2026-11-21)
     + `<div class="ba-row"><label><span>날짜${req}</span> ${dboxHTML('id="baDate"', x.d||rec.date||'')}</label>${f.join('')}</div>`
-    + (BOOK_GUEST ? '' : (()=>{ const w=bookEdit ? bkWho(bkWhoKey()) : {n:savedOwner()||'', t:bkWhoLast(savedOwner()||'')}, r=bookEdit?'':req;   // 새로 넣을 때는 꼭 · 예전 줄을 고칠 때는 비어 있어도 저장
-        return `<div class="ba-row ba-by"><label><span>추가한 사람 이름${r}</span> <input id="baWho" data-ime="ko" placeholder="이름" autocomplete="off" value="${esc(w.n||'')}"></label><label><span>추가한 사람 연락처${r}</span> <input id="baWhoTel" type="tel" inputmode="tel" data-tel placeholder="010-0000-0000" autocomplete="off" value="${esc(w.t||'')}"></label><span class="hint">이 예약을 넣은 사람 · 목록에는 보이지 않고 이 창에서만 보입니다</span></div>`; })())
+    + (BOOK_GUEST ? '' : (()=>{ const w=bookEdit ? bkWho(bkWhoKey()) : {n:savedOwner()||'', t:bkMePhone||bkWhoLast(savedOwner()||'')}, r=bookEdit?'':req;   // 새로 넣을 때는 꼭 · 예전 줄을 고칠 때는 비어 있어도 저장
+        return `<div class="ba-row ba-by"><label><span>추가한 사람 이름${r}</span> <input id="baWho" data-ime="ko" placeholder="이름" autocomplete="off" value="${esc(w.n||'')}"></label><label><span>추가한 사람 연락처${r}</span> <input id="baWhoTel" type="tel" inputmode="tel" data-tel placeholder="010-0000-0000" autocomplete="off" value="${esc(w.t||'')}"></label><span class="hint">${bookEdit?'이 예약을 넣은 사람':'로그인한 사람의 이름 · 연락처가 미리 들어갑니다 (다른 사람이면 고쳐 주세요)'} · 목록에는 보이지 않고 이 창에서만 보입니다</span></div>`; })())
     + `<div class="ba-btns">${bookEdit && !BOOK_GUEST ? '<button type="button" class="btn ba-del" id="baDel" title="이 예약을 목록에서 뺍니다 (사유를 적는 창이 뜹니다 · 기록에 남음)">이 예약 빼기</button>' : ''}<button type="button" class="btn" id="baCancel">취소</button><button type="button" class="btn primary" id="baSave">${bookEdit?'고치기':'추가'}</button></div>`
 }
 async function bookAddSave(){
@@ -510,7 +518,7 @@ async function bookPrintAll(){
     if(await bkSave(files, '담당별 일정')) toast(`담당 ${files.length}명의 일정을 한 장씩 저장했습니다 (${names.join(' · ')}).`, 4200); }
   finally{ btn.disabled=false; btn.textContent=txt; }
 }
-function openBook(c){ bookCatNow=c; bookEdit=null; bookImp=null; $('#bookModal').hidden=false; paintBook(); bookPageSync(); }
+function openBook(c){ bookCatNow=c; bookEdit=null; bookImp=null; $('#bookModal').hidden=false; paintBook(); bookPageSync(); bkMeLoad(); }
 document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('[data-book]'); if(b) openBook(b.dataset.book); const t=e.target.closest && e.target.closest('#bookTabs [data-bt]'); if(t){ bookCatNow=t.dataset.bt; bookEdit=null; { const q=$('#bfQ'); if(q) q.value=''; } paintBook(); bookPageSync(); } });   // 탭을 누르면 검색어(모든 목록에서 찾기)를 지우고 그 목록으로 (2026-11-27)
 $('#bookClose').onclick=bookShut;
 $('#bookPast').onchange=paintBook;
