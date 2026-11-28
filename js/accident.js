@@ -41,9 +41,9 @@ async function accTaskPut(r, j, d, what){ const now=new Date().toISOString();
   await SY.call({action:'put', item});
   const L=(window.opsItems ||= []), i=L.findIndex(x=>x.id===item.id); if(i>=0) L[i]=item; else L.push(item);
   return item; }
-function accTaskNew(x, title, who, tag){ const d=x.d, now=new Date().toISOString();
+function accTaskNew(x, title, who, tag, opt){ const d=x.d, now=new Date().toISOString();
   return accTaskPut({id:opsId(), callType:OPS_TYPES.task, saved:now, takenBy:accMe(), owner:who}, {kind:'task', log:[]},
-    {title:`[사고] ${d.place||'장소 없음'} · ${d.type||''} — ${title}`, repeat:'none', due:opsToday(), owner:who, memo:`사고현황 접수 › ${accWhen(d)} ${d.place||''} (운영보조 › 사고현황 접수에서 엽니다)`, subs:[], acc:x.r.id, accTag:tag||''}, '사고현황 접수에서 만듦'); }
+    {title:`[사고] ${d.place||'장소 없음'} · ${d.type||''} — ${title}`, repeat:'none', due:(opt && opt.due) || opsToday(), owner:who, memo:`사고현황 접수 › ${accWhen(d)} ${d.place||''} (운영보조 › 사고현황 접수에서 엽니다)`, subs:(opt && opt.subs) || [], acc:x.r.id, accTag:tag||''}, '사고현황 접수에서 만듦'); }
 async function accTaskCheck(t, on){ const d={...t.d, done:{...(t.d.done||{})}}, day=accTaskDay(d) || opsToday(); if(!d.due && !d.start) d.due=day;
   if(on) d.done[day]={at:new Date().toISOString(), by:accMe()}; else delete d.done[day];
   await accTaskPut(t.r, t.j, d, on?'완료':'완료 취소'); }
@@ -97,7 +97,7 @@ async function accNoteAdd(){ const text=accDraft.note.trim(), ph=accDraft.ph.sli
   if(!await accNotePatch(L=>[...L, n].slice(-300), '메모 남김')) return;
   accDraft.note=''; accDraft.ph=[]; accSide(); toast('메모를 남겼습니다.');
   const o=accOwner(editRow.d, editRow.r);   // 담당자가 아닌 사람이 남겼으면 담당자의 나의 할일에 「메모 확인」 (아직 안 끝낸 것이 있으면 또 만들지 않음)
-  if(o && o!==me && !accTasks(editRow.r.id).some(t=>t.d.accTag==='memo' && !accTaskDone(t.d))){ try{ await accTaskNew(editRow, '새 메모 확인', o, 'memo'); accSide(); }catch(_){} } }
+  if(o && o!==me){ const k=await accFire('memo', editRow, o); if(k) accSide(); } }
 // 메모에 붙일 사진: 분실물 사진과 같은 저장 (줄여서 올림 · opsboard.js phShrink · 5장까지)
 async function accNotePhAdd(files){ const left=5-accDraft.ph.length; if(left<=0){ toast('사진은 메모 하나에 5장까지입니다.'); return; } accDraft.up++; accSide(); let fail='';
   for(const f of files.slice(0, left)){ try{ const s=await phShrink(f), j=await SY.call({action:'mentImgPut', name:'사고현황 메모 사진'+(s.mime==='image/png'?'.png':'.jpg'), mime:s.mime, data:s.data}); phCache[j.file.id]=s.url; accDraft.ph.push({id:j.file.id, name:j.file.name}); }catch(e){ fail=String(e.code||e.message||e); } }
@@ -107,7 +107,8 @@ async function accStep(i){ const to=ACC_ST[i], from=accStatus(form); if(to===fro
   if(!accMine(editRow)) return;
   const d2=await accPatch(d=>{ d.status=to; accStageDate(d); return d; }, `단계 ${from} → ${to}`); if(!d2) return;
   form.status=to; ['rcptDate','visitDate','adjDate','procDate'].forEach(k=>{ if(!form[k] && d2[k]) form[k]=d2[k]; }); ['status','rcptDate','visitDate','adjDate','procDate'].forEach(k=>{ accBase[k]=form[k]; });   // 단계는 바로 저장됐으므로 「저장 안 한 수정」으로 치지 않음
-  paintForm(); toast(`단계를 「${to}」(으)로 바꿨습니다.`); if(to==='처리 완료') accTasksClose(editRow.r.id).then(accSide); }
+  paintForm(); toast(`단계를 「${to}」(으)로 바꿨습니다.`); const x=editRow, o=accOwner(x.d, x.r);   // 단계가 바뀌면 그 단계의 과업(추후과업 관리에서 더한 것) · 처리 완료면 남은 과업을 먼저 끝냄
+  if(to==='처리 완료') await accTasksClose(x.r.id); if(i>0) await accFire('st'+i, x, o); accSide(); }
 
 // ---------- 보고 글 (보험사 전달용 「사고 경위 보고」 · 적어 둔 칸으로 만들어 복사) ----------
 function accReport(d){ const L=['사고 경위 보고',''], line=(k,v)=>L.push(k+' : '+(v||'')), para=(t,v)=>{ if(v) L.push('', t, '', v); };
@@ -244,11 +245,17 @@ const OPS_PAGE =
     // 저장한 뒤: 새 사고 = 담당자의 나의 할일에 한 건 · 담당자를 바꿨으면 남은 과업을 새 담당자에게 · 처리 완료면 남은 과업을 끝냄
     afterSave:async (nr, was)=>{ accGo=nr.r.id; try{ const o=accOwner(nr.d, nr.r), id=nr.r.id;
         // 처음 접수: 담당자가 접수한 사람 자신이면 과업을 만들지 않는다(2026-11-28 운영팀) — 다른 사람을 담당자로 정해 접수했을 때만 그 사람에게 「담당자로 지정됨」
-        if(!was){ if(o && o!==accMe() && accStatus(nr.d)!=='처리 완료'){ await accOwnerTask(nr, o); if(accEd() && editRow.r.id===id) accSide(); } return; }
+        if(!was){ const done=accStatus(nr.d)==='처리 완료', si=ACC_ST.indexOf(accStatus(nr.d)); let k=0;
+          if(!done){ k+=await accFire('new', nr, o); if(o && o!==accMe()) k+=await accOwnerTask(nr, o); }
+          if(si>0) k+=await accFire('st'+si, nr, o);
+          if(k && accEd() && editRow.r.id===id) accSide(); return; }
         const po=accOwner(was.d, was.r);
-        if(accStatus(nr.d)==='처리 완료'){ await accTasksClose(id); return; }
+        const s0=ACC_ST.indexOf(accStatus(was.d)), s1=ACC_ST.indexOf(accStatus(nr.d));
+        if(s1===4){ await accTasksClose(id); if(s0!==4) await accFire('st4', nr, o); return; }
         if(po!==o){ for(const t of accTasks(id).filter(t=>!accTaskDone(t.d) && t.d.owner===po)) await accTaskPut({...t.r, owner:o}, t.j, {...t.d, owner:o}, `담당자 ${po} → ${o}`);
-          await accOwnerTask(nr, o); if(accEd() && editRow.r.id===id) accSide(); } }catch(e){ accFail(e); } },
+          await accOwnerTask(nr, o); }
+        if(s1!==s0 && s1>0) await accFire('st'+s1, nr, o);
+        if(accEd() && editRow.r.id===id) accSide(); }catch(e){ accFail(e); } },
     afterDel:row=>{ accTasksClose(row.r.id); if(!accEd() || editRow.r.id===row.r.id) openEdit(null); } };
 
 // ---------- 첫 화면 = 사고 한 건을 접수 · 고치는 곳 · 목록은 헤더의 「사고 목록」 (2026-11-28 · 단체 화면처럼) ----------
@@ -375,29 +382,75 @@ document.addEventListener('click', async e=>{ if(e.target.id!=='accHandGo') retu
   render(); toast(`${n}건의 담당자를 「${who}」(으)로 바꿨습니다.`);
   if(accEd()){ const x=rows.find(y=>y.r.id===editRow.r.id); if(x) openEdit(x); } });
 
-// ---------- 「담당자로 지정됨」 과업 (2026-11-28 운영팀: 담당자가 바뀌었을 때만 · 처음 접수할 때는 만들지 않음) ----------
-//  새 담당자의 나의 할일에 한 건 (아직 안 끝낸 같은 과업이 그 사람에게 있으면 또 만들지 않음)
-async function accOwnerTask(x, who){ if(!who) return; if(accTasks(x.r.id).some(t=>t.d.accTag==='owner' && t.d.owner===who && !accTaskDone(t.d))) return; await accTaskNew(x, '담당자로 지정됨 · 내용 확인', who, 'owner'); }
+// ---------- 저절로 생기는 추후과업 (2026-11-28 · 단체 화면의 「추후과업 메시지 관리」처럼 고칠 수 있음) ----------
+//  규칙 = {id, title 과업 이름, when 언제, due 마감(며칠 뒤 · 0 = 그날), subs 세부 과업 글 목록, off 끔}. 원래 있는 둘(ACC_BASE)은 고친 칸만, 새로 더한 것은 통째로 공유 기록 한 줄에 저장:
+//   id 'acctaskcfg' · 통화 구분 '사고과업설정' · 수정 기록 칸 = {b:{owner:{title,due,subs,off}, memo:{…}}, c:[{id,title,when,due,subs,off}], at, by}  (모든 직원이 같은 설정 · 저장한 뒤 생기는 과업부터 적용)
+//  과업은 맡은 사람의 「나의 할일 › 기타 개인 업무」에 뜬다(d.acc = 사고 id · d.accTag = 규칙 id). 같은 사고에 같은 규칙의 안 끝낸 과업이 그 사람에게 있으면 또 만들지 않는다
+//  📋 지금 규칙: ① 담당자로 지정되었을 때(바뀌었거나 남을 담당자로 정해 접수) → 새 담당자 ② 담당자가 아닌 사람이 메모를 남겼을 때 → 담당자. 처음 접수할 때는 만들지 않음(새로 더하면 그때부터)
+const ACC_CFG_ID='acctaskcfg', ACC_CFG_TYPE='사고과업설정';
+const ACC_WHENS = [['new','사고를 새로 접수했을 때'], ['owner','담당자로 지정되었을 때'], ['memo','담당자가 아닌 사람이 메모를 남겼을 때'],
+  ['st1','단계가 「보험 접수」가 되었을 때'], ['st2','단계가 「손해사정사 현장 방문」이 되었을 때'], ['st3','단계가 「손해사정중」이 되었을 때'], ['st4','단계가 「처리 완료」가 되었을 때']];
+const ACC_WHO = {owner:'새 담당자', memo:'담당자'};   // 그 밖은 담당자
+const ACC_BASE = [{id:'owner', title:'담당자로 지정됨 · 내용 확인', when:'owner', due:0, subs:[]}, {id:'memo', title:'새 메모 확인', when:'memo', due:0, subs:[]}];
+const ACC_DUES = [[0,'그날'],[1,'1일 뒤'],[2,'2일 뒤'],[3,'3일 뒤'],[7,'7일 뒤'],[14,'14일 뒤'],[30,'30일 뒤']];
+const accCfgRec = () => (window.opsItems||[]).find(r=>r.id===ACC_CFG_ID) || null;
+function accCfgGet(){ const r=accCfgRec(); let j={}; try{ j=JSON.parse((r && r.history)||'{}')||{}; }catch(_){} return {b:j.b||{}, c:Array.isArray(j.c) ? j.c : []}; }
+const accRuleClean = r => ({id:r.id, title:String(r.title||'').trim(), when:r.when, due:+r.due||0, subs:(r.subs||[]).map(s=>String(s||'').trim()).filter(Boolean), off:!!r.off, base:!!r.base});
+function accRules(){ const c=accCfgGet();
+  return [...ACC_BASE.map(b=>accRuleClean({...b, ...(c.b[b.id]||{}), id:b.id, when:b.when, base:true})), ...c.c.map(accRuleClean)].map(r=>r.base && !r.title ? {...r, title:ACC_BASE.find(b=>b.id===r.id).title} : r); }
+const accDueDay = n => { const d=new Date(opsToday()+'T00:00'); d.setDate(d.getDate()+(+n||0)); return opsYmd(d); };
+async function accFire(when, x, who){ if(!who || !x || !x.r) return 0; let n=0;
+  for(const r of accRules().filter(r=>r.when===when && !r.off && r.title)){
+    if(accTasks(x.r.id).some(t=>t.d.accTag===r.id && t.d.owner===who && !accTaskDone(t.d))) continue;
+    try{ await accTaskNew(x, r.title, who, r.id, {due:accDueDay(r.due), subs:r.subs.map((t,i)=>({id:'s'+Date.now().toString(36)+i, title:t}))}); n++; }catch(e){ accFail(e); } }
+  return n; }
+const accOwnerTask = (x, who) => accFire('owner', x, who);
 
-// ---------- 추후과업 관리 (2026-11-28 · 헤더의 단추 → 창): 지금 남은 사고 추후과업 + 저절로 생기는 과업의 규칙 ----------
-//  📋 사고현황 접수의 추후과업 규칙 — 모두 「개인업무」 줄(d.acc = 사고 id)이라 맡은 사람의 「나의 할일 › 기타 개인 업무」와 첫 화면 「오늘 마감」에 뜨고, 거기서 「사고현황 접수」 단추로 그 사고가 열린다(js/mytask.js · js/portal.js)
-const ACC_RULES = [
-  ['담당자를 다른 사람으로 정해 접수하거나, 담당자를 바꿔 저장했을 때', '새 담당자', '담당자로 지정됨 · 내용 확인'],
-  ['담당자가 아닌 사람이 메모를 남겼을 때', '담당자', '새 메모 확인'],
-  ['사고의 추후과업 칸에서 직접 추가했을 때', '고른 사람', '적은 글 그대로'],
-  ['담당자를 바꿨을 때', '새 담당자', '예전 담당자의 남은 과업이 그대로 넘어감'],
-  ['사고를 처리 완료로 바꾸거나 삭제했을 때', '', '남은 과업이 모두 끝난 것으로 됨'] ];
-function accTcfgHTML(){ const all=(window.opsItems||[]).filter(r=>r.callType===OPS_TYPES.task).map(r=>({r, j:opsParse(r)})).filter(o=>o.j && o.j.d && o.j.d.acc).map(o=>({r:o.r, d:o.j.d}));
-  const open=all.filter(t=>!accTaskDone(t.d)).sort((a,b)=>String(accTaskDay(a.d)).localeCompare(String(accTaskDay(b.d)))), today=opsToday();
-  const acc=id=>rows.find(x=>x.r.id===id);
-  return `<h3>지금 남은 추후과업 <small>${open.length}건</small></h3>`
-    + (open.length ? `<div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th>사고</th><th>과업</th><th>맡은 사람</th><th>마감</th></tr></thead><tbody>${open.map(t=>{ const x=acc(t.d.acc), day=accTaskDay(t.d);
-        return `<tr class="${x?'acc-row':''}"${x?` data-acctopen="${esc(x.r.id)}" tabindex="0"`:''}><td>${x ? esc(`${accWhen(x.d)} ${x.d.place||''}`) : '(지워진 사고)'}</td><td>${esc(accTaskName(t.d))}</td><td class="nw">${esc(t.d.owner||'')}</td><td class="nw${day && day<today?' acc-late':''}">${esc(opsDateLabel(day))}</td></tr>`; }).join('')}</tbody></table></div>` : `<p class="empty">남은 추후과업이 없습니다.</p>`)
-    + `<h3>저절로 생기는 추후과업</h3><div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th>언제</th><th>누구에게</th><th>과업</th></tr></thead><tbody>${ACC_RULES.map(r=>`<tr><td>${esc(r[0])}</td><td class="nw">${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('')}</tbody></table></div>`; }
-async function accTcfgOpen(on){ const m=document.getElementById('accTcfgModal'); if(!m) return; m.hidden=!on; if(!on) return; document.getElementById('accTcfgBody').innerHTML=accTcfgHTML(); try{ await pull(); }catch(_){} if(!m.hidden) document.getElementById('accTcfgBody').innerHTML=accTcfgHTML(); }
+// ---------- 추후과업 관리 창 (헤더의 단추): 왼쪽 = 과업 목록 · 오른쪽 = 고른 과업의 칸 · 「저장」 ----------
+let accTc={list:[], sel:'', dirty:false};
+const accTcCur = () => accTc.list.find(r=>r.id===accTc.sel) || null;
+function accTcOpen(on){ const m=document.getElementById('accTcfgModal'); if(!m) return; if(!on){ m.hidden=true; return; }
+  accTc={list:accRules().map(r=>({...r, subs:r.subs.slice()})), sel:'', dirty:false}; accTc.sel=accTc.list[0] ? accTc.list[0].id : ''; m.hidden=false; accTcPaint(); }
+const accWhenLabel = k => (ACC_WHENS.find(w=>w[0]===k)||['',''])[1];
+function accTcPaint(){ const r=accTcCur();
+  const side=`<aside class="atc-side"><div class="atc-items">${accTc.list.map(x=>`<button type="button" class="atc-it${x.id===accTc.sel?' on':''}${x.off?' off':''}" data-atcsel="${esc(x.id)}"><b>${esc(x.title||'(이름 없음)')}</b><small>${esc(accWhenLabel(x.when))}${x.off?' · 꺼짐':''}</small></button>`).join('')}</div><button type="button" class="btn" id="atcAdd">＋ 과업 추가</button></aside>`;
+  const pane = !r ? `<p class="empty">과업이 없습니다.</p>`
+    : `<div class="ef"><label for="atcTitle">과업 이름</label><input id="atcTitle" data-ime="ko" autocomplete="off" value="${esc(r.title)}"></div>`
+    + `<div class="atc-two"><div class="ef"><label for="atcWhen">언제</label>${r.base ? `<input id="atcWhen" value="${esc(accWhenLabel(r.when))}" disabled>` : `<select id="atcWhen">${ACC_WHENS.map(w=>`<option value="${w[0]}"${w[0]===r.when?' selected':''}>${esc(w[1])}</option>`).join('')}</select>`}</div>`
+    + `<div class="ef"><label for="atcWho">누구에게</label><input id="atcWho" value="${esc(ACC_WHO[r.when]||'담당자')}" disabled></div></div>`
+    + `<div class="atc-two"><div class="ef"><label for="atcDue">마감</label><select id="atcDue">${[...ACC_DUES, ...(ACC_DUES.some(d=>d[0]===r.due) ? [] : [[r.due, r.due+'일 뒤']])].map(d=>`<option value="${d[0]}"${d[0]===r.due?' selected':''}>${d[1]}</option>`).join('')}</select></div>`
+    + `<div class="ef atc-offbox"><label class="acc-same"><input type="checkbox" id="atcOff"${r.off?' checked':''}> 끄기</label></div></div>`
+    + `<div class="ef"><label for="atcSubIn">세부 과업</label><ul class="esubs">${r.subs.map((s,i)=>`<li><span>${esc(s)}</span><button type="button" class="x" data-atcsubx="${i}" title="빼기">×</button></li>`).join('')}</ul><div class="esub-add"><input id="atcSubIn" data-ime="ko" placeholder="세부 과업 (적고 Enter)" autocomplete="off"><button type="button" class="btn sm" id="atcSubAdd">추가</button></div></div>`
+    + `<div class="row-btns">${r.base ? `<button type="button" class="btn" id="atcReset">처음으로</button>` : `<button type="button" class="btn" id="atcDel">이 과업 빼기</button>`}</div>`;
+  document.getElementById('accTcfgBody').innerHTML=`<div class="atc-main">${side}<div class="atc-pane">${pane}</div></div>`;
+  document.getElementById('atcSave').classList.toggle('dirty', accTc.dirty); }
+const accTcTouch = () => { accTc.dirty=true; document.getElementById('atcSave').classList.add('dirty'); };
+async function accTcSave(){ if(accTc.list.some(r=>!String(r.title||'').trim())){ toast('과업 이름을 넣어 주세요.'); return; }
+  const b={}, c=[];
+  accTc.list.map(accRuleClean).forEach(r=>{
+    if(r.base){ const o=ACC_BASE.find(x=>x.id===r.id), d={}; if(r.title!==o.title) d.title=r.title; if(r.due!==o.due) d.due=r.due; if(r.subs.length) d.subs=r.subs; if(r.off) d.off=true; if(Object.keys(d).length) b[r.id]=d; }
+    else c.push({id:r.id, title:r.title, when:r.when, due:r.due, subs:r.subs, off:r.off}); });
+  const old=accCfgRec(), now=new Date().toISOString(), me=accMe();
+  const item={...(old||{}), id:ACC_CFG_ID, callType:ACC_CFG_TYPE, saved:(old && old.saved)||now, takenBy:(old && old.takenBy)||me, owner:'',
+    summary:`사고현황 추후과업 설정 · 고친 과업 ${Object.keys(b).length}개 · 새 과업 ${c.length}개`.slice(0,120), history:JSON.stringify({b, c, at:now, by:me})};
+  try{ await SY.call({action:'put', item}); const L=(window.opsItems ||= []), i=L.findIndex(x=>x.id===ACC_CFG_ID); if(i>=0) L[i]=item; else L.push(item);
+    accTc.dirty=false; accTcPaint(); toast('저장했습니다.'); }catch(e){ accFail(e); } }
 document.addEventListener('click', e=>{ const t=e.target; if(!t.closest) return;
-  if(t.id==='accTcfgBtn'){ accTcfgOpen(true); return; }
-  if(t.id==='accTcfgX'){ accTcfgOpen(false); return; }
-  const o=t.closest('[data-acctopen]'); if(o){ const x=rows.find(y=>y.r.id===o.dataset.acctopen); if(x){ accTcfgOpen(false); openEdit(x); } } });
-document.addEventListener('mousedown', e=>{ if(e.target.id==='accTcfgModal') accTcfgOpen(false); });
-document.addEventListener('keydown', e=>{ const m=document.getElementById('accTcfgModal'); if(!m || m.hidden) return; if(e.key==='Escape'){ e.stopPropagation(); accTcfgOpen(false); } else if(e.key==='Enter' && e.target.matches && e.target.matches('[data-acctopen]')) e.target.click(); }, true);
+  if(t.id==='accTcfgBtn'){ accTcOpen(true); return; }
+  if(t.id==='accTcfgX'){ accTcOpen(false); return; }
+  if(!t.closest('#accTcfgModal')) return;
+  const s=t.closest('[data-atcsel]'); if(s){ accTc.sel=s.dataset.atcsel; accTcPaint(); return; }
+  if(t.id==='atcAdd'){ const id='c'+Date.now().toString(36); accTc.list.push({id, title:'', when:'st1', due:0, subs:[], off:false, base:false}); accTc.sel=id; accTcTouch(); accTcPaint(); document.getElementById('atcTitle')?.focus(); return; }
+  if(t.id==='atcSave'){ accTcSave(); return; }
+  const r=accTcCur(); if(!r) return;
+  if(t.id==='atcDel'){ accTc.list=accTc.list.filter(x=>x.id!==r.id); accTc.sel=accTc.list[0] ? accTc.list[0].id : ''; accTcTouch(); accTcPaint(); return; }
+  if(t.id==='atcReset'){ const o=ACC_BASE.find(x=>x.id===r.id); Object.assign(r, {title:o.title, due:o.due, subs:[], off:false}); accTcTouch(); accTcPaint(); return; }
+  if(t.id==='atcSubAdd'){ const v=(document.getElementById('atcSubIn').value||'').trim(); if(v){ r.subs.push(v); accTcTouch(); accTcPaint(); document.getElementById('atcSubIn')?.focus(); } return; }
+  if(t.dataset.atcsubx!=null){ r.subs.splice(+t.dataset.atcsubx, 1); accTcTouch(); accTcPaint(); } });
+document.addEventListener('input', e=>{ const r=accTcCur(); if(!r || e.target.id!=='atcTitle') return; r.title=e.target.value; accTcTouch();
+  const b=document.querySelector(`[data-atcsel="${CSS.escape(r.id)}"] b`); if(b) b.textContent=r.title||'(이름 없음)'; });
+document.addEventListener('change', e=>{ const r=accTcCur(), t=e.target; if(!r) return;
+  if(t.id==='atcWhen'){ r.when=t.value; accTcTouch(); accTcPaint(); } else if(t.id==='atcDue'){ r.due=+t.value||0; accTcTouch(); } else if(t.id==='atcOff'){ r.off=t.checked; accTcTouch(); accTcPaint(); } });
+document.addEventListener('mousedown', e=>{ if(e.target.id==='accTcfgModal') accTcOpen(false); });
+document.addEventListener('keydown', e=>{ const m=document.getElementById('accTcfgModal'); if(!m || m.hidden) return;
+  if(e.key==='Escape'){ e.stopPropagation(); accTcOpen(false); } else if(e.key==='Enter' && !e.isComposing && e.target.id==='atcSubIn'){ e.preventDefault(); document.getElementById('atcSubAdd').click(); } }, true);

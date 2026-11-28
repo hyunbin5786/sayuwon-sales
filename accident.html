@@ -6,10 +6,10 @@
 <title>사고현황 접수 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/ops.css?v=20261128zq">
-<link rel="stylesheet" href="css/accident.css?v=20261128zq">
-<link rel="stylesheet" href="css/mypop.css?v=20261128zq">
-<link rel="stylesheet" href="css/menu.css?v=20261128zq">
+<link rel="stylesheet" href="css/ops.css?v=20261128zr">
+<link rel="stylesheet" href="css/accident.css?v=20261128zr">
+<link rel="stylesheet" href="css/mypop.css?v=20261128zr">
+<link rel="stylesheet" href="css/menu.css?v=20261128zr">
 </head>
 <body>
 <!-- 사고현황 접수 (칸 · 목록 · 담당자 · 추후과업 · 메모는 js/accident.js · 저장과 접수 창은 js/opsboard.js · 모양은 css/accident.css · 2026-11-28 다시 만듦) -->
@@ -73,6 +73,7 @@
   <section class="panel edit-box acc-tcfg" role="dialog" aria-modal="true" aria-labelledby="accTcfgTitle">
     <h2 id="accTcfgTitle">추후과업 관리</h2><button type="button" class="win-x" id="accTcfgX" title="닫기" aria-label="닫기">×</button>
     <div id="accTcfgBody"></div>
+    <div class="row-btns win-top"><button type="button" class="btn primary" id="atcSave">저장</button></div>
   </section>
 </div>
 <!-- 삭제 확인 -->
@@ -84,15 +85,15 @@
 </div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/common.js?v=20261128zq"></script>
-<script src="js/opslib.js?v=20261128zq"></script>
-<script src="js/accident.js?v=20261128zq"></script>
-<script src="js/opsboard.js?v=20261128zq"></script>
+<script src="js/common.js?v=20261128zr"></script>
+<script src="js/opslib.js?v=20261128zr"></script>
+<script src="js/accident.js?v=20261128zr"></script>
+<script src="js/opsboard.js?v=20261128zr"></script>
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
-<script src="js/mypop.js?v=20261128zq"></script>
-<script src="js/ime.js?v=20261128zq"></script>
-<script src="js/keepsize.js?v=20261128zq"></script>
-<script src="js/menu.js?v=20261128zq"></script>
-<script src="js/timepick.js?v=20261128zq"></script>
+<script src="js/mypop.js?v=20261128zr"></script>
+<script src="js/ime.js?v=20261128zr"></script>
+<script src="js/keepsize.js?v=20261128zr"></script>
+<script src="js/menu.js?v=20261128zr"></script>
+<script src="js/timepick.js?v=20261128zr"></script>
 </body>
 </html>

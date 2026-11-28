@@ -276,8 +276,16 @@ header #accNewBtn:hover{background:#f3f7ef}
 
 /* 2026-11-28 추후과업 관리 창 */
 #accTcfgModal .acc-tcfg{width:min(900px,100%)}
-#accTcfgBody h3{margin:14px 0 6px;font:600 15px var(--serif);color:var(--ink)}
-#accTcfgBody h3:first-child{margin-top:0}
-#accTcfgBody h3 small{font:400 12px var(--sans);color:var(--muted)}
-#accTcfgBody td.acc-late{color:var(--red);font-weight:700}
 @media (max-width:700px){ body.pg-acc #accTcfgModal{padding:0} body.pg-acc #accTcfgModal .acc-tcfg{width:100%;min-height:100%;border-radius:0;box-sizing:border-box} }
+/* 추후과업 관리 창: 왼쪽 과업 목록 · 오른쪽 고른 과업의 칸 (단체 화면의 추후과업 메시지 관리 짜임) */
+.atc-main{display:grid;grid-template-columns:300px minmax(0,1fr);gap:14px;align-items:start}
+.atc-side{display:flex;flex-direction:column;gap:8px;min-width:0}
+.atc-items{display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow:auto}
+.atc-it{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px 10px;font:14px var(--sans);color:var(--ink);cursor:pointer}
+.atc-it small{font-size:12px;color:var(--muted)}
+.atc-it.on{border-color:var(--pine);background:var(--pine-soft)}
+.atc-it.off b{color:var(--muted);text-decoration:line-through}
+.atc-pane{display:flex;flex-direction:column;gap:10px;min-width:0}
+.atc-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.atc-offbox{justify-content:flex-end}
+@media (max-width:700px){ .atc-main{grid-template-columns:minmax(0,1fr)} .atc-items{max-height:none} .atc-two{grid-template-columns:minmax(0,1fr)} }
