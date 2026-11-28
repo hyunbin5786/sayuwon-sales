@@ -192,10 +192,6 @@ body.pg-acc #keyBox{margin:14px 16px}
 #editModal #eTitle{margin:0 0 12px;font:600 17px var(--serif)}
 #accListModal .acc-list{width:min(1180px,100%)}
 #accListModal .b-head{padding-right:36px}
-.acc-tbl .acc-ck{width:28px;padding-right:0}
-.acc-ck input{width:16px;height:16px;accent-color:var(--pine);display:block}
-.acc-bulk{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:8px 10px;border-radius:8px;background:var(--pine-soft);font-size:13px}
-.acc-bulk select{height:28px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:13px var(--sans);background:#fff;color:var(--ink)}
 @media (max-width:700px){
   body.pg-acc #accListModal{padding:0}
   #accListModal .b-head{padding-right:0}
@@ -207,3 +203,25 @@ body.pg-acc #keyBox{margin:14px 16px}
 .acc-same{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink);cursor:pointer;min-height:28px}
 .ef .acc-same input{width:16px;height:16px;padding:0;flex:none;accent-color:var(--pine)}
 @media (max-width:700px){ body.pg-acc .ef .acc-same input{width:20px;height:20px} .acc-same{font-size:15px;min-height:40px} }
+
+/* ===== 2026-11-28 제목 줄: 제목 · (오류 글) · 담당자 · 삭제 · 저장 을 한 줄에 (단추는 오른쪽) ===== */
+.acc-head{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin:0 0 12px}
+#editModal .acc-head #eTitle{margin:0}
+.acc-head #eErr{flex:1 1 120px;min-width:0;margin:0;text-align:right}
+.acc-owner{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);white-space:nowrap}
+.acc-owner select{height:34px;min-width:110px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:14px var(--sans);background:#fff;color:var(--ink)}
+.acc-owner select:disabled{background:#f6f4ee;opacity:1}
+.acc-head .row-btns{margin:0}
+.ef:has(> .ef-none){display:none}
+@media (min-width:1181px){
+  .acc-cols{grid-template-rows:minmax(0,1fr)}
+  .acc-cols > .acc-side{grid-row:1}
+}
+@media (max-width:700px){
+  .acc-head #eTitle{flex:1 1 100%}
+  .acc-head #eErr{flex-basis:100%;text-align:left}
+  .acc-head #eErr:empty{display:none}
+  .acc-owner{flex:1 1 100%}
+  .acc-owner select{flex:1;height:42px;font-size:16px}
+  .acc-head .row-btns{flex:1 1 100%}
+}

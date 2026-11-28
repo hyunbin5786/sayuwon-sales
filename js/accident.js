@@ -173,10 +173,8 @@ function accRender(hit){
   const what=d=>String(d.what||'').split('\n')[0].slice(0,40);
   if(ACC_MQ.matches){ $('#list').innerHTML=`<div class="acc-cards">${list.map(x=>{ const d=x.d, s=accStatus(d);
       return `<div class="acc-card${s==='처리 완료'?' closed':''}" data-edit="${esc(x.r.id)}" role="button" tabindex="0"><div class="ac-t">${accTag(s)}<b>${esc(accWhen(d))}</b>${days(x)}</div>${accMini(d)}<div class="ac-p">${esc([d.place, d.type].filter(Boolean).join(' · '))}</div>${what(d)?`<div class="ac-w">${esc(what(d))}</div>`:''}<div class="ac-o">담당 ${esc(accOwner(d, x.r))}${accMine(x)?'':' · 보기 · 메모만'}</div></div>`; }).join('')}</div>`; return; }
-  const mineIds=list.filter(accMine).map(x=>x.r.id); [...accSel].forEach(i=>{ if(!mineIds.includes(i)) accSel.delete(i); });
-  $('#list').innerHTML=(accSel.size ? `<div class="acc-bulk"><b>${accSel.size}건</b><select id="accBulkWho" title="새 담당자">${[...new Set([accMe(), ...(window.opsMembers||[])].filter(Boolean))].map(n=>`<option${n===accBulkWho?' selected':''}>${esc(n)}</option>`).join('')}</select><button type="button" class="btn sm primary" id="accBulkGo">담당자 바꾸기</button></div>` : '')
-    + `<div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th class="acc-ck"><input type="checkbox" id="accSelAll" title="내가 담당인 것 모두 고르기"${mineIds.length && mineIds.every(i=>accSel.has(i))?' checked':''}${mineIds.length?'':' disabled'}></th><th>사고 일시</th><th>장소</th><th>구분</th><th>사고 대상자</th><th>사고 내용</th><th>담당자</th><th>단계</th><th></th></tr></thead><tbody>${list.map(x=>{ const d=x.d, s=accStatus(d), mine=accMine(x);
-    return `<tr class="${s==='처리 완료'?'closed':''}"><td class="acc-ck">${mine ? `<input type="checkbox" data-accsel="${esc(x.r.id)}"${accSel.has(x.r.id)?' checked':''}>` : ''}</td><td class="nw">${esc(accWhen(d))}</td><td>${esc(d.place||'')}</td><td class="nw">${esc(d.type||'')}</td><td>${esc(d.person||'')}</td><td>${esc(what(d))}</td><td class="nw">${esc(accOwner(d, x.r))}</td>`
+  $('#list').innerHTML=`<div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th>사고 일시</th><th>장소</th><th>구분</th><th>사고 대상자</th><th>사고 내용</th><th>담당자</th><th>단계</th><th></th></tr></thead><tbody>${list.map(x=>{ const d=x.d, s=accStatus(d), mine=accMine(x);
+    return `<tr class="${s==='처리 완료'?'closed':''}"><td class="nw">${esc(accWhen(d))}</td><td>${esc(d.place||'')}</td><td class="nw">${esc(d.type||'')}</td><td>${esc(d.person||'')}</td><td>${esc(what(d))}</td><td class="nw">${esc(accOwner(d, x.r))}</td>`
       + `<td class="nw">${mine ? `<select class="lost-st acc-st s${ACC_ST.indexOf(s)}" data-accst="${esc(x.r.id)}" title="단계 바꾸기">${ACC_ST.map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select>` : accTag(s)}${accMini(d)}${days(x)}</td>`
       + `<td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">${mine?'열기':'보기'}</button></td></tr>`; }).join('')}</tbody></table></div>`;
 }
@@ -191,7 +189,7 @@ const OPS_PAGE =
       {k:'type', l:'구분', type:'select', opts:['부상','시설 파손','분실 · 도난','민원','기타'], def:()=>'부상'},
       {k:'visitType', l:'방문 유형', type:'select', opts:['','단체','개인','도슨트 투어','몽몽마방 식사','기타'], def:()=>''},
       {k:'place', l:'사고 장소 (사유원 안)', type:'text', ph:'고르거나 직접 적기 · 예: 소요헌 안 계단', list:ACC_PLACES, req:()=>!accEd()}, {k:'group', l:'방문 단체', type:'text', ph:'단체 이름 (개인이면 비움)'},
-      {k:'owner', l:'담당자 (이 사람만 고칠 수 있음)', type:'member', def:()=>accMe(), w:2},
+      {k:'owner', def:()=>accMe(), html:()=>'<i class="ef-none"></i>'},   // 담당자: 칸은 제목 줄 오른쪽(#accOwnerSel · 아래 「제목 줄의 담당자」) — 여기는 처음 값(접수한 사람)만
 
       {type:'head', l:'사고 대상자 · 대표 예약자', col:1},
       {k:'person', l:'사고 대상자 이름', type:'text'}, {k:'phone', l:'사고 대상자 연락처', ...accTel('사고 대상자 연락처')},
@@ -234,7 +232,7 @@ const OPS_PAGE =
     lockBy:row=>accMine(row) ? '' : accOwner(row.d, row.r),
     normalize:d=>{ d.status=accStatus(d); if(accEd() && !d.owner) d.owner=accOwner(d, editRow.r); delete d._tasks; delete d._notes; delete d._copy; },
     onField:(k, d)=>{ if(k==='status') accStageDate(d); },
-    afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); accSameLock(); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
+    afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); accSameLock(); accOwnerPaint(ro); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
     // 저장한 뒤: 새 사고 = 담당자의 나의 할일에 한 건 · 담당자를 바꿨으면 남은 과업을 새 담당자에게 · 처리 완료면 남은 과업을 끝냄
     afterSave:async (nr, was)=>{ accGo=nr.r.id; try{ const o=accOwner(nr.d, nr.r), id=nr.r.id;
         if(!was){ if(accStatus(nr.d)==='처리 완료') return; await accTaskNew(nr, '접수 확인 · 보험 접수 여부 정하기', o, 'new'); if(accEd() && editRow.r.id===id) accSide(); return; }
@@ -261,24 +259,9 @@ document.addEventListener('click', e=>{ const t=e.target; if(!t.closest) return;
   if(t.id==='accListBtn'){ accListOpen(true); return; }
   if(t.id==='accNewBtn'){ openEdit(null); return; }
   if(t.id==='accListX' || t.id==='addBtn' || t.closest('#accListModal [data-edit]')){ accListOpen(false); return; }
-  if(t.id==='accBulkGo'){ accBulk(); return; } });
+ });
 document.addEventListener('mousedown', e=>{ if(e.target.id==='accListModal') accListOpen(false); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !accListEl().hidden && $('#askModal').hidden) accListOpen(false); }, true);
-// 목록에서 담당자를 한꺼번에 바꾸기: 내가 담당인 줄을 골라(체크) 새 담당자에게 — 남은 추후과업도 새 담당자에게 넘김 (창에서 담당자를 바꿀 때와 같음 · OPS_PAGE.afterSave)
-const accSel = new Set(); let accBulkWho='';
-document.addEventListener('change', e=>{ const t=e.target;
-  if(t.id==='accBulkWho'){ accBulkWho=t.value; return; }
-  if(t.id==='accSelAll'){ document.querySelectorAll('[data-accsel]').forEach(c=>{ if(t.checked) accSel.add(c.dataset.accsel); else accSel.delete(c.dataset.accsel); }); render(); return; }
-  if(t.dataset && t.dataset.accsel){ if(t.checked) accSel.add(t.dataset.accsel); else accSel.delete(t.dataset.accsel); render(); } });
-async function accBulk(){ const who=accBulkWho || document.getElementById('accBulkWho')?.value || '', ids=[...accSel]; if(!who || !ids.length) return;
-  if(!confirm(`${ids.length}건의 담당자를 「${who}」(으)로 바꿀까요?`)) return;
-  let n=0;
-  for(const id of ids){ const x=rows.find(y=>y.r.id===id); if(!x || !accMine(x)) continue; const po=accOwner(x.d, x.r); if(po===who){ accSel.delete(id); continue; }
-    const ok=await putRow({...x, d:{...x.d, owner:who}}, `담당자 ${po} → ${who}`); if(ok===false) break; n++; accSel.delete(id);
-    try{ for(const t of accTasks(id).filter(t=>!accTaskDone(t.d) && t.d.owner===po)) await accTaskPut({...t.r, owner:who}, t.j, {...t.d, owner:who}, `담당자 ${po} → ${who}`); }catch(err){ accFail(err); } }
-  render(); if(n) toast(`${n}건의 담당자를 「${who}」(으)로 바꿨습니다.`);
-  if(accEd() && ids.includes(editRow.r.id)){ const x=rows.find(y=>y.r.id===editRow.r.id); if(x) openEdit(x); } }
-
 // ---------- 대표 예약자 = 사고 대상자 (체크) · 상품 정보 붙여넣기 (2026-11-28) ----------
 //  체크(d.bookerSame)해 두면 대표 예약자 이름 · 연락처 칸은 잠기고 사고 대상자 칸을 따라간다. 체크를 풀면 값은 남고 다시 고칠 수 있다.
 function accSameCopy(){ if(!form.bookerSame) return; form.booker=form.person||''; form.bookerPhone=form.phone||'';
@@ -291,3 +274,9 @@ document.addEventListener('change', e=>{ const t=e.target; if(t.id==='accSame'){
     if(m){ form.booker=m[1]; form.bookerPhone=(SY.fmtPhone && SY.fmtPhone(m[2])) || m[2].trim(); paintForm(); } } });
 document.addEventListener('input', e=>{ const k=e.target.dataset && e.target.dataset.k; if(k==='person' || k==='phone') accSameCopy(); });
 document.addEventListener('focusout', e=>{ if(e.target.dataset && e.target.dataset.k==='phone') setTimeout(accSameCopy, 0); });
+
+// ---------- 제목 줄의 담당자 (2026-11-28 · 사고 개요에서 꺼내 제목 줄 오른쪽 「삭제」 · 「저장」 옆으로) ----------
+//  고르면 form.owner 만 바뀌고 「저장」을 눌러야 저장된다 (남은 추후과업을 새 담당자에게 넘기는 것은 OPS_PAGE.afterSave). 담당자가 아닌 사람에게는 잠겨 보인다.
+function accOwnerPaint(ro){ const s=document.getElementById('accOwnerSel'); if(!s) return; const v=form.owner || (accEd() ? accOwner(form, editRow.r) : accMe());
+  s.innerHTML=[...new Set([...(window.opsMembers||[]), accMe(), v].filter(Boolean))].map(n=>`<option${n===v?' selected':''}>${esc(n)}</option>`).join(''); s.disabled=!!ro; }
+document.addEventListener('change', e=>{ if(e.target.id==='accOwnerSel') form.owner=e.target.value; });
