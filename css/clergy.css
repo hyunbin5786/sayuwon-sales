@@ -5,7 +5,7 @@
 .cl-cols{display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start}
 .cl-cols>.panel{margin:0;min-width:0}
 .cl-addcol{position:sticky;top:12px}
-.cl-addcol .cl-add{flex-direction:column;align-items:stretch;flex-wrap:nowrap;margin:0}
+.cl-addcol .cl-add{flex-direction:column;align-items:stretch;flex-wrap:nowrap;margin:8px 0 0}
 .cl-addcol .cl-add input,.cl-addcol .cl-add input[type=date],.cl-addcol .cl-add .dbox .dtxt{width:100%;box-sizing:border-box}
 .cl-addcol .cl-add-btns{margin-left:0;justify-content:flex-end}
 .cl-addcol .cl-add .hint{flex:0 0 auto}
@@ -21,12 +21,13 @@
 .cl-t td.nm{font-weight:600}
 .cl-t .cnt{display:inline-block;font-size:12px;padding:0 7px;border-radius:999px;background:var(--pine-soft);color:var(--pine);font-weight:700}
 .cl-t .cnt.full{background:#fbe3dd;color:#b5442c}
-.cl-add{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;border:1px solid var(--pine);border-radius:8px;padding:10px;margin:0 0 10px;background:#f7faf5}
+.cl-add{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin:0 0 10px}   /* 초록 테두리 · 바탕 상자는 없앰 (2026-11-28) — 칸과 버튼은 열에 그대로 */
 .cl-add label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
 .cl-add input{height:32px;border:1px solid #c9c4b8;border-radius:5px;padding:0 8px;font:inherit;font-size:13.5px;color:var(--ink);width:140px}
 .cl-add input[type=date]{width:150px}
 .cl-add-btns{display:flex;gap:6px;margin-left:auto}
 .cl-add .hint{flex:1 1 100%;margin:0}
+.cl-add .hint:empty{display:none}   /* 알릴 것이 없을 때 빈 줄이 아래 여백으로 남지 않게 */
 .cl-add .bad{color:#b5442c}
 /* 방문일 칸: 단체 방문일과 같은 방식 (2026-11-21) */
 .cl-add .dbox{position:relative;display:block}
