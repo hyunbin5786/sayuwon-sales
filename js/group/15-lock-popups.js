@@ -178,7 +178,7 @@ function paintAlert(due){ const today=ymd(new Date());
   $('#tbdList').innerHTML = due.map(T=>alertRowHTML(T, today)).join('');
   // 제목의 「지남 · 오늘」은 과업만 셈 = 나의 할일 「오늘 마감」과 같은 줄 (2026-11-27 · 예전엔 고객 견적 요청 줄도 섞어 세어 「오늘 마감」 개수보다 많았음 → 견적 요청은 따로 적음 · 헤더의 「과업 n · 견적 요청 n」과 같은 모양)
   const tk=due.filter(T=>T.kind!=='q'), nQ=due.length-tk.length;
-  $('#tbdTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${tk.filter(T=>T.due<today).length}</b> · <b class="cnt-today">오늘 ${tk.filter(T=>T.due>=today).length}</b>${nQ?` · 견적 요청 ${nQ}`:''} · 나의 할일 전체 · 알림은 ${esc(SY_ALERT.label())}</small>`;
+  $('#tbdTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${tk.filter(T=>T.due<today).length}</b> · <b class="cnt-today">오늘 ${tk.filter(T=>T.due>=today).length}</b>${nQ?` · 견적 요청 ${nQ}`:''}</small>`;
   $('#tbdLater').title=`닫기 (다음 알림 시각 ${SY_ALERT.label()}에 다시)`;
   $('#tbdModal').hidden=false; }
 function checkTbdPopup(force){

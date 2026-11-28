@@ -519,7 +519,7 @@ function paintDue(){ const due=dueNow(), extra=dueExtra(), today=todayYmd(); if(
     return `<li class="${late?'late':'today'}"><span class="who"><span class="tag">${personal?'개인':'단체'}</span> <b>${esc(personal ? (r.contact||'(이름 없음)') : (r.org||r.contact||'(업체 미정)'))}</b>${personal&&r.phone?` · ${esc(r.phone)}`:''}${!personal&&r.date?` · 방문 ${esc(dLabel(r.date))}`:''}<br><b class="t">${esc(t.title)}</b> <small class="hint" style="display:inline">마감 ${esc(dLabel(t.due))} ${late?'(지남)':'(오늘)'}</small></span>`
       + (personal ? `<button class="btn primary" data-dopen="${esc(r.id)}">열기</button>` : `<button class="btn primary" data-gopen="${esc(r.id)}">열기</button>`) + `</li>`; }).join('')
     + (extra ? `<li class="today"><span class="who"><span class="tag">업무</span> <b>직접 넣은 업무 · 견적 요청 ${extra}개</b></span></li>` : '');
-  $('#dueTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b> · 나의 할일 전체 · 알림은 ${esc(SY_ALERT.label())}</small>`;
+  $('#dueTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b></small>`;
   $('#dueModal').hidden=false;
 }
 $('#dueClose').onclick=()=>{ $('#dueModal').hidden=true; };
