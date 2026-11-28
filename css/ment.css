@@ -40,6 +40,7 @@
 .m-body-v{height:220px;overflow-y:auto;box-sizing:border-box}
 /* 카드 머리: 글 복사 · 이미지 복사 · 수정 (줄이 넘치면 다음 줄로) */
 .m-head{flex-wrap:wrap;row-gap:4px}
+.m-head .btn.sm{height:28px}
 /* 가로를 넓게 (2026-11-18): 화면 폭을 거의 다 쓰고, 멘트는 3열 그대로 각 열을 넓게 */
 main{max-width:1760px}
 .ment-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}

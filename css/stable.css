@@ -31,7 +31,7 @@ main.st-main{display:block;max-width:none}
 /* 협업 여행사 */
 .ag-sec{margin-top:16px}
 .ag-cfg{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
-.ag-cfg select{height:34px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:inherit}
+.ag-cfg select{height:32px;border:1px solid var(--line);border-radius:6px;padding:0 8px;font:inherit}
 .ag-cfg label.btn{display:inline-flex;align-items:center;cursor:pointer}
 .ag-rec{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 12px;background:#fff}
 .ag-rec h3{margin:0 0 6px;font:600 15px var(--serif);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
