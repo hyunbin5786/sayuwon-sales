@@ -209,3 +209,8 @@ h2:has(+ .win-x){padding-right:32px}
   :where(section:has(> h2 .win-x.in-row)){position:relative}
   section > h2:has(.win-x.in-row){padding-right:36px}
 }
+
+/* ===== 저장하지 않은 수정 표시 (공통 · 2026-11-28 · CLAUDE.md 0절 헌법 여섯) =====
+   고친 것이 있는데 아직 저장하지 않았으면 「저장」 단추 글자 뒤에 노란 점. 화면의 JS 가 그 단추에 class="dirty" 를 붙였다 뗀다.
+   단체 화면의 #saveBtn.dirty 와 같은 값 — 점의 색 · 크기는 여기 한 곳에서만 정한다 */
+.btn.dirty::after{content:"●";color:#ffd27a;font-size:9px;margin-left:4px}

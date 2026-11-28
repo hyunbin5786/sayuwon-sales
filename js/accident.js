@@ -101,7 +101,7 @@ async function accStep(i){ const to=ACC_ST[i], from=accStatus(form); if(to===fro
   if(!accEd()){ form.status=to; accStageDate(form); paintForm(); return; }   // 새 접수: 화면에서만 바꿔 두고 「저장」할 때 같이 저장
   if(!accMine(editRow)) return;
   const d2=await accPatch(d=>{ d.status=to; accStageDate(d); return d; }, `단계 ${from} → ${to}`); if(!d2) return;
-  form.status=to; ['rcptDate','visitDate','adjDate','procDate'].forEach(k=>{ if(!form[k] && d2[k]) form[k]=d2[k]; });
+  form.status=to; ['rcptDate','visitDate','adjDate','procDate'].forEach(k=>{ if(!form[k] && d2[k]) form[k]=d2[k]; }); ['status','rcptDate','visitDate','adjDate','procDate'].forEach(k=>{ accBase[k]=form[k]; });   // 단계는 바로 저장됐으므로 「저장 안 한 수정」으로 치지 않음
   paintForm(); toast(`단계를 「${to}」(으)로 바꿨습니다.`); if(to==='처리 완료') accTasksClose(editRow.r.id).then(accSide); }
 
 // ---------- 보고 글 (보험사 전달용 「사고 경위 보고」 · 적어 둔 칸으로 만들어 복사) ----------
@@ -237,7 +237,7 @@ const OPS_PAGE =
     lockBy:row=>accMine(row) ? '' : accOwner(row.d, row.r),
     normalize:d=>{ d.status=accStatus(d); if(accEd() && !d.owner) d.owner=accOwner(d, editRow.r); delete d._tasks; delete d._notes; delete d._copy; },
     onField:(k, d)=>{ if(k==='status') accStageDate(d); },
-    afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); accSameLock(); accOwnerPaint(ro); accSecPaint(); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
+    afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); accSameLock(); accOwnerPaint(ro); accSecPaint(); accDirtyPaint(); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
     // 저장한 뒤: 새 사고 = 담당자의 나의 할일에 한 건 · 담당자를 바꿨으면 남은 과업을 새 담당자에게 · 처리 완료면 남은 과업을 끝냄
     afterSave:async (nr, was)=>{ accGo=nr.r.id; try{ const o=accOwner(nr.d, nr.r), id=nr.r.id;
         if(!was){ if(accStatus(nr.d)==='처리 완료') return; await accTaskNew(nr, '접수 확인 · 보험 접수 여부 정하기', o, 'new'); if(accEd() && editRow.r.id===id) accSide(); return; }
@@ -258,6 +258,7 @@ new MutationObserver(()=>{ const m=document.getElementById('editModal'); if(!m.h
   if(accGo){ const id=accGo; accGo=''; const x=rows.find(y=>y.r.id===id) || (putRow.last && putRow.last.r.id===id ? putRow.last : null); if(x){ openEdit(x); return; } }
   m.hidden=false; }).observe(document.getElementById('editModal'), {attributes:true, attributeFilter:['hidden']});
 document.addEventListener('DOMContentLoaded', ()=>{ $('#bTitle').textContent='사고 목록';
+  const open0=openEdit; openEdit=function(){ const r=open0.apply(this, arguments); accBase=JSON.parse(JSON.stringify(form)); accDirtyPaint(); return r; };   // 사고를 열 때마다 「처음 값」을 잡아 둠 (저장 안 한 수정 표시 · 아래)
   if(new URLSearchParams(location.search).get('open')) { accStartShow(false); setTimeout(()=>{ if(document.getElementById('editModal').hidden) openEdit(null); }, 4000); }   // ?open=기록 은 공통 엔진이 목록을 받은 뒤에 엶 · 못 찾으면 빈 접수
   else { accStartShow(true); setTimeout(()=>$('#accStartQ')?.focus(), 0); } });
 document.addEventListener('click', e=>{ const t=e.target; if(!t.closest) return;
@@ -311,3 +312,11 @@ function accStartPaint(){ const ul=document.getElementById('accStartList'), q=(d
     : `<li class="acc-start-none">찾는 사고가 없습니다.</li>`; }
 document.addEventListener('input', e=>{ if(e.target.id==='accStartQ') accStartPaint(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing && e.target.id==='accStartQ'){ const one=document.querySelectorAll('#accStartList [data-accopen]'); if(one.length===1) one[0].click(); } });
+
+// ---------- 저장하지 않은 수정 표시: 「저장」 단추의 노란 점 (2026-11-28 · 단체 화면처럼 · 모양은 css/menu.css .btn.dirty · CLAUDE.md 헌법 여섯) ----------
+//  사고를 열 때의 값(accBase)과 지금 칸 값(form)이 다르면 #eSave 에 class dirty. 메모(notes)는 누르는 대로 바로 저장되는 것이라 견주지 않는다
+var accBase={};
+function accIsDirty(){ const ks=new Set([...Object.keys(accBase), ...Object.keys(form||{})]); ks.delete('notes');
+  for(const k of ks){ const a=accBase[k], b=form[k]; if(JSON.stringify(a==null||a===false ? '' : a)!==JSON.stringify(b==null||b===false ? '' : b)) return true; } return false; }
+function accDirtyPaint(){ const b=document.getElementById('eSave'); if(b) b.classList.toggle('dirty', !b.hidden && accIsDirty()); }
+['input','change','click','focusout'].forEach(ev=>document.addEventListener(ev, e=>{ if(e.target.closest && e.target.closest('#editModal')) setTimeout(accDirtyPaint, 0); }));
