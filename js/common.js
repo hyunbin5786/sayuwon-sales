@@ -269,7 +269,7 @@ const SY_DEV = (function(){
 // 팝업이 떠 있으면 뒤 화면은 스크롤 안 됨 (2026-11-24 · 모든 화면) — 팝업 안은 그대로 스크롤
 //  팝업 = 화면 전체를 덮는 것들 (.modal · .pmodal · .mypop · 매뉴얼 · 사진 크게 보기 · 메뉴 등). 옆 패널(.peek) · 작은 시간 고르기(.tp-pop)는 뺌
 (function(){
-  const SEL='.modal,.pmodal,.mypop,.mn-modal,.cm-modal,.bk-imgview,.m-zoom,.man-zoom,.ph-view,.man-wrap,.smenu:not(.dock),.dg-wrap';
+  const SEL='.modal,.pmodal,.mypop,.mn-modal,.cm-modal,.bk-imgview,.m-zoom,.man-zoom,.ph-view,.man-wrap,.smenu,.dg-wrap';
   const st=document.createElement('style');
   st.textContent='html.sy-noscroll{overflow:hidden!important;scrollbar-gutter:stable}html.sy-noscroll body{overflow:hidden!important;overscroll-behavior:none}';
   document.head.appendChild(st);

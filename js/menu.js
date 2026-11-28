@@ -180,11 +180,11 @@ window.syFont = (function(){
   mbk.addEventListener('click', ()=>man.hidden ? openMan() : closeMan());
   man.addEventListener('click', e=>{ if(e.target.closest('[data-manclose]')) closeMan(); const im=e.target.closest('.man-body img'); if(im){ const z=document.createElement('div'); z.className='man-zoom'; z.innerHTML='<img alt="">'; z.firstChild.src=im.src; z.onclick=()=>z.remove(); document.body.appendChild(z); } });
   document.addEventListener('keydown', e=>{ if(e.key!=='Escape') return; const z=document.querySelector('.man-zoom'); if(z){ z.remove(); return; } if(!man.hidden) closeMan(); });
-  // 첫 화면(로그인)은 메뉴를 왼쪽에 붙여 펼쳐 둠: 회색 가림 없이, 대시보드는 메뉴 너비만큼 옆으로 좁혀짐 (html.smenu-dock). × · ☰ 로 접고 펴기
-  const dock = isHomePg && logged;
+  // 메뉴는 어느 화면이든 헤더 아래에 떠서 뒤를 옅게 어둡게 하고, 어두운 곳 · ☰ · Esc 로 닫힘 (2026-11-28 · 첫 화면에서만 왼쪽에 붙여 두던 모양은 없앰 — 품목관리 · 멤버관리에서 바깥을 눌러도 안 닫히고 화면 왼쪽을 가렸음)
   const setTop = () => document.documentElement.style.setProperty('--sm-top', Math.max(0, Math.round(hd.getBoundingClientRect().bottom))+'px');
-  const open = v => { wrap.hidden=!v; document.documentElement.classList.toggle(dock?'smenu-dock':'smenu-open', v); btn.classList.toggle('on', v); if(dock && v) setTop(); };
-  if(dock){ wrap.classList.add('dock'); window.addEventListener('resize', setTop); }
+  const open = v => { if(v) setTop(); wrap.hidden=!v; document.documentElement.classList.toggle('smenu-open', v); btn.classList.toggle('on', v); };
+  window.addEventListener('resize', ()=>{ if(!wrap.hidden) setTop(); });
+  hd.addEventListener('click', e=>{ if(!wrap.hidden && e.target.closest('button')!==btn) open(false); });   // 헤더의 다른 곳도 메뉴 바깥
   window.syMenu = open;
   // 나의 할일: 모든 화면 헤더에 (없는 화면 · 네이버 이관 · 견적서 등은 여기서 버튼과 팝업을 만듦, 2026-11-18). 메뉴에서는 뺌
   if(logged && !hd.querySelector('[data-mypop], #myOpenBtn')){
@@ -203,13 +203,13 @@ window.syFont = (function(){
     mb.addEventListener('click', ()=>window.openMyPop());
   }
   btn.addEventListener('click', ()=>open(wrap.hidden));
-  if(isHomePg && logged && !matchMedia('(max-width:700px)').matches) open(true);   // 휴대폰에서는 펼쳐 두지 않음 — 첫 화면에 캘린더만 (2026-11-26)
+  if(isHomePg && logged && !location.hash && !matchMedia('(max-width:700px)').matches) open(true);   // 휴대폰에서는 펼쳐 두지 않음 — 첫 화면에 캘린더만 (2026-11-26)
   wrap.addEventListener('click', e=>{ if(e.target.closest('[data-smmy]')){ open(false); const b=hd.querySelector('[data-mypop], #myOpenBtn, .smenu-my'); if(b) b.click(); else if(typeof window.openMyPop==='function') window.openMyPop(); return; }
     if(e.target.closest('[data-smout]')){   // 로그아웃 (첫 화면 js/portal.js 의 로그아웃과 같은 일 · 첫 화면이면 그 버튼을 그대로 누름)
       const lb=document.getElementById('logoutBtn'); if(lb){ lb.click(); return; }
       if(!confirm('로그아웃할까요? 다음 사람이 이름과 사번으로 다시 로그인합니다.')) return;
       ['sy_user','sayuwon_owner','sy_sender','sy_dash_cache'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(_){} }); location.href=base+'index.html'; return; }
-    if(e.target.closest('[data-smcfg]')){ e.preventDefault(); if(!dock) open(false); mcOpen(); return; }   // 기타 설정 › 메뉴 설정
-    if(e.target.closest('[data-smclose]')) open(false); else if(e.target.closest('a') && !dock) setTimeout(()=>open(false), 0); });
+    if(e.target.closest('[data-smcfg]')){ e.preventDefault(); open(false); mcOpen(); return; }   // 기타 설정 › 메뉴 설정
+    if(e.target.closest('[data-smclose]')) open(false); else if(e.target.closest('a')) setTimeout(()=>open(false), 0); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !wrap.hidden){ e.preventDefault(); e.stopImmediatePropagation(); open(false); } }, true);
 })();
