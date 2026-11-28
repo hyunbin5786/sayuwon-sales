@@ -7,8 +7,8 @@
 <script>/* 불러오는 중 화면 (2026-11-21): 단체 화면을 열면 예약 정보가 준비될 때까지 빈 새 통화 화면 대신 「불러오는 중」 (예약 현황 공유 · 나의 할일 · 과업 계산 창은 빼고) */ (function(){ if(!/[?&](book|my|engine)=/.test(location.search)) document.documentElement.classList.add('g-loading'); })();</script>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sayuwon_owner"), u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search) && !/[?&]embed=1/.test(location.search)){ location.replace("./#mypop"); return; }   /* 2026-11-24: 나의 할일 한 페이지는 없앰 — 첫 화면의 팝업으로 (팝업 안 · 과업 계산 창은 embed=1 이라 그대로) */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261128c">
-<link rel="stylesheet" href="css/menu.css?v=20261128c">
+<link rel="stylesheet" href="css/group.css?v=20261128d">
+<link rel="stylesheet" href="css/menu.css?v=20261128d">
 </head>
 <body>
 <header>
@@ -100,7 +100,7 @@
 <div class="modal" id="bookModal" hidden>
   <section class="list panel mbdb book" role="dialog" aria-modal="true" aria-labelledby="bookTitle">
     <h2><span id="bookTitle">예약 목록</span> <span class="seg my-tabs" id="bookTabs"><button type="button" data-bt="mb">몽몽마방</button><button type="button" data-bt="rent">대관</button><button type="button" data-bt="docent">도슨트</button><button type="button" data-bt="prog">프로그램</button><button type="button" data-bt="coupon">음료쿠폰</button></span> <small id="bookSum"></small>
-      <span class="row-btns"><button type="button" class="btn primary" id="bookAddBtn" title="이 목록에 예약 한 건을 직접 넣습니다 (창이 뜹니다 · 단체 예약에 없는 것)" hidden>＋ 직접 추가</button><button type="button" class="btn primary" id="bookLogBtn" title="직접 추가한 예약의 추가 · 수정 · 빼기(사유) 기록">수정 기록</button><label class="hint" id="bookPastL" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bookPast"> 지난 예약도 보기</label><button type="button" class="win-x in-row" id="bookClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
+      <span class="row-btns"><button type="button" class="btn primary" id="bookAddBtn" title="이 목록에 예약 한 건을 직접 넣습니다 (창이 뜹니다 · 단체 예약에 없는 것)" hidden>＋ 직접 추가</button><label class="hint" id="bookPastL" style="margin:0;display:flex;gap:4px;align-items:center"><input type="checkbox" id="bookPast"> 지난 예약도 보기</label><button type="button" class="win-x in-row" id="bookClose" title="닫기 (Esc)" aria-label="닫기">×</button></span></h2>
     <!-- 2026-11-25 배치: 넓은 화면은 왼쪽 = 찾기 · 담당 일정 (세로로) / 오른쪽 = 날짜별로 묶은 목록 · 좁은 화면 · 단체 화면 팝업은 예전처럼 위아래 -->
     <div class="bk-wrap"><aside class="bk-side">
     <div class="book-find" id="bookFind"><b class="bk-sh">찾기</b><div class="bf-date"><span class="bf-l">날짜</span><span class="bf-dt" id="bfRangeW"><span class="dbox"><input class="dtxt" readonly placeholder="전체" title="누르면 달력 · 하나만 고르면 그날 하루, 둘을 다르게 고르면 기간"><input type="date" class="dpick" id="bfFrom" tabindex="-1" aria-hidden="true"></span><span class="bf-til">~</span><span class="dbox"><input class="dtxt" readonly placeholder="전체" title="누르면 달력 · 하나만 고르면 그날 하루, 둘을 다르게 고르면 기간"><input type="date" class="dpick" id="bfTo" tabindex="-1" aria-hidden="true"></span></span></div><select id="bfField" class="bf-field" title="어느 칸에서 찾을지 (전체 = 모든 칸)" aria-label="찾기 구분"><option value="">전체</option><option value="org">업체명</option><option value="staff">담당자</option><option value="what">프로그램 · 내용</option><option value="note">비고</option></select><input id="bfQ" class="bf-q" type="search" placeholder="검색어 (모든 목록에서 찾음)" data-ime="ko" autocomplete="off"><button type="button" class="btn primary" id="bfReset" title="날짜 · 검색어 지우기 (전체로)">초기화</button><small class="hint bf-n" id="bfN"></small></div>
@@ -110,7 +110,7 @@
       <span class="bm-btns"><button type="button" class="btn primary" id="bookPrint" title="고른 담당의 일정(대관 · 도슨트 · 프로그램 · 음료쿠폰)을 표 이미지로 저장">출력하기</button><button type="button" class="btn primary" id="bookPrintAll" title="이 기간에 일정이 있는 담당마다 한 장씩 표 이미지로 저장 (나눠 주기용)">모든 담당 출력</button></span></div>
     </aside><div class="bk-main">
     <div id="bookGen" class="book-pane"><div class="tw"><table class="mbdb-t"><thead id="bookHead"></thead><tbody id="bookBody"></tbody></table></div>
-    <p class="hint" style="margin:8px 0 0">단체 예약이 <b>예약접수</b>가 되면 예약 내역의 대관(차방 = 몽몽차방 · 당두봉갈) · 도슨트(동행 도슨트 = 동행 · 세미나 도슨트 = PPT) · 프로그램이 자동으로 들어갑니다(줄을 누르면 그 예약). 「구분」이 <b>단체예약</b>인 줄이 그것이고, <b>직접 추가</b>인 줄은 위 「＋ 직접 추가」로 넣은 것입니다(넣기 · 고치기 · 빼기는 로그인한 사람).</p></div>
+    <p class="hint" style="margin:8px 0 0">단체 예약이 <b>예약접수</b>가 되면 예약 내역의 대관(차방 = 몽몽차방 · 당두봉갈) · 도슨트(동행 도슨트 = 동행 · 세미나 도슨트 = PPT) · 프로그램이 자동으로 들어갑니다(줄을 누르면 그 예약). 「구분」이 <b>단체예약</b>인 줄이 그것이고, <b>직접 추가</b>인 줄은 위 「＋ 직접 추가」로 넣은 것입니다 — 그 줄을 누르면 고치는 창이 뜨고, 줄 끝 × 로 뺍니다(넣기 · 고치기 · 빼기는 로그인한 사람).</p></div>
     <!-- 모든 목록에서 찾은 결과 (2026-11-27): 목록마다 상자 하나 (js/group/06-booking-status.js paintBookAll) -->
     <div id="bookAll" class="book-pane" hidden></div>
     <div id="bookMb" class="book-pane" hidden>
@@ -126,12 +126,12 @@
   <section class="panel ask-box" role="dialog" aria-modal="true" aria-labelledby="bkDelTitle">
     <h2 id="bkDelTitle">예약 빼기</h2>
     <p id="bkDelMsg" class="ask-msg"></p>
-    <label class="bkdel-why">빼는 사유 <small class="hint" style="margin:0">(꼭 적어 주세요 · 수정 기록에 남습니다)</small><textarea id="bkDelWhy" rows="3" data-ime="ko" placeholder="사유"></textarea></label>
+    <label class="bkdel-why">빼는 사유 <small class="hint" style="margin:0">(꼭 적어 주세요 · 기록에 남습니다)</small><textarea id="bkDelWhy" rows="3" data-ime="ko" placeholder="사유"></textarea></label>
     <p id="bkDelErr" class="late" style="margin:4px 0 0"></p>
     <div class="row-btns ask-btns"><button type="button" class="btn" id="bkDelNo">취소</button><button type="button" class="btn primary" id="bkDelYes">빼기</button></div>
   </section>
 </div>
-<!-- 예약 현황 수정 기록: 직접 추가한 예약의 추가 · 수정 · 빼기(사유) -->
+<!-- 예약 현황 수정 기록: 직접 추가한 예약의 추가 · 수정 · 빼기(사유) — 2026-11-28: 여는 「수정 기록」 단추를 화면에서 없앰 (운영팀 요청 · 기록은 전처럼 계속 남김 · 창은 남겨 둠) -->
 <div class="modal" id="bkLogModal" hidden>
   <section class="list panel mbdb book bklog" role="dialog" aria-modal="true" aria-labelledby="bkLogTitle">
     <h2><span id="bkLogTitle">수정 기록</span> <small id="bkLogSum"></small>
@@ -427,14 +427,14 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/common.js?v=20261128c"></script>
-<script src="js/opslib.js?v=20261128c"></script>
-<script src="js/group.js?v=20261128c"></script>
-<script src="js/taskcfg.js?v=20261128c"></script>
-<script src="js/mytask.js?v=20261128c"></script>
-<script src="js/ime.js?v=20261128c"></script>
-<script src="js/keepsize.js?v=20261128c"></script>
-<script src="js/menu.js?v=20261128c"></script>
-<script src="js/timepick.js?v=20261128c"></script>
+<script src="js/common.js?v=20261128d"></script>
+<script src="js/opslib.js?v=20261128d"></script>
+<script src="js/group.js?v=20261128d"></script>
+<script src="js/taskcfg.js?v=20261128d"></script>
+<script src="js/mytask.js?v=20261128d"></script>
+<script src="js/ime.js?v=20261128d"></script>
+<script src="js/keepsize.js?v=20261128d"></script>
+<script src="js/menu.js?v=20261128d"></script>
+<script src="js/timepick.js?v=20261128d"></script>
 </body>
 </html>

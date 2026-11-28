@@ -289,7 +289,17 @@ function commonExtra(today){ const out=[];
       const due=/^\d{4}-\d{2}-\d{2}$/.test(d.date||'') ? d.date : opsYmd(r.saved||today);
       out.push({kind:'공통', owner:'', name:`${RL.title||'분실물 신고'} · ${d.item||'(물품 없음)'}`, q:[RL.title, d.item, d.feature, d.place, '분실물 신고'].join(' '), href:'lost.html?open='+encodeURIComponent(r.id),
         tasks:[{title:`${d.place ? d.place+' · ' : ''}${RL.text||'찾아보고 신고자에게 안내'}`, due}]}); }); }
-  return [...out, ...cmRecs(today)]; }function stockDue(today){   // 정기 재고조사 날(오늘이거나 지남)이면 그 날짜 · 아니면 '' — 공통 업무에 (2026-11-24)
+  // 예약 현황 직접 추가 (2026-11-28 · 운영팀 요청 「분실물 신고 접수처럼」): 예약 현황 공유에 직접 넣은 예약 한 건 = 공통 업무 하나 · 마감 = 넣은 날 · 누르면 그 목록이 열림 (group.html?book=)
+  //  따로 저장하지 않고 직접 추가 줄(설정 줄 bookdb · mabangdb 의 rows)을 읽어 보임 — 넣은 일시(at)가 있는 줄만 (이 기능을 넣은 뒤에 추가한 것 · js/group/06-booking-status.js bookAddSave)
+  //  빠지는 때: 「확인」을 누름(공통 업무 설정 줄 done.bookadd[넣은 일시] — 아래 cmKey) · 그 예약을 목록에서 뺌 · 예약 날짜가 지남. 켜기 · 이름 · 할 일은 공통 업무 「관리」(js/commonmgr.js CM_SYS 의 bookadd)
+  if(cmOn('bookadd')){ const RB=cmRule('bookadd'), dn=(cmData().done||{}).bookadd||{}, CAT={mb:'몽몽마방', rent:'대관', docent:'도슨트', prog:'프로그램', coupon:'음료쿠폰'};
+    const rowsOf = id => { const h=histOf(id); return h && Array.isArray(h.rows) ? h.rows : []; };
+    [...rowsOf('mabangdb').map(x=>({at:x.at, c:'mb', d:x.d, tm:x.t, org:x.n, by:x.by})), ...rowsOf('bookdb').map(x=>({at:x.at, c:x.cat, d:x.d, tm:x.tm, org:x.org, by:x.by}))]
+      .forEach(x=>{ if(!x.at || dn[x.at] || !CAT[x.c] || !x.d || x.d<today) return;
+        out.push({kind:'공통', owner:'', name:`${RB.title||'예약 현황 직접 추가'} · ${CAT[x.c]} · ${x.org||'(이름 없음)'}`, q:[RB.title, CAT[x.c], x.org, x.by, '예약 현황 직접 추가'].join(' '), href:'group.html?book='+x.c, cm:'bookadd', cmKey:x.at, cmBtn:'확인',
+          tasks:[{title:`${opsDateLabel(x.d)}${x.tm?' '+x.tm:''} 예약${x.by?` · ${x.by} 추가`:''} · ${RB.text||'내용을 확인하고 「확인」'}`, due:opsYmd(x.at)}]}); }); }
+  return [...out, ...cmRecs(today)]; }
+function stockDue(today){   // 정기 재고조사 날(오늘이거나 지남)이면 그 날짜 · 아니면 '' — 공통 업무에 (2026-11-24)
   const it=(lastItems||[]).find(x=>x.id==='stockcfg' && !x.deleted); if(!it) return '';
   let d=null; try{ d=(JSON.parse(it.history||'{}')||{}).d; }catch(_){} const nx=d && d.next; return nx && nx<=today ? nx : '';
 }
@@ -525,7 +535,7 @@ function renderDash(){ if(!dashData) return; paintRange();
     const D=r.due.slice().sort((a,b)=>a.due.localeCompare(b.due)), A=r.href ? `a href="${r.href}"` : 'div class="dnolink"';
     return `<li class="drec${late?' late':''}${r.cm?' cm':''}"><${A}><span class="dr-h"><b>${esc(r.name)}</b>${showOwner?`<span class="downer${me && r.owner===me?' me':''}">${esc(r.owner||'담당 없음')}</span>`:''}</span>`   // 줄은 칠하지 않고 내 이름 칸만 초록 (2026-11-25)
       + D.map(t=>`<span class="dr-t">${dl(t.due)} · ${esc(t.title)}</span>`).join('') + `</${r.href?'a':'div'}>`
-      + (r.cm ? `<button type="button" class="cm-done" data-cmdone="${esc(r.cm)}" data-day="${esc(D[0].due)}" title="${esc(opsDateLabel(D[0].due))} 것을 끝냄">완료</button>` : '') + `</li>`; }).join('');
+      + (r.cm ? `<button type="button" class="cm-done" data-cmdone="${esc(r.cm)}" data-day="${esc(r.cmKey||D[0].due)}" title="${r.cmKey ? '확인했으면 누릅니다 (공통 업무에서 빠짐)' : esc(opsDateLabel(D[0].due))+' 것을 끝냄'}">${esc(r.cmBtn||'완료')}</button>` : '') + `</li>`; }).join('');
   const box = (kind, title, src, extraHead, opt={}) => { const {L}=list(src), pre=opt.pre||'', n=L.length+(opt.preN||0);
     return `<div class="dcol${opt.cls?' '+opt.cls:''}"><div class="dcol-h"><b>${title}</b>${extraHead||''}<span class="dn">${n}</span></div>`
       + (n ? `<ul class="dlist">${pre}${items(L, opt.owner!==false)}</ul>` : `<p class="hint dempty">${q?'검색에 맞는 것이 없습니다.':`${esc(rLabel)} 기준 할 것이 없습니다.`}</p>`) + `</div>`; };

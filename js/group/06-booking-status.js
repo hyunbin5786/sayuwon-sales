@@ -171,8 +171,8 @@ async function doBkDel(){
   $('#bkDelYes').disabled=true;
   try{
     await bkLogAdd([{act:'빼기', db:p.db, cat:p.cat, row:p.snap, why}]);   // 기록 먼저
-    if(p.db==='mb'){ const rows=mbDb().rows, k=rows.findIndex(x=>JSON.stringify(bkSnap('mb', x))===JSON.stringify(p.snap)); if(k>=0) await mbDbSave(rows.filter((_,j)=>j!==k), '몽몽마방 예약을 목록에서 뺐습니다 (사유는 수정 기록에).'); }
-    else await bkDbSave(bkDb().rows.filter(x=>x.id!==p.id), '예약을 목록에서 뺐습니다 (사유는 수정 기록에).');
+    if(p.db==='mb'){ const rows=mbDb().rows, k=rows.findIndex(x=>JSON.stringify(bkSnap('mb', x))===JSON.stringify(p.snap)); if(k>=0) await mbDbSave(rows.filter((_,j)=>j!==k), '몽몽마방 예약을 목록에서 뺐습니다 (사유는 기록에 남겼습니다).'); }
+    else await bkDbSave(bkDb().rows.filter(x=>x.id!==p.id), '예약을 목록에서 뺐습니다 (사유는 기록에 남겼습니다).');
     closeBkDel();
   } finally { $('#bkDelYes').disabled=false; }
 }
@@ -243,8 +243,8 @@ function paintBook(){
 // 대관 · 도슨트 · 프로그램 · 음료쿠폰 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표 · 수정 단추의 data-bcat = 그 줄의 목록)
 const bkWhat = x => x.cat==='rent' ? (x.place||'(장소 미정)') : x.cat==='docent' ? [x.kind, x.place].filter(Boolean).join(' · ') : (x.item||'');   // 내용 칸
 const bkGenRow = (x, today, tag) => bkRowHTML({src:x.manual?'m':'g', d:x.d, tm:(x.tm||(x.cat==='docent'?'(미정)':''))+(x.hrs?` (${x.hrs}시간)`:''), org:x.org, n:x.ppl?x.ppl+(x.cat==='coupon'?'장':'명'):'', x:esc(bkWhat(x)), staff:x.staff, note:esc(x.note||'')},
-      `r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}`, x.manual?'':` data-bopen="${esc(x.id)}"`,
-      `${x.manual ? `<button type="button" class="btn sm" data-bkedit="${esc(x.id)}" data-bcat="${esc(x.cat)}">수정</button><button type="button" class="del" data-bkdel="${esc(x.id)}" title="빼기">×</button>` : x.me ? '<span class="tag call" title="지금 화면에서 열어 둔 예약 (저장 전 내용도 바로)">지금 이 예약</span>' : ''}`);   // 끝 열의 「단체예약」 이름표는 없앰 (2026-11-27 · 줄을 누르면 그 예약이 열리는 것은 그대로)
+      `r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}`, x.manual?` data-bkrow="${esc(x.id)}" data-bcat="${esc(x.cat)}" title="누르면 고칩니다 (직접 추가한 예약)"`:` data-bopen="${esc(x.id)}"`,
+      `${x.manual ? `<button type="button" class="del" data-bkdel="${esc(x.id)}" title="빼기">×</button>` : x.me ? '<span class="tag call" title="지금 화면에서 열어 둔 예약 (저장 전 내용도 바로)">지금 이 예약</span>' : ''}`);   // 끝 열의 「단체예약」 이름표는 없앰 (2026-11-27 · 줄을 누르면 그 예약이 열리는 것은 그대로)
 // ===== 모든 목록에서 찾기 (2026-11-27): 찾기 칸에 글자를 넣으면 고른 목록 하나가 아니라 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 다섯 목록을 한 표에 (한 사람이 여러 목록의 담당일 때가 있어서)
 //  (2026-11-27 다시) 줄마다 이름표를 붙이지 않고 목록마다 상자를 나눠 그 안에 (#bookAll · 상자 제목 = 목록 이름 + 건수 · 표의 칸 이름은 그 목록 것) · 글자를 지우면 고른 목록으로 돌아감 · 날짜만 고른 것은 예전처럼 고른 목록 안에서 · 탭을 누르면 검색어를 지우고 그 목록으로
 //  자료는 로그인한 사람(list) · 로그인 안 한 사람(bookList) 모두 다섯 목록 것을 한 번에 받아 두므로 서버는 그대로
@@ -302,7 +302,7 @@ function paintBookAdd(){
   box.innerHTML = `<div class="ba-h"><b>${c==='mb'?'몽몽마방':BOOK_CATS[c]} ${bookEdit?'예약 고치기':'예약 직접 추가'}</b> <span class="hint" style="margin:0">예약 한 건 · <i class="ba-req">*</i> 표시는 꼭 넣는 칸입니다</span></div>`
     + (BOOK_GUEST ? `<div class="ba-row ba-who"><label class="wide">추가하는 사람 이름 <input id="baBy" data-ime="ko" placeholder="이름" autocomplete="off" value="${esc((()=>{ try{ return localStorage.getItem('sy_guest_name')||''; }catch(_){ return ''; } })())}"></label><span class="hint">로그인 없이 추가합니다 · 고치기 · 빼기는 로그인한 사람이</span></div>` : '')   // 로그인 없이: 이름을 적고 추가 (2026-11-21)
     + `<div class="ba-row"><label><span>날짜${req}</span> ${dboxHTML('id="baDate"', x.d||rec.date||'')}</label>${f.join('')}</div>`
-    + `<div class="ba-btns">${bookEdit && !BOOK_GUEST ? '<button type="button" class="btn ba-del" id="baDel" title="이 예약을 목록에서 뺍니다 (사유를 적는 창이 뜹니다 · 수정 기록에 남음)">이 예약 빼기</button>' : ''}<button type="button" class="btn" id="baCancel">취소</button><button type="button" class="btn primary" id="baSave">${bookEdit?'고치기':'추가'}</button></div>`
+    + `<div class="ba-btns">${bookEdit && !BOOK_GUEST ? '<button type="button" class="btn ba-del" id="baDel" title="이 예약을 목록에서 뺍니다 (사유를 적는 창이 뜹니다 · 기록에 남음)">이 예약 빼기</button>' : ''}<button type="button" class="btn" id="baCancel">취소</button><button type="button" class="btn primary" id="baSave">${bookEdit?'고치기':'추가'}</button></div>`
     + (!['mb','coupon'].includes(c) && !bookEdit && !BOOK_GUEST ? `<details class="ba-imp"><summary class="hint">엑셀 표를 한 번에 넣기 (대관 · 도슨트 · 프로그램 표)</summary><p class="hint" style="margin:4px 0">엑셀에서 줄을 복사해 붙여 넣으세요. 열 순서: 일자 · 업체 · 인원 · 동행 도슨트 시간 · PPT 도슨트 시간 · 대관 시간 · … · 담당 · 비고. 시간이 있는 칸마다 한 건씩 들어갑니다 (대관 장소는 넣은 뒤 「수정」에서).</p><textarea id="baImp" placeholder="여기에 붙여 넣기"></textarea><div id="baImpPrev" class="mb-prev"></div><div class="row-btns" style="justify-content:flex-end"><button type="button" class="btn primary" id="baImpSave" disabled>모두 넣기</button></div></details>` : '');
 }
 async function bookAddSave(){
@@ -321,12 +321,12 @@ async function bookAddSave(){
   if(c==='mb'){ if(!ppl){ toast('인원을 적어 주세요.'); $('#baPpl').focus(); return false; }
     const row={d, t:tm, n:org, p:ppl, m:v('baItem')}, rows=[...mbDb().rows];
     const was = bookEdit && bookEdit.mb!=null ? rows[bookEdit.mb] : null;
-    if(was){ row.by=was.by; if(was.guest) row.guest=was.guest; rows[bookEdit.mb]=row; } else { row.by=savedOwner()||''; rows.push(row); }
+    if(was){ row.by=was.by; if(was.guest) row.guest=was.guest; if(was.at) row.at=was.at; rows[bookEdit.mb]=row; } else { row.by=savedOwner()||''; row.at=new Date().toISOString(); rows.push(row); }   // at = 넣은 일시 (2026-11-28 · 첫 화면 공통 업무 「예약 현황 직접 추가」 알림이 이것으로 줄을 가림 · js/portal.js commonExtra)
     const ed=!!was; bookEdit=null; await mbDbSave(rows, ed?'몽몽마방 예약을 고쳤습니다.':'몽몽마방 예약을 추가했습니다.');
     await bkLogAdd([ed ? {act:'수정', db:'mb', cat:'mb', row:bkSnap('mb', row), chg:bkChg(bkSnap('mb', was), bkSnap('mb', row))} : {act:'추가', db:'mb', cat:'mb', row:bkSnap('mb', row)}]); return true; }
   const row={ id: (bookEdit&&bookEdit.id) || 'b'+Date.now().toString(36), cat:c, d, org, ppl, tm, place:c==='rent'?v('baPlace'):'', kind:c==='docent'?v('baKind'):'', item:(c==='prog'||c==='coupon')?v('baItem'):'', staff:v('baStaff'), note:v('baNote'), by:savedOwner()||'' };
   const was = bookEdit && bookEdit.id ? bkDb().rows.find(r=>r.id===row.id) : null;
-  if(was){ row.by=was.by||row.by; if(was.guest) row.guest=was.guest; }   // 처음 넣은 사람은 그대로
+  if(was){ row.by=was.by||row.by; if(was.guest) row.guest=was.guest; if(was.at) row.at=was.at; } else row.at=new Date().toISOString();   // 처음 넣은 사람 · 넣은 일시(at)는 그대로
   const rows=bkDb().rows.filter(r=>r.id!==row.id); rows.push(row);
   const ed=!!was; bookEdit=null; await bkDbSave(rows, ed?'예약을 고쳤습니다.':`${BOOK_CATS[c]} 예약을 추가했습니다.`);
   await bkLogAdd([ed ? {act:'수정', db:'bk', cat:c, row:bkSnap('bk', row), chg:bkChg(bkSnap('bk', was), bkSnap('bk', row))} : {act:'추가', db:'bk', cat:c, row:bkSnap('bk', row)}]); return true;
@@ -351,7 +351,7 @@ function bookImpParse(text){ const out=[], skipped=[]; const p2=n=>String(n).pad
     if(t(2)) out.push({...base, cat:'rent', place:'', tm:t(2)});
     if(out.length===n0) out.push({...base, cat:'prog', item:note, tm:''});
   });
-  out.forEach((x,i)=>{ x.id='b'+Date.now().toString(36)+i; });
+  out.forEach((x,i)=>{ x.id='b'+Date.now().toString(36)+i; x.at=new Date(Date.now()+i).toISOString(); });
   return {rows:out, skipped};
 }
 document.addEventListener('input', e=>{ if(e.target.id!=='baImp') return; bookImp = e.target.value.trim() ? bookImpParse(e.target.value) : null;
@@ -374,6 +374,10 @@ document.addEventListener('click', async e=>{ const t=e.target;
   if(t.id==='bkLogClose'){ $('#bkLogModal').hidden=true; return; }
   if(t.id==='bkLogAll'){ paintBkLog(); return; }
   if(t.dataset.mbedit!=null){ bookEdit={mb:+t.dataset.mbedit}; bookAddOpen(); return; }
+  // 직접 추가한 줄을 누르면 고치는 창 (2026-11-28 · 「수정」 단추 대신 · 로그인한 사람만 · 줄 끝 × 는 빼기) — 모든 목록에서 찾은 표에서는 그 줄의 목록으로 맞춤
+  { const tr = t.closest && !t.closest('button') && t.closest('tr[data-bkrow], tr[data-mbrow]');
+    if(tr && !BOOK_GUEST && bookAddClosed()){ const c=tr.dataset.bcat; if(c==='mb' || BOOK_CATS[c]) bookCatNow=c;
+      bookEdit = tr.dataset.mbrow!=null ? {mb:+tr.dataset.mbrow} : {id:tr.dataset.bkrow}; bookAddOpen(); return; } }
 });
 // 직접 추가 팝업: Esc = 닫기 (뒤의 예약 목록 창보다 먼저)
 //  적던 것이 있으면 한 번으로는 닫지 않음 (실수로 사라지지 않게 · 3초 안에 한 번 더 누르면 닫힘 · 2026-11-28)
@@ -535,8 +539,8 @@ function mbAutoRows(){ try{
 function mbAllRows(){ return [...mbDb().rows.map((x,i)=>({...x, i})), ...mbAutoRows()]; }   // 직접 넣은 것(i = 몇 번째) + 단체 예약에서 자동
 // 몽몽마방 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표)
 function mbRow(x, today, tag){ return bkRowHTML({src:x.auto?'g':'m', d:x.d, tm:x.t, org:x.n, n:x.p?x.p+'명':'', x:esc(x.m||''), staff:x.staff||'', note:[x.pay==='마방'?'마방 결제':'', esc(x.note||'')].filter(Boolean).join(' · ')},
-      `${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}`, x.auto && !x.cur?` data-bopen="${esc(x.id)}"`:'',
-      `${x.cur ? '<span class="tag call" title="지금 화면에서 입력 중인 예약 (저장 전이어도 바로)">지금 이 예약</span>' : x.auto ? '' : `<button type="button" class="btn sm" data-mbedit="${x.i}" data-bcat="mb">수정</button><button type="button" class="del" data-mbdel="${x.i}" title="이 예약 빼기">×</button>`}`); }
+      `${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}`, x.auto ? (x.cur ? '' : ` data-bopen="${esc(x.id)}"`) : ` data-mbrow="${x.i}" data-bcat="mb" title="누르면 고칩니다 (직접 추가한 예약)"`,
+      `${x.cur ? '<span class="tag call" title="지금 화면에서 입력 중인 예약 (저장 전이어도 바로)">지금 이 예약</span>' : x.auto ? '' : `<button type="button" class="del" data-mbdel="${x.i}" title="이 예약 빼기">×</button>`}`); }
 function paintMbDb(){
   const db=mbDb(), today=todayYmd(), past=$('#bookPast').checked;   // 지난 예약도 보기 (예약 목록 창 공통)
   const all=mbAllRows();
