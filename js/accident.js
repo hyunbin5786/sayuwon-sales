@@ -54,13 +54,13 @@ function accStepsHTML(d, can){ const cur=ACC_ST.indexOf(accStatus(d)), dt=accSta
   return `<ol class="acc-steps">${ACC_ST.map((s,i)=>{ const skip=i>0 && i<cur && !dt[i];   // 날짜 없이 지나간 단계 (보험 없이 끝낸 사고)
     return `<li class="${i<cur ? (skip?'skip':'done') : i===cur ? 'cur' : ''}"><button type="button" data-accstep="${i}"${can?'':' disabled'} title="${esc(s)}"><i>${(i<cur && !skip) || (i===cur && cur===4) ? '✓' : i+1}</i><b>${ACC_SHORT[i]}</b><small>${i<=cur && dt[i] ? esc(opsDateLabel(dt[i])) : ''}</small></button></li>`; }).join('')}</ol>`; }
 const accMini = d => { const cur=ACC_ST.indexOf(accStatus(d)); return `<span class="acc-mini" aria-hidden="true">${ACC_ST.map((_,i)=>`<i class="${i<=cur?'on':''}"></i>`).join('')}</span>`; };
-function accTasksHTML(mine){ const id=editRow.r.id, me=accMe(), L=accTasks(id), own=accOwner(form, editRow.r);
+function accTasksHTML(mine){ if(!accEd()) return `<p class="acc-none">저장한 뒤에 넣을 수 있습니다</p>`; const id=editRow.r.id, me=accMe(), L=accTasks(id), own=accOwner(form, editRow.r);
   return (L.length ? `<ul class="acc-tasks">${L.map(t=>{ const dn=accTaskDone(t.d), can=mine || t.d.owner===me;
         return `<li class="${dn?'done':''}"><label><input type="checkbox" data-acctk="${esc(t.r.id)}"${dn?' checked':''}${can?'':' disabled'}><span>${esc(accTaskName(t.d))}</span></label><small>${esc(t.d.owner||'')} · ${dn?'완료':'마감 '+esc(opsDateLabel(accTaskDay(t.d)))}</small></li>`; }).join('')}</ul>` : `<p class="acc-none">없음</p>`)
     + (mine ? `<div class="acc-add"><input id="accTkIn" data-ime="ko" placeholder="할 일 (적고 Enter)" autocomplete="off" value="${esc(accDraft.tk)}"><select id="accTkWho" title="맡을 사람">${[...new Set([own, me, ...(window.opsMembers||[])].filter(Boolean))].map(n=>`<option${n===(accDraft.who||own)?' selected':''}>${esc(n)}</option>`).join('')}</select><button type="button" class="btn primary" id="accTkAdd">추가</button></div>` : ''); }
 const accNoteWhen = t => { const x=new Date(t); return isNaN(x) ? '' : `${opsDateLabel(opsYmd(x))} ${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`; };
 const accPhs = (L, del) => (L||[]).length ? `<div class="an-phs">${L.map((p,i)=>`<span class="an-ph"><img alt="${esc(p.name||'사진')}" data-phimg="${esc(p.id)}" data-accview="1">${del?`<button type="button" class="ph-x" data-accphdel="${i}" title="이 사진 빼기" aria-label="사진 빼기">×</button>`:''}</span>`).join('')}</div>` : '';
-function accNotesHTML(){ const me=accMe(), L=(Array.isArray(form.notes) ? form.notes : []).slice().reverse();   // 새 것이 위
+function accNotesHTML(){ if(!accEd()) return `<p class="acc-none">저장한 뒤에 남길 수 있습니다</p>`; const me=accMe(), L=(Array.isArray(form.notes) ? form.notes : []).slice().reverse();   // 새 것이 위
   return `<div class="acc-note-in"><textarea id="accNoteIn" data-ime="ko" rows="2" placeholder="메모 (적고 Enter)">${esc(accDraft.note)}</textarea>${accPhs(accDraft.ph, true)}`
       + `<div class="an-btns"><label class="btn">${accDraft.up ? '올리는 중…' : '사진 붙이기'}<input type="file" accept="image/*" multiple id="accNotePh" hidden></label><span class="sp"></span><button type="button" class="btn primary" id="accNoteAdd">메모 남기기</button></div></div>`
     + (L.length ? `<ol class="acc-notes">${L.map(n=>{ const ed=accDraft.edit===n.id;
@@ -69,9 +69,8 @@ function accNotesHTML(){ const me=accMe(), L=(Array.isArray(form.notes) ? form.n
                : `<div class="an-t">${esc(n.text||'')}</div>${n.del ? '' : accPhs(n.photos)}`) + `</li>`; }).join('')}</ol>` : ''); }
 let accTab='side', accTabId='';
 function accSidePaint(row, ro){ const side=document.getElementById('accSide'), box=document.querySelector('#editModal .edit-box'), tabs=document.getElementById('accTabs'); if(!side) return;
-  const on=!!row; box.classList.toggle('acc-wide', on); side.hidden=!on; if(tabs) tabs.hidden=!on;
-  if(!on){ side.innerHTML=''; $('#eForm').removeAttribute('data-tab'); return; }
-  if(accTabId!==row.r.id){ accTabId=row.r.id; accTab='side'; accDraft.tk=accDraft.note=accDraft.edit=accDraft.edTx=accDraft.who=''; accDraft.ph=[]; }
+  box.classList.add('acc-wide'); side.hidden=false; if(tabs) tabs.hidden=false;   // 새로 접수할 때부터 진행 단계 · 뒤처리 묶음이 다 보임 (2026-11-28 · 새 접수의 단계는 「저장」할 때 같이 저장 · 추후과업 · 메모는 저장한 뒤)
+  const rid=row ? row.r.id : 'new'; if(accTabId!==rid){ accTabId=rid; accTab=row ? 'side' : 'info'; accDraft.tk=accDraft.note=accDraft.edit=accDraft.edTx=accDraft.who=''; accDraft.ph=[]; }
   $('#eForm').dataset.tab=accTab; if(tabs) tabs.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.acctab===accTab));
   const mine=!ro;
   side.innerHTML=`<section class="acc-box"><h3>진행 단계</h3>${accStepsHTML(form, mine)}</section>`
@@ -98,7 +97,9 @@ async function accNoteAdd(){ const text=accDraft.note.trim(), ph=accDraft.ph.sli
 async function accNotePhAdd(files){ const left=5-accDraft.ph.length; if(left<=0){ toast('사진은 메모 하나에 5장까지입니다.'); return; } accDraft.up++; accSide(); let fail='';
   for(const f of files.slice(0, left)){ try{ const s=await phShrink(f), j=await SY.call({action:'mentImgPut', name:'사고현황 메모 사진'+(s.mime==='image/png'?'.png':'.jpg'), mime:s.mime, data:s.data}); phCache[j.file.id]=s.url; accDraft.ph.push({id:j.file.id, name:j.file.name}); }catch(e){ fail=String(e.code||e.message||e); } }
   accDraft.up--; accSide(); if(fail) toast('사진을 올리지 못했습니다: '+fail); }
-async function accStep(i){ if(!accEd() || !accMine(editRow)) return; const to=ACC_ST[i], from=accStatus(form); if(to===from) return;
+async function accStep(i){ const to=ACC_ST[i], from=accStatus(form); if(to===from) return;
+  if(!accEd()){ form.status=to; accStageDate(form); paintForm(); return; }   // 새 접수: 화면에서만 바꿔 두고 「저장」할 때 같이 저장
+  if(!accMine(editRow)) return;
   const d2=await accPatch(d=>{ d.status=to; accStageDate(d); return d; }, `단계 ${from} → ${to}`); if(!d2) return;
   form.status=to; ['rcptDate','visitDate','adjDate','procDate'].forEach(k=>{ if(!form[k] && d2[k]) form[k]=d2[k]; });
   paintForm(); toast(`단계를 「${to}」(으)로 바꿨습니다.`); if(to==='처리 완료') accTasksClose(editRow.r.id).then(accSide); }
@@ -192,14 +193,14 @@ const OPS_PAGE =
       {k:'place', l:'사고 장소 (사유원 안)', type:'text', ph:'고르거나 직접 적기 · 예: 소요헌 안 계단', list:ACC_PLACES, req:()=>!accEd()}, {k:'group', l:'방문 단체', type:'text', ph:'단체 이름 (개인이면 비움)'},
       {k:'owner', l:'담당자 (이 사람만 고칠 수 있음)', type:'member', def:()=>accMe(), w:2},
 
-      {type:'head', l:'사고 대상자 · 대표 예약자', col:()=>accEd() ? 1 : 2},
+      {type:'head', l:'사고 대상자 · 대표 예약자', col:1},
       {k:'person', l:'사고 대상자 이름', type:'text'}, {k:'phone', l:'사고 대상자 연락처', ...accTel('사고 대상자 연락처')},
       {k:'personNote', l:'대상자 비고 (성별 · 연령대 등)', type:'text', w:2},
       {k:'bookerSame', w:2, html:d=>`<label class="acc-same"><input type="checkbox" id="accSame"${d.bookerSame?' checked':''}> 대표 예약자가 사고 대상자와 같음</label>`},   // 체크하면 대표 예약자 이름 · 연락처 = 사고 대상자의 것 (적는 대로 따라감 · 아래 「대표 예약자 = 사고 대상자」)
       {k:'booker', l:'대표 예약자 이름', type:'text'}, {k:'bookerPhone', l:'대표 예약자 연락처', ...accTel('대표 예약자 연락처')},
       {k:'erp', l:'상품 정보', type:'textarea', w:2, ph:'전산의 상품 정보를 복사해 붙여 넣기'},   // 전산의 예약 상품 내역 (방문일자 · 상품 · 인원 · 금액) — 붙여 넣으면 방문자 이름 · 연락처를 비어 있는 대표 예약자 칸에 넣음
 
-      {type:'head', l:'사고 내용', col:()=>accEd() ? 1 : 3},
+      {type:'head', l:'사고 내용', col:1},
       {k:'what', l:'사고 내용', type:'textarea', w:2},
       {k:'injury', l:'부상 부위 · 진단', type:'text'}, {k:'staff', l:'현장 대응 직원', type:'text', def:()=>accMe()},
       {k:'action', l:'현장 조치', type:'textarea', w:2},
@@ -209,23 +210,23 @@ const OPS_PAGE =
       {k:'cctv', l:'사고 장소 CCTV', type:'select', opts:['미확인','있음','없음'], def:()=>'미확인'}, {k:'cctvKept', l:'CCTV 영상 확보', type:'select', opts:['미확인','확보함','미확보','해당 없음'], def:()=>'미확인'},
       {k:'memo', l:'내부 메모', type:'textarea', w:2},
 
-      // 아래 묶음들은 접수한 뒤 고칠 때만 보임 (현장에서는 위의 것만 적고 접수)
-      {type:'head', l:'고객 요청 · 원인과 재발 방지', show:accEd, col:2},
-      {k:'claim', l:'고객 요청 사항 · 안내한 내용', type:'textarea', w:2, show:accEd},
-      {k:'claimAmt', l:'고객 측 청구 금액 (원)', type:'num', show:accEd}, {k:'evidence', l:'확보 자료', type:'text', ph:'진단서 · 영수증 · 사진 등', show:accEd},
-      {k:'cause', l:'사고 사유', type:'textarea', w:2, show:accEd},
-      {k:'prevent', l:'재발 방지 대책', type:'textarea', w:2, show:accEd},
+      // 아래 묶음들도 새로 접수할 때부터 보임 (2026-11-28 · 그 전에는 접수한 뒤 고칠 때만)
+      {type:'head', l:'고객 요청 · 원인과 재발 방지', col:2},
+      {k:'claim', l:'고객 요청 사항 · 안내한 내용', type:'textarea', w:2},
+      {k:'claimAmt', l:'고객 측 청구 금액 (원)', type:'num'}, {k:'evidence', l:'확보 자료', type:'text', ph:'진단서 · 영수증 · 사진 등'},
+      {k:'cause', l:'사고 사유', type:'textarea', w:2},
+      {k:'prevent', l:'재발 방지 대책', type:'textarea', w:2},
 
-      {type:'head', l:'보험 처리', show:accEd, col:2},   // 단계는 창 오른쪽의 「진행 단계」에서 바꿈 (2026-11-28 · 칸에는 날짜만)
-      {k:'rcptDate', l:'보험 접수일', type:'date', show:accEd}, {k:'visitDate', l:'손해사정사 현장 방문일', type:'date', show:accEd},
-      {k:'visitNote', l:'현장 방문 메모', type:'text', ph:'담당 손해사정사 · 방문 시간', show:accEd}, {k:'adjDate', l:'손해사정 시작일', type:'date', show:accEd},
-      {k:'procDate', l:'처리 완료일', type:'date', show:accEd}, {k:'insStatus', l:'보험사 진행상태', type:'text', list:['사고조사','보상종결','면책종결'], show:accEd},
-      {k:'accNo', l:'사고번호', type:'text', show:accEd}, {k:'policyNo', l:'증권번호', type:'text', show:accEd},
-      {k:'insCause', l:'사고원인 (보험사 기준)', type:'text', list:['치료비','파손','품질불량','주차장사고'], show:accEd}, {k:'insType', l:'사고유형 (보험사 기준)', type:'text', list:['배상책임','생산물(PL)'], show:accEd},
-      {k:'lossObj', l:'손해목적', type:'text', list:['대인(배상책임)','대물(배상책임)'], show:accEd}, {k:'product', l:'보험 상품명', type:'text', list:['영업배상책임보험','생산물배상책임보험(Ⅰ)'], show:accEd},
-      {k:'adjuster', l:'위임업체 (손해사정)', type:'text', show:accEd}, {k:'examiner', l:'심사자', type:'text', show:accEd},
-      {k:'addr', l:'사고 장소 (주소 · 보험사에 낸 것)', type:'text', w:2, show:accEd},
-      {k:'payout', l:'보험금 (원)', type:'num', show:accEd}, {k:'diagnosis', l:'진단명', type:'text', show:accEd} ],
+      {type:'head', l:'보험 처리', col:2},   // 단계는 창 오른쪽의 「진행 단계」에서 바꿈 (2026-11-28 · 칸에는 날짜만)
+      {k:'rcptDate', l:'보험 접수일', type:'date'}, {k:'visitDate', l:'손해사정사 현장 방문일', type:'date'},
+      {k:'visitNote', l:'현장 방문 메모', type:'text', ph:'담당 손해사정사 · 방문 시간'}, {k:'adjDate', l:'손해사정 시작일', type:'date'},
+      {k:'procDate', l:'처리 완료일', type:'date'}, {k:'insStatus', l:'보험사 진행상태', type:'text', list:['사고조사','보상종결','면책종결']},
+      {k:'accNo', l:'사고번호', type:'text'}, {k:'policyNo', l:'증권번호', type:'text'},
+      {k:'insCause', l:'사고원인 (보험사 기준)', type:'text', list:['치료비','파손','품질불량','주차장사고']}, {k:'insType', l:'사고유형 (보험사 기준)', type:'text', list:['배상책임','생산물(PL)']},
+      {k:'lossObj', l:'손해목적', type:'text', list:['대인(배상책임)','대물(배상책임)']}, {k:'product', l:'보험 상품명', type:'text', list:['영업배상책임보험','생산물배상책임보험(Ⅰ)']},
+      {k:'adjuster', l:'위임업체 (손해사정)', type:'text'}, {k:'examiner', l:'심사자', type:'text'},
+      {k:'addr', l:'사고 장소 (주소 · 보험사에 낸 것)', type:'text', w:2},
+      {k:'payout', l:'보험금 (원)', type:'num'}, {k:'diagnosis', l:'진단명', type:'text'} ],
     cols:[['date','사고 일시'],['place','장소'],['type','구분'],['status','단계']],
     status:'status', open:ACC_OPEN, summary:d=>`${d.type||''} ${d.place||''} · ${accStatus(d)}`.trim(),
     render:accRender,
@@ -236,7 +237,7 @@ const OPS_PAGE =
     afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); accSameLock(); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
     // 저장한 뒤: 새 사고 = 담당자의 나의 할일에 한 건 · 담당자를 바꿨으면 남은 과업을 새 담당자에게 · 처리 완료면 남은 과업을 끝냄
     afterSave:async (nr, was)=>{ accGo=nr.r.id; try{ const o=accOwner(nr.d, nr.r), id=nr.r.id;
-        if(!was){ await accTaskNew(nr, '접수 확인 · 보험 접수 여부 정하기', o, 'new'); if(accEd() && editRow.r.id===id) accSide(); return; }
+        if(!was){ if(accStatus(nr.d)==='처리 완료') return; await accTaskNew(nr, '접수 확인 · 보험 접수 여부 정하기', o, 'new'); if(accEd() && editRow.r.id===id) accSide(); return; }
         const po=accOwner(was.d, was.r);
         if(accStatus(nr.d)==='처리 완료'){ await accTasksClose(id); return; }
         if(po!==o){ const open=accTasks(id).filter(t=>!accTaskDone(t.d) && t.d.owner===po);
