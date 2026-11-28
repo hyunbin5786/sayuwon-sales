@@ -211,7 +211,7 @@ const SY = Object.freeze({
 const SY_DEV = (function(){
   const DEV_PAGES = {
     'clergy.html':'대구대교구 무료입장 명부', 'cancel.html':'예약 취소 요청', 'rent.html':'대관 규정 및 상품', 'agency.html':'협업 여행사 할인 현황',
-    'accident.html':'사고현황 접수', 'stock.html':'재고관리', 'promo.html':'기업 프로모션 할인', 'press.html':'홍보 기자 리스트', 'manual.html':'고객 응대 매뉴얼',
+    'stock.html':'재고관리', 'promo.html':'기업 프로모션 할인', 'press.html':'홍보 기자 리스트', 'manual.html':'고객 응대 매뉴얼',
   };
   const host=location.hostname, path=location.pathname;
   const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(host) || /\.localhost$/.test(host);

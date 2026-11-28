@@ -13,6 +13,7 @@
 
 | 날짜 | 화면 | 무엇이 바뀌었나 | 어디까지 |
 |---|---|---|---|
+| 2026-11-28 | 사고현황 접수 · 메뉴 | **사고현황 접수를 배포 사이트에서도 쓸 수 있게 가림을 풂** — 메뉴의 「test에만 보임」 이름표를 없앰. 메인에 올라가면 배포 사이트의 메뉴(운영보조 › 운영 참고 자료)에 보이고 「아직 개발 중입니다」 화면이 뜨지 않음 | test 에만 |
 | 2026-11-28 | 사고현황 접수 (덜 만든 화면 · 배포에서는 가려져 있음) | **「추후과업 관리」에서 저절로 생기는 과업을 고칠 수 있음** — 단체고객 응대의 추후과업 메시지 관리처럼, 과업 이름 · 언제 생길지 · 마감 · 세부 과업을 고치고 끄거나 새 과업을 더할 수 있음(예: 단계가 「보험 접수」가 되면 담당자에게 과업). 모든 직원이 같은 설정을 씀. 「지금 남은 추후과업」 표는 없앰 | test 에만 |
 | 2026-11-28 | 사고현황 접수 (덜 만든 화면) · 나의 할일 · 첫 화면 「오늘 마감」 | **사고 과업도 나의 할일에서 바로가기 · 「추후과업 관리」 단추** — 나의 할일의 사고 과업 줄에 「사고현황 접수」 단추가 생겨 누르면 그 사고가 열림(첫 화면 「오늘 마감」에도 바로가기). 사고 화면 위쪽에 「추후과업 관리」 단추 — 지금 남은 사고 과업과 저절로 생기는 과업을 한눈에. 처음 접수할 때는 과업이 생기지 않고, 담당자가 바뀌었을 때만 새 담당자에게 「담당자로 지정됨」이 감. 방문 유형은 처음에 「선택」 | test 에만 |
 | 2026-11-28 | 사고현황 접수 (덜 만든 화면 · 배포에서는 가려져 있음) | **사고 목록의 줄을 누르면 바로 열림** — 「열기」 · 「보기」 단추를 없앰. 옮겨 온 기록의 담당자를 한 번에 넘기는 길도 마련(주소 끝에 `?handover=1` 을 붙여 열면 목록 위에 「내가 담당인 사고 n건 · 담당자 넘기기」가 보임 — 지금 담당자로 로그인한 사람이 누름) | test 에만 |
@@ -118,7 +119,7 @@
 | 예약보조 › 고객 응대 보조 | 협업 여행사 할인 현황 | `agency.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/agency.html) | 테스트에만 |
 | 운영보조 › 예약현황 공유 | 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 예약 목록 (로그인 없이 보기) | `group.html?book=mb` (`rent` · `docent` · `prog` · `coupon`) | [배포](https://hyunbin5786.github.io/sayuwon-sales/group.html?book=mb) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/group.html?book=mb) | 쓰는 중 |
 | 운영보조 › 운영 참고 자료 | 분실물 찾기 (접수 · 찾기는 로그인 없이) | `lost.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/lost.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/lost.html) | 쓰는 중 |
-| 운영보조 › 운영 참고 자료 | 사고현황 접수 | `accident.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/accident.html) | 테스트에만 |
+| 운영보조 › 운영 참고 자료 | 사고현황 접수 | `accident.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/accident.html) | 가림을 풂 (메인에 올리면 쓰는 중) |
 | 운영보조 › 운영 참고 자료 | 재고관리 | `stock.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/stock.html) | 테스트에만 |
 | 운영보조 › 운영 참고 자료 | 기업 프로모션 할인 | `promo.html` | [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/promo.html) | 테스트에만 |
 | 운영보조 › 운영 참고 자료 | 스마트스토어 발송 보고 | `ship.html` | [배포](https://hyunbin5786.github.io/sayuwon-sales/ship.html) · [테스트](https://hyunbin5786.github.io/sayuwon-sales/test/ship.html) | 메뉴에서 뺌 (주소로만) |
