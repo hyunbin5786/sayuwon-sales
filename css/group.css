@@ -371,7 +371,6 @@ textarea.readback.said{min-height:56px;background:#f1f1ee;color:#9a9a92}
 .da-btn:hover{background:var(--pine);color:#fff}
 .da-btn b{display:inline-block;min-width:18px;margin-left:3px;border-radius:9px;background:var(--pine);color:#fff;font-size:11px;padding:0 5px}
 .da-btn:hover b{background:#fff;color:var(--pine)}
-.da-note{font-size:11.5px;margin-top:6px}
 .mbdb-t tr.same td{background:#eef5ea}
 .day-all .da{margin-top:6px;padding-top:6px;border-top:1px dashed #bccab4}
 .day-all .da-h{display:inline-block;min-width:58px;font-weight:700;color:var(--pine);margin-right:6px}

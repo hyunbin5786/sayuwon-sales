@@ -300,11 +300,9 @@ function tcfgEdHTML(T, c, builtin, id){
     return `<div class="tcfg-cond"><span class="tcfg-and">${j?'그리고':'만약'}</span><select data-tcc="${T}|${j}|k">${TCFG_CONDS.map(y=>`<option value="${y[0]}"${y[0]===x[0]?' selected':''}>${esc(y[1])}</option>`).join('')}</select>`
       + (x[3]==='num' ? `<input data-tcc="${T}|${j}|v" inputmode="numeric" data-ime="num" value="${esc(q.v||'')}" placeholder="명" style="width:64px">` : Array.isArray(x[3]) ? `<select data-tcc="${T}|${j}|v">${x[3].map(o=>`<option${o===q.v?' selected':''}>${esc(o)}</option>`).join('')}</select>` : '')
       + `<button type="button" class="del" data-tccdel="${T}|${j}" title="이 조건 빼기">×</button></div>`; };
-  const fixedNote = builtin && ['erp','erpfix','tour','tax','mabang'].includes(id);
   const names=(typeof MEMBER_NAMES!=='undefined' ? MEMBER_NAMES : []), w=String(c.who||'').trim();
   const whoHTML = TCFG_WHO_FIXED[id] ? `<div class="tcfg-fixed">${esc(TCFG_WHO_FIXED[id])}</div>`
-    : `<select class="tcfg-who" data-tf="${T}|who"><option value="">영업 담당 (기본)</option>${names.map(n=>`<option value="${esc(n)}"${n===w?' selected':''}>${esc(n)}</option>`).join('')}${w && !names.includes(w) ? `<option value="${esc(w)}" selected>${esc(w)} (멤버 아님)</option>` : ''}</select>
-      <small class="hint">멤버를 고르면 모든 예약의 이 과업이 그 사람의 나의 할일 · 알림으로 갑니다 (이미 끝낸 과업은 그대로).</small>`;
+    : `<select class="tcfg-who" data-tf="${T}|who"><option value="">영업 담당 (기본)</option>${names.map(n=>`<option value="${esc(n)}"${n===w?' selected':''}>${esc(n)}</option>`).join('')}${w && !names.includes(w) ? `<option value="${esc(w)}" selected>${esc(w)} (멤버 아님)</option>` : ''}</select>`;
   const rule = builtin && (id==='erp' || id==='erpfix') && typeof ERP_NOTE_RULES!=='undefined' ? ['전산 비고 {전산비고} 가 만들어지는 규칙', ERP_NOTE_RULES]
     : builtin && id==='progstaff' && typeof PROGSTAFF_RULES!=='undefined' ? ['프로그램 · 굿즈 담당 입력 과업 규칙', PROGSTAFF_RULES]
     : builtin && id==='mabang' && typeof MABANG_RULES!=='undefined' ? ['몽몽마방 관련 과업 규칙', MABANG_RULES]
@@ -317,27 +315,27 @@ function tcfgEdHTML(T, c, builtin, id){
         ${c.off ? `<label class="chk tcfg-onoff"><input type="checkbox" data-tf="${T}|off" checked> 꺼져 있음 (체크를 빼면 다시 켜짐)</label>` : ''}<button type="button" class="btn primary" data-tcfgsave>저장</button></div>   <!-- 2026-11-26: 끄기 · 원래대로 되돌리기 · 취소를 없애고 저장 버튼을 이 자리에 (이미 꺼 둔 과업만 다시 켤 수 있게 체크를 보임) -->
       <div class="tcfg-meta">${builtin && TCFG_BASE_TITLES[id] && String(c.title||'').trim() && String(c.title).trim()!==TCFG_BASE_TITLES[id] ? `<span class="hint">처음 이름: ${esc(TCFG_BASE_TITLES[id])}</span>` : ''}<span class="sp"></span>${builtin ? '' : `<button type="button" class="btn primary sm" data-tcdel="${T}">이 과업 삭제</button>`}</div>
     </div>
-    <div class="tcfg-card"><h4>세부 과업 <button type="button" class="tcfg-help${tcfgDoneOpen?' on':''}" data-tcdone title="이 과업과 세부 과업이 언제 (자동으로) 체크되는지 보기" aria-expanded="${tcfgDoneOpen}">?</button> <small class="hint">과업 안에 체크 칸으로 들어감 · 모두 체크하면 그 과업 완료</small></h4>
+    <div class="tcfg-card"><h4>세부 과업 <button type="button" class="tcfg-help${tcfgDoneOpen?' on':''}" data-tcdone title="이 과업과 세부 과업이 언제 (자동으로) 체크되는지 보기" aria-expanded="${tcfgDoneOpen}">?</button></h4>
       ${tcfgDoneOpen ? tcfgDoneHTML(T, c, builtin, id) : ''}
       <div class="tcfg-subs">${subs.map((s,i)=>`<span class="tcfg-sub"><span class="tcfg-n">${i+1}</span><input class="tcfg-in" data-tsub="${T}|${i}" data-ime="ko" value="${esc(s)}">${(au=>au ? `<span class="tag auto" title="${esc(au[1])}">자동 체크 · ${esc(au[0])}</span>` : '<span class="tag hand">직접 체크</span>')(tcfgSubAuto(id, builtin, s))}<button type="button" class="del" data-tsubdel="${T}|${i}" title="이 세부 과업 빼기">×</button></span>`).join('')}<span class="tcfg-sub"><span class="tcfg-n">＋</span><input class="tcfg-in" data-tsubnew="${T}" data-ime="ko" placeholder="세부 과업 더하기 (적고 Enter)"></span></div>
       ${builtin && id==='wkcheck' ? `<div class="tcfg-auto"><div class="tcfg-lab">예약 내용에 따라 저절로 넣는 세부 과업 (체크를 빼면 넣지 않음)</div>
-        <label class="chk"><input type="checkbox" data-tf="${T}|onsiteSub"${c.onsiteSub?' checked':''}> <b>${esc(ONSITE_SUB)}</b> <small class="hint">— 결제 방법이 현장 결제일 때 · 최종 인원 확인 · 당일 인원 변경이 어렵다는 안내</small></label>
-        <label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> <b>미정 항목에 대한 내용</b> <small class="hint">— 미정 항목 · 아직 안 넣은 칸을 하나씩 (예: 「미정 · 결제 방법」)</small></label></div>` : ''}
-      ${builtin && id==='pplchk' ? `<div class="tcfg-auto"><label class="chk"><input type="checkbox" data-tf="${T}|autoDone"${c.autoDone?' checked':''}> <b>전산 내역이 이미 같으면 저절로 완료</b> <small class="hint">— 가장 최근 전산 내역과 예약 내역의 총 금액 · 할인이 같으면</small></label></div>` : ''}
+        <label class="chk"><input type="checkbox" data-tf="${T}|onsiteSub"${c.onsiteSub?' checked':''}> <b>${esc(ONSITE_SUB)}</b></label>
+        <label class="chk"><input type="checkbox" data-tf="${T}|autoSubs"${c.autoSubs?' checked':''}> <b>미정 항목에 대한 내용</b></label></div>` : ''}
+      ${builtin && id==='pplchk' ? `<div class="tcfg-auto"><label class="chk"><input type="checkbox" data-tf="${T}|autoDone"${c.autoDone?' checked':''}> <b>전산 내역이 이미 같으면 저절로 완료</b></label></div>` : ''}
     </div>
-    <div class="tcfg-card"><h4>언제 생기고 · 언제까지 · 누구에게 <small class="hint">조건이 모두 맞을 때 생김 · 조건이 없으면 ${builtin?'모든 예약':'가예약 · 예약확정인 모든 예약'}</small></h4>
+    <div class="tcfg-card"><h4>언제 생기고 · 언제까지 · 누구에게</h4>
       <div class="tcfg-when">
         <div class="tcfg-wl"><div class="tcfg-lab">언제 생길지</div><div class="tcfg-conds">${conds.map(condRow).join('') || `<span class="hint">모든 예약</span>`}</div><button type="button" class="btn primary sm" data-tccadd="${T}">＋ 조건 더하기</button></div>
         <div class="tcfg-wr"><div class="tcfg-lab">마감</div><div class="tcfg-due"><select data-tf="${T}|dueBase">${TCFG_DUE.map(([k,l])=>`<option value="${k}"${k===due.base?' selected':''}>${esc(l)}</option>`).join('')}</select>${TCFG_N_DUE.has(due.base)?`<input data-tf="${T}|dueN" inputmode="numeric" data-ime="num" value="${esc(due.n??0)}" style="width:56px"> 일`:''}</div></div>
         <div class="tcfg-wh"><div class="tcfg-lab">담당</div>${whoHTML}</div>
       </div>
     </div>
-    <div class="tcfg-card"><h4>문구 <button type="button" class="tcfg-help${tcfgHelp?' on':''}" data-tchelp title="과업 보조 설명과 복사 멘트가 어떻게 다른지 예시로 보기" aria-expanded="${tcfgHelp}">?</button> <small class="hint">비우면 없음</small></h4>
+    <div class="tcfg-card"><h4>문구 <button type="button" class="tcfg-help${tcfgHelp?' on':''}" data-tchelp title="과업 보조 설명과 복사 멘트가 어떻게 다른지 예시로 보기" aria-expanded="${tcfgHelp}">?</button></h4>
       ${tcfgVarsHTML()}
       ${tcfgHelp ? tcfgHelpHTML() : ''}
       <div class="tcfg-two">
-        <label><span class="tcfg-lh"><span class="hb a">A</span> 과업 보조 설명</span> <small class="hint">과업 이름 아래에 늘 보이는 짧은 설명 (읽기만)</small>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '예: 바뀐 내용: {바뀐내용}', 5)}</label>
-        <label><span class="tcfg-lh"><span class="hb b">B</span> 복사 멘트</span> <small class="hint">과업의 「문구 복사」로 복사해 붙여 넣는 글${fixedNote ? ' · {전산비고} 등은 예약 내용으로 자동' : ''}</small>${tcfgTA(`data-tf="${T}|note"`, c.note, '예: [세금계산서] {단체명} …', 5)}</label>
+        <label><span class="tcfg-lh"><span class="hb a">A</span> 과업 보조 설명</span>${tcfgTA(`data-tf="${T}|desc"`, c.desc, '예: 바뀐 내용: {바뀐내용}', 5)}</label>
+        <label><span class="tcfg-lh"><span class="hb b">B</span> 복사 멘트</span>${tcfgTA(`data-tf="${T}|note"`, c.note, '예: [세금계산서] {단체명} …', 5)}</label>
       </div>
     </div>
     ${rule ? `<details class="tcfg-rule"><summary>📋 ${esc(rule[0])} (참고 · 누르면 펼침)</summary><pre>${esc(rule[1])}</pre></details>` : ''}
@@ -377,9 +375,9 @@ let tcfgVarOpen='';
 function tcfgVarsHTML(){
   const o=TCFG_VAR_SHOW.find(v=>v[0]===tcfgVarOpen);
   let now=''; if(o && typeof rec!=='undefined' && rec && (rec.org||rec.date)){ try{ const f=(TCFG_VARS.find(v=>v[0]===o[0])||[])[1]; now=f ? String(f(rec, null)||'') : ''; }catch(_){ now=''; } }
-  return `<div class="tcfg-vars"><span class="tcfg-vh">바꿔 넣는 말</span> <small class="hint">문구에 {단체명} 처럼 적으면 예약마다 그 값으로 바뀜 · 누르면 설명과 예시</small>
+  return `<div class="tcfg-vars"><span class="tcfg-vh">바꿔 넣는 말</span>
     <div class="tcfg-chips">${TCFG_VAR_SHOW.map(v=>`<button type="button" class="tcfg-chip${v[0]===tcfgVarOpen?' on':''}" data-tvar="${esc(v[0])}" aria-expanded="${v[0]===tcfgVarOpen}">{${esc(v[0])}}</button>`).join('')}</div>
-    ${o ? `<div class="tcfg-varbox"><b>{${esc(o[0])}}</b> — ${esc(o[1])}<div class="tcfg-vex">예: <span>${esc(o[2])}</span></div>${now ? `<div class="tcfg-vex">지금 열어 둔 예약에서: <span>${esc(now)}</span></div>` : ''}<div class="hint" style="margin-top:4px">쓰는 법: 문구 칸에 <code>{${esc(o[0])}}</code> 그대로 적기</div></div>` : ''}
+    ${o ? `<div class="tcfg-varbox"><b>{${esc(o[0])}}</b> — ${esc(o[1])}<div class="tcfg-vex">예: <span>${esc(o[2])}</span></div>${now ? `<div class="tcfg-vex">지금 열어 둔 예약에서: <span>${esc(now)}</span></div>` : ''}</div>` : ''}
   </div>`; }
 // 왼쪽 목록
 function tcfgPaintList(){ const box=$('#tcfgList'); if(!box || !tcfgDraft) return; const st=box.scrollTop, q=tcfgQ.toLowerCase();
@@ -400,7 +398,7 @@ function tcfgTableHTML(){
       <td class="nm"><b>${esc(tcfgName(it))}</b>${tcfgChanged(it)?' <span class="tag chg">고침</span>':''}</td>
       <td>${c.off?'<span class="tag off">끔</span>':'<span class="tag on">켜짐</span>'}</td>
       <td>${esc(tcfgWhenTxt(it))}</td><td>${esc(tcfgDueTxt(c.due||{base:'visit',n:3}))}</td><td>${esc(tcfgWhoTxt(it.id, c))}</td>
-      <td>${subs.length ? `<ol>${subs.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>` : ''}${tcfgDynSubs(it.id, c, it.builtin).map(d=>`<div class="hint">＋ ${esc(d[0])} (예약 내용에 따라 저절로 들어감)</div>`).join('')}</td>
+      <td>${subs.length ? `<ol>${subs.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>` : ''}${tcfgDynSubs(it.id, c, it.builtin).map(d=>`<div class="hint">＋ ${esc(d[0])}</div>`).join('')}</td>
       <td class="au">${tcfgAutoCell(it)}</td>
       <td class="tx">${esc(cut(c.desc, 60))}</td><td class="tx">${esc(cut(c.note, 80))}</td></tr>`; }).join('');
   return `<div class="tcfg-tablewrap"><table class="tcfg-table"><thead><tr><th>과업</th><th>상태</th><th>언제 생길지</th><th>마감</th><th>담당</th><th>세부 과업</th><th>자동 체크</th><th>과업 보조 설명</th><th>복사 멘트</th></tr></thead><tbody>${rows}</tbody></table></div>`; }

@@ -37,7 +37,7 @@ function openSp(k){ spKey=k; ispMigrate(k); $('#spEdit').hidden=true; $('#spMain
   $('#spTitle').textContent = `특별 할인 · ${itemName(k)}`;
   $('#spPeople').innerHTML = SPECIAL.filter(s=>!s.off || v.sp[s.k]).map(s=>`<label title="${esc(s.name)} · ${s.rate===1?'무료':Math.round(s.rate*100)+'%'}${s.proof?" · 지참: "+esc(s.proof):""}">${esc(s.short)} <small>${s.rate===1?'무료':Math.round(s.rate*100)+'%'}</small><input data-spk="${s.k}" inputmode="numeric" data-ime="num" maxlength="3" autocomplete="off" value="${v.sp[s.k]||''}">명</label>`).join('');
   $('#spTf').value = v.tf ? wonTxt(v.tf) : ''; $('#spTx').value = v.tx ? wonTxt(v.tx) : ''; $('#spWhy').value = v.why||'';
-  const n=numOf(itemQty(k)); $('#spHint').textContent = n ? `이 품목 ${n}${itemUnit(k)} 중 특별 할인 인원은 단체 할인과 비교해 큰 쪽 하나만 적용됩니다. 같은 분이 다른 품목에서도 할인받으면 그 품목에도 넣으세요 (증빙 안내 인원은 품목 중 가장 큰 수).` : '';
+  const n=numOf(itemQty(k));
   $('#spModal').hidden=false; setTimeout(()=>$('#spPeople input')?.focus(), 0); }
 function spApply(){ if(spKey==null) return;
   const sp={}; document.querySelectorAll('#spPeople [data-spk]').forEach(el=>{ const n=parseInt(el.value.replace(/\D/g,''))||0; if(n>0) sp[el.dataset.spk]=n; });

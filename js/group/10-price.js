@@ -266,7 +266,7 @@ function renderPrice(){
   const all=$('#priceAll'); if(all && !all.hidden) all.innerHTML = fullPriceHTML(day, g);
   renderErp();   // 붙여넣은 전산 내역
   paintItemPrices();   // 예약 내역 줄마다 금액
-  $('#priceSrc').textContent = '견적서&거래명세서 사이트 품목 기준' + (quoteCat&&quoteCat.at ? ` (${fmtAgo(quoteCat.at)} 불러옴)` : '') + ' · 부가세 포함 · 공휴일은 주말 가격' + (priceLoaded===false ? ' · 견적서 사이트를 불러오지 못해 마지막으로 받은 가격으로 표시' : '');
+  $('#priceSrc').textContent = priceLoaded===false ? '견적서 사이트를 불러오지 못해 마지막으로 받은 가격으로 표시' : '';
 }
 function fullPriceHTML(day, g){
   let html='';

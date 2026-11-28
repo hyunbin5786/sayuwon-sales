@@ -232,7 +232,6 @@ function openErpDiff(list, diff){
   $('#erpDiffBody').innerHTML = `<table class="ptable"><thead><tr><th>항목</th><th>예약 내용</th><th>전산 내역</th></tr></thead><tbody>${diff.map(x=>`<tr><td>${esc(x.label)}</td><td>${esc(x.mine)}</td><td><b>${esc(x.erp)}</b></td></tr>`).join('')}</tbody></table>`;
   // 「같은 품목 (이름만 다름)」은 어떤 경우든 보임 (2026-11-21): 누르면 예약 · 전산 모두 그대로 두고 같은 것으로 봄 (짝이 맞는 품목은 앞으로도 같은 것으로 기억)
   const pr=erpSamePairs(diff); $('#erpDiffSame').hidden=false;
-  $('#erpDiffBody').insertAdjacentHTML('beforeend', `<p class="hint" style="margin:8px 0 0">${pr.length ? pr.map(([r,e])=>`예약 「${esc(r.label)}」와 전산 「${esc(e.label)}」`).join(', ')+'가 이름만 다른 같은 품목이면' : '이름 · 나눈 방식만 다르고 실제로 같은 내용이면'} <b>「같은 품목 (이름만 다름)」</b>을 누르세요. 예약 · 전산 모두 그대로 두고 같은 것으로 봅니다.</p>`);
   $('#erpDiffSame').title = pr.length ? `이름만 다르고 같은 품목: ${pr.map(([r,e])=>`예약 「${r.label}」 = 전산 「${e.label}」`).join(' · ')} — 예약 내용은 그대로, 이 예약에서는 앞으로 같은 것으로 봄` : '실제로 같은 내용: 예약 · 전산 모두 그대로 두고 같은 것으로 봄';
   $('#erpDiffModal').hidden=false; $('#erpDiffFill').focus();
 }

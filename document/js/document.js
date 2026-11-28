@@ -2130,10 +2130,6 @@
       for(var i=0;i<btns.length;i++) btns[i].classList.toggle("on", (m[1] === "docType" && state.docBoth) || btns[i].getAttribute("data-v") === state[m[1]]);
     });
     // 견적서 · 거래명세서 둘 다 (2026-11-23): 두 버튼이 모두 켜진 상태 = 출력하면 견적서와 거래명세서를 이어서 한 번에 발급. 미리보기에도 둘 다
-    document.getElementById("m-doc-hint").textContent = state.docBoth ? "견적서와 거래명세서를 한 번에 발급합니다 (거래명세서의 발행일은 오늘)" : "두 가지를 모두 눌러 켜면 함께 발급합니다";
-    document.getElementById("m-pay-hint").textContent = state.payMode === "online"
-      ? "모든 품목을 ㈜사유원 한 장으로 발급합니다"
-      : "관람은 ㈜사유원, 식음 · 프로그램 · 대관은 신라철강㈜으로 나눠 발급합니다";
     // 거래명세서는 발행일을 오늘로 고정하고 고칠 수 없게 한다
     var qd = document.getElementById("f-quotedate"), stmt = state.docType === "statement";
     qd.disabled = stmt;

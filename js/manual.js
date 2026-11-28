@@ -197,7 +197,7 @@
       if(t==='big' || (t==='ta' && k==='body')) return `<div class="full rte-wrap"><span class="rte-l">${l}</span>${rteHTML(k, val, t==='big')}</div>`;   // 긴 글 = 보이는 대로 고치는 편집기 (저장은 마크다운 · 2026-11-24)
       if(t==='ta') return `<label class="${w?'full':''}">${l}<textarea data-f="${k}" data-ime="ko">${esc(val)}</textarea></label>`;
       return `<label class="${w?'full':''}">${l}<input data-f="${k}" value="${esc(val)}" ${t==='n'?'inputmode="numeric" data-ime="num"':'data-ime="ko"'}></label>`; };
-    $('#modal').innerHTML=`<div class="mf" role="dialog" aria-modal="true"><h2>${KIND_NAME[kind]} ${id?'고치기':'더하기'}${form.preset&&form.preset._prop?' <small class="hint">(반영 제안으로 저장 — 「반영」을 눌러야 매뉴얼에 들어감)</small>':''}</h2><button type="button" class="win-x" data-fclose title="닫기 (Esc)" aria-label="닫기">×</button><div class="g">${F[kind].map(fld).join('')}</div>`
+    $('#modal').innerHTML=`<div class="mf" role="dialog" aria-modal="true"><h2>${KIND_NAME[kind]} ${id?'고치기':'더하기'}</h2><button type="button" class="win-x" data-fclose title="닫기 (Esc)" aria-label="닫기">×</button><div class="g">${F[kind].map(fld).join('')}</div>`
       + `<p class="err" id="fErr"></p><div class="btns win-top"><button type="button" class="btn primary" id="fSave">저장</button></div></div>`;
     $('#modal').hidden=false; $('#modal').querySelectorAll('.dpick').forEach(makeDateBox);
     const first=$('#modal [data-f="title"]')||$('#modal .rte-ed')||$('#modal textarea'); if(first) first.focus();
@@ -410,7 +410,7 @@
       : d.kind==='proc' ? `<h3>${esc(d.title)}</h3><div class="md">${md(d.r.data.body)}</div>`
       : `<h3>${esc(d.title)}</h3><div class="md">${md(d.body)}</div>`;
     const snip = d => { const t=(d.kind==='faq' ? d.r.data.a : d.kind==='prod' ? [d.key, d.body].join('\n') : d.body)||''; return esc(String(t).replace(/^:::.*$/gm,'').replace(/^\s*\|?\s*:?-{2,}.*$/gm,'').replace(/[#*|>]+/g,' ').replace(/\n{2,}/g,'\n').trim().slice(0,220)); };
-    return `<p class="sr-hint">「${esc(q)}」 · ${L.length}개 찾음 · 숫자(가격 · 시간)는 꼭 아래 원문 그대로 안내하세요</p>`
+    return `<p class="sr-hint">「${esc(q)}」 · ${L.length}개 찾음</p>`
       + `<div class="sr-top"><div class="lbl">가장 맞는 내용 · ${label(top.d)}<span style="flex:1"></span><button type="button" class="ed" style="opacity:1" data-goto="${esc(top.d.r.id)}">매뉴얼에서 보기</button></div>${full(top.d)}</div>`
       + (rest.length?`<div class="sr-list">${rest.map(x=>`<div class="sr" data-goto="${esc(x.d.r.id)}" tabindex="0"><div class="lbl">${label(x.d)}</div><b>${esc(x.d.title)}</b><div class="snip">${snip(x.d)}</div></div>`).join('')}</div>`:'');
   }
@@ -433,14 +433,13 @@
     const propOf = n => P.filter(p=>p.data.noticeId===n.id);
     const nst = n => n.data.status||'정리 대기', pst = p => p.data.status||'검토 대기';
     const wait=P.filter(p=>pst(p)==='검토 대기');
-    return `<section class="mn-sec"><h2>📥 안내문 · 반영<small>새 상품 · 바뀐 내용의 안내문(이미지 · PDF · 워드 · 글)을 올리면 → 정리한 「반영 제안」을 → 확인하고 「반영」을 눌러야 매뉴얼에 들어갑니다</small></h2>`
+    return `<section class="mn-sec"><h2>📥 안내문 · 반영</h2>`
       + `<div class="nt-up"><label>제목<input id="ntTitle" placeholder="예: 26/27 겨울 시즌 상품 안내" data-ime="ko"></label><label>파일 (여러 개 · 10MB까지)<input type="file" id="ntFiles" multiple accept="image/*,.pdf,.docx,.txt"></label>`
       + `<label class="full">메모 · 글로 된 안내 (붙여 넣어도 됨)<textarea id="ntMemo" data-ime="ko" placeholder="예: 12/1부터 판매 · 기존 사담 런치를 대체하는지 확인 중"></textarea></label><div class="row"><span class="hint" id="ntSt"></span><button type="button" class="btn primary" id="ntSave">안내문 올리기</button></div></div>`
-      + `<div class="cc-box"><b>AI(Claude Code)로 정리하기</b> — 추가 요금 없이<ol>`
-      + `<li><button type="button" class="btn primary sm" id="ccOut">정리 대기 안내문 내려받기</button> <span class="hint">「정리 대기」 안내문 ${N.filter(n=>nst(n)==='정리 대기').length}개 + 지금 매뉴얼을 묶은 파일 1개 (내려받기 폴더에)</span></li>`
-      + `<li>Claude Code 에 <b>"매뉴얼 안내문 정리해줘"</b>라고 말하기 → 정리 결과 파일(<code>…정리결과….json</code>)을 만들어 줌</li>`
-      + `<li><label class="btn primary sm" style="display:inline-flex">정리 결과 불러오기 (JSON)<input type="file" id="impFile" accept=".json" hidden></label> → 아래 「반영 제안」에서 확인하고 「반영」</li></ol>`
-      + `<p class="hint">사람이 직접 하려면 올린 안내문의 「직접 정리」. 어느 쪽이든 「반영」을 눌러야 매뉴얼에 들어갑니다.</p></div></section>`
+      + `<div class="cc-box"><b>AI(Claude Code)로 정리하기</b><ol>`
+      + `<li><button type="button" class="btn primary sm" id="ccOut">정리 대기 안내문 내려받기</button></li>`
+      + `<li><label class="btn primary sm" style="display:inline-flex">정리 결과 불러오기 (JSON)<input type="file" id="impFile" accept=".json" hidden></label></li></ol>`
+      + `</div></section>`
       + `<section class="mn-sec"><h2>반영 제안 <small>검토 대기 ${wait.length}개</small></h2>${P.length ? P.sort((a,b)=>(pst(a)==='검토 대기'?0:1)-(pst(b)==='검토 대기'?0:1) || String(b.updated).localeCompare(String(a.updated))).map(propHTML).join('') : '<p class="hint">아직 없습니다.</p>'}</section>`
       + `<section class="mn-sec"><h2>올린 안내문 <small>${N.length}개</small></h2>${N.length ? N.map(n=>`<div class="nt"><div class="h"><b>${esc(n.title||'(제목 없음)')}</b><span class="st-tag${nst(n)==='반영됨'?' done':nst(n)==='보류'?' hold':''}">${esc(nst(n))}</span><span class="hint">${esc(n.by||'')} · ${esc(String(n.updated||'').slice(0,10))}</span></div>`
           + `<div class="files">${(n.data.files||[]).map(f=>`<button type="button" data-file="${esc(f.id)}" data-fname="${esc(f.name)}">${fileIcon(f.mime)} ${esc(f.name)}</button>`).join('')}</div>${n.data.memo?`<div class="memo">${esc(n.data.memo)}</div>`:''}`

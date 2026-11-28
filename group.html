@@ -7,8 +7,8 @@
 <script>/* 불러오는 중 화면 (2026-11-21): 단체 화면을 열면 예약 정보가 준비될 때까지 빈 새 통화 화면 대신 「불러오는 중」 (예약 현황 공유 · 나의 할일 · 과업 계산 창은 빼고) */ (function(){ if(!/[?&](book|my|engine)=/.test(location.search)) document.documentElement.classList.add('g-loading'); })();</script>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); var bk=/[?&]book=/.test(location.search), ok=u && u.name && u.emp; if(bk){ document.documentElement.classList.add("book-only"); if(!ok) document.documentElement.classList.add("book-guest"); } if(!ok && !bk) location.replace("./"); else if(ok) localStorage.setItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sayuwon_owner"), u.name); }catch(e){} /* 예약 현황 공유(?book=) 는 로그인 없이 보기만 */ if(/[?&]my=1/.test(location.search) && !/[?&]embed=1/.test(location.search)){ location.replace("./#mypop"); return; }   /* 2026-11-24: 나의 할일 한 페이지는 없앰 — 첫 화면의 팝업으로 (팝업 안 · 과업 계산 창은 embed=1 이라 그대로) */ if(/[?&]my=1/.test(location.search)) document.documentElement.classList.add("my-only"); if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 나의 할일 단독 페이지 · 팝업 */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/group.css?v=20261128s">
-<link rel="stylesheet" href="css/menu.css?v=20261128s">
+<link rel="stylesheet" href="css/group.css?v=20261128t">
+<link rel="stylesheet" href="css/menu.css?v=20261128t">
 </head>
 <body>
 <header>
@@ -73,7 +73,6 @@
       <div class="f"><label for="tourPeople"><span>인원</span></label><div class="tour-n"><input id="tourPeople" inputmode="numeric" data-ime="num" placeholder="0" autocomplete="off"><i>명</i></div></div>
       <div class="f"><label for="tourTime"><span>입장시각</span></label><input id="tourTime" data-tp="1" readonly autocomplete="off"></div>
     </div>
-    <p class="hint" id="tourHint">답사 1명은 무료 · 2명 이상이면 전산 비고에 「(인원 − 1)명 현장 결제 필요」가 붙습니다.</p>
     <div class="row-btns"><button class="btn primary" id="tourSave">저장</button><button class="btn" id="tourClear" title="사전답사 정보를 지움 (손대지 않은 과업도 빠짐)">답사 없음</button></div>
   </section>
 </div>
@@ -146,7 +145,6 @@
     <div class="sp-head"><h2 id="spTitle">특별 할인</h2><button type="button" class="btn" id="spEditBtn" title="특별 할인 종류(이름 · 할인율 · 증빙)를 고치거나 새로 추가 · 빼기 (모든 직원에게 같은 목록)">편집</button></div>
     <div id="spMain">
     <div class="sp-sec"><span class="hint disc-t">특별 할인 인원</span><div class="sp-people" id="spPeople"></div></div>
-    <p class="hint" id="spHint" style="margin:2px 0 10px"></p>
     <div class="sp-sec"><span class="hint disc-t">기타 할인</span>
       <div class="sp-etc">
         <label title="사유원 몫(입장료)에서 빼는 금액">비과세(사유원) <input id="spTf" inputmode="numeric" data-ime="num" placeholder="0" autocomplete="off">원</label>
@@ -224,7 +222,6 @@
     <h2 id="revTitle">이 버전으로 돌아가기</h2>
     <p class="hint" style="margin:0 0 8px" id="revMsg"></p>
     <div class="rev-tw"><table class="rev-table"><thead><tr><th>항목</th><th>지금</th><th>돌아갈 버전</th></tr></thead><tbody id="revBody"></tbody></table></div>
-    <p class="hint" style="margin:8px 0 0">과업 체크 · 메모 · 올린 파일은 그대로 둡니다. 돌아간 뒤에도 수정 기록에 남아, 다시 지금 버전으로 돌아올 수 있습니다.</p>
     <div class="row-btns" style="margin-top:12px;justify-content:flex-end"><button class="btn" id="revCancel">돌아가지 않기</button><button class="btn primary" id="revOk">이 버전으로 돌아가기</button></div>
   </section>
 </div>
@@ -296,7 +293,7 @@
   <div class="checks col-stack">
   <section class="panel" id="checkPanel" style="display:none">   <!-- 통화 중 확인: 보지 않아 숨김 → 예약 내용 칸 색으로 (빨강 미입력 · 노랑 미정 · 초록 완료, 2026-11-18) -->
     <h2>통화 중 확인</h2>
-    <div class="sub-h">물어볼 것 <small class="hint" style="margin:0">받은 항목은 <b style="color:#2f8f3a">초록색</b>, 미정인 항목은 <b style="color:var(--amber)">노란색</b></small></div>
+    <div class="sub-h">물어볼 것</div>
     <div id="missBox"></div>
     <div id="readWrap" hidden><!-- 고객님께 확인 멘트: 쓰지 않아 숨김 (코드 · 예전 기록은 그대로) -->
     <div class="sub-h">고객님께 확인 <small class="hint" style="margin:0" id="readState">자동으로 만든 멘트 · 직접 고칠 수 있음</small></div>
@@ -329,7 +326,7 @@
     <div class="row-btns" style="margin-top:10px"><button type="button" class="btn" id="erpPasteBtn" title="사유원 전산의 상품 정보를 복사해 붙여넣으면 내역 · 금액을 보여 줍니다">전산 내역 붙여넣기</button></div>
     <div id="erpBox" hidden></div>
     <div id="priceAll" hidden></div>
-    <p class="hint" id="priceSrc">견적서&amp;거래명세서 사이트 품목 기준 · 부가세 포함 · 공휴일은 주말 가격</p>
+    <p class="hint" id="priceSrc"></p>
   </section>
   <!-- 수정 기록 (예약 현황 아래) -->
   <section class="panel hist-panel" id="histWrap" hidden>
@@ -421,14 +418,14 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/common.js?v=20261128s"></script>
-<script src="js/opslib.js?v=20261128s"></script>
-<script src="js/group.js?v=20261128s"></script>
-<script src="js/taskcfg.js?v=20261128s"></script>
-<script src="js/mytask.js?v=20261128s"></script>
-<script src="js/ime.js?v=20261128s"></script>
-<script src="js/keepsize.js?v=20261128s"></script>
-<script src="js/menu.js?v=20261128s"></script>
-<script src="js/timepick.js?v=20261128s"></script>
+<script src="js/common.js?v=20261128t"></script>
+<script src="js/opslib.js?v=20261128t"></script>
+<script src="js/group.js?v=20261128t"></script>
+<script src="js/taskcfg.js?v=20261128t"></script>
+<script src="js/mytask.js?v=20261128t"></script>
+<script src="js/ime.js?v=20261128t"></script>
+<script src="js/keepsize.js?v=20261128t"></script>
+<script src="js/menu.js?v=20261128t"></script>
+<script src="js/timepick.js?v=20261128t"></script>
 </body>
 </html>

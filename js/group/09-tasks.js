@@ -779,7 +779,7 @@ function renderListCal(list, stageOf, erpOf, needCall){
   for(let d=1; d<=days; d++){ const k=`${calMonth}-${String(d).padStart(2,'0')}`, dow=new Date(Y,M-1,d).getDay(), evs=(byDay[k]||[]).sort((a,b)=>String(a.tin||'99').localeCompare(String(b.tin||'99')));
     cells+=`<div class="lc-d${k===today?' lc-today':''}${k<today?' lc-past':''}"><div class="lc-n${dow===0?' sun':dow===6?' sat':''}">${d}${evs.length>1?`<small>${evs.length}건</small>`:''}</div>${evs.map(ev).join('')}</div>`; }
   const tail=(7-(lead+days)%7)%7; for(let i=0;i<tail;i++) cells+='<div class="lc-d lc-off"></div>';
-  $('#listCal').innerHTML = `<div class="lc-bar"><button type="button" class="btn" data-cm="-1" title="이전 달">‹</button><b>${Y}년 ${M}월</b><button type="button" class="btn" data-cm="1" title="다음 달">›</button><button type="button" class="btn primary" data-cm="0" title="오늘이 있는 달로 가서 오늘 날짜 칸을 보여 줍니다">오늘</button><small class="hint">${q?`찾은 예약 ${list.length}건 중 `:''}이 달 ${nMonth}건${noDate?` · 방문일 없는 예약 ${noDate}건은 표에서`:''} · 연한 초록 = 예약상담 · 중간 초록 = 가예약 · 초록 = 예약확정 · 회색 = 예약취소 · 누르면 예약 열기</small></div>`
+  $('#listCal').innerHTML = `<div class="lc-bar"><button type="button" class="btn" data-cm="-1" title="이전 달">‹</button><b>${Y}년 ${M}월</b><button type="button" class="btn" data-cm="1" title="다음 달">›</button><button type="button" class="btn primary" data-cm="0" title="오늘이 있는 달로 가서 오늘 날짜 칸을 보여 줍니다">오늘</button><small class="hint">${q?`찾은 예약 ${list.length}건 중 `:''}이 달 ${nMonth}건${noDate?` · 방문일 없는 예약 ${noDate}건은 표에서`:''}</small></div>`
     + `<div class="lc-grid">${[...DOW].map((w,i)=>`<div class="lc-h${i===0?' sun':i===6?' sat':''}">${w}</div>`).join('')}${cells}</div>`;
 }
 $('#listCal').addEventListener('click', e=>{

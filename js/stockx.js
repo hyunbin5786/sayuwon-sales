@@ -151,7 +151,7 @@
           + `<span class="wh" data-l="붕정">${locCell(r.a)}</span><span class="shop" data-l="차방">${locCell(r.b)}</span><span class="tot" data-l="총 재고"><b>${won(r.end)}</b></span>`
           + `<span class="df" data-l="차이">${r.diff==null?'<i>—</i>':r.diff?`<b class="${r.diff>0?'up':'down'}">${sgn(r.diff)}</b>`:'<i>없음</i>'}</span><span class="ar">${op?'▾':'▸'}</span></div>${op?det(r):''}</div>`; }).join('')
         : `<p class="sk-empty">${skF==='diff'?'재고조사 차이가 있는 품목이 없습니다.':'이 달 입고 · 출고가 있는 품목이 없습니다.'}</p>`)
-      + `</div><p class="hint sk-legend">숫자 = 장부 기말 (기초 + 입고 − 출고) · 노란 「실사」 = 재고조사로 센 수 (장부와 다르면 빨강) · 작은 글씨 = 이 달 +입고 −출고 · 줄을 누르면 모든 칸</p>` + goodsMissing();
+      + `</div>` + goodsMissing();
   }
   // 품목관리 굿즈 중 재고 목록에 없는 것 (이름으로 비교) → 「재고 목록에 넣기」
   // (2026-11-24) 품목 = 품목관리 굿즈 → 굿즈가 아닌 재고 줄은 숨기고 몇 개인지만 (이름이 다르게 적혀 굿즈와 안 맞는 것일 수도)
@@ -204,7 +204,7 @@
   function paint(){ const m=modal(), cnt=mvKind==='count', loc=mvLoc, L=items();
     m.querySelector('#skTitle').textContent = `${LOC[loc]} ${cnt?'재고조사':mvKind==='in'?'입고':mvKind==='out'?'출고':'기록'}`;
     const cols = cnt ? [] : mvKind==='in' ? [['in','입고']] : mvKind==='out' ? OUTS[loc] : [['in','입고'], ...OUTS[loc]];
-    m.querySelector('#skBody').innerHTML = `<p class="hint">${cnt ? `${LOC[loc]}에서 실제로 센 수를 적어 주세요 · <b>예상 재고</b> = 기록으로 계산한 수 · 다르면 차이 사유를 적어 주세요 · 빈 칸은 기록하지 않음` : `${LOC[loc]}에서 ${cols.map(c=>c[1]).join(' · ')}한 수를 품목마다 적어 주세요 · 빈 칸은 그대로`}</p>`
+    m.querySelector('#skBody').innerHTML = ``
       + `<div class="sk-f2"><label class="sk-f">${cnt?'조사일':'날짜'} <input type="date" id="skDate" value="${opsToday()}"></label><input id="skFind" type="search" placeholder="품목 찾기" data-ime="ko" autocomplete="off">${cnt?'<button type="button" class="btn sm" id="skAllSame">빈 칸 모두 예상과 같음</button>':''}</div>`
       + `<div class="tw sk-tw"><table class="tbl sk-ct"><thead><tr><th>품목</th><th class="num">${cnt?'예상 재고':'지금'}</th>${cnt?'<th class="num">실제 재고</th><th class="num">차이</th><th></th>':cols.map(([,l])=>`<th class="num">${l}</th>`).join('')+'<th class="num">기록 뒤</th>'}</tr></thead><tbody>`
       + (L.length ? L.map(x=>{ const e=balNow(x, loc); return `<tr data-skid="${esc(rid(x))}" data-nm="${esc(label(x.d))}" data-exp="${e}"><td>${esc(label(x.d))}</td><td class="num">${won(e)}</td>`
@@ -260,7 +260,7 @@
     const b=xlData.base || opsToday(), bd=new Date(b+'T00:00'), prev = bd.getDate()<=10 ? opsYmd(new Date(bd.getFullYear(), bd.getMonth(), 0)) : b;   // 11/2 기준 = 10월 말 재고
     const m=modal(); mvKind='xl'; m.querySelector('#skTitle').textContent='엑셀 불러오기'; m.querySelector('#skErr').textContent=''; m.querySelector('#skOk').disabled=false; m.querySelector('#skOk').textContent='넣기';
     m.querySelector('#skBody').innerHTML = `<p>품목 <b>${xlData.rows.length}개</b>${xlData.base?` · 기준일 ${esc(xlData.base)}`:''}${xlData.mgr.wh?` · 붕정 담당 ${esc(xlData.mgr.wh)}`:''}${xlData.mgr.shop?` · 차방 담당 ${esc(xlData.mgr.shop)}`:''}</p>`
-      + `<p class="hint">품목 · 색상 · 사이즈 · 원가 · 판매단가와 <b>실사 수량</b>(비었으면 기말)을 아래 날짜의 재고로 넣습니다. 이미 있는 품목은 고쳐 쓰고 그 날짜 재고로 맞춥니다.</p>`
+      + ``
       + `<label class="sk-f">이 재고의 날짜 (그달 말) <input type="date" id="skXlDate" value="${prev}"></label>`
       + `<div class="tw sk-tw"><table class="tbl sk-ct"><thead><tr><th>NO</th><th>품목</th><th class="num">붕정</th><th class="num">차방</th></tr></thead><tbody>${xlData.rows.map(r=>`<tr><td>${esc(r.no)}</td><td>${esc(label(r))}</td><td class="num">${won(r.wh)}</td><td class="num">${won(r.shop)}</td></tr>`).join('')}</tbody></table></div>`;
     m.hidden=false; }
