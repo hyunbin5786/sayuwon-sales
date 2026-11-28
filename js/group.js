@@ -1507,7 +1507,7 @@ function paintBook(){
 }
 // 대관 · 도슨트 · 프로그램 · 음료쿠폰 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표 · 수정 단추의 data-bcat = 그 줄의 목록)
 const bkWhat = x => x.cat==='rent' ? (x.place||'(장소 미정)') : x.cat==='docent' ? [x.kind, x.place].filter(Boolean).join(' · ') : (x.item||'');   // 내용 칸
-const bkGenRow = (x, today, tag) => bkRowHTML({src:x.manual?'m':'g', d:x.d, tm:(x.tm||(x.cat==='docent'?'(미정)':''))+(x.hrs?` (${x.hrs}시간)`:''), org:x.org, n:x.ppl?x.ppl+(x.cat==='coupon'?'장':'명'):'', x:esc(bkWhat(x)), staff:x.staff, note:esc(x.note||'')},
+const bkGenRow = (x, today, tag) => bkRowHTML({src:x.manual?'m':'g', d:x.d, tm:(x.tm||(x.cat==='docent'?'(미정)':'')),   /* 2026-11-28: 시간 뒤의 「(1시간)」 은 안 보임 (운영팀 요청 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 모두) */  org:x.org, n:x.ppl?x.ppl+(x.cat==='coupon'?'장':'명'):'', x:esc(bkWhat(x)), staff:x.staff, note:esc(x.note||'')},
       `r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}`, x.manual?` data-bkrow="${esc(x.id)}" data-bcat="${esc(x.cat)}" title="누르면 고치는 창이 뜹니다 (직접 추가한 예약 · 빼기도 그 창에서)"`:` data-bopen="${esc(x.id)}"`,
       `${!x.manual && x.me ? '<span class="tag call bk-now" title="지금 화면에서 열어 둔 예약 (저장 전 내용도 바로)">지금 이 예약</span>' : ''}`);   // 끝 열의 「단체예약」 이름표는 없앰 (2026-11-27 · 줄을 누르면 그 예약이 열리는 것은 그대로)
 // ===== 모든 목록에서 찾기 (2026-11-27): 찾기 칸에 글자를 넣으면 고른 목록 하나가 아니라 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 다섯 목록을 한 표에 (한 사람이 여러 목록의 담당일 때가 있어서)
