@@ -22,6 +22,8 @@ function accStageDate(d){ const s=accStatus(d), t=opsToday();
   if(s==='처리 완료' && !d.procDate) d.procDate=t; }
 const accDays = d => { const s=d.rcptDate||d.date; if(!s) return null; const t=new Date(s+'T00:00'); return isNaN(t) ? null : Math.max(0, Math.floor((new Date(opsToday()+'T00:00')-t)/864e5)); };
 const accWhen = d => `${opsDateLabel(d.date)}${d.time?' '+d.time:''}`;
+// 예전 현황판에서 옮길 때 사고 내용이 없던 기록에 넣어 둔 글(「(예전 사고 현황판에서 옮긴 기록 · …)」)은 빈 것으로 본다 (2026-11-28 운영팀 · 열면 칸이 비어 보이고 저장하면 자료에서도 빠짐)
+const accWhat = d => { const s=String((d && d.what)||''); return /^\s*[(（]?\s*예전 사고 현황판에서 옮긴 기록[^)）\n]*[)）]?\s*$/.test(s) ? '' : s; };
 const accWon = n => (Math.round(+n||0)).toLocaleString('ko-KR');
 
 // ---------- 추후과업 (개인업무 줄 · d.acc = 사고 id) ----------
@@ -123,10 +125,7 @@ document.addEventListener('change', async e=>{ const t=e.target;
   if(t.id==='accShowDone'){ accShowDone=t.checked; if(!accShowDone && filter==='처리 완료') filter='all'; render(); return; }
   if(t.id==='accNotePh'){ const files=[...(t.files||[])]; t.value=''; if(files.length) accNotePhAdd(files); return; }
   if(t.dataset && t.dataset.acctk && accEd()){ const k=accTasks(editRow.r.id).find(x=>x.r.id===t.dataset.acctk); if(!k) return; try{ await accTaskCheck(k, t.checked); }catch(err){ accFail(err); } accSide(); return; }
-  const sel=t.closest && t.closest('select[data-accst]'); if(!sel) return;   // 목록에서 바로 단계 바꾸기 (담당자만 고르기가 보임)
-  const x=rows.find(y=>y.r.id===sel.dataset.accst); if(!x) return; const from=accStatus(x.d), to=sel.value; if(from===to) return;
-  const d={...x.d, status:to}; accStageDate(d);
-  const ok=await putRow({...x, d}, `단계 ${from} → ${to}`); if(ok!==false){ toast(`단계를 「${to}」(으)로 바꿨습니다.`); if(to==='처리 완료') accTasksClose(x.r.id); } });
+ });
 async function accTkAdd(){ const title=accDraft.tk.trim(); if(!title || !accEd() || !accMine(editRow)) return; const who=accDraft.who || accOwner(form, editRow.r) || accMe();
   try{ await accTaskNew({r:editRow.r, d:form}, title, who, ''); accDraft.tk=''; accSide(); toast(`「${who}」님의 나의 할일에 올렸습니다.`); document.getElementById('accTkIn')?.focus(); }catch(err){ accFail(err); } }
 document.addEventListener('keydown', e=>{ if(e.key!=='Enter' || e.isComposing) return;
@@ -170,12 +169,12 @@ function accRender(hit){
     .sort((a,b)=>String(b.d.date||'').localeCompare(String(a.d.date||'')) || String(b.d.time||'').localeCompare(String(a.d.time||'')) || String(b.r.saved).localeCompare(String(a.r.saved)));
   if(!list.length){ $('#list').innerHTML=`<p class="empty">${rows.length ? '조건에 맞는 사고가 없습니다.' : '아직 접수된 사고가 없습니다.'}</p>`; return; }
   const days=x=>{ if(accStatus(x.d)==='처리 완료') return ''; const n=accDays(x.d); return n==null ? '' : `<small class="acc-age${n>60?' warn':''}">지난 ${n}일</small>`; };
-  const what=d=>String(d.what||'').split('\n')[0].slice(0,40);
+  const what=d=>accWhat(d).split('\n')[0].slice(0,40);
   if(ACC_MQ.matches){ $('#list').innerHTML=`<div class="acc-cards">${list.map(x=>{ const d=x.d, s=accStatus(d);
       return `<div class="acc-card${s==='처리 완료'?' closed':''}" data-edit="${esc(x.r.id)}" role="button" tabindex="0"><div class="ac-t">${accTag(s)}<b>${esc(accWhen(d))}</b>${days(x)}</div>${accMini(d)}<div class="ac-p">${esc([d.place, d.type].filter(Boolean).join(' · '))}</div>${what(d)?`<div class="ac-w">${esc(what(d))}</div>`:''}<div class="ac-o">담당 ${esc(accOwner(d, x.r))}${accMine(x)?'':' · 보기 · 메모만'}</div></div>`; }).join('')}</div>`; return; }
   $('#list').innerHTML=`<div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th>사고 일시</th><th>장소</th><th>구분</th><th>사고 대상자</th><th>사고 내용</th><th>담당자</th><th>단계</th><th></th></tr></thead><tbody>${list.map(x=>{ const d=x.d, s=accStatus(d), mine=accMine(x);
     return `<tr class="${s==='처리 완료'?'closed':''}"><td class="nw">${esc(accWhen(d))}</td><td>${esc(d.place||'')}</td><td class="nw">${esc(d.type||'')}</td><td>${esc(d.person||'')}</td><td>${esc(what(d))}</td><td class="nw">${esc(accOwner(d, x.r))}</td>`
-      + `<td class="nw">${mine ? `<select class="lost-st acc-st s${ACC_ST.indexOf(s)}" data-accst="${esc(x.r.id)}" title="단계 바꾸기">${ACC_ST.map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select>` : accTag(s)}${accMini(d)}${days(x)}</td>`
+      + `<td class="nw">${accTag(s)}${accMini(d)}${days(x)}</td>`
       + `<td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">${mine?'열기':'보기'}</button></td></tr>`; }).join('')}</tbody></table></div>`;
 }
 
@@ -236,7 +235,7 @@ const OPS_PAGE =
     render:accRender,
     owner:(d, r)=>accOwner(d, r),
     lockBy:row=>accMine(row) ? '' : accOwner(row.d, row.r),
-    normalize:d=>{ d.status=accStatus(d); if(accEd() && !d.owner) d.owner=accOwner(d, editRow.r); delete d._tasks; delete d._notes; delete d._copy; },
+    normalize:d=>{ d.status=accStatus(d); if(d.what!=null) d.what=accWhat(d); if(accEd() && !d.owner) d.owner=accOwner(d, editRow.r); delete d._tasks; delete d._notes; delete d._copy; },
     onField:(k, d)=>{ if(k==='status') accStageDate(d); },
     afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); accSameLock(); accOwnerPaint(ro); accSecPaint(); accDirtyPaint(); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
     // 저장한 뒤: 새 사고 = 담당자의 나의 할일에 한 건 · 담당자를 바꿨으면 남은 과업을 새 담당자에게 · 처리 완료면 남은 과업을 끝냄
@@ -323,7 +322,7 @@ function accStartPaint(){ const ul=document.getElementById('accStartList'), q=(d
   if(!q){ ul.innerHTML=''; return; }
   const L=(typeof rows!=='undefined' ? rows : []).filter(x=>{ const d=x.d; return [d.date, d.place, d.type, d.group, d.person, d.booker, d.what, accOwner(d, x.r)].join(' ').toLowerCase().includes(q); })
     .sort((a,b)=>String(b.d.date||'').localeCompare(String(a.d.date||''))).slice(0, 30);
-  ul.innerHTML = L.length ? L.map(x=>{ const d=x.d; return `<li><button type="button" class="acc-start-it" data-accopen="${esc(x.r.id)}"><span class="num">${esc(accWhen(d))}</span><b>${esc(d.place||'')}</b><small>${esc([d.type, d.person, String(d.what||'').split('\n')[0]].filter(Boolean).join(' · '))}</small>${accTag(accStatus(d))}</button></li>`; }).join('')
+  ul.innerHTML = L.length ? L.map(x=>{ const d=x.d; return `<li><button type="button" class="acc-start-it" data-accopen="${esc(x.r.id)}"><span class="num">${esc(accWhen(d))}</span><b>${esc(d.place||'')}</b><small>${esc([d.type, d.person, accWhat(d).split('\n')[0]].filter(Boolean).join(' · '))}</small>${accTag(accStatus(d))}</button></li>`; }).join('')
     : `<li class="acc-start-none">찾는 사고가 없습니다.</li>`; }
 document.addEventListener('input', e=>{ if(e.target.id==='accStartQ') accStartPaint(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing && e.target.id==='accStartQ'){ const one=document.querySelectorAll('#accStartList [data-accopen]'); if(one.length===1) one[0].click(); } });
