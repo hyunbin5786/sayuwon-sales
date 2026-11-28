@@ -289,3 +289,8 @@ header #accNewBtn:hover{background:#f3f7ef}
 .atc-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .atc-offbox{justify-content:flex-end}
 @media (max-width:700px){ .atc-main{grid-template-columns:minmax(0,1fr)} .atc-items{max-height:none} .atc-two{grid-template-columns:minmax(0,1fr)} }
+
+/* 2026-11-28 「담당자 ○○ · 보기와 메모만 됩니다」 = 제목과 같은 줄(제목 바로 옆) — 따로 한 줄을 차지하지 않게 */
+.acc-head .acc-lock{margin:0;padding:4px 10px;font-size:12.5px;white-space:nowrap}
+.acc-head .acc-lock[hidden]{display:none}
+@media (max-width:700px){ .acc-head #eTitle{flex:0 1 auto} .acc-head .acc-lock{white-space:normal} }
