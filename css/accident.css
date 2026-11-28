@@ -225,3 +225,14 @@ body.pg-acc #keyBox{margin:14px 16px}
   .acc-owner select{flex:1;height:42px;font-size:16px}
   .acc-head .row-btns{flex:1 1 100%}
 }
+
+/* ===== 2026-11-28 가운데 열 = 진행 단계별 묶음 (② ~ ⑤) — 뒤 단계는 접혀 있음 · 지금 단계는 제목에 표시 ===== */
+.ef-sec[data-sec] > .ef-head{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.ef-sec[data-sec] > .ef-head::after{content:"▾";margin-left:auto;font:400 13px var(--sans);color:var(--muted)}
+.ef-sec[data-sec].shut > .ef-head::after{content:"▸"}
+.ef-sec[data-sec].shut > .ef-head{margin-bottom:0;padding-bottom:0;border-bottom:0;color:var(--muted)}
+.ef-sec[data-sec].shut > .egrid{display:none}
+.ef-sec[data-sec].st-cur > .ef-head{color:var(--pine)}
+.ef-sec[data-sec].st-cur{background:var(--pine-soft)}
+.ef-sec[data-sec] > .ef-head:focus-visible{outline:2px solid var(--muted);outline-offset:2px;border-radius:4px}
+@media (max-width:700px){ .ef-sec[data-sec].st-cur{background:none} .ef-sec[data-sec].shut > .ef-head{padding-bottom:5px;border-bottom:1px solid var(--line)} }

@@ -76,7 +76,7 @@ function accSidePaint(row, ro){ const side=document.getElementById('accSide'), b
   side.innerHTML=`<section class="acc-box"><h3>진행 단계</h3>${accStepsHTML(form, mine)}</section>`
     + `<section class="acc-box"><h3>추후과업</h3>${accTasksHTML(mine)}</section>`
     + `<section class="acc-box"><h3>처리 이력 · 메모</h3>${accNotesHTML()}</section>`
-    + `<div class="acc-copy"><button type="button" class="btn" id="accCopy">보고 글 복사</button></div>`;
+    ;
   side.querySelectorAll('img[data-phimg]').forEach(im=>{ phLoad(im.dataset.phimg).then(u=>{ im.src=u; }).catch(()=>{ im.alt='사진을 불러오지 못함'; im.classList.add('bad'); }); }); }
 const accSide = () => accSidePaint(editRow, roBy);
 // 바로 저장: 서버의 지금 내용을 다시 받아 그 위에 mut 만 (창에서 고치던 다른 칸은 「저장」을 눌러야 저장됨)
@@ -184,7 +184,7 @@ const OPS_PAGE =
 { key:'accident', title:'사고현황 접수', add:'사고 접수', hint:'', members:true,
     fields:[
       // 묶음 제목의 col = 창의 몇째 열 (2026-11-28 · 단체 화면처럼 3열 · opsboard.js paintForm) — 새로 접수: 개요 | 대상자 | 내용 · 고칠 때: 사고 내용(세 묶음) | 뒤처리 · 보험 | 진행(단계 · 추후과업 · 메모 = #accSide)
-      {type:'head', l:'사고 개요', col:1},
+      {type:'head', l:'① 접수 · 사고 개요', col:1},
       {k:'date', l:'사고 일자', type:'date', def:()=>opsToday(), req:()=>!accEd()}, {k:'time', l:'사고 시각', type:'time'},
       {k:'type', l:'구분', type:'select', opts:['부상','시설 파손','분실 · 도난','민원','기타'], def:()=>'부상'},
       {k:'visitType', l:'방문 유형', type:'select', opts:['','단체','개인','도슨트 투어','몽몽마방 식사','기타'], def:()=>''},
@@ -208,23 +208,28 @@ const OPS_PAGE =
       {k:'cctv', l:'사고 장소 CCTV', type:'select', opts:['미확인','있음','없음'], def:()=>'미확인'}, {k:'cctvKept', l:'CCTV 영상 확보', type:'select', opts:['미확인','확보함','미확보','해당 없음'], def:()=>'미확인'},
       {k:'memo', l:'내부 메모', type:'textarea', w:2},
 
-      // 아래 묶음들도 새로 접수할 때부터 보임 (2026-11-28 · 그 전에는 접수한 뒤 고칠 때만)
-      {type:'head', l:'고객 요청 · 원인과 재발 방지', col:2},
-      {k:'claim', l:'고객 요청 사항 · 안내한 내용', type:'textarea', w:2},
-      {k:'claimAmt', l:'고객 측 청구 금액 (원)', type:'num'}, {k:'evidence', l:'확보 자료', type:'text', ph:'진단서 · 영수증 · 사진 등'},
-      {k:'cause', l:'사고 사유', type:'textarea', w:2},
-      {k:'prevent', l:'재발 방지 대책', type:'textarea', w:2},
-
-      {type:'head', l:'보험 처리', col:2},   // 단계는 창 오른쪽의 「진행 단계」에서 바꿈 (2026-11-28 · 칸에는 날짜만)
-      {k:'rcptDate', l:'보험 접수일', type:'date'}, {k:'visitDate', l:'손해사정사 현장 방문일', type:'date'},
-      {k:'visitNote', l:'현장 방문 메모', type:'text', ph:'담당 손해사정사 · 방문 시간'}, {k:'adjDate', l:'손해사정 시작일', type:'date'},
-      {k:'procDate', l:'처리 완료일', type:'date'}, {k:'insStatus', l:'보험사 진행상태', type:'text', list:['사고조사','보상종결','면책종결']},
+      // 가운데 열 = 진행 단계별 묶음 (2026-11-28 · sec = 그 단계의 순서 1~4 — 지금 단계보다 뒤의 묶음은 접혀 있고 제목을 누르면 펼쳐짐 · 아래 「단계별 묶음 접기」). 저장 이름은 그대로 · 놓인 자리만 바뀜
+      {type:'head', l:'② 보험 접수', col:2, sec:1},
+      {k:'rcptDate', l:'보험 접수일', type:'date'}, {k:'product', l:'보험 상품명', type:'text', list:['영업배상책임보험','생산물배상책임보험(Ⅰ)']},
       {k:'accNo', l:'사고번호', type:'text'}, {k:'policyNo', l:'증권번호', type:'text'},
       {k:'insCause', l:'사고원인 (보험사 기준)', type:'text', list:['치료비','파손','품질불량','주차장사고']}, {k:'insType', l:'사고유형 (보험사 기준)', type:'text', list:['배상책임','생산물(PL)']},
-      {k:'lossObj', l:'손해목적', type:'text', list:['대인(배상책임)','대물(배상책임)']}, {k:'product', l:'보험 상품명', type:'text', list:['영업배상책임보험','생산물배상책임보험(Ⅰ)']},
-      {k:'adjuster', l:'위임업체 (손해사정)', type:'text'}, {k:'examiner', l:'심사자', type:'text'},
+      {k:'lossObj', l:'손해목적', type:'text', list:['대인(배상책임)','대물(배상책임)']}, {k:'claimAmt', l:'고객 측 청구 금액 (원)', type:'num'},
       {k:'addr', l:'사고 장소 (주소 · 보험사에 낸 것)', type:'text', w:2},
-      {k:'payout', l:'보험금 (원)', type:'num'}, {k:'diagnosis', l:'진단명', type:'text'} ],
+      {k:'claim', l:'고객 요청 사항 · 안내한 내용', type:'textarea', w:2},
+      {k:'evidence', l:'확보 자료', type:'text', ph:'진단서 · 영수증 · 사진 등', w:2},
+
+      {type:'head', l:'③ 손해사정사 현장 방문', col:2, sec:2},
+      {k:'visitDate', l:'손해사정사 현장 방문일', type:'date'}, {k:'adjuster', l:'위임업체 (손해사정)', type:'text'},
+      {k:'visitNote', l:'현장 방문 메모', type:'text', ph:'담당 손해사정사 · 방문 시간', w:2},
+
+      {type:'head', l:'④ 손해사정중', col:2, sec:3},
+      {k:'adjDate', l:'손해사정 시작일', type:'date'}, {k:'examiner', l:'심사자', type:'text'},
+      {k:'insStatus', l:'보험사 진행상태', type:'text', list:['사고조사','보상종결','면책종결']}, {k:'diagnosis', l:'진단명', type:'text'},
+
+      {type:'head', l:'⑤ 처리 완료', col:2, sec:4},
+      {k:'procDate', l:'처리 완료일', type:'date'}, {k:'payout', l:'보험금 (원)', type:'num'},
+      {k:'cause', l:'사고 사유', type:'textarea', w:2},
+      {k:'prevent', l:'재발 방지 대책', type:'textarea', w:2} ],
     cols:[['date','사고 일시'],['place','장소'],['type','구분'],['status','단계']],
     status:'status', open:ACC_OPEN, summary:d=>`${d.type||''} ${d.place||''} · ${accStatus(d)}`.trim(),
     render:accRender,
@@ -232,7 +237,7 @@ const OPS_PAGE =
     lockBy:row=>accMine(row) ? '' : accOwner(row.d, row.r),
     normalize:d=>{ d.status=accStatus(d); if(accEd() && !d.owner) d.owner=accOwner(d, editRow.r); delete d._tasks; delete d._notes; delete d._copy; },
     onField:(k, d)=>{ if(k==='status') accStageDate(d); },
-    afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); accSameLock(); accOwnerPaint(ro); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
+    afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); accSameLock(); accOwnerPaint(ro); accSecPaint(); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
     // 저장한 뒤: 새 사고 = 담당자의 나의 할일에 한 건 · 담당자를 바꿨으면 남은 과업을 새 담당자에게 · 처리 완료면 남은 과업을 끝냄
     afterSave:async (nr, was)=>{ accGo=nr.r.id; try{ const o=accOwner(nr.d, nr.r), id=nr.r.id;
         if(!was){ if(accStatus(nr.d)==='처리 완료') return; await accTaskNew(nr, '접수 확인 · 보험 접수 여부 정하기', o, 'new'); if(accEd() && editRow.r.id===id) accSide(); return; }
@@ -280,3 +285,15 @@ document.addEventListener('focusout', e=>{ if(e.target.dataset && e.target.datas
 function accOwnerPaint(ro){ const s=document.getElementById('accOwnerSel'); if(!s) return; const v=form.owner || (accEd() ? accOwner(form, editRow.r) : accMe());
   s.innerHTML=[...new Set([...(window.opsMembers||[]), accMe(), v].filter(Boolean))].map(n=>`<option${n===v?' selected':''}>${esc(n)}</option>`).join(''); s.disabled=!!ro; }
 document.addEventListener('change', e=>{ if(e.target.id==='accOwnerSel') form.owner=e.target.value; });
+
+// ---------- 단계별 묶음 접기 (2026-11-28 · 가운데 열의 ② ~ ⑤ = 진행 단계 · 묶음 제목 칸의 sec) ----------
+//  지금 단계까지의 묶음은 펼쳐져 있고 그 뒤 단계의 묶음은 접혀 있다(제목만). 제목을 누르면 펼치고 접는다 — 사고마다 누른 대로 기억(다른 사고를 열면 처음으로)
+let accSecId='', accSecSet={};
+function accSecPaint(){ const rid=accEd() ? editRow.r.id : 'new'; if(accSecId!==rid){ accSecId=rid; accSecSet={}; }
+  const cur=ACC_ST.indexOf(accStatus(form));
+  document.querySelectorAll('#eFields .ef-sec[data-sec]').forEach(s=>{ const n=+s.dataset.sec, open=(n in accSecSet) ? accSecSet[n] : n<=cur;
+    s.classList.toggle('shut', !open); s.classList.toggle('st-cur', n===cur); s.classList.toggle('st-done', n<cur);
+    const h=s.querySelector('.ef-head'); if(h){ h.tabIndex=0; h.setAttribute('role','button'); h.setAttribute('aria-expanded', open ? 'true' : 'false'); } }); }
+function accSecToggle(h){ const s=h.closest('.ef-sec[data-sec]'); if(!s) return; accSecSet[+s.dataset.sec]=s.classList.contains('shut'); accSecPaint(); }
+document.addEventListener('click', e=>{ const h=e.target.closest && e.target.closest('#eFields .ef-sec[data-sec] > .ef-head'); if(h) accSecToggle(h); });
+document.addEventListener('keydown', e=>{ if((e.key==='Enter' || e.key===' ') && e.target.matches && e.target.matches('#eFields .ef-sec[data-sec] > .ef-head')){ e.preventDefault(); accSecToggle(e.target); } });

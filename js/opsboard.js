@@ -203,7 +203,7 @@ function paintForm(){ const vis=B.fields.filter(f=>!f.show || f.show(form)), col
   if(!three) $('#eFields').innerHTML = vis.map(efDiv).join('');
   else { const cols={}; let cur=null;
     vis.forEach(f=>{ if(f.type==='head'){ cur={h:f, items:[]}; (cols[colOf(f)||1] ||= []).push(cur); } else { if(!cur){ cur={h:null, items:[]}; (cols[1] ||= []).push(cur); } cur.items.push(f); } });
-    $('#eFields').innerHTML = Object.keys(cols).sort().map(c=>`<div class="ef-col" data-col="${c}">${cols[c].map(s=>`<section class="ef-sec">${s.h ? fieldHTML(s.h) : ''}<div class="egrid">${s.items.map(efDiv).join('')}</div></section>`).join('')}</div>`).join(''); }
+    $('#eFields').innerHTML = Object.keys(cols).sort().map(c=>`<div class="ef-col" data-col="${c}">${cols[c].map(s=>`<section class="ef-sec"${s.h && s.h.sec!=null ? ` data-sec="${s.h.sec}"` : ''}>${s.h ? fieldHTML(s.h) : ''}<div class="egrid">${s.items.map(efDiv).join('')}</div></section>`).join('')}</div>`).join(''); }
   phPaint();
   $('#eForm').classList.toggle('ro', !!roBy);
   if(roBy) $('#eFields').querySelectorAll('input,select,textarea,button').forEach(el=>{ if(!el.closest('.lock-ok')) el.disabled=true; });   // 담당자가 아니면 칸을 잠금 (.lock-ok 안의 것만 됨 — 메모)
