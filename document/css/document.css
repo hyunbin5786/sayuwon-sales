@@ -50,7 +50,6 @@ header.top{display:flex; align-items:flex-end; justify-content:space-between; ga
 .sys-hd .hb:hover{background:rgba(255,255,255,.2)}
 .sys-hd .kobtn.on{background:rgba(255,255,255,.9); color:#3f5236; border-color:#fff}
 .sys-me{font-size:13px; white-space:nowrap}
-.page-sub{margin:0 0 10px; font-size:12.5px; color:var(--muted); flex:none}
 .brand{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
 .brand h1{
   font-family:'Noto Serif KR', serif; font-weight:700; font-size:25px; margin:0;
@@ -270,7 +269,6 @@ header.top{display:flex; align-items:flex-end; justify-content:space-between; ga
 @media (max-width:960px){ .startbody{grid-template-columns:1fr} }
 .startcard{border:1px solid var(--line); border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:10px; background:var(--surface-2)}
 .startcard h3{margin:0; font-size:15px}
-.startcard p{margin:0; font-size:12.5px; color:var(--muted); line-height:1.5}
 .startcard textarea{min-height:170px; font-size:12.5px; width:100%; padding:8px 10px; border:1px solid var(--line-strong); border-radius:6px; background:var(--surface); resize:vertical}
 .startcard textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
 #parseinfo:not(:empty){padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--surface)}

@@ -36,7 +36,7 @@
     return fl.map(v=>v/10); }
   function paintRecords(data){
     $('#cycle').value=String(data.cycle||6);
-    const due=opsAggDue(data, opsToday()); $('#aggDue').innerHTML = due ? `<b style="color:#b5442c">「${esc(due.label)}」(${esc(opsDateLabel(due.from))} ~ ${esc(opsDateLabel(due.to))}) 집계기록을 넣어 주세요</b> — 첫 화면 공통 업무에도 떠 있음` : '끝난 기간의 집계기록이 모두 있습니다';
+    const due=opsAggDue(data, opsToday()); $('#aggDue').innerHTML = due ? `<b style="color:#b5442c">「${esc(due.label)}」(${esc(opsDateLabel(due.from))} ~ ${esc(opsDateLabel(due.to))}) 집계기록을 넣어 주세요</b>` : '끝난 기간의 집계기록이 모두 있습니다';
     const recs=(data.records||[]).slice().sort((a,b)=>String(b.to).localeCompare(String(a.to)) || String(b.at).localeCompare(String(a.at)));
     $('#records').innerHTML = recs.length ? recs.map(r=>{ const maxPn=Math.max(...r.items.map(x=>x.pn),1), maxPa=Math.max(...r.items.map(x=>x.pa),1);
       return `<div class="ag-rec"><h3>${esc(r.label)} <small>${esc(opsDateLabel(r.from))} ~ ${esc(opsDateLabel(r.to))} · ${esc(r.file||'')} · ${esc(r.by||'')} ${esc(new Date(r.at).toLocaleDateString('ko-KR'))} 넣음${r.miss?` · 여행사를 못 찾은 줄 ${won(r.miss)}`:''}</small><span class="sp"></span><button type="button" class="btn sm" data-recdel="${esc(r.id)}">이 집계 삭제</button></h3>`

@@ -364,10 +364,9 @@ function paintStart(){
   $('#startList').innerHTML = L.slice(0,30).map(r=>{ const s=stageOfRec(r);
     return `<li><button type="button" class="start-it" data-sid="${esc(r.id)}"><span class="num">${esc(dateLabel(r.date)||'방문일 미정')}</span><span class="tag st-${esc(s)}">${esc(s)}</span><b>${esc(r.org||r.contact||'(업체 미정)')}</b><small>${[r.people?`${esc(r.people)}명`:'', esc(firstContact(r)), ownerOf(r)?`담당 ${esc(ownerOf(r))}`:'', r.date && r.date<t?'지난 예약':''].filter(Boolean).join(' · ')}</small></button></li>`; }).join('');
   $('#startNew').hidden = isMobG() && !q;   // 휴대폰: 단체명을 적어야 새 통화 (업체 · 방문일 칸이 없어 이름 없이는 저장할 수 없으므로 · 2026-11-27)
-  if(isMobG() && !q){ $('#startHint').textContent = '단체명을 입력하면 이미 있는 예약을 찾아 줍니다. 없으면 그 이름으로 새 통화를 시작할 수 있습니다.'; return; }
-  $('#startHint').textContent = !q ? '단체명을 입력하면 이미 있는 예약을 찾아 줍니다. 없으면 새 통화에 업체명이 들어갑니다.'
-    : L.length ? `이미 있는 예약 ${L.length}건${L.length>30?' (가까운 30건만 보임 · 더 적어 보세요)':''} — 누르면 그 예약으로 갑니다. 새로 받는 예약이면 아래 버튼을 누르세요.`
-    : `「${q}」(으)로 저장된 예약이 없습니다. Enter 를 누르면 새 통화에 업체명이 들어갑니다.`;
+  $('#startHint').textContent = !q ? ''
+    : L.length ? `이미 있는 예약 ${L.length}건${L.length>30?' (가까운 30건만 보임)':''}`
+    : `「${q}」(으)로 저장된 예약이 없습니다.`;
   $('#startNew').textContent = q ? `「${q}」 새 통화로 시작` : '단체명 없이 새 통화';
 }
 function startOpen(id){ const r=(cache||[]).find(x=>x.id===id); if(r) openRecord(r); }   // openRecord → newCall → endStart
@@ -500,7 +499,7 @@ function noteHistRender(){
 function noteHistOpen(){
   let m=document.getElementById('noteHistModal');
   if(!m){ m=document.createElement('div'); m.id='noteHistModal'; m.className='modal'; m.hidden=true;
-    m.innerHTML='<section class="panel note-hist" role="dialog" aria-modal="true" aria-labelledby="noteHistT" tabindex="-1"><h2 id="noteHistT">통화 메모 수정 기록 <small>고친 것 · 지운 것</small></h2><button type="button" class="win-x" id="noteHistX" title="닫기 (Esc)" aria-label="닫기">×</button><div id="noteHistBody" style="display:flex;flex-direction:column;min-height:0"></div></section>';
+    m.innerHTML='<section class="panel note-hist" role="dialog" aria-modal="true" aria-labelledby="noteHistT" tabindex="-1"><h2 id="noteHistT">통화 메모 수정 기록</h2><button type="button" class="win-x" id="noteHistX" title="닫기 (Esc)" aria-label="닫기">×</button><div id="noteHistBody" style="display:flex;flex-direction:column;min-height:0"></div></section>';
     document.body.appendChild(m);
     m.addEventListener('mousedown', e=>{ if(e.target===m) m.hidden=true; }); m.querySelector('#noteHistX').onclick=()=>{ m.hidden=true; };
     m.addEventListener('click', e=>{ const b=e.target.closest('[data-nhback]'); if(!b) return; const id=b.dataset.nhback, n=notes.find(x=>x.id===id); if(!n || !noteCan(n)) return;

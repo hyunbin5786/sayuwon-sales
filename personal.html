@@ -6,9 +6,9 @@
 <title>개인고객 응대 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} if(/[?&]embed=1/.test(location.search) && window.parent!==window) document.documentElement.classList.add("my-embed"); /* 첫 화면 「오늘 마감」 팝업 (2026-11-25) */ })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/personal.css?v=20261128q">
-<link rel="stylesheet" href="css/mypop.css?v=20261128q">
-<link rel="stylesheet" href="css/menu.css?v=20261128q">
+<link rel="stylesheet" href="css/personal.css?v=20261128r">
+<link rel="stylesheet" href="css/mypop.css?v=20261128r">
+<link rel="stylesheet" href="css/menu.css?v=20261128r">
 </head>
 <body data-my-tab="personal">
 <header>
@@ -47,17 +47,15 @@
       <div class="btns">
         <span class="state" id="state"></span>
       </div>
-      <p class="hint" style="margin-top:10px">저장하면 팀 공유 기록에 '개인고객'으로 남습니다.</p>
     </form>
   </div>
 
   <!-- 오른쪽: 이 통화의 추후 과업 (단체 화면처럼 2열) -->
   <div class="col">
     <section class="panel">
-      <h2>추후 과업 <small>체크리스트 · 과업마다 메모</small></h2>
+      <h2>추후 과업</h2>
       <form class="task-add" id="taskAdd"><input id="taskAddIn" lang="ko" data-ime="ko" placeholder="과업 직접 추가" autocomplete="off"><button class="btn" type="submit">추가</button></form>
       <ul class="tasks" id="taskList"></ul>
-      <p class="hint" id="taskHint" style="margin-top:8px"></p>
     </section>
   </div>
 </main>
@@ -95,7 +93,7 @@
 <!-- 보고 글자 미리보기: 고친 뒤 복사하기 -->
 <div class="modal" id="copyModal" hidden>
   <section class="panel copy-box" role="dialog" aria-modal="true" aria-labelledby="copyTitle">
-    <h2 id="copyTitle">보고 글자 미리보기 <small>고친 뒤 복사하기</small></h2><button type="button" class="win-x" id="copyClose" title="닫기 (Esc)" aria-label="닫기">×</button>
+    <h2 id="copyTitle">보고 글자 미리보기</h2><button type="button" class="win-x" id="copyClose" title="닫기 (Esc)" aria-label="닫기">×</button>
     <textarea id="copyOut" lang="ko" data-ime="ko" spellcheck="false"></textarea>
     <div class="row-btns win-top" style="margin-top:12px;justify-content:flex-end;display:flex;gap:6px"><button type="button" class="btn primary" id="copyDo">복사하기</button></div>
   </section>
@@ -128,14 +126,14 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="js/common.js?v=20261128q"></script>
-<script src="js/personal.js?v=20261128q"></script>
+<script src="js/common.js?v=20261128r"></script>
+<script src="js/personal.js?v=20261128r"></script>
 <!-- 나의 할일 팝업 (메뉴 8번 페이지 group.html?my=1 을 그대로 띄움) -->
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
-<script src="js/mypop.js?v=20261128q"></script>
+<script src="js/mypop.js?v=20261128r"></script>
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="js/ime.js?v=20261128q"></script>
-<script src="js/keepsize.js?v=20261128q"></script>
-<script src="js/menu.js?v=20261128q"></script>
+<script src="js/ime.js?v=20261128r"></script>
+<script src="js/keepsize.js?v=20261128r"></script>
+<script src="js/menu.js?v=20261128r"></script>
 </body>
 </html>

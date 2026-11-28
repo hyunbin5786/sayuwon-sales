@@ -29,13 +29,13 @@ const etcDowsHTML = (sel, attr) => `<span class="etc-dows">${[1,2,3,4,5,6,0].map
 const etcDomHTML = (v, id) => `<select id="${id}" title="매달 날짜">${Array.from({length:31},(_,i)=>i+1).map(n=>`<option value="${n}"${String(v||new Date().getDate())===String(n)?' selected':''}>${n===31?'말일':n+'일'}</option>`).join('')}</select>`;
 function etcAddHTML(presetCat){   // presetCat: 구분 탭에서는 그 구분이 골라져 있음
   const f=etcForm; if(presetCat!==undefined && etcForm.catTab!==presetCat){ etcForm.cat=presetCat; etcForm.catTab=presetCat; }
-  const extra = f.repeat==='later' ? '<span class="hint etc-later">할 때가 되면 이름을 눌러 마감일을 넣으세요</span>' : f.repeat==='none' ?`<label class="etc-due">마감 ${dboxHTML('id="etcDue"', f.due||todayYmd())}</label>` : f.repeat==='weekly' ? etcDowsHTML(f.dows, 'data-etcdow') : f.repeat==='monthly' ? etcDomHTML(f.dom, 'etcDom') : '';
+  const extra = f.repeat==='later' ? '' : f.repeat==='none' ?`<label class="etc-due">마감 ${dboxHTML('id="etcDue"', f.due||todayYmd())}</label>` : f.repeat==='weekly' ? etcDowsHTML(f.dows, 'data-etcdow') : f.repeat==='monthly' ? etcDomHTML(f.dom, 'etcDom') : '';
   return `<div class="etc-addbox"><form class="task-add etc-add" id="etcAdd">${etcCatSelHTML('etcCat', f.cat||'')}<input id="etcAddIn" data-ime="ko" placeholder="업무 직접 추가 (Enter)" autocomplete="off"><button class="btn etc-go" type="submit" title="추가 (Enter)" aria-label="추가">↵</button></form>`
     + `<div class="etc-rep"><span class="seg">${REP_OPTS.map(([k,l])=>`<button type="button" class="${f.repeat===k?'on':''}" data-etcrep="${k}">${l}</button>`).join('')}</span>${extra}</div></div>`;   // 추가 칸은 박스로 묶음 (2026-11-18)
 }
 function etcEditHTML(){
   const d=etcEdit.d, rep=d.repeat||'none';
-  const when = rep==='later' ? '<span class="hint etc-later">마감일 없이 둡니다 · 「반복 없음」을 누르면 마감일을 넣을 수 있음</span>' : rep==='none' ?`<label class="etc-due">날짜 ${dboxHTML('id="etcEDue"', d.due||d.start||todayYmd())}</label>`
+  const when = rep==='later' ? '' : rep==='none' ?`<label class="etc-due">날짜 ${dboxHTML('id="etcEDue"', d.due||d.start||todayYmd())}</label>`
     : (rep==='weekly' ? etcDowsHTML(d.dows, 'data-eedow') : rep==='monthly' ? etcDomHTML(d.dom, 'etcEDom') : '') + `<label class="etc-due">시작 ${dboxHTML('id="etcEStart"', d.start||todayYmd())}</label>`;
   return `<div class="etc-edit">`
     + `<div class="etc-etop">${etcCatSelHTML('etcECat', etcCatOf(d))}<input id="etcETitle" class="etc-in" data-ime="ko" placeholder="업무" value="${esc(d.title||'')}"></div>`
@@ -70,7 +70,7 @@ function alertSetHTML(){ const L=SY_ALERT.times(), n=L.length;
       + `<button type="button" class="btn primary" data-aldel="${i}" title="이 시각 빼기">빼기</button></li>`; };
   return `<div class="al-set"><b>과업 알림</b>`   // 2026-11-27: 제목 아래 안내 글(「마감이 오늘이거나 지난 내 할 일을 …」)은 없앰
     + `<div class="al-count"><span>하루에 몇 번 알릴까요?</span><span class="al-step"><button type="button" class="btn primary" data-alminus${n?'':' disabled'} title="한 번 줄이기 (맨 뒤 시각을 뺌)" aria-label="알림 횟수 줄이기">−</button><b>${n ? n+'번' : '끔'}</b><button type="button" class="btn primary" data-aladd${n>=AL_MAX?' disabled':''} title="한 번 늘리기" aria-label="알림 횟수 늘리기">＋</button></span></div>`
-    + (n ? `<ul class="al-list">${L.map(row).join('')}</ul><p class="hint al-say">시각을 바꾸면 바로 저장됩니다 · 이른 시각부터 차례로 놓입니다.</p>` : `<p class="hint al-say">알림을 끈 상태입니다. <b>＋</b> 를 누르면 다시 켜집니다.</p>`)
+    + (n ? `<ul class="al-list">${L.map(row).join('')}</ul>` : `<p class="hint al-say">알림을 끈 상태입니다.</p>`)
     + `</div>`; }
 const alRepaint = () => { if(typeof paintMySet==='function') paintMySet(); };
 document.addEventListener('change', async e=>{ const d=e.target.dataset||{}, i = d.alp ?? d.alh ?? d.alm; if(i==null) return; const li=e.target.closest('li'); if(!li) return;
@@ -94,7 +94,7 @@ const catTab = c => c===CAT_P ? 'personal' : c===CAT_G ? 'group' : 'cat:'+(c===C
 const tabCat = t => t==='personal' ? CAT_P : t==='group' ? CAT_G : /^cat:/.test(t) ? (t.slice(4) || CAT_N) : '';
 // 구분 순서 · 추가 (메인 1열)
 function catManageHTML(){ const o=catOrder();
-  return `<div class="cat-manage"><b>구분</b> <small class="hint" style="margin:0">▲▼로 순서 (탭 · 고르기 순서)</small><ul class="cat-ord">${o.map((c,i)=>`<li><span>${esc(catLabel(c))}</span><button type="button" data-catmv="${i}|-1" title="위로"${i?'':' disabled'}>▲</button><button type="button" data-catmv="${i}|1" title="아래로"${i<o.length-1?'':' disabled'}>▼</button></li>`).join('')}</ul>`
+  return `<div class="cat-manage"><b>구분</b><ul class="cat-ord">${o.map((c,i)=>`<li><span>${esc(catLabel(c))}</span><button type="button" data-catmv="${i}|-1" title="위로"${i?'':' disabled'}>▲</button><button type="button" data-catmv="${i}|1" title="아래로"${i<o.length-1?'':' disabled'}>▼</button></li>`).join('')}</ul>`
     + (etcCatAdding ? `<div class="cat-addrow"><input id="etcCatIn" class="etc-catin" data-ime="ko" placeholder="새 구분 이름" autocomplete="off"><button type="button" class="btn primary" data-catok>추가</button></div>` : `<button type="button" class="btn cat-addbtn" data-etccatadd>＋ 구분 추가</button>`) + `</div>`; }   // 추가 버튼도 · 위 구분 줄과 같은 너비 · 높이 (2026-11-19)
 document.addEventListener('click', async e=>{ const b=e.target.closest?.('[data-catmv]'); if(!b) return; e.preventDefault(); const [i,d]=b.dataset.catmv.split('|').map(Number), o=catOrder(), j=i+d; if(j<0 || j>=o.length) return;
   [o[i],o[j]]=[o[j],o[i]]; await etcSaveCats(etcCats(), o); renderMy(); });

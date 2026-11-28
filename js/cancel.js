@@ -324,7 +324,7 @@
     let add; try{ add=parseXl(await f.arrayBuffer()); }catch(err){ toast('엑셀을 읽지 못했습니다: '+(err.message||err), 4000); return; }
     const key=r=>(r.no+'|'+r.name).replace(/\s/g,''), have=new Set(reqs.map(key)), fresh=add.filter(r=>!have.has(key(r)));
     if(!fresh.length){ toast(add.length ? '엑셀의 요청이 이미 모두 목록에 있습니다.' : '엑셀에서 요청 줄을 찾지 못했습니다.'); return; }
-    ask(`<p>엑셀에서 <b>${add.length}건</b>을 읽었습니다. 목록에 없는 <b>${fresh.length}건</b>을 더할까요?</p><p class="hint">처리 여부 칸에 「완료」가 있으면 처리 완료로 넣습니다.</p>`, '더하기',
+    ask(`<p>엑셀에서 <b>${add.length}건</b>을 읽었습니다. 목록에 없는 <b>${fresh.length}건</b>을 더할까요?</p>`, '더하기',
       ()=>change(list=>{ const h=new Set(list.map(key)); return [...list, ...fresh.filter(r=>!h.has(key(r)))]; }, `${fresh.length}건을 목록에 더했습니다.`)); });
 
   syncKind(); syncDoc(); syncWhy(); syncAcc(); render(); load();

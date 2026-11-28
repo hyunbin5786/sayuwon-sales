@@ -501,7 +501,7 @@ function renderTasks(){
   const consultOnly = quietStage(effStage(rec));   // 예약상담: 자동 과업은 없고(사전답사 전산 예약만) 직접 추가한 과업은 그대로
   $('#taskAdd').hidden = false;
   const shownTasks = (consultOnly ? tasks.filter(consultTask) : tasks).filter(t=>!t.removed);   // 삭제한 자동 과업(removed)은 숨김 (다시 생기지 않게 기록만 남김)
-  if(consultOnly && !shownTasks.length){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 자동으로 생기는 과업이 없습니다. 필요한 일은 위 칸에 직접 추가해 주세요.</li>'; $('#taskHint').textContent=''; return; }
+  if(consultOnly && !shownTasks.length){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 자동으로 생기는 과업이 없습니다. 필요한 일은 위 칸에 직접 추가해 주세요.</li>'; return; }
   paintDocBtns();
   const box=$('#taskList'), ae=document.activeElement, focus=box.contains(ae) && (ae.tagName==='TEXTAREA' || (ae.tagName==='INPUT' && ae.type!=='checkbox' && !ae.readOnly && !ae.classList.contains('dpick')));   // 메모 · 글자 칸에 쓰는 중일 때만 다시 그리지 않음
   const changeTag = t => { const txt=taskText(t); return !t.copied ? '' : t.copied===txt ? '<span class="hint" style="margin:0">붙여넣은 내용과 같음</span>' : '<span class="chg">예약 내용이 바뀜 · 다시 복사해서 붙여넣기</span>'; };
@@ -541,10 +541,9 @@ function renderTasks(){
       ${txt?`<textarea class="tnote${t.noteEdit?' edited':''}" id="tpre_${esc(t.id)}" data-tnote="${esc(t.id)}" spellcheck="false" title="자동으로 만든 문구 · 직접 고칠 수 있음">${esc(txt)}</textarea><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')||t.id==='tour'?'비고 문구 복사':'문구 복사'}</button>${t.id==='mabang' && innerWidth>=700 && !matchMedia('(pointer:coarse)').matches ? `<button type="button" class="btn" data-mbimg="1" title="오늘부터 앞으로 있는 몽몽마방 예약을 모두 표 이미지로 복사합니다 (이 예약은 다른 색) · 메신저에 Ctrl+V 로 붙여넣기">예약 목록 이미지 복사</button>` : ''}${t.noteEdit?`<button type="button" class="btn" data-tregen="${esc(t.id)}" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><span class="hint" style="margin:0">직접 고친 문구</span>`:''}<span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
         <label class="btn up${upBusy?' busy':''}">${upBusy?'올리는 중…':(t.files||[]).length?'사업자등록증 추가로 올리기':'사업자등록증 올리기'}<input type="file" data-tup="${esc(t.id)}" accept="image/*,application/pdf" hidden${upBusy?' disabled':''}></label>
-        <span class="hint" style="margin:0">사진 · PDF, 10MB 이하 · 구글 드라이브 '사유원 단체예약 서류' 폴더에 저장</span></div>` : ''}
+        <span class="hint" style="margin:0">사진 · PDF, 10MB 이하</span></div>` : ''}
       ${/^prep:/.test(t.id) ? "" : `<textarea data-tm="${esc(t.id)}" placeholder="메모">${esc(t.memo||"")}</textarea>`}   <!-- 단체 준비 과업은 메모 칸 없음 (2026-11-24) -->
     </li>`; }).join('');
-  $('#taskHint').textContent = tasks.length ? (editingId ? '체크와 복사는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '저장하면 과업도 함께 저장됩니다.') : '';
   if(typeof paintDirty==='function' && window.__autoReady) paintDirty();   // 다시 그린 과업 「저장」에도 노란 점
 }
 const autoSave = () => { if(editingId) save({auto:true}); };   // 과업 체크 · 메모 등은 바로 자동 저장 (수정 기록은 이 세션 줄에 모임)

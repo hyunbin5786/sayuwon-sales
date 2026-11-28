@@ -224,7 +224,7 @@ function mergePriceLayout(){
   box.after(w);
   $('#selTitle').textContent='할인 · 합계';
   const ph=$('#priceHint'); if(ph) box.closest('.grp')?.querySelector('.grp-t')?.appendChild(ph);   // "11/27(금) → 평일 가격"
-  dp.querySelector('h2').innerHTML='예약 현황 <small>누르면 구분별 예약 목록</small>';
+  dp.querySelector('h2').innerHTML='예약 현황';
   dp.querySelector('h2').insertAdjacentHTML('afterend','<div class="dayinfo day-all" id="dayAll"></div>');
   const info=$('#itemsInfo'); if(info) dp.appendChild(info);
   dp.insertAdjacentHTML('beforeend','<p class="hint" id="dayNone" style="margin:0">방문일과 예약 내역(사담 · 몽몽마방 · 프로그램)을 넣으면 그날 다른 예약 현황이 여기에 보입니다. 예약 내역의 수량 칸에 커서를 두면 업체별로 보입니다.</p>');

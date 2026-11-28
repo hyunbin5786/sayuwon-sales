@@ -197,7 +197,7 @@ function buildForm(){
     if(k==='tbdDate' || k==='owner' || k==='payContact') return;   // 입력 기한 · 결제 연락 예정일은 예약 내용 제목 줄, 영업 담당은 맨 위 초록 헤더
     if(isSub(k)) html += fieldHTML(k, isStf(k) ? '담당' : SUB_NAME[k.split('_')[0]], col, 'sub'+(isStf(k)?' sub-stf':''), isStf(k));   // 프로그램 · 굿즈 바로 옆 '담당 *' (필수)
     else html += fieldHTML(k,label,col,(cls||'')+(STAFF_BASES().includes(k) && k!=='goods' ? ' pbase' : ''),req.has(k)||k==='payContact');
-    if(k==='pchg') html += `</div></div><div class="grp" data-grp="담당자"><div class="grp-t"><span>담당자</span><span class="hint" style="margin:0">여러 명이면 추가</span></div><div class="contacts" id="contacts"></div><button type="button" class="btn addc" id="addContact">+ 담당자 추가</button>` + `<div class="fields" hidden>`;
+    if(k==='pchg') html += `</div></div><div class="grp" data-grp="담당자"><div class="grp-t"><span>담당자</span></div><div class="contacts" id="contacts"></div><button type="button" class="btn addc" id="addContact">+ 담당자 추가</button>` + `<div class="fields" hidden>`;
   });
   close();
   $('#form').innerHTML = html;

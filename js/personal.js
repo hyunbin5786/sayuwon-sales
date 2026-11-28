@@ -166,7 +166,6 @@ function paintTasks(){
       + subsHTML(t) + `<textarea data-tm="${esc(t.id)}" lang="ko" data-ime="ko" placeholder="메모">${esc(t.memo||'')}</textarea></li>`; }).join('')
     || '<li class="empty">추후 과업이 없습니다. 이 통화 뒤에 할 일이 있으면 위에 적어 주세요.</li>';
   enhanceDates(box);   // 마감일 = 방문일 방식 날짜 칸
-  $('#taskHint').textContent = form.tasks.length ? (cur ? '체크 · 순서 · 마감일 · 세부 과제는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '통화 기록을 저장하면 과업도 함께 저장됩니다.') : '';
 }
 // 이미 저장한 통화면 과업을 바꾸자마자 저장 (단체 화면과 같음)
 function taskSave(){ if(!cur) return; const item=toItem(); put(item); cur=item; saved=JSON.stringify(form); }
@@ -520,7 +519,7 @@ function paintDue(){ const due=dueNow(), extra=dueExtra(), today=todayYmd(); if(
   $('#dueList').innerHTML = due.map(({r,t,personal})=>{ const late=t.due<today;
     return `<li class="${late?'late':'today'}"><span class="who"><span class="tag">${personal?'개인':'단체'}</span> <b>${esc(personal ? (r.contact||'(이름 없음)') : (r.org||r.contact||'(업체 미정)'))}</b>${personal&&r.phone?` · ${esc(r.phone)}`:''}${!personal&&r.date?` · 방문 ${esc(dLabel(r.date))}`:''}<br><b class="t">${esc(t.title)}</b> <small class="hint" style="display:inline">마감 ${esc(dLabel(t.due))} ${late?'(지남)':'(오늘)'}</small></span>`
       + (personal ? `<button class="btn primary" data-dopen="${esc(r.id)}">열기</button>` : `<button class="btn primary" data-gopen="${esc(r.id)}">열기</button>`) + `</li>`; }).join('')
-    + (extra ? `<li class="today"><span class="who"><span class="tag">업무</span> <b>직접 넣은 업무 · 견적 요청 ${extra}개</b><br><small class="hint" style="display:inline">맨 위 「나의 할일」에서 볼 수 있습니다</small></span></li>` : '');
+    + (extra ? `<li class="today"><span class="who"><span class="tag">업무</span> <b>직접 넣은 업무 · 견적 요청 ${extra}개</b></span></li>` : '');
   $('#dueTitle').innerHTML = `과업 알림 <small><b class="cnt-late">지남 ${due.filter(o=>o.t.due<today).length}</b> · <b class="cnt-today">오늘 ${due.filter(o=>o.t.due>=today).length}</b> · 나의 할일 전체 · 알림은 ${esc(SY_ALERT.label())}</small>`;
   $('#dueModal').hidden=false;
 }

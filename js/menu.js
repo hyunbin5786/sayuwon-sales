@@ -113,7 +113,7 @@ window.syFont = (function(){
     mc.hidden=false;
     const fresh=await cfgPull();   // 다른 사람이 방금 바꾼 것 위에 덮어쓰지 않게 최신부터
     if(mc.hidden) return;
-    mc.innerHTML = `<section class="smc-panel" role="dialog" aria-modal="true" aria-label="메뉴 설정"><h2>메뉴 설정</h2><p class="smc-hint">체크한 곳에서 그 메뉴가 보입니다. 「저장」을 누르면 모든 사람의 메뉴에 적용됩니다.<br>「로그인 없이」를 체크한 메뉴는 로그인하지 않은 사람의 메뉴와 첫 화면에도 보입니다. 이 칸이 잠겨 있는 메뉴는 로그인해야 열리는 화면이라(고객 자료 보호) 체크할 수 없습니다.</p>`
+    mc.innerHTML = `<section class="smc-panel" role="dialog" aria-modal="true" aria-label="메뉴 설정"><h2>메뉴 설정</h2><p class="smc-hint">「로그인 없이」 칸이 잠겨 있는 메뉴는 로그인해야 열리는 화면이라(고객 자료 보호) 체크할 수 없습니다.</p>`
       + `<div class="smc-body"><table class="smc-t"><thead><tr><th>메뉴</th><th>PC</th><th>모바일</th><th>로그인 없이</th></tr></thead><tbody>`
       + mcRows().map(g=>`<tr class="smc-g"><td colspan="4">${esc(g.t)}</td></tr>` + g.items.map(it=>`<tr><td>${esc(it.b)}</td>`
           + ['pc','m'].map(f=>{ const lock=it.key==='menucfg' && f==='pc'; return `<td><input type="checkbox" data-smck="${esc(it.key)}|${f}" aria-label="${esc(it.b)} ${f==='pc'?'PC':'모바일'}"${lock || cfgOf(it.key, f) ? ' checked' : ''}${lock ? ' disabled title="메뉴 설정은 PC 에서 늘 보입니다"' : ''}></td>`; }).join('')

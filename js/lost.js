@@ -25,7 +25,7 @@ function lostStatus(d){
   return s==='찾는 중' || !s ? '보관중' : s;
 }
 const OPS_PAGE =
-{ key:'lost', title:'분실물 찾기', add:'분실물 접수', hint:'분실 신고 · 습득물 보관 · 반환까지', guest:true,   // guest: 로그인 없이 보기 · 접수 (2026-11-24 · opsboard.js GUEST)
+{ key:'lost', title:'분실물 찾기', add:'분실물 접수', hint:'', guest:true,   // guest: 로그인 없이 보기 · 접수 (2026-11-24 · opsboard.js GUEST)
     fields:[ {k:'kind', l:'구분', type:'select', opts:['습득','분실 신고'], def:()=>'습득'}, {k:'date', l:'접수일', type:'date', def:()=>opsToday()},
       {k:'item', l:'물품', type:'text', req:1}, {k:'feature', l:'설명', type:'text', ph:'색 · 브랜드 · 안에 든 것', show:d=>lostKind(d)!=='습득'},   // 설명은 분실물 신고만 (습득은 사진으로 · 2026-11-24)
       {k:'photos', l:d=>lostKind(d)==='습득' ? '습득물 사진' : '분실물 사진 (고객이 보내 준 사진 · 없어도 됨)', type:'photos', w:2, req:d=>lostKind(d)==='습득',   // 습득이면 사진 꼭 (찍기 · 고르기 · 붙여넣기 · png / jpeg) — js/opsboard.js 의 photos 칸

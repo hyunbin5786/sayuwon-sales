@@ -487,7 +487,6 @@ function ntPerHTML(row){
   const dbox=(id,v)=>`<span class="dbox"><input class="dtxt" readonly placeholder="누르면 달력" title="누르면 달력 · 한 번 더 누르면 직접 입력" inputmode="numeric"><input type="date" class="dpick" id="${id}" value="${v}"></span>`;
   return `<div class="cal-f nt-perrow"><span class="cal-fl">게시</span><span class="cal-kind"><button type="button" data-ntper="0"${has?'':' class="on"'}>기한 없음</button><button type="button" data-ntper="1"${has?' class="on"':''}>기한 있음</button></span></div>`
     + `<div class="cal-f nt-perdates"${has?'':' hidden'}><span class="cal-fl">기간</span><span class="cal-per">${dbox('ntFrom', from)}<span>~</span>${dbox('ntTo', to)}</span></div>`
-    + `<p class="hint nt-perhint"${has?'':' hidden'}>이 기간에만 공지사항 목록에 뜹니다 · 시작하는 날을 뒤로 하면 그날부터 뜨는 예약 공지</p>`;
 }
 function ntOpenView(r){
   const M=ntModal(); ntEditId=r.id;
@@ -501,7 +500,7 @@ document.addEventListener('keydown', e=>{ const M=$('#ntModal'); if(M && !M.hidd
 document.addEventListener('click', e=>{
   if(e.target.closest('#ntAddBtn')){ ntOpenForm(null); return; }
   if(e.target.closest('#ntOffBtn')){ ntShowOff=!ntShowOff; renderDash(); return; }
-  const pk=e.target.closest('[data-ntper]'); if(pk){ const has=pk.dataset.ntper==='1', M=$('#ntModal'); M.querySelectorAll('[data-ntper]').forEach(b=>b.classList.toggle('on', b===pk)); M.querySelector('.nt-perdates').hidden=!has; M.querySelector('.nt-perhint').hidden=!has; return; }
+  const pk=e.target.closest('[data-ntper]'); if(pk){ const has=pk.dataset.ntper==='1', M=$('#ntModal'); M.querySelectorAll('[data-ntper]').forEach(b=>b.classList.toggle('on', b===pk)); M.querySelector('.nt-perdates').hidden=!has; return; }
   const v=e.target.closest('[data-nt]'); if(v){ const r=ntRows(lastItems).find(x=>x.id===v.dataset.nt); if(r) ntOpenView(r); return; }
   const M=$('#ntModal'); if(!M || M.hidden) return;
   if(e.target===M || e.target.closest('[data-ntclose]')){ ntClose(); return; }

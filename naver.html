@@ -10,8 +10,8 @@
 <meta property="og:title" content="네이버 예약 → 사유원 전산 이관">
 <meta property="og:type" content="website">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="css/naver.css?v=20261128q">
-<link rel="stylesheet" href="css/menu.css?v=20261128q">
+<link rel="stylesheet" href="css/naver.css?v=20261128r">
+<link rel="stylesheet" href="css/menu.css?v=20261128r">
 </head>
 <body>
 <!-- 사유원 운영 보조 시스템 공통 헤더: 「사유원 운영 보조 시스템」(누르면 메뉴) › 지금 화면 · 👤 로그인한 이름 -->
@@ -44,7 +44,7 @@
 <section id="s1" class="on">
   <div class="card">
     <h2>1단계 · 네이버 예약 텍스트로 명단 만들기</h2>
-    <p class="hint" style="margin:-4px 0 10px">네이버 예약 관리 화면의 텍스트를 붙여넣어 정리한 뒤 <b>[2단계(엑셀로 확인)로 →]</b>. 2단계에서 네이버 엑셀을 넣으면 환불이 반영되고, 엑셀이 없으면 이 명단을 그대로 최종 인원으로 가져가 직접 고칩니다.</p>    <textarea id="inAll" placeholder="네이버 예약 텍스트 붙여넣기 (오전권·오후권 섞여 있어도 됩니다)" style="min-height:240px"></textarea>
+    <textarea id="inAll" placeholder="네이버 예약 텍스트 붙여넣기 (오전권·오후권 섞여 있어도 됩니다)" style="min-height:240px"></textarea>
     <div class="row">
       <button class="btn" id="btnParse">정리하기</button>
       <label class="chk">구분자
@@ -55,7 +55,6 @@
   </div>
   <div class="card" id="res1" style="display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h2 style="margin:0">정리 결과</h2><span style="display:flex;gap:6px"><button class="btn ghost" id="save1">저장하기</button><button class="btn" id="text2final">2단계(엑셀로 확인)로 →</button></span></div>   <!-- 다음 단계 버튼은 저장하기 오른쪽 (2026-11-20 · 11-24 2단계로) -->
-    <p class="hint">표의 칸은 클릭해서 바로 고칠 수 있고, 고친 내용은 아래 텍스트와 다음 단계에 반영됩니다.</p>
     <div class="stats" id="stat1"></div>
     <div id="warn1"></div>
     <div id="tbl1"></div>
@@ -68,7 +67,7 @@
 <section id="s2">
   <div class="card">
     <h2>2단계 · 네이버 예약자관리 엑셀로 확인 → 최종 인원</h2>
-    <p class="hint" style="margin:-4px 0 10px">1단계 명단에 엑셀의 환불(전액환불은 빼고, 일부 환불은 인원을 뺌)을 반영하고 예매번호 · 인원 · 금액을 점검합니다. 1단계를 건너뛰면 엑셀로 명단을 바로 만듭니다.</p>    <div class="row">
+    <div class="row">
       <label class="chk">엑셀 비밀번호 <input type="password" id="pw2" autocomplete="off" style="width:140px"></label>
       <label class="chk"><input type="checkbox" id="pwKeep2" checked> 이 컴퓨터에 기억</label>
     </div>
@@ -126,7 +125,6 @@
 <section id="s5">
   <div class="card">
     <h2>4단계 · 최종검토</h2>
-    <p class="hint">시스템에 등록한 예약은 오른쪽 끝 <b>등록</b> 칸에 체크하세요. 체크하지 않은 예약이 일괄등록에서 누락된 예약입니다.</p>
     <div class="stats" id="stat5"></div>
     <div class="row">
       <label class="chk"><input type="checkbox" id="onlyTodo5"> 미등록만 보기</label>
@@ -138,10 +136,10 @@
 </main>
 <div class="toast" id="toast"></div>
 
-<script src="js/common.js?v=20261128q"></script>
-<script src="js/dailyguard.js?v=20261128q"></script>
-<script src="js/naver.js?v=20261128q"></script>
+<script src="js/common.js?v=20261128r"></script>
+<script src="js/dailyguard.js?v=20261128r"></script>
+<script src="js/naver.js?v=20261128r"></script>
 <script>syDaily.guard('naver', '네이버 예약 → 사유원 전산 이관');   /* 오늘 다른 사람이 이미 했으면 경고 (2026-11-24) */</script>
-<script src="js/menu.js?v=20261128q"></script>
+<script src="js/menu.js?v=20261128r"></script>
 </body>
 </html>

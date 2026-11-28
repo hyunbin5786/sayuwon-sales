@@ -772,7 +772,7 @@ function renderFinal(){
   const cell = (r, i, k) => `<td contenteditable data-i="${i}" data-k="${k}" class="${k==='adult'||k==='student'?'num':''}">${esc(r[k])}</td>`;
   $('tbl3').innerHTML = (state.manual
       ? `<p class="hint" style="margin:10px 0 0"><span class="tag bad">텍스트 명단 그대로</span> 엑셀 없이 텍스트로 정리한 명단을 그대로 불러왔습니다. 환불·취소 인원을 표에서 직접 고쳐 주세요. 엑셀을 넣으면 환불이 자동으로 반영됩니다.</p>`
-      : `<p class="hint" style="margin:10px 0 0">표의 칸은 클릭해서 바로 고칠 수 있고, 고친 내용은 3단계 일괄등록에 반영됩니다.</p>`) + `
+      : ``) + `
     <div class="tbl-wrap"><table><thead><tr>${COLS3.map(([k, l]) => `<th class="${k==='adult'||k==='student'?'num':''}">${l}${SORT_KEYS.includes(k) ? sortBtn(state.sort3, k) : ''}</th>`).join('')}<th class="num">합계${sortBtn(state.sort3, 'total')}</th><th>실방문자</th><th>상태</th></tr></thead><tbody>${
     view.length ? view.map(({ r, i }) => `<tr>${COLS3.map(([k]) => cell(r, i, k)).join('')}
       <td class="num">${r.adult + r.student}</td>${cell(r, i, 'note')}
@@ -848,7 +848,6 @@ function renderBulk(){
   $('groups4').innerHTML = `<div class="grid2">${col('오전권', 'am')}${col('오후권', 'pm')}</div>` +
     (proxies.length ? `<div class="card">
       <h2>대리예약 · 별도입력</h2>
-      <p class="hint">위 일괄등록 명단에는 예매자 이름·번호로 들어가 있습니다. 실방문자는 이 표를 보고 나중에 찾아서 넣어 주세요.</p>
       <div class="tbl-wrap"><table><thead><tr><th>#</th>${COLS1.map(([k, l]) => `<th class="${k==='adult'||k==='student'?'num':''}">${l}</th>`).join('')}</tr></thead><tbody>${
         proxies.map((r, i) => `<tr><td>${i + 1}</td>${COLS1.map(([k]) => `<td class="${k==='adult'||k==='student'?'num':''}">${esc(r[k])}</td>`).join('')}</tr>`).join('')
       }</tbody></table></div></div>` : '');

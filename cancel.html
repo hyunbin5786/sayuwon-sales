@@ -6,9 +6,9 @@
 <title>예약 취소 요청 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261128q">
-<link rel="stylesheet" href="css/cancel.css?v=20261128q">
-<link rel="stylesheet" href="css/menu.css?v=20261128q">
+<link rel="stylesheet" href="css/prep.css?v=20261128r">
+<link rel="stylesheet" href="css/cancel.css?v=20261128r">
+<link rel="stylesheet" href="css/menu.css?v=20261128r">
 </head>
 <body>
 <!-- 고객 응대 보조 · 예약 취소 요청 (2026-11-19): 직원이 취소 담당자에게 예약 취소 처리를 요청 → 담당자가 처리 완료 표시.
@@ -58,7 +58,7 @@
       <!-- 증빙 서류 + 올리기 (2026-11-23): PDF · JPG · PNG · 나중에 요청 목록에서도 올릴 수 있음 -->
       <div class="cx-row">
         <div class="cx-f"><span class="lb">증빙 서류</span><span class="seg" id="fDoc"><button type="button" data-v="" class="on">필요 없음</button><button type="button" data-v="받음">받음</button><button type="button" data-v="받을 예정">받을 예정</button></span></div>
-        <div class="cx-f grow" id="fFilesRow" hidden><span class="lb">증빙 서류 파일 <small>PDF · JPG · PNG, 10MB 이하 · 나중에 요청 목록에서 올려도 됩니다</small></span>
+        <div class="cx-f grow" id="fFilesRow" hidden><span class="lb">증빙 서류 파일 <small>PDF · JPG · PNG, 10MB 이하</small></span>
           <div class="cx-files"><span id="fFiles"></span><label class="btn line-g cx-up" id="fUpBtn">증빙 서류 올리기<input type="file" id="fUp" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" multiple hidden></label></div></div>
       </div>
       <!-- 환불 계좌 (2026-11-23): 은행(고르기) · 계좌번호 · 예금주(본인 = 예약자 / 타인이면 이름) -->
@@ -98,8 +98,8 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/common.js?v=20261128q"></script>
-<script src="js/cancel.js?v=20261128q"></script>
-<script src="js/menu.js?v=20261128q"></script>
+<script src="js/common.js?v=20261128r"></script>
+<script src="js/cancel.js?v=20261128r"></script>
+<script src="js/menu.js?v=20261128r"></script>
 </body>
 </html>

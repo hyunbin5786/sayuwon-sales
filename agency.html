@@ -6,9 +6,9 @@
 <title>협업 여행사 할인 현황 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261128q">
-<link rel="stylesheet" href="css/stable.css?v=20261128q">
-<link rel="stylesheet" href="css/menu.css?v=20261128q">
+<link rel="stylesheet" href="css/prep.css?v=20261128r">
+<link rel="stylesheet" href="css/stable.css?v=20261128r">
+<link rel="stylesheet" href="css/menu.css?v=20261128r">
 </head>
 <body>
 <!-- 예약보조 › 고객 응대 보조 › 협업 여행사 할인 현황 (2026-11-24): 표(칸을 눌러 바로 고치기 · 추가 · 삭제 · js/stable.js) + 집계기록(방문기록 엑셀 → 여행사별 명수 · 비중 · 매출 · 비중) — js/agency.js -->
@@ -20,13 +20,13 @@
   <section class="panel">
     <h2>협업 여행사 할인 현황 <small id="sum"></small>
       <span class="right"><span class="save-st" id="st"></span><button class="btn primary" id="addBtn" type="button">＋ 추가</button></span></h2>
-    <div class="st-bar"><input id="q" type="search" placeholder="여행사 · 소재지로 찾기" data-ime="ko" autocomplete="off"><span class="hint">칸을 눌러 바로 고치고 Enter 로 저장 · <b>찾는 이름</b> = 방문기록 엑셀에서 이 여행사를 찾을 때 함께 쓰는 다른 이름 (쉼표로 여러 개)</span></div>
+    <div class="st-bar"><input id="q" type="search" placeholder="여행사 · 소재지로 찾기" data-ime="ko" autocomplete="off"></div>
     <div class="tw st-tw"><table class="st-t ag-t" id="tbl"></table></div>
     <p class="hint" id="log"></p>
   </section>
 
   <section class="panel ag-sec">
-    <h2>집계기록 <small>여행사끼리 비교 (비중 합계 = 100%)</small></h2>
+    <h2>집계기록</h2>
     <div class="ag-cfg"><span>집계 주기</span><select id="cycle"><option value="6">반기 (1~6월 · 7~12월)</option><option value="3">분기 (3개월)</option></select>
       <span class="hint" id="aggDue"></span><span class="sp" style="flex:1"></span>
       <label class="btn primary">방문기록 엑셀로 집계하기<input type="file" id="aggFile" accept=".xlsx,.xls,.csv,.html" hidden></label></div>
@@ -51,10 +51,10 @@
 </div>
 <div class="toast" id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/common.js?v=20261128q"></script>
-<script src="js/opslib.js?v=20261128q"></script>
-<script src="js/stable.js?v=20261128q"></script>
-<script src="js/agency.js?v=20261128q"></script>
-<script src="js/menu.js?v=20261128q"></script>
+<script src="js/common.js?v=20261128r"></script>
+<script src="js/opslib.js?v=20261128r"></script>
+<script src="js/stable.js?v=20261128r"></script>
+<script src="js/agency.js?v=20261128r"></script>
+<script src="js/menu.js?v=20261128r"></script>
 </body>
 </html>

@@ -123,7 +123,6 @@ function cmPaint(){
       + `</div>`; };
   m.innerHTML = `<section class="cm-panel" role="dialog" aria-modal="true" aria-labelledby="cmTitle">`
     + `<h2 id="cmTitle">공통 업무 알림 관리 <span class="sp"></span><button type="button" class="btn-sm primary" id="cmAdd">＋ 새 공통 업무</button><button type="button" class="win-x in-row" id="cmNo" title="닫기 (Esc)" aria-label="닫기">×</button></h2>`
-    + `<p class="hint">첫 화면 「공통 업무」(담당이 없는 모두의 일)에 무엇을 알릴지 정합니다. 이름 · 할 일 · 설정을 고치고 「저장」을 누르세요. 공통 업무는 생성된 날부터 계속 보이고, 줄 앞의 체크 칸을 눌러 없애면 모두의 화면에서 빠집니다 (담당 없는 예약 과업만 마감일대로 · 그 예약에서 끝냄).</p>`
     + `<div class="cm-list">${live.map(row).join('') || '<p class="hint">알림이 없습니다.</p>'}</div>`
     + (gone.length ? `<details class="cm-gone"><summary>지운 기본 알림 ${gone.length}개</summary>${gone.map(r=>`<div class="cm-g1"><b>${cmEsc(r.title)}</b> <span class="hint">${cmEsc(r.when)}</span><button type="button" class="btn-sm primary" data-cmback="${cmEsc(r.id)}">되살리기</button></div>`).join('')}</details>` : '')
     + (cmGoneList().length ? `<details class="cm-gone cm-back"${cmBackOpen?' open':''}><summary>없앤 공통 업무 ${cmGoneList().length}개 (최근 것부터)</summary>${cmGoneList().map((g,i)=>`<div class="cm-g1"><b>${cmEsc(g.what)}</b> <span class="hint">생성일 ${cmEsc(SY.dateDisp(g.made))} · ${cmEsc(SY.dateDisp(opsYmd(g.at)))} ${cmEsc(g.by)} 없앰</span><button type="button" class="btn-sm primary" data-cmrestore="${i}">되살리기</button></div>`).join('')}</details>` : '')

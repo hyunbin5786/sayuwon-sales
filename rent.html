@@ -6,9 +6,9 @@
 <title>대관 규정 및 상품 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261128q">
-<link rel="stylesheet" href="css/rent.css?v=20261128q">
-<link rel="stylesheet" href="css/menu.css?v=20261128q">
+<link rel="stylesheet" href="css/prep.css?v=20261128r">
+<link rel="stylesheet" href="css/rent.css?v=20261128r">
+<link rel="stylesheet" href="css/menu.css?v=20261128r">
 </head>
 <body>
 <!-- 예약보조 › 고객 응대 보조 · 대관 규정 및 상품 (2026-11-24): 대관 상품마다 산출 기준 · 금액 · 추가 · 장소 · 조건을 표로. 팀이 함께 고치고 더함 — js/rent.js -->
@@ -20,7 +20,6 @@
   <section class="panel">
     <h2>대관 규정 및 상품 <small id="sum"></small>
       <span class="right"><span class="save-st" id="st"></span><button class="btn" id="editMode" type="button" title="순서 바꾸기 · 빼기 버튼 보이기">순서 · 빼기</button><button class="btn primary" id="addBtn" type="button">＋ 항목 추가</button></span></h2>
-    <p class="hint">줄을 누르면 고칠 수 있습니다 · 팀이 함께 봅니다 · 고친 사람과 시각이 남습니다</p>
     <div class="rent-tools"><input id="q" type="search" placeholder="항목 · 장소 · 조건으로 찾기" data-ime="ko" autocomplete="off"></div>
     <div class="tw"><table class="rent-t"><thead id="head"></thead><tbody id="body"></tbody></table></div>
     <p class="hint rent-log" id="log"></p>
@@ -49,8 +48,8 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="js/common.js?v=20261128q"></script>
-<script src="js/rent.js?v=20261128q"></script>
-<script src="js/menu.js?v=20261128q"></script>
+<script src="js/common.js?v=20261128r"></script>
+<script src="js/rent.js?v=20261128r"></script>
+<script src="js/menu.js?v=20261128r"></script>
 </body>
 </html>

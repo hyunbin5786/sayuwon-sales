@@ -168,7 +168,7 @@
   }
   renderStock = function(hit){
     $('#addBtn').hidden=true;
-    $('#bSum').textContent = view==='ledger' ? '월별 수불현황 (굿즈 재고조사 엑셀과 같은 칸)' : view==='hist' ? '누가 · 언제 기록했는지' : '품목마다 붕정 · 차방 재고 — 줄을 누르면 모든 칸';
+    $('#bSum').textContent = '';
     $('#filters').innerHTML = banner()
       // 2026-11-24: 입고 · 출고 · 재고조사를 붕정 · 차방으로 나눈 버튼 (엑셀 불러오기 · 이 달 엑셀로는 없앰 — 재고는 이 화면에서 기록 · 처음 한 번만 품목별 보기의 「엑셀로 처음 재고 넣기」)
       + `<div class="sk-acts">${[['in','입고'],['out','출고'],['count','재고조사']].map(([k,l])=>`<span class="sk-ag"><small>${l}</small><button type="button" class="btn primary" data-skmv="${k}" data-loc="wh">붕정 ${l}</button><button type="button" class="btn primary" data-skmv="${k}" data-loc="shop">차방 ${l}</button></span>`).join('')}</div>`

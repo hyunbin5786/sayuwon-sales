@@ -6,9 +6,9 @@
 <title>홍보 기자 리스트 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/prep.css?v=20261128q">
-<link rel="stylesheet" href="css/press.css?v=20261128q">
-<link rel="stylesheet" href="css/menu.css?v=20261128q">
+<link rel="stylesheet" href="css/prep.css?v=20261128r">
+<link rel="stylesheet" href="css/press.css?v=20261128r">
+<link rel="stylesheet" href="css/menu.css?v=20261128r">
 </head>
 <body>
 <!-- 홍보 보조 › 홍보 기자 리스트 (2026-11-24): 기자 연락처를 표에서 바로 고치고 · 더하고 · 지우고, 메일 보낼 때 쓰는 「주소, 주소, …」 모양으로 복사 — js/press.js
@@ -31,7 +31,6 @@
       <button class="btn" id="copyDoc" type="button" title="독스에 붙이는 모양: 첫 줄 리스트 이름 · 다음 줄 주소, 주소, …">독스 모양으로 복사</button>
       <button class="btn" id="delSel" type="button" disabled>선택 삭제</button>
     </div>
-    <p class="hint">칸을 눌러 바로 고치고 Enter(또는 다른 칸)를 누르면 저장 · 왼쪽 체크로 여러 명 고르기 · 같은 리스트에 같은 이메일이 두 번 있으면 주황 · 메일 주소 복사는 겹치는 주소를 한 번만</p>
     <div class="tw pr-tw"><table class="pr-t"><thead id="head"></thead><tbody id="body"></tbody></table></div>
     <p class="hint" id="more"></p>
   </section>
@@ -58,8 +57,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="js/common.js?v=20261128q"></script>
-<script src="js/press.js?v=20261128q"></script>
-<script src="js/menu.js?v=20261128q"></script>
+<script src="js/common.js?v=20261128r"></script>
+<script src="js/press.js?v=20261128r"></script>
+<script src="js/menu.js?v=20261128r"></script>
 </body>
 </html>

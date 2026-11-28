@@ -533,7 +533,7 @@ function mergePriceLayout(){
   box.after(w);
   $('#selTitle').textContent='할인 · 합계';
   const ph=$('#priceHint'); if(ph) box.closest('.grp')?.querySelector('.grp-t')?.appendChild(ph);   // "11/27(금) → 평일 가격"
-  dp.querySelector('h2').innerHTML='예약 현황 <small>누르면 구분별 예약 목록</small>';
+  dp.querySelector('h2').innerHTML='예약 현황';
   dp.querySelector('h2').insertAdjacentHTML('afterend','<div class="dayinfo day-all" id="dayAll"></div>');
   const info=$('#itemsInfo'); if(info) dp.appendChild(info);
   dp.insertAdjacentHTML('beforeend','<p class="hint" id="dayNone" style="margin:0">방문일과 예약 내역(사담 · 몽몽마방 · 프로그램)을 넣으면 그날 다른 예약 현황이 여기에 보입니다. 예약 내역의 수량 칸에 커서를 두면 업체별로 보입니다.</p>');
@@ -914,7 +914,7 @@ function buildForm(){
     if(k==='tbdDate' || k==='owner' || k==='payContact') return;   // 입력 기한 · 결제 연락 예정일은 예약 내용 제목 줄, 영업 담당은 맨 위 초록 헤더
     if(isSub(k)) html += fieldHTML(k, isStf(k) ? '담당' : SUB_NAME[k.split('_')[0]], col, 'sub'+(isStf(k)?' sub-stf':''), isStf(k));   // 프로그램 · 굿즈 바로 옆 '담당 *' (필수)
     else html += fieldHTML(k,label,col,(cls||'')+(STAFF_BASES().includes(k) && k!=='goods' ? ' pbase' : ''),req.has(k)||k==='payContact');
-    if(k==='pchg') html += `</div></div><div class="grp" data-grp="담당자"><div class="grp-t"><span>담당자</span><span class="hint" style="margin:0">여러 명이면 추가</span></div><div class="contacts" id="contacts"></div><button type="button" class="btn addc" id="addContact">+ 담당자 추가</button>` + `<div class="fields" hidden>`;
+    if(k==='pchg') html += `</div></div><div class="grp" data-grp="담당자"><div class="grp-t"><span>담당자</span></div><div class="contacts" id="contacts"></div><button type="button" class="btn addc" id="addContact">+ 담당자 추가</button>` + `<div class="fields" hidden>`;
   });
   close();
   $('#form').innerHTML = html;
@@ -2018,7 +2018,7 @@ function paintSync(){
 15초마다 다시 보냅니다. 저장 대기 중인 내용은 이 브라우저에 남아 있으니 창을 닫아도 다음에 열면 이어서 보냅니다.` : ''; chip.className='sync '+(syncState==='error'?'warn':'');
   const km=$('#keyModal'); km.hidden = syncState!=='needkey' || !!BOOK_GUEST;   // 로그인 확인 안내 (예약 현황 공유를 로그인 없이 볼 때는 안 띄움)
   paintDbTime();
-  $('#storeHint').textContent = syncState==='ok' ? '공유 DB에 저장 · 모두가 같은 목록을 봅니다' : syncState==='needkey' ? '로그인을 확인하지 못했습니다 · 첫 화면에서 다시 로그인' : syncState==='error' ? '연결이 안 돼 이 브라우저에 모아 두었다가 다시 올립니다' : '불러오는 중…';
+  $('#storeHint').textContent = syncState==='ok' ? '' : syncState==='needkey' ? '로그인을 확인하지 못했습니다 · 첫 화면에서 다시 로그인' : syncState==='error' ? '연결이 안 돼 이 브라우저에 모아 두었다가 다시 올립니다' : '불러오는 중…';
 }
 // 공유 DB에 마지막으로 저장된 시각 (이 브라우저에서 올린 것) · 마지막으로 받아 온 시각
 var DBT_LS = 'sayuwon_db_time';   // var: paintSync가 먼저 불려도 되게
@@ -2847,7 +2847,7 @@ function renderTasks(){
   const consultOnly = quietStage(effStage(rec));   // 예약상담: 자동 과업은 없고(사전답사 전산 예약만) 직접 추가한 과업은 그대로
   $('#taskAdd').hidden = false;
   const shownTasks = (consultOnly ? tasks.filter(consultTask) : tasks).filter(t=>!t.removed);   // 삭제한 자동 과업(removed)은 숨김 (다시 생기지 않게 기록만 남김)
-  if(consultOnly && !shownTasks.length){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 자동으로 생기는 과업이 없습니다. 필요한 일은 위 칸에 직접 추가해 주세요.</li>'; $('#taskHint').textContent=''; return; }
+  if(consultOnly && !shownTasks.length){ paintDocBtns(); $('#taskList').innerHTML='<li class="hint" style="list-style:none;margin:0">예약상담은 자동으로 생기는 과업이 없습니다. 필요한 일은 위 칸에 직접 추가해 주세요.</li>'; return; }
   paintDocBtns();
   const box=$('#taskList'), ae=document.activeElement, focus=box.contains(ae) && (ae.tagName==='TEXTAREA' || (ae.tagName==='INPUT' && ae.type!=='checkbox' && !ae.readOnly && !ae.classList.contains('dpick')));   // 메모 · 글자 칸에 쓰는 중일 때만 다시 그리지 않음
   const changeTag = t => { const txt=taskText(t); return !t.copied ? '' : t.copied===txt ? '<span class="hint" style="margin:0">붙여넣은 내용과 같음</span>' : '<span class="chg">예약 내용이 바뀜 · 다시 복사해서 붙여넣기</span>'; };
@@ -2887,10 +2887,9 @@ function renderTasks(){
       ${txt?`<textarea class="tnote${t.noteEdit?' edited':''}" id="tpre_${esc(t.id)}" data-tnote="${esc(t.id)}" spellcheck="false" title="자동으로 만든 문구 · 직접 고칠 수 있음">${esc(txt)}</textarea><div class="tbtn"><button type="button" class="btn" data-tcopy="${esc(t.id)}">${t.id.startsWith('erp')||t.id==='tour'?'비고 문구 복사':'문구 복사'}</button>${t.id==='mabang' && innerWidth>=700 && !matchMedia('(pointer:coarse)').matches ? `<button type="button" class="btn" data-mbimg="1" title="오늘부터 앞으로 있는 몽몽마방 예약을 모두 표 이미지로 복사합니다 (이 예약은 다른 색) · 메신저에 Ctrl+V 로 붙여넣기">예약 목록 이미지 복사</button>` : ''}${t.noteEdit?`<button type="button" class="btn" data-tregen="${esc(t.id)}" title="고친 내용을 버리고 예약 내용으로 다시 만들기">다시 만들기</button><span class="hint" style="margin:0">직접 고친 문구</span>`:''}<span id="tchg_${esc(t.id)}">${changeTag(t)}</span></div>`:''}
       ${t.id==='tax' ? `<div class="tfiles">${(t.files||[]).map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📄 ${esc(f.name)}</a>`).join('')}
         <label class="btn up${upBusy?' busy':''}">${upBusy?'올리는 중…':(t.files||[]).length?'사업자등록증 추가로 올리기':'사업자등록증 올리기'}<input type="file" data-tup="${esc(t.id)}" accept="image/*,application/pdf" hidden${upBusy?' disabled':''}></label>
-        <span class="hint" style="margin:0">사진 · PDF, 10MB 이하 · 구글 드라이브 '사유원 단체예약 서류' 폴더에 저장</span></div>` : ''}
+        <span class="hint" style="margin:0">사진 · PDF, 10MB 이하</span></div>` : ''}
       ${/^prep:/.test(t.id) ? "" : `<textarea data-tm="${esc(t.id)}" placeholder="메모">${esc(t.memo||"")}</textarea>`}   <!-- 단체 준비 과업은 메모 칸 없음 (2026-11-24) -->
     </li>`; }).join('');
-  $('#taskHint').textContent = tasks.length ? (editingId ? '체크와 복사는 바로 저장됩니다. 메모는 칸을 벗어나면 저장됩니다.' : '저장하면 과업도 함께 저장됩니다.') : '';
   if(typeof paintDirty==='function' && window.__autoReady) paintDirty();   // 다시 그린 과업 「저장」에도 노란 점
 }
 const autoSave = () => { if(editingId) save({auto:true}); };   // 과업 체크 · 메모 등은 바로 자동 저장 (수정 기록은 이 세션 줄에 모임)
@@ -4984,10 +4983,9 @@ function paintStart(){
   $('#startList').innerHTML = L.slice(0,30).map(r=>{ const s=stageOfRec(r);
     return `<li><button type="button" class="start-it" data-sid="${esc(r.id)}"><span class="num">${esc(dateLabel(r.date)||'방문일 미정')}</span><span class="tag st-${esc(s)}">${esc(s)}</span><b>${esc(r.org||r.contact||'(업체 미정)')}</b><small>${[r.people?`${esc(r.people)}명`:'', esc(firstContact(r)), ownerOf(r)?`담당 ${esc(ownerOf(r))}`:'', r.date && r.date<t?'지난 예약':''].filter(Boolean).join(' · ')}</small></button></li>`; }).join('');
   $('#startNew').hidden = isMobG() && !q;   // 휴대폰: 단체명을 적어야 새 통화 (업체 · 방문일 칸이 없어 이름 없이는 저장할 수 없으므로 · 2026-11-27)
-  if(isMobG() && !q){ $('#startHint').textContent = '단체명을 입력하면 이미 있는 예약을 찾아 줍니다. 없으면 그 이름으로 새 통화를 시작할 수 있습니다.'; return; }
-  $('#startHint').textContent = !q ? '단체명을 입력하면 이미 있는 예약을 찾아 줍니다. 없으면 새 통화에 업체명이 들어갑니다.'
-    : L.length ? `이미 있는 예약 ${L.length}건${L.length>30?' (가까운 30건만 보임 · 더 적어 보세요)':''} — 누르면 그 예약으로 갑니다. 새로 받는 예약이면 아래 버튼을 누르세요.`
-    : `「${q}」(으)로 저장된 예약이 없습니다. Enter 를 누르면 새 통화에 업체명이 들어갑니다.`;
+  $('#startHint').textContent = !q ? ''
+    : L.length ? `이미 있는 예약 ${L.length}건${L.length>30?' (가까운 30건만 보임)':''}`
+    : `「${q}」(으)로 저장된 예약이 없습니다.`;
   $('#startNew').textContent = q ? `「${q}」 새 통화로 시작` : '단체명 없이 새 통화';
 }
 function startOpen(id){ const r=(cache||[]).find(x=>x.id===id); if(r) openRecord(r); }   // openRecord → newCall → endStart
@@ -5120,7 +5118,7 @@ function noteHistRender(){
 function noteHistOpen(){
   let m=document.getElementById('noteHistModal');
   if(!m){ m=document.createElement('div'); m.id='noteHistModal'; m.className='modal'; m.hidden=true;
-    m.innerHTML='<section class="panel note-hist" role="dialog" aria-modal="true" aria-labelledby="noteHistT" tabindex="-1"><h2 id="noteHistT">통화 메모 수정 기록 <small>고친 것 · 지운 것</small></h2><button type="button" class="win-x" id="noteHistX" title="닫기 (Esc)" aria-label="닫기">×</button><div id="noteHistBody" style="display:flex;flex-direction:column;min-height:0"></div></section>';
+    m.innerHTML='<section class="panel note-hist" role="dialog" aria-modal="true" aria-labelledby="noteHistT" tabindex="-1"><h2 id="noteHistT">통화 메모 수정 기록</h2><button type="button" class="win-x" id="noteHistX" title="닫기 (Esc)" aria-label="닫기">×</button><div id="noteHistBody" style="display:flex;flex-direction:column;min-height:0"></div></section>';
     document.body.appendChild(m);
     m.addEventListener('mousedown', e=>{ if(e.target===m) m.hidden=true; }); m.querySelector('#noteHistX').onclick=()=>{ m.hidden=true; };
     m.addEventListener('click', e=>{ const b=e.target.closest('[data-nhback]'); if(!b) return; const id=b.dataset.nhback, n=notes.find(x=>x.id===id); if(!n || !noteCan(n)) return;
@@ -5169,13 +5167,13 @@ const etcDowsHTML = (sel, attr) => `<span class="etc-dows">${[1,2,3,4,5,6,0].map
 const etcDomHTML = (v, id) => `<select id="${id}" title="매달 날짜">${Array.from({length:31},(_,i)=>i+1).map(n=>`<option value="${n}"${String(v||new Date().getDate())===String(n)?' selected':''}>${n===31?'말일':n+'일'}</option>`).join('')}</select>`;
 function etcAddHTML(presetCat){   // presetCat: 구분 탭에서는 그 구분이 골라져 있음
   const f=etcForm; if(presetCat!==undefined && etcForm.catTab!==presetCat){ etcForm.cat=presetCat; etcForm.catTab=presetCat; }
-  const extra = f.repeat==='later' ? '<span class="hint etc-later">할 때가 되면 이름을 눌러 마감일을 넣으세요</span>' : f.repeat==='none' ?`<label class="etc-due">마감 ${dboxHTML('id="etcDue"', f.due||todayYmd())}</label>` : f.repeat==='weekly' ? etcDowsHTML(f.dows, 'data-etcdow') : f.repeat==='monthly' ? etcDomHTML(f.dom, 'etcDom') : '';
+  const extra = f.repeat==='later' ? '' : f.repeat==='none' ?`<label class="etc-due">마감 ${dboxHTML('id="etcDue"', f.due||todayYmd())}</label>` : f.repeat==='weekly' ? etcDowsHTML(f.dows, 'data-etcdow') : f.repeat==='monthly' ? etcDomHTML(f.dom, 'etcDom') : '';
   return `<div class="etc-addbox"><form class="task-add etc-add" id="etcAdd">${etcCatSelHTML('etcCat', f.cat||'')}<input id="etcAddIn" data-ime="ko" placeholder="업무 직접 추가 (Enter)" autocomplete="off"><button class="btn etc-go" type="submit" title="추가 (Enter)" aria-label="추가">↵</button></form>`
     + `<div class="etc-rep"><span class="seg">${REP_OPTS.map(([k,l])=>`<button type="button" class="${f.repeat===k?'on':''}" data-etcrep="${k}">${l}</button>`).join('')}</span>${extra}</div></div>`;   // 추가 칸은 박스로 묶음 (2026-11-18)
 }
 function etcEditHTML(){
   const d=etcEdit.d, rep=d.repeat||'none';
-  const when = rep==='later' ? '<span class="hint etc-later">마감일 없이 둡니다 · 「반복 없음」을 누르면 마감일을 넣을 수 있음</span>' : rep==='none' ?`<label class="etc-due">날짜 ${dboxHTML('id="etcEDue"', d.due||d.start||todayYmd())}</label>`
+  const when = rep==='later' ? '' : rep==='none' ?`<label class="etc-due">날짜 ${dboxHTML('id="etcEDue"', d.due||d.start||todayYmd())}</label>`
     : (rep==='weekly' ? etcDowsHTML(d.dows, 'data-eedow') : rep==='monthly' ? etcDomHTML(d.dom, 'etcEDom') : '') + `<label class="etc-due">시작 ${dboxHTML('id="etcEStart"', d.start||todayYmd())}</label>`;
   return `<div class="etc-edit">`
     + `<div class="etc-etop">${etcCatSelHTML('etcECat', etcCatOf(d))}<input id="etcETitle" class="etc-in" data-ime="ko" placeholder="업무" value="${esc(d.title||'')}"></div>`
@@ -5210,7 +5208,7 @@ function alertSetHTML(){ const L=SY_ALERT.times(), n=L.length;
       + `<button type="button" class="btn primary" data-aldel="${i}" title="이 시각 빼기">빼기</button></li>`; };
   return `<div class="al-set"><b>과업 알림</b>`   // 2026-11-27: 제목 아래 안내 글(「마감이 오늘이거나 지난 내 할 일을 …」)은 없앰
     + `<div class="al-count"><span>하루에 몇 번 알릴까요?</span><span class="al-step"><button type="button" class="btn primary" data-alminus${n?'':' disabled'} title="한 번 줄이기 (맨 뒤 시각을 뺌)" aria-label="알림 횟수 줄이기">−</button><b>${n ? n+'번' : '끔'}</b><button type="button" class="btn primary" data-aladd${n>=AL_MAX?' disabled':''} title="한 번 늘리기" aria-label="알림 횟수 늘리기">＋</button></span></div>`
-    + (n ? `<ul class="al-list">${L.map(row).join('')}</ul><p class="hint al-say">시각을 바꾸면 바로 저장됩니다 · 이른 시각부터 차례로 놓입니다.</p>` : `<p class="hint al-say">알림을 끈 상태입니다. <b>＋</b> 를 누르면 다시 켜집니다.</p>`)
+    + (n ? `<ul class="al-list">${L.map(row).join('')}</ul>` : `<p class="hint al-say">알림을 끈 상태입니다.</p>`)
     + `</div>`; }
 const alRepaint = () => { if(typeof paintMySet==='function') paintMySet(); };
 document.addEventListener('change', async e=>{ const d=e.target.dataset||{}, i = d.alp ?? d.alh ?? d.alm; if(i==null) return; const li=e.target.closest('li'); if(!li) return;
@@ -5234,7 +5232,7 @@ const catTab = c => c===CAT_P ? 'personal' : c===CAT_G ? 'group' : 'cat:'+(c===C
 const tabCat = t => t==='personal' ? CAT_P : t==='group' ? CAT_G : /^cat:/.test(t) ? (t.slice(4) || CAT_N) : '';
 // 구분 순서 · 추가 (메인 1열)
 function catManageHTML(){ const o=catOrder();
-  return `<div class="cat-manage"><b>구분</b> <small class="hint" style="margin:0">▲▼로 순서 (탭 · 고르기 순서)</small><ul class="cat-ord">${o.map((c,i)=>`<li><span>${esc(catLabel(c))}</span><button type="button" data-catmv="${i}|-1" title="위로"${i?'':' disabled'}>▲</button><button type="button" data-catmv="${i}|1" title="아래로"${i<o.length-1?'':' disabled'}>▼</button></li>`).join('')}</ul>`
+  return `<div class="cat-manage"><b>구분</b><ul class="cat-ord">${o.map((c,i)=>`<li><span>${esc(catLabel(c))}</span><button type="button" data-catmv="${i}|-1" title="위로"${i?'':' disabled'}>▲</button><button type="button" data-catmv="${i}|1" title="아래로"${i<o.length-1?'':' disabled'}>▼</button></li>`).join('')}</ul>`
     + (etcCatAdding ? `<div class="cat-addrow"><input id="etcCatIn" class="etc-catin" data-ime="ko" placeholder="새 구분 이름" autocomplete="off"><button type="button" class="btn primary" data-catok>추가</button></div>` : `<button type="button" class="btn cat-addbtn" data-etccatadd>＋ 구분 추가</button>`) + `</div>`; }   // 추가 버튼도 · 위 구분 줄과 같은 너비 · 높이 (2026-11-19)
 document.addEventListener('click', async e=>{ const b=e.target.closest?.('[data-catmv]'); if(!b) return; e.preventDefault(); const [i,d]=b.dataset.catmv.split('|').map(Number), o=catOrder(), j=i+d; if(j<0 || j>=o.length) return;
   [o[i],o[j]]=[o[j],o[i]]; await etcSaveCats(etcCats(), o); renderMy(); });

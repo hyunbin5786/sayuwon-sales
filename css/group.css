@@ -775,7 +775,6 @@ html.book-guest #bookBody tr{cursor:default}
 .my-etc.editing{display:block;border-color:var(--pine);box-shadow:0 0 0 2px var(--pine-soft)}
 .etc-subck{flex:1 1 100%;display:flex;flex-direction:column;gap:3px;padding:4px 0 0 26px;font-size:12.5px}
 .etc-memo{flex:1 1 100%;padding:2px 0 0 26px;font-size:12.5px;line-height:1.5;color:#6b665c;white-space:pre-line;word-break:break-word}   /* 직접 넣은 업무 메모: 늘 보임 (2026-11-20) */
-.etc-later{margin:0 0 0 6px;font-size:12.5px;align-self:center}
 .etc-subck label{display:flex;gap:6px;align-items:center;cursor:pointer}
 .etc-subck input{accent-color:var(--pine)}
 .etc-subck label:has(input:checked){color:var(--muted);text-decoration:line-through}
@@ -1100,7 +1099,6 @@ html.g-loading .g-loading-box{display:flex;position:fixed;left:0;right:0;bottom:
 html.g-loading body{overflow:hidden}
 .gl-in{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:24px}
 .gl-in b{font-size:16px;color:var(--ink,#262620)}
-.gl-in small{margin:0}
 .gl-spin{width:34px;height:34px;border-radius:50%;border:3px solid #d9d4c6;border-top-color:var(--pine,#2f5d46);animation:glspin .8s linear infinite}
 @keyframes glspin{to{transform:rotate(360deg)}}
 .tcfg-auto{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px dashed var(--line);border-radius:7px;background:#fafcf8;margin:0 0 6px}   /* 다음주 예약 점검: 자동으로 넣는 세부 과업 (2026-11-23) */

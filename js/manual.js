@@ -190,7 +190,7 @@
     form={id:id||null, kind, preset:preset||null};
     const fcats=[...new Set([...FAQ_CATS, ...byKind('faq').map(x=>x.cat).filter(Boolean)])].sort(fcatSort), pcats=[...new Set([...PROD_CATS, ...byKind('prod').map(x=>x.cat).filter(Boolean)])];
     const fld=([k,l,t,w])=>{ const val=v[k]==null?'':v[k];
-      if(t==='per') return `<label class="full">${l}<span style="display:flex;gap:8px;align-items:center">${dateBox('start', v.start)} ~ ${dateBox('end', v.end)}<span class="hint">시작만 · 끝만 넣어도 됨</span></span></label>`;
+      if(t==='per') return `<label class="full">${l}<span style="display:flex;gap:8px;align-items:center">${dateBox('start', v.start)} ~ ${dateBox('end', v.end)}</span></label>`;
       if(t==='ck') return `<label class="ck"><input type="checkbox" data-f="${k}"${val?' checked':''}> ${l}</label>`;
       if(t==='ch') return `<label>${l}<select data-f="cat">${CH.filter(([ck])=>ck!=='intro').map(([ck,cn])=>`<option value="${ck}"${ck===(val||cat)?' selected':''}>${esc(chLabel(ck))}</option>`).join('')}</select></label>`;
       if(t==='cat'||t==='fcat'){ const opts=t==='cat'?pcats:fcats; return `<label>${l}<input data-f="cat" list="dl-${t}" value="${esc(val)}" data-ime="ko"><datalist id="dl-${t}">${opts.map(o=>`<option value="${esc(o)}">`).join('')}</datalist></label>`; }

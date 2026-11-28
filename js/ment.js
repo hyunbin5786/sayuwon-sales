@@ -26,7 +26,7 @@
   let sel=null;   // 컴퓨터 화면(2열)에서 왼쪽 목록에서 고른 멘트 id (2026-11-23)
   const imgCache={}, imgWait={};   // 이미지 id → data URL (이 창에서만)
   $('#me').textContent = logged ? '👤 '+user.name : '';
-  $('#guestHint').hidden = logged; $('#addBtn').hidden = !logged;
+  $('#addBtn').hidden = !logged;
 
   const toast = (m, ms=2200) => { const t=$('#toast'); t.textContent=m; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>{ t.hidden=true; }, ms); };
   const setSync = t => { $('#sync').textContent=t; };

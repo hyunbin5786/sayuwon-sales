@@ -153,7 +153,7 @@
     paintImp(); $('#impModal').hidden=false; });
   const keyIn = (list, r) => list+'|'+(emailOf(r)[0] || nsK(r.media)+'/'+nsK(r.name));
   function paintImp(){ const have=new Set(rows.map(r=>keyIn(r.list||'', r)));
-    $('#impBody').innerHTML = `<p class="hint">파일 · 시트마다 하나의 <b>리스트</b>가 됩니다 (이름은 고칠 수 있음). 같은 리스트에 같은 이메일(없으면 매체 + 이름)이 이미 있으면 건너뜁니다.</p>`
+    $('#impBody').innerHTML = ``
       + `<div class="tw"><table class="pr-it"><thead><tr><th></th><th>리스트 이름</th><th class="num">기자</th><th class="num">새로</th><th>비고</th></tr></thead><tbody>`
       + imp.map((s,i)=>{ if(s.skip) return `<tr class="skip"><td></td><td>${esc(s.name)}</td><td></td><td></td><td class="hint">${esc(s.skip)}</td></tr>`;
           const seen=new Set(), fresh=s.rows.filter(r=>{ const k=keyIn(s.name, r); if(have.has(k) || seen.has(k)) return false; seen.add(k); return true; }).length;

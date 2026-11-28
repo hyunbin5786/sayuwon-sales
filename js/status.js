@@ -120,7 +120,7 @@
     // 확인: 전체 = 오전 + 오후 인지 (전체 줄에 숫자가 있을 때만)
     const ti=R.cats.indexOf('전체'), warn=R.dates.map((d,ci)=>{ if(ti<0) return ''; const tot=R.grid[ti][ci]||0; if(!tot) return ''; const s=R.grid.reduce((a,row,ri)=>a+(/입장$/.test(R.cats[ri]||'') ? (row[ci]||0) : 0),0); return s!==tot ? `전체 ${tot} ≠ 오전 + 오후 ${s}` : ''; });
     box.hidden=false;
-    box.innerHTML = `<div class="ni-grid"><div class="ni-pic">${R.urls.map(u=>`<img src="${u}" alt="넣은 사진">`).join('')}</div><div class="ni-tbl"><b>사진에서 읽은 네이버 확정 인원</b> <span class="hint">날짜 · 숫자가 맞는지 보고 [넣기] · 토 · 일처럼 화면이 나뉘면 사진을 더 넣으세요 (Ctrl+V · 날짜가 옆에 붙음)</span>`
+    box.innerHTML = `<div class="ni-grid"><div class="ni-pic">${R.urls.map(u=>`<img src="${u}" alt="넣은 사진">`).join('')}</div><div class="ni-tbl"><b>사진에서 읽은 네이버 확정 인원</b>`
       + `<table class="ed-t"><thead><tr><th>줄 (위에서부터)</th>${R.dates.map((d,ci)=>`<th><input type="date" data-imgdate="${ci}" value="${esc(d)}"></th>`).join('')}</tr></thead><tbody>`
       + R.grid.map((row,ri)=>`<tr><td>${ri+1}번째 줄 ${sel(ri)}</td>${row.map((n,ci)=>`<td><input class="n" inputmode="numeric" data-imgn="${ri}|${ci}" value="${n}"></td>`).join('')}</tr>`).join('')
       + (warn.some(Boolean) ? `<tr><td class="ni-warn">확인</td>${warn.map(w=>`<td class="ni-warn">${w?'⚠ '+esc(w):''}</td>`).join('')}</tr>` : '')

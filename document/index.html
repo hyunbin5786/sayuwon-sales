@@ -1,10 +1,10 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="stylesheet" href="../css/menu.css?v=20261128q">
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="stylesheet" href="../css/menu.css?v=20261128r">
 </head><body>
 <title>사유원 견적서&amp;거래명세서 발행기</title>
 <script>/* 사유원 운영 보조 시스템: 로그인(이름 + 사번)을 안 했으면 첫 화면으로 (품목 관리 창으로 띄운 경우는 그대로) */ (function(){ try{ if(/[?&]catalog=1/.test(location.search)) return; var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("../"); }catch(e){} })();</script>
 <!-- 이 페이지(sayuwon-sales/document/)는 견적서&거래명세서 발행기(hyunbin5786/sayuwon-invoice-quotation)를 사유원 운영 보조 시스템 안으로 옮긴 것. 예전 주소도 그대로 둠 -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap">
-<link rel="stylesheet" href="css/document.css?v=20261128q">
+<link rel="stylesheet" href="css/document.css?v=20261128r">
 
 <!-- 사유원 운영 보조 시스템 공통 헤더: 시스템 이름(누르면 메뉴) › 화면 이름 · 버튼 · 로그인한 이름 -->
 <header class="sys-hd">
@@ -16,7 +16,6 @@
   <script>try{ var su=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(su && su.name) document.getElementById("sysMe").textContent="👤 "+su.name; }catch(e){}</script>
 </header>
 <div class="wrap">
-  <p class="page-sub">예약 정보를 붙여넣거나 직접 입력해 사유원 · 신라철강 견적서와 거래명세서를 만듭니다</p>
 
   <!-- 3단계: 1 시작(붙여넣기 / 직접 생성) → 2 문서 작성 → 3 출력 · 메일 -->
   <nav class="steps" aria-label="진행 단계">
@@ -65,7 +64,6 @@
           <div class="field">
             <label for="f-clientmgr">수신 담당자</label>
             <input id="f-clientmgr" type="text">
-            <span class="hint">이름만 넣으면 '○○○ 담당자님', 비워두면 '담당자님'으로 표기됩니다</span>
           </div>
           <div class="grid2">
             <div class="field">
@@ -81,12 +79,10 @@
             <label for="f-sender">발신 담당자</label>
             <input id="f-sender" type="text" list="sender-list" autocomplete="off">
             <datalist id="sender-list"></datalist>
-            <span class="hint">입력한 이름은 이 브라우저에 저장되어 다음에 목록에서 고를 수 있습니다</span>
           </div>
           <div class="field">
             <label for="f-pax">총 인원 (할인 기준)</label>
             <input id="f-pax" type="number" min="0" step="1" inputmode="numeric">
-            <span class="hint">20인 이상이면 할인율이 10%로 자동 전환됩니다</span>
           </div>
         </div>
       </section>
@@ -141,7 +137,6 @@
           <div class="body">
             <div class="field">
               <textarea id="f-footnote"></textarea>
-              <span class="hint">비워두면 견적서에 인쇄되지 않습니다</span>
             </div>
           </div>
         </section>
@@ -179,7 +174,6 @@
     <div class="startbody">
       <section class="startcard">
         <h3>예약 정보 붙여넣기</h3>
-        <p>예약 시스템의 '상품 정보'를 붙여넣으면 품목 · 인원 · 이용일이 자동으로 채워집니다.</p>
         <div class="reqpick" id="req-pick"></div>
         <textarea id="f-raw" placeholder="예약 시스템의 '상품 정보'를 그대로 붙여넣으세요&#10;방문일자(순번)	2026.11.09 (24)&#10;상품정보	평일 관람(13:00~18:00)&#10;예약인원	18명(어른 : 18명)&#10;..."></textarea>
         <div id="start-err"></div>
@@ -187,7 +181,6 @@
       </section>
       <section class="startcard">
         <h3>직접 생성하기</h3>
-        <p>예약 정보 없이 빈 문서에서 시작합니다. 기본 정보와 품목을 하나씩 입력합니다.</p>
         <button class="btn block" type="button" id="start-blank" style="margin-top:auto">직접 생성하기</button>
       </section>
       <!-- 고객 견적 요청 (2026-11-21): 고객이 request.html 에서 남긴 요청 → 누르면 선택 → 예약 정보를 붙여넣고 자동 채우기 (「붙여넣기 없이 초안으로 시작」은 2026-11-23에 없앰) -->
@@ -246,7 +239,6 @@
       <div class="field">
         <div class="mailrow"><label for="mail-to">받는 사람</label><button class="btn small" type="button" data-copy="mail-to">주소 복사</button></div>
         <input id="mail-to" type="email" inputmode="email" autocomplete="off">
-        <span class="hint" id="mail-to-hint">고객 견적 요청에서 시작하면 고객님이 적은 이메일, 단체고객에서 열면 담당자 이메일 중 맨 위 것이 들어갑니다</span>
       </div>
       <div class="field">
         <div class="mailrow"><label for="mail-subject">메일 제목</label><button class="btn small" type="button" data-copy="mail-subject">제목 복사</button></div>
@@ -330,10 +322,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.min.js"></script>
-<script src="../js/common.js?v=20261128q"></script>
-<script src="js/document.js?v=20261128q"></script>
+<script src="../js/common.js?v=20261128r"></script>
+<script src="js/document.js?v=20261128r"></script>
 
 <!-- 날짜 칸 (사유원 운영 보조 시스템 공통: 단체 방문일과 같은 방식 · 칸 안에 날짜 (요일) · 누르면 달력 · 한 번 더 누르면 직접 입력) -->
-<script src="js/datebox.js?v=20261128q"></script>
-<script src="../js/menu.js?v=20261128q"></script>
+<script src="js/datebox.js?v=20261128r"></script>
+<script src="../js/menu.js?v=20261128r"></script>
 </body></html>

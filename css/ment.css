@@ -57,7 +57,7 @@ main{max-width:1760px}
   .m-head .sp{display:none}
   .m-head .btn.sm{height:34px;padding:0 14px;font-size:13px}
   .m-head [data-medit]{display:none}
-  #guestHint,#addBtn{display:none}
+  #addBtn{display:none}
 }
 /* 휴대폰: 별 · 제목 · 복사 버튼을 한 줄에 (제목이 길면 … 으로 줄임 · 이미지 버튼은 「이미지1」처럼 짧게, 2026-11-18) */
 @media (max-width:700px){

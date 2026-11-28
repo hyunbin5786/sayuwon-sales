@@ -2761,7 +2761,7 @@
         ? tbl("품목 · 수량", doc, "지금 (" + now + ")", changes)
         : '<div class="rv-none">앞서 발급한 ' + esc(doc) + '와 품목 · 수량 · 합계가 같습니다</div>')
       + swapHtml
-      + '<div class="rv-note">발급 취소하지 않은 가장 최근 ' + esc(doc) + ' 발급과 견줬습니다 · 이 상자는 화면에만 보입니다</div>'
+      + '<div class="rv-note">발급 취소하지 않은 가장 최근 ' + esc(doc) + ' 발급과 견줬습니다</div>'
       + '</div>';
   }
   function paintOther(){
