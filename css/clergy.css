@@ -6,7 +6,7 @@
 .cl-cols>.panel{margin:0;min-width:0}
 .cl-addcol{position:sticky;top:12px}
 .cl-addcol .cl-add{flex-direction:column;align-items:stretch;flex-wrap:nowrap;margin:8px 0 0}
-.cl-addcol .cl-add input,.cl-addcol .cl-add input[type=date],.cl-addcol .cl-add .dbox .dtxt{width:100%;box-sizing:border-box}
+.cl-addcol .cl-add input,.cl-addcol .cl-add select,.cl-addcol .cl-add input[type=date],.cl-addcol .cl-add .dbox .dtxt{width:100%;box-sizing:border-box}
 .cl-addcol .cl-add-btns{margin-left:0;justify-content:flex-end}
 .cl-addcol .cl-add .hint{flex:0 0 auto}
 @media (max-width:900px){ .cl-cols{grid-template-columns:1fr} .cl-addcol{position:static} }
@@ -24,6 +24,7 @@
 .cl-add{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin:0 0 10px}   /* 초록 테두리 · 바탕 상자는 없앰 (2026-11-28) — 칸과 버튼은 열에 그대로 */
 .cl-add label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
 .cl-add input{height:32px;border:1px solid #c9c4b8;border-radius:5px;padding:0 8px;font:inherit;font-size:13.5px;color:var(--ink);width:140px}
+.cl-add select{height:32px;border:1px solid #c9c4b8;border-radius:5px;padding:0 6px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;width:140px}   /* 직책 = 신부 · 수녀 · 신학생 셋 중 고르기 (2026-11-28) */
 .cl-add input[type=date]{width:150px}
 .cl-add-btns{display:flex;gap:6px;margin-left:auto}
 .cl-add .hint{flex:1 1 100%;margin:0}

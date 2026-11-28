@@ -122,16 +122,16 @@
   const clearAdd = () => { ['aOrg','aName','aPhone'].forEach(id=>{ $('#'+id).value=''; }); $('#aHint').textContent=''; $('#aOrg').focus(); };
   function buildAdd(){ const t=SY.ymd(new Date());
     $('#addBox').innerHTML = `<div class="cl-add"><label>방문일 <input type="date" id="aDate" value="${t}"></label><label>소속 <input id="aOrg" data-ime="ko" placeholder="본당 · 수녀원 · 기관"></label>`
-      + `<label>이름 <input id="aName" data-ime="ko"></label><label>직책 <input id="aPos" list="posList" data-ime="ko" value="수녀"><datalist id="posList"><option>수녀</option><option>신부</option><option>신학생</option></datalist></label>`
-      + `<label>연락처 <input id="aPhone" inputmode="tel"></label>`
+      + `<label>이름 <input id="aName" data-ime="ko"></label><label>직책 <select id="aPos"><option>신부</option><option selected>수녀</option><option>신학생</option></select></label>`
+      + `<label>연락처 <input type="tel" id="aPhone" data-tel inputmode="tel" autocomplete="off" placeholder="010-0000-0000"></label>`
       + `<span class="cl-add-btns"><button type="button" class="btn" id="aNo">비우기</button><button type="button" class="btn primary" id="aOk">저장</button></span><p class="hint" id="aHint"></p></div>`;
     makeDateBox($('#aDate')); }
-  const formRow = () => ({date:$('#aDate').value, org:$('#aOrg').value.trim(), name:$('#aName').value.trim(), pos:$('#aPos').value.trim(), phone:$('#aPhone').value.trim(), note:'', turn:''});
+  const formRow = () => ({date:$('#aDate').value, org:$('#aOrg').value.trim(), name:$('#aName').value.trim(), pos:$('#aPos').value.trim(), phone:(v=>SY.telBlank(v)?'':v)($('#aPhone').value.trim()), note:'', turn:''});
   function turnHint(){ if(!$('#aHint')) return; const r=formRow(); if(!r.name && !r.org){ $('#aHint').textContent=''; return; }
     const out=[]; if(r.name && /^\d{4}/.test(r.date)){ const c=visitsIn(rows, r); out.push(c>=2 ? `<b class="bad">${r.date.slice(0,4)}년에 이미 ${c}회 방문 — ${c+1}회차 (연 2회 넘음)</b>` : `${r.date.slice(0,4)}년 <b>${c+1}회차</b>`); }
     if(r.org){ const f=orgFind(r.org, rows); out.push(f ? `<b class="ok">✓ ${esc(f)}</b>` : '<b class="bad">대구대교구에서 찾지 못함 — 저장할 때 관리자 승인</b>'); }
     $('#aHint').innerHTML = out.join(' · '); }
-  document.addEventListener('input', e=>{ if(['aName','aPhone','aOrg','aDate'].includes(e.target.id)) turnHint(); if(e.target.id==='aPhone' && SY.phoneTyping) SY.phoneTyping(e.target, e.inputType); });
+  document.addEventListener('input', e=>{ if(['aName','aPhone','aOrg','aDate'].includes(e.target.id)) turnHint(); });   // 연락처의 010- · - 서식은 공통 처리(data-tel · js/common.js 맨 아래)
   buildAdd();
   async function saveNew(r){   // 회차는 서버가 넣는 순간 다시 셈
     let turn=''; if(await change(async ()=>{ turn=((await SY.call({action:'clergyAdd', row:r})).item||{}).turn||''; }, ()=>`「${r.name}」을 명부에 넣었습니다${turn?' ('+turn+')':''}.`)) clearAdd(); }
