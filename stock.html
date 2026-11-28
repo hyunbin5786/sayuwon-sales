@@ -6,9 +6,9 @@
 <title>재고관리 · 사유원 운영 보조 시스템</title>
 <script>/* 로그인(이름 + 사번)을 안 했으면 첫 화면으로 */ (function(){ try{ var u=JSON.parse(localStorage.getItem(((location.pathname.indexOf("/sayuwon-sales/test/")===0?"test:":"")+"sy_user"))||"null"); if(!u || !u.name || !u.emp) location.replace("./"); }catch(e){} })();</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/ops.css?v=20261128zn">
-<link rel="stylesheet" href="css/mypop.css?v=20261128zn">
-<link rel="stylesheet" href="css/menu.css?v=20261128zn">
+<link rel="stylesheet" href="css/ops.css?v=20261128zo">
+<link rel="stylesheet" href="css/mypop.css?v=20261128zo">
+<link rel="stylesheet" href="css/menu.css?v=20261128zo">
 </head>
 <body>
 <!-- 재고관리 (2026-11-21 운영보조에서 따로 나눈 페이지 · 2026-11-24 새로: 굿즈 전부 · 붕정 / 차방 · 입고 · 가져가기 · 차방 판매 · 스마트스토어 판매 · 2주마다 재고조사 = js/stockx.js) -->
@@ -50,16 +50,16 @@
 </div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="js/common.js?v=20261128zn"></script>
-<script src="js/opslib.js?v=20261128zn"></script>
-<script src="js/stock.js?v=20261128zn"></script>
-<script src="js/opsboard.js?v=20261128zn"></script>
-<script src="js/stockx.js?v=20261128zn"></script>
+<script src="js/common.js?v=20261128zo"></script>
+<script src="js/opslib.js?v=20261128zo"></script>
+<script src="js/stock.js?v=20261128zo"></script>
+<script src="js/opsboard.js?v=20261128zo"></script>
+<script src="js/stockx.js?v=20261128zo"></script>
 <div class="mypop" id="myPop" hidden><div class="box"><iframe id="myPopFrame" title="나의 할일"></iframe></div></div>
-<script src="js/mypop.js?v=20261128zn"></script>
-<script src="js/ime.js?v=20261128zn"></script>
-<script src="js/keepsize.js?v=20261128zn"></script>
-<script src="js/menu.js?v=20261128zn"></script>
-<script src="js/timepick.js?v=20261128zn"></script>
+<script src="js/mypop.js?v=20261128zo"></script>
+<script src="js/ime.js?v=20261128zo"></script>
+<script src="js/keepsize.js?v=20261128zo"></script>
+<script src="js/menu.js?v=20261128zo"></script>
+<script src="js/timepick.js?v=20261128zo"></script>
 </body>
 </html>

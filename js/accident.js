@@ -23,6 +23,11 @@ function accStageDate(d){ const s=accStatus(d), t=opsToday();
 const accWhen = d => `${opsDateLabel(d.date)}${d.time?' '+d.time:''}`;
 // 예전 현황판에서 옮길 때 사고 내용이 없던 기록에 넣어 둔 글(「(예전 사고 현황판에서 옮긴 기록 · …)」)은 빈 것으로 본다 (2026-11-28 운영팀 · 열면 칸이 비어 보이고 저장하면 자료에서도 빠짐)
 const accWhat = d => { const s=String((d && d.what)||''); return /^\s*[(（]?\s*예전 사고 현황판에서 옮긴 기록[^)）\n]*[)）]?\s*$/.test(s) ? '' : s; };
+// 목록 순서 = 사고 일시가 늦은 것부터 (2026-11-28 운영팀). 날짜 · 시각을 숫자로 바꿔 견준다 — 예전 기록의 「2025.3.4」 · 「9:30」 · 「오후 2시」 같은 모양도 제 자리에 오게 (글자로 견주면 9:30 이 14:00 보다 뒤로 간다). 날짜가 없으면 맨 아래
+const accKey = d => { const m=/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/.exec(String(d.date||'')), ts=String(d.time||''), t=/(\d{1,2})\s*[:시]\s*(\d{1,2})?/.exec(ts);
+  let h=t ? +t[1] : 0; if(t && /오후|PM|pm/.test(ts) && h<12) h+=12;
+  return (m ? (+m[1])*10000 + (+m[2])*100 + (+m[3]) : 0)*10000 + (t ? h*60 + (+t[2]||0) : 0); };
+const accByWhen = (a, b) => accKey(b.d)-accKey(a.d) || String(b.r.saved||'').localeCompare(String(a.r.saved||''));
 const accWon = n => (Math.round(+n||0)).toLocaleString('ko-KR');
 
 // ---------- 추후과업 (개인업무 줄 · d.acc = 사고 id) ----------
@@ -164,7 +169,7 @@ function accRender(hit){
     + `<label class="acc-done"><input type="checkbox" id="accShowDone"${accShowDone?' checked':''}> 완료된 것도 보기</label>`;
   $('#bSum').textContent=OPS_PAGE.hint;
   const list=base.filter(x=>hit(x.d) && shown(x))
-    .sort((a,b)=>String(b.d.date||'').localeCompare(String(a.d.date||'')) || String(b.d.time||'').localeCompare(String(a.d.time||'')) || String(b.r.saved).localeCompare(String(a.r.saved)));
+    .sort(accByWhen);
   if(!list.length){ $('#list').innerHTML=`<p class="empty">${rows.length ? '조건에 맞는 사고가 없습니다.' : '아직 접수된 사고가 없습니다.'}</p>`; return; }
   const what=d=>accWhat(d).split('\n')[0].slice(0,40);
   if(ACC_MQ.matches){ $('#list').innerHTML=`<div class="acc-cards">${list.map(x=>{ const d=x.d, s=accStatus(d);
@@ -318,7 +323,7 @@ function accStartShow(on){ accStartOn=!!on; const b=document.getElementById('acc
 function accStartPaint(){ const ul=document.getElementById('accStartList'), q=(document.getElementById('accStartQ')?.value||'').trim().toLowerCase(); if(!ul) return;
   if(!q){ ul.innerHTML=''; return; }
   const L=(typeof rows!=='undefined' ? rows : []).filter(x=>{ const d=x.d; return [d.date, d.place, d.type, d.group, d.person, d.booker, d.what, accOwner(d, x.r)].join(' ').toLowerCase().includes(q); })
-    .sort((a,b)=>String(b.d.date||'').localeCompare(String(a.d.date||''))).slice(0, 30);
+    .sort(accByWhen).slice(0, 30);
   ul.innerHTML = L.length ? L.map(x=>{ const d=x.d; return `<li><button type="button" class="acc-start-it" data-accopen="${esc(x.r.id)}"><span class="num">${esc(accWhen(d))}</span><b>${esc(d.place||'')}</b><small>${esc([d.type, d.person, accWhat(d).split('\n')[0]].filter(Boolean).join(' · '))}</small>${accTag(accStatus(d))}</button></li>`; }).join('')
     : `<li class="acc-start-none">찾는 사고가 없습니다.</li>`; }
 document.addEventListener('input', e=>{ if(e.target.id==='accStartQ') accStartPaint(); });
