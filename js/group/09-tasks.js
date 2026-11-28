@@ -236,8 +236,8 @@ const mbReport = r => [r.date && dateLabel(r.date), String(r.mabangTime||'').spl
 //  자료 = 예약 현황의 몽몽마방 목록과 같음 (mbAllRows — 단체 예약의 몽몽마방 식사 + 직접 넣은 것) · 지금 열어 둔 예약(이번에 보고하는 것)은 줄 바탕색을 다르게 + 「새 예약」 이름표
 async function mbListImg(){
   const today=todayYmd(), rows=mbAllRows().filter(x=>x.d && x.d>=today).sort((a,b)=>(a.d+String(a.t)).localeCompare(b.d+String(b.t)));
-  const W=920, PAD=36, FONT=getComputedStyle(document.body).fontFamily || 'sans-serif', f=(px,b)=>`${b?'700 ':''}${px}px ${FONT}`;
-  const COLS=[['일자',130,'c'],['시간',170,'c'],['단체',0,'l'],['인원',90,'c'],['메뉴',220,'l']], TW=W-PAD*2; COLS[2][1]=TW-COLS.reduce((s,c)=>s+c[1],0);
+  const W=1020, PAD=36, FONT=getComputedStyle(document.body).fontFamily || 'sans-serif', f=(px,b)=>`${b?'700 ':''}${px}px ${FONT}`;
+  const COLS=[['구분',112,'c'],['일자',130,'c'],['시간',170,'c'],['단체',0,'l'],['인원',90,'c'],['메뉴',220,'l']], TW=W-PAD*2; COLS[3][1]=TW-COLS.reduce((s,c)=>s+c[1],0);   // 「구분」 열 (2026-11-28 · 일자 앞 · 예약 현황 공유 목록과 같게 — 단체예약 / 직접 추가 · 그만큼 이미지를 넓힘)
   const probe=document.createElement('canvas').getContext('2d');
   const cut=(text,w,px,b)=>{ probe.font=f(px,b); let s=String(text||''); if(probe.measureText(s).width<=w) return s; while(s && probe.measureText(s+'…').width>w) s=s.slice(0,-1); return s+'…'; };
   const RH=56, HEAD=118, TH=52, FOOT=24, body=(rows.length||1)*RH, H=HEAD+TH+body+FOOT;
@@ -252,13 +252,14 @@ async function mbListImg(){
   let y=ty+TH;
   rows.forEach((x,i)=>{ const cur=!!x.cur; ctx.fillStyle = cur ? '#ffe9b0' : i%2 ? '#faf8f3' : '#fff'; ctx.fillRect(tx,y,TW,RH); if(i){ ctx.fillStyle='#ebe7dd'; ctx.fillRect(tx,y,TW,1); }
     let cx=tx; const mid=y+RH/2, ink=cur?'#5a3b00':'#2b2a26';
-    ctx.textAlign='center'; ctx.font=f(20,cur); ctx.fillStyle = !cur && isRedDay(x.d) ? '#b3412e' : ink; ctx.fillText(dateLabel(x.d), cx+COLS[0][1]/2, mid); cx+=COLS[0][1];
-    ctx.fillStyle = x.t ? ink : '#b3412e'; ctx.fillText(x.t||'미정', cx+COLS[1][1]/2, mid); cx+=COLS[1][1];
+    { const m=!x.auto, lb=m?'직접 추가':'단체예약'; ctx.textAlign='center'; ctx.font=f(15,1); const kw=ctx.measureText(lb).width+18; ctx.fillStyle=m?'#f6ecdc':'#e7efe2'; ctx.fillRect(cx+COLS[0][1]/2-kw/2, mid-13, kw, 26); ctx.fillStyle=m?'#8a5a1c':'#4f6b3f'; ctx.fillText(lb, cx+COLS[0][1]/2, mid+1); cx+=COLS[0][1]; }   // 구분 (색 이름표)
+    ctx.textAlign='center'; ctx.font=f(20,cur); ctx.fillStyle = !cur && isRedDay(x.d) ? '#b3412e' : ink; ctx.fillText(dateLabel(x.d), cx+COLS[1][1]/2, mid); cx+=COLS[1][1];
+    ctx.fillStyle = x.t ? ink : '#b3412e'; ctx.fillText(x.t||'미정', cx+COLS[2][1]/2, mid); cx+=COLS[2][1];
     ctx.textAlign='left'; ctx.fillStyle=ink; ctx.font=f(21,1);
     { let ox=cx+14; if(cur){ ctx.font=f(15,1); const tw=ctx.measureText('새 예약').width+16; ctx.fillStyle='#8a5a00'; ctx.fillRect(ox, mid-13, tw, 26); ctx.fillStyle='#fff'; ctx.fillText('새 예약', ox+8, mid+1); ox+=tw+8; ctx.fillStyle=ink; ctx.font=f(21,1); }
-      ctx.fillText(cut(x.n, cx+COLS[2][1]-ox-8, 21, 1), ox, mid); } cx+=COLS[2][1];
-    ctx.textAlign='center'; ctx.font=f(20,cur); ctx.fillText(x.p ? x.p+'명' : '-', cx+COLS[3][1]/2, mid); cx+=COLS[3][1];
-    ctx.textAlign='left'; ctx.fillText(cut(x.m||'', COLS[4][1]-22, 20, cur), cx+14, mid); y+=RH; });
+      ctx.fillText(cut(x.n, cx+COLS[3][1]-ox-8, 21, 1), ox, mid); } cx+=COLS[3][1];
+    ctx.textAlign='center'; ctx.font=f(20,cur); ctx.fillText(x.p ? x.p+'명' : '-', cx+COLS[4][1]/2, mid); cx+=COLS[4][1];
+    ctx.textAlign='left'; ctx.fillText(cut(x.m||'', COLS[5][1]-22, 20, cur), cx+14, mid); y+=RH; });
   if(!rows.length){ ctx.fillStyle='#fff'; ctx.fillRect(tx,y,TW,RH); ctx.textAlign='center'; ctx.font=f(19); ctx.fillStyle='#7a766b'; ctx.fillText('앞으로 있을 몽몽마방 예약이 없습니다', tx+TW/2, y+RH/2); ctx.textAlign='left'; }
   window.__mbImgCanvas=cv;   // 마지막으로 만든 이미지 (확인용)
   return { blob: await new Promise(r=>cv.toBlob(r, 'image/png')), n:rows.length, cur:rows.filter(x=>x.cur).length }; }
