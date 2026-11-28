@@ -203,3 +203,7 @@ body.pg-acc #keyBox{margin:14px 16px}
   body.pg-acc #editModal .edit-box{border:0;min-height:0}
   body.pg-acc header .hd-btn{padding:4px 9px}
 }
+/* 대표 예약자가 사고 대상자와 같음 (체크) */
+.acc-same{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink);cursor:pointer;min-height:28px}
+.ef .acc-same input{width:16px;height:16px;padding:0;flex:none;accent-color:var(--pine)}
+@media (max-width:700px){ body.pg-acc .ef .acc-same input{width:20px;height:20px} .acc-same{font-size:15px;min-height:40px} }

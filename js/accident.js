@@ -195,7 +195,9 @@ const OPS_PAGE =
       {type:'head', l:'사고 대상자 · 대표 예약자', col:()=>accEd() ? 1 : 2},
       {k:'person', l:'사고 대상자 이름', type:'text'}, {k:'phone', l:'사고 대상자 연락처', ...accTel('사고 대상자 연락처')},
       {k:'personNote', l:'대상자 비고 (성별 · 연령대 등)', type:'text', w:2},
+      {k:'bookerSame', w:2, html:d=>`<label class="acc-same"><input type="checkbox" id="accSame"${d.bookerSame?' checked':''}> 대표 예약자가 사고 대상자와 같음</label>`},   // 체크하면 대표 예약자 이름 · 연락처 = 사고 대상자의 것 (적는 대로 따라감 · 아래 「대표 예약자 = 사고 대상자」)
       {k:'booker', l:'대표 예약자 이름', type:'text'}, {k:'bookerPhone', l:'대표 예약자 연락처', ...accTel('대표 예약자 연락처')},
+      {k:'erp', l:'상품 정보', type:'textarea', w:2, ph:'전산의 상품 정보를 복사해 붙여 넣기'},   // 전산의 예약 상품 내역 (방문일자 · 상품 · 인원 · 금액) — 붙여 넣으면 방문자 이름 · 연락처를 비어 있는 대표 예약자 칸에 넣음
 
       {type:'head', l:'사고 내용', col:()=>accEd() ? 1 : 3},
       {k:'what', l:'사고 내용', type:'textarea', w:2},
@@ -231,7 +233,7 @@ const OPS_PAGE =
     lockBy:row=>accMine(row) ? '' : accOwner(row.d, row.r),
     normalize:d=>{ d.status=accStatus(d); if(accEd() && !d.owner) d.owner=accOwner(d, editRow.r); delete d._tasks; delete d._notes; delete d._copy; },
     onField:(k, d)=>{ if(k==='status') accStageDate(d); },
-    afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
+    afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); accSameLock(); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
     // 저장한 뒤: 새 사고 = 담당자의 나의 할일에 한 건 · 담당자를 바꿨으면 남은 과업을 새 담당자에게 · 처리 완료면 남은 과업을 끝냄
     afterSave:async (nr, was)=>{ accGo=nr.r.id; try{ const o=accOwner(nr.d, nr.r), id=nr.r.id;
         if(!was){ await accTaskNew(nr, '접수 확인 · 보험 접수 여부 정하기', o, 'new'); if(accEd() && editRow.r.id===id) accSide(); return; }
@@ -275,3 +277,16 @@ async function accBulk(){ const who=accBulkWho || document.getElementById('accBu
     try{ for(const t of accTasks(id).filter(t=>!accTaskDone(t.d) && t.d.owner===po)) await accTaskPut({...t.r, owner:who}, t.j, {...t.d, owner:who}, `담당자 ${po} → ${who}`); }catch(err){ accFail(err); } }
   render(); if(n) toast(`${n}건의 담당자를 「${who}」(으)로 바꿨습니다.`);
   if(accEd() && ids.includes(editRow.r.id)){ const x=rows.find(y=>y.r.id===editRow.r.id); if(x) openEdit(x); } }
+
+// ---------- 대표 예약자 = 사고 대상자 (체크) · 상품 정보 붙여넣기 (2026-11-28) ----------
+//  체크(d.bookerSame)해 두면 대표 예약자 이름 · 연락처 칸은 잠기고 사고 대상자 칸을 따라간다. 체크를 풀면 값은 남고 다시 고칠 수 있다.
+function accSameCopy(){ if(!form.bookerSame) return; form.booker=form.person||''; form.bookerPhone=form.phone||'';
+  const a=document.getElementById('e_booker'), b=document.getElementById('e_bookerPhone'); if(a) a.value=form.booker; if(b) b.value=form.bookerPhone; }
+function accSameLock(){ if(!form.bookerSame) return; ['e_booker','e_bookerPhone'].forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=true; }); }
+document.addEventListener('change', e=>{ const t=e.target; if(t.id==='accSame'){ form.bookerSame=t.checked; accSameCopy(); paintForm(); return; }
+  if(t.dataset && (t.dataset.k==='person' || t.dataset.k==='phone')){ accSameCopy(); return; }
+  // 상품 정보를 붙여 넣으면: 「방문자정보 이름(연락처)」 줄에서 대표 예약자를 채움 (비어 있을 때만 · 「같음」을 체크했으면 건드리지 않음)
+  if(t.dataset && t.dataset.k==='erp' && !form.bookerSame && !form.booker && !form.bookerPhone){ const m=/방문자\s*정보\s*([^\s(（]+)\s*[(（]\s*([\d\- ]{8,})\s*[)）]/.exec(form.erp||'');
+    if(m){ form.booker=m[1]; form.bookerPhone=(SY.fmtPhone && SY.fmtPhone(m[2])) || m[2].trim(); paintForm(); } } });
+document.addEventListener('input', e=>{ const k=e.target.dataset && e.target.dataset.k; if(k==='person' || k==='phone') accSameCopy(); });
+document.addEventListener('focusout', e=>{ if(e.target.dataset && e.target.dataset.k==='phone') setTimeout(accSameCopy, 0); });
