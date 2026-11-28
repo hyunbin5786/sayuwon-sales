@@ -1307,7 +1307,7 @@ const isCoupon = k => /음료쿠폰/.test(LABEL[k]||'') || /음료쿠폰/.test(P
 const bookCat = k => RENT_PLACE[k] ? 'rent' : (DOCENT_KIND[k] || isDocent(LABEL[k])) ? 'docent' : isCoupon(k) ? 'coupon' : 'prog';
 const BOOK_CATS = { rent:'대관', docent:'도슨트', prog:'프로그램', coupon:'음료쿠폰' };
 function bookRows(withMe){ try{ return bookRows0(withMe); }catch(_){ return []; } }   // 초기화 중(아래 정의 전)에 불려도 되게
-// withMe: 예약 목록 창 · 내 일정 출력은 지금 열어 둔 예약도 (화면의 값으로, 「지금 이 예약」 표시 · 2026-11-23: 열어 둔 예약이 도슨트 명단에서 사라지던 것)
+// withMe: 예약 목록 창 · 내 일정 출력은 지금 열어 둔 예약도 (화면의 값으로, 줄 바탕 노랗게 · 2026-11-23: 열어 둔 예약이 도슨트 명단에서 사라지던 것)
 //         그날 건수 · 「다른 예약 n건」은 예전처럼 다른 예약만
 function bookRows0(withMe){
   const out=[];
@@ -1451,7 +1451,7 @@ const bkHeadHTML = c => `<tr>${BK_COLS(c).map((h,i)=>`<th class="${BK_CLS[i]}">$
 const BK_SRC = { g:'단체예약', m:'직접 추가' };
 const bkSrcTag = s => `<span class="tag bk-src ${s==='m'?'m':'g'}">${BK_SRC[s==='m'?'m':'g']}</span>`;
 // 한 줄: v = {src, d, tm, org, n, x, staff, note} · cls/attr = 줄 표시 · acts = 오른쪽 끝
-const bkRowHTML = (v, cls, attr, acts) => `<tr class="${cls}"${attr}><td class="c-k">${bkSrcTag(v.src)}${acts||''}</td><td class="c-d">${esc(dateLabel(v.d))}</td><td class="c-t">${esc(v.tm||'')}</td><td class="c-o"><b>${esc(v.org||'')}</b></td><td class="c-n num">${esc(v.n||'')}</td><td class="c-x">${v.x||''}</td><td class="c-s" style="white-space:pre-line">${esc(v.staff||'')}</td><td class="c-m note">${v.note||''}</td></tr>`;   // acts = 「지금 이 예약」 이름표 (구분 칸 안 · 단체 화면에서 열어 둔 예약)
+const bkRowHTML = (v, cls, attr, acts) => `<tr class="${cls}"${attr}><td class="c-k">${bkSrcTag(v.src)}${acts||''}</td><td class="c-d">${esc(dateLabel(v.d))}</td><td class="c-t">${esc(v.tm||'')}</td><td class="c-o"><b>${esc(v.org||'')}</b></td><td class="c-n num">${esc(v.n||'')}</td><td class="c-x">${v.x||''}</td><td class="c-s" style="white-space:pre-line">${esc(v.staff||'')}</td><td class="c-m note">${v.note||''}</td></tr>`;   // acts = 구분 칸 안에 더 넣을 것 (지금은 없음 · 열어 둔 예약은 tr.now 로 줄 바탕만 노랗게 — 2026-11-28)
 function manualRows(){ try{ return bkDb().rows.map(x=>({...x, manual:true, ppl:+x.ppl||0})); }catch(_){ return []; } }   // 직접 넣은 대관 · 도슨트 · 프로그램
 // ===== 예약 목록 찾기 (2026-11-25 · 2026-11-27 「기간 설정」 단추 없앰): 날짜 칸 두 개를 바로 누름 (비어 있으면 전체 · 하나만 고르면 그날 하루 · 둘이 다르면 기간 · 끝은 시작보다 앞설 수 없음 · 「초기화」 = 전체로) + 검색어(프로그램 · 업체명 · 담당자 이름 · 띄어 쓰면 모두 맞는 것) =====
 function bkFind(){ const v=id=>(document.getElementById(id)||{}).value||'', q=v('bfQ').trim().toLowerCase();
@@ -1507,8 +1507,7 @@ function paintBook(){
 // 대관 · 도슨트 · 프로그램 · 음료쿠폰 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표 · 수정 단추의 data-bcat = 그 줄의 목록)
 const bkWhat = x => x.cat==='rent' ? (x.place||'(장소 미정)') : x.cat==='docent' ? [x.kind, x.place].filter(Boolean).join(' · ') : (x.item||'');   // 내용 칸
 const bkGenRow = (x, today, tag) => bkRowHTML({src:x.manual?'m':'g', d:x.d, tm:(x.tm||(x.cat==='docent'?'(미정)':'')),   /* 2026-11-28: 시간 뒤의 「(1시간)」 은 안 보임 (운영팀 요청 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 모두) */  org:x.org, n:x.ppl?x.ppl+(x.cat==='coupon'?'장':'명'):'', x:esc(bkWhat(x)), staff:x.staff, note:esc(x.note||'')},
-      `r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}`, x.manual?` data-bkrow="${esc(x.id)}" data-bcat="${esc(x.cat)}" title="누르면 고치는 창이 뜹니다 (직접 추가한 예약 · 빼기도 그 창에서)"`:` data-bopen="${esc(x.id)}"`,
-      `${!x.manual && x.me ? '<span class="tag call bk-now" title="지금 화면에서 열어 둔 예약 (저장 전 내용도 바로)">지금 이 예약</span>' : ''}`);   // 끝 열의 「단체예약」 이름표는 없앰 (2026-11-27 · 줄을 누르면 그 예약이 열리는 것은 그대로)
+      `r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}${!x.manual && x.me?' now':''}`, x.manual?` data-bkrow="${esc(x.id)}" data-bcat="${esc(x.cat)}" title="누르면 고치는 창이 뜹니다 (직접 추가한 예약 · 빼기도 그 창에서)"`:` data-bopen="${esc(x.id)}"${x.me?' title="지금 화면에서 열어 둔 예약 (저장 전 내용도 바로)"':''}`, '');   // 끝 열의 「단체예약」 이름표는 없앰 (2026-11-27 · 줄을 누르면 그 예약이 열리는 것은 그대로)
 // ===== 모든 목록에서 찾기 (2026-11-27): 찾기 칸에 글자를 넣으면 고른 목록 하나가 아니라 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 다섯 목록을 한 표에 (한 사람이 여러 목록의 담당일 때가 있어서)
 //  (2026-11-27 다시) 줄마다 이름표를 붙이지 않고 목록마다 상자를 나눠 그 안에 (#bookAll · 상자 제목 = 목록 이름 + 건수 · 표의 칸 이름은 그 목록 것) · 글자를 지우면 고른 목록으로 돌아감 · 날짜만 고른 것은 예전처럼 고른 목록 안에서 · 탭을 누르면 검색어를 지우고 그 목록으로
 //  자료는 로그인한 사람(list) · 로그인 안 한 사람(bookList) 모두 다섯 목록 것을 한 번에 받아 두므로 서버는 그대로
@@ -1815,8 +1814,7 @@ function mbAutoRows(){ try{
 function mbAllRows(){ return [...mbDb().rows.map((x,i)=>({...x, i})), ...mbAutoRows()]; }   // 직접 넣은 것(i = 몇 번째) + 단체 예약에서 자동
 // 몽몽마방 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표)
 function mbRow(x, today, tag){ return bkRowHTML({src:x.auto?'g':'m', d:x.d, tm:x.t, org:x.n, n:x.p?x.p+'명':'', x:esc(x.m||''), staff:x.staff||'', note:[x.pay==='마방'?'마방 결제':'', esc(x.note||'')].filter(Boolean).join(' · ')},
-      `${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}`, x.auto ? (x.cur ? '' : ` data-bopen="${esc(x.id)}"`) : ` data-mbrow="${x.i}" data-bcat="mb" title="누르면 고치는 창이 뜹니다 (직접 추가한 예약 · 빼기도 그 창에서)"`,
-      `${x.cur ? '<span class="tag call bk-now" title="지금 화면에서 입력 중인 예약 (저장 전이어도 바로)">지금 이 예약</span>' : ''}`); }
+      `${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}${x.cur?' now':''}`, x.auto ? (x.cur ? ' title="지금 화면에서 입력 중인 예약 (저장 전이어도 바로)"' : ` data-bopen="${esc(x.id)}"`) : ` data-mbrow="${x.i}" data-bcat="mb" title="누르면 고치는 창이 뜹니다 (직접 추가한 예약 · 빼기도 그 창에서)"`, ''); }   // 지금 열어 둔 예약 = 줄 바탕만 노랗게 (tr.now · 2026-11-28: 「지금 이 예약」 이름표는 없앰)
 function paintMbDb(){
   const db=mbDb(), today=todayYmd(), past=$('#bookPast').checked;   // 지난 예약도 보기 (예약 목록 창 공통)
   const all=mbAllRows();
@@ -2563,7 +2561,7 @@ const MABANG_RULES = `■ 무엇
   기본 {마방보고} = 방문일 시작 시각 단체명 인원 메뉴 + 「있습니다」 — 넣은 것만 · 예약 내용이 바뀌면 글도 바뀜
   예) 12/5(토) 12:00 중앙교육연수원 10명 사유의 밥상 있습니다
   「예약 목록 이미지 복사」 (컴퓨터에서만 보임): 오늘부터 앞으로 있는 몽몽마방 예약을 모두 표 이미지로 복사 → 메신저에 Ctrl+V 로 붙여 글과 같이 보냄
-    · 이번에 보고하는 예약(지금 열어 둔 예약)은 줄 색이 다르고 「새 예약」 이름표가 붙음 · 복사가 안 되는 브라우저에서는 파일로 내려받음
+    · 이번에 보고하는 예약(지금 열어 둔 예약)은 줄 바탕이 노란색 · 복사가 안 되는 브라우저에서는 파일로 내려받음
   과업에서 글을 직접 고칠 수도 있음 (고친 뒤 「다시 만들기」를 누르면 예약 내용으로)
 
 ■ 다른 과업과 겹치는 것
@@ -2578,7 +2576,7 @@ const MABANG_RULES = `■ 무엇
 //  2026-11-27 (같은 날 다시 · 운영팀이 정한 모양): 「12/3(목) 11:00 의성군가족센터 23명 사유의 밥상 있습니다」 — 방문일 · 시작 시각 · 단체명 · 인원 · 메뉴 + 「있습니다」 (결제 · 비고 · 끝 시각은 넣지 않음)
 const mbReport = r => [r.date && dateLabel(r.date), String(r.mabangTime||'').split('~')[0].trim(), String(r.org||'').trim(), numOf(r.mabangL) ? numOf(r.mabangL)+'명' : '', String(r.mabangMenu||'').trim(), '있습니다'].filter(Boolean).join(' ');
 // 몽몽마방 예약 목록 이미지 (2026-11-27): 보고하는 날(오늘)부터 앞으로 있는 몽몽마방 예약 모두를 표 한 장으로 → 클립보드에 복사 (메신저에 Ctrl+V 로 붙여 넣어 보고 글과 같이 보냄 · 컴퓨터에서만 — 버튼은 renderTasks)
-//  자료 = 예약 현황의 몽몽마방 목록과 같음 (mbAllRows — 단체 예약의 몽몽마방 식사 + 직접 넣은 것) · 지금 열어 둔 예약(이번에 보고하는 것)은 줄 바탕색을 다르게 + 「새 예약」 이름표
+//  자료 = 예약 현황의 몽몽마방 목록과 같음 (mbAllRows — 단체 예약의 몽몽마방 식사 + 직접 넣은 것) · 지금 열어 둔 예약(이번에 보고하는 것)은 줄 바탕만 노랗게 (2026-11-28: 「새 예약」 이름표 · 굵은 갈색 글자는 없앰 — 운영팀 요청 「배경만」 · 오른쪽 위 범례는 그대로)
 async function mbListImg(){
   const today=todayYmd(), rows=mbAllRows().filter(x=>x.d && x.d>=today).sort((a,b)=>(a.d+String(a.t)).localeCompare(b.d+String(b.t)));
   const W=1020, PAD=36, FONT=getComputedStyle(document.body).fontFamily || 'sans-serif', f=(px,b)=>`${b?'700 ':''}${px}px ${FONT}`;
@@ -2596,15 +2594,14 @@ async function mbListImg(){
   { let cx=tx; ctx.font=f(19,1); ctx.fillStyle='#fff'; COLS.forEach(([n,w,al])=>{ ctx.textAlign=al==='c'?'center':'left'; ctx.fillText(n, al==='c'?cx+w/2:cx+14, ty+TH/2); cx+=w; }); ctx.textAlign='left'; }
   let y=ty+TH;
   rows.forEach((x,i)=>{ const cur=!!x.cur; ctx.fillStyle = cur ? '#ffe9b0' : i%2 ? '#faf8f3' : '#fff'; ctx.fillRect(tx,y,TW,RH); if(i){ ctx.fillStyle='#ebe7dd'; ctx.fillRect(tx,y,TW,1); }
-    let cx=tx; const mid=y+RH/2, ink=cur?'#5a3b00':'#2b2a26';
+    let cx=tx; const mid=y+RH/2, ink='#2b2a26';
     { const m=!x.auto, lb=m?'직접 추가':'단체예약'; ctx.textAlign='center'; ctx.font=f(15,1); const kw=ctx.measureText(lb).width+18; ctx.fillStyle=m?'#f6ecdc':'#e7efe2'; ctx.fillRect(cx+COLS[0][1]/2-kw/2, mid-13, kw, 26); ctx.fillStyle=m?'#8a5a1c':'#4f6b3f'; ctx.fillText(lb, cx+COLS[0][1]/2, mid+1); cx+=COLS[0][1]; }   // 구분 (색 이름표)
-    ctx.textAlign='center'; ctx.font=f(20,cur); ctx.fillStyle = !cur && isRedDay(x.d) ? '#b3412e' : ink; ctx.fillText(dateLabel(x.d), cx+COLS[1][1]/2, mid); cx+=COLS[1][1];
+    ctx.textAlign='center'; ctx.font=f(20); ctx.fillStyle = isRedDay(x.d) ? '#b3412e' : ink; ctx.fillText(dateLabel(x.d), cx+COLS[1][1]/2, mid); cx+=COLS[1][1];
     ctx.fillStyle = x.t ? ink : '#b3412e'; ctx.fillText(x.t||'미정', cx+COLS[2][1]/2, mid); cx+=COLS[2][1];
     ctx.textAlign='left'; ctx.fillStyle=ink; ctx.font=f(21,1);
-    { let ox=cx+14; if(cur){ ctx.font=f(15,1); const tw=ctx.measureText('새 예약').width+16; ctx.fillStyle='#8a5a00'; ctx.fillRect(ox, mid-13, tw, 26); ctx.fillStyle='#fff'; ctx.fillText('새 예약', ox+8, mid+1); ox+=tw+8; ctx.fillStyle=ink; ctx.font=f(21,1); }
-      ctx.fillText(cut(x.n, cx+COLS[3][1]-ox-8, 21, 1), ox, mid); } cx+=COLS[3][1];
-    ctx.textAlign='center'; ctx.font=f(20,cur); ctx.fillText(x.p ? x.p+'명' : '-', cx+COLS[4][1]/2, mid); cx+=COLS[4][1];
-    ctx.textAlign='left'; ctx.fillText(cut(x.m||'', COLS[5][1]-22, 20, cur), cx+14, mid); y+=RH; });
+    ctx.fillText(cut(x.n, COLS[3][1]-22, 21, 1), cx+14, mid); cx+=COLS[3][1];
+    ctx.textAlign='center'; ctx.font=f(20); ctx.fillText(x.p ? x.p+'명' : '-', cx+COLS[4][1]/2, mid); cx+=COLS[4][1];
+    ctx.textAlign='left'; ctx.fillText(cut(x.m||'', COLS[5][1]-22, 20), cx+14, mid); y+=RH; });
   if(!rows.length){ ctx.fillStyle='#fff'; ctx.fillRect(tx,y,TW,RH); ctx.textAlign='center'; ctx.font=f(19); ctx.fillStyle='#7a766b'; ctx.fillText('앞으로 있을 몽몽마방 예약이 없습니다', tx+TW/2, y+RH/2); ctx.textAlign='left'; }
   window.__mbImgCanvas=cv;   // 마지막으로 만든 이미지 (확인용)
   return { blob: await new Promise(r=>cv.toBlob(r, 'image/png')), n:rows.length, cur:rows.filter(x=>x.cur).length }; }

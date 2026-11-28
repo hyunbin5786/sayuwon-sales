@@ -1587,7 +1587,7 @@ html.alert-only #tbdModal button.win-x{top:calc(4px + env(safe-area-inset-top,0p
 @media (max-width:700px){ .memo-panel .memo-hist-btn{height:30px;padding:0 10px;font-size:13px} }   /* 휴대폰: 「수정 기록」도 낮게 (입력란의 「저장」은 38px 그대로) */
 /* ===== 예약 목록 「구분」 열 (2026-11-28 · 날짜 앞): 단체 예약에서 온 줄 = 단체예약(초록) · 직접 넣은 줄 = 직접 추가(황토) — 이름표로만 가림 (왼쪽 색 띠 없음) ===== */
 .tag.bk-src{white-space:nowrap}
-.tag.bk-now{display:block;width:max-content;margin-top:3px;white-space:nowrap}
+.mbdb-t tr.now td,.mbdb-t tr.now:hover td{background:#ffe9b0}   /* 지금 열어 둔 예약(새 예약) = 줄 바탕만 노랗게 (2026-11-28 · 「지금 이 예약」 이름표 대신 · 색은 예약 목록 이미지와 같음 · 같은 날 초록 · 마우스 올림보다 먼저) */
 .tag.bk-src.g{background:#e7efe2;color:#4f6b3f}
 .tag.bk-src.m{background:#f6ecdc;color:#8a5a1c}
 /* 직접 추가 창 (2026-11-28): 꼭 넣는 칸 * · 창 안의 「이 예약 빼기」(왼쪽) · 오른쪽 위 × 자리 */
