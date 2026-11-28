@@ -123,6 +123,7 @@ const SY = Object.freeze({
     if(del && el.value.endsWith('-') && f===el.value.replace(/-$/,'')) f=el.value.replace(/-$/,'');
     return f;
   },
+  telBlank: v => /^010-?$/.test(String(v||'').trim()),   // 저절로 넣은 010- 만 든 값 = 빈 것 (2026-11-28 · 맨 아래 「전화번호 · 연락처 칸 공통」)
   // 큰 사본 저장소 (2026-11-21): 브라우저 저장소(localStorage)는 사이트마다 약 5MB 라 단체 기록 사본이 커지면 조용히 못 씀 →
   // IndexedDB(수백 MB) 에 키 하나 = 값 하나. 막혀 있으면 null · 조용히 넘어감
   idb: (()=>{ let p=null; const open = () => p || (p = new Promise((ok, no)=>{ try{ const r=indexedDB.open('sayuwon', 1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>ok(r.result); r.onerror=()=>no(r.error); }catch(e){ no(e); } }));
@@ -393,4 +394,12 @@ const SY_ALERT = (function(){
   // 내가 맡은 고객 견적 요청 (나의 할일 메인의 「고객 견적 요청」과 같은 기준 · 단체 화면이 받아 이 브라우저에 적어 둔 것 sy_my_quotereq)
   const quoteReqs = me => { try{ const q=JSON.parse(localStorage.getItem('sy_my_quotereq')||'null')||{}; return me && (!(q.owners||[]).length || q.owners.includes(me)) ? (q.items||[]) : []; }catch(_){ return []; } };
   return Object.freeze({ DEF, times, set, hm, say, label, slot, openWin, show, keyNow, seen, mark, quoteReqs, help, test, notiPerm });
+})();
+// ===== 전화번호 · 연락처 칸 공통 (2026-11-28 · 운영팀이 정한 화면 규칙 — CLAUDE.md 8절): 입력 칸에 data-tel 만 붙이면 됨 =====
+//  ① 빈 칸을 누르면(들어가면) 010- 이 저절로 · 커서는 그 뒤  ② 치는 동안 - 를 저절로 (SY.phoneTyping — 02 · 031 · 1588 도 자릿수에 맞춰)  ③ 아무것도 더 안 치고 나가면 도로 비움 · 나갈 때 모양을 한 번 더 맞춤
+//  값을 읽는 쪽은 그냥 el.value 를 읽으면 됨 (010- 만 든 채 저장을 누르는 경우만 SY.telBlank 로 거름). 예전부터 있던 칸(단체 · 개인 · 분실물)은 저마다 같은 동작을 따로 갖고 있어 그대로 둠
+(function(){ const T = e => { const el=e.target; return el && el.matches && el.matches('input[data-tel]') && !el.readOnly && !el.disabled ? el : null; };
+  document.addEventListener('focusin', e=>{ const el=T(e); if(!el || el.value) return; el.value='010-'; el.dataset.autop='1'; setTimeout(()=>{ try{ el.setSelectionRange(4,4); }catch(_){} }, 0); });
+  document.addEventListener('input', e=>{ const el=T(e); if(!el) return; if(/^delete/.test(e.inputType||'')) delete el.dataset.autop; el.value=SY.phoneTyping(el, e.inputType); });
+  document.addEventListener('focusout', e=>{ const el=T(e); if(!el) return; delete el.dataset.autop; if(SY.telBlank(el.value)){ el.value=''; return; } const f=SY.fmtPhone(el.value); if(f) el.value=f; });
 })();
