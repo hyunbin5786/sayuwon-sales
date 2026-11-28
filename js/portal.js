@@ -241,7 +241,7 @@ function dashRecs(items){
     }
   });
   // 고객 견적 요청 (2026-11-23 · 2026-11-24 바꿈): 아직 「접수」인 요청 = 담당 없는 공통 업무 (대시보드 4열 2행) · 마감 = 접수한 날
-  (lastReq.items||[]).forEach(r=>{ [''].forEach(o=>recs.push({kind:'기타', owner:o, src:'quote', name:`${(typeof cmRule==='function' && cmRule('quote').title)||'견적 요청'} · ${r.org||''} ${r.name?r.name+'님':''}`.trim(), q:[r.org,r.name,r.phone].join(' '),
+  (lastReq.items||[]).forEach(r=>{ [''].forEach(o=>recs.push({kind:'기타', owner:o, src:'quote', cm:'quote', cmKeys:[String(r.at||[r.org,r.name,r.date].join('|'))], made:String(r.at||'').slice(0,10)||opsToday(), name:`${(typeof cmRule==='function' && cmRule('quote').title)||'견적 요청'} · ${r.org||''} ${r.name?r.name+'님':''}`.trim(), q:[r.org,r.name,r.phone].join(' '),
     tasks:[{title:((typeof cmRule==='function' && cmRule('quote').text)||'견적서 · 거래명세서 발급')+(r.date?` (방문 ${opsDateLabel(r.date)})`:''), due:String(r.at||'').slice(0,10)||opsToday()}], href:QUOTE})); });   // 이름 · 할 일은 공통 업무 관리(js/commonmgr.js)에서 고침
   return recs;
 }
@@ -275,10 +275,10 @@ const devOff = p => typeof SY_DEV!=='undefined' && SY_DEV.off(p);   // 배포 �
 var LOST_TASK_FROM = '2026-11-27';   // 이 날(저장 시각 기준)부터 접수된 분실물 신고만 공통 업무에 올림 (아래 commonExtra)
 function commonExtra(today){ const out=[];
   if(cmOn('promo') && !devOff('promo.html')){ const R=cmRule('promo');
-    opsPromoAlerts(histOf('promodb'), today, cmMonths()).forEach(a=>out.push({kind:'공통', owner:'', name:`${R.title||'기업 프로모션'} ${a.label} · ${a.name}`, q:a.name, href:'promo.html',
+    opsPromoAlerts(histOf('promodb'), today, cmMonths()).forEach(a=>out.push({kind:'공통', owner:'', cm:'promo', cmKeys:[a.id+'|'+a.kind], made:a.due, name:`${R.title||'기업 프로모션'} ${a.label} · ${a.name}`, q:a.name, href:'promo.html',
       tasks:[{title:`만료 ${opsDateLabel(a.end)} · ${R.text||'연장 여부 확인'}`, due:a.due}]})); }
   const ag=cmOn('agency') && !devOff('agency.html') && opsAggDue(histOf('agencydb'), today), RA=cmRule('agency');
-  if(ag) out.push({kind:'공통', owner:'', name:`${RA.title||'협업 여행사 집계기록 넣기'} · ${ag.label}`, q:'협업 여행사 집계 '+(RA.title||''), href:'agency.html',
+  if(ag) out.push({kind:'공통', owner:'', cm:'agency', cmKeys:[ag.label], made:ag.due, name:`${RA.title||'협업 여행사 집계기록 넣기'} · ${ag.label}`, q:'협업 여행사 집계 '+(RA.title||''), href:'agency.html',
     tasks:[{title:`${opsDateLabel(ag.from)} ~ ${opsDateLabel(ag.to)} · ${RA.text||'방문기록 엑셀을 넣어 여행사별 집계'}`, due:ag.due}]});
   // 분실물 신고 (2026-11-27): 새로 접수돼 아직 「찾는 중」인 신고 하나 = 공통 업무 하나 · 마감 = 접수일 · 누르면 그 신고가 열림 (lost.html?open=) · 분실물 찾기에서 「처리완료」로 바꾸면(또는 삭제하면) 빠짐.
   //  따로 저장하지 않고 분실물 기록(통화 구분 「분실물」)을 읽어 보임 → 같은 신고가 두 번 생기지 않고, 로그인 없이 접수한 신고도 그대로 나옴. 고객 이름 · 전화번호는 넣지 않음.
@@ -287,7 +287,7 @@ function commonExtra(today){ const out=[];
     (lastItems||[]).forEach(r=>{ if(r.deleted || r.callType!==OPS_TYPES.lost || String(r.saved||'')<LOST_TASK_FROM) return;
       const j=opsParse(r), d=j && j.d; if(!d || d.kind!=='분실 신고' || /반환|폐기|완료/.test(d.status||'')) return;   // 찾는 중만 (js/lost.js lostStatus 와 같은 기준)
       const due=/^\d{4}-\d{2}-\d{2}$/.test(d.date||'') ? d.date : opsYmd(r.saved||today);
-      out.push({kind:'공통', owner:'', name:`${RL.title||'분실물 신고'} · ${d.item||'(물품 없음)'}`, q:[RL.title, d.item, d.feature, d.place, '분실물 신고'].join(' '), href:'lost.html?open='+encodeURIComponent(r.id),
+      out.push({kind:'공통', owner:'', cm:'lost', cmKeys:[r.id], made:due, name:`${RL.title||'분실물 신고'} · ${d.item||'(물품 없음)'}`, q:[RL.title, d.item, d.feature, d.place, '분실물 신고'].join(' '), href:'lost.html?open='+encodeURIComponent(r.id),
         tasks:[{title:`${d.place ? d.place+' · ' : ''}${RL.text||'찾아보고 신고자에게 안내'}`, due}]}); }); }
   // 예약 현황 직접 추가 (2026-11-28 · 운영팀 요청 「분실물 신고 접수처럼」): 예약 현황 공유에 직접 넣은 예약 한 건 = 공통 업무 하나 · 마감 = 넣은 날 · 누르면 그 목록이 열림 (group.html?book=)
   //  따로 저장하지 않고 직접 추가 줄(설정 줄 bookdb · mabangdb 의 rows)을 읽어 보임 — 넣은 일시(at)가 있는 줄만 (이 기능을 넣은 뒤에 추가한 것 · js/group/06-booking-status.js bookAddSave)
@@ -295,9 +295,9 @@ function commonExtra(today){ const out=[];
   if(cmOn('bookadd')){ const RB=cmRule('bookadd'), dn=(cmData().done||{}).bookadd||{}, CAT={mb:'몽몽마방', rent:'대관', docent:'도슨트', prog:'프로그램', coupon:'음료쿠폰'};
     const rowsOf = id => { const h=histOf(id); return h && Array.isArray(h.rows) ? h.rows : []; };
     [...rowsOf('mabangdb').map(x=>({at:x.at, c:'mb', d:x.d, tm:x.t, org:x.n, by:x.by})), ...rowsOf('bookdb').map(x=>({at:x.at, c:x.cat, d:x.d, tm:x.tm, org:x.org, by:x.by}))]
-      .forEach(x=>{ if(!x.at || dn[x.at] || !CAT[x.c] || !x.d || x.d<today) return;
-        out.push({kind:'공통', owner:'', name:`${RB.title||'예약 현황 직접 추가'} · ${CAT[x.c]} · ${x.org||'(이름 없음)'}`, q:[RB.title, CAT[x.c], x.org, x.by, '예약 현황 직접 추가'].join(' '), href:'group.html?book='+x.c, cm:'bookadd', cmKey:x.at, cmBtn:'확인',
-          tasks:[{title:`${opsDateLabel(x.d)}${x.tm?' '+x.tm:''} 예약${x.by?` · ${x.by} 추가`:''} · ${RB.text||'내용을 확인하고 「확인」'}`, due:opsYmd(x.at)}]}); }); }
+      .forEach(x=>{ if(!x.at || dn[x.at] || !CAT[x.c] || !x.d) return;   // 2026-11-28: 예약 날짜가 지나도 빠지지 않음 (없앨 때까지 계속)
+        out.push({kind:'공통', owner:'', name:`${RB.title||'예약 현황 직접 추가'} · ${CAT[x.c]} · ${x.org||'(이름 없음)'}`, q:[RB.title, CAT[x.c], x.org, x.by, '예약 현황 직접 추가'].join(' '), href:'group.html?book='+x.c, cm:'bookadd', cmKeys:[x.at], made:opsYmd(x.at),
+          tasks:[{title:`${opsDateLabel(x.d)}${x.tm?' '+x.tm:''} 예약${x.by?` · ${x.by} 추가`:''} · ${RB.text||'내용을 확인'}`, due:opsYmd(x.at)}]}); }); }
   return [...out, ...cmRecs(today)]; }
 function stockDue(today){   // 정기 재고조사 날(오늘이거나 지남)이면 그 날짜 · 아니면 '' — 공통 업무에 (2026-11-24)
   const it=(lastItems||[]).find(x=>x.id==='stockcfg' && !x.deleted); if(!it) return '';
@@ -525,7 +525,18 @@ function renderDash(){ if(!dashData) return; paintRange();
   const today=opsToday(), tm=new Date(today+'T00:00'); tm.setDate(tm.getDate()+1); const tomorrow=opsYmd(tm), me=(getUser()||{}).name||'';
   const q=(($('#dashQ')||{}).value||'').trim().toLowerCase(), qd=q.replace(/\D/g,'');
   const hit = r => !q || r.q.toLowerCase().includes(q) || (qd.length>=3 && r.q.replace(/\D/g,'').includes(qd));   // 전화번호는 - 없이도
-  const all = dashData.recs.filter(hit), mine = all.filter(r=>r.owner), common = [...all.filter(r=>!r.owner && cmOn(r.src==='quote' ? 'quote' : 'noowner')), ...commonExtra(today).filter(hit)];
+  const all = dashData.recs.filter(hit), mine = all.filter(r=>r.owner), noown = all.filter(r=>!r.owner && r.src!=='quote' && cmOn('noowner'));
+  // 공통 업무 (2026-11-28 운영팀 요청 「생성된 날부터 없앨 때까지 계속 · 앞에 체크 칸 · 마감 대신 생성일」): 알림 줄(견적 요청 · 재고조사 · 프로모션 · 여행사 집계 · 분실물 신고 · 예약 현황 직접 추가 · 직접 만든 공통 업무)은
+  //  위 마감 기간 버튼과 상관없이 늘 보임 · 생성일이 오래된 것이 위 · 체크 → 확인 창 → 없앰 표시(공통 업무 설정 줄 done[알림 id][열쇠] = {at, by, what, made} · js/commonmgr.js cmxAsk) · 「관리」 창에서 되살림.
+  //  「담당 없는 예약 과업」(noown)만 예전처럼 마감일 · 마감 기간 버튼을 따름 (예약에 딸린 진짜 과업이라 체크로 없애지 않음 — 그 예약에서 끝내거나 담당을 정하면 빠짐)
+  const RS = cmRule('stock'), st = cmOn('stock') && !devOff('stock.html') ? stockDue(today) : '';
+  const alerts = [...all.filter(r=>!r.owner && r.src==='quote' && cmOn('quote')).map(r=>r.cm ? r : {...r, cm:'quote', cmKeys:[r.name], made:(r.tasks[0]||{}).due||today}),
+      ...(st ? [{cm:'stock', cmKeys:[st], made:st, name:RS.title||'📋 정기 재고조사', q:(RS.title||'')+' 정기 재고조사', href:'stock.html', tasks:[{title:RS.text||'붕정 · 차방을 세어 재고관리에 기록'}]}].filter(hit) : []),
+      ...commonExtra(today).filter(hit)]
+    .filter(r=>!(r.cmKeys||[]).every(k=>cmGone(r.cm, k))).sort((a,b)=>String(a.made).localeCompare(String(b.made)) || a.name.localeCompare(b.name));
+  const cmLi = r => { const A=r.href ? `a href="${esc(r.href)}"` : 'div class="dnolink"', t=(r.tasks[0]||{}).title;
+    return `<li class="drec cmx"><label class="cmx-ck" title="체크하면 없앨지 묻습니다"><input type="checkbox" data-cmx="${esc(r.cm)}" data-keys="${esc(JSON.stringify(r.cmKeys))}" data-name="${esc(r.name)}" data-made="${esc(r.made)}" aria-label="${esc(r.name)} 없애기"></label>`
+      + `<${A}><span class="dr-h"><b>${esc(r.name)}</b></span>${t ? `<span class="dr-t">${esc(t)}</span>` : ''}<span class="dr-t cmx-made">생성일 ${esc(SY.dateDisp(r.made))}${r.more ? ` · 안 한 날 ${r.more}일 더` : ''}</span></${r.href?'a':'div'}></li>`; };
   const dl = d => d<today ? `<span class="late">지남 ${esc(opsDateLabel(d))}</span>` : d===today ? '오늘' : d===tomorrow ? '내일' : esc(opsDateLabel(d));
   const first = r => r.due.reduce((m,t)=>t.due<m?t.due:m, '9999');
   // 마감 기간 (2026-11-24 · 위 왼쪽 버튼 · 「내일 마감도 보기」 대신): 오늘 · 내일 · 이번주 · 이번달 = 그날까지(지난 것 포함) · 기간설정 = 고른 시작일 ~ 끝날
@@ -572,7 +583,9 @@ function renderDash(){ if(!dashData) return; paintRange();
         + r.due.map(t=>`<div class="dtd-t">${ck(r,t)}<button type="button" class="dtd-x" ${open(r)} title="눌러서 바로 고치기 (팝업)">${esc(t.title)}</button>${late(t)}</div>`).join('') + `</li>`; };
     return `<div class="dcol dtoday"><div class="dcol-h"><b>오늘 마감${me?` · ${esc(me)}`:''}</b><span class="dn">${n}</span></div>`
       + (L.length ? `<ul class="dlist dtd-list">${L.map(li).join('')}</ul>` : `<p class="hint dempty">${q?'검색에 맞는 것이 없습니다.':'마감인 내 과업이 없습니다.'}</p>`) + `</div>`; };
-  const RS = cmRule('stock'), st = cmOn('stock') && !devOff('stock.html') ? stockDue(today) : '', pre = st ? `<li class="drec late"><a href="stock.html"><span class="dr-h"><b>${esc(RS.title||'📋 정기 재고조사')}</b></span><span class="dr-t">${dl(st)} · ${esc(RS.text||'붕정 · 차방을 세어 재고관리에 기록')}</span></a></li>` : '';
+  const commonBox = () => { const {L}=list(noown), n=L.length+alerts.length;
+    return `<div class="dcol dcommon"><div class="dcol-h"><b>공통 업무</b>${cmMgrBtn}<span class="dn">${n}</span></div>`
+      + (n ? `<ul class="dlist">${items(L, false)}${alerts.map(cmLi).join('')}</ul>` : `<p class="hint dempty">${q?'검색에 맞는 것이 없습니다.':'공통 업무가 없습니다.'}</p>`) + `</div>`; };
   $('#dashBody').innerHTML = `<div class="dcols d2">`
     // 2026-11-25 배치: 1행 = 캘린더(1 · 2열) · 개인고객 전화(3열) · 개인 업무(4열) / 2행 = 오늘 마감(1열) · 공지사항(2열) · 단체고객 전화(3열) · 공통 업무(4열)
     + `<div class="dcol dcal-col">${calHTML(today)}</div>`
@@ -581,7 +594,7 @@ function renderDash(){ if(!dashData) return; paintRange();
     + box('개인','개인고객 전화', mine.filter(r=>r.kind==='개인'), '', {cls:'dpc'})
     + box('단체','단체고객 전화', mine.filter(r=>r.kind==='단체'), '', {cls:'dgc'})
     + box('기타','개인 업무', etc, memSel, {cls:'dmine'})
-    + box('공통','공통 업무', common, cmMgrBtn, {cls:'dcommon', pre, preN:st?1:0, owner:false})
+    + commonBox()
     + `</div>`;
   calRestore();
 }

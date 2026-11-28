@@ -267,6 +267,18 @@ main:has(#menuView:not([hidden]):not(.guest)){max-width:none;padding:10px 12px}
 .drec .dnolink{display:block;padding:inherit;color:inherit}
 .cm-done{position:absolute;right:6px;top:6px;height:22px;border:1px solid var(--pine);background:var(--pine);color:#fff;border-radius:5px;padding:0 8px;font:600 11.5px var(--sans);cursor:pointer}
 .drec.cm .dr-h{padding-right:44px}
+/* 공통 업무 줄 (2026-11-28): 앞에 체크 칸 · 마감 대신 생성일 · 체크하면 「없앨까요?」 창 (js/portal.js cmLi · js/commonmgr.js cmxAsk) */
+.drec.cmx{display:flex;align-items:flex-start;border-bottom:1px solid #f0ede5}
+.drec.cmx > a,.drec.cmx > .dnolink{flex:1;min-width:0;border-bottom:0;padding:7px 8px 7px 4px}
+.cmx-ck{flex:none;display:flex;align-items:center;justify-content:center;width:30px;height:34px;cursor:pointer}
+.cmx-ck input{width:16px;height:16px;margin:0;accent-color:var(--pine);cursor:pointer}
+.drec .dr-t.cmx-made{font-size:11.5px}
+.cm-panel.cmx-panel{position:relative;max-width:440px}
+.cmx-panel:focus{outline:none}
+.cm-panel.cmx-panel h2{padding-right:34px}
+.cmx-what{margin:10px 0;padding:10px 12px;border-radius:8px;background:var(--pine-soft);font-size:14px;line-height:1.5}
+.cmx-what b{display:block}
+.cmx-what span{color:var(--muted);font-size:12.5px}
 .cm-modal{position:fixed;inset:0;z-index:80;background:rgba(30,30,25,.45);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
 .cm-modal[hidden]{display:none}
 .cm-panel{background:#fff;border-radius:12px;max-width:1080px;width:100%;padding:16px 18px;box-shadow:0 10px 40px rgba(0,0,0,.2)}

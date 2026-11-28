@@ -7,13 +7,13 @@
 // portal.js 가 씀: cmOn(id) · cmRule(id) · cmRecs(today) · cmMgrBtn · 완료 버튼(data-cmdone)
 const CM_ID='commondb', CM_TYPE='공통업무설정';
 const CM_SYS = [
-  {id:'quote',   title:'고객 견적 요청', text:'견적서 · 거래명세서 발급', when:'고객이 견적을 요청하고 아직 「접수」인 동안 (요청한 날이 마감)', href:'document/'},
+  {id:'quote',   title:'고객 견적 요청', text:'견적서 · 거래명세서 발급', when:'고객이 견적을 요청하고 아직 「접수」인 동안 (생성일 = 요청한 날)', href:'document/'},
   {id:'noowner', title:'담당 없는 예약 과업', text:'', when:'단체 · 개인 예약의 과업 중 담당이 정해지지 않은 것', noText:1},
   {id:'stock',   title:'📋 정기 재고조사', text:'붕정 · 차방을 세어 재고관리에 기록', when:'재고관리의 다음 조사일이 되면 (두 곳 모두 세면 다음 주기로)', href:'stock.html'},
   {id:'promo',   title:'기업 프로모션', text:'연장 여부 확인 (확인하면 「확인」)', when:'기업 프로모션 할인 표의 기간 끝(만료) 몇 달 전', months:'2, 1', href:'promo.html'},
   {id:'agency',  title:'협업 여행사 집계기록 넣기', text:'방문기록 엑셀을 넣어 여행사별 집계', when:'집계 기간(반기 · 분기)이 끝났는데 그 기간 기록이 없으면', href:'agency.html'},
-  {id:'lost',    title:'분실물 신고', text:'찾아보고 신고자에게 안내', when:'분실물 신고가 새로 접수되고 「찾는 중」인 동안 (접수일이 마감 · 분실물 찾기에서 「처리완료」로 바꾸면 빠짐)', href:'lost.html'},   // 2026-11-27 · js/portal.js commonExtra
-  {id:'bookadd', title:'예약 현황 직접 추가', text:'내용을 확인하고 「확인」', when:'예약 현황 공유(몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰)에 예약을 직접 추가하면 (추가한 날이 마감 · 「확인」을 누르거나 그 예약을 빼거나 예약 날짜가 지나면 빠짐)', href:'group.html?book=mb'},   // 2026-11-28 · js/portal.js commonExtra
+  {id:'lost',    title:'분실물 신고', text:'찾아보고 신고자에게 안내', when:'분실물 신고가 새로 접수되고 「찾는 중」인 동안 (생성일 = 접수일 · 분실물 찾기에서 「처리완료」로 바꾸거나 체크해 없애면 빠짐)', href:'lost.html'},   // 2026-11-27 · js/portal.js commonExtra
+  {id:'bookadd', title:'예약 현황 직접 추가', text:'내용을 확인', when:'예약 현황 공유(몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰)에 예약을 직접 추가하면 (생성일 = 추가한 날 · 체크해 없애거나 그 예약을 목록에서 빼면 빠짐)', href:'group.html?book=mb'},   // 2026-11-28 · js/portal.js commonExtra
 ];
 const CM_REPEAT = [['none','한 번'],['daily','매일'],['weekly','매주'],['monthly','매달'],['months','몇 달마다'],['yearly','매년']];
 const cmHist = () => (typeof histOf==='function' && histOf(CM_ID)) || {};
@@ -22,6 +22,7 @@ function cmData(){ const h=cmHist(), saved=Array.isArray(h.rules)?h.rules:[];
   return {rules, done:h.done||{}}; }
 const cmRule = id => cmData().rules.find(r=>r.id===id) || {};
 const cmOn = id => { const r=cmRule(id); return r.on!==false && !r.removed; };
+const cmGone = (id, key) => !!((cmData().done[id]||{})[key]);   // 없앤(끝낸) 표시가 있는지 (2026-11-28 · 첫 화면 공통 업무의 체크 칸)
 const cmMonths = () => String(cmRule('promo').months||'2, 1').split(/[^\d]+/).map(Number).filter(n=>n>0 && n<=24).sort((a,b)=>b-a);
 // 새 공통 업무가 그 날짜에 할 날인지 (한 번 · 매일 · 매주 · 매달은 opsOccurs 와 같음 + 몇 달마다 · 매년)
 function cmOccurs(r, day){
@@ -31,12 +32,13 @@ function cmOccurs(r, day){
   return opsOccurs({...r, due:r.start}, day);
 }
 const cmRepeatLabel = r => r.repeat==='months' ? `${Math.max(1,+r.n||1)}달마다 (${opsDateLabel(r.start)}부터)` : r.repeat==='yearly' ? `매년 ${r.start ? +r.start.slice(5,7)+'/'+(+r.start.slice(8)) : ''}` : r.repeat==='none' || !r.repeat ? (r.start ? opsDateLabel(r.start)+' 한 번' : '날짜 없음') : opsRepeatLabel(r);
-// 대시보드에 넣을 것: 아직 「완료」 안 한 날 — 한 번짜리는 그날(지나도 계속) · 반복은 최근 7일 ~ 45일 뒤
+// 대시보드에 넣을 것: 아직 없애지 않은 날 — 한 번짜리는 그날부터(지나도 계속) · 반복은 할 날이 되면 (최근 60일 안의 안 한 날을 한 줄로 · 생성일 = 가장 오래된 안 한 날 · 체크하면 밀린 날이 함께 없어짐)
+//  2026-11-28 바꿈: 예전에는 최근 7일 ~ 45일 뒤의 날을 모두 내고 위 마감 기간 버튼으로 걸렀음 → 이제 마감 없이 「생성된 날부터 없앨 때까지」
 function cmRecs(today){ const {rules, done}=cmData(), out=[];
   rules.filter(r=>!r.sys && r.on!==false && !r.removed && r.title).forEach(r=>{ const dn=done[r.id]||{}, days=[];
-    if(!r.repeat || r.repeat==='none'){ if(r.start && !dn[r.start]) days.push(r.start); }
-    else for(let i=-7;i<=45;i++){ const x=new Date(today+'T00:00'); x.setDate(x.getDate()+i); const day=opsYmd(x); if(cmOccurs(r, day) && !dn[day]) days.push(day); }
-    if(days.length) out.push({kind:'공통', owner:'', name:r.title, q:[r.title, r.text].join(' '), href:r.href||'', cm:r.id, tasks:days.map(d=>({title:r.text||cmRepeatLabel(r), due:d}))}); });
+    if(!r.repeat || r.repeat==='none'){ if(r.start && r.start<=today && !dn[r.start]) days.push(r.start); }
+    else for(let i=-60;i<=0;i++){ const x=new Date(today+'T00:00'); x.setDate(x.getDate()+i); const day=opsYmd(x); if(cmOccurs(r, day) && !dn[day]) days.push(day); }
+    if(days.length) out.push({kind:'공통', owner:'', name:r.title, q:[r.title, r.text].join(' '), href:r.href||'', cm:r.id, cmKeys:days, made:days[0], more:days.length-1, tasks:[{title:r.text||cmRepeatLabel(r), due:days[0]}]}); });
   return out; }
 // 공유 기록 한 줄 고치기 (최신을 받아 그 위에)
 async function cmPut(id, type, fn, what){
@@ -56,8 +58,34 @@ document.addEventListener('click', async e=>{ const b=e.target.closest && e.targ
   try{ await cmPut(CM_ID, CM_TYPE, h=>{ h.done=h.done||{}; h.done[id]={...(h.done[id]||{}), [day]:{at:new Date().toISOString(), by:me}}; return h; }, `완료 ${cmRule(id).title||id} ${day}`); cmRefresh(); }
   catch(err){ b.disabled=false; alert('저장하지 못했습니다: '+(err.code||err.message)); } });
 
+// ---------- 체크 칸 → 「없앨까요?」 창 (2026-11-28 · 운영팀 요청) ----------
+// 첫 화면 공통 업무 줄 앞의 체크 칸(data-cmx · js/portal.js cmLi)을 누르면 창으로 묻고, 「없애기」면 없앰 표시를 남김 — 줄을 지우지 않음: done[알림 id][열쇠] = {at, by, what(이름), made(생성일)}
+// 공통 업무는 모두가 같이 보므로 한 사람이 없애면 모두에게서 빠짐. 되살리기 = 「관리」 창 아래 「없앤 공통 업무」 (표시를 빼고 수정 기록 log 에 「되살림」)
+let cmxPick=null;
+function cmxClose(){ const M=document.getElementById('cmxModal'); if(M){ M.hidden=true; M.innerHTML=''; } cmxPick=null; document.querySelectorAll('[data-cmx]:checked').forEach(x=>{ x.checked=false; }); }
+function cmxAsk(inp){ let keys=[]; try{ keys=JSON.parse(inp.dataset.keys||'[]'); }catch(_){}
+  cmxPick={id:inp.dataset.cmx, keys, name:inp.dataset.name||'', made:inp.dataset.made||''};
+  let M=document.getElementById('cmxModal'); if(!M){ M=document.createElement('div'); M.id='cmxModal'; M.className='cm-modal'; document.body.appendChild(M); }
+  M.innerHTML = `<div class="cm-panel cmx-panel" role="dialog" aria-modal="true" aria-labelledby="cmxT" tabindex="-1"><h2 id="cmxT">이 공통 업무를 없앨까요?</h2><button type="button" class="win-x" data-cmxno title="닫기 (Esc)" aria-label="닫기">×</button>`
+    + `<p class="cmx-what"><b>${cmEsc(cmxPick.name)}</b><span>생성일 ${cmEsc(SY.dateDisp(cmxPick.made))}</span></p>`
+    + `<p class="hint">공통 업무는 모두가 함께 보는 것이라, 없애면 <b>모든 사람의 화면에서 사라집니다.</b> 잘못 없앴으면 「관리」 창 아래 「없앤 공통 업무」에서 되살릴 수 있습니다.</p>`
+    + `<p class="err" id="cmxErr"></p><div class="cm-btns"><span class="hint"></span><button type="button" class="btn-sm" data-cmxno>취소</button><button type="button" class="btn-sm primary" id="cmxOk">없애기</button></div></div>`;
+  M.hidden=false; M.querySelector('.cmx-panel').focus(); }   // × 가 아니라 창 상자에 초점
+document.addEventListener('change', e=>{ const t=e.target; if(t.matches && t.matches('[data-cmx]')){ if(t.checked) cmxAsk(t); } });
+document.addEventListener('keydown', e=>{ const M=document.getElementById('cmxModal'); if(e.key==='Escape' && M && !M.hidden){ e.preventDefault(); cmxClose(); } });
+document.addEventListener('click', async e=>{ const M=document.getElementById('cmxModal'); if(!M || M.hidden || !M.contains(e.target)) return;
+  if(e.target===M || e.target.closest('[data-cmxno]')){ cmxClose(); return; }
+  const ok=e.target.closest('#cmxOk'); if(!ok || !cmxPick) return; const P=cmxPick, me=(SY.user()||{}).name||'', at=new Date().toISOString(); ok.disabled=true; ok.textContent='없애는 중…';
+  try{ await cmPut(CM_ID, CM_TYPE, h=>{ h.done={...(h.done||{})}; h.done[P.id]={...(h.done[P.id]||{})}; P.keys.forEach(k=>{ h.done[P.id][k]={at, by:me, what:P.name, made:P.made}; }); return h; }, `없앰 ${P.name}`.slice(0,80)); cmxClose(); cmRefresh(); }
+  catch(err){ ok.disabled=false; ok.textContent='없애기'; M.querySelector('#cmxErr').textContent=err.code==='bad_key' ? SY.authFail() : '없애지 못했습니다: '+(err.code||err.message); } });
+// 없앤 것 목록 (관리 창 · 최근 것부터 30개): 같은 때 함께 없앤 날(반복 업무의 밀린 날)은 한 줄로
+function cmGoneList(){ const done=cmData().done||{}, by=new Map();
+  Object.entries(done).forEach(([id, o])=>Object.entries(o||{}).forEach(([k, v])=>{ if(!v || !v.what) return; const g=id+'|'+v.at; if(!by.has(g)) by.set(g, {id, at:v.at, by:v.by||'', what:v.what, made:v.made||'', keys:[]}); by.get(g).keys.push(k); }));
+  return [...by.values()].sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,30); }
+
 // ---------- 관리 창 ----------
 const cmMgrBtn = `<button type="button" class="cm-btn" id="cmMgrBtn" title="공통 업무에 무엇을 알릴지 고치기 · 추가 · 삭제">관리</button>`;
+let cmBackOpen=false;   // 「없앤 공통 업무」를 펼쳐 둔 채로 다시 그림
 let cmDraft=null;   // 창에서 고치는 중인 것 {rules, stock:{next, cycle}, agency:{cycle}}
 function cmOpen(){
   const st=(histOf('stockcfg')||{}).d||{}, ag=histOf('agencydb')||{};
@@ -95,9 +123,10 @@ function cmPaint(){
       + `</div>`; };
   m.innerHTML = `<section class="cm-panel" role="dialog" aria-modal="true" aria-labelledby="cmTitle">`
     + `<h2 id="cmTitle">공통 업무 알림 관리 <span class="sp"></span><button type="button" class="btn-sm primary" id="cmAdd">＋ 새 공통 업무</button><button type="button" class="win-x in-row" id="cmNo" title="닫기 (Esc)" aria-label="닫기">×</button></h2>`
-    + `<p class="hint">첫 화면 「공통 업무」(담당이 없는 모두의 일)에 무엇을 알릴지 정합니다. 이름 · 할 일 · 설정을 고치고 「저장」을 누르세요. 새 공통 업무는 공통 업무 칸의 「완료」를 누르면 그날 것이 빠집니다.</p>`
+    + `<p class="hint">첫 화면 「공통 업무」(담당이 없는 모두의 일)에 무엇을 알릴지 정합니다. 이름 · 할 일 · 설정을 고치고 「저장」을 누르세요. 공통 업무는 생성된 날부터 계속 보이고, 줄 앞의 체크 칸을 눌러 없애면 모두의 화면에서 빠집니다 (담당 없는 예약 과업만 마감일대로 · 그 예약에서 끝냄).</p>`
     + `<div class="cm-list">${live.map(row).join('') || '<p class="hint">알림이 없습니다.</p>'}</div>`
     + (gone.length ? `<details class="cm-gone"><summary>지운 기본 알림 ${gone.length}개</summary>${gone.map(r=>`<div class="cm-g1"><b>${cmEsc(r.title)}</b> <span class="hint">${cmEsc(r.when)}</span><button type="button" class="btn-sm primary" data-cmback="${cmEsc(r.id)}">되살리기</button></div>`).join('')}</details>` : '')
+    + (cmGoneList().length ? `<details class="cm-gone cm-back"${cmBackOpen?' open':''}><summary>없앤 공통 업무 ${cmGoneList().length}개 (최근 것부터)</summary>${cmGoneList().map((g,i)=>`<div class="cm-g1"><b>${cmEsc(g.what)}</b> <span class="hint">생성일 ${cmEsc(SY.dateDisp(g.made))} · ${cmEsc(SY.dateDisp(opsYmd(g.at)))} ${cmEsc(g.by)} 없앰</span><button type="button" class="btn-sm primary" data-cmrestore="${i}">되살리기</button></div>`).join('')}</details>` : '')
     + `<p class="err" id="cmErr"></p><div class="cm-btns"><span class="hint" id="cmLog">${cmLastLog()}</span><button type="button" class="btn-sm primary" id="cmOk">저장</button></div></section>`;
   m.querySelectorAll('.dpick').forEach(p=>cmDateBox(p));
 }
@@ -132,6 +161,9 @@ document.addEventListener('click', async e=>{
   const d=e.target.closest('[data-cmdel]'); if(d){ cmDraft.del.add(d.dataset.cmdel); cmPaint(); return; }
   const u=e.target.closest('[data-cmundo]'); if(u){ cmDraft.del.delete(u.dataset.cmundo); cmPaint(); return; }
   const b=e.target.closest('[data-cmback]'); if(b){ const r=cmFind(b.dataset.cmback); if(r){ r.removed=false; r.on=true; } cmPaint(); return; }
+  const rs=e.target.closest('[data-cmrestore]'); if(rs){ const g=cmGoneList()[+rs.dataset.cmrestore]; if(!g) return; rs.disabled=true; cmBackOpen=true;   // 되살리기: 바로 저장 (위에서 고치던 것은 그대로 둠)
+    try{ await cmPut(CM_ID, CM_TYPE, h=>{ h.done={...(h.done||{})}; const o={...(h.done[g.id]||{})}; g.keys.forEach(k=>{ delete o[k]; }); h.done[g.id]=o; return h; }, `되살림 ${g.what}`.slice(0,80)); cmRefresh(); cmPaint(); }
+    catch(err){ rs.disabled=false; m.querySelector('#cmErr').textContent='되살리지 못했습니다: '+(err.code||err.message); } return; }
   if(e.target.closest('#cmOk')) cmSave();
 });
 document.addEventListener('keydown', e=>{ const m=document.getElementById('cmModal'); if(e.key==='Escape' && m && !m.hidden && !(e.target.classList && e.target.classList.contains('dtxt') && e.target.dataset.editing)){ m.hidden=true; cmDraft=null; } });
