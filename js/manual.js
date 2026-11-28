@@ -198,7 +198,7 @@
       if(t==='ta') return `<label class="${w?'full':''}">${l}<textarea data-f="${k}" data-ime="ko">${esc(val)}</textarea></label>`;
       return `<label class="${w?'full':''}">${l}<input data-f="${k}" value="${esc(val)}" ${t==='n'?'inputmode="numeric" data-ime="num"':'data-ime="ko"'}></label>`; };
     $('#modal').innerHTML=`<div class="mf" role="dialog" aria-modal="true"><h2>${KIND_NAME[kind]} ${id?'고치기':'더하기'}${form.preset&&form.preset._prop?' <small class="hint">(반영 제안으로 저장 — 「반영」을 눌러야 매뉴얼에 들어감)</small>':''}</h2><button type="button" class="win-x" data-fclose title="닫기 (Esc)" aria-label="닫기">×</button><div class="g">${F[kind].map(fld).join('')}</div>`
-      + `<p class="err" id="fErr"></p><div class="btns"><button type="button" class="btn primary" id="fSave">저장</button></div></div>`;
+      + `<p class="err" id="fErr"></p><div class="btns win-top"><button type="button" class="btn primary" id="fSave">저장</button></div></div>`;
     $('#modal').hidden=false; $('#modal').querySelectorAll('.dpick').forEach(makeDateBox);
     const first=$('#modal [data-f="title"]')||$('#modal .rte-ed')||$('#modal textarea'); if(first) first.focus();
     try{ document.execCommand('defaultParagraphSeparator', false, 'p'); }catch(_){}

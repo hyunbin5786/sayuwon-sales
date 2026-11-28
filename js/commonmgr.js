@@ -69,7 +69,7 @@ function cmxAsk(inp){ let keys=[]; try{ keys=JSON.parse(inp.dataset.keys||'[]');
   M.innerHTML = `<div class="cm-panel cmx-panel" role="dialog" aria-modal="true" aria-labelledby="cmxT" tabindex="-1"><h2 id="cmxT">이 공통 업무를 없앨까요?</h2><button type="button" class="win-x" data-cmxno title="닫기 (Esc)" aria-label="닫기">×</button>`
     + `<p class="cmx-what"><b>${cmEsc(cmxPick.name)}</b><span>생성일 ${cmEsc(SY.dateDisp(cmxPick.made))}</span></p>`
     + `<p class="hint">공통 업무는 모두가 함께 보는 것이라, 없애면 <b>모든 사람의 화면에서 사라집니다.</b> 잘못 없앴으면 「관리」 창 아래 「없앤 공통 업무」에서 되살릴 수 있습니다.</p>`
-    + `<p class="err" id="cmxErr"></p><div class="cm-btns"><span class="hint"></span><button type="button" class="btn-sm" data-cmxno>취소</button><button type="button" class="btn-sm primary" id="cmxOk">없애기</button></div></div>`;
+    + `<p class="err" id="cmxErr"></p><div class="cm-btns win-top"><button type="button" class="btn-sm primary" id="cmxOk">없애기</button></div></div>`;
   M.hidden=false; M.querySelector('.cmx-panel').focus(); }   // × 가 아니라 창 상자에 초점
 document.addEventListener('change', e=>{ const t=e.target; if(t.matches && t.matches('[data-cmx]')){ if(t.checked) cmxAsk(t); } });
 document.addEventListener('keydown', e=>{ const M=document.getElementById('cmxModal'); if(e.key==='Escape' && M && !M.hidden){ e.preventDefault(); cmxClose(); } });

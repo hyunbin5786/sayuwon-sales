@@ -183,6 +183,15 @@ header:has(> .smenu-btn) #logoutBtn{display:none !important}
 .btn.primary,.btn-sm.primary,.smc-b{font-weight:700}
 .btn.sm{min-height:var(--btn-sm-h);padding:2px var(--btn-sm-px);font-size:12px;font-weight:500}
 .btn.lg,.btn-main{box-sizing:border-box;min-height:var(--btn-lg-h);padding:8px 18px;border-radius:8px;font-size:15px;font-weight:700}
+/* 창의 주된 버튼을 × 옆에 (2026-11-28 · 모든 화면 공통): × 가 있는 창에서 맨 아래에 버튼 하나만 있어 그 버튼 때문에 한 줄이 늘어나면,
+   그 버튼 줄에 class="win-top" 을 더한다 → 창 오른쪽 위, × 바로 왼쪽에 놓인다 (HTML 의 자리 · 누르는 동작 · Tab 순서는 그대로 — 자리만 CSS 로 옮긴다).
+   × 가 있는 창에는 「취소」 버튼을 두지 않는다 (× · Esc 가 같은 일을 한다). 버튼이 둘 이상 남는 줄(삭제 + 저장)은 아래에 그대로 둔다.
+   휴대폰(폭 700 아래)에서는 옮기지 않는다 — 손가락이 닿는 아래쪽에 큰 버튼으로 남긴다. 제목이 버튼과 겹치지 않게 제목 오른쪽을 비운다(더 긴 버튼이면 창에 --win-top-w 를 준다) */
+@media (min-width:701px){
+  .win-top{position:absolute;top:9px;right:50px;z-index:3;margin:0 !important;display:flex;align-items:center;gap:6px;width:auto}
+  .win-top > .hint:empty{display:none}
+  h2:has(~ .win-top){padding-right:var(--win-top-w,170px) !important;min-height:30px;box-sizing:content-box}
+}
 /* 창을 닫는 단추 (2026-11-27 · 모든 화면 공통): 창 오른쪽 위의 × — 배경 · 테두리 없음. 「닫기」 글자 버튼을 쓰지 않는다.
    색 · 크기 · 굵기는 여기 한 곳에서만 정한다 (화면 CSS 는 자리 · 크기만): 평소 = 보조 글자색(#77736a) · 올리거나 누르면 = 본문 글자색(#262620).
    초점 표시는 키보드로 옮겨 갔을 때만(:focus-visible) 보조 글자색의 둥근 테두리 — 마우스로 누르거나 창이 열릴 때는 테두리가 뜨지 않는다. 창을 열 때 × 에 초점을 주지 않는다(창 상자에 준다).

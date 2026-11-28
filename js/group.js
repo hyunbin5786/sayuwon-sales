@@ -1595,7 +1595,7 @@ function paintBookAdd(){
     + `<div class="ba-row"><label><span>날짜${req}</span> ${dboxHTML('id="baDate"', x.d||rec.date||'')}</label>${f.join('')}</div>`
     + (BOOK_GUEST ? '' : (()=>{ const w=bookEdit ? bkWho(bkWhoKey()) : {n:savedOwner()||'', t:bkMePhone||bkWhoLast(savedOwner()||'')}, r=bookEdit?'':req;   // 새로 넣을 때는 꼭 · 예전 줄을 고칠 때는 비어 있어도 저장
         return `<div class="ba-row ba-by"><label><span>추가한 사람 이름${r}</span> <input id="baWho" data-ime="ko" placeholder="이름" autocomplete="off" value="${esc(w.n||'')}"></label><label><span>추가한 사람 연락처${r}</span> <input id="baWhoTel" type="tel" inputmode="tel" data-tel placeholder="010-0000-0000" autocomplete="off" value="${esc(w.t||'')}"></label><span class="hint">${bookEdit?'이 예약을 넣은 사람':'로그인한 사람의 이름 · 연락처가 미리 들어갑니다 (다른 사람이면 고쳐 주세요)'} · 목록에는 보이지 않고 이 창에서만 보입니다</span></div>`; })())
-    + `<div class="ba-btns">${bookEdit && !BOOK_GUEST ? '<button type="button" class="btn ba-del" id="baDel" title="이 예약을 목록에서 뺍니다 (사유를 적는 창이 뜹니다 · 기록에 남음)">이 예약 빼기</button>' : ''}<button type="button" class="btn" id="baCancel">취소</button><button type="button" class="btn primary" id="baSave">${bookEdit?'고치기':'추가'}</button></div>`
+    + `<div class="ba-btns${bookEdit && !BOOK_GUEST ? '' : ' win-top'}">${bookEdit && !BOOK_GUEST ? '<button type="button" class="btn ba-del" id="baDel" title="이 예약을 목록에서 뺍니다 (사유를 적는 창이 뜹니다 · 기록에 남음)">이 예약 빼기</button>' : ''}<button type="button" class="btn primary" id="baSave">${bookEdit?'고치기':'추가'}</button></div>`
 }
 async function bookAddSave(){
   const c=bookCatNow, v=id=>(($('#'+id)||{}).value||'').trim(), d=v('baDate'), org=v('baOrg'), ppl=parseInt(v('baPpl'))||0;

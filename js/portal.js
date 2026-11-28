@@ -385,7 +385,7 @@ function calOpenAdd(row){
     + `<div class="cal-f"><span class="cal-fl">일정</span><span class="cal-kind"><button type="button" data-ckind="day"${isPer?'':' class="on"'}>하루 일정</button><button type="button" data-ckind="per"${isPer?' class="on"':''}>기간 일정</button></span></div>`
     + `<div class="cal-f"><span class="cal-fl" id="calDLabel">${isPer?'기간':'날짜'}</span><span class="cal-per">${dbox('calNFrom', d)}<span class="cal-to"${isPer?'':' hidden'}>~</span><span class="cal-to"${isPer?'':' hidden'}>${dbox('calNTo', d2)}</span></span></div>`
     + `<div class="cal-f cal-tmrow"${isPer?' hidden':''}><span class="cal-fl">시간</span><span class="cal-tm"><label><input type="checkbox" id="calNAll"${tm0?'':' checked'}> 하루 종일</label><input id="calNTm" data-tp="range" placeholder="예: 10:00~11:00" maxlength="11" autocomplete="off" value="${esc(tm0)}"${tm0?'':' hidden'}></span></div>`
-    + `<p class="err" id="calErr"></p><div class="cm-btns">${row?'<button type="button" class="btn-sm primary" id="calNDel">삭제</button>':''}<span class="hint"></span><button type="button" class="btn-sm primary" id="calNSave">${row?'저장':'추가'}</button></div></div>`;
+    + `<p class="err" id="calErr"></p><div class="cm-btns${row?"":" win-top"}">${row?'<button type="button" class="btn-sm primary" id="calNDel">삭제</button>':''}<span class="hint"></span><button type="button" class="btn-sm primary" id="calNSave">${row?'저장':'추가'}</button></div></div>`;
   M.hidden=false; M.querySelectorAll('.dpick').forEach(p=>calDateBox(p)); setTimeout(()=>{ const t=$('#calNTitle'); t.focus(); const n=t.value.length; try{ t.setSelectionRange(n,n); }catch(_){} }, 0);
 }
 function calCloseAdd(){ const M=$('#calModal'); if(M){ M.hidden=true; M.innerHTML=''; } calEditId=''; }
@@ -477,7 +477,7 @@ function ntOpenForm(row){
     + `<input id="ntTitle" class="nt-in" placeholder="제목" data-ime="ko" maxlength="80" autocomplete="off" value="${esc(row?row.title:'')}">`
     + `<textarea id="ntBody" class="nt-ta" placeholder="내용" data-ime="ko">${esc(row?row.body||'':'')}</textarea>`
     + ntPerHTML(row)
-    + `<p class="err" id="ntErr"></p><div class="cm-btns"><span class="hint"></span><button type="button" class="btn-sm primary" id="ntSaveBtn">${row?'저장':'등록'}</button></div></div>`;
+    + `<p class="err" id="ntErr"></p><div class="cm-btns win-top"><span class="hint"></span><button type="button" class="btn-sm primary" id="ntSaveBtn">${row?'저장':'등록'}</button></div></div>`;
   M.hidden=false; M.querySelectorAll('.dpick').forEach(p=>calDateBox(p, 'ntErr')); setTimeout(()=>$('#ntTitle').focus(), 0);
 }
 // 게시 기간 칸: 「기한 없음」 / 「기한 있음」(시작하는 날 기본 오늘 ~ 끝나는 날 기본 일주일 뒤 · 시작을 뒤로 하면 예약 공지)
