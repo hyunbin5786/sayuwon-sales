@@ -254,15 +254,16 @@ const OPS_PAGE =
 let accGo='';
 const accListEl = () => document.getElementById('accListModal');
 function accListOpen(on){ accListEl().hidden=!on; if(on){ if(typeof pull==='function') pull(); setTimeout(()=>$('#q')?.focus(), 0); } }
-new MutationObserver(()=>{ const m=document.getElementById('editModal'); if(!m.hidden) return;
+new MutationObserver(()=>{ const m=document.getElementById('editModal'); if(!m.hidden){ accStartShow(false); return; } if(accStartOn) return;
   if(accGo){ const id=accGo; accGo=''; const x=rows.find(y=>y.r.id===id) || (putRow.last && putRow.last.r.id===id ? putRow.last : null); if(x){ openEdit(x); return; } }
   m.hidden=false; }).observe(document.getElementById('editModal'), {attributes:true, attributeFilter:['hidden']});
 document.addEventListener('DOMContentLoaded', ()=>{ $('#bTitle').textContent='사고 목록';
-  if(new URLSearchParams(location.search).get('open')) setTimeout(()=>{ if(document.getElementById('editModal').hidden) openEdit(null); }, 4000);   // ?open=기록 은 공통 엔진이 목록을 받은 뒤에 엶 · 못 찾으면 빈 접수
-  else openEdit(null); });
+  if(new URLSearchParams(location.search).get('open')) { accStartShow(false); setTimeout(()=>{ if(document.getElementById('editModal').hidden) openEdit(null); }, 4000); }   // ?open=기록 은 공통 엔진이 목록을 받은 뒤에 엶 · 못 찾으면 빈 접수
+  else { accStartShow(true); setTimeout(()=>$('#accStartQ')?.focus(), 0); } });
 document.addEventListener('click', e=>{ const t=e.target; if(!t.closest) return;
   if(t.id==='accListBtn'){ accListOpen(true); return; }
-  if(t.id==='accNewBtn'){ openEdit(null); return; }
+  if(t.id==='accNewBtn' || t.id==='accStartNew'){ openEdit(null); return; }
+  const so=t.closest('[data-accopen]'); if(so){ const x=rows.find(y=>y.r.id===so.dataset.accopen); if(x) openEdit(x); return; }
   if(t.id==='accListX' || t.id==='addBtn' || t.closest('#accListModal [data-edit]')){ accListOpen(false); return; }
  });
 document.addEventListener('mousedown', e=>{ if(e.target.id==='accListModal') accListOpen(false); });
@@ -297,3 +298,16 @@ function accSecPaint(){ const rid=accEd() ? editRow.r.id : 'new'; if(accSecId!==
 function accSecToggle(h){ const s=h.closest('.ef-sec[data-sec]'); if(!s) return; accSecSet[+s.dataset.sec]=s.classList.contains('shut'); accSecPaint(); }
 document.addEventListener('click', e=>{ const h=e.target.closest && e.target.closest('#eFields .ef-sec[data-sec] > .ef-head'); if(h) accSecToggle(h); });
 document.addEventListener('keydown', e=>{ if((e.key==='Enter' || e.key===' ') && e.target.matches && e.target.matches('#eFields .ef-sec[data-sec] > .ef-head')){ e.preventDefault(); accSecToggle(e.target); } });
+
+// ---------- 첫 화면의 찾기 (2026-11-28 · 단체 화면의 「어느 단체인가요?」처럼) ----------
+//  처음 들어오면 접수 화면 대신 찾기 상자만 보인다. 사고를 열거나(찾은 줄 · 사고 목록) 새 접수를 시작하면 걷힌다 (#editModal 이 보이면 걷음 · 위 「첫 화면」의 MutationObserver)
+var accStartOn=false;
+function accStartShow(on){ accStartOn=!!on; const b=document.getElementById('accStart'); if(b) b.hidden=!on; if(on) accStartPaint(); }
+function accStartPaint(){ const ul=document.getElementById('accStartList'), q=(document.getElementById('accStartQ')?.value||'').trim().toLowerCase(); if(!ul) return;
+  if(!q){ ul.innerHTML=''; return; }
+  const L=(typeof rows!=='undefined' ? rows : []).filter(x=>{ const d=x.d; return [d.date, d.place, d.type, d.group, d.person, d.booker, d.what, accOwner(d, x.r)].join(' ').toLowerCase().includes(q); })
+    .sort((a,b)=>String(b.d.date||'').localeCompare(String(a.d.date||''))).slice(0, 30);
+  ul.innerHTML = L.length ? L.map(x=>{ const d=x.d; return `<li><button type="button" class="acc-start-it" data-accopen="${esc(x.r.id)}"><span class="num">${esc(accWhen(d))}</span><b>${esc(d.place||'')}</b><small>${esc([d.type, d.person, String(d.what||'').split('\n')[0]].filter(Boolean).join(' · '))}</small>${accTag(accStatus(d))}</button></li>`; }).join('')
+    : `<li class="acc-start-none">찾는 사고가 없습니다.</li>`; }
+document.addEventListener('input', e=>{ if(e.target.id==='accStartQ') accStartPaint(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing && e.target.id==='accStartQ'){ const one=document.querySelectorAll('#accStartList [data-accopen]'); if(one.length===1) one[0].click(); } });

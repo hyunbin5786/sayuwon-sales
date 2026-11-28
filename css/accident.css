@@ -236,3 +236,23 @@ body.pg-acc #keyBox{margin:14px 16px}
 .ef-sec[data-sec].st-cur{background:var(--pine-soft)}
 .ef-sec[data-sec] > .ef-head:focus-visible{outline:2px solid var(--muted);outline-offset:2px;border-radius:4px}
 @media (max-width:700px){ .ef-sec[data-sec].st-cur{background:none} .ef-sec[data-sec].shut > .ef-head{padding-bottom:5px;border-bottom:1px solid var(--line)} }
+
+/* ===== 2026-11-28 헤더: 「＋ 새 접수」(흰 바탕) · 「사고 목록」을 오른쪽으로 (단체 화면의 .new-btn 값) ===== */
+header #accNewBtn{margin-left:auto;border:0;background:#fff;color:var(--pine);padding:5px 14px;font:700 14px var(--sans);box-shadow:0 1px 3px rgba(0,0,0,.18)}
+header #accNewBtn:hover{background:#f3f7ef}
+/* 처음 들어오면: 사고 찾기 (단체 화면의 #startBox · .start-q · .start-list · .start-it 값) */
+.acc-start{display:flex;flex-direction:column;justify-content:center;width:min(640px,calc(100% - 32px));min-height:calc(100vh - 100px);margin:0 auto;padding:20px 0;box-sizing:border-box}
+.acc-start[hidden]{display:none}
+.acc-start h2{margin:0 0 16px;text-align:center;font:600 22px var(--serif)}
+.acc-start-q{width:100%;height:48px;border:1px solid var(--line);border-radius:10px;padding:0 14px;font:500 18px var(--sans);background:#fff;color:var(--ink);box-sizing:border-box}
+.acc-start-q:focus{outline:none;border-color:var(--pine)}
+.acc-start-list{list-style:none;margin:10px 0 14px;padding:0;max-height:46vh;overflow:auto}
+.acc-start-list:empty{margin:10px 0 4px}
+.acc-start-it{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--line);border-radius:8px;background:#fff;padding:9px 12px;margin:0 0 6px;font:14px var(--sans);color:var(--ink);cursor:pointer}
+.acc-start-it:hover,.acc-start-it:focus-visible{outline:none;border-color:var(--pine);background:var(--bg)}
+.acc-start-it .num{flex:none;min-width:92px;color:var(--muted)}
+.acc-start-it b{flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acc-start-it small{flex:1;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acc-start-none{text-align:center;color:var(--muted);padding:8px 0}
+.acc-start .row-btns{justify-content:center;margin-top:0}
+@media (max-width:700px){ .acc-start-it{flex-wrap:wrap} .acc-start-it small{flex-basis:100%} .acc-start{width:calc(100% - 24px);min-height:calc(100vh - 180px)} .acc-start .row-btns .btn{flex:1} }
