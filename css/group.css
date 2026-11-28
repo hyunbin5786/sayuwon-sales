@@ -1268,7 +1268,7 @@ html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
   .book .mbdb-t .c-n{width:64px}
   .book .mbdb-t .c-x{width:14%}
   .book .mbdb-t .c-s{width:96px}
-  .book .mbdb-t .c-a{width:96px;text-align:right}
+  .book .mbdb-t .c-a{width:84px;text-align:right}
 }
 /* 찾기 날짜 (2026-11-25 다시): 기본 = 전체(날짜 칸 흐림) · 「기간 설정」 = 오늘 ~ 오늘로 켜짐 */
 .book-find .bf-date{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -1590,6 +1590,11 @@ html.alert-only #tbdList li .who{min-width:0;overflow-wrap:anywhere}
 .ba-req{color:var(--red);font-style:normal;font-weight:700;margin-left:2px}
 .book-add-pop .ba-h{padding-right:34px}
 .book-add-pop .ba-btns .ba-del{margin-right:auto}
+/* 직접 추가한 줄은 누르면 고치는 창 (2026-11-28 · 「수정」 단추 대신) — 로그인 없이 보는 사람은 누를 수 없음 */
+.mbdb-t tr[data-bkrow],.mbdb-t tr[data-mbrow]{cursor:pointer}
+.mbdb-t tr[data-bkrow]:hover td,.mbdb-t tr[data-mbrow]:hover td{background:#faf8f2}
+html.book-guest .mbdb-t tr[data-bkrow],html.book-guest .mbdb-t tr[data-mbrow]{cursor:default}
+html.book-guest .mbdb-t tr[data-bkrow]:hover td,html.book-guest .mbdb-t tr[data-mbrow]:hover td{background:none}
 @media (max-width:760px){
   /* 휴대폰 카드: 「구분」 이름표는 카드 오른쪽 위 · 날짜가 카드 제목 (예전에는 첫 칸이 날짜였음) */
   html.book-only .mbdb-t tr{position:relative}
@@ -1598,8 +1603,7 @@ html.alert-only #tbdList li .who{min-width:0;overflow-wrap:anywhere}
   html.book-only .mbdb-t td.c-d{font-size:16.5px;font-weight:700;color:var(--pine);padding:3px 84px 6px 0 !important;border-bottom:1px solid var(--line) !important;margin-bottom:3px}
   html.book-only .mbdb-t td.c-d::before{display:none}
   /* 「＋ 직접 추가」 · 「수정 기록」: 한 줄에 나란히 (로그인한 사람에게만 보임) */
-  html.book-only #bookModal h2 .row-btns > #bookAddBtn{grid-column:1;height:40px;font-size:15px;border-radius:10px;width:auto}
-  html.book-only #bookModal h2 .row-btns > #bookLogBtn{grid-column:2}
+  html.book-only #bookModal h2 .row-btns > #bookAddBtn{grid-column:1/-1;height:40px;font-size:15px;border-radius:10px;width:100%}   /* 「수정 기록」 단추는 2026-11-28 없앰 → 한 줄 가득 */
   #bookAddModal .ba-btns{flex-wrap:wrap}
   #bookAddModal .ba-btns .ba-del{flex:1 1 100%;margin:0}
 }
