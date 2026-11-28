@@ -170,14 +170,15 @@ function accRender(hit){
   $('#bSum').textContent=OPS_PAGE.hint;
   const list=base.filter(x=>hit(x.d) && shown(x))
     .sort(accByWhen);
-  if(!list.length){ $('#list').innerHTML=`<p class="empty">${rows.length ? '조건에 맞는 사고가 없습니다.' : '아직 접수된 사고가 없습니다.'}</p>`; return; }
+  const hand=accHandHTML();
+  if(!list.length){ $('#list').innerHTML=hand+`<p class="empty">${rows.length ? '조건에 맞는 사고가 없습니다.' : '아직 접수된 사고가 없습니다.'}</p>`; return; }
   const what=d=>accWhat(d).split('\n')[0].slice(0,40);
-  if(ACC_MQ.matches){ $('#list').innerHTML=`<div class="acc-cards">${list.map(x=>{ const d=x.d, s=accStatus(d);
+  if(ACC_MQ.matches){ $('#list').innerHTML=hand+`<div class="acc-cards">${list.map(x=>{ const d=x.d, s=accStatus(d);
       return `<div class="acc-card${s==='처리 완료'?' closed':''}" data-edit="${esc(x.r.id)}" role="button" tabindex="0"><div class="ac-t">${accTag(s)}<b>${esc(accWhen(d))}</b></div><div class="ac-p">${esc([d.place, d.type].filter(Boolean).join(' · '))}</div>${what(d)?`<div class="ac-w">${esc(what(d))}</div>`:''}<div class="ac-o">담당 ${esc(accOwner(d, x.r))}${accMine(x)?'':' · 보기 · 메모만'}</div></div>`; }).join('')}</div>`; return; }
-  $('#list').innerHTML=`<div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th>사고 일시</th><th>장소</th><th>구분</th><th>사고 대상자</th><th>사고 내용</th><th>담당자</th><th>단계</th><th></th></tr></thead><tbody>${list.map(x=>{ const d=x.d, s=accStatus(d), mine=accMine(x);
-    return `<tr class="${s==='처리 완료'?'closed':''}"><td class="nw">${esc(accWhen(d))}</td><td>${esc(d.place||'')}</td><td class="nw">${esc(d.type||'')}</td><td>${esc(d.person||'')}</td><td>${esc(what(d))}</td><td class="nw">${esc(accOwner(d, x.r))}</td>`
+  $('#list').innerHTML=hand+`<div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th>사고 일시</th><th>장소</th><th>구분</th><th>사고 대상자</th><th>사고 내용</th><th>담당자</th><th>단계</th></tr></thead><tbody>${list.map(x=>{ const d=x.d, s=accStatus(d), mine=accMine(x);
+    return `<tr class="acc-row${s==='처리 완료'?' closed':''}" data-edit="${esc(x.r.id)}" tabindex="0"><td class="nw">${esc(accWhen(d))}</td><td>${esc(d.place||'')}</td><td class="nw">${esc(d.type||'')}</td><td>${esc(d.person||'')}</td><td>${esc(what(d))}</td><td class="nw">${esc(accOwner(d, x.r))}</td>`
       + `<td class="nw">${accTag(s)}</td>`
-      + `<td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">${mine?'열기':'보기'}</button></td></tr>`; }).join('')}</tbody></table></div>`;
+      + `</tr>`; }).join('')}</tbody></table></div>`;
 }
 
 const ACC_PLACES = ['소대','쉼자리길','가가빈빈','현암','소요헌','남명','별유동천','소백세심대','몽몽마방','몽몽차방','곡신문','주차장','매표소'];
@@ -351,3 +352,24 @@ function accAuto(k){ if(!k || (typeof roBy!=='undefined' && roBy)) return;
   accSide(); accSecPaint(); accDirtyPaint(); toast(`단계가 「${ACC_ST[n]}」(으)로 넘어갔습니다.`); }
 document.addEventListener('change', e=>{ const t=e.target; if(!t.closest || !t.closest('#eFields')) return; const k=t.dataset.k || t.dataset.dp; if(k) setTimeout(()=>accAuto(k), 0); });
 document.addEventListener('focusout', e=>{ const t=e.target; if(t.closest && t.closest('#eFields') && t.dataset.dt) setTimeout(()=>accAuto(t.dataset.dt), 0); });
+
+// ---------- 목록의 줄을 누르면 열림 (2026-11-28 · 「열기」 · 「보기」 단추를 없앰 — 줄 · 카드에 data-edit · 공통 엔진이 엶) · 키보드: 줄에서 Enter ----------
+document.addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.matches && e.target.matches('#list [data-edit]')){ e.preventDefault(); e.target.click(); } });
+
+// ---------- 담당자 한 번에 넘기기 (2026-11-28 · 주소 끝에 ?handover=1 을 붙여 열었을 때만 목록 위에 보임) ----------
+//  예전 현황판에서 옮긴 기록은 옮긴 사람이 담당자로 들어가 있다 — 그 사람이 로그인해서 「내가 담당인 것」을 한 번에 다른 멤버에게 넘긴다(남은 추후과업도 같이).
+//  직원 이름을 코드에 넣지 않으려고 화면에서 고르게 했다(공개 저장소 · CLAUDE.md 철칙 11). 평소에는 보이지 않는다 — 담당자는 사고를 열어 제목 줄에서 바꾼다
+const ACC_HAND = /[?&]handover=1\b/.test(location.search);
+let accHandWho='';
+function accHandHTML(){ if(!ACC_HAND) return ''; const me=accMe(), n=rows.filter(accMine).length, names=[...new Set([...(window.opsMembers||[])].filter(x=>x && x!==me))];
+  return `<div class="acc-bulk"><b>내가 담당인 사고 ${n}건</b><select id="accHandWho" title="새 담당자">${names.map(x=>`<option${x===accHandWho?' selected':''}>${esc(x)}</option>`).join('')}</select><button type="button" class="btn sm primary" id="accHandGo"${n && names.length ? '' : ' disabled'}>담당자 넘기기</button></div>`; }
+document.addEventListener('change', e=>{ if(e.target.id==='accHandWho') accHandWho=e.target.value; });
+document.addEventListener('click', async e=>{ if(e.target.id!=='accHandGo') return; e.stopPropagation();
+  const who=accHandWho || document.getElementById('accHandWho')?.value || '', L=rows.filter(accMine); if(!who || !L.length) return;
+  if(!confirm(`내가 담당인 사고 ${L.length}건의 담당자를 「${who}」(으)로 바꿀까요?\n바꾼 뒤에는 「${who}」님만 고칠 수 있습니다.`)) return;
+  let n=0;
+  for(const x of L){ const po=accOwner(x.d, x.r), id=x.r.id; if(po===who) continue;
+    const ok=await putRow({...x, d:{...x.d, owner:who}}, `담당자 ${po} → ${who}`); if(ok===false) break; n++;
+    try{ for(const t of accTasks(id).filter(t=>!accTaskDone(t.d) && (!po || t.d.owner===po))) await accTaskPut({...t.r, owner:who}, t.j, {...t.d, owner:who}, `담당자 ${po} → ${who}`); }catch(err){ accFail(err); } }
+  render(); toast(`${n}건의 담당자를 「${who}」(으)로 바꿨습니다.`);
+  if(accEd()){ const x=rows.find(y=>y.r.id===editRow.r.id); if(x) openEdit(x); } });

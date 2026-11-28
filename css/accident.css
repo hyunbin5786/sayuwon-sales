@@ -266,3 +266,10 @@ header #accNewBtn:hover{background:#f3f7ef}
 .ef-sec:has(#accErpBtn) > .ef-head{padding-right:120px}
 @media (min-width:701px){ .ef:has(> #accErpBtn){top:12px;right:16px} }
 @media (min-width:1181px){ .ef-col[data-col="1"] > .ef-sec:first-child:has(#accErpBtn){position:sticky} }
+
+/* 2026-11-28 목록: 줄을 누르면 열림 (「열기」 단추 없앰) · 담당자 한 번에 넘기기 줄(?handover=1 일 때만) */
+.acc-tbl tr.acc-row{cursor:pointer}
+.acc-tbl tr.acc-row:hover td,.acc-tbl tr.acc-row:focus-visible td{background:var(--bg)}
+.acc-tbl tr.acc-row:focus-visible{outline:2px solid var(--muted);outline-offset:-2px}
+.acc-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;padding:8px 10px;border-radius:8px;background:var(--pine-soft);font-size:13px}
+.acc-bulk select{height:28px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:13px var(--sans);background:#fff;color:var(--ink)}
