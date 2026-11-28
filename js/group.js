@@ -1445,14 +1445,14 @@ let bookCatNow='rent', bookEdit=null;   // bookEdit: 고치는 줄 (몽몽마방
 const BOOK_COLS = { rent:['일자','업체','인원','장소 · 시간','담당자 이름','비고사항',''], docent:['일자','업체','인원','시간','종류','담당자 이름','비고사항',''], prog:['일자','업체','인원','프로그램 항목','담당자 이름','비고사항',''], coupon:['일자','업체','매수','쿠폰 종류','담당자 이름','비고사항',''] };
 // 예약 목록 표 (2026-11-25 통일): 다섯 목록 모두 같은 칸 · 같은 순서 — 날짜 · 시간 · 업체 · 인원 · 내용(목록마다 이름만 다름) · 담당자 · 비고 · (구분) / 줄마다 날짜
 const BK_CONTENT = { mb:'메뉴', rent:'장소', docent:'종류 · 장소', prog:'프로그램', coupon:'쿠폰 종류' };
-const BK_COLS = c => ['구분','날짜','시간','업체','인원'+(c==='coupon'?' (매수)':''),BK_CONTENT[c]||'내용','담당자','비고',''];
-const BK_CLS = ['c-k','c-d','c-t','c-o','c-n','c-x','c-s','c-m','c-a'];
+const BK_COLS = c => ['구분','날짜','시간','업체','인원'+(c==='coupon'?' (매수)':''),BK_CONTENT[c]||'내용','담당자','비고'];   // 2026-11-28: 끝의 빈 열(수정 · × 자리)을 없앰 — 비고가 마지막 열 (고치기 = 줄을 누름 · 빼기 = 고치는 창의 「이 예약 빼기」)
+const BK_CLS = ['c-k','c-d','c-t','c-o','c-n','c-x','c-s','c-m'];
 const bkHeadHTML = c => `<tr>${BK_COLS(c).map((h,i)=>`<th class="${BK_CLS[i]}">${h}</th>`).join('')}</tr>`;
 // 「구분」 열 (2026-11-28 · 날짜 앞): 단체 예약에서 온 줄 = 「단체예약」 · 직접 넣은 줄 = 「직접 추가」 (v.src = 'g' | 'm' · 색은 css .bk-src)
 const BK_SRC = { g:'단체예약', m:'직접 추가' };
 const bkSrcTag = s => `<span class="tag bk-src ${s==='m'?'m':'g'}">${BK_SRC[s==='m'?'m':'g']}</span>`;
 // 한 줄: v = {src, d, tm, org, n, x, staff, note} · cls/attr = 줄 표시 · acts = 오른쪽 끝
-const bkRowHTML = (v, cls, attr, acts) => `<tr class="${cls}"${attr}><td class="c-k">${bkSrcTag(v.src)}</td><td class="c-d">${esc(dateLabel(v.d))}</td><td class="c-t">${esc(v.tm||'')}</td><td class="c-o"><b>${esc(v.org||'')}</b></td><td class="c-n num">${esc(v.n||'')}</td><td class="c-x">${v.x||''}</td><td class="c-s" style="white-space:pre-line">${esc(v.staff||'')}</td><td class="c-m note">${v.note||''}</td><td class="c-a acts">${acts}</td></tr>`;
+const bkRowHTML = (v, cls, attr, acts) => `<tr class="${cls}"${attr}><td class="c-k">${bkSrcTag(v.src)}${acts||''}</td><td class="c-d">${esc(dateLabel(v.d))}</td><td class="c-t">${esc(v.tm||'')}</td><td class="c-o"><b>${esc(v.org||'')}</b></td><td class="c-n num">${esc(v.n||'')}</td><td class="c-x">${v.x||''}</td><td class="c-s" style="white-space:pre-line">${esc(v.staff||'')}</td><td class="c-m note">${v.note||''}</td></tr>`;   // acts = 「지금 이 예약」 이름표 (구분 칸 안 · 단체 화면에서 열어 둔 예약)
 function manualRows(){ try{ return bkDb().rows.map(x=>({...x, manual:true, ppl:+x.ppl||0})); }catch(_){ return []; } }   // 직접 넣은 대관 · 도슨트 · 프로그램
 // ===== 예약 목록 찾기 (2026-11-25 · 2026-11-27 「기간 설정」 단추 없앰): 날짜 칸 두 개를 바로 누름 (비어 있으면 전체 · 하나만 고르면 그날 하루 · 둘이 다르면 기간 · 끝은 시작보다 앞설 수 없음 · 「초기화」 = 전체로) + 검색어(프로그램 · 업체명 · 담당자 이름 · 띄어 쓰면 모두 맞는 것) =====
 function bkFind(){ const v=id=>(document.getElementById(id)||{}).value||'', q=v('bfQ').trim().toLowerCase();
@@ -1501,15 +1501,15 @@ function paintBook(){
   $('#bookTitle').textContent = `${BOOK_CATS[c]} 예약 목록`; { const bs=$('#bookSum'); if(bs){ bs.textContent=''; bs.hidden=true; } }   // 건수 · 「단체 예약에서 자동 + 직접 추가」 문구는 없앰 (2026-11-21)
   $('#bookHead').innerHTML = bkHeadHTML(c);
   $('#bookBody').innerHTML = list.map(x=>bkGenRow(x, today, '')).join('')
-    || `<tr><td colspan="9" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':mine?`담당 「${esc(me)}」인 ${past?'':'앞으로 있을 '}예약이 없습니다.`:all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다.'}</td></tr>`;
+    || `<tr><td colspan="8" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':mine?`담당 「${esc(me)}」인 ${past?'':'앞으로 있을 '}예약이 없습니다.`:all.length?'앞으로 있을 예약이 없습니다.':BOOK_CATS[c]+' 예약이 없습니다.'}</td></tr>`;
   labelCells('#bookBody', BK_COLS(c));   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
-  if(!list.length && gWaiting()) $('#bookBody').innerHTML=SY.skel('table', 6, {cols:9, label:'예약 목록을 불러오는 중'});   // 사본이 없고 처음 받는 중 (2026-11-27 · 로그인 없이 볼 때 등)
+  if(!list.length && gWaiting()) $('#bookBody').innerHTML=SY.skel('table', 6, {cols:8, label:'예약 목록을 불러오는 중'});   // 사본이 없고 처음 받는 중 (2026-11-27 · 로그인 없이 볼 때 등)
 }
 // 대관 · 도슨트 · 프로그램 · 음료쿠폰 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표 · 수정 단추의 data-bcat = 그 줄의 목록)
 const bkWhat = x => x.cat==='rent' ? (x.place||'(장소 미정)') : x.cat==='docent' ? [x.kind, x.place].filter(Boolean).join(' · ') : (x.item||'');   // 내용 칸
 const bkGenRow = (x, today, tag) => bkRowHTML({src:x.manual?'m':'g', d:x.d, tm:(x.tm||(x.cat==='docent'?'(미정)':''))+(x.hrs?` (${x.hrs}시간)`:''), org:x.org, n:x.ppl?x.ppl+(x.cat==='coupon'?'장':'명'):'', x:esc(bkWhat(x)), staff:x.staff, note:esc(x.note||'')},
-      `r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}`, x.manual?` data-bkrow="${esc(x.id)}" data-bcat="${esc(x.cat)}" title="누르면 고칩니다 (직접 추가한 예약)"`:` data-bopen="${esc(x.id)}"`,
-      `${x.manual ? `<button type="button" class="del" data-bkdel="${esc(x.id)}" title="빼기">×</button>` : x.me ? '<span class="tag call" title="지금 화면에서 열어 둔 예약 (저장 전 내용도 바로)">지금 이 예약</span>' : ''}`);   // 끝 열의 「단체예약」 이름표는 없앰 (2026-11-27 · 줄을 누르면 그 예약이 열리는 것은 그대로)
+      `r${x.d<today?' past':''}${rec.date && x.d===rec.date?' same':''}`, x.manual?` data-bkrow="${esc(x.id)}" data-bcat="${esc(x.cat)}" title="누르면 고치는 창이 뜹니다 (직접 추가한 예약 · 빼기도 그 창에서)"`:` data-bopen="${esc(x.id)}"`,
+      `${!x.manual && x.me ? '<span class="tag call bk-now" title="지금 화면에서 열어 둔 예약 (저장 전 내용도 바로)">지금 이 예약</span>' : ''}`);   // 끝 열의 「단체예약」 이름표는 없앰 (2026-11-27 · 줄을 누르면 그 예약이 열리는 것은 그대로)
 // ===== 모든 목록에서 찾기 (2026-11-27): 찾기 칸에 글자를 넣으면 고른 목록 하나가 아니라 몽몽마방 · 대관 · 도슨트 · 프로그램 · 음료쿠폰 다섯 목록을 한 표에 (한 사람이 여러 목록의 담당일 때가 있어서)
 //  (2026-11-27 다시) 줄마다 이름표를 붙이지 않고 목록마다 상자를 나눠 그 안에 (#bookAll · 상자 제목 = 목록 이름 + 건수 · 표의 칸 이름은 그 목록 것) · 글자를 지우면 고른 목록으로 돌아감 · 날짜만 고른 것은 예전처럼 고른 목록 안에서 · 탭을 누르면 검색어를 지우고 그 목록으로
 //  자료는 로그인한 사람(list) · 로그인 안 한 사람(bookList) 모두 다섯 목록 것을 한 번에 받아 두므로 서버는 그대로
@@ -1804,8 +1804,8 @@ function mbAutoRows(){ try{
 function mbAllRows(){ return [...mbDb().rows.map((x,i)=>({...x, i})), ...mbAutoRows()]; }   // 직접 넣은 것(i = 몇 번째) + 단체 예약에서 자동
 // 몽몽마방 한 줄 (tag = 모든 목록에서 찾을 때 내용 칸 앞의 목록 이름표)
 function mbRow(x, today, tag){ return bkRowHTML({src:x.auto?'g':'m', d:x.d, tm:x.t, org:x.n, n:x.p?x.p+'명':'', x:esc(x.m||''), staff:x.staff||'', note:[x.pay==='마방'?'마방 결제':'', esc(x.note||'')].filter(Boolean).join(' · ')},
-      `${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}`, x.auto ? (x.cur ? '' : ` data-bopen="${esc(x.id)}"`) : ` data-mbrow="${x.i}" data-bcat="mb" title="누르면 고칩니다 (직접 추가한 예약)"`,
-      `${x.cur ? '<span class="tag call" title="지금 화면에서 입력 중인 예약 (저장 전이어도 바로)">지금 이 예약</span>' : x.auto ? '' : `<button type="button" class="del" data-mbdel="${x.i}" title="이 예약 빼기">×</button>`}`); }
+      `${x.auto?'r ':''}${x.d<today?'past':''}${rec.date && x.d===rec.date?' same':''}`, x.auto ? (x.cur ? '' : ` data-bopen="${esc(x.id)}"`) : ` data-mbrow="${x.i}" data-bcat="mb" title="누르면 고치는 창이 뜹니다 (직접 추가한 예약 · 빼기도 그 창에서)"`,
+      `${x.cur ? '<span class="tag call bk-now" title="지금 화면에서 입력 중인 예약 (저장 전이어도 바로)">지금 이 예약</span>' : ''}`); }
 function paintMbDb(){
   const db=mbDb(), today=todayYmd(), past=$('#bookPast').checked;   // 지난 예약도 보기 (예약 목록 창 공통)
   const all=mbAllRows();
@@ -1814,9 +1814,9 @@ function paintMbDb(){
   $('#mbdbSum').textContent = all.length ? `${all.length}건 · 단체 예약(가예약 · 예약확정)에서 자동으로 들어옴 + 직접 추가` : '아직 없음';   // 「＋ 직접 추가」를 없애며 「직접 추가 마지막 저장」 글도 뺌 (2026-11-27)
   $('#mbdbHead').innerHTML = bkHeadHTML('mb');
   $('#mbdbBody').innerHTML = list.map(x=>mbRow(x, today, '')).join('')
-    || `<tr><td colspan="9" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':all.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'몽몽마방 예약이 없습니다.'}</td></tr>`;
+    || `<tr><td colspan="8" class="empty">${F.on?'찾는 조건에 맞는 예약이 없습니다.':all.length?'앞으로 있을 몽몽마방 예약이 없습니다.':'몽몽마방 예약이 없습니다.'}</td></tr>`;
   labelCells('#mbdbBody', BK_COLS('mb'));   // 휴대폰: 칸마다 이름 (카드 모양, 2026-11-21)
-  if(!list.length && gWaiting()) $('#mbdbBody').innerHTML=SY.skel('table', 6, {cols:9, label:'예약 목록을 불러오는 중'});   // 사본이 없고 처음 받는 중 (2026-11-27)
+  if(!list.length && gWaiting()) $('#mbdbBody').innerHTML=SY.skel('table', 6, {cols:8, label:'예약 목록을 불러오는 중'});   // 사본이 없고 처음 받는 중 (2026-11-27)
 }
 async function mbDbSave(rows, msg){
   if(BOOK_GUEST){ toast('로그인한 사람만 고칠 수 있습니다.'); return; }
