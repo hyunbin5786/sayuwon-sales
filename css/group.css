@@ -602,7 +602,7 @@ html.book-only #bookModal > section{width:auto;max-width:none;max-height:none;ma
 html.book-only #bookModal > section > h2{border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px}
 html.book-only #bookClose{display:none}
 html.book-guest #bookBody td.acts,html.book-guest #mbdbBody td.acts{display:none}
-html.book-guest #bookHead th:last-child,html.book-guest .book thead tr th:last-child{display:none}
+/* (2026-11-28) 끝의 빈 열을 없애 비고가 마지막 열이 됨 — 로그인 없이 볼 때 「마지막 머리글 숨김」 규칙은 뺌 (비고가 숨겨지므로) */
 html.book-guest #bookBody tr{cursor:default}
 /* 몽몽마방 줄: 시작 · 끝 · 결제 칸 앞 작은 이름. 결제 미정은 노란색 (미정 항목) */
 .it-extra .it-xl{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap}
@@ -1259,7 +1259,7 @@ html.alert-only #tbdModal .panel{width:100%;max-width:none;margin:0}
 /* 예약 목록 표 통일 (2026-11-25): 다섯 목록 모두 같은 칸 · 같은 너비 — 날짜 · 시간 · 업체 · 인원 · 내용 · 담당자 · 비고 · 구분 */
 @media (min-width:761px){
   .book .mbdb-t{table-layout:fixed;width:100%}
-  .book:not(.bklog) .mbdb-t{min-width:860px}   /* 2026-11-28: 「구분」 열이 늘어 좁은 창에서는 표 안에서 옆으로 밀어 봄 (비고 칸이 0 이 되지 않게) */
+  .book:not(.bklog) .mbdb-t{min-width:780px}   /* 2026-11-28: 「구분」 열이 늘어 좁은 창에서는 표 안에서 옆으로 밀어 봄 (비고 칸이 0 이 되지 않게) */
   .book .mbdb-t th,.book .mbdb-t td{overflow-wrap:anywhere}
   .book .mbdb-t .c-k{width:72px;white-space:nowrap}
   .book .mbdb-t .c-d{width:88px;white-space:nowrap}
@@ -1584,6 +1584,7 @@ html.alert-only #tbdList li .who{min-width:0;overflow-wrap:anywhere}
 @media (max-width:700px){ .memo-panel .memo-hist-btn{height:30px;padding:0 10px;font-size:13px} }   /* 휴대폰: 「수정 기록」도 낮게 (입력란의 「저장」은 38px 그대로) */
 /* ===== 예약 목록 「구분」 열 (2026-11-28 · 날짜 앞): 단체 예약에서 온 줄 = 단체예약(초록) · 직접 넣은 줄 = 직접 추가(황토) — 이름표로만 가림 (왼쪽 색 띠 없음) ===== */
 .tag.bk-src{white-space:nowrap}
+.tag.bk-now{display:block;width:max-content;margin-top:3px;white-space:nowrap}
 .tag.bk-src.g{background:#e7efe2;color:#4f6b3f}
 .tag.bk-src.m{background:#f6ecdc;color:#8a5a1c}
 /* 직접 추가 창 (2026-11-28): 꼭 넣는 칸 * · 창 안의 「이 예약 빼기」(왼쪽) · 오른쪽 위 × 자리 */
