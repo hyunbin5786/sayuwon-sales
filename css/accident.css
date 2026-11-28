@@ -266,4 +266,9 @@ header #accNewBtn:hover{background:#f3f7ef}
 #accErpIn{display:block;width:100%;min-height:240px;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:14px/1.5 var(--sans);background:#fff;color:var(--ink);resize:vertical;box-sizing:border-box}
 #accErpIn:focus{outline:none;border-color:var(--pine)}
 @media (max-width:700px){ body.pg-acc #accErpModal{padding:0} body.pg-acc #accErpModal .acc-erp{width:100%;min-height:100%;border-radius:0;box-sizing:border-box} #accErpIn{font-size:16px} }
-.ef > #accErpBtn{align-self:flex-start}
+/* 「예약 내역 넣기」 = 묶음 제목(① 접수 · 사고 개요)과 같은 줄 오른쪽 (칸 줄에서 빼서 묶음의 오른쪽 위에 놓음) */
+.ef-sec:has(#accErpBtn){position:relative}
+.ef:has(> #accErpBtn){position:absolute;top:-3px;right:0;margin:0}
+.ef-sec:has(#accErpBtn) > .ef-head{padding-right:120px}
+@media (min-width:701px){ .ef:has(> #accErpBtn){top:12px;right:16px} }
+@media (min-width:1181px){ .ef-col[data-col="1"] > .ef-sec:first-child:has(#accErpBtn){position:sticky} }
