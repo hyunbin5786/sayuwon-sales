@@ -142,8 +142,8 @@ body.pg-acc .filters{align-items:center}
 .acc-cols{display:flex;flex-direction:column;gap:14px}
 .acc-cols > .acc-side{order:-1}
 @media (min-width:701px){
-  body.pg-acc #editModal{padding:24px 16px}
-  body.pg-acc #editModal .edit-box{width:min(1640px,100%);background:var(--bg);padding:16px}
+  body.pg-acc #editModal{padding:14px 16px 24px}
+  body.pg-acc #editModal .edit-box{width:100%;background:none;border:0;border-radius:0;padding:0}
   .ef-sec,.acc-box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
   .ef-sec > .ef-head,.acc-box h3{margin:0 0 10px;padding:0;border:0;font:600 15px var(--serif);color:var(--ink)}
   .ef-sec > .egrid{grid-template-columns:repeat(auto-fit,minmax(max(140px,calc(50% - 5px)),1fr));gap:8px 10px}   /* 두 칸씩 · 열이 좁으면(290px 아래) 한 칸씩 */
@@ -163,7 +163,7 @@ body.pg-acc .filters{align-items:center}
   .acc-main > .row-btns{grid-column:2}
 }
 @media (min-width:1181px){
-  body.pg-acc #editModal .edit-box{max-height:calc(100vh - 48px);display:flex;flex-direction:column}
+  body.pg-acc #editModal .edit-box{max-height:calc(100vh - var(--acc-top,50px) - 38px);display:flex;flex-direction:column}
   body.pg-acc #editModal .edit-box > *{flex:none}
   body.pg-acc #editModal #eForm{flex:0 1 auto;min-height:0;display:flex;flex-direction:column}
   .acc-cols{flex:0 1 auto;min-height:0;grid-template-columns:minmax(420px,1.35fr) minmax(280px,.9fr) minmax(300px,1fr);grid-template-rows:minmax(0,1fr) auto;align-items:stretch}
@@ -185,3 +185,21 @@ body.pg-acc .filters{align-items:center}
   @supports not selector(::-webkit-scrollbar){ .ef-col,.acc-cols > .acc-side{scrollbar-width:thin;scrollbar-color:#c9c6be transparent} }
 }
 #accSide[hidden]{display:none}
+
+/* ===== 2026-11-28 첫 화면 = 사고 한 건을 접수 · 고치는 곳 (창이 아니라 화면 · 단체 화면의 .layout 처럼) · 목록은 헤더 「사고 목록」 단추로 여는 창 ===== */
+body.pg-acc main{max-width:none;padding:0}
+body.pg-acc #keyBox{margin:14px 16px}
+#editModal #eTitle{margin:0 0 12px;font:600 17px var(--serif)}
+#accListModal .acc-list{width:min(1180px,100%)}
+#accListModal .b-head{padding-right:36px}
+.acc-tbl .acc-ck{width:28px;padding-right:0}
+.acc-ck input{width:16px;height:16px;accent-color:var(--pine);display:block}
+.acc-bulk{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:8px 10px;border-radius:8px;background:var(--pine-soft);font-size:13px}
+.acc-bulk select{height:28px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:13px var(--sans);background:#fff;color:var(--ink)}
+@media (max-width:700px){
+  body.pg-acc #accListModal{padding:0}
+  #accListModal .b-head{padding-right:0}
+  body.pg-acc #accListModal .acc-list{width:100%;min-height:100%;border-radius:0;box-sizing:border-box}
+  body.pg-acc #editModal .edit-box{border:0;min-height:0}
+  body.pg-acc header .hd-btn{padding:4px 9px}
+}

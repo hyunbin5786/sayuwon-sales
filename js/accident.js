@@ -172,8 +172,10 @@ function accRender(hit){
   const what=d=>String(d.what||'').split('\n')[0].slice(0,40);
   if(ACC_MQ.matches){ $('#list').innerHTML=`<div class="acc-cards">${list.map(x=>{ const d=x.d, s=accStatus(d);
       return `<div class="acc-card${s==='처리 완료'?' closed':''}" data-edit="${esc(x.r.id)}" role="button" tabindex="0"><div class="ac-t">${accTag(s)}<b>${esc(accWhen(d))}</b>${days(x)}</div>${accMini(d)}<div class="ac-p">${esc([d.place, d.type].filter(Boolean).join(' · '))}</div>${what(d)?`<div class="ac-w">${esc(what(d))}</div>`:''}<div class="ac-o">담당 ${esc(accOwner(d, x.r))}${accMine(x)?'':' · 보기 · 메모만'}</div></div>`; }).join('')}</div>`; return; }
-  $('#list').innerHTML=`<div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th>사고 일시</th><th>장소</th><th>구분</th><th>사고 대상자</th><th>사고 내용</th><th>담당자</th><th>단계</th><th></th></tr></thead><tbody>${list.map(x=>{ const d=x.d, s=accStatus(d), mine=accMine(x);
-    return `<tr class="${s==='처리 완료'?'closed':''}"><td class="nw">${esc(accWhen(d))}</td><td>${esc(d.place||'')}</td><td class="nw">${esc(d.type||'')}</td><td>${esc(d.person||'')}</td><td>${esc(what(d))}</td><td class="nw">${esc(accOwner(d, x.r))}</td>`
+  const mineIds=list.filter(accMine).map(x=>x.r.id); [...accSel].forEach(i=>{ if(!mineIds.includes(i)) accSel.delete(i); });
+  $('#list').innerHTML=(accSel.size ? `<div class="acc-bulk"><b>${accSel.size}건</b><select id="accBulkWho" title="새 담당자">${[...new Set([accMe(), ...(window.opsMembers||[])].filter(Boolean))].map(n=>`<option${n===accBulkWho?' selected':''}>${esc(n)}</option>`).join('')}</select><button type="button" class="btn sm primary" id="accBulkGo">담당자 바꾸기</button></div>` : '')
+    + `<div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th class="acc-ck"><input type="checkbox" id="accSelAll" title="내가 담당인 것 모두 고르기"${mineIds.length && mineIds.every(i=>accSel.has(i))?' checked':''}${mineIds.length?'':' disabled'}></th><th>사고 일시</th><th>장소</th><th>구분</th><th>사고 대상자</th><th>사고 내용</th><th>담당자</th><th>단계</th><th></th></tr></thead><tbody>${list.map(x=>{ const d=x.d, s=accStatus(d), mine=accMine(x);
+    return `<tr class="${s==='처리 완료'?'closed':''}"><td class="acc-ck">${mine ? `<input type="checkbox" data-accsel="${esc(x.r.id)}"${accSel.has(x.r.id)?' checked':''}>` : ''}</td><td class="nw">${esc(accWhen(d))}</td><td>${esc(d.place||'')}</td><td class="nw">${esc(d.type||'')}</td><td>${esc(d.person||'')}</td><td>${esc(what(d))}</td><td class="nw">${esc(accOwner(d, x.r))}</td>`
       + `<td class="nw">${mine ? `<select class="lost-st acc-st s${ACC_ST.indexOf(s)}" data-accst="${esc(x.r.id)}" title="단계 바꾸기">${ACC_ST.map(o=>`<option${o===s?' selected':''}>${esc(o)}</option>`).join('')}</select>` : accTag(s)}${accMini(d)}${days(x)}</td>`
       + `<td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">${mine?'열기':'보기'}</button></td></tr>`; }).join('')}</tbody></table></div>`;
 }
@@ -196,7 +198,7 @@ const OPS_PAGE =
       {k:'booker', l:'대표 예약자 이름', type:'text'}, {k:'bookerPhone', l:'대표 예약자 연락처', ...accTel('대표 예약자 연락처')},
 
       {type:'head', l:'사고 내용', col:()=>accEd() ? 1 : 3},
-      {k:'what', l:'사고 내용', type:'textarea', req:1, w:2},
+      {k:'what', l:'사고 내용', type:'textarea', w:2},
       {k:'injury', l:'부상 부위 · 진단', type:'text'}, {k:'staff', l:'현장 대응 직원', type:'text', def:()=>accMe()},
       {k:'action', l:'현장 조치', type:'textarea', w:2},
       {k:'after', l:'이후 경과 (병원 진료 등)', type:'textarea', w:2},
@@ -231,11 +233,45 @@ const OPS_PAGE =
     onField:(k, d)=>{ if(k==='status') accStageDate(d); },
     afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
     // 저장한 뒤: 새 사고 = 담당자의 나의 할일에 한 건 · 담당자를 바꿨으면 남은 과업을 새 담당자에게 · 처리 완료면 남은 과업을 끝냄
-    afterSave:async (nr, was)=>{ try{ const o=accOwner(nr.d, nr.r), id=nr.r.id;
-        if(!was){ await accTaskNew(nr, '접수 확인 · 보험 접수 여부 정하기', o, 'new'); return; }
+    afterSave:async (nr, was)=>{ accGo=nr.r.id; try{ const o=accOwner(nr.d, nr.r), id=nr.r.id;
+        if(!was){ await accTaskNew(nr, '접수 확인 · 보험 접수 여부 정하기', o, 'new'); if(accEd() && editRow.r.id===id) accSide(); return; }
         const po=accOwner(was.d, was.r);
         if(accStatus(nr.d)==='처리 완료'){ await accTasksClose(id); return; }
         if(po!==o){ const open=accTasks(id).filter(t=>!accTaskDone(t.d) && t.d.owner===po);
           for(const t of open) await accTaskPut({...t.r, owner:o}, t.j, {...t.d, owner:o}, `담당자 ${po} → ${o}`);
           if(!open.length) await accTaskNew(nr, '담당자로 지정됨 · 내용 확인', o, 'owner'); } }catch(e){ accFail(e); } },
-    afterDel:row=>{ accTasksClose(row.r.id); } };
+    afterDel:row=>{ accTasksClose(row.r.id); if(!accEd() || editRow.r.id===row.r.id) openEdit(null); } };
+
+// ---------- 첫 화면 = 사고 한 건을 접수 · 고치는 곳 · 목록은 헤더의 「사고 목록」 (2026-11-28 · 단체 화면처럼) ----------
+//  공통 엔진(opsboard.js)은 저장 · 삭제 · Esc 때 #editModal 을 숨긴다 — 이 화면에서는 늘 떠 있어야 하므로 숨겨지면 바로 다시 보인다:
+//   저장한 뒤 = 저장한 그 사고를 다시 엶(accGo) · 삭제한 뒤 = 빈 새 접수(afterDel) · 그 밖(Esc 등) = 적던 것 그대로 다시 보임
+let accGo='';
+const accListEl = () => document.getElementById('accListModal');
+function accListOpen(on){ accListEl().hidden=!on; if(on){ if(typeof pull==='function') pull(); setTimeout(()=>$('#q')?.focus(), 0); } }
+new MutationObserver(()=>{ const m=document.getElementById('editModal'); if(!m.hidden) return;
+  if(accGo){ const id=accGo; accGo=''; const x=rows.find(y=>y.r.id===id) || (putRow.last && putRow.last.r.id===id ? putRow.last : null); if(x){ openEdit(x); return; } }
+  m.hidden=false; }).observe(document.getElementById('editModal'), {attributes:true, attributeFilter:['hidden']});
+document.addEventListener('DOMContentLoaded', ()=>{ $('#bTitle').textContent='사고 목록';
+  if(new URLSearchParams(location.search).get('open')) setTimeout(()=>{ if(document.getElementById('editModal').hidden) openEdit(null); }, 4000);   // ?open=기록 은 공통 엔진이 목록을 받은 뒤에 엶 · 못 찾으면 빈 접수
+  else openEdit(null); });
+document.addEventListener('click', e=>{ const t=e.target; if(!t.closest) return;
+  if(t.id==='accListBtn'){ accListOpen(true); return; }
+  if(t.id==='accNewBtn'){ openEdit(null); return; }
+  if(t.id==='accListX' || t.id==='addBtn' || t.closest('#accListModal [data-edit]')){ accListOpen(false); return; }
+  if(t.id==='accBulkGo'){ accBulk(); return; } });
+document.addEventListener('mousedown', e=>{ if(e.target.id==='accListModal') accListOpen(false); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !accListEl().hidden && $('#askModal').hidden) accListOpen(false); }, true);
+// 목록에서 담당자를 한꺼번에 바꾸기: 내가 담당인 줄을 골라(체크) 새 담당자에게 — 남은 추후과업도 새 담당자에게 넘김 (창에서 담당자를 바꿀 때와 같음 · OPS_PAGE.afterSave)
+const accSel = new Set(); let accBulkWho='';
+document.addEventListener('change', e=>{ const t=e.target;
+  if(t.id==='accBulkWho'){ accBulkWho=t.value; return; }
+  if(t.id==='accSelAll'){ document.querySelectorAll('[data-accsel]').forEach(c=>{ if(t.checked) accSel.add(c.dataset.accsel); else accSel.delete(c.dataset.accsel); }); render(); return; }
+  if(t.dataset && t.dataset.accsel){ if(t.checked) accSel.add(t.dataset.accsel); else accSel.delete(t.dataset.accsel); render(); } });
+async function accBulk(){ const who=accBulkWho || document.getElementById('accBulkWho')?.value || '', ids=[...accSel]; if(!who || !ids.length) return;
+  if(!confirm(`${ids.length}건의 담당자를 「${who}」(으)로 바꿀까요?`)) return;
+  let n=0;
+  for(const id of ids){ const x=rows.find(y=>y.r.id===id); if(!x || !accMine(x)) continue; const po=accOwner(x.d, x.r); if(po===who){ accSel.delete(id); continue; }
+    const ok=await putRow({...x, d:{...x.d, owner:who}}, `담당자 ${po} → ${who}`); if(ok===false) break; n++; accSel.delete(id);
+    try{ for(const t of accTasks(id).filter(t=>!accTaskDone(t.d) && t.d.owner===po)) await accTaskPut({...t.r, owner:who}, t.j, {...t.d, owner:who}, `담당자 ${po} → ${who}`); }catch(err){ accFail(err); } }
+  render(); if(n) toast(`${n}건의 담당자를 「${who}」(으)로 바꿨습니다.`);
+  if(accEd() && ids.includes(editRow.r.id)){ const x=rows.find(y=>y.r.id===editRow.r.id); if(x) openEdit(x); } }
