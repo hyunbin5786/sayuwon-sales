@@ -237,7 +237,7 @@ function dashRecs(items){
       const days=opsPending(d, today); if(opsOccurs(d, t2) && !(d.done||{})[t2]) days.push(t2);
       for(let i=2;i<400;i++){ const x=new Date(today+'T00:00'); x.setDate(x.getDate()+i); const day=opsYmd(x); if(opsOccurs(d, day) && !(d.done||{})[day]){ days.push(day); break; } }   // 그 뒤 다음 할 날도 (개인 할일 보기의 이번주 · 전체 숫자용)
       const subs=d.subs||[], subTxt = day => subs.length ? `세부 과업 ${subs.filter(s=>((d.subDone||{})[day]||{})[s.id]).length}/${subs.length}` : opsRepeatLabel(d);
-      if(days.length) recs.push({kind:'기타', rid:r.id, owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({day, title:subTxt(day), due:day})), href:'#mypop'});
+      if(days.length) recs.push({kind:'기타', rid:r.id, owner:(d.owner||r.takenBy||'').trim(), name:d.title||'(업무)', q:d.title||'', tasks:days.map(day=>({day, title:subTxt(day), due:day})), href:'#mypop', acc:d.acc||''});   // acc = 사고현황 접수에서 만든 과업의 사고 id (바로가기 · 2026-11-28)
     }
   });
   // 고객 견적 요청 (2026-11-23 · 2026-11-24 바꿈): 아직 「접수」인 요청 = 담당 없는 공통 업무 (대시보드 4열 2행) · 마감 = 접수한 날
@@ -577,7 +577,7 @@ function renderDash(){ if(!dashData) return; paintRange();
     const open = r => r.kind==='기타' ? 'data-mypop' : `data-recpop="${esc(r.href.replace('?open=', '?embed=1&open='))}"`;
     const late = t => (t.due<today ? `<small class="late">지남 ${esc(opsDateLabel(t.due))}</small>` : '') + (t.more ? `<small class="late">안 한 지난 날 ${t.more}일 더</small>` : '');
     const li = r => { const k=DTD_KIND[r.kind]||[r.kind,''];
-      if(r.kind==='기타') return `<li class="dtd">${r.due.map(t=>`<div class="dtd-t">${ck(r,t)}<span class="dk ${k[1]}">${k[0]}</span><button type="button" class="dtd-x" ${open(r)} title="나의 할일에서 고치기">${esc(r.name)}</button>${late(t)}</div>`).join('')}</li>`;
+      if(r.kind==='기타') return `<li class="dtd">${r.due.map(t=>`<div class="dtd-t">${ck(r,t)}<span class="dk ${k[1]}">${k[0]}</span><button type="button" class="dtd-x" ${open(r)} title="나의 할일에서 고치기">${esc(r.name)}</button>${r.acc?`<a class="dtd-go" href="accident.html?open=${encodeURIComponent(r.acc)}" data-tip="바로가기" aria-label="바로가기 (사고현황 접수로)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="6.8" cy="6.8" r="4.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.3 10.3l3.9 3.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></a>`:''}${late(t)}</div>`).join('')}</li>`;
       return `<li class="dtd"><div class="dtd-h"><span class="dk ${k[1]}">${k[0]}</span><button type="button" class="dtd-x dtd-name" ${open(r)} title="눌러서 바로 고치기 (팝업)">${esc(r.name)}</button>${r.href?`<a class="dtd-go" href="${esc(r.href)}" data-tip="바로가기" aria-label="바로가기 (그 화면으로)"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="6.8" cy="6.8" r="4.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.3 10.3l3.9 3.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></a>`:''}</div>`
         + r.due.map(t=>`<div class="dtd-t">${ck(r,t)}<button type="button" class="dtd-x" ${open(r)} title="눌러서 바로 고치기 (팝업)">${esc(t.title)}</button>${late(t)}</div>`).join('') + `</li>`; };
     return `<div class="dcol dtoday"><div class="dcol-h"><b>오늘 마감${me?` · ${esc(me)}`:''}</b><span class="dn">${n}</span></div>`

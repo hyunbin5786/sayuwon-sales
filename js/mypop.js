@@ -8,7 +8,7 @@
   const close = () => { pop.hidden=true; fr.src='about:blank'; };
   window.addEventListener('message', e=>{ if(!e.data || e.data.type!=='sy-my' || e.source!==fr.contentWindow) return;
     if(e.data.ev==='close') close();
-    if(e.data.ev==='go' && (/^(group|personal)\.html\?open=/.test(e.data.url||''))){ close(); location.href=e.data.url; } });   // 과업 줄 → 그 화면으로 (기타 개인 업무 포함)
+    if(e.data.ev==='go' && (/^(group|personal|accident)\.html\?open=/.test(e.data.url||''))){ close(); location.href=e.data.url; } });   // 과업 줄 → 그 화면으로 (기타 개인 업무 포함)
   pop.addEventListener('click', e=>{ if(e.target===pop) close(); });
   document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !pop.hidden){ e.preventDefault(); close(); } });
   document.addEventListener('click', e=>{ const b=e.target.closest('[data-mypop]'); if(b){ e.preventDefault(); window.openMyPop(); } });

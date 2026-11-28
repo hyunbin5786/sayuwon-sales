@@ -43,6 +43,7 @@ function tkHTML(T){
     meta.push(`<select class="tk-ctl tk-rep" data-tkrep title="반복 바꾸기">${REP_OPTS.map(([k,l])=>`<option value="${k}"${T.rep===k?' selected':''}>${l}</option>`).join('')}</select>`);
     if(T.rep==='weekly') meta.push(`<span class="tk-ctl tk-dows">${[1,2,3,4,5,6,0].map(i=>`<button type="button" class="${(T.d.dows||[]).includes(i)?'on':''}" data-tkdow="${i}">${DOW[i]}</button>`).join('')}</span>`);
     if(T.rep==='monthly') meta.push(`<select class="tk-ctl tk-dom" data-tkdom title="매달 날짜">${Array.from({length:31},(_,i)=>i+1).map(n=>`<option value="${n}"${String(T.d.dom||1)===String(n)?' selected':''}>${n===31?'말일':n+'일'}</option>`).join('')}</select>`);
+    if(T.d.acc) meta.push(`<button type="button" class="tk-ctl tk-src" data-accopen="${esc(T.d.acc)}" title="그 사고 열기">사고현황 접수</button>`);   // 사고현황 접수에서 만든 과업 (d.acc = 사고 id · 2026-11-28): 단체 · 개인 과업처럼 바로가기
   } else meta.push(`<button type="button" class="tk-ctl tk-src" ${T.srcAttr} title="그 예약 · 통화 열기">${esc(T.src)}</button>`);
   // 마감: 반복 없음 · 시스템 과업 = 날짜 칸(누르면 달력), 마감 없음 = 빈 날짜 칸, 반복 = 이번 날짜(글자)
   if(T.kind!=='e' || T.rep==='none' || T.rep==='later') meta.push(`<span class="tk-ctl tk-due" title="눌러서 마감 바꾸기">${dboxHTML('data-tkdue', T.due)}${T.due?`<small>${tkDueTxt(T.due)}</small>`:'<small>마감 없음</small>'}</span>`);
@@ -125,3 +126,8 @@ document.addEventListener('change', e=>{
   if(t.dataset.tkrep!=null){ const v=t.value;
     tkMut(K, ()=>false, d=>{ d.repeat=v; if(v==='weekly' && !(d.dows||[]).length) d.dows=[new Date().getDay()]; if(v==='monthly' && !d.dom) d.dom=String(new Date().getDate()); if(v!=='none' && v!=='later' && !d.start) d.start=todayYmd(); if(v==='none' && !d.due) d.due=d.start||todayYmd(); }, `반복 → ${(REP_OPTS.find(o=>o[0]===v)||[])[1]||v}`); return; }
 });
+
+// 사고 과업의 바로가기 (2026-11-28): 그 사고를 사고현황 접수 화면에서 엶 — 팝업(다른 화면에 떠 있는 나의 할일) 안에서는 바깥 화면이 옮겨 감 (js/mypop.js · js/menu.js)
+document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('[data-accopen]'); if(!b || !/(^|\/)group\.html$/.test(location.pathname)) return; e.preventDefault(); e.stopPropagation();
+  const url='accident.html?open='+encodeURIComponent(b.dataset.accopen);
+  if(/[?&]embed=1\b/.test(location.search) && window.parent!==window) window.parent.postMessage({type:'sy-my', ev:'go', url}, '*'); else if(typeof guardLeave==='function') guardLeave(()=>{ location.href=url; }); else location.href=url; }, true);

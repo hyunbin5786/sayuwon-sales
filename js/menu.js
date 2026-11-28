@@ -196,7 +196,7 @@ window.syFont = (function(){
       const fr=pop.querySelector('iframe'), closeP=()=>{ pop.hidden=true; fr.src='about:blank'; };
       window.openMyPop = () => { fr.src=base+'group.html?my=1&embed=1&t='+Date.now(); pop.hidden=false; };
       window.addEventListener('message', e=>{ if(!e.data || e.data.type!=='sy-my' || e.source!==fr.contentWindow) return; if(e.data.ev==='close') closeP();
-        if(e.data.ev==='go' && (/^(group|personal)\.html\?open=/.test(e.data.url||''))){ closeP(); location.href=base+e.data.url; } });
+        if(e.data.ev==='go' && (/^(group|personal|accident)\.html\?open=/.test(e.data.url||''))){ closeP(); location.href=base+e.data.url; } });
       pop.addEventListener('click', e=>{ if(e.target===pop) closeP(); });
       document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !pop.hidden){ e.preventDefault(); closeP(); } });
     }

@@ -190,7 +190,7 @@ const OPS_PAGE =
       {w:2, html:()=>`<button type="button" class="btn sm" id="accErpBtn">예약 내역 넣기</button>`},   // 전산의 상품 정보를 붙여 넣는 창 (#accErpModal) → 넣을 수 있는 칸을 채움 (아래 「예약 내역 넣기」)
       {k:'date', l:'사고 일자', type:'date', def:()=>opsToday(), req:()=>!accEd()}, {k:'time', l:'사고 시각', type:'time'},
       {k:'type', l:'구분', type:'select', opts:['부상','시설 파손','분실 · 도난','민원','기타'], def:()=>'부상'},
-      {k:'visitType', l:'방문 유형', type:'select', opts:['','단체','개인','도슨트 투어','몽몽마방 식사','기타'], def:()=>''},
+      {k:'visitType', def:()=>'', html:d=>`<label for="e_visitType">방문 유형</label><select id="e_visitType" data-k="visitType"><option value="">선택</option>${[...new Set(['단체','개인','도슨트 투어','몽몽마방 식사','기타', d.visitType].filter(Boolean))].map(o=>`<option${o===d.visitType?' selected':''}>${esc(o)}</option>`).join('')}</select>`},   // 처음에는 「선택」(빈 값)
       {k:'place', l:'사고 장소 (사유원 안)', type:'text', ph:'고르거나 직접 적기 · 예: 소요헌 안 계단', list:ACC_PLACES, req:()=>!accEd()}, {k:'group', l:'방문 단체', type:'text', ph:'단체 이름 (개인이면 비움)'},
       {k:'owner', def:()=>accMe(), html:()=>'<i class="ef-none"></i>'},   // 담당자: 칸은 제목 줄 오른쪽(#accOwnerSel · 아래 「제목 줄의 담당자」) — 여기는 처음 값(접수한 사람)만
 
@@ -243,12 +243,12 @@ const OPS_PAGE =
     afterPaint:(f, row, ro)=>{ accSidePaint(row, ro); accSameLock(); accOwnerPaint(ro); accSecPaint(); accDirtyPaint(); const h=document.getElementById('accLock'); if(h){ h.hidden=!ro; h.textContent = ro ? `담당자 ${ro} · 보기와 메모만 됩니다` : ''; } },
     // 저장한 뒤: 새 사고 = 담당자의 나의 할일에 한 건 · 담당자를 바꿨으면 남은 과업을 새 담당자에게 · 처리 완료면 남은 과업을 끝냄
     afterSave:async (nr, was)=>{ accGo=nr.r.id; try{ const o=accOwner(nr.d, nr.r), id=nr.r.id;
-        if(!was){ if(accStatus(nr.d)==='처리 완료') return; await accTaskNew(nr, '접수 확인 · 보험 접수 여부 정하기', o, 'new'); if(accEd() && editRow.r.id===id) accSide(); return; }
+        // 처음 접수: 담당자가 접수한 사람 자신이면 과업을 만들지 않는다(2026-11-28 운영팀) — 다른 사람을 담당자로 정해 접수했을 때만 그 사람에게 「담당자로 지정됨」
+        if(!was){ if(o && o!==accMe() && accStatus(nr.d)!=='처리 완료'){ await accOwnerTask(nr, o); if(accEd() && editRow.r.id===id) accSide(); } return; }
         const po=accOwner(was.d, was.r);
         if(accStatus(nr.d)==='처리 완료'){ await accTasksClose(id); return; }
-        if(po!==o){ const open=accTasks(id).filter(t=>!accTaskDone(t.d) && t.d.owner===po);
-          for(const t of open) await accTaskPut({...t.r, owner:o}, t.j, {...t.d, owner:o}, `담당자 ${po} → ${o}`);
-          if(!open.length) await accTaskNew(nr, '담당자로 지정됨 · 내용 확인', o, 'owner'); } }catch(e){ accFail(e); } },
+        if(po!==o){ for(const t of accTasks(id).filter(t=>!accTaskDone(t.d) && t.d.owner===po)) await accTaskPut({...t.r, owner:o}, t.j, {...t.d, owner:o}, `담당자 ${po} → ${o}`);
+          await accOwnerTask(nr, o); if(accEd() && editRow.r.id===id) accSide(); } }catch(e){ accFail(e); } },
     afterDel:row=>{ accTasksClose(row.r.id); if(!accEd() || editRow.r.id===row.r.id) openEdit(null); } };
 
 // ---------- 첫 화면 = 사고 한 건을 접수 · 고치는 곳 · 목록은 헤더의 「사고 목록」 (2026-11-28 · 단체 화면처럼) ----------
@@ -370,6 +370,34 @@ document.addEventListener('click', async e=>{ if(e.target.id!=='accHandGo') retu
   let n=0;
   for(const x of L){ const po=accOwner(x.d, x.r), id=x.r.id; if(po===who) continue;
     const ok=await putRow({...x, d:{...x.d, owner:who}}, `담당자 ${po} → ${who}`); if(ok===false) break; n++;
-    try{ for(const t of accTasks(id).filter(t=>!accTaskDone(t.d) && (!po || t.d.owner===po))) await accTaskPut({...t.r, owner:who}, t.j, {...t.d, owner:who}, `담당자 ${po} → ${who}`); }catch(err){ accFail(err); } }
+    try{ for(const t of accTasks(id).filter(t=>!accTaskDone(t.d) && (!po || t.d.owner===po))) await accTaskPut({...t.r, owner:who}, t.j, {...t.d, owner:who}, `담당자 ${po} → ${who}`);
+      if(accStatus(x.d)!=='처리 완료') await accOwnerTask({r:x.r, d:{...x.d, owner:who}}, who); }catch(err){ accFail(err); } }
   render(); toast(`${n}건의 담당자를 「${who}」(으)로 바꿨습니다.`);
   if(accEd()){ const x=rows.find(y=>y.r.id===editRow.r.id); if(x) openEdit(x); } });
+
+// ---------- 「담당자로 지정됨」 과업 (2026-11-28 운영팀: 담당자가 바뀌었을 때만 · 처음 접수할 때는 만들지 않음) ----------
+//  새 담당자의 나의 할일에 한 건 (아직 안 끝낸 같은 과업이 그 사람에게 있으면 또 만들지 않음)
+async function accOwnerTask(x, who){ if(!who) return; if(accTasks(x.r.id).some(t=>t.d.accTag==='owner' && t.d.owner===who && !accTaskDone(t.d))) return; await accTaskNew(x, '담당자로 지정됨 · 내용 확인', who, 'owner'); }
+
+// ---------- 추후과업 관리 (2026-11-28 · 헤더의 단추 → 창): 지금 남은 사고 추후과업 + 저절로 생기는 과업의 규칙 ----------
+//  📋 사고현황 접수의 추후과업 규칙 — 모두 「개인업무」 줄(d.acc = 사고 id)이라 맡은 사람의 「나의 할일 › 기타 개인 업무」와 첫 화면 「오늘 마감」에 뜨고, 거기서 「사고현황 접수」 단추로 그 사고가 열린다(js/mytask.js · js/portal.js)
+const ACC_RULES = [
+  ['담당자를 다른 사람으로 정해 접수하거나, 담당자를 바꿔 저장했을 때', '새 담당자', '담당자로 지정됨 · 내용 확인'],
+  ['담당자가 아닌 사람이 메모를 남겼을 때', '담당자', '새 메모 확인'],
+  ['사고의 추후과업 칸에서 직접 추가했을 때', '고른 사람', '적은 글 그대로'],
+  ['담당자를 바꿨을 때', '새 담당자', '예전 담당자의 남은 과업이 그대로 넘어감'],
+  ['사고를 처리 완료로 바꾸거나 삭제했을 때', '', '남은 과업이 모두 끝난 것으로 됨'] ];
+function accTcfgHTML(){ const all=(window.opsItems||[]).filter(r=>r.callType===OPS_TYPES.task).map(r=>({r, j:opsParse(r)})).filter(o=>o.j && o.j.d && o.j.d.acc).map(o=>({r:o.r, d:o.j.d}));
+  const open=all.filter(t=>!accTaskDone(t.d)).sort((a,b)=>String(accTaskDay(a.d)).localeCompare(String(accTaskDay(b.d)))), today=opsToday();
+  const acc=id=>rows.find(x=>x.r.id===id);
+  return `<h3>지금 남은 추후과업 <small>${open.length}건</small></h3>`
+    + (open.length ? `<div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th>사고</th><th>과업</th><th>맡은 사람</th><th>마감</th></tr></thead><tbody>${open.map(t=>{ const x=acc(t.d.acc), day=accTaskDay(t.d);
+        return `<tr class="${x?'acc-row':''}"${x?` data-acctopen="${esc(x.r.id)}" tabindex="0"`:''}><td>${x ? esc(`${accWhen(x.d)} ${x.d.place||''}`) : '(지워진 사고)'}</td><td>${esc(accTaskName(t.d))}</td><td class="nw">${esc(t.d.owner||'')}</td><td class="nw${day && day<today?' acc-late':''}">${esc(opsDateLabel(day))}</td></tr>`; }).join('')}</tbody></table></div>` : `<p class="empty">남은 추후과업이 없습니다.</p>`)
+    + `<h3>저절로 생기는 추후과업</h3><div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th>언제</th><th>누구에게</th><th>과업</th></tr></thead><tbody>${ACC_RULES.map(r=>`<tr><td>${esc(r[0])}</td><td class="nw">${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('')}</tbody></table></div>`; }
+async function accTcfgOpen(on){ const m=document.getElementById('accTcfgModal'); if(!m) return; m.hidden=!on; if(!on) return; document.getElementById('accTcfgBody').innerHTML=accTcfgHTML(); try{ await pull(); }catch(_){} if(!m.hidden) document.getElementById('accTcfgBody').innerHTML=accTcfgHTML(); }
+document.addEventListener('click', e=>{ const t=e.target; if(!t.closest) return;
+  if(t.id==='accTcfgBtn'){ accTcfgOpen(true); return; }
+  if(t.id==='accTcfgX'){ accTcfgOpen(false); return; }
+  const o=t.closest('[data-acctopen]'); if(o){ const x=rows.find(y=>y.r.id===o.dataset.acctopen); if(x){ accTcfgOpen(false); openEdit(x); } } });
+document.addEventListener('mousedown', e=>{ if(e.target.id==='accTcfgModal') accTcfgOpen(false); });
+document.addEventListener('keydown', e=>{ const m=document.getElementById('accTcfgModal'); if(!m || m.hidden) return; if(e.key==='Escape'){ e.stopPropagation(); accTcfgOpen(false); } else if(e.key==='Enter' && e.target.matches && e.target.matches('[data-acctopen]')) e.target.click(); }, true);
