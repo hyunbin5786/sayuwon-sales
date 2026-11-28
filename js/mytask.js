@@ -20,7 +20,8 @@ function tkFromP(r, t){
 }
 function tkFromE(o, day, extra){
   const d=o.d, rep=d.repeat||'none', sd=((d.subDone||{})[day])||{};
-  return { kind:'e', rid:o.r.id, tid:'', day:day||'', title:d.title, due: rep==='later' ? '' : (day||''), done:false, memo:d.memo||'', d, rep,
+  const acc = d.acc ? accTkSrc(d) : null;   // 사고현황 접수에서 만든 과업 (2026-11-28): 단체 과업 줄처럼 — 이름은 과업 글만 · 「사고 · 장소 · 사고일」 단추(누르면 그 사고) · 구분 · 반복 칸 없이 마감만
+  return { kind:'e', rid:o.r.id, tid:'', day:day||'', title: acc ? acc.title : d.title, ...(acc ? {src:acc.src, srcAttr:`data-accopen="${esc(d.acc)}"`} : {}), due: rep==='later' ? '' : (day||''), done:false, memo:d.memo||'', d, rep,
     subs:(d.subs||[]).map(s=>({id:s.id, title:s.title||s.t||'', done:!!sd[s.id]})), canDel:true, ...(extra||{}) };
 }
 // 마감 순 (마감 없음은 맨 뒤)
@@ -38,12 +39,12 @@ function tkHTML(T){
   const title = `<button type="button" class="tk-ctl tk-title" data-tkt title="눌러서 이름 고치기">${T.done?`<s>${esc(T.title)}</s>`:esc(T.title)}</button>`;
   if(T.done) return `<li class="tk${cls}" data-tk="${key}"><div class="tk-main">${ck}${title}</div>${T.src?`<div class="tk-meta"><button type="button" class="tk-ctl tk-src" ${T.srcAttr} title="그 예약 · 통화 열기">${esc(T.src)}</button></div>`:''}</li>`;
   const meta=[];
-  if(T.kind==='e'){
+  if(T.kind==='e' && T.d.acc) meta.push(`<button type="button" class="tk-ctl tk-src" ${T.srcAttr} title="그 사고 열기">${esc(T.src)}</button>`);
+  else if(T.kind==='e'){
     meta.push(`<select class="tk-ctl tk-cat" data-tkcat title="구분 바꾸기"><option value="">${ETC_NOCAT}</option>${catOrder().filter(c=>c!==CAT_N).map(c=>`<option value="${esc(c)}"${c===etcCatOf(T.d)?' selected':''}>${esc(catLabel(c))}</option>`).join('')}</select>`);
     meta.push(`<select class="tk-ctl tk-rep" data-tkrep title="반복 바꾸기">${REP_OPTS.map(([k,l])=>`<option value="${k}"${T.rep===k?' selected':''}>${l}</option>`).join('')}</select>`);
     if(T.rep==='weekly') meta.push(`<span class="tk-ctl tk-dows">${[1,2,3,4,5,6,0].map(i=>`<button type="button" class="${(T.d.dows||[]).includes(i)?'on':''}" data-tkdow="${i}">${DOW[i]}</button>`).join('')}</span>`);
     if(T.rep==='monthly') meta.push(`<select class="tk-ctl tk-dom" data-tkdom title="매달 날짜">${Array.from({length:31},(_,i)=>i+1).map(n=>`<option value="${n}"${String(T.d.dom||1)===String(n)?' selected':''}>${n===31?'말일':n+'일'}</option>`).join('')}</select>`);
-    if(T.d.acc) meta.push(`<button type="button" class="tk-ctl tk-src" data-accopen="${esc(T.d.acc)}" title="그 사고 열기">사고현황 접수</button>`);   // 사고현황 접수에서 만든 과업 (d.acc = 사고 id · 2026-11-28): 단체 · 개인 과업처럼 바로가기
   } else meta.push(`<button type="button" class="tk-ctl tk-src" ${T.srcAttr} title="그 예약 · 통화 열기">${esc(T.src)}</button>`);
   // 마감: 반복 없음 · 시스템 과업 = 날짜 칸(누르면 달력), 마감 없음 = 빈 날짜 칸, 반복 = 이번 날짜(글자)
   if(T.kind!=='e' || T.rep==='none' || T.rep==='later') meta.push(`<span class="tk-ctl tk-due" title="눌러서 마감 바꾸기">${dboxHTML('data-tkdue', T.due)}${T.due?`<small>${tkDueTxt(T.due)}</small>`:'<small>마감 없음</small>'}</span>`);
@@ -131,3 +132,6 @@ document.addEventListener('change', e=>{
 document.addEventListener('click', e=>{ const b=e.target.closest && e.target.closest('[data-accopen]'); if(!b || !/(^|\/)group\.html$/.test(location.pathname)) return; e.preventDefault(); e.stopPropagation();
   const url='accident.html?open='+encodeURIComponent(b.dataset.accopen);
   if(/[?&]embed=1\b/.test(location.search) && window.parent!==window) window.parent.postMessage({type:'sy-my', ev:'go', url}, '*'); else if(typeof guardLeave==='function') guardLeave(()=>{ location.href=url; }); else location.href=url; }, true);
+// 사고 과업의 이름 · 출처 글: 저장된 이름은 「[사고] 장소 · 구분 — 과업」(첫 화면 · 알림에서 어느 사고인지 보이게). 나의 할일에서는 「—」 뒤의 과업 글만 이름으로, 앞부분은 「사고 · 장소 · 사고일」 단추로
+function accTkSrc(d){ const m=/^\[사고\]\s*(.*?)\s*—\s*([\s\S]*)$/.exec(String(d.title||'')), place=d.accPlace || (m ? m[1].split(' · ')[0] : '');
+  return { title: m ? m[2] : String(d.title||''), src: ['사고', place, d.accDate ? '사고 '+dateLabel(d.accDate) : ''].filter(Boolean).join(' · ') }; }

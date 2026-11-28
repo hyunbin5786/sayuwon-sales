@@ -43,7 +43,7 @@ async function accTaskPut(r, j, d, what){ const now=new Date().toISOString();
   return item; }
 function accTaskNew(x, title, who, tag, opt){ const d=x.d, now=new Date().toISOString();
   return accTaskPut({id:opsId(), callType:OPS_TYPES.task, saved:now, takenBy:accMe(), owner:who}, {kind:'task', log:[]},
-    {title:`[사고] ${d.place||'장소 없음'} · ${d.type||''} — ${title}`, repeat:'none', due:(opt && opt.due) || opsToday(), owner:who, memo:`사고현황 접수 › ${accWhen(d)} ${d.place||''} (운영보조 › 사고현황 접수에서 엽니다)`, subs:(opt && opt.subs) || [], acc:x.r.id, accTag:tag||''}, '사고현황 접수에서 만듦'); }
+    {title:`[사고] ${d.place||'장소 없음'} · ${d.type||''} — ${title}`, repeat:'none', due:(opt && opt.due) || opsToday(), owner:who, memo:`사고현황 접수 › ${accWhen(d)} ${d.place||''} (운영보조 › 사고현황 접수에서 엽니다)`, subs:(opt && opt.subs) || [], acc:x.r.id, accTag:tag||'', accPlace:d.place||'', accDate:d.date||''}, '사고현황 접수에서 만듦'); }
 async function accTaskCheck(t, on){ const d={...t.d, done:{...(t.d.done||{})}}, day=accTaskDay(d) || opsToday(); if(!d.due && !d.start) d.due=day;
   if(on) d.done[day]={at:new Date().toISOString(), by:accMe()}; else delete d.done[day];
   await accTaskPut(t.r, t.j, d, on?'완료':'완료 취소'); }
