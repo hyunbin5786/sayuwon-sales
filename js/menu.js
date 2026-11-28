@@ -1,6 +1,6 @@
 // ===== 전체 메뉴 (모든 화면 공통, 2026-11-18) =====
 // 헤더 맨 앞 ☰ 버튼 → 왼쪽에서 메뉴가 화면 위로 뜸 (뒤는 회색으로 가림 · 화면을 밀지 않음). 바깥 · × · Esc 로 닫기
-// 묶음(예약보조 · 운영보조 · 홍보 보조 · 매뉴얼 · 기타 설정)은 눌러서 펼치고 접으며, 펼친 상태는 이 브라우저에 기억 (sy_menu_acc2 · 2026-11-24: 처음에는 모두 접힘 — 예전 기억은 쓰지 않음)
+// 묶음(예약보조 · 운영보조 · 홍보 보조 · 매뉴얼 · 기타 설정)은 눌러서 펼치고 접으며, 펼친 상태는 이 브라우저에 기억 (sy_menu_acc2 · 2026-11-24: 처음에는 모두 접힘 — 예전 기억은 쓰지 않음 · 2026-11-28: 휴대폰 폭에서는 늘 모두 펼친 채로 · 기억은 PC 만)
 // ===== 글자 크기 (2026-11-26): 헤더 오른쪽의 「가가」 버튼 → 슬라이더 (85% ~ 140%). 고른 크기는 이 브라우저에 기억 (sy_fz) =====
 //  화면 전체를 확대(zoom)하지 않고 글자만 키움: 확대하면 달력 · 시간 고르는 창의 자리와 화면 높이(vh) 계산이 어긋남.
 //  방법: CSS 파일의 글자 크기(…px)를 「…px × --sy-fz」 로 바꿔 두고, html 의 --sy-fz 값만 바꿈. 「보통」만 쓰는 브라우저에서는 아무것도 바꾸지 않음.
@@ -83,7 +83,7 @@ window.syFont = (function(){
     : `<a class="sm-i${isHere(it.href)?' on':''}" href="${esc(it.href)}"${it.go?` data-go="${it.go}"`:''}><b>${esc(it.b)}${typeof SY_DEV!=="undefined" && SY_DEV.tag && SY_DEV.tag(it.href)?`<small class="sm-dev">test에만 보임</small>`:""}</b></a>`;   /* 개발 중 기능: 배포 사이트엔 이름표 없음 · 테스트 사이트에만 「test에만 보임」 (2026-11-25 · js/common.js SY_DEV.tag) */
   const groupHTML = g => { const its=g.items.filter((it, n, a)=>{ if(!it.sub) return vis(it);
       for(let j=n+1; j<a.length && !a[j].sub; j++) if(vis(a[j])) return true; return false; });   // 소제목은 그 아래에 보이는 항목이 있을 때만
-    return its.some(isItem) ? `<details class="sm-g" data-acc="${g.k}"${(g.k in st ? st[g.k] : false)?' open':''}><summary>${esc(g.t)}</summary>${its.map(it=>it.sub ? `<div class="sm-sub">${esc(it.sub)}</div>` : itemHTML(it)).join('')}</details>` : ''; };
+    return its.some(isItem) ? `<details class="sm-g" data-acc="${g.k}"${(MQ.matches || (g.k in st ? st[g.k] : false))?' open':''}><summary>${esc(g.t)}</summary>${its.map(it=>it.sub ? `<div class="sm-sub">${esc(it.sub)}</div>` : itemHTML(it)).join('')}</details>` : ''; };
   // 맨 위 「나의 할일」(로그인한 사람만 · 설정에 따라) = 헤더의 「나의 할일」 버튼과 같은 것을 엶 (같은 자료라 체크는 PC 와 그대로 이어짐 · 휴대폰 헤더에서는 그 버튼을 숨기므로 여기에 둠)
   //  맨 아래: 로그아웃(PC · 휴대폰 모두 · 헤더의 로그아웃 버튼은 css 로 숨김 · 2026-11-26) / 로그인 안 했으면 「로그인」(누르면 첫 화면 = 로그인 화면 · 첫 화면에서는 넣지 않음)
   const navHTML = () => ``   /* 맨 위 「메뉴」 글자 · × 버튼은 없앰 (2026-11-26 · 헤더의 메뉴 버튼에 이미 「메뉴」라 적혀 있고 그 버튼을 다시 누르면 접힘 · 바깥을 누르거나 Esc 로도 닫힘) */
@@ -92,8 +92,10 @@ window.syFont = (function(){
     + (logged ? `<button type="button" class="sm-out" data-smout>로그아웃</button>` : `<p class="sm-note">로그인하면 모든 메뉴가 보입니다.</p>` + (isHomePg ? '' : `<a class="sm-in" href="${base}index.html">로그인</a>`));
   const wrap=document.createElement('div'); wrap.className='smenu'; wrap.id='smenu'; wrap.hidden=true;
   wrap.innerHTML = `<div class="sm-bg" data-smclose></div><nav class="sm-panel" aria-label="전체 메뉴"></nav>`;
-  const draw = () => { const nav=wrap.querySelector('.sm-panel'), y=nav.scrollTop; nav.innerHTML=navHTML(); nav.scrollTop=y; guestSync();
-    nav.querySelectorAll('details[data-acc]').forEach(d=>d.addEventListener('toggle', ()=>{ st[d.dataset.acc]=d.open; try{ localStorage.setItem('sy_menu_acc2', JSON.stringify(st)); }catch(_){} })); };
+  // 묶음 펼침 (2026-11-28): 휴대폰(700px 아래) = 열 때마다 모두 펼친 채로 (제목을 눌러 접을 수는 있지만 기억하지 않음 → 다시 그리면 · 화면을 옮기면 도로 펼쳐짐) / PC = 기억(sy_menu_acc2)대로 · 기억이 없으면 접힌 채.
+  //  휴대폰 폭에서 펼치고 접은 것은 PC 의 기억에 적지 않음 (창을 좁혔다 넓혀도 PC 쪽이 바뀌지 않게 · 그릴 때의 폭 m 으로 가림)
+  const draw = () => { const nav=wrap.querySelector('.sm-panel'), y=nav.scrollTop, m=MQ.matches; nav.innerHTML=navHTML(); nav.scrollTop=y; guestSync();
+    nav.querySelectorAll('details[data-acc]').forEach(d=>d.addEventListener('toggle', ()=>{ if(m) return; st[d.dataset.acc]=d.open; try{ localStorage.setItem('sy_menu_acc2', JSON.stringify(st)); }catch(_){} })); };
   draw();
   try{ MQ.addEventListener('change', draw); }catch(_){}   // 창 너비가 PC ↔ 모바일로 바뀌면 다시
   const cfgParse = j => { try{ const c=(JSON.parse(((j && j.menu) || {}).history || '{}') || {}).cfg; return c && typeof c==='object' ? c : {}; }catch(_){ return {}; } };
