@@ -320,7 +320,6 @@ function paintBookAdd(){
     + (BOOK_GUEST ? '' : (()=>{ const w=bookEdit ? bkWho(bkWhoKey()) : {n:savedOwner()||'', t:bkWhoLast(savedOwner()||'')}, r=bookEdit?'':req;   // 새로 넣을 때는 꼭 · 예전 줄을 고칠 때는 비어 있어도 저장
         return `<div class="ba-row ba-by"><label><span>추가한 사람 이름${r}</span> <input id="baWho" data-ime="ko" placeholder="이름" autocomplete="off" value="${esc(w.n||'')}"></label><label><span>추가한 사람 연락처${r}</span> <input id="baWhoTel" type="tel" inputmode="tel" data-tel placeholder="010-0000-0000" autocomplete="off" value="${esc(w.t||'')}"></label><span class="hint">이 예약을 넣은 사람 · 목록에는 보이지 않고 이 창에서만 보입니다</span></div>`; })())
     + `<div class="ba-btns">${bookEdit && !BOOK_GUEST ? '<button type="button" class="btn ba-del" id="baDel" title="이 예약을 목록에서 뺍니다 (사유를 적는 창이 뜹니다 · 기록에 남음)">이 예약 빼기</button>' : ''}<button type="button" class="btn" id="baCancel">취소</button><button type="button" class="btn primary" id="baSave">${bookEdit?'고치기':'추가'}</button></div>`
-    + (!['mb','coupon'].includes(c) && !bookEdit && !BOOK_GUEST ? `<details class="ba-imp"><summary class="hint">엑셀 표를 한 번에 넣기 (대관 · 도슨트 · 프로그램 표)</summary><p class="hint" style="margin:4px 0">엑셀에서 줄을 복사해 붙여 넣으세요. 열 순서: 일자 · 업체 · 인원 · 동행 도슨트 시간 · PPT 도슨트 시간 · 대관 시간 · … · 담당 · 비고. 시간이 있는 칸마다 한 건씩 들어갑니다 (대관 장소는 넣은 뒤 「수정」에서).</p><textarea id="baImp" placeholder="여기에 붙여 넣기"></textarea><div id="baImpPrev" class="mb-prev"></div><div class="row-btns" style="justify-content:flex-end"><button type="button" class="btn primary" id="baImpSave" disabled>모두 넣기</button></div></details>` : '');
 }
 async function bookAddSave(){
   const c=bookCatNow, v=id=>(($('#'+id)||{}).value||'').trim(), d=v('baDate'), org=v('baOrg'), ppl=parseInt(v('baPpl'))||0;
@@ -356,41 +355,13 @@ async function bookAddSave(){
   if($('#baWho')) await bkWhoSave(row.id, who, whoTel);
   await bkLogAdd([ed ? {act:'수정', db:'bk', cat:c, row:bkSnap('bk', row), chg:bkChg(bkSnap('bk', was), bkSnap('bk', row))} : {act:'추가', db:'bk', cat:c, row:bkSnap('bk', row)}]); return true;
 }
-// 엑셀 표 한 번에 넣기: 일자 · 업체 · 인원 · 동행 시간 · PPT 시간 · 대관 시간 · … · 담당 · 비고 (따옴표로 묶인 칸 안 줄바꿈도)
-function tsvRows(text){ const rows=[]; let row=[], cell='', q=false; const s=String(text||'').replace(/\r/g,'');
-  for(let i=0;i<s.length;i++){ const ch=s[i];
-    if(q){ if(ch==='"'){ if(s[i+1]==='"'){ cell+='"'; i++; } else q=false; } else cell+=ch; continue; }
-    if(ch==='"' && cell.trim()===''){ q=true; cell=''; continue; }
-    if(ch==='\t'){ row.push(cell); cell=''; } else if(ch==='\n'){ row.push(cell); rows.push(row); row=[]; cell=''; } else cell+=ch; }
-  row.push(cell); rows.push(row); return rows.map(r=>r.map(c=>c.trim())).filter(r=>r.some(Boolean)); }
-let bookImp=null;
-function bookImpParse(text){ const out=[], skipped=[]; const p2=n=>String(n).padStart(2,'0');
-  tsvRows(text).forEach(cells0=>{ const cells = cells0[0]==='' ? cells0.slice(1) : cells0;
-    const dm=String(cells[0]||'').match(/(\d{1,2})\s*[\/.월]\s*(\d{1,2})/); if(!dm){ skipped.push(cells.join(' ')); return; }
-    const d=`${mbYear(+dm[1],+dm[2])}-${p2(dm[1])}-${p2(dm[2])}`, org=cells[1]||'', ppl=parseInt(cells[2])||0;
-    const tail=cells.slice(3), note=tail.length ? tail[tail.length-1] : '', staff=tail.length>1 ? tail[tail.length-2].replace(/\s*\n\s*/g,'\n') : '';
-    const t=i=>{ const s=tail[i]||''; return /\d{1,2}\s*:\s*\d{2}/.test(s) ? ((typeof fmtRange==='function' && fmtRange(s)) || s.replace(/\s/g,'')) : ''; };
-    const base={d, org, ppl, staff, note, by:savedOwner()||''}, n0=out.length;
-    if(t(0)) out.push({...base, cat:'docent', kind:'동행', tm:t(0)});
-    if(t(1)) out.push({...base, cat:'docent', kind:'PPT', tm:t(1)});
-    if(t(2)) out.push({...base, cat:'rent', place:'', tm:t(2)});
-    if(out.length===n0) out.push({...base, cat:'prog', item:note, tm:''});
-  });
-  out.forEach((x,i)=>{ x.id='b'+Date.now().toString(36)+i; x.at=new Date(Date.now()+i).toISOString(); });
-  return {rows:out, skipped};
-}
-document.addEventListener('input', e=>{ if(e.target.id!=='baImp') return; bookImp = e.target.value.trim() ? bookImpParse(e.target.value) : null;
-  $('#baImpPrev').innerHTML = !bookImp ? '' : bookImp.rows.length ? `<b>${bookImp.rows.length}건</b><ul>${bookImp.rows.map(x=>`<li>${esc(dateLabel(x.d))} · ${esc(BOOK_CATS[x.cat])}${x.kind?' '+esc(x.kind):''} ${esc(x.tm||'')} · <b>${esc(x.org)}</b> · ${x.ppl}명${x.staff?' · '+esc(x.staff.replace(/\n/g,', ')):''}${x.note?' · '+esc(x.note):''}</li>`).join('')}</ul>${bookImp.skipped.length?`<div class="hint">읽지 못한 줄 ${bookImp.skipped.length}개</div>`:''}` : '<b class="late">읽은 줄이 없습니다.</b>';
-  $('#baImpSave').disabled = !(bookImp && bookImp.rows.length); });
+let bookImp=null;   // (2026-11-28) 「엑셀 표를 한 번에 넣기」 는 운영팀 요청으로 없앰 (창의 접힌 칸 · 읽는 코드 모두) — 이름만 남김 (창을 열고 닫는 곳이 비움)
 document.addEventListener('click', async e=>{ const t=e.target;
   if(t.id==='bookAddBtn' || t.id==='bookAddBtn2'){   /* 2026-11-28: 「＋ 직접 추가」 되살림 (창으로 · 로그인한 사람만 — bookAddOpen 이 막음) · 검색 중(모든 목록)에는 고른 목록이 없으므로 마지막으로 본 목록에 */ bookEdit=null; bookAddOpen(); return; }
   if(t.id==='baX'){ bookAddClose(); return; }
   if(t.id==='baDel' && bookEdit){ const p = bookEdit.mb!=null ? {db:'mb', i:bookEdit.mb} : {db:'bk', id:bookEdit.id}; bookAddClose(); openBkDel(p); return; }   // 창 안의 「이 예약 빼기」 → 사유를 적는 창
   if(t.id==='baSave'){ t.disabled=true; const ok=await bookAddSave(); if(!ok){ t.disabled=false; return; } bookAddClose(); return; }
   if(t.id==='baCancel'){ bookAddClose(); return; }
-  if(t.id==='baImpSave' && bookImp){ const key=x=>[x.cat,x.d,x.org,x.tm,x.kind].join('|'), have=new Set(bkDb().rows.map(key)), add=bookImp.rows.filter(x=>!have.has(key(x)));
-    bookImp=null; await bkDbSave([...bkDb().rows, ...add], `${add.length}건을 넣었습니다.${add.length?'':' (이미 있는 예약)'}`);
-    await bkLogAdd(add.map(x=>({act:'추가', db:'bk', cat:x.cat, row:bkSnap('bk', x), why:'엑셀 표로 한 번에'}))); bookAddClose(); return; }
   if(t.dataset.bkedit){ bookEdit={id:t.dataset.bkedit}; bookAddOpen(); return; }
   if(t.dataset.bkdel){ if(BOOK_GUEST){ toast('로그인한 사람만 뺄 수 있습니다.'); return; } openBkDel({db:'bk', id:t.dataset.bkdel}); return; }   // 사유를 적는 창 (2026-11-21)
   if(t.id==='bkDelYes'){ doBkDel(); return; }

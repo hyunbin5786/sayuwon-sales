@@ -424,8 +424,6 @@ body.locked #saveBtn{display:none}
 .ba-row label.wide input{width:240px}
 .ba-row .dbox{width:150px}
 .ba-row .ba-btns{display:flex;gap:6px;margin-left:auto}
-.ba-imp{margin-top:10px}.ba-imp summary{cursor:pointer}
-.ba-imp textarea{width:100%;box-sizing:border-box;min-height:80px;resize:vertical;border:1px solid var(--line);border-radius:6px;padding:8px;font:13px/1.5 var(--sans);tab-size:4}
 .mbdb-t td.acts{white-space:nowrap;text-align:right}
 .mbdb-t .btn.sm{padding:2px 8px;font-size:12px}
 .mb-prev{font-size:12.5px;margin-top:6px}
