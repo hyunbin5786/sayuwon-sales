@@ -201,15 +201,26 @@ async function bookList(env) {
 async function bookAdd(env, req) {
   const db = String(req.db || ''); if (!BOOK_DB_IDS[db]) throw fail('bad_db');
   const by = String(req.by || '').trim().slice(0, 20); if (!by) throw fail('no_name');
+  if (!(await rateOk(env, 'bookadd_rate', 40))) throw fail('busy');   // 10분에 너무 많이 오면 잠시 막음 (2026-11-28 · 분실물 접수와 같은 방식)
   const src = req.row || {}, row = {};
   Object.keys(src).slice(0, 20).forEach(k => { if (/^[a-zA-Z]{1,10}$/.test(k)) row[k] = String(src[k] == null ? '' : src[k]).slice(0, 300); });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(row.d || '')) throw fail('bad_date');
   row.by = by; row.guest = '1'; if (db === 'bookdb') row.id = 'b' + Date.now().toString(36) + Math.floor(Math.random() * 1000);
+  row.at = iso();   // 넣은 일시 (2026-11-28 · 첫 화면 공통 업무 「예약 현황 직접 추가」 알림 · 아래 추가한 사람 줄의 열쇠)
+  delete row.tel; delete row.phone; delete row.who;   // 연락처는 예약 줄에 넣지 않음 (이 줄은 로그인 없이 보는 목록 bookList 로 통째로 나감)
   const item = (await getItem(env, db)) || { id: db, callType: BOOK_DB_IDS[db], saved: iso() };
   let j = {}; try { j = JSON.parse(item.history || '{}') || {}; } catch (x) { j = {}; }
   j.rows = (Array.isArray(j.rows) ? j.rows : []).concat([row]); j.at = iso(); j.by = by;
   item.history = JSON.stringify(j); item.summary = (db === 'mabangdb' ? '몽몽마방 예약 목록 ' : '예약 현황 직접 추가 ') + j.rows.length + '건'; item.takenBy = by;
   await put(env, item);
+  // 추가한 사람 이름 · 연락처 (2026-11-28 · api 14): 예약 줄과 따로 한 줄(id bookwho · 통화 구분 「예약현황추가자」 · {who:{줄 열쇠:{n, t, at}}})에 — bookList 는 이 줄을 보내지 않으므로 로그인한 사람만 봄
+  const w = req.who || {}, wn = String(w.n || by).trim().slice(0, 20), wt = String(w.t || '').replace(/[^\d-]/g, '').slice(0, 20);
+  if (wt) { const key = db === 'bookdb' ? row.id : row.at;
+    const wi = (await getItem(env, 'bookwho')) || { id: 'bookwho', callType: '예약현황추가자', saved: iso() };
+    let wj = {}; try { wj = JSON.parse(wi.history || '{}') || {}; } catch (x) { wj = {}; }
+    wj.who = (wj.who && typeof wj.who === 'object') ? wj.who : {}; wj.who[key] = { n: wn, t: wt, at: row.at, guest: '1' }; wj.at = iso();
+    wi.history = JSON.stringify(wj); wi.summary = '예약 현황 추가한 사람 ' + Object.keys(wj.who).length + '건'; wi.takenBy = by;
+    await put(env, wi); }
   return { id: db, history: item.history };
 }
 
@@ -650,11 +661,11 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'mentList') { try { const o = await getItem(env, 'mentdb'); return { ok: true, ment: o && !o.deleted ? { history: o.history, saved: o.saved } : null }; } catch (e) { return err('mentlist: ', e); } }   // 전화응대 멘트 읽기
   if (a === 'menuGet') { try { const o = await getItem(env, 'menudb'); return { ok: true, menu: o && !o.deleted ? { history: o.history, updated: o.updated } : null, api: 12 }; } catch (e) { return err('menuget: ', e); } }   // 메뉴 설정 읽기 (PC · 모바일에 보일 메뉴 · 2026-11-26 · api 12 — 로그인하지 않은 화면의 메뉴도 이 설정을 따라야 해서 로그인 없이)
   if (a === 'mentImgGet') { try { return { ok: true, file: await mentImgGet(env, String(req.id || '')) }; } catch (e) { return err('mentimg: ', e); } }   // 멘트 이미지 한 장
-  if (a === 'bookList') { try { return { ok: true, items: await bookList(env), api: 6 }; } catch (e) { return err('booklist: ', e); } }   // 예약 현황 공유 목록 (연락처 칸은 빼고 줌)
+  if (a === 'bookList') { try { return { ok: true, items: await bookList(env), api: 6, srv: 14 }; } catch (e) { return err('booklist: ', e); } }   // 예약 현황 공유 목록 (연락처 칸은 빼고 줌)
   if (a === 'lostList') { try { return { ok: true, items: await lostList(env), api: 13 }; } catch (e) { return err('lostlist: ', e); } }   // 분실물 목록 (로그인 없이 보는 화면용)
   if (a === 'lostAdd') { try { const id = await lostAdd(env, req); await bumpRev(env); return { ok: true, id, api: 9 }; } catch (e) { return err('', e); } }   // 분실물 접수
   if (a === 'lostImgPut') { try { return { ok: true, file: await lostImgPut(env, req), api: 9 }; } catch (e) { return err('', e); } }   // 습득물 사진 올리기
-  if (a === 'bookAdd') { try { return { ok: true, item: await bookAdd(env, req), api: 6 }; } catch (e) { return err('bookadd: ', e); } }   // 예약 현황에 직접 추가
+  if (a === 'bookAdd') { try { const item = await bookAdd(env, req); await bumpRev(env); return { ok: true, item, api: 6 }; } catch (e) { return err('bookadd: ', e); } }   // 예약 현황에 직접 추가
   if (a === 'quoteReqAdd') { try { const id = await quoteReqAdd(env, req.item || {}); await bumpRev(env); return { ok: true, id, api: 7 }; } catch (e) { return err('', e); } }   // 고객 견적 요청 넣기 (고객이 로그인 없이)
   if (a === 'import') { try { return { ok: true, imported: await importData(env, req) }; } catch (e) { return err('', e); } }   // 백업에서 되살리기 (서버에 MIGRATE_KEY 가 있을 때만)
   if (a === 'mirror') { try { return { ok: true, ...(await mirror(env, req)) }; } catch (e) { return err('', e); } }   // 테스트 서버에서만 (TEST_SYNC_KEY)
@@ -683,7 +694,7 @@ export async function api(req, env, origin = '', ip = '') {
   if (a === 'wait') return waitRev(env, String(req.rev || ''));   // 바뀜 기다리기: 다른 화면이 저장하면 그 순간 답함 (다른 컴퓨터에 바로 알리기)
   if (a === 'quoteReqList') return { ok: true, items: await quoteReqList(env), api: 7 };   // 고객 견적 요청 목록
   if (a === 'quoteReqMark') { try { const item = await quoteReqMark(env, req); await bumpRev(env); return { ok: true, item, api: 7 }; } catch (e) { return err('', e); } }   // 고객 견적 요청 처리 표시 (완료 · 삭제)
-  if (a === 'members') return { ok: true, members: await readMembers(env), roles: await readRoles(env), srv: 13 };   // srv = 서버 번호 (맨 아래 api 와 같은 숫자 · 2026-11-27 · 로그인한 분실물 화면이 「분실물 신고자」 칸을 보여도 되는 서버인지 봄)   // 멤버 목록 · 담당 지정
+  if (a === 'members') return { ok: true, members: await readMembers(env), roles: await readRoles(env), srv: 14 };   // srv = 서버 번호 (맨 아래 api 와 같은 숫자 · 2026-11-27 · 로그인한 분실물 화면이 「분실물 신고자」 칸을 보여도 되는 서버인지 봄)   // 멤버 목록 · 담당 지정
   if (a === 'memberRole') { try { await setRole(env, String(req.role || ''), req.emp, !!req.on); await bumpRev(env); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }   // 담당 지정 (견적서 담당 등)
   if (a === 'memberAdd') { try { return { ok: true, added: await addMembers(env, req.list || [], req.by), members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }   // 멤버 추가
   if (a === 'memberPhone') { try { await setMemberPhone(env, req.emp, req.phone); return { ok: true, members: await readMembers(env), roles: await readRoles(env) }; } catch (e) { return err('', e); } }   // 멤버 연락처 고치기 (2026-11-24)
@@ -717,7 +728,7 @@ export default {
     if (request.method === 'GET') {
       // 2026-11-23: /file/<id>/<보이는 이름> 도 받음 — 브라우저는 탭 제목 · 저장 이름을 주소 끝에서 가져가므로 화면에 보이는 이름을 주소 끝에 붙임 (뒤 이름은 무시하고 id 로 찾음)
       const m = url.pathname.match(/^\/file\/([a-zA-Z0-9_-]{8,80})(?:\/[^/]*)?$/);
-      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 13, db: 'd1', ...(env.TEST_SYNC_KEY ? { testSync: true } : {}) });   // api 13 = 분실물 신고자(고객) 이름 · 전화번호: lostAdd 가 받고 lostList 는 로그인 없는 사람에게 보내지 않음 · members 가 srv 를 돌려줌 (2026-11-27) · api 8 = /file/<id>/<이름> 받음 · api 9 = mirror · api 10 = import 가 press · manual 도 받음 · api 11 = lostAdd 가 분실 신고의 사진도 받음 (lostList 도 api 11 을 돌려줌) · api 12 = menuGet (메뉴 설정 읽기) (testSync 는 테스트 서버에서만 보임)
+      if (!m) return jsonRes({ ok: true, app: 'sayuwon-group-intake', api: 14, db: 'd1', ...(env.TEST_SYNC_KEY ? { testSync: true } : {}) });   // api 14 = 예약 현황 로그인 없는 직접 추가(bookAdd)가 추가한 사람 이름 · 연락처를 따로 받아 둠 · bookList 응답에 srv (2026-11-28) / api 13 = 분실물 신고자(고객) 이름 · 전화번호: lostAdd 가 받고 lostList 는 로그인 없는 사람에게 보내지 않음 · members 가 srv 를 돌려줌 (2026-11-27) · api 8 = /file/<id>/<이름> 받음 · api 9 = mirror · api 10 = import 가 press · manual 도 받음 · api 11 = lostAdd 가 분실 신고의 사진도 받음 (lostList 도 api 11 을 돌려줌) · api 12 = menuGet (메뉴 설정 읽기) (testSync 는 테스트 서버에서만 보임)
       const f = await readFile(env, m[1]);
       if (!f || f.kind !== 'doc') return new Response('파일이 없습니다', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
       const bin = atob(f.data), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);

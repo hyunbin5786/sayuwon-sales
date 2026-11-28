@@ -147,6 +147,7 @@ function handleErr(e){
 async function bookPull(){
   try{ const j=await SY.callRaw({action:'bookList'});
     if(!j.ok){ syncState='error'; lastSyncErr = String(j.error||''); paintSync(); if($('#bookSum')) $('#bookSum').textContent=lastSyncErr; return; }
+    if(+j.srv) window.BOOK_SRV=+j.srv;   // 서버 번호 (14 부터 로그인 없는 직접 추가가 이름 · 연락처를 따로 받음 → 그때부터 로그인 없이도 「＋ 직접 추가」 · js/group/06-booking-status.js bookGuestAdd)
     serverItems=j.items||[]; cache=merged(); syncState='ok'; paintSync(); renderDayAll(); if(!$('#bookModal').hidden) paintBook(); }
   catch(e){ syncState='error'; lastSyncErr='인터넷 연결'; paintSync(); }
 }

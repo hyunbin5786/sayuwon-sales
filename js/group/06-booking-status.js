@@ -219,7 +219,7 @@ document.addEventListener('click', e=>{ if(e.target.id!=='bfReset') return; bfSe
 function paintBook(){
   document.querySelectorAll('#bookTabs [data-bt]').forEach(b=>b.classList.toggle('on', b.dataset.bt===bookCatNow));
   const isMb = bookCatNow==='mb'; $('#bookMb').hidden=!isMb; $('#bookGen').hidden=isMb; $('#bookAll').hidden=true;
-  if($('#bookAddBtn')) $('#bookAddBtn').hidden=BOOK_GUEST;   // 직접 추가 = 창으로 · 로그인한 사람만 (2026-11-28 되살림 · 로그인 없이는 단추가 없음)
+  if($('#bookAddBtn')) $('#bookAddBtn').hidden=BOOK_GUEST && !bookGuestAdd();   // 직접 추가 = 창으로 · 로그인한 사람만 (2026-11-28 되살림 · 로그인 없이는 단추가 없음)
   if($('#bookLogBtn')) $('#bookLogBtn').hidden=BOOK_GUEST;   // 수정 기록 = 로그인한 사람
   if($('#bookMineL')) $('#bookMineL').hidden=isMb;   // 몽몽마방 목록에는 담당 칸이 없음
   if($('#bookMe')) $('#bookMe').classList.toggle('nomine', isMb && !bkFind().q);   // 휴대폰(출력 단추 없음): 몽몽마방 목록에서는 담당 상자를 통째로 숨김 (css)
@@ -299,10 +299,13 @@ let bkMePhone=null;   // null = 아직 안 받음 · '' = 멤버 관리에 연�
 async function bkMeLoad(){ if(bkMePhone!==null || BOOK_GUEST) return;
   try{ const j=await SY.callRaw({action:'members'}); if(!j || !j.ok) return; const up=v=>String(v||'').replace(/\s/g,'').toUpperCase(), u=(SY.user && SY.user())||{};
     const m=(j.members||[]).find(x=>u.emp && up(x.emp)===up(u.emp)); bkMePhone = m && m.phone ? (SY.fmtPhone(m.phone)||String(m.phone)) : ''; }catch(_){} }
+// 로그인 없이도 직접 추가 (2026-11-28 · 운영팀이 정함 — 담당자 휴대폰에서도 넣게): 서버가 14 부터일 때만 (그 전 서버는 연락처를 받아 둘 곳이 없음 · bookPull 이 받은 BOOK_SRV)
+//  로그인 없는 사람은 이름 · 연락처를 직접 적고 추가만 함 (서버 동작 bookAdd — 연락처는 서버가 bookwho 줄에 따로 저장) · 고치기 · 빼기는 로그인한 사람만
+const bookGuestAdd = () => BOOK_GUEST && (+window.BOOK_SRV||0) >= 14;
 let bookAddSnap='', bookAddEscAt=0;
 const bookAddVals = () => [...document.querySelectorAll('#bookAdd input:not(.dtxt), #bookAdd select, #bookAdd textarea')].map(el=>el.id==='baWhoTel' && SY.telBlank && SY.telBlank(el.value) ? '' : el.value).join('\u0001');   // 저절로 들어간 010- 만 있는 것은 「적은 것」으로 치지 않음
 const bookAddDirty = () => !bookAddClosed() && bookAddVals()!==bookAddSnap;
-function bookAddOpen(){ if(BOOK_GUEST){ toast('로그인한 사람만 직접 추가할 수 있습니다.'); return; }
+function bookAddOpen(){ if(BOOK_GUEST && !bookGuestAdd()){ toast('로그인한 사람만 직접 추가할 수 있습니다.'); return; }
   paintBookAdd(); $('#bookAddModal').hidden=false; bookAddSnap=bookAddVals(); bookAddEscAt=0; setTimeout(()=>($('#baOrg')||$('#bookAdd input'))?.focus(), 0);
   if(!bookEdit && bkMePhone===null){ const t0=($('#baWhoTel')||{}).value||'';   // 연락처를 아직 못 받았으면 받아서 넣음 (그 사이 사람이 칸을 고쳤으면 그대로 둠)
     bkMeLoad().then(()=>{ const t=$('#baWhoTel'); if(!bkMePhone || !t || bookAddClosed() || bookEdit || t.value!==t0) return; const clean=!bookAddDirty(); t.value=bkMePhone; if(clean) bookAddSnap=bookAddVals(); }); } }   // 초점은 첫 입력 칸에 (× 에 주지 않음)
@@ -326,10 +329,9 @@ function paintBookAdd(){
        c==='rent' ? `<label>장소 ${sel('baPlace', PLACE_OPTS, x.place||'')}</label>` : c==='docent' ? `<label>종류 ${sel('baKind', KIND_OPTS, x.kind||'')}</label>` : c==='coupon' ? `<label>쿠폰 종류 ${sel('baItem', COUPON_OPTS, x.item||'')}</label>` : `<label>프로그램 항목 ${sel('baItem', ['', ...bookProgOpts()], x.item||'')}</label>`,
        `<label>담당자 이름 ${inp('baStaff','',x.staff)}</label>`, `<label class="wide">비고사항 ${inp('baNote','',x.note)}</label>`];
   box.innerHTML = `<div class="ba-h"><b>${c==='mb'?'몽몽마방':BOOK_CATS[c]} ${bookEdit?'예약 고치기':'예약 직접 추가'}</b> <span class="hint" style="margin:0">예약 한 건 · <i class="ba-req">*</i> 표시는 꼭 넣는 칸입니다</span></div>`
-    + (BOOK_GUEST ? `<div class="ba-row ba-who"><label class="wide">추가하는 사람 이름 <input id="baBy" data-ime="ko" placeholder="이름" autocomplete="off" value="${esc((()=>{ try{ return localStorage.getItem('sy_guest_name')||''; }catch(_){ return ''; } })())}"></label><span class="hint">로그인 없이 추가합니다 · 고치기 · 빼기는 로그인한 사람이</span></div>` : '')   // 로그인 없이: 이름을 적고 추가 (2026-11-21)
     + `<div class="ba-row"><label><span>날짜${req}</span> ${dboxHTML('id="baDate"', x.d||rec.date||'')}</label>${f.join('')}</div>`
-    + (BOOK_GUEST ? '' : (()=>{ const w=bookEdit ? bkWho(bkWhoKey()) : {n:savedOwner()||'', t:bkMePhone||bkWhoLast(savedOwner()||'')}, r=bookEdit?'':req;   // 새로 넣을 때는 꼭 · 예전 줄을 고칠 때는 비어 있어도 저장
-        return `<div class="ba-row ba-by"><label><span>추가한 사람 이름${r}</span> <input id="baWho" data-ime="ko" placeholder="이름" autocomplete="off" value="${esc(w.n||'')}"></label><label><span>추가한 사람 연락처${r}</span> <input id="baWhoTel" type="tel" inputmode="tel" data-tel placeholder="010-0000-0000" autocomplete="off" value="${esc(w.t||'')}"></label><span class="hint">${bookEdit?'이 예약을 넣은 사람':'로그인한 사람의 이름 · 연락처가 미리 들어갑니다 (다른 사람이면 고쳐 주세요)'} · 목록에는 보이지 않고 이 창에서만 보입니다</span></div>`; })())
+    + ((()=>{ const w=BOOK_GUEST ? {n:(()=>{ try{ return localStorage.getItem('sy_guest_name')||''; }catch(_){ return ''; } })(), t:''} : bookEdit ? bkWho(bkWhoKey()) : {n:savedOwner()||'', t:bkMePhone||bkWhoLast(savedOwner()||'')}, r=bookEdit?'':req;   // 새로 넣을 때는 꼭 · 예전 줄을 고칠 때는 비어 있어도 저장
+        return `<div class="ba-row ba-by"><label><span>추가한 사람 이름${r}</span> <input id="baWho" data-ime="ko" placeholder="이름" autocomplete="off" value="${esc(w.n||'')}"></label><label><span>추가한 사람 연락처${r}</span> <input id="baWhoTel" type="tel" inputmode="tel" data-tel placeholder="010-0000-0000" autocomplete="off" value="${esc(w.t||'')}"></label><span class="hint">${BOOK_GUEST?'넣는 분의 이름 · 연락처를 적어 주세요 · 목록에는 보이지 않습니다 (고치기 · 빼기는 로그인한 사람이)':(bookEdit?'이 예약을 넣은 사람':'로그인한 사람의 이름 · 연락처가 미리 들어갑니다 (다른 사람이면 고쳐 주세요)')+' · 목록에는 보이지 않고 이 창에서만 보입니다'}</span></div>`; })())
     + `<div class="ba-btns${bookEdit && !BOOK_GUEST ? '' : ' win-top'}">${bookEdit && !BOOK_GUEST ? '<button type="button" class="btn ba-del" id="baDel" title="이 예약을 목록에서 뺍니다 (사유를 적는 창이 뜹니다 · 기록에 남음)">이 예약 빼기</button>' : ''}<button type="button" class="btn primary" id="baSave">${bookEdit?'고치기':'추가'}</button></div>`
 }
 async function bookAddSave(){
@@ -337,11 +339,14 @@ async function bookAddSave(){
   if(!d){ toast('날짜를 고르세요.'); return false; } if(!org){ toast(c==='mb'?'예약자를 적어 주세요.':'업체를 적어 주세요.'); $('#baOrg').focus(); return false; }
   const tm=(()=>{ const s=v('baTm'); const f=typeof fmtRange==='function' ? fmtRange(s) : ''; return f || s; })();
   if(BOOK_GUEST){   // 로그인 없이 추가 (2026-11-21): 적은 이름으로 서버에 한 건 (bookAdd) → 목록 다시 받음
-    const by=v('baBy'); if(!by){ toast('추가하는 사람 이름을 적어 주세요.'); $('#baBy')?.focus(); return false; }
+    const by=v('baWho'), tel=(()=>{ let t=v('baWhoTel'); if(SY.telBlank && SY.telBlank(t)) t=''; return (t && typeof fmtPhone==='function' && fmtPhone(t)) || t; })();
     if(c==='mb' && !ppl){ toast('인원을 적어 주세요.'); $('#baPpl').focus(); return false; }
+    if(!by){ toast('추가한 사람 이름을 적어 주세요.'); $('#baWho')?.focus(); return false; }
+    if(!tel){ toast('추가한 사람 연락처를 적어 주세요.'); $('#baWhoTel')?.focus(); return false; }
+    if(tel.replace(/0\d{1,2}-\d{3,4}-\d{4}/, '')!==''){ toast('연락처를 010-0000-0000 처럼 넣어 주세요.'); $('#baWhoTel')?.focus(); return false; }
     try{ localStorage.setItem('sy_guest_name', by); }catch(_){}
     const row = c==='mb' ? {d, t:tm, n:org, p:String(ppl), m:v('baItem')} : {cat:c, d, org, ppl:String(ppl), tm, place:c==='rent'?v('baPlace'):'', kind:c==='docent'?v('baKind'):'', item:(c==='prog'||c==='coupon')?v('baItem'):'', staff:v('baStaff'), note:v('baNote')};
-    try{ const j=await SY.callRaw({action:'bookAdd', db: c==='mb'?MBDB_ID:BKDB_ID, row, by});
+    try{ const j=await SY.callRaw({action:'bookAdd', db: c==='mb'?MBDB_ID:BKDB_ID, row, by, who:{n:by, t:tel}});   // who = 서버가 예약 줄과 따로 저장 (api 14)
       if(!j.ok){ toast('추가하지 못했습니다: '+j.error, 4000); return false; } }
     catch(e){ toast('추가하지 못했습니다 (인터넷 연결). 잠시 뒤 다시 눌러 주세요.'); return false; }
     await bookPull(); toast(`${c==='mb'?'몽몽마방':BOOK_CATS[c]} 예약을 추가했습니다 (${by}).`); return true; }
