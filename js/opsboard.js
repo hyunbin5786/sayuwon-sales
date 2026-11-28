@@ -196,7 +196,15 @@ function fieldHTML(f){
   if(f.type==='date') return lab+`<span class="dbox"><input class="dtxt" id="${id}" data-dt="${f.k}" readonly value="${esc(dateDisp(v))}" placeholder="누르면 달력"><input type="date" class="dpick" data-dp="${f.k}" value="${esc(v)}" tabindex="-1" aria-hidden="true"></span>`;
   return lab+`<input id="${id}" data-k="${f.k}" value="${esc(v)}"${f.ph?` placeholder="${esc(f.ph)}"`:''}${f.list?` list="dl_${f.k}"`:''}${f.type==='time'?' data-tp="1" readonly':f.type==='num'?' inputmode="numeric" data-ime="num"':f.type==='tel'?' inputmode="tel" data-ime="num"':' data-ime="ko"'}>`+(f.list?`<datalist id="dl_${f.k}">${f.list.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`:'');
 }
-function paintForm(){ $('#eFields').innerHTML = B.fields.filter(f=>!f.show || f.show(form)).map(f=>`<div class="ef${(typeof f.w==='function' ? f.w(form) : f.w)===2 || f.type==='head'?' w2':''}${f.type==='head'?' ef-h':''}">${fieldHTML(f)}</div>`).join(''); phPaint();
+// 칸 묶음을 열로 나눠 그리기 (2026-11-28 · 사고현황): 묶음 제목(type:'head')에 col(몇째 열 · 함수도 됨)이 있는 화면만 — #eFields.ef-cols > .ef-col[data-col] > section.ef-sec > h3 + .egrid. 없는 화면(분실물 · 재고 · 스마트스토어 · 멘트)은 전과 같음
+function paintForm(){ const vis=B.fields.filter(f=>!f.show || f.show(form)), colOf=f=>typeof f.col==='function' ? f.col(form) : f.col, three=vis.some(f=>f.type==='head' && colOf(f));
+  const efDiv=f=>`<div class="ef${(typeof f.w==='function' ? f.w(form) : f.w)===2 || f.type==='head'?' w2':''}${f.type==='head'?' ef-h':''}">${fieldHTML(f)}</div>`;
+  $('#eFields').classList.toggle('ef-cols', three);
+  if(!three) $('#eFields').innerHTML = vis.map(efDiv).join('');
+  else { const cols={}; let cur=null;
+    vis.forEach(f=>{ if(f.type==='head'){ cur={h:f, items:[]}; (cols[colOf(f)||1] ||= []).push(cur); } else { if(!cur){ cur={h:null, items:[]}; (cols[1] ||= []).push(cur); } cur.items.push(f); } });
+    $('#eFields').innerHTML = Object.keys(cols).sort().map(c=>`<div class="ef-col" data-col="${c}">${cols[c].map(s=>`<section class="ef-sec">${s.h ? fieldHTML(s.h) : ''}<div class="egrid">${s.items.map(efDiv).join('')}</div></section>`).join('')}</div>`).join(''); }
+  phPaint();
   $('#eForm').classList.toggle('ro', !!roBy);
   if(roBy) $('#eFields').querySelectorAll('input,select,textarea,button').forEach(el=>{ if(!el.closest('.lock-ok')) el.disabled=true; });   // 담당자가 아니면 칸을 잠금 (.lock-ok 안의 것만 됨 — 메모)
   if(B.afterPaint) B.afterPaint(form, editRow, roBy); }

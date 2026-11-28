@@ -1,6 +1,5 @@
 /* ===== 사고현황 접수 (accident.html) 만의 모양 — 기본 모양은 css/ops.css · 이 파일은 사고 화면만 읽음 (2026-11-28) ===== */
 /* 접수 · 고치기 창 */
-body.pg-acc .edit-box{width:min(760px,100%)}
 body.pg-acc .ef-h{margin-top:10px}
 body.pg-acc .ef-h:first-child{margin-top:0}
 .ef-head{margin:0;padding:0 0 5px;font:600 15px var(--serif);color:var(--pine);border-bottom:1px solid var(--line)}
@@ -79,10 +78,8 @@ body.pg-acc .filters{align-items:center}
 .acc-mini{display:flex;gap:3px;width:96px;margin-top:5px}
 .acc-mini i{flex:1;height:4px;border-radius:2px;background:var(--line)}
 .acc-mini i.on{background:var(--pine)}
-/* 창: 고칠 때는 넓게 · 두 칸 */
-body.pg-acc .edit-box.acc-wide{width:min(1180px,100%)}
-.acc-wide .acc-cols{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:22px;align-items:start}
-.acc-side{display:flex;flex-direction:column;gap:12px;position:sticky;top:0;max-height:calc(100vh - 150px);overflow:auto;padding:2px}
+/* 창의 오른쪽 「진행」 묶음 (열 배치는 이 파일 맨 아래 「창을 3열로」) */
+.acc-side{display:flex;flex-direction:column;gap:12px;min-width:0}
 .acc-side[hidden]{display:none}
 .acc-box{border:1px solid var(--line);border-radius:10px;background:#fff;padding:12px 14px}
 .acc-box h3{margin:0 0 8px;font:600 15px var(--serif);color:var(--pine)}
@@ -122,12 +119,6 @@ body.pg-acc .edit-box.acc-wide{width:min(1180px,100%)}
 .an-acts .an-x{margin-left:0}
 .acc-side .acc-notes{max-height:none}
 .acc-tabs{display:none}
-@media (max-width:1000px){
-  .acc-wide .acc-cols{grid-template-columns:minmax(0,1fr)}
-  .acc-side{position:static;max-height:none;overflow:visible;order:-1}
-  .acc-wide .acc-cols{display:flex;flex-direction:column}
-  .acc-wide .acc-main{width:100%}
-}
 @media (max-width:700px){
   .acc-done{margin-left:0}
   .acc-tabs:not([hidden]){display:flex;gap:4px;background:var(--bg);border-radius:10px;padding:4px;margin:0 0 12px}
@@ -139,3 +130,58 @@ body.pg-acc .edit-box.acc-wide{width:min(1180px,100%)}
   .acc-side textarea{height:auto}
   .acc-steps b{font-size:11.5px}
 }
+
+/* ===== 2026-11-28 창을 3열로 (단체고객 응대 화면의 짜임 · 값은 css/group.css 의 .layout · .panel · .col-stack 에서 가져옴) =====
+   새로 접수: 사고 개요 | 사고 대상자 · 대표 예약자 | 사고 내용     고칠 때: 사고 내용(세 묶음) | 고객 요청 · 보험 처리 | 진행(단계 · 추후과업 · 메모)
+   틀: #eForm > .acc-cols > .acc-main > #eFields.ef-cols > .ef-col[data-col] > section.ef-sec (js/opsboard.js paintForm) + aside.acc-side
+   1181px 부터 3열 · 열 안에서 스크롤 / 761~1180px 2열(셋째는 아래 한 줄 전체 · 고칠 때 진행은 맨 위) / 760px 아래 1열 / 700px 아래는 휴대폰 모양(위의 탭) */
+#eFields.ef-cols{display:flex;flex-direction:column;gap:14px}
+.ef-col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.ef-sec{min-width:0}
+.ef-sec > .ef-head{margin-bottom:10px}
+.acc-cols{display:flex;flex-direction:column;gap:14px}
+.acc-cols > .acc-side{order:-1}
+@media (min-width:701px){
+  body.pg-acc #editModal{padding:24px 16px}
+  body.pg-acc #editModal .edit-box{width:min(1640px,100%);background:var(--bg);padding:16px}
+  .ef-sec,.acc-box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .ef-sec > .ef-head,.acc-box h3{margin:0 0 10px;padding:0;border:0;font:600 15px var(--serif);color:var(--ink)}
+  .ef-sec > .egrid{grid-template-columns:repeat(auto-fit,minmax(max(140px,calc(50% - 5px)),1fr));gap:8px 10px}   /* 두 칸씩 · 열이 좁으면(290px 아래) 한 칸씩 */
+  .acc-side{gap:14px}
+  .acc-main > #eErr{margin:0;align-self:center}
+  .acc-main > .row-btns{margin-top:0}
+}
+@media (min-width:761px){
+  .acc-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+  .acc-main,#eFields.ef-cols{display:contents}
+  .ef-col[data-col="1"]{grid-column:1}
+  .ef-col[data-col="2"]{grid-column:2}
+  .ef-col[data-col="3"]{grid-column:1 / -1}
+  .acc-cols > .acc-side{grid-column:1 / -1;grid-row:1;order:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));align-items:start}
+  .acc-side > .acc-copy{grid-column:1 / -1}
+  .acc-main > #eErr{grid-column:1}
+  .acc-main > .row-btns{grid-column:2}
+}
+@media (min-width:1181px){
+  body.pg-acc #editModal .edit-box{max-height:calc(100vh - 48px);display:flex;flex-direction:column}
+  body.pg-acc #editModal .edit-box > *{flex:none}
+  body.pg-acc #editModal #eForm{flex:0 1 auto;min-height:0;display:flex;flex-direction:column}
+  .acc-cols{flex:0 1 auto;min-height:0;grid-template-columns:minmax(420px,1.35fr) minmax(280px,.9fr) minmax(300px,1fr);grid-template-rows:minmax(0,1fr) auto;align-items:stretch}
+  .ef-col[data-col="1"]{grid-row:1}
+  .ef-col[data-col="2"]{grid-row:1}
+  .ef-col[data-col="3"]{grid-column:3;grid-row:1}
+  .acc-cols > .acc-side{grid-column:3;grid-row:1 / 3;display:flex;align-items:stretch}
+  .acc-main > #eErr{grid-row:2}
+  .acc-main > .row-btns{grid-row:2}
+  .edit-box:not(.acc-wide) .acc-main > #eErr{grid-column:1 / 3}
+  .edit-box:not(.acc-wide) .acc-main > .row-btns{grid-column:3}
+  /* 열 안에서 스크롤: 막대는 열 사이 틈(14px) 안에 옅게 · 막대가 없어도 자리를 비워 둬 카드 폭이 같음 (나의 할일 칸과 같은 방식 · css/group.css .my-scroll) */
+  .ef-col,.acc-cols > .acc-side{min-height:0;overflow:auto;scrollbar-gutter:stable;margin-right:-12px;padding-right:2px}
+  .ef-col > *,.acc-side > *{flex:none}
+  .ef-col::-webkit-scrollbar,.acc-side::-webkit-scrollbar{width:10px;height:10px}
+  .ef-col::-webkit-scrollbar-track,.ef-col::-webkit-scrollbar-corner,.acc-side::-webkit-scrollbar-track,.acc-side::-webkit-scrollbar-corner{background:transparent}
+  .ef-col::-webkit-scrollbar-thumb,.acc-side::-webkit-scrollbar-thumb{background-color:#c9c6be;border:2px solid transparent;background-clip:padding-box;border-radius:5px}
+  .ef-col::-webkit-scrollbar-thumb:hover,.ef-col::-webkit-scrollbar-thumb:active,.acc-side::-webkit-scrollbar-thumb:hover,.acc-side::-webkit-scrollbar-thumb:active{background-color:var(--muted)}
+  @supports not selector(::-webkit-scrollbar){ .ef-col,.acc-cols > .acc-side{scrollbar-width:thin;scrollbar-color:#c9c6be transparent} }
+}
+#accSide[hidden]{display:none}

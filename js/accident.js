@@ -182,19 +182,20 @@ const ACC_PLACES = ['소대','쉼자리길','가가빈빈','현암','소요헌',
 const OPS_PAGE =
 { key:'accident', title:'사고현황 접수', add:'사고 접수', hint:'', members:true,
     fields:[
-      {type:'head', l:'사고 개요'},
+      // 묶음 제목의 col = 창의 몇째 열 (2026-11-28 · 단체 화면처럼 3열 · opsboard.js paintForm) — 새로 접수: 개요 | 대상자 | 내용 · 고칠 때: 사고 내용(세 묶음) | 뒤처리 · 보험 | 진행(단계 · 추후과업 · 메모 = #accSide)
+      {type:'head', l:'사고 개요', col:1},
       {k:'date', l:'사고 일자', type:'date', def:()=>opsToday(), req:()=>!accEd()}, {k:'time', l:'사고 시각', type:'time'},
       {k:'type', l:'구분', type:'select', opts:['부상','시설 파손','분실 · 도난','민원','기타'], def:()=>'부상'},
       {k:'visitType', l:'방문 유형', type:'select', opts:['','단체','개인','도슨트 투어','몽몽마방 식사','기타'], def:()=>''},
       {k:'place', l:'사고 장소 (사유원 안)', type:'text', ph:'고르거나 직접 적기 · 예: 소요헌 안 계단', list:ACC_PLACES, req:()=>!accEd()}, {k:'group', l:'방문 단체', type:'text', ph:'단체 이름 (개인이면 비움)'},
       {k:'owner', l:'담당자 (이 사람만 고칠 수 있음)', type:'member', def:()=>accMe(), w:2},
 
-      {type:'head', l:'사고 대상자 · 대표 예약자'},
+      {type:'head', l:'사고 대상자 · 대표 예약자', col:()=>accEd() ? 1 : 2},
       {k:'person', l:'사고 대상자 이름', type:'text'}, {k:'phone', l:'사고 대상자 연락처', ...accTel('사고 대상자 연락처')},
       {k:'personNote', l:'대상자 비고 (성별 · 연령대 등)', type:'text', w:2},
       {k:'booker', l:'대표 예약자 이름', type:'text'}, {k:'bookerPhone', l:'대표 예약자 연락처', ...accTel('대표 예약자 연락처')},
 
-      {type:'head', l:'사고 내용'},
+      {type:'head', l:'사고 내용', col:()=>accEd() ? 1 : 3},
       {k:'what', l:'사고 내용', type:'textarea', req:1, w:2},
       {k:'injury', l:'부상 부위 · 진단', type:'text'}, {k:'staff', l:'현장 대응 직원', type:'text', def:()=>accMe()},
       {k:'action', l:'현장 조치', type:'textarea', w:2},
@@ -202,15 +203,16 @@ const OPS_PAGE =
       {k:'witness', l:'목격자 · 동행인', type:'text', w:2},
       {k:'photos', l:'현장 사진 (없어도 됨)', type:'photos', w:2},
       {k:'cctv', l:'사고 장소 CCTV', type:'select', opts:['미확인','있음','없음'], def:()=>'미확인'}, {k:'cctvKept', l:'CCTV 영상 확보', type:'select', opts:['미확인','확보함','미확보','해당 없음'], def:()=>'미확인'},
+      {k:'memo', l:'내부 메모', type:'textarea', w:2},
 
       // 아래 묶음들은 접수한 뒤 고칠 때만 보임 (현장에서는 위의 것만 적고 접수)
-      {type:'head', l:'고객 요청 · 원인과 재발 방지', show:accEd},
+      {type:'head', l:'고객 요청 · 원인과 재발 방지', show:accEd, col:2},
       {k:'claim', l:'고객 요청 사항 · 안내한 내용', type:'textarea', w:2, show:accEd},
       {k:'claimAmt', l:'고객 측 청구 금액 (원)', type:'num', show:accEd}, {k:'evidence', l:'확보 자료', type:'text', ph:'진단서 · 영수증 · 사진 등', show:accEd},
       {k:'cause', l:'사고 사유', type:'textarea', w:2, show:accEd},
       {k:'prevent', l:'재발 방지 대책', type:'textarea', w:2, show:accEd},
 
-      {type:'head', l:'보험 처리', show:accEd},   // 단계는 창 오른쪽의 「진행 단계」에서 바꿈 (2026-11-28 · 칸에는 날짜만)
+      {type:'head', l:'보험 처리', show:accEd, col:2},   // 단계는 창 오른쪽의 「진행 단계」에서 바꿈 (2026-11-28 · 칸에는 날짜만)
       {k:'rcptDate', l:'보험 접수일', type:'date', show:accEd}, {k:'visitDate', l:'손해사정사 현장 방문일', type:'date', show:accEd},
       {k:'visitNote', l:'현장 방문 메모', type:'text', ph:'담당 손해사정사 · 방문 시간', show:accEd}, {k:'adjDate', l:'손해사정 시작일', type:'date', show:accEd},
       {k:'procDate', l:'처리 완료일', type:'date', show:accEd}, {k:'insStatus', l:'보험사 진행상태', type:'text', list:['사고조사','보상종결','면책종결'], show:accEd},
@@ -219,9 +221,7 @@ const OPS_PAGE =
       {k:'lossObj', l:'손해목적', type:'text', list:['대인(배상책임)','대물(배상책임)'], show:accEd}, {k:'product', l:'보험 상품명', type:'text', list:['영업배상책임보험','생산물배상책임보험(Ⅰ)'], show:accEd},
       {k:'adjuster', l:'위임업체 (손해사정)', type:'text', show:accEd}, {k:'examiner', l:'심사자', type:'text', show:accEd},
       {k:'addr', l:'사고 장소 (주소 · 보험사에 낸 것)', type:'text', w:2, show:accEd},
-      {k:'payout', l:'보험금 (원)', type:'num', show:accEd}, {k:'diagnosis', l:'진단명', type:'text', show:accEd},
-
-      {k:'memo', l:'내부 메모', type:'textarea', w:2} ],
+      {k:'payout', l:'보험금 (원)', type:'num', show:accEd}, {k:'diagnosis', l:'진단명', type:'text', show:accEd} ],
     cols:[['date','사고 일시'],['place','장소'],['type','구분'],['status','단계']],
     status:'status', open:ACC_OPEN, summary:d=>`${d.type||''} ${d.place||''} · ${accStatus(d)}`.trim(),
     render:accRender,
