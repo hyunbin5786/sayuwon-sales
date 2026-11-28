@@ -52,7 +52,7 @@ const accDraft = {tk:'', who:'', note:'', ph:[], edit:'', edTx:'', up:0};   // �
 const accStageDates = d => [d.date, d.rcptDate, d.visitDate, d.adjDate, d.procDate];
 function accStepsHTML(d, can){ const cur=ACC_ST.indexOf(accStatus(d)), dt=accStageDates(d);
   return `<ol class="acc-steps">${ACC_ST.map((s,i)=>{ const skip=i>0 && i<cur && !dt[i];   // 날짜 없이 지나간 단계 (보험 없이 끝낸 사고)
-    return `<li class="${i<cur ? (skip?'skip':'done') : i===cur ? 'cur' : ''}"><button type="button" data-accstep="${i}"${can?'':' disabled'} title="${esc(s)}"><i>${(i<cur && !skip) || (i===cur && cur===4) ? '✓' : i+1}</i><b>${ACC_SHORT[i]}</b><small>${i<=cur && dt[i] ? esc(opsDateLabel(dt[i])) : ''}</small></button></li>`; }).join('')}</ol>`; }
+    return `<li class="${i<cur ? (skip?'skip':'done') : i===cur ? 'cur' : ''}"><button type="button" data-accstep="${i}"${can?'':' disabled'} title="${esc(s)}"><i>${(i<cur && !skip) || (i===cur && cur===4) ? '✓' : i+1}</i><b>${ACC_SHORT[i]}</b><small>${i<=cur && dt[i] ? esc(opsDateLabel(dt[i])) : ''}</small></button></li>`; }).join('')}</ol>` + (can && cur>0 ? `<div class="acc-step-back"><button type="button" class="btn sm" data-accstep="${cur-1}">이전 단계로</button></div>` : ''); }
 const accMini = d => { const cur=ACC_ST.indexOf(accStatus(d)); return `<span class="acc-mini" aria-hidden="true">${ACC_ST.map((_,i)=>`<i class="${i<=cur?'on':''}"></i>`).join('')}</span>`; };
 function accTasksHTML(mine){ if(!accEd()) return `<p class="acc-none">저장한 뒤에 넣을 수 있습니다</p>`; const id=editRow.r.id, me=accMe(), L=accTasks(id), own=accOwner(form, editRow.r);
   return (L.length ? `<ul class="acc-tasks">${L.map(t=>{ const dn=accTaskDone(t.d), can=mine || t.d.owner===me;
@@ -320,3 +320,18 @@ function accIsDirty(){ const ks=new Set([...Object.keys(accBase), ...Object.keys
   for(const k of ks){ const a=accBase[k], b=form[k]; if(JSON.stringify(a==null||a===false ? '' : a)!==JSON.stringify(b==null||b===false ? '' : b)) return true; } return false; }
 function accDirtyPaint(){ const b=document.getElementById('eSave'); if(b) b.classList.toggle('dirty', !b.hidden && accIsDirty()); }
 ['input','change','click','focusout'].forEach(ev=>document.addEventListener(ev, e=>{ if(e.target.closest && e.target.closest('#editModal')) setTimeout(accDirtyPaint, 0); }));
+
+// ---------- 칸을 적으면 단계가 저절로 넘어감 (2026-11-28) ----------
+//  가운데 열 ② ~ ⑤ 묶음의 칸에 값을 넣고 칸을 떠나면, 그 묶음의 단계가 지금 단계보다 뒤일 때 그 단계로 넘어간다(그 단계의 날짜가 비어 있으면 오늘).
+//  화면에서만 바뀌고 「저장」을 눌러야 저장된다(노란 점). 되돌리기 = 진행 단계의 「이전 단계로」 또는 앞 마디 누르기. 칸을 다시 그리지 않는다(적던 자리 · 초점이 그대로)
+var accSecOf=null;
+function accAuto(k){ if(!k || (typeof roBy!=='undefined' && roBy)) return;
+  if(!accSecOf){ accSecOf={}; let s=0; OPS_PAGE.fields.forEach(f=>{ if(f.type==='head') s=f.sec||0; else if(f.k) accSecOf[f.k]=s; }); }
+  const n=accSecOf[k], v=form[k]; if(!n || v==null || String(v).trim()==='') return;
+  if(n<=ACC_ST.indexOf(accStatus(form))) return;
+  form.status=ACC_ST[n]; accStageDate(form);
+  ['rcptDate','visitDate','adjDate','procDate'].forEach(d=>{ const t=document.querySelector(`#eFields .dtxt[data-dt="${d}"]`), p=document.querySelector(`#eFields .dpick[data-dp="${d}"]`);
+    if(t && document.activeElement!==t) t.value=dateDisp(form[d]||''); if(p) p.value=form[d]||''; });
+  accSide(); accSecPaint(); accDirtyPaint(); toast(`단계가 「${ACC_ST[n]}」(으)로 넘어갔습니다.`); }
+document.addEventListener('change', e=>{ const t=e.target; if(!t.closest || !t.closest('#eFields')) return; const k=t.dataset.k || t.dataset.dp; if(k) setTimeout(()=>accAuto(k), 0); });
+document.addEventListener('focusout', e=>{ const t=e.target; if(t.closest && t.closest('#eFields') && t.dataset.dt) setTimeout(()=>accAuto(t.dataset.dt), 0); });

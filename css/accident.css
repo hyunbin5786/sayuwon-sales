@@ -256,3 +256,7 @@ header #accNewBtn:hover{background:#f3f7ef}
 .acc-start-none{text-align:center;color:var(--muted);padding:8px 0}
 .acc-start .row-btns{justify-content:center;margin-top:0}
 @media (max-width:700px){ .acc-start-it{flex-wrap:wrap} .acc-start-it small{flex-basis:100%} .acc-start{width:calc(100% - 24px);min-height:calc(100vh - 180px)} .acc-start .row-btns .btn{flex:1} }
+
+/* 2026-11-28 진행 단계의 「이전 단계로」 · 왼쪽 열 맨 위 묶음(① 접수 · 사고 개요)은 열을 내려도 위에 고정 */
+.acc-step-back{display:flex;justify-content:flex-end;margin-top:8px}
+@media (min-width:1181px){ .ef-col[data-col="1"] > .ef-sec:first-child{position:sticky;top:0;z-index:2;box-shadow:0 6px 8px -6px rgba(0,0,0,.14)} }
