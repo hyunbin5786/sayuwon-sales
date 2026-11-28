@@ -115,13 +115,13 @@ header.top{display:flex; align-items:flex-end; justify-content:space-between; ga
 .addrow{display:flex; gap:8px; flex-wrap:wrap}
 .btn{
   border:1px solid var(--line-strong); background:var(--surface); color:var(--ink);
-  border-radius:7px; padding:8px 13px; cursor:pointer; font-size:13px; font-weight:500;
+  box-sizing:border-box; min-height:var(--btn-h,38px); border-radius:7px; padding:5px 14px; cursor:pointer; font-size:13px; font-weight:500;
 }
 .btn:hover{border-color:var(--ink)}
 .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700}
 .btn.primary:hover{filter:brightness(1.08)}
 .btn:disabled{opacity:.45; cursor:not-allowed}
-.btn.block{width:100%; padding:12px}
+.btn.block{width:100%; min-height:var(--btn-lg-h,44px); padding:8px 12px}
 .btn.wide{flex:1; min-width:150px}
 
 .status{font-size:12.5px; min-height:18px; color:var(--muted)}
@@ -222,7 +222,7 @@ header.top{display:flex; align-items:flex-end; justify-content:space-between; ga
 .cattable input.num{text-align:right}
 .cattable .src{word-break:keep-all; overflow-wrap:anywhere}
 .cattable .sub{display:block; font-size:11px; color:var(--faint); margin-top:2px}
-.btn.small{padding:4px 8px; font-size:12px; white-space:nowrap}
+.btn.small{min-height:var(--btn-sm-h,28px); padding:2px 10px; font-size:12px; white-space:nowrap}
 .mailbox{width:min(620px,100%)}
 .gapbox{width:min(520px,100%)}
 .gaplist{display:flex; flex-direction:column; gap:6px; padding:10px 12px; border:1px solid var(--danger); border-radius:8px; font-size:13px; font-variant-numeric:tabular-nums}
