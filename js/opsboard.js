@@ -40,6 +40,7 @@ async function pull(){
   if(!opsKey()){ $('#keyBox').hidden=false; opsWaitEnd(); return; }
   setSync('불러오는 중…');
   try{ const j=await SY.list(); $('#keyBox').hidden=true;
+    window.opsItems = j.items||[];   // 받은 줄 전체 (2026-11-28 · 사고현황의 추후과업 = 개인업무 줄 · js/accident.js)
     rows = (j.items||[]).filter(r=>r.callType===OPS_TYPES[P]).map(r=>{ const h=opsParse(r); return h ? {r, d:h.d||{}, log:h.log||[]} : null; }).filter(Boolean);
     try{ localStorage.setItem(CACHE_LS, JSON.stringify(rows)); }catch(_){}
     setSync(''); opsWait=false; render();
@@ -57,15 +58,17 @@ async function putRow(row, what){
   const now=new Date().toISOString(), log=[...(row.log||[]), {at:now, by:user.name||'', what}].slice(-60);
   const item = {...(row.r||{}), id: row.r?.id || opsId(), callType:OPS_TYPES[P], saved: row.r?.saved || now, takenBy: row.r?.takenBy || user.name || '',
     owner: row.r?.owner || user.name || '', summary: B.summary(row.d).slice(0,120), history: JSON.stringify({kind:P, d:row.d, log}) };
+  if(B.owner){ const o=B.owner(row.d, row.r); if(o) item.owner=o; }   // 담당자 칸이 있는 화면 (사고현황 2026-11-28): 줄의 owner 도 그 사람으로
   delete item.date; delete item.org;   // 방문일 · 업체 칸은 비워 둠 (단체 화면 예약 현황에 섞이지 않게)
   const i=rows.findIndex(x=>x.r?.id===item.id), nr={r:item, d:row.d, log}; if(i>=0) rows[i]=nr; else rows.push(nr);
+  putRow.last=nr;
   render(); setSync('저장 중…');
   try{ await SY.call({action:'put', item}); setSync(''); try{ localStorage.setItem(CACHE_LS, JSON.stringify(rows)); }catch(_){} return true; }
   catch(e){ setSync('저장 못 함'); toast('저장하지 못했습니다: '+(e.code||e.message)); return false; }
 }
 async function delRow(row){
   rows=rows.filter(x=>x.r?.id!==row.r.id); render();
-  try{ await SY.call({action:'del', id:row.r.id}); toast('삭제했습니다.'); }catch(e){ toast('삭제하지 못했습니다: '+(e.code||e.message)); pull(); }
+  try{ await SY.call({action:'del', id:row.r.id}); toast('삭제했습니다.'); if(B.afterDel) B.afterDel(row); }catch(e){ toast('삭제하지 못했습니다: '+(e.code||e.message)); pull(); }
 }
 // (팀 비밀번호 입력 칸은 없앰 · 2026-11-21 — 서버는 로그인으로 확인)
 
@@ -77,6 +80,7 @@ function render(){
   if(P==='stock') return renderStock(hit);
   if(P==='ship') return renderShip(hit);
   if(B.boards) return renderLost(hit);
+  if(B.render) return B.render(hit);   // 목록을 그 화면 파일이 직접 그림 (사고현황 2026-11-28 · js/accident.js)
   const st=B.status, list=rows.filter(x=>hit(x.d) && (filter==='all' || (filter==='open' ? B.open.includes(x.d[st]) : x.d[st]===filter)))
     .sort((a,b)=>String(b.d.date||'').localeCompare(String(a.d.date||'')) || String(b.r.saved).localeCompare(String(a.r.saved)));
   const opts=[['open','진행 중'],['all','전체'], ...B.fields.find(f=>f.k===st).opts.map(o=>[o,o])];
@@ -143,12 +147,14 @@ document.addEventListener('click', e=>{
 $('#q').addEventListener('input', ()=>render());
 
 // ---------- 추가 · 고치기 ----------
-let editRow=null, form={};
+let editRow=null, form={}, roBy='';   // roBy: 이 기록의 담당자 이름 (내가 담당자가 아닐 때만 · 그러면 칸을 잠그고 메모만)
 const fReq = f => typeof f.req==='function' ? f.req(form) : !!f.req;   // 꼭 넣기 (함수면 그때의 칸 값으로)
 const fLabel = f => typeof f.l==='function' ? f.l(form) : f.l;   // 칸 이름 (함수면 그때의 칸 값으로 — 분실물: 신고자 / 습득자)
 // 로그인한 사람의 연락처 (멤버관리에 적은 것 · 2026-11-24): 분실물 습득 접수 때 습득자 · 연락처를 자동으로 (js/lost.js onField)
 window.opsMe = { name:user.name||'', phone:'' };
-if(B.boards && !GUEST) SY.call({action:'members'}).then(j=>{ const e=String(user.emp||'').replace(/\s/g,'').toUpperCase(), m=(j.members||[]).find(x=>String(x.emp||'').replace(/\s/g,'').toUpperCase()===e); if(m){ opsMe.name=m.name||opsMe.name; opsMe.phone=m.phone||'';
+window.opsMembers = [];   // 멤버 이름들 (담당자 고르기 · OPS_PAGE.members 인 화면만 받음)
+if((B.boards || B.members) && !GUEST) SY.call({action:'members'}).then(j=>{ opsMembers=(j.members||[]).filter(x=>!x.deleted).map(x=>x.name).filter(Boolean).sort((a,b)=>a.localeCompare(b,'ko')); if(B.members && !$('#editModal').hidden) paintForm();
+  if(!B.boards) return; const e=String(user.emp||'').replace(/\s/g,'').toUpperCase(), m=(j.members||[]).find(x=>String(x.emp||'').replace(/\s/g,'').toUpperCase()===e); if(m){ opsMe.name=m.name||opsMe.name; opsMe.phone=m.phone||'';
     // 멤버 연락처를 받기 전에 접수 창을 먼저 연 경우 (2026-11-27): 이름만 들어가 있고 연락처가 비어 있으면 지금 채움 (새 접수 · 이름이 내 이름일 때만)
     if(!$('#editModal').hidden && !editRow && opsMe.phone && !form.phone && form.person===opsMe.name){ form.phone=opsMe.phone; paintForm(); } }
   if((+j.srv||0) >= 13 && !window.LOST_RP){ window.LOST_RP = true; if(!$('#editModal').hidden) paintForm(); }   // 서버 13 부터 「분실물 신고자」 칸 (members 응답의 srv · 2026-11-27 · js/lost.js lostRp)
@@ -159,12 +165,18 @@ function openEdit(row, preset){   // preset: 새로 넣을 때 먼저 채울 값
   if(preset) Object.entries(preset).forEach(([k, v])=>{ form[k]=v; if(B.onField) B.onField(k, form); });
   telTouched.clear();
   if(B.normalize) B.normalize(form);   // 예전 기록 값을 지금 규칙으로 (분실물 상태)
-  $('#eTitle').textContent = row ? `${B.title} · 고치기` : B.add;
-  $('#eDel').hidden = !row; $('#eErr').textContent=''; paintForm(); $('#editModal').hidden=false;
+  roBy = row && B.lockBy ? (B.lockBy(row)||'') : '';   // 담당자가 아니면 보기만 (그 화면이 정함 · 사고현황)
+  $('#eTitle').textContent = row ? `${B.title} · ${roBy?'보기':'고치기'}` : B.add;
+  $('#eSave').hidden = !!roBy; if($('#eCancel')) $('#eCancel').hidden = !!roBy;
+  $('#eDel').hidden = !row || !!roBy; $('#eErr').textContent=''; paintForm(); $('#editModal').hidden=false;
   setTimeout(()=>$('#eFields input:not([type=hidden]):not([readonly]), #eFields textarea')?.focus(), 0);
 }
 function fieldHTML(f){
   const v=form[f.k]??'', id='e_'+f.k, lab=`<label for="${id}">${fLabel(f)}${fReq(f)?' <i>*</i>':''}</label>`;
+  if(f.type==='head') return `<h3 class="ef-head">${esc(fLabel(f))}${f.note?` <small>${esc(f.note)}</small>`:''}</h3>`;   // 묶음 제목 (2026-11-28)
+  if(f.html) return f.html(form, f);   // 그 화면 파일이 직접 그리는 칸 (사고현황의 추후과업 · 메모)
+  if(f.type==='member'){ const names=[...new Set([...(opsMembers||[]), user.name||'', v].filter(Boolean))];   // 멤버 고르기 (담당자) — 목록을 받기 전에도 내 이름 · 지금 값은 보임
+    return lab+`<select id="${id}" data-k="${f.k}">${names.map(n=>`<option${n===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`; }
   if(f.type==='goods'){ const names=opsGoodsCache.map(g=>g.name), has=!v || names.includes(v);   // 품목관리의 굿즈 (엑셀에서 온 이름이 목록에 없으면 그 이름도 보임)
     return lab+`<select id="${id}" data-k="${f.k}"><option value=""${v?'':' selected'}>굿즈 고르기</option>${has?'':`<option selected>${esc(v)}</option>`}${names.map(n=>`<option${n===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`; }
   if(f.type==='select') return lab+`<select id="${id}" data-k="${f.k}">${(typeof f.opts==='function' ? f.opts(form) : f.opts).map(o=>`<option${o===v?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
@@ -182,9 +194,12 @@ function fieldHTML(f){
       + `<span class="hint ph-msg" id="phMsg">${phBusy ? '사진을 올리는 중…' : PH_MOB ? `갤러리에서 고르거나 바로 찍을 수 있습니다 · ${PH_MAX}장까지 한 장씩` : '한 번에 여러 장 고를 수 있습니다 · 복사한 사진은 붙여넣기(Ctrl+V)도 됩니다'}</span>`; }
   if(f.type==='textarea') return lab+`<textarea id="${id}" data-k="${f.k}" data-ime="ko" rows="3">${esc(v)}</textarea>`;
   if(f.type==='date') return lab+`<span class="dbox"><input class="dtxt" id="${id}" data-dt="${f.k}" readonly value="${esc(dateDisp(v))}" placeholder="누르면 달력"><input type="date" class="dpick" data-dp="${f.k}" value="${esc(v)}" tabindex="-1" aria-hidden="true"></span>`;
-  return lab+`<input id="${id}" data-k="${f.k}" value="${esc(v)}"${f.ph?` placeholder="${esc(f.ph)}"`:''}${f.type==='time'?' data-tp="1" readonly':f.type==='num'?' inputmode="numeric" data-ime="num"':f.type==='tel'?' inputmode="tel" data-ime="num"':' data-ime="ko"'}>`;
+  return lab+`<input id="${id}" data-k="${f.k}" value="${esc(v)}"${f.ph?` placeholder="${esc(f.ph)}"`:''}${f.list?` list="dl_${f.k}"`:''}${f.type==='time'?' data-tp="1" readonly':f.type==='num'?' inputmode="numeric" data-ime="num"':f.type==='tel'?' inputmode="tel" data-ime="num"':' data-ime="ko"'}>`+(f.list?`<datalist id="dl_${f.k}">${f.list.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`:'');
 }
-function paintForm(){ $('#eFields').innerHTML = B.fields.filter(f=>!f.show || f.show(form)).map(f=>`<div class="ef${(typeof f.w==='function' ? f.w(form) : f.w)===2?' w2':''}">${fieldHTML(f)}</div>`).join(''); phPaint(); }
+function paintForm(){ $('#eFields').innerHTML = B.fields.filter(f=>!f.show || f.show(form)).map(f=>`<div class="ef${(typeof f.w==='function' ? f.w(form) : f.w)===2 || f.type==='head'?' w2':''}${f.type==='head'?' ef-h':''}">${fieldHTML(f)}</div>`).join(''); phPaint();
+  $('#eForm').classList.toggle('ro', !!roBy);
+  if(roBy) $('#eFields').querySelectorAll('input,select,textarea,button').forEach(el=>{ if(!el.closest('.lock-ok')) el.disabled=true; });   // 담당자가 아니면 칸을 잠금 (.lock-ok 안의 것만 됨 — 메모)
+  if(B.afterPaint) B.afterPaint(form, editRow, roBy); }
 // ---------- 사진 칸 (type:'photos' · 2026-11-23 · 분실물 습득 사진 · 2026-11-26 분실물 신고에도) ----------
 //  올리기: 화면에서 긴 변 1600px 로 줄여(PNG 는 PNG 그대로, 너무 크면 JPEG) 서버의 그림 저장(mentImgPut — 멘트 이미지와 같은 저장소 · files 표 · 5MB 까지)에 올리고, 기록에는 [{id, name}] 만 둠
 //  보기: mentImgGet 으로 받아 그림으로 (로그인한 사람만 · 한 번 받은 것은 이 화면에 기억). 서버를 바꾸지 않으려고 멘트 이미지 동작을 같이 씀
@@ -250,6 +265,7 @@ $('#eFields').addEventListener('click', e=>{ const t=e.target.closest('.dtxt'); 
 $('#eFields').addEventListener('change', e=>{ const p=e.target.closest('.dpick'); if(!p) return; form[p.dataset.dp]=p.value; const t=p.parentElement.querySelector('.dtxt'); t.value=dateDisp(p.value); delete t.dataset.opened; t.readOnly=true; });
 $('#eFields').addEventListener('focusout', e=>{ const t=e.target.closest('.dtxt'); if(!t || t.readOnly) return; const v=parseDateText(t.value); if(v===null){ t.value=dateDisp(form[t.dataset.dt]||''); } else { form[t.dataset.dt]=v; t.value=dateDisp(v); } t.readOnly=true; delete t.dataset.opened; });
 $('#eForm').addEventListener('submit', async e=>{ e.preventDefault();
+  if(roBy) return;
   document.activeElement?.blur?.();
   if($('#e_subAdd')?.value.trim()) addSub();   // 세부 과업 칸에 적어 두고 추가를 안 누른 것도
   if(phBusy){ $('#eErr').textContent='사진을 올리는 중입니다. 끝난 뒤 저장해 주세요.'; return; }
@@ -258,9 +274,12 @@ $('#eForm').addEventListener('submit', async e=>{ e.preventDefault();
   B.fields.forEach(f=>{ if(f.fmt==='phone' && telTouched.has(f.k) && (!f.show || f.show(form)) && form[f.k]) form[f.k]=SY.fmtPhone(form[f.k]) || String(form[f.k]).trim(); });   // 붙여 넣은 번호도 - 를 맞춘 뒤 (이번에 손댄 칸만 — 예전 기록의 번호는 그대로)
   const bad=B.fields.filter(f=>f.bad && (!f.show || f.show(form))).map(f=>f.bad(String(form[f.k]||'').trim(), telTouched.has(f.k))).filter(Boolean); if(bad.length){ paintForm(); $('#eErr').textContent=bad.join(' · '); return; }   // 칸마다의 모양 확인 (칸 정의의 bad · 2026-11-27)
   const d={...form}; B.fields.forEach(f=>{ if(f.show && !f.show(form) && f.k in d && f.type!=='dows' && f.type!=='dom') delete d[f.k]; });
-  const ok=await putRow({...(editRow||{}), d}, editRow?'고침':'추가'); if(ok!==false){ $('#editModal').hidden=true; toast(editRow?'고쳤습니다.':'추가했습니다.'); }
+  const was=editRow;
+  const ok=await putRow({...(editRow||{}), d}, editRow?'고침':'추가'); if(ok!==false && B.afterSave) B.afterSave(putRow.last, was);
+  if(ok!==false){ $('#editModal').hidden=true; toast(editRow?'고쳤습니다.':'추가했습니다.'); }
 });
-$('#eCancel').onclick=()=>{ $('#editModal').hidden=true; };
+if($('#eCancel')) $('#eCancel').onclick=()=>{ $('#editModal').hidden=true; };   // 「취소」가 없는 화면도 있음 (× 가 있는 창 · 사고현황)
+if($('#eX')) $('#eX').onclick=()=>{ $('#editModal').hidden=true; };   // 오른쪽 위 × (사고현황 — 보기만 할 때 닫는 단추)
 $('#editModal').addEventListener('mousedown', e=>{ if(e.target.id==='editModal') $('#editModal').hidden=true; });
 $('#eDel').onclick=()=>{ if(!editRow) return; askDelete(`「${B.summary(editRow.d)}」을(를) 정말로 삭제할 건가요?`, ()=>{ $('#editModal').hidden=true; delRow(editRow); }); };
 $('#addBtn').onclick=()=>openEdit(null);

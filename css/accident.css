@@ -1,0 +1,72 @@
+/* ===== 사고현황 접수 (accident.html) 만의 모양 — 기본 모양은 css/ops.css · 이 파일은 사고 화면만 읽음 (2026-11-28) ===== */
+/* 접수 · 고치기 창 */
+body.pg-acc .edit-box{width:min(760px,100%)}
+body.pg-acc .ef-h{margin-top:10px}
+body.pg-acc .ef-h:first-child{margin-top:0}
+.ef-head{margin:0;padding:0 0 5px;font:600 15px var(--serif);color:var(--pine);border-bottom:1px solid var(--line)}
+.ef-head small{font:400 12px var(--sans);color:var(--muted);margin-left:6px}
+.acc-sub{font-size:11.5px;color:var(--muted);margin-left:4px}
+.acc-lock{margin:0 0 12px;padding:9px 12px;border-radius:8px;background:var(--amber-soft);color:#6f4700;font-size:13px;word-break:keep-all}
+.acc-none{margin:0;font-size:12.5px;color:var(--muted)}
+#eForm.ro .ef input:disabled,#eForm.ro .ef select:disabled,#eForm.ro .ef textarea:disabled{background:#f6f4ee;color:var(--ink);opacity:1;-webkit-text-fill-color:var(--ink)}
+#eForm.ro .ph-btns,#eForm.ro .ph-msg,#eForm.ro .ph-x{display:none}
+#eForm.ro .acc-add:not(.lock-ok){display:none}
+/* 추후과업 */
+.acc-tasks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.acc-tasks li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.acc-tasks li label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;color:var(--ink);min-width:0}
+.ef .acc-tasks li input{width:16px;height:16px;padding:0;flex:none;accent-color:var(--pine)}
+.acc-tasks li small{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+.acc-tasks li.done span{color:var(--muted);text-decoration:line-through}
+.acc-add{display:flex;gap:6px;align-items:flex-start;margin-top:4px}
+.acc-add input,.acc-add textarea{flex:1 1 auto;min-width:0}
+.ef .acc-add select{flex:0 0 auto;width:auto;max-width:130px}
+.acc-add .btn{flex:none}
+/* 처리 이력 · 메모 */
+.acc-notes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:300px;overflow:auto}
+.acc-note{padding:8px 12px;border-radius:10px;background:#f5f2ea;border:1px solid #ebe6da}
+.acc-note.del{background:none;border-style:dashed}
+.acc-note.del .an-t{color:var(--muted);text-decoration:line-through}
+.an-h{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.an-h b{color:var(--ink);font-weight:700}
+.an-x{margin-left:auto;border:0;background:none;color:var(--muted);font:inherit;cursor:pointer;padding:0 2px;text-decoration:underline;text-underline-offset:3px}
+.an-x:hover{color:var(--ink)}
+.an-t{font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.acc-copy{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* 목록 */
+.acc-tw{overflow-x:auto}
+.acc-tbl td.nw{white-space:nowrap}
+.acc-tag{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;white-space:nowrap;line-height:1.5}
+.acc-tag.s0,.acc-st.s0{background:var(--amber-soft);color:var(--amber)}
+.acc-tag.s1,.acc-st.s1{background:#e6eef6;color:#2a5a86}
+.acc-tag.s2,.acc-st.s2{background:#dcefe9;color:#226a5f}
+.acc-tag.s3,.acc-st.s3{background:#ece6f5;color:#5a3f86}
+.acc-tag.s4,.acc-st.s4{background:#e9e7e0;color:var(--muted)}
+.acc-st{max-width:170px}
+.acc-age{display:block;margin-top:2px;font-size:12px;color:var(--muted)}
+.acc-age.warn{color:var(--amber);font-weight:700}
+/* 휴대폰 (700px 아래): 목록 = 카드 · 접수 창 = 화면 가득 */
+.acc-cards{display:flex;flex-direction:column;gap:8px}
+.acc-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 12px;display:flex;flex-direction:column;gap:3px;cursor:pointer}
+.acc-card.closed{background:none}
+.acc-card .ac-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.acc-card .ac-t b{font-size:15px}
+.acc-card .ac-t .acc-age{display:inline;margin:0 0 0 auto}
+.acc-card .ac-p{font-size:14px}
+.acc-card .ac-w{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acc-card .ac-o{font-size:12.5px;color:var(--muted)}
+@media (max-width:700px){
+  body.pg-acc main{padding:12px 10px 40px}
+  body.pg-acc .panel{padding:14px 12px}
+  body.pg-acc .b-tools{margin-left:0;width:100%;flex-wrap:wrap}
+  body.pg-acc .b-tools #q{flex:1 1 120px;width:auto;height:40px;font-size:16px}
+  body.pg-acc .b-tools .q-kind{height:40px}
+  body.pg-acc .b-tools #addBtn{flex:1 1 100%}
+  body.pg-acc #editModal{padding:0}
+  body.pg-acc #editModal .edit-box{width:100%;max-width:none;min-height:100%;margin:0;border-radius:0;box-sizing:border-box}
+  body.pg-acc .ef input,body.pg-acc .ef select,body.pg-acc .ef textarea{font-size:16px;height:42px}
+  body.pg-acc .ef textarea{height:auto}
+  body.pg-acc .acc-add{flex-wrap:wrap}
+  body.pg-acc .row-btns .btn{flex:1}
+  body.pg-acc .row-btns .sp{display:none}
+}

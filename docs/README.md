@@ -33,7 +33,8 @@
 | **대관 규정 및 상품** (`rent.html`) | `js/rent.js` | [29 대관 규정 및 상품](화면/29-대관-규정-및-상품.md) |
 | **협업 여행사 할인 현황** (`agency.html`) · **기업 프로모션 할인** (`promo.html`) | `js/agency.js` · `js/promo.js` · `js/stable.js` | [32 기업 프로모션 · 여행사 할인](화면/32-기업-프로모션-여행사-할인.md) |
 | **분실물 찾기** (`lost.html`) | `js/lost.js` · `js/lostm.js` · `js/opsboard.js` | [21](화면/21-수정-모음-2026-11-23.md) (21-16) → [23 분실물 찾기](화면/23-분실물-찾기.md) |
-| **사고현황 접수** (`accident.html`) · **스마트스토어 발송 보고** (`ship.html`) | `js/accident.js` · `js/ship.js` · `js/opsboard.js` | [03 메뉴](화면/03-메뉴.md) 의 운영보조 |
+| **사고현황 접수** (`accident.html`) | `js/accident.js` · `js/opsboard.js` · `css/accident.css` | [46 사고현황 접수](화면/46-사고현황-접수.md) |
+| **스마트스토어 발송 보고** (`ship.html`) | `js/ship.js` · `js/opsboard.js` | [03 메뉴](화면/03-메뉴.md) 의 운영보조 |
 | **재고관리** (`stock.html`) | `js/stockx.js` · `js/stock.js` | [27 재고관리](화면/27-재고관리.md) → [38 품목별 보기](화면/38-재고관리-품목별-보기.md) |
 | **홍보 기자 리스트** (`press.html`) | `js/press.js` | [31 홍보 기자 리스트](화면/31-홍보-기자-리스트.md) |
 | **고객 응대 매뉴얼** (`manual.html`) | `js/manual.js` | [35 고객 응대 매뉴얼](화면/35-고객-응대-매뉴얼.md) (35-1 = 「매뉴얼 안내문 정리해줘」 순서) |
