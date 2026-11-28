@@ -307,7 +307,7 @@
     <p class="memo-lock-hint" id="memoLockHint" hidden></p>
     <!-- 2026-11-27: 통화 메모 = 쌓이는 기록. 칸(.memo-stack) 크기는 예전 글 상자와 같고, 위 = 지난 기록(안에서 스크롤 · #noteList) · 아래 = 새 메모 적는 자리(#memoBox). js/group/08-history-save.js 맨 위 -->
     <div class="memo-stack" id="memoStack">
-    <ol class="note-list" id="noteList" aria-label="지난 통화 메모 기록" hidden></ol>
+    <ol class="note-list" id="noteList" aria-label="지난 통화 메모 기록"></ol>
     <div class="memo-in"><!-- 적는 줄 (채팅 입력창처럼 · 같은 날 네 번째): 적는 자리 + 「저장」 버튼 · Enter = 저장(기록으로 쌓기) · Shift+Enter = 줄바꿈 -->
     <textarea id="memoBox" rows="1" data-nogrow data-ime="ko" lang="ko" spellcheck="false" autocomplete="off" aria-label="새 통화 메모" placeholder="메모 입력 (Enter 저장 · Shift+Enter 줄바꿈)"></textarea>
     <button type="button" class="btn primary memo-save" id="memoSave" title="통화 메모 저장 — 기록으로 쌓입니다 (영업 담당이 아니면 영업 담당에게 「통화 메모 확인」 과업이 갑니다)">저장</button>
