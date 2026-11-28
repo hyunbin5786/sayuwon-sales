@@ -21,7 +21,7 @@ function tkFromP(r, t){
 function tkFromE(o, day, extra){
   const d=o.d, rep=d.repeat||'none', sd=((d.subDone||{})[day])||{};
   const acc = d.acc ? accTkSrc(d) : null;   // 사고현황 접수에서 만든 과업 (2026-11-28): 단체 과업 줄처럼 — 이름은 과업 글만 · 「사고 · 장소 · 사고일」 단추(누르면 그 사고) · 구분 · 반복 칸 없이 마감만
-  return { kind:'e', rid:o.r.id, tid:'', day:day||'', title: acc ? acc.title : d.title, ...(acc ? {src:acc.src, srcAttr:`data-accopen="${esc(d.acc)}"`} : {}), due: rep==='later' ? '' : (day||''), done:false, memo:d.memo||'', d, rep,
+  return { kind:'e', rid:o.r.id, tid:'', day:day||'', title: acc ? acc.title : d.title, ...(acc ? {src:acc.src, srcAttr:`data-accopen="${esc(d.acc)}"`} : {}), due: rep==='later' ? '' : (day||''), done:false, memo: acc && /^사고현황 접수 › /.test(d.memo||'') ? '' : (d.memo||''), d, rep,
     subs:(d.subs||[]).map(s=>({id:s.id, title:s.title||s.t||'', done:!!sd[s.id]})), canDel:true, ...(extra||{}) };
 }
 // 마감 순 (마감 없음은 맨 뒤)
