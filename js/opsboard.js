@@ -173,7 +173,7 @@ function openEdit(row, preset){   // preset: 새로 넣을 때 먼저 채울 값
 }
 function fieldHTML(f){
   const v=form[f.k]??'', id='e_'+f.k, lab=`<label for="${id}">${fLabel(f)}${fReq(f)?' <i>*</i>':''}</label>`;
-  if(f.type==='head') return `<h3 class="ef-head">${esc(fLabel(f))}${f.note?` <small>${esc(f.note)}</small>`:''}</h3>`;   // 묶음 제목 (2026-11-28)
+  if(f.type==='head') return `<h3 class="ef-head">${esc(fLabel(f))}</h3>`;   // 묶음 제목 (2026-11-28)
   if(f.html) return f.html(form, f);   // 그 화면 파일이 직접 그리는 칸 (사고현황의 추후과업 · 메모)
   if(f.type==='member'){ const names=[...new Set([...(opsMembers||[]), user.name||'', v].filter(Boolean))];   // 멤버 고르기 (담당자) — 목록을 받기 전에도 내 이름 · 지금 값은 보임
     return lab+`<select id="${id}" data-k="${f.k}">${names.map(n=>`<option${n===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`; }
@@ -191,7 +191,7 @@ function fieldHTML(f){
       //  휴대폰에서 무엇이 열리는지는 휴대폰이 정하고 accept · multiple 값에 따라 달라짐: png · jpeg 만 적거나 multiple 을 붙이면 안드로이드에서 파일 앱 쪽이 열려, 휴대폰은 accept="image/*" 만 (한 장씩 · 5장까지 되풀이).
       //  이 방식으로 두기로 함 (2026-11-26 운영팀 결정). 어떤 사진이든 올릴 때 JPEG / PNG 로 바꿈 (phShrink)
       + (ps.length<PH_MAX ? `<div class="ph-btns"><label class="btn primary ph-btn">${PH_MOB ? '📷 사진 찍기 · 고르기' : '🖼 사진 고르기'}<input type="file" accept="image/*"${PH_MOB ? '' : ' multiple'} data-phadd="${f.k}" hidden></label></div>` : '')
-      + `<span class="hint ph-msg" id="phMsg">${phBusy ? '사진을 올리는 중…' : PH_MOB ? `갤러리에서 고르거나 바로 찍을 수 있습니다 · ${PH_MAX}장까지 한 장씩` : '한 번에 여러 장 고를 수 있습니다 · 복사한 사진은 붙여넣기(Ctrl+V)도 됩니다'}</span>`; }
+      + `<span class="hint ph-msg" id="phMsg">${phBusy ? '사진을 올리는 중…' : ''}</span>`; }
   if(f.type==='textarea') return lab+`<textarea id="${id}" data-k="${f.k}" data-ime="ko" rows="3">${esc(v)}</textarea>`;
   if(f.type==='date') return lab+`<span class="dbox"><input class="dtxt" id="${id}" data-dt="${f.k}" readonly value="${esc(dateDisp(v))}" placeholder="누르면 달력"><input type="date" class="dpick" data-dp="${f.k}" value="${esc(v)}" tabindex="-1" aria-hidden="true"></span>`;
   return lab+`<input id="${id}" data-k="${f.k}" value="${esc(v)}"${f.ph?` placeholder="${esc(f.ph)}"`:''}${f.list?` list="dl_${f.k}"`:''}${f.type==='time'?' data-tp="1" readonly':f.type==='num'?' inputmode="numeric" data-ime="num"':f.type==='tel'?' inputmode="tel" data-ime="num"':' data-ime="ko"'}>`+(f.list?`<datalist id="dl_${f.k}">${f.list.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`:'');
@@ -357,7 +357,7 @@ async function shipOpenFile(file){
   paintShipImport(); $('#shipImpModal').hidden=false;
 }
 function paintShipImport(){ const s=shipImport, n=s.sheets.filter(x=>s.pick.has(x.name)).reduce((a,x)=>a+x.fresh.length,0);
-  $('#shipImpBody').innerHTML = `<p class="hint">올릴 시트를 고르세요. 이미 있는 발송(주문일 · 상품 · 수취인 · 연락처 · 수량이 같음)은 빼고 새 줄만 올립니다.</p><div class="ship-sheets">${s.sheets.slice().reverse().map(x=>`<label class="ship-sheet${x.fresh.length?'':' none'}"><input type="checkbox" data-shsh="${esc(x.name)}"${s.pick.has(x.name)?' checked':''}${x.fresh.length?'':' disabled'}> <b>${esc(x.name)}</b> <small>${x.rows.length}줄 · 새로 ${x.fresh.length}</small></label>`).join('')}</div>`;
+  $('#shipImpBody').innerHTML = `<div class="ship-sheets">${s.sheets.slice().reverse().map(x=>`<label class="ship-sheet${x.fresh.length?'':' none'}"><input type="checkbox" data-shsh="${esc(x.name)}"${s.pick.has(x.name)?' checked':''}${x.fresh.length?'':' disabled'}> <b>${esc(x.name)}</b> <small>${x.rows.length}줄 · 새로 ${x.fresh.length}</small></label>`).join('')}</div>`;
   $('#shipImpGo').textContent = n ? `${n}건 올리기` : '올릴 새 발송이 없습니다'; $('#shipImpGo').disabled=!n; }
 async function shipDoImport(){
   const todo=shipImport.sheets.filter(x=>shipImport.pick.has(x.name)).flatMap(x=>x.fresh); if(!todo.length) return;

@@ -45,7 +45,7 @@ async function accTasksClose(id){ for(const t of accTasks(id).filter(t=>!accTask
 const accFail = e => toast('저장하지 못했습니다: '+((e && (e.code||e.message))||e));
 
 function accTasksHTML(){ if(!accEd()) return ''; const id=editRow.r.id, me=accMe(), mine=accMine(editRow), L=accTasks(id);
-  return `<label>추후과업 <small class="acc-sub">맡은 사람의 「나의 할일」에 뜹니다</small></label>`
+  return `<label>추후과업</label>`
     + (L.length ? `<ul class="acc-tasks lock-ok">${L.map(t=>{ const dn=accTaskDone(t.d), can=mine || t.d.owner===me;
         return `<li class="${dn?'done':''}"><label><input type="checkbox" data-acctk="${esc(t.r.id)}"${dn?' checked':''}${can?'':' disabled'}><span>${esc(accTaskName(t.d))}</span></label><small>${esc(t.d.owner||'')} · ${dn?'완료':'마감 '+esc(opsDateLabel(accTaskDay(t.d)))}</small></li>`; }).join('')}</ul>` : `<p class="acc-none">아직 추후과업이 없습니다.</p>`)
     + `<div class="acc-add"><input id="accTkIn" data-ime="ko" placeholder="할 일 (적고 Enter)" autocomplete="off" value="${esc(accDraft.tk)}"><select id="accTkWho" title="맡을 사람">${[...new Set([accOwner(form, editRow.r), me, ...(window.opsMembers||[])].filter(Boolean))].map(n=>`<option${n===(accDraft.who||accOwner(form, editRow.r))?' selected':''}>${esc(n)}</option>`).join('')}</select><button type="button" class="btn primary" id="accTkAdd">추가</button></div>`; }
@@ -54,9 +54,9 @@ function accTasksHTML(){ if(!accEd()) return ''; const id=editRow.r.id, me=accMe
 const accDraft = {tk:'', who:'', note:''};
 const accNoteWhen = t => { const x=new Date(t); return isNaN(x) ? '' : `${opsDateLabel(opsYmd(x))} ${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`; };
 function accNotesHTML(){ if(!accEd()) return ''; const me=accMe(), L=Array.isArray(form.notes) ? form.notes : [];
-  return `<label>처리 이력 · 메모 <small class="acc-sub">보험사 접수 · 손해사정 연락 · 고객 안내 같은 진행을 남깁니다 · 담당자가 아니어도 남길 수 있습니다</small></label>`
+  return `<label>처리 이력 · 메모</label>`
     + (L.length ? `<ol class="acc-notes lock-ok">${L.map(n=>`<li class="acc-note${n.del?' del':''}"><div class="an-h"><b>${esc(n.by||'')}</b><span>${esc(accNoteWhen(n.t))}</span>${n.del ? '<span>지움</span>' : n.by===me ? `<button type="button" class="an-x" data-accndel="${esc(n.id)}">지우기</button>` : ''}</div><div class="an-t">${esc(n.text||'')}</div></li>`).join('')}</ol>` : `<p class="acc-none">아직 남긴 메모가 없습니다.</p>`)
-    + `<div class="acc-add lock-ok"><textarea id="accNoteIn" data-ime="ko" rows="2" placeholder="예: 손해사정사 현장 조사 일정 확정 (Enter 로 남기기 · 줄바꿈은 Shift+Enter)">${esc(accDraft.note)}</textarea><button type="button" class="btn primary" id="accNoteAdd">메모 남기기</button></div>`; }
+    + `<div class="acc-add lock-ok"><textarea id="accNoteIn" data-ime="ko" rows="2" placeholder="메모 (적고 Enter)">${esc(accDraft.note)}</textarea><button type="button" class="btn primary" id="accNoteAdd">메모 남기기</button></div>`; }
 // 메모는 바로 저장: 서버의 지금 내용을 다시 받아 그 위에 메모만 더함 (창에서 고치던 다른 칸은 「저장」을 눌러야 저장됨)
 let accBusy=false;
 async function accNoteSave(fn, what){ if(!accEd() || accBusy) return false; accBusy=true;
@@ -132,7 +132,7 @@ function accRender(hit){
 
 const ACC_PLACES = ['소대','쉼자리길','가가빈빈','현암','소요헌','남명','별유동천','소백세심대','몽몽마방','몽몽차방','곡신문','주차장','매표소'];
 const OPS_PAGE =
-{ key:'accident', title:'사고현황 접수', add:'사고 접수', hint:'고객 사고 접수 · 현장 조치 · 보험 처리까지 (담당자만 고침 · 다른 사람은 메모)', members:true,
+{ key:'accident', title:'사고현황 접수', add:'사고 접수', hint:'', members:true,
     fields:[
       {type:'head', l:'사고 개요'},
       {k:'date', l:'사고 일자', type:'date', def:()=>opsToday(), req:()=>!accEd()}, {k:'time', l:'사고 시각', type:'time'},
@@ -141,7 +141,7 @@ const OPS_PAGE =
       {k:'place', l:'사고 장소 (사유원 안)', type:'text', ph:'고르거나 직접 적기 · 예: 소요헌 안 계단', list:ACC_PLACES, req:()=>!accEd()}, {k:'group', l:'방문 단체', type:'text', ph:'단체 이름 (개인이면 비움)'},
       {k:'owner', l:'담당자 (이 사람만 고칠 수 있음)', type:'member', def:()=>accMe(), w:2},
 
-      {type:'head', l:'사고 대상자 · 대표 예약자', note:'로그인한 멤버만 봅니다'},
+      {type:'head', l:'사고 대상자 · 대표 예약자'},
       {k:'person', l:'사고 대상자 이름', type:'text'}, {k:'phone', l:'사고 대상자 연락처', ...accTel('사고 대상자 연락처')},
       {k:'personNote', l:'대상자 비고 (성별 · 연령대 등)', type:'text', w:2},
       {k:'booker', l:'대표 예약자 이름', type:'text'}, {k:'bookerPhone', l:'대표 예약자 연락처', ...accTel('대표 예약자 연락처')},
@@ -162,7 +162,7 @@ const OPS_PAGE =
       {k:'cause', l:'사고 사유', type:'textarea', w:2, show:accEd},
       {k:'prevent', l:'재발 방지 대책', type:'textarea', w:2, show:accEd},
 
-      {type:'head', l:'처리 단계 · 보험', note:'보험사 접수 전이면 사고번호는 비워 둡니다', show:accEd},
+      {type:'head', l:'처리 단계 · 보험', show:accEd},
       {k:'status', l:'단계', type:'select', opts:ACC_ST, def:()=>'접수', show:accEd}, {k:'rcptDate', l:'보험 접수일', type:'date', show:accEd},
       {k:'visitDate', l:'손해사정사 현장 방문일', type:'date', show:accEd}, {k:'visitNote', l:'현장 방문 메모', type:'text', ph:'담당 손해사정사 · 방문 시간', show:accEd},
       {k:'procDate', l:'처리 완료일', type:'date', show:accEd}, {k:'insStatus', l:'보험사 진행상태', type:'text', list:['사고조사','보상종결','면책종결'], show:accEd},
@@ -177,7 +177,7 @@ const OPS_PAGE =
       {k:'_tasks', w:2, show:accEd, html:accTasksHTML},
       {k:'_notes', w:2, show:accEd, html:accNotesHTML},
       {k:'memo', l:'내부 메모', type:'textarea', w:2},
-      {k:'_copy', w:2, show:accEd, html:()=>`<div class="acc-copy lock-ok"><button type="button" class="btn primary" id="accCopy">보고 글 복사</button><span class="hint">적어 둔 내용으로 「사고 경위 보고」 글을 만들어 복사합니다 (보험사 전달용)</span></div>`} ],
+      {k:'_copy', w:2, show:accEd, html:()=>`<div class="acc-copy lock-ok"><button type="button" class="btn primary" id="accCopy">보고 글 복사</button></div>`} ],
     cols:[['date','사고 일시'],['place','장소'],['type','구분'],['status','단계']],
     status:'status', open:ACC_OPEN, summary:d=>`${d.type||''} ${d.place||''} · ${accStatus(d)}`.trim(),
     render:accRender,
