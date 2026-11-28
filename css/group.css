@@ -1591,6 +1591,9 @@ html.alert-only #tbdList li .who{min-width:0;overflow-wrap:anywhere}
 .ba-req{color:var(--red);font-style:normal;font-weight:700;margin-left:2px}
 .book-add-pop .ba-h{padding-right:34px}
 .book-add-pop .ba-btns .ba-del{margin-right:auto}
+/* 직접 추가 창의 날짜 칸을 다른 칸과 같은 크기로 (2026-11-28 · 예전에는 118×26 · 글자 12px 로 혼자 작았음 → 150×32 · 13px · 휴대폰 폭은 아래 #bookAddModal 규칙이 그대로 이김) */
+.book-add-pop .ba-row .dbox{display:flex;width:150px}
+.book-add-pop .ba-row .dbox input.dtxt{width:100%;height:32px;box-sizing:border-box;border-radius:6px;padding:0 8px;font-size:13px}
 /* 추가한 사람 이름 · 연락처 (2026-11-28): 예약 칸 아래 한 줄 */
 .book-add-pop .ba-by{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
 .book-add-pop .ba-by .hint{margin:0;align-self:center}
