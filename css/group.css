@@ -1612,3 +1612,9 @@ html.book-guest .mbdb-t tr[data-bkrow]:hover td,html.book-guest .mbdb-t tr[data-
   #bookAddModal .ba-btns{flex-wrap:wrap}
   #bookAddModal .ba-btns .ba-del{flex:1 1 100%;margin:0}
 }
+/* 휴대폰: 예약 현황 공유의 위쪽(제목 · 지난 예약도 보기 · 목록 다섯 개 · ＋ 직접 추가)도 아래 상자들과 같은 폭으로 화면에 꽉 차게 (2026-11-28 · 운영팀이 정한 화면 규칙 — CLAUDE.md 0절 헌법 다섯 · 8절)
+   좁았던 까닭: 닫기 × 자리로 비워 둔 제목 줄 오른쪽 36px(css/menu.css — 이 화면은 × 를 숨김) · 목록 다섯 개 묶음의 바깥 여백 */
+@media (max-width:760px){
+  html.book-only #bookModal > section > h2{padding-right:0}
+  html.book-only #bookTabs{margin:0;width:100%;box-sizing:border-box}
+}
