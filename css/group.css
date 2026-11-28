@@ -1591,6 +1591,9 @@ html.alert-only #tbdList li .who{min-width:0;overflow-wrap:anywhere}
 .ba-req{color:var(--red);font-style:normal;font-weight:700;margin-left:2px}
 .book-add-pop .ba-h{padding-right:34px}
 .book-add-pop .ba-btns .ba-del{margin-right:auto}
+/* 추가한 사람 이름 · 연락처 (2026-11-28): 예약 칸 아래 한 줄 */
+.book-add-pop .ba-by{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.book-add-pop .ba-by .hint{margin:0;align-self:center}
 /* 직접 추가한 줄은 누르면 고치는 창 (2026-11-28 · 「수정」 단추 대신) — 로그인 없이 보는 사람은 누를 수 없음 */
 .mbdb-t tr[data-bkrow],.mbdb-t tr[data-mbrow]{cursor:pointer}
 .mbdb-t tr[data-bkrow]:hover td,.mbdb-t tr[data-mbrow]:hover td{background:#faf8f2}
