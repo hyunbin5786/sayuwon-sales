@@ -20,7 +20,6 @@ function accStageDate(d){ const s=accStatus(d), t=opsToday();
   if(s==='손해사정사 현장 방문' && !d.visitDate) d.visitDate=t;
   if(s==='손해사정중' && !d.adjDate) d.adjDate=t;
   if(s==='처리 완료' && !d.procDate) d.procDate=t; }
-const accDays = d => { const s=d.rcptDate||d.date; if(!s) return null; const t=new Date(s+'T00:00'); return isNaN(t) ? null : Math.max(0, Math.floor((new Date(opsToday()+'T00:00')-t)/864e5)); };
 const accWhen = d => `${opsDateLabel(d.date)}${d.time?' '+d.time:''}`;
 // 예전 현황판에서 옮길 때 사고 내용이 없던 기록에 넣어 둔 글(「(예전 사고 현황판에서 옮긴 기록 · …)」)은 빈 것으로 본다 (2026-11-28 운영팀 · 열면 칸이 비어 보이고 저장하면 자료에서도 빠짐)
 const accWhat = d => { const s=String((d && d.what)||''); return /^\s*[(（]?\s*예전 사고 현황판에서 옮긴 기록[^)）\n]*[)）]?\s*$/.test(s) ? '' : s; };
@@ -55,7 +54,6 @@ const accStageDates = d => [d.date, d.rcptDate, d.visitDate, d.adjDate, d.procDa
 function accStepsHTML(d, can){ const cur=ACC_ST.indexOf(accStatus(d)), dt=accStageDates(d);
   return `<ol class="acc-steps">${ACC_ST.map((s,i)=>{ const skip=i>0 && i<cur && !dt[i];   // 날짜 없이 지나간 단계 (보험 없이 끝낸 사고)
     return `<li class="${i<cur ? (skip?'skip':'done') : i===cur ? 'cur' : ''}"><button type="button" data-accstep="${i}"${can?'':' disabled'} title="${esc(s)}"><i>${(i<cur && !skip) || (i===cur && cur===4) ? '✓' : i+1}</i><b>${ACC_SHORT[i]}</b><small>${i<=cur && dt[i] ? esc(opsDateLabel(dt[i])) : ''}</small></button></li>`; }).join('')}</ol>` + (can && cur>0 ? `<div class="acc-step-back"><button type="button" class="btn sm" data-accstep="${cur-1}">이전 단계로</button></div>` : ''); }
-const accMini = d => { const cur=ACC_ST.indexOf(accStatus(d)); return `<span class="acc-mini" aria-hidden="true">${ACC_ST.map((_,i)=>`<i class="${i<=cur?'on':''}"></i>`).join('')}</span>`; };
 function accTasksHTML(mine){ if(!accEd()) return `<p class="acc-none">저장한 뒤에 넣을 수 있습니다</p>`; const id=editRow.r.id, me=accMe(), L=accTasks(id), own=accOwner(form, editRow.r);
   return (L.length ? `<ul class="acc-tasks">${L.map(t=>{ const dn=accTaskDone(t.d), can=mine || t.d.owner===me;
         return `<li class="${dn?'done':''}"><label><input type="checkbox" data-acctk="${esc(t.r.id)}"${dn?' checked':''}${can?'':' disabled'}><span>${esc(accTaskName(t.d))}</span></label><small>${esc(t.d.owner||'')} · ${dn?'완료':'마감 '+esc(opsDateLabel(accTaskDay(t.d)))}</small></li>`; }).join('')}</ul>` : `<p class="acc-none">없음</p>`)
@@ -168,13 +166,12 @@ function accRender(hit){
   const list=base.filter(x=>hit(x.d) && shown(x))
     .sort((a,b)=>String(b.d.date||'').localeCompare(String(a.d.date||'')) || String(b.d.time||'').localeCompare(String(a.d.time||'')) || String(b.r.saved).localeCompare(String(a.r.saved)));
   if(!list.length){ $('#list').innerHTML=`<p class="empty">${rows.length ? '조건에 맞는 사고가 없습니다.' : '아직 접수된 사고가 없습니다.'}</p>`; return; }
-  const days=x=>{ if(accStatus(x.d)==='처리 완료') return ''; const n=accDays(x.d); return n==null ? '' : `<small class="acc-age${n>60?' warn':''}">지난 ${n}일</small>`; };
   const what=d=>accWhat(d).split('\n')[0].slice(0,40);
   if(ACC_MQ.matches){ $('#list').innerHTML=`<div class="acc-cards">${list.map(x=>{ const d=x.d, s=accStatus(d);
-      return `<div class="acc-card${s==='처리 완료'?' closed':''}" data-edit="${esc(x.r.id)}" role="button" tabindex="0"><div class="ac-t">${accTag(s)}<b>${esc(accWhen(d))}</b>${days(x)}</div>${accMini(d)}<div class="ac-p">${esc([d.place, d.type].filter(Boolean).join(' · '))}</div>${what(d)?`<div class="ac-w">${esc(what(d))}</div>`:''}<div class="ac-o">담당 ${esc(accOwner(d, x.r))}${accMine(x)?'':' · 보기 · 메모만'}</div></div>`; }).join('')}</div>`; return; }
+      return `<div class="acc-card${s==='처리 완료'?' closed':''}" data-edit="${esc(x.r.id)}" role="button" tabindex="0"><div class="ac-t">${accTag(s)}<b>${esc(accWhen(d))}</b></div><div class="ac-p">${esc([d.place, d.type].filter(Boolean).join(' · '))}</div>${what(d)?`<div class="ac-w">${esc(what(d))}</div>`:''}<div class="ac-o">담당 ${esc(accOwner(d, x.r))}${accMine(x)?'':' · 보기 · 메모만'}</div></div>`; }).join('')}</div>`; return; }
   $('#list').innerHTML=`<div class="acc-tw"><table class="tbl acc-tbl"><thead><tr><th>사고 일시</th><th>장소</th><th>구분</th><th>사고 대상자</th><th>사고 내용</th><th>담당자</th><th>단계</th><th></th></tr></thead><tbody>${list.map(x=>{ const d=x.d, s=accStatus(d), mine=accMine(x);
     return `<tr class="${s==='처리 완료'?'closed':''}"><td class="nw">${esc(accWhen(d))}</td><td>${esc(d.place||'')}</td><td class="nw">${esc(d.type||'')}</td><td>${esc(d.person||'')}</td><td>${esc(what(d))}</td><td class="nw">${esc(accOwner(d, x.r))}</td>`
-      + `<td class="nw">${accTag(s)}${accMini(d)}${days(x)}</td>`
+      + `<td class="nw">${accTag(s)}</td>`
       + `<td class="r"><button type="button" class="btn sm" data-edit="${esc(x.r.id)}">${mine?'열기':'보기'}</button></td></tr>`; }).join('')}</tbody></table></div>`;
 }
 
